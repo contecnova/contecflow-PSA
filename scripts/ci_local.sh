@@ -204,6 +204,13 @@ if [[ "$MODE" != "--fast" ]]; then
 
   run_gate informativo "ruff scripts/ — hallazgo 17" \
     "$PY_BIN" -m ruff check scripts
+
+  # Informativo aquí porque el gate que BLOQUEA es un test
+  # (`tests/test_complejidad_no_empeora.py`, dentro de la suite de arriba). Esto
+  # es el informe legible: el reparto de las funciones que quedan por encima de
+  # 10, para poder elegir la siguiente sin tener que ir a buscarla.
+  run_gate informativo "complejidad de app/ — hallazgo 18" \
+    "$PY_BIN" scripts/audit_complejidad.py
   # lint:a11y ya vale algo: hasta la auditoría 2026-08 informaba "0 findings"
   # porque no podía parsear 304 de 343 ficheros. Con el parser instalado sus
   # números son reales (1.480 avisos de etiquetas), y son deuda de marcado que

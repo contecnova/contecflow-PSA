@@ -511,6 +511,21 @@ def create_integration(
     return APIResponse.ok(data=_svc.create_integration(payload, current_user.id, db))
 
 
+@router.delete("/oauth-integrations/{integration_id}", summary="Desactivar integración")
+def delete_integration(
+    integration_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Auditoria 2026-08 (hallazgo 37): esta ruta **no existia**.
+
+    Habia `GET` y `POST`, asi que se podia configurar una integracion OAuth y
+    **no quitarla**. Desactiva y borra los tokens; el porque esta en el
+    docstring de `desactivar_integracion`.
+    """
+    return APIResponse.ok(data=_svc.desactivar_integracion(db, integration_id))
+
+
 @router.post("/oauth-integrations/{integration_id}/sync", summary="Sincronizar integración")
 def sync_integration(
     integration_id: str,

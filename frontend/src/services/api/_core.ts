@@ -460,8 +460,13 @@ export const alertsApi = {
 }
 
 export const integrationsApi = {
-  exportImputations: (data: unknown) => api.post('/integrations/export/imputations', data, { responseType: 'blob' }),
-  exportProjects:    (data: unknown) => api.post('/integrations/export/projects', data, { responseType: 'blob' }),
+  // Auditoria 2026-08 (hallazgo 37): estas dos apuntaban a
+  // `POST /integrations/export/...`, rutas que no existen en ningun router, asi
+  // que los dos botones de la pantalla de exportaciones devolvian 404. El
+  // export de imputaciones si existia con otro verbo y otra ruta; el de
+  // proyectos hubo que anadirlo (`/analytics/exports/projects-csv`).
+  exportImputations: (params: unknown) => api.get('/analytics/exports/imputations-csv', { params, responseType: 'blob' }),
+  exportProjects:    (params: unknown) => api.get('/analytics/exports/projects-csv', { params, responseType: 'blob' }),
   jiraSync:          (projectId: any) => api.post(`/integrations/jira/sync/${projectId}`),
 }
 

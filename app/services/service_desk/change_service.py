@@ -16,6 +16,52 @@ from app.services.service_desk.scoping import (
 )
 
 
+def cancelar_cambio(db, current_user, change_id: str) -> dict:
+    """Cancela una solicitud de cambio. Es el boton de borrar de la interfaz.
+
+    Auditoria 2026-08 (hallazgo 37). `DELETE /sd/changes/{id}` **no existia**,
+    asi que el boton de borrar de un cambio **no hacia nada** — el otro borrado
+    silencioso de la auditoria.
+
+    **No borra la fila.** Una solicitud de cambio es un registro de gobernanza:
+    tiene aprobaciones, ventana de mantenimiento, plan de rollback y su
+    historial. `ChangeStatus` **si** tiene `cancelled`, que es exactamente el
+    estado que corresponde.
+
+    Un cambio ya implementado **no se cancela**: eso seria reescribir lo que
+    paso. Se responde 409, no 400: el conflicto es con el estado actual del
+    recurso.
+    """
+    from fastapi import HTTPException
+
+    from app.models.service_desk import ChangeStatus
+
+    cambio = get_change_by_id(db, current_user, change_id)
+    if not cambio:
+        raise HTTPException(404)
+
+    TERMINALES = {
+        ChangeStatus.implemented,
+        ChangeStatus.closed_success,
+        ChangeStatus.closed_failed,
+    }
+    if cambio.status in TERMINALES:
+        raise HTTPException(
+            409,
+            f"No se puede cancelar un cambio en estado "
+            f"{cambio.status.value}: ya se ha ejecutado")
+
+    ya_estaba = cambio.status == ChangeStatus.cancelled
+    if not ya_estaba:
+        cambio.status = ChangeStatus.cancelled
+    return {
+        "ok": True,
+        "id": cambio.id,
+        "status": ChangeStatus.cancelled.value,
+        "already_cancelled": ya_estaba,
+    }
+
+
 def scope_change_query(q, db: Session, current_user: User):
     if current_user.is_superadmin:
         return q

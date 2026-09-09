@@ -233,6 +233,20 @@ class TenantSession(Session):
     def query(self, *entities, **kwargs):
         q = super().query(*entities, **kwargs)
 
+        # Auditoria 2026-08. `bypass_tenant_filter` estaba documentado en la
+        # cabecera de `do_orm_execute` como «escape hatch por sesion», y **de las
+        # tres capas de aislamiento solo lo respetaba esa**. Es decir: un script
+        # de migracion o un trabajo de analitica entre tenants que lo pusiera
+        # seguia filtrado por `query()` y por `execute()`, que son justo las dos
+        # que usa el codigo normal. Una bandera documentada que no hace lo que
+        # dice es peor que no tenerla, porque quien la usa cree que ya esta.
+        #
+        # Salio arreglando un 500 real: mover un usuario a otra organizacion y
+        # releerlo despues. Ver `sin_filtro_de_tenant`, que es la unica forma
+        # recomendada de encenderla.
+        if self.info.get("bypass_tenant_filter") is True:
+            return q
+
         # is_superadmin is explicitly set by deps.get_current_user:
         #   True  → superadmin, bypass all tenant filters
         #   False → regular user, enforce tenant isolation
@@ -286,7 +300,7 @@ class TenantSession(Session):
         unchanged — they carry explicit WHERE clauses by design.
         """
         from sqlalchemy.sql import Select
-        if isinstance(statement, Select):
+        if isinstance(statement, Select) and self.info.get("bypass_tenant_filter") is not True:
             is_superadmin = self.info.get("is_superadmin", None)
             if is_superadmin is False:
                 org_id = self.info.get("organization_id")
@@ -351,10 +365,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, clas
 # Bypass options:
 #   • `session.info["is_superadmin"] = True` — already used for superadmin paths.
 #   • `session.info["bypass_tenant_filter"] = True` — explicit per-session escape
-#     hatch for migration scripts / cross-tenant analytics jobs.
+#     hatch for migration scripts / cross-tenant analytics jobs. Auditoria
+#     2026-08: lo respetan **las tres** capas desde entonces; antes solo esta, y
+#     `query()`/`execute()` —las que usa el codigo normal— lo ignoraban. Usalo
+#     via `sin_filtro_de_tenant(session)`, que lo devuelve al salir.
 #   • Set env `TENANT_AUTO_FILTER_GLOBAL=0` to disable the event entirely.
 
 import os as _os
+from contextlib import contextmanager as _contextmanager
 from sqlalchemy import event as _sa_event
 from sqlalchemy import false as _sql_false_expr
 from sqlalchemy.orm import with_loader_criteria as _with_loader_criteria
@@ -561,6 +579,45 @@ def get_db_type() -> str:
 # para poder aislar un problema sin tocar codigo.
 
 _TENANT_AUTO_STAMP = _os.getenv("TENANT_AUTO_STAMP_ON_INSERT", "1") == "1"
+
+
+@_contextmanager
+def sin_filtro_de_tenant(session):
+    """Dentro de este bloque, la sesion lee sin el filtro de organizacion.
+
+    Auditoria 2026-08. La cabecera de `do_orm_execute` ya declaraba
+    `bypass_tenant_filter` como «escape hatch para scripts de migracion y
+    trabajos de analitica entre tenants». Falta un caso que no es ninguno de
+    esos dos y que **da un 500 en produccion**:
+
+        PATCH /users/{id}  con `organization_id` de otra organizacion
+        -> `db.commit()` mueve al usuario
+        -> `db.refresh(user)` no lo encuentra: la sesion sigue en la
+           organizacion de quien llamo, y la fila ya no esta ahi
+        -> InvalidRequestError: Could not refresh instance '<User>'
+
+    El cambio **queda hecho** —el `commit` ya paso— y quien lo pidio recibe un
+    error del servidor. Es el peor final posible: la operacion tuvo efecto y la
+    respuesta dice que no.
+
+    No se arregla aflojando el filtro ni quitando el `refresh`: se arregla
+    diciendo que **esta lectura concreta es legitimamente de otra
+    organizacion**, que es justo lo que este bloque declara. Alcance minimo, y
+    se devuelve el valor anterior al salir por si alguien ya lo habia puesto.
+
+    No usarlo para «que no me moleste el filtro». Si una consulta necesita esto
+    y no es releer una fila que uno mismo acaba de mover, casi seguro que lo que
+    falta es acotar mejor, no saltarse el acotado.
+    """
+    previo = session.info.get("bypass_tenant_filter")
+    session.info["bypass_tenant_filter"] = True
+    try:
+        yield session
+    finally:
+        if previo is None:
+            session.info.pop("bypass_tenant_filter", None)
+        else:
+            session.info["bypass_tenant_filter"] = previo
 
 
 def publicar_contexto_de_tenant(session, sujeto, *, es_cliente=False) -> None:

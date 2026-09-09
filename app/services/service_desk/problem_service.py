@@ -17,6 +17,39 @@ from app.services.sla_service import next_problem_number as _next_problem_number
 logger = logging.getLogger(__name__)
 
 
+def cerrar_problema(db, current_user, problem_id: str) -> dict:
+    """Cierra un problema. Es lo que hace el boton de borrar de la interfaz.
+
+    Auditoria 2026-08 (hallazgo 37). `DELETE /sd/problems/{id}` **no existia**,
+    asi que el boton de borrar de `ITSMKnowledgeTab` **no hacia nada** — uno de
+    los dos borrados silenciosos que la auditoria dejo anotados.
+
+    **No borra la fila**, y eso es la decision de fondo: un problema es el
+    registro de una investigacion, con su analisis de causa raiz, sus incidentes
+    vinculados y su posible entrada en la base de errores conocidos. Borrarlo
+    dejaria huerfano todo eso. `ProblemStatus` no tiene `cancelled`, asi que el
+    estado terminal es `closed`, que es el que ya usa el resto del modulo.
+
+    Idempotente: cerrar uno ya cerrado no es un error.
+    """
+    from app.models.service_desk import ProblemStatus
+
+    problema = get_scoped_problem_or_404(db, current_user, problem_id)
+    ya_estaba = problema.status == ProblemStatus.closed
+    if not ya_estaba:
+        problema.status = ProblemStatus.closed
+        from datetime import datetime, timezone
+
+        problema.resolved_at = (
+            problema.resolved_at or datetime.now(timezone.utc))
+    return {
+        "ok": True,
+        "id": problema.id,
+        "status": ProblemStatus.closed.value,
+        "already_closed": ya_estaba,
+    }
+
+
 def list_problems_payload(db: Session, current_user: User, page: int, page_size: int) -> list[dict]:
     q = db.query(Problem).options(
         joinedload(Problem.ci),

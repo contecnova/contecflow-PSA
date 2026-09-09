@@ -59,10 +59,15 @@ def project(db, organization):
 
 
 @pytest.fixture()
-def sample_client(db):
+def sample_client(db, organization):
     from app.models.clients import Client
 
+    # Auditoria 2026-08: con `organization_id` explicito y dependiendo de
+    # `organization`, igual que el fixture `project` de arriba. Sin eso la fila
+    # recibe la organizacion de la sesion del fixture —que no es la que
+    # `seed_multitenant` le asigna al admin— y el endpoint responde 404.
     c = Client(
+        organization_id=organization.id,
         name="Sample Client V239",
         short_name="SCV239",
         contact_email="contact@sampleclient.test",
@@ -472,6 +477,7 @@ class TestAICopilotContextual:
         from app.models.task import Task, TaskStatus, TaskPriority
         overdue_task = Task(
             code="TASK-OVERDUE-1",
+            organization_id=project.organization_id,
             project_id=project.id,
             title="Overdue Analysis Task",
             status=TaskStatus.in_progress,
@@ -503,6 +509,7 @@ class TestAICopilotContextual:
         """A day with >12 hours logged should trigger 'high_hours' anomaly."""
         from app.models.imputation import Imputation
         db.add(Imputation(
+            organization_id=project.organization_id,
             user_id=test_user.id, project_id=project.id,
             date=date.today() - timedelta(days=2), hours=13.5,
         ))

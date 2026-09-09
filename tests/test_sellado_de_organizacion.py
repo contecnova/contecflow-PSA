@@ -23,17 +23,19 @@ que la organización del sujeto de la petición no llega a la fila, y el sitio
 donde eso se arregla de una vez es el `flush`: `_sellar_organizacion` en
 `app/db/session.py`.
 
-## Por qué estos tests enganchan el escuchador a mano
+## La decisión que aquí quedaba anotada, y que ya está tomada
 
-Está registrado sobre `SessionLocal`, y `tests/conftest.py` usa otra factoría
-(`TestSession`). **La suite no lo ejercita**, igual que no ejercita el filtro de
-tenant. Sin engancharlo aquí, este comportamiento no lo probaría nada — que es
-justo la razón por la que el defecto vivió sin verse.
+Aquí decía que el escuchador estaba registrado sobre `SessionLocal` y que
+`tests/conftest.py` usaba otra factoría, así que **la suite no lo ejercitaba**;
+que registrarlo en la factoría de los tests era «lo correcto a medio plazo» y
+quedaba anotado en el traspaso.
 
-Registrarlo en la factoría de los tests haría que la suite entera trabajara con
-la semántica de producción. Es lo correcto a medio plazo y cambia lo que ven
-tests que hoy crean filas sin organización, así que es una decisión aparte y
-queda anotada en el traspaso.
+Ya está hecho. `TestSession` usa `class_=TenantSession` y tiene registrados el
+sellado y el filtro, los mismos de producción, y la sesión del fixture `db`
+publica contexto de organización — sin él, toda fila creada por un test con
+`db.add(...)` nacía con `organization_id` NULL y la petición HTTP siguiente no
+la encontraba. Lo que este fichero comprueba no cambia; lo que cambia es que ya
+no es el único sitio de la suite donde el sellado corre.
 """
 from __future__ import annotations
 
@@ -42,7 +44,6 @@ import io
 from pathlib import Path
 
 import pytest
-from sqlalchemy import event as sa_event
 
 ORG = "org-sellado"
 OTRA = "org-sellado-ajena"
@@ -50,23 +51,21 @@ OTRA = "org-sellado-ajena"
 
 @pytest.fixture()
 def sesion_de_produccion(db):
-    """La sesión de pruebas con el sellado y el filtro de producción activos."""
-    from app.db.session import _enforce_tenant_isolation, _sellar_organizacion
+    """La sesión del fixture vista como un usuario normal de `ORG`.
 
-    def sellar(sesion, contexto, instancias):
-        _sellar_organizacion(sesion)
-
-    sa_event.listen(db, "before_flush", sellar)
-    sa_event.listen(db, "do_orm_execute", _enforce_tenant_isolation)
+    Ya no engancha nada: `TestSession` trae el sellado y el filtro registrados.
+    Lo único que hace es cambiar el contexto —de superadmin de la organización
+    de los tests a usuario normal de `ORG`— y devolverlo al salir, porque hay
+    tests en este fichero que usan las dos sesiones a la vez.
+    """
+    previo = dict(db.info)
     db.info["is_superadmin"] = False
     db.info["organization_id"] = ORG
     try:
         yield db
     finally:
-        sa_event.remove(db, "before_flush", sellar)
-        sa_event.remove(db, "do_orm_execute", _enforce_tenant_isolation)
-        db.info.pop("is_superadmin", None)
-        db.info.pop("organization_id", None)
+        db.info.clear()
+        db.info.update(previo)
 
 
 def _notificacion(**extra):
@@ -149,21 +148,26 @@ def test_un_modelo_exento_no_se_sella(db, sesion_de_produccion):
 
 def test_sin_organizacion_en_la_sesion_no_se_sella(db):
     """Un job de fondo o un script no tiene contexto, y su comportamiento no
-    cambia: sigue creando filas sin organización, como hasta ahora."""
-    from app.db.session import _sellar_organizacion
+    cambia: sigue creando filas sin organización, como hasta ahora.
 
-    def sellar(sesion, contexto, instancias):
-        _sellar_organizacion(sesion)
+    Usa una sesión propia y no la del fixture **a propósito**: la del fixture
+    publica contexto desde que la suite corre con la semántica de producción, y
+    lo que aquí se comprueba es justo el caso contrario. `TestSession` ya trae
+    el sellado registrado, así que basta con no publicar nada — que es
+    exactamente lo que hace un `SessionLocal()` a pelo dentro de un job.
+    """
+    from tests.conftest import TestSession
 
-    sa_event.listen(db, "before_flush", sellar)
+    sesion = TestSession()
     try:
+        assert "organization_id" not in sesion.info
         n = _notificacion(user_id="u-de-fondo")
-        db.add(n)
-        db.flush()
+        sesion.add(n)
+        sesion.flush()
         assert n.organization_id is None
-        db.rollback()
+        sesion.rollback()
     finally:
-        sa_event.remove(db, "before_flush", sellar)
+        sesion.close()
 
 
 # ── La medición que justifica el cambio ─────────────────────────────────────

@@ -64,8 +64,15 @@ export default function ExportsPage(): JSX.Element {
   const exportImputations = async () => {
     setLoad('imput', true)
     try {
-      const { data } = await integrationsApi.exportImputations(imputForm)
-      downloadBlob(data, `imputaciones_${imputForm.date_from}_${imputForm.date_to}.${imputForm.format}`)
+      // Auditoria 2026-08: el backend sirve CSV, no XLSX. El selector de
+      // formato de esta pantalla no tiene contrapartida en el servidor, asi que
+      // la extension sale del formato real y no del boton pulsado — un fichero
+      // llamado `.xlsx` con CSV dentro es peor que uno llamado `.csv`.
+      const { data } = await integrationsApi.exportImputations({
+        date_from: imputForm.date_from,
+        date_to: imputForm.date_to,
+      })
+      downloadBlob(data, `imputaciones_${imputForm.date_from}_${imputForm.date_to}.csv`)
       showMsg('✅ Archivo descargado correctamente')
     } catch { showMsg('❌ Error al exportar') }
     finally { setLoad('imput', false) }
@@ -74,8 +81,10 @@ export default function ExportsPage(): JSX.Element {
   const exportProjects = async () => {
     setLoad('proj', true)
     try {
-      const { data } = await integrationsApi.exportProjects(projForm)
-      downloadBlob(data, `proyectos_${today}.xlsx`)
+      const { data } = await integrationsApi.exportProjects({
+        include_costs: projForm.include_costs,
+      })
+      downloadBlob(data, `proyectos_${today}.csv`)
       showMsg('✅ Archivo descargado correctamente')
     } catch { showMsg('❌ Error al exportar') }
     finally { setLoad('proj', false) }

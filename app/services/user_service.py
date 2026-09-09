@@ -24,6 +24,8 @@ from typing import Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.db.session import sin_filtro_de_tenant
+
 from app.core.config import settings
 from app.core.security import get_password_hash, validate_password_policy
 from app.models.imputation import Imputation
@@ -258,7 +260,18 @@ def create_user_record(payload, current_user, db: Session):
     if requested_org_ids:
         _sync_user_memberships(user, requested_org_ids, db)
     db.commit()
-    db.refresh(user)
+    # Mismo caso que en `update_user_record`: si el alta crea al usuario en otra
+    # organizacion —un superadmin dando de alta al primer administrador de un
+    # cliente nuevo—, la sesion de quien llama no puede releer la fila. El
+    # porque, largo, esta en `sin_filtro_de_tenant`.
+    with sin_filtro_de_tenant(db):
+        db.refresh(user)
+        # Y las pertenencias **dentro** del bloque, no fuera: son una relacion
+        # perezosa, asi que si se cargan al serializar la respuesta lo hacen ya
+        # con el filtro puesto y el alta responde con las organizaciones del que
+        # llama en vez de las del usuario recien creado. Tocarlas aqui las deja
+        # cargadas.
+        _ = list(user.organization_memberships or [])
     return user
 
 
@@ -454,11 +467,29 @@ def update_user_record(user_id: str, payload, current_user, db: Session):
     _validar_correo_unico(payload, user, db)
     _aplicar_campos(payload, user)
 
-    if payload_org_ids is not None or payload_org_id is not None:
+    cambia_de_organizacion = payload_org_ids is not None or payload_org_id is not None
+    if cambia_de_organizacion:
         _sincronizar_organizaciones(user, payload_org_id, payload_org_ids, db)
 
     db.commit()
-    db.refresh(user)
+    # Auditoria 2026-08. Si el `PATCH` ha movido al usuario a otra organizacion,
+    # este `refresh` **no lo encuentra**: la sesion sigue acotada a la
+    # organizacion de quien llamo y la fila ya no esta ahi. SQLAlchemy responde
+    # `InvalidRequestError: Could not refresh instance`, que sale como 500 —
+    # **con el cambio ya cometido**. Salio al registrar el filtro de tenant en
+    # la suite; antes ningun test corria con el filtro puesto.
+    #
+    # Releer una fila que uno mismo acaba de mover es el caso legitimo de
+    # `sin_filtro_de_tenant`, y se declara solo cuando hace falta: si el `PATCH`
+    # no toca organizaciones, el `refresh` va acotado como siempre.
+    if cambia_de_organizacion:
+        with sin_filtro_de_tenant(db):
+            db.refresh(user)
+            # Ver la nota de `create_user_record`: la relacion es perezosa y hay
+            # que cargarla aqui dentro o vuelve filtrada.
+            _ = list(user.organization_memberships or [])
+    else:
+        db.refresh(user)
     return user
 
 

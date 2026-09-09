@@ -23,11 +23,24 @@ sobre los routers v1 y v2, el mapa `ABAC_COVERED_PREFIXES` vuelve a ser
 configuración de verdad: añadir un prefijo al mapa basta para que se aplique.
 
 Las llamadas explícitas a `enforce_abac()` que ya existen en 233 endpoints se
-mantienen y no molestan: pasan el `resource_id` concreto, que esta dependencia no
-puede conocer, así que aportan grano más fino. La doble evaluación es inocua
-—misma comprobación, idempotente— y el early-out de `enforce_abac` (una consulta
-barata cuando la organización no tiene políticas activas, el caso por defecto)
-evita que cueste algo en la práctica.
+mantienen y no molestan. La doble evaluación es inocua —misma comprobación,
+idempotente— y el early-out de `enforce_abac` (una consulta barata cuando la
+organización no tiene políticas activas, el caso por defecto) evita que cueste
+algo en la práctica.
+
+Aquí decía además que esas llamadas «aportan grano más fino» porque pasan el
+`resource_id` concreto que esta dependencia no puede conocer. **Eso era falso, y
+merece quedar escrito.** `ABACService.evaluate_access` recibe el `resource_id`,
+lo guarda en el detalle de auditoría y **no lo usa para decidir**;
+`is_policy_applicable` ni siquiera lo acepta. La decisión sale del rol, del
+`resource_type` y de los atributos del usuario, así que la evaluación de una
+ruta con id y la de esta dependencia sin él dan **el mismo veredicto**.
+
+Es decir: hoy no hay ABAC por recurso concreto, aunque toda la API pasee el id
+hasta el motor. No es un defecto de esta dependencia y no se arregla aquí
+—exige resolver atributos del recurso, que es diseño de producto—, pero sí es la
+razón por la que esta dependencia cubre de verdad lo que cubre: si el grano fino
+existiera, no podría.
 
 ── Semántica ─────────────────────────────────────────────────────────────────
 Sigue siendo FAIL-OPEN, igual que `enforce_abac`: sin políticas ABAC activas no

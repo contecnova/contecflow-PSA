@@ -79,6 +79,32 @@ def create_risk(
     return APIResponse.ok(data=_risk_out(risk))
 
 
+@router.get("/{project_id}/{risk_id}", summary="Detalle de un riesgo")
+def get_risk(
+    project_id: str,
+    risk_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Auditoria 2026-08 (hallazgo 37): esta ruta **no existia**.
+
+    `risksApi` tiene listar, crear, actualizar y borrar; la lectura de uno era
+    la unica sin ruta. `risk_service.get_risk(db, risk_id, project_id)` ya
+    existia — la usan el `PATCH` y el `DELETE` de abajo — asi que aqui no se
+    escribe consulta nueva.
+
+    **Sin comprobacion de rol, a proposito.** Editar y borrar exigen admin o PM;
+    leer, no: quien puede ver el registro de riesgos del proyecto
+    (`GET /{project_id}`, que tampoco la tiene) puede ver uno de ellos. Anadir
+    un rol aqui seria mas estricto que el listado y dejaria la lectura de uno
+    por detras de la lectura de todos.
+    """
+    risk = risk_service.get_risk(db, risk_id, project_id)
+    if not risk:
+        raise HTTPException(404, "Riesgo no encontrado")
+    return APIResponse.ok(data=_risk_out(risk))
+
+
 @router.patch("/{project_id}/{risk_id}", summary="Actualizar riesgo")
 def update_risk(
     project_id: str,

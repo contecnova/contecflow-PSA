@@ -483,75 +483,119 @@ def delete_recurring_task_record(db: Session, rt_id: str) -> dict:
     return {"ok": True}
 
 
-def materialize_recurring_tasks_cmd(db: Session, dry_run: bool, current_user: User) -> dict:
+# ── Tareas recurrentes ───────────────────────────────────────────────────────
+#
+# Auditoría 2026-08 (hallazgo 18). `materialize_recurring_tasks_cmd` estaba en
+# complejidad 16 y hacía cuatro cosas a la vez: numerar códigos, decidir qué
+# días toca disparar, aplicar la máscara de días de la semana y crear filas.
+# Separadas, la de decidir qué días toca es una **tabla de frecuencias** y las
+# otras tres son de una línea cada una.
+
+# Qué días dispara cada frecuencia, contando siempre desde `start_date`. Ojo a
+# `monthly`: compara el número de día del mes, así que una recurrencia que
+# empieza un día 31 **no dispara en febrero**. Es el comportamiento que había y
+# no se cambia aquí —hacerlo es una decisión de producto (¿último día del mes?
+# ¿el 28?)—, pero merece quedar escrito en vez de esconderse en un `elif`.
+_DISPARA_EN = {
+    RecurringFreqType.daily:   lambda rt, dia: True,
+    RecurringFreqType.weekly:  lambda rt, dia: (dia - rt.start_date).days % 7 == 0,
+    RecurringFreqType.monthly: lambda rt, dia: dia.day == rt.start_date.day,
+    RecurringFreqType.custom:  lambda rt, dia: (
+        (dia - rt.start_date).days % max(rt.interval_days, 1) == 0),
+}
+
+
+def _pasa_la_mascara_de_dias(rt, dia) -> bool:
+    """La máscara de días de la semana, si la recurrencia tiene una.
+
+    Es un mapa de bits con el lunes en el bit 0 (`date.weekday()`). Sin máscara
+    —el caso normal— no filtra nada.
+    """
+    if not rt.weekday_mask:
+        return True
+    return bool(rt.weekday_mask & (1 << dia.weekday()))
+
+
+def _ocurrencias_pendientes(rt, hoy) -> list:
+    """Los días que esta recurrencia debería haber generado y no ha generado.
+
+    Se recorre día a día desde el siguiente a `last_generated` —o al día
+    anterior a `start_date` la primera vez— hasta hoy. Recorrer día a día en vez
+    de saltar de ocurrencia en ocurrencia es deliberado: la máscara de días de
+    la semana y el `monthly` por número de día no se expresan como un salto
+    fijo, y el coste es proporcional a los días que el trabajo lleve sin correr.
+    """
+    ultima = rt.last_generated or (rt.start_date - timedelta(days=1))
+    dia = ultima + timedelta(days=1)
+    dispara = _DISPARA_EN.get(rt.freq)
+    fechas = []
+    while dia <= hoy:
+        if dispara and dispara(rt, dia) and _pasa_la_mascara_de_dias(rt, dia):
+            fechas.append(dia)
+        dia += timedelta(days=1)
+    return fechas
+
+
+def _siguiente_codigo_de_tarea(session) -> str:
+    """`TSK-00001`, `TSK-00002`… a partir del máximo que haya.
+
+    Se conserva tal cual, con su carrera de condición incluida: dos procesos
+    materializando a la vez pueden calcular el mismo número. La tabla tiene el
+    código como único, así que el segundo falla en lugar de duplicar — que es
+    exactamente lo que hace `create_task_record`, que captura el `IntegrityError`
+    y devuelve 409. Aquí no hay quien lo reintente, y queda anotado.
+    """
     import re as _re
 
-    def _next_task_code(session) -> str:
-        max_code = session.query(func.max(TaskModel.code)).scalar()
-        if max_code:
-            m = _re.search(r"(\d+)$", max_code)
-            n = (int(m.group(1)) + 1) if m else 1
-        else:
-            n = 1
-        return f"TSK-{n:05d}"
+    max_code = session.query(func.max(TaskModel.code)).scalar()
+    if max_code:
+        m = _re.search(r"(\d+)$", max_code)
+        n = (int(m.group(1)) + 1) if m else 1
+    else:
+        n = 1
+    return f"TSK-{n:05d}"
 
-    today = timeutil.today()
-    active = db.query(RecurringTask).filter(
+
+def _tarea_de_la_recurrencia(db: Session, rt, dia, current_user: User) -> None:
+    """Crea la tarea de una ocurrencia y apunta la fecha en la recurrencia."""
+    tarea = TaskModel(
+        code=_siguiente_codigo_de_tarea(db),
+        project_id=rt.project_id,
+        title=f"{rt.title} [{dia.strftime('%d/%m/%Y')}]",
+        description=rt.description,
+        priority=rt.priority,
+        assignee_id=rt.assignee_id,
+        estimated_hours=rt.estimated_hours,
+        story_points=rt.story_points,
+        start_date=dia,
+        due_date=dia + timedelta(days=rt.due_offset_days),
+        created_by=current_user.id,
+    )
+    db.add(tarea)
+    db.flush()
+    rt.last_generated = dia
+
+
+def materialize_recurring_tasks_cmd(db: Session, dry_run: bool, current_user: User) -> dict:
+    hoy = timeutil.today()
+    activas = db.query(RecurringTask).filter(
         RecurringTask.is_active == True,
-        RecurringTask.start_date <= today,
+        RecurringTask.start_date <= hoy,
     ).all()
 
     created = 0
-    for rt in active:
-        if rt.end_date and rt.end_date < today:
+    for rt in activas:
+        # Una recurrencia caducada se desactiva aquí, y por eso el `dry_run` no
+        # es del todo seco: esta escritura ocurre igual. Estaba así antes y se
+        # conserva — el `commit` final sí que se salta, de modo que en `dry_run`
+        # la desactivación se descarta con la sesión.
+        if rt.end_date and rt.end_date < hoy:
             rt.is_active = False
             continue
 
-        last = rt.last_generated or (rt.start_date - timedelta(days=1))
-        next_occ = last + timedelta(days=1)
-        occurrences = []
-        while next_occ <= today:
-            should_fire = False
-            if rt.freq == RecurringFreqType.daily:
-                should_fire = True
-            elif rt.freq == RecurringFreqType.weekly:
-                should_fire = (next_occ - rt.start_date).days % 7 == 0
-            elif rt.freq == RecurringFreqType.monthly:
-                should_fire = next_occ.day == rt.start_date.day
-            elif rt.freq == RecurringFreqType.custom:
-                should_fire = (next_occ - rt.start_date).days % max(rt.interval_days, 1) == 0
-
-            if should_fire:
-                if rt.weekday_mask:
-                    day_bit = 1 << next_occ.weekday()
-                    if not (rt.weekday_mask & day_bit):
-                        next_occ += timedelta(days=1)
-                        continue
-                occurrences.append(next_occ)
-            next_occ += timedelta(days=1)
-
-        for occ_date in occurrences:
-            if dry_run:
-                created += 1
-                continue
-            code = _next_task_code(db)
-            due = occ_date + timedelta(days=rt.due_offset_days)
-            task = TaskModel(
-                code=code,
-                project_id=rt.project_id,
-                title=f"{rt.title} [{occ_date.strftime('%d/%m/%Y')}]",
-                description=rt.description,
-                priority=rt.priority,
-                assignee_id=rt.assignee_id,
-                estimated_hours=rt.estimated_hours,
-                story_points=rt.story_points,
-                start_date=occ_date,
-                due_date=due,
-                created_by=current_user.id,
-            )
-            db.add(task)
-            db.flush()
-            rt.last_generated = occ_date
+        for dia in _ocurrencias_pendientes(rt, hoy):
+            if not dry_run:
+                _tarea_de_la_recurrencia(db, rt, dia, current_user)
             created += 1
 
     if not dry_run:

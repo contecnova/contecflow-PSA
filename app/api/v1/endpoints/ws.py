@@ -333,6 +333,70 @@ async def get_portal_ws_ticket(
         db.close()
 
 
+async def _identidad_de_la_conexion(
+    websocket: WebSocket,
+    db,
+    *,
+    ticket: Optional[str],
+    token: Optional[str],
+    portal: bool = False,
+) -> Optional[str]:
+    """El id autenticado de esta conexión, o `None` si ya se cerró.
+
+    Auditoría 2026-08 (hallazgo 18). Este preámbulo estaba **copiado tres
+    veces** —notificaciones de usuario, notificaciones de portal y colaboración
+    en documentos— con seis ramas cada uno: ticket de un solo uso, o JWT en la
+    URL si no estamos en producción, y un cierre distinto por cada forma de
+    fallar. Entre las tres sumaban dieciocho ramas que hacen lo mismo.
+
+    Devolver `None` **después de haber cerrado el socket** es lo que permite que
+    cada WebSocket se quede en dos líneas: pedir la identidad y volver si no
+    hay. La alternativa —devolver un motivo y que cada uno cierre— repartiría
+    otra vez las mismas ramas por los tres sitios.
+
+    La política del token en la URL se conserva verbatim, y su razón merece
+    quedar aquí: un JWT en el `query string` **queda registrado por cada proxy y
+    en el historial del navegador**, y sigue siendo reutilizable hasta que
+    caduca. En producción y en preproducción no se acepta; en local sí, para no
+    obligar a montar el flujo del ticket sólo para desarrollar.
+    """
+    if ticket:
+        consumir = _consume_portal_ws_ticket if portal else _consume_ws_ticket
+        identidad = await consumir(ticket)
+        if not identidad:
+            await websocket.close(code=4001, reason="Ticket inválido o expirado")
+            return None
+        return identidad
+
+    ruta_del_ticket = "/ws/portal-ticket" if portal else "/ws/ticket"
+
+    if token:
+        if settings.ENVIRONMENT in {"production", "staging"}:
+            await websocket.close(
+                code=4003,
+                reason=(
+                    "Token en URL no permitido en production. "
+                    f"Usa ?ticket= (GET {ruta_del_ticket})."
+                ),
+            )
+            return None
+        if portal:
+            cliente = verify_client_token(token, db)
+            identidad = str(cliente.id) if cliente else None
+        else:
+            identidad = await _validate_jwt(token, db)
+        if not identidad:
+            await websocket.close(code=4001, reason="Token inválido")
+            return None
+        return identidad
+
+    await websocket.close(
+        code=4001,
+        reason=f"Se requiere ?ticket= (obtener via GET {ruta_del_ticket})",
+    )
+    return None
+
+
 @router.websocket("/notifications")
 async def ws_notifications(
     websocket: WebSocket,
@@ -352,27 +416,9 @@ async def ws_notifications(
     user_id: Optional[str] = None
     with SessionLocal() as db:
         try:
-            if ticket:
-                user_id = await _consume_ws_ticket(ticket)
-                if not user_id:
-                    await websocket.close(code=4001, reason="Ticket inválido o expirado")
-                    return
-            elif token:
-                # Raw JWT in URL — only accepted outside production to aid local dev.
-                # In production the JWT would be logged by every proxy/load-balancer
-                # and remain reusable until expiry.
-                if settings.ENVIRONMENT in {"production", "staging"}:
-                    await websocket.close(
-                        code=4003,
-                        reason="Token en URL no permitido en production. Usa ?ticket= (GET /ws/ticket).",
-                    )
-                    return
-                user_id = await _validate_jwt(token, db)
-                if not user_id:
-                    await websocket.close(code=4001, reason="Token inválido")
-                    return
-            else:
-                await websocket.close(code=4001, reason="Se requiere ?ticket= (obtener via GET /ws/ticket)")
+            user_id = await _identidad_de_la_conexion(
+                websocket, db, ticket=ticket, token=token)
+            if not user_id:
                 return
 
             # Auditoria 2026-08 (hallazgo 22). Esta sesion vive lo que dure la
@@ -434,25 +480,9 @@ async def ws_portal_notifications(
     client_id = None
     with SessionLocal() as db:
         try:
-            if ticket:
-                client_id = await _consume_portal_ws_ticket(ticket)
-                if not client_id:
-                    await websocket.close(code=4001, reason="Ticket inválido o expirado")
-                    return
-            elif token:
-                if settings.ENVIRONMENT in {"production", "staging"}:
-                    await websocket.close(
-                        code=4003,
-                        reason="Token en URL no permitido en production. Usa ?ticket= (GET /ws/portal-ticket).",
-                    )
-                    return
-                client = verify_client_token(token, db)
-                client_id = str(client.id) if client else None
-                if not client_id:
-                    await websocket.close(code=4001, reason="Token inválido")
-                    return
-            else:
-                await websocket.close(code=4001, reason="Se requiere ?ticket= (obtener via GET /ws/portal-ticket)")
+            client_id = await _identidad_de_la_conexion(
+                websocket, db, ticket=ticket, token=token, portal=True)
+            if not client_id:
                 return
 
             # Ver la nota del WebSocket de notificaciones de arriba:
@@ -574,6 +604,51 @@ async def _broadcast_doc_local(doc_id: str, message: dict, exclude: WebSocket = 
             log.debug("Doc collab broadcast send_text failed for doc=%s", doc_id, exc_info=True)
 
 
+async def _bucle_de_documento(
+    websocket: WebSocket, doc_id: str, user_id: str
+) -> None:
+    """Recibe mensajes de un editor y los reparte al resto de la sala.
+
+    Auditoría 2026-08 (hallazgo 18). Esto estaba dentro de `ws_doc_collab`, que
+    con ello llegaba a complejidad 17 —la más alta del backend—. Y no es que
+    fuese larga: es que mezclaba **dos cosas distintas**, el ciclo de vida de la
+    conexión (autenticar, permisos sobre el documento, entrar y salir de la
+    sala) y el protocolo que se habla por dentro. Sacar el protocolo deja la
+    otra mitad legible sin tocar ni una rama.
+
+    El tope de 2 MB por mensaje se conserva y su porqué también: un `update` de
+    Yjs de un documento normal son kilobytes, así que un mensaje de megabytes es
+    un cliente roto o un intento de agotar la memoria del proceso — y como
+    `receive_text()` ya materializó la cadena, el único remedio honesto es
+    cerrar la conexión, no ignorar el mensaje.
+
+    El `except Exception` de dentro es a propósito y se queda: un mensaje
+    malformado de **un** editor no puede tirar la sesión de los demás.
+    """
+    MAX_MSG_SIZE = 2 * 1024 * 1024  # 2 MB
+    try:
+        while True:
+            raw = await websocket.receive_text()
+            if len(raw) > MAX_MSG_SIZE:
+                await websocket.close(code=4009, reason="Mensaje demasiado grande")
+                break
+            try:
+                msg = json.loads(raw)
+                msg_type = msg.get("type")
+
+                if msg_type == "ping":
+                    await websocket.send_text(json.dumps({"type": "pong"}))
+                elif msg_type in ("update", "awareness"):
+                    # Broadcast to all other editors of this document
+                    out = {"type": msg_type, "data": msg.get("data"), "from": user_id}
+                    await _broadcast_doc(doc_id, out, exclude=websocket)
+            except Exception:
+                log.debug("Doc collab WS received malformed message for doc=%s user=%s", doc_id, user_id, exc_info=True)
+    # intentional: cleanup path, logging would cascade
+    except WebSocketDisconnect:
+        pass
+
+
 @router.websocket("/doc/{doc_id}")
 async def ws_doc_collab(
     websocket: WebSocket,
@@ -607,24 +682,9 @@ async def ws_doc_collab(
     user_id: Optional[str] = None
     with SessionLocal() as db:
         try:
-            if ticket:
-                user_id = await _consume_ws_ticket(ticket)
-                if not user_id:
-                    await websocket.close(code=4001, reason="Ticket inválido o expirado")
-                    return
-            elif token:
-                if settings.ENVIRONMENT in {"production", "staging"}:
-                    await websocket.close(
-                        code=4003,
-                        reason="Token en URL no permitido en production. Usa ?ticket= (GET /ws/ticket).",
-                    )
-                    return
-                user_id = await _validate_jwt(token, db)
-                if not user_id:
-                    await websocket.close(code=4001, reason="Token inválido")
-                    return
-            else:
-                await websocket.close(code=4001, reason="Se requiere ?ticket= (obtener via GET /ws/ticket)")
+            user_id = await _identidad_de_la_conexion(
+                websocket, db, ticket=ticket, token=token)
+            if not user_id:
                 return
 
             # Obtener usuario y documento
@@ -660,28 +720,7 @@ async def ws_doc_collab(
             # Notify others
             await _broadcast_doc(doc_id, {"type": "joined", "user_id": user_id, "peers": peer_count}, exclude=websocket)
 
-            MAX_MSG_SIZE = 2 * 1024 * 1024  # 2 MB
-            try:
-                while True:
-                    raw = await websocket.receive_text()
-                    if len(raw) > MAX_MSG_SIZE:
-                        await websocket.close(code=4009, reason="Mensaje demasiado grande")
-                        break
-                    try:
-                        msg = json.loads(raw)
-                        msg_type = msg.get("type")
-
-                        if msg_type == "ping":
-                            await websocket.send_text(json.dumps({"type": "pong"}))
-                        elif msg_type in ("update", "awareness"):
-                            # Broadcast to all other editors of this document
-                            out = {"type": msg_type, "data": msg.get("data"), "from": user_id}
-                            await _broadcast_doc(doc_id, out, exclude=websocket)
-                    except Exception:
-                        log.debug("Doc collab WS received malformed message for doc=%s user=%s", doc_id, user_id, exc_info=True)
-            # intentional: cleanup path, logging would cascade
-            except WebSocketDisconnect:
-                pass
+            await _bucle_de_documento(websocket, doc_id, user_id)
         finally:
             async with _doc_rooms_lock:
                 room = _doc_rooms.get(doc_id, [])

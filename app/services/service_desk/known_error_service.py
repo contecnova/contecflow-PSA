@@ -37,6 +37,49 @@ KEDB_DEFAULT_REVIEW_DAYS = 90
 # ── Query helpers ─────────────────────────────────────────────────────────────
 
 
+def tickets_de_un_error_conocido(db, current_user, known_error_id: str) -> list[dict]:
+    """Los tickets vinculados a un Known Error del KEDB.
+
+    Auditoria 2026-08 (hallazgo 37). `GET /sd/known-errors/{id}/tickets` **no
+    existia** y la interfaz lo llamaba. El modelo si estaba: la tabla de union
+    `sd_known_error_tickets` lleva `known_error_id` y `ticket_id`.
+
+    La consulta de los tickets no lleva filtro de organizacion y es correcto: se
+    parte de un Known Error ya verificado como propio, y los enlaces cuelgan de
+    el, asi que el ambito llega por la clave padre.
+    """
+    from app.models.service_desk import KnownErrorTicket, Ticket
+    from app.services.service_desk.problem_service import (
+        get_scoped_problem_or_404,
+    )
+
+    # Un Known Error es un `Problem` promovido, asi que la guarda es la del
+    # problema — la misma que usan el PATCH y el resto del modulo.
+    get_scoped_problem_or_404(db, current_user, known_error_id)
+
+    enlaces = (
+        db.query(KnownErrorTicket)
+        .filter(KnownErrorTicket.known_error_id == known_error_id)
+        .all()
+    )
+    ids = [e.ticket_id for e in enlaces if e.ticket_id]
+    if not ids:
+        return []
+
+    tickets = db.query(Ticket).filter(Ticket.id.in_(ids)).all()
+    return [
+        {
+            "id": t.id,
+            "number": t.number,
+            "title": t.title,
+            "status": str(getattr(t, "status", "") or ""),
+            "priority": str(getattr(t, "priority", "") or ""),
+            "created_at": str(t.created_at)[:19] if t.created_at else None,
+        }
+        for t in tickets
+    ]
+
+
 def get_known_errors(db: Session) -> list[KnownError]:
     """Return all active KEDB entries from the relational KnownError table."""
     return (

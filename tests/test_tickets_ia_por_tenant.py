@@ -43,6 +43,8 @@ from __future__ import annotations
 import importlib.util
 
 import pytest
+
+from tests.conftest import fila_global
 from fastapi import HTTPException
 
 ORG = "org-sd-mia"
@@ -315,17 +317,22 @@ def test_la_migracion_093_hereda_la_organizacion_del_creador_y_del_padre(db):
         # La precedencia: el creador manda sobre el proyecto.
         ("mt-orden", {"created_by_user_id": "mu-a", "project_id": "mp-c"}, "MIG-A"),
     ]
-    for i, (tid, campos, _esperado) in enumerate(casos):
-        db.add(Ticket(id=tid, number=f"SD-{800 + i}", ticket_type="incident",
-                      title=tid, description="x", organization_id=None, **campos))
-    # Uno que ya tiene organización: la migración no debe tocarlo.
-    db.add(Ticket(id="mt-yatiene", number="SD-899", ticket_type="incident",
-                  title="ya tiene", description="x", organization_id="MIG-Z",
-                  created_by_user_id="mu-a"))
-    db.flush()
-    db.add(TicketComment(id="mcm-1", ticket_id="mt-proyecto", body="hola",
-                         organization_id=None))
-    db.commit()
+    # `fila_global` porque estos tickets tienen que nacer **sin** organización:
+    # son la fotografía de lo que la migración 093 viene a arreglar. Con el
+    # sellado del `flush` puesto —la semántica de producción, que la suite ya
+    # ejercita— naceran con la de la sesión y no habría nada que rellenar.
+    with fila_global(db):
+        for i, (tid, campos, _esperado) in enumerate(casos):
+            db.add(Ticket(id=tid, number=f"SD-{800 + i}", ticket_type="incident",
+                          title=tid, description="x", organization_id=None, **campos))
+        # Uno que ya tiene organización: la migración no debe tocarlo.
+        db.add(Ticket(id="mt-yatiene", number="SD-899", ticket_type="incident",
+                      title="ya tiene", description="x", organization_id="MIG-Z",
+                      created_by_user_id="mu-a"))
+        db.flush()
+        db.add(TicketComment(id="mcm-1", ticket_id="mt-proyecto", body="hola",
+                             organization_id=None))
+        db.commit()
 
     _ejecutar_migracion_093(db)
 
@@ -351,10 +358,12 @@ def test_la_migracion_093_no_reparte_al_cliente_por_defecto(db):
     """
     from app.models.service_desk import Ticket
 
-    db.add(Ticket(id="mt-solo", number="SD-880", ticket_type="incident",
-                  title="sin referencias", description="x",
-                  organization_id=None))
-    db.commit()
+    # Sin organización a propósito: ver la nota del test de arriba.
+    with fila_global(db):
+        db.add(Ticket(id="mt-solo", number="SD-880", ticket_type="incident",
+                      title="sin referencias", description="x",
+                      organization_id=None))
+        db.commit()
 
     _ejecutar_migracion_093(db)
 

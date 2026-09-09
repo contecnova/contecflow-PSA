@@ -67,20 +67,38 @@ CLAVES_DE_TOKEN_A_CONFIG = ("cloud_id", "scope", "token_type", "id_token")
 def _suscripcion_por_endpoint(db: Session, endpoint: str):
     """La fila de ese endpoint, sea de la organización que sea.
 
-    Va por Core y no por el ORM a propósito. La columna `endpoint` es **única
-    global**, así que hay que poder ver una fila de otra organización: el filtro
-    global de tenant sólo actúa sobre sentencias ORM, y con él la fila ajena
-    resultaría invisible y el alta chocaría contra la restricción única con un
-    500. Es una consulta de tres columnas sobre una tabla, no una vía de lectura
-    de datos de otro tenant.
+    La columna `endpoint` es **única global**, así que hay que poder ver una fila
+    de otra organización: sin eso, el alta choca contra la restricción única y
+    devuelve un 500. Es una consulta de tres columnas sobre una tabla, no una vía
+    de lectura de datos de otro tenant, y por eso se declara el salto en vez de
+    disimularlo.
+
+    **Corrección de auditoría 2026-08.** Aquí decía que ir «por Core y no por el
+    ORM» bastaba, porque «el filtro global de tenant sólo actúa sobre sentencias
+    ORM». **Era falso.** `TenantSession.execute()` intercepta cualquier `Select`
+    y `_extract_models_from_select` **resuelve la `Table` de vuelta a su clase
+    mapeada** por el registro de SQLAlchemy — para eso se escribió—, así que esta
+    consulta salía filtrada igual y la fila ajena seguía siendo invisible. Es
+    decir: el 500 que este ayudante existe para evitar **seguía ocurriendo en
+    producción**.
+
+    No lo vio nadie porque el test que lo cubre enganchaba el filtro a mano sobre
+    una sesión de pruebas que no era una `TenantSession`, y esa sí deja pasar el
+    Core. Se descubrió al hacer que la suite use la factoría de producción.
+
+    Ahora se usa `sin_filtro_de_tenant`, que es el único mecanismo que respetan
+    las tres capas.
     """
     from sqlalchemy import select
 
+    from app.db.session import sin_filtro_de_tenant
+
     tabla = CollaborationPushSubscription.__table__
-    return db.execute(
-        select(tabla.c.id, tabla.c.organization_id, tabla.c.user_id)
-        .where(tabla.c.endpoint == endpoint)
-    ).first()
+    with sin_filtro_de_tenant(db):
+        return db.execute(
+            select(tabla.c.id, tabla.c.organization_id, tabla.c.user_id)
+            .where(tabla.c.endpoint == endpoint)
+        ).first()
 
 
 def guardar_suscripcion_push(db: Session, user, payload: dict) -> dict:
@@ -114,20 +132,34 @@ def guardar_suscripcion_push(db: Session, user, payload: dict) -> dict:
         reasignada = existente.user_id != user.id or existente.organization_id != org
         if existente.organization_id != org:
             org_anterior = existente.organization_id
-        # UPDATE por clave primaria: el filtro global de tenant no toca las
-        # sentencias de escritura, así que esto alcanza también a la fila que
-        # venía de otra organización —la que provocaba el choque de unicidad—.
-        db.query(CollaborationPushSubscription).filter(
-            CollaborationPushSubscription.id == fila_id
-        ).update({
-            "organization_id": org,
-            "user_id": user.id,
-            "client_user_id": None,
-            "p256dh_key": p256dh,
-            "auth_key": auth,
-            "is_active": True,
-            "user_agent": (payload.get("user_agent") or "")[:MAX_LONGITUD_USER_AGENT],
-        }, synchronize_session=False)
+        # UPDATE por clave primaria sobre una fila que puede ser de otra
+        # organización — la que provocaba el choque de unicidad.
+        #
+        # **Corrección de auditoría 2026-08.** Aquí decía que «el filtro global
+        # de tenant no toca las sentencias de escritura», y eso es verdad de
+        # `do_orm_execute` y **falso de lo que hace esta línea**:
+        # `TenantSession.query()` añade el filtro a la consulta, y `.update()`
+        # hereda ese `WHERE`. Resultado: el UPDATE no encontraba la fila ajena y
+        # **actualizaba cero filas en silencio**, así que el traspaso que este
+        # código anuncia —y que audita a continuación— no llegaba a ocurrir.
+        #
+        # Es el mismo error de fondo que en `_suscripcion_por_endpoint`: suponer
+        # que el aislamiento es una sola capa. Son tres, y la única bandera que
+        # respetan las tres es `bypass_tenant_filter`.
+        from app.db.session import sin_filtro_de_tenant
+
+        with sin_filtro_de_tenant(db):
+            db.query(CollaborationPushSubscription).filter(
+                CollaborationPushSubscription.id == fila_id
+            ).update({
+                "organization_id": org,
+                "user_id": user.id,
+                "client_user_id": None,
+                "p256dh_key": p256dh,
+                "auth_key": auth,
+                "is_active": True,
+                "user_agent": (payload.get("user_agent") or "")[:MAX_LONGITUD_USER_AGENT],
+            }, synchronize_session=False)
     else:
         fila = CollaborationPushSubscription(
             organization_id=org,

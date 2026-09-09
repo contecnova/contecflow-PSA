@@ -235,11 +235,17 @@ def test_un_preset_global_de_pais_se_puede_leer_pero_no_borrar(db):
     from app.models.user_cost import CountryEmployerCost
     from app.services import cost_service as svc
 
-    global_ = CountryEmployerCost(
-        organization_id=None, country_code="PT", country_name="Portugal",
-        currency="EUR", employer_cost_pct=25.0, productive_hours_year=1600)
-    db.add(global_)
-    db.commit()
+    from tests.conftest import fila_global
+
+    # `fila_global` porque el sellado del `flush` rellenaria la organizacion de
+    # la sesion, y un preset de pais con organizacion ya no es el global que
+    # trae el producto: es el de un cliente.
+    with fila_global(db):
+        global_ = CountryEmployerCost(
+            organization_id=None, country_code="PT", country_name="Portugal",
+            currency="EUR", employer_cost_pct=25.0, productive_hours_year=1600)
+        db.add(global_)
+        db.commit()
 
     assert svc.preset_propio_o_global(db, _Usuario(ORG), global_.id).id == global_.id
     with pytest.raises(HTTPException) as exc:

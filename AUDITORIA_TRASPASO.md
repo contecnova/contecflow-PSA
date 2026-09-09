@@ -65,6 +65,13 @@ cd "contecflow PSA"
 # Linter del backend: tiene que salir "All checks passed!"
 ./.venv/Scripts/python.exe -m ruff check app/
 
+# Complejidad: informe legible de las funciones por encima de 10. NO falla nunca
+# —el que bloquea es `tests/test_complejidad_no_empeora.py`, dentro de la suite—;
+# esto es para elegir la siguiente sin ir a buscarla.
+./.venv/Scripts/python.exe scripts/audit_complejidad.py
+# Y para regenerar la lista del trinquete despues de una mejora:
+./.venv/Scripts/python.exe scripts/audit_complejidad.py --lista
+
 # Frontend
 cd frontend
 npx tsc --noEmit          # tiene que salir limpio
@@ -75,10 +82,15 @@ node scripts/check_i18n_coverage.mjs   # gate de cobertura de traducción
 bash scripts/ci_local.sh
 ```
 
-**Estado en la última verificación completa (2026-08-31):**
-**2273 passed, 17 skipped, 1 xfailed, 0 fallos** en 19 min con `-n auto`;
+**Estado en la última verificación completa (2026-09-09):**
+**3746 passed, 19 skipped, 1 xfailed, 0 fallos** en 18 min 34 s con `-n auto`;
 `ruff check app tests` limpio; `tsc` limpio; 89/89 vitest; los cinco gates de
 frontend en verde.
+
+> Y es la primera vez que ese «0 fallos» se mide **con la semántica de tenant de
+> producción puesta** (§3.sexdecies). La primera pasada con los escuchadores
+> registrados dio **23 en rojo**: catorce del propio banco de pruebas, dos
+> regresiones de la jornada y **siete defectos de producción** (§3.vicies).
 
 > **Aviso sobre la verificación anterior.** El commit `b4ba85d` se hizo con la
 > suite corriendo y su resultado nunca se reportó, porque en serie no terminaba
@@ -392,6 +404,540 @@ en las cuatro tablas. Sin `downgrade` que borre datos, y dicho por qué.
 > ahora, con el sellado puesto, ya no es urgente.
 
 ---
+
+## 3.quindecies El hallazgo 37, cerrado: de 62 a 11 y de 11 a 0
+
+`DESAJUSTES_CONOCIDOS` en `tests/test_rutas_del_frontend.py` está en **cero**, y
+cero es ahora el suelo: si sube, hay una pantalla nueva que no puede funcionar.
+
+Los once que quedaban **no eran un grupo homogéneo**, y por eso ninguno se
+arregló igual. Esa es la parte que importa: «implementar los endpoints que
+faltan» habría sido la respuesta equivocada a cuatro de los cinco casos.
+
+### Cuatro `GET` de detalle: el CRUD completo menos leer uno
+
+`contractsApi`, `risksApi` y `usePipeline` tienen listar, crear, actualizar y
+borrar; **leer uno era la única cuya ruta no estaba**. No hubo nada que
+inventar: la búsqueda acotada y el serializador son los que ya usan el `PATCH` y
+el `DELETE` de al lado.
+
+En el de riesgos, además, la decisión de **no** poner comprobación de rol está
+escrita: editar y borrar exigen admin o PM, leer no — quien puede ver el registro
+de riesgos del proyecto puede ver uno de ellos, y exigir un rol aquí dejaría la
+lectura de uno por detrás de la lectura de todos.
+
+Y en el de oportunidades la búsqueda estaba **copiada literalmente tres veces**
+—`update_opportunity`, `delete_opportunity` y
+`convert_opportunity_to_project`—, así que se extrajo a `oportunidad_propia` y
+las tres la usan. Su `is_active == True` no es decorativo: el borrado de una
+oportunidad es lógico, y sin ese filtro una ya borrada volvería a aparecer.
+
+### Dos manejadores escritos, completos, y sin registrar
+
+`update_certification` y `delete_certification` **existían**, con su
+comprobación de permisos —sólo el dueño de la certificación, o admin/RRHH— y
+**sin decorador de ruta**. No eran endpoints que faltaran: eran endpoints que
+nadie registró. Arreglarlo fue añadir dos líneas.
+
+Y esa pregunta vale para todo el repositorio, así que se hizo: un barrido por
+AST sobre `app/api/` buscando funciones con pinta de manejador —reciben
+`Depends`, `Query`, `Body`…— y sin decorador de ruta. **Son los dos únicos
+casos.** Las otras dos que salen son dependencias (`get_current_client`,
+`require_admin_or_pm`) y están bien así.
+
+### Tres borrados que no hacían nada, y ninguno se resuelve borrando
+
+Los dos «botones silenciosos» que la auditoría llevaba anotados, más uno:
+
+* un **problema** es el registro de una investigación, con su análisis de causa
+  raíz, sus incidentes vinculados y su posible entrada en la base de errores
+  conocidos. Borrar la fila dejaría huérfano todo eso: **se cierra**.
+  `ProblemStatus` no tiene `cancelled`, así que el estado terminal es `closed`;
+* un **cambio** es un registro de gobernanza con aprobaciones, ventana de
+  mantenimiento y plan de rollback: **se cancela**, que sí es un valor de
+  `ChangeStatus`. Y uno ya implementado responde **409** — cancelar lo que ya
+  pasó sería reescribir la historia, y el conflicto es con el estado del
+  recurso, no con la petición;
+* una **integración OAuth** guarda su historial de sincronización, que sirve
+  para diagnosticar: **se desactiva** —`is_active`, la convención del
+  repositorio— **y se borran los tokens**. Eso último es lo que de verdad hay
+  que quitar: dejar un `access_token` de un tercero en una fila desactivada es
+  guardar una credencial que ya no se usa.
+
+Los tres son idempotentes, y los tres tienen test de que lo son.
+
+### El listado de tickets de un Known Error
+
+El modelo ya estaba: la tabla de unión `sd_known_error_tickets` con
+`known_error_id` y `ticket_id`. Sólo faltaba exponerlo. La guarda es la del
+problema, porque un Known Error es un `Problem` promovido.
+
+> La ruta va **después** de `/known-errors/stats` y de los dos `run-*-scan`, y
+> lo mismo en el de oportunidades respecto a `/pipeline` y
+> `/proposals/templates`. FastAPI resuelve por orden de declaración, así que un
+> `/{id}` puesto antes se tragaría esas rutas literales. Es el defecto de §3.g
+> —ocho rutas inalcanzables porque otra las tapaba— y no se repite.
+
+### Y los dos exports, que eran un error del cliente
+
+`ExportsPage` llamaba a `POST /integrations/export/imputations` y
+`/integrations/export/projects`, y **ninguna de las dos está en ningún router**.
+
+* El de **imputaciones sí existía**, con otro verbo y otra ruta:
+  `GET /analytics/exports/imputations-csv`. El arreglo es en el cliente.
+* El de **proyectos no existía**. El export de *recursos* que hay no sirve:
+  exporta instantáneas de utilización por persona y semana, no proyectos. Se
+  añade `GET /analytics/exports/projects-csv`, con el ámbito de
+  `scope_projects_query` —el mismo del listado, así que un gestor exporta lo que
+  ya ve en pantalla— y con `include_costs` opcional y **por defecto apagado**,
+  porque son importes.
+
+**Y un defecto de propina al mirarlo:** el export de imputaciones hacía
+`imp.task.name`, y `Task` tiene `title`. Reventaba con `AttributeError`, así que
+**fallaba en cuanto una imputación tenía tarea** — que es el caso normal. Este no
+lo encuentra `audit_instance_attrs.py`: `imp` viene de una llamada a un
+servicio, y ahí el detector no infiere el tipo. Es exactamente el límite que su
+cabecera declara.
+
+Y una honestidad sobre el formato: esa pantalla tiene un selector CSV/XLSX y el
+backend **sólo sirve CSV**. La extensión del fichero descargado sale ahora del
+formato real y no del botón pulsado — un fichero llamado `.xlsx` con CSV dentro
+es peor que uno llamado `.csv`. El selector sigue en pantalla y no tiene
+contrapartida: **queda anotado, no arreglado**, porque generar XLSX es trabajo
+de producto.
+
+## 3.vicies Tres capas de aislamiento y una bandera que sólo respetaba una
+
+Registrar los escuchadores de tenant en la suite (§3.sexdecies) puso **23 tests
+en rojo**. Dos eran regresiones mías de esta misma jornada y están al final de
+esta sección. De los otros veintiuno, catorce eran del banco de pruebas —filas
+sembradas sin organización que ahora nacen con la de la sesión— y **siete
+destaparon defectos de producción**. Éstos son.
+
+### El defecto de fondo: el aislamiento son tres capas, no una
+
+`app/db/session.py` monta el aislamiento en tres sitios: `TenantSession.query()`,
+`TenantSession.execute()` y el escuchador `do_orm_execute`. La cabecera del
+tercero documenta una salida de emergencia —`bypass_tenant_filter`— «para
+scripts de migración y trabajos de analítica entre tenants».
+
+**Y de las tres capas sólo la respetaba esa.** Las otras dos —que son justo las
+que usa el código normal— la ignoraban. Una bandera documentada que no hace lo
+que dice es peor que no tenerla, porque quien la usa cree que ya está protegido.
+Ahora la respetan las tres, y se enciende por `sin_filtro_de_tenant(session)`,
+un bloque que la devuelve al salir.
+
+De esa suposición —«el filtro es una capa y sé cuál»— salieron los tres defectos
+de abajo, escritos por manos distintas y en módulos distintos.
+
+### 1. Mover un usuario de organización devolvía 500, con el cambio ya hecho
+
+```
+PATCH /users/{id}  con organization_id de otra organización
+  → db.commit()   mueve al usuario
+  → db.refresh(user)   no lo encuentra: la sesión sigue en la organización
+                       de quien llamó, y la fila ya no está ahí
+  → InvalidRequestError: Could not refresh instance '<User>'  →  500
+```
+
+**El peor final posible: la operación tuvo efecto y la respuesta dice que no.**
+El mismo patrón en el alta —un superadmin dando de alta al primer administrador
+de un cliente nuevo—. Y una segunda mitad que no se ve a la primera: las
+pertenencias a organizaciones son una relación **perezosa**, así que aunque el
+`refresh` funcione, cargarlas al serializar la respuesta las trae otra vez
+filtradas y el alta contesta con las organizaciones de quien llama en lugar de
+las del usuario creado. Hay que tocarlas dentro del bloque.
+
+### 2. La suscripción push que decía ir «por Core» y no
+
+`_suscripcion_por_endpoint` buscaba la fila por `endpoint` —columna **única
+global**— con una consulta de SQLAlchemy Core, y lo explicaba así: «va por Core y
+no por el ORM a propósito; el filtro global de tenant sólo actúa sobre sentencias
+ORM».
+
+**Falso.** `TenantSession.execute()` intercepta cualquier `Select`, y
+`_extract_models_from_select` **resuelve la `Table` de vuelta a su clase mapeada**
+por el registro de SQLAlchemy — para eso se escribió. Así que la consulta salía
+filtrada, la fila ajena seguía invisible, y **el 500 por violación de unicidad
+que ese ayudante existe para evitar seguía ocurriendo en producción**.
+
+Y dos líneas más abajo, el mismo error otra vez: el `UPDATE` que traspasa la fila
+colgaba de `db.query(...)`, con un comentario que decía que «el filtro no toca
+las sentencias de escritura». Es verdad del escuchador y falso de esa línea:
+`query()` añade el `WHERE` y `.update()` lo hereda, así que el traspaso
+**actualizaba cero filas en silencio** — y el código auditaba a continuación un
+traspaso que no había ocurrido.
+
+**Por qué el test no lo vio, que es lo importante.** El test *sí* activaba el
+filtro a mano, y su docstring explicaba muy bien por qué hacía falta. Pero lo
+enganchaba sobre una sesión de pruebas que era un `Session` **plano**, y un
+`Session` plano no tiene los `override` de `query()`/`execute()`: deja pasar el
+Core. Es decir, **el test reproducía media condición de producción y daba por
+bueno un arreglo que allí no funcionaba**. Un escenario reproducido a medias no
+es un escenario reproducido, y ésta es la moraleja más cara de la jornada.
+
+### 3. Y las dos regresiones mías, que también las cazó la suite
+
+**`GET /pipeline/{opp_id}` tapaba tres rutas.** El endpoint de detalle que se
+añadió al cerrar el hallazgo 37 se declaró antes que `/forecast`, `/stages` y
+`/stage-configs`, y en FastAPI gana la primera que encaja. Con él cayeron siete
+tests de previsión de ingresos y de configuración de etapas. Lo peor no es el
+error: es que **el comentario que lo acompañaba decía que iba colocado para no
+tapar nada, y citaba §3.g como el defecto que no se repetía**. Se repitió, y
+mientras se escribía que no. La lección corregida está en el propio código: el
+orden de declaración es **global al fichero**, no local al bloque, así que la
+ruta de detalle va la última y no «después de las que me acordaba».
+
+**Y el export de proyectos hacía `db.query()` en la capa API**, que es
+exactamente lo que el hallazgo 22 acababa de cerrar a cero. Lo cazó su guardián
+de tolerancia cero, en un endpoint escrito en la misma auditoría que lo cerró.
+Dice algo bueno del guardián y algo honesto de quien escribe: la disciplina no
+se sostiene sola, por eso se automatiza.
+
+## 3.octodecies El hallazgo 18: de «no había medida» a 94 → 80, con trinquete
+
+El 18 llevaba abierto toda la auditoría y la razón no era la falta de ganas:
+**no había ninguna medida**. `ruff.toml` selecciona `E, F, W, S, B`, y `C901`
+no está entre ellas. Una función podía pasar de 10 a 20 sin que nada dijera
+nada, y «complejidad excesiva» era una opinión.
+
+Ahora hay tres cosas que antes no había:
+
+* `scripts/audit_complejidad.py` — la medida. **Llama a ruff** en vez de
+  reimplementar McCabe: la definición ya existe y tener dos sería peor que tener
+  una. Los otros detectores de esta auditoría son AST puro porque la regla que
+  aplican no existía; aquí sí existe, lo que faltaba era que alguien la mirara.
+* `tests/test_complejidad_no_empeora.py` — el trinquete, con tres reglas.
+* Una línea informativa en `ci_local.sh` con el reparto, para elegir la
+  siguiente sin ir a buscarla.
+
+Medido: **94 funciones por encima de 10 → 80; exceso acumulado 253 → 205;
+máximo 17 → 16.**
+
+### Catorce funciones fuera, y ninguna por partirla en trozos
+
+Esto es lo que importa del número. Ninguna de las catorce se quitó bajando su
+complejidad a base de trocearla: **las catorce escondían un defecto**, y la
+complejidad fue el detector, igual que en §3.b y §3.c. El reparto exacto, porque
+un «catorce» sin desglosar no se puede comprobar:
+
+**Dos copias literales del dominio de tareas** (§3.novodecies, abajo) —
+`bulk_update_tasks` y `cascade_reschedule` de `task_service.py`, que ya existían
+en el subpaquete `app/services/tasks/`. En total el módulo duplicaba cuatro
+funciones; las otras dos no llegaban al umbral y por eso no cuentan aquí.
+
+**Dos métodos de `TaskService`** —`update` y `bulk_update_dates`— de una clase de
+387 líneas, once métodos y **ni un solo sitio de llamada**.
+
+**Una cascada de roles**: la de la actualización masiva de tareas, donde la misma
+comprobación de asignatario estaba escrita tres veces, cada una con su
+`skipped.append` y su `continue`.
+
+**Tres preámbulos de autenticación de WebSocket**: notificaciones de usuario,
+notificaciones de portal y colaboración en documentos tenían el mismo bloque
+copiado —ticket de un solo uso, o JWT en la URL si no estamos en producción, y
+un cierre distinto por cada forma de fallar—, seis ramas cada uno, dieciocho en
+total. Ahora es `_identidad_de_la_conexion`, que devuelve el id **después de
+haber cerrado el socket** si no hay: por eso cada WebSocket se queda en dos
+líneas en vez de repartir otra vez las mismas ramas. Y de `ws_doc_collab` —17,
+la más alta del backend— salió además el bucle de mensajes: no es ciclo de vida
+de conexión, es protocolo.
+
+**Dos tablas de comandos de bot**: `slack_inbound_command` y
+`teams_inbound_command` tenían la misma cascada `if verb in (...)`. Y **las dos
+copias no decían lo mismo**: Slack aceptaba `horas` como sinónimo de `tiempo` y
+Teams no, así que un usuario de Teams que escribía «horas 3» recibía la ayuda en
+lugar de registrar sus tres horas. El docstring de Teams decía literalmente
+«commands identical to the Slack bot». Ahora hay un `_COMANDOS` y las dos
+plataformas comparten repertorio; de paso salieron a funciones propias la
+verificación de firma de Slack y la del bearer de Teams.
+
+**Cuatro cascadas que son literalmente una tabla**: los operadores de búsqueda
+de la mensajería (`from:`, `has:`, `is:`…), las frecuencias de las tareas
+recurrentes, el reconocimiento del `User-Agent` y los contadores de la
+instantánea horaria de seguridad. En la del `User-Agent` la tabla
+además **hace visible una trampa que la cascada escondía**: el orden importa,
+porque el `User-Agent` de Edge contiene `chrome/` y el de Chrome contiene
+`safari/`. Reordenar por parecer más lógico haría que Edge se reconociera como
+Chrome sin que nada fallara a gritos; ahora está escrito encima de la tabla.
+
+### Por qué el trinquete registra cada función y no sólo un total
+
+Porque un total baja partiendo cualquier cosa. `CONOCIDAS` guarda las 80 con su
+valor, y las reglas son tres:
+
+1. Una función que **no está en la lista** no puede superar 10 — el código nuevo
+   nace por debajo del umbral. Ésta es la que de verdad importa.
+2. Una que **sí está** no puede subir de su valor registrado.
+3. Si una **mejora**, el test también falla y pide actualizar la lista. A
+   propósito: un trinquete que sólo mira hacia arriba deja la foto envejecer, y
+   entonces alguien sube de 11 a 16 sin que salte nada.
+
+Validado rompiéndolo: se añadió a `app/` una función de complejidad 12 y el
+guardián falló nombrándola, con el mensaje que dice que **no** se arregla
+metiéndola en la lista. Después se borró y volvió a pasar.
+
+### Las 80 que quedan, medidas y no supinas
+
+«Son largas pero lineales» es una afirmación, así que se comprobó en vez de
+escribirla. Un barrido por AST sobre las 81 de entonces busca la firma de una
+tabla de despacho —una cadena `if/elif` de cuatro ramas o más donde **todas** comparan el
+mismo operando con `==` o `in`—, que es la forma que tenían las tres cascadas
+recién convertidas y la que tenía `apply_filter` cuando se midió lo mismo hace
+dos tandas.
+
+**Resultado: 1 de 81.** `_bump_snapshot` en `security_observability.py`, con dos
+cadenas de cinco ramas que eligen a qué contador de la instantánea horaria
+sumarle uno. Convertida también, y **el barrido repetido sobre las 80 que quedan
+devuelve cero**: no hay ninguna escondida.
+
+Esas 80 son funciones largas pero **lineales**: reglas de negocio
+encadenadas donde partir por partir mueve el problema de sitio y añade
+indirección sin quitar riesgo. Bajarlas es trabajo legítimo y hay que hacerlo;
+lo que no se va a hacer es maquillar el número. El hallazgo 18 pasa de
+**«parcial, sin medida»** a **«medido, con suelo y con la deuda enumerada»**,
+que no es lo mismo que cerrado y no se va a llamar así.
+
+## 3.novodecies El dominio de tareas escrito dos veces, y la nota que lo justificaba
+
+`app/services/task_service.py` tenía este comentario en la cabecera:
+
+> `validate_task_transition` / `apply_status_side_effects` /
+> `_TASK_VALID_TRANSITIONS` / `bulk_update_tasks` / `cascade_reschedule` **are
+> NOT imported here on purpose**: this module defines its own procedural
+> versions below (they carry extra logic such as OKR sync).
+
+**Y era falsa.** Comparadas por AST —ancladas por nombre de función y no por
+número de línea— las cuatro que este módulo duplicaba eran:
+
+| función | diferencia con la del subpaquete |
+|---|---|
+| `validate_task_transition` | **idéntica** |
+| `apply_status_side_effects` | **idéntica**. El «OKR sync» que la nota invocaba para justificar la copia está en las DOS, dentro de esta misma función |
+| `cascade_reschedule` | idéntica menos una línea en blanco |
+| `bulk_update_tasks` | idéntica menos **un bloque**: la llamada a `enforce_abac` |
+
+O sea: la versión local no tenía lógica extra, tenía **una comprobación de
+autorización de menos**. Y `endpoints/tasks.py` importa la de aquí.
+
+### La corrección honesta, porque la primera lectura fue mía y era falsa
+
+Lo primero que se escribió sobre esto —en el código y aquí— fue que
+`POST /tasks/bulk-update` «se saltaba la evaluación ABAC». **No es cierto, y se
+supo ejecutándolo**: con una política `deny` activa sobre `task`, esa ruta
+devuelve 403 **antes de entrar al manejador**, porque la dependencia ABAC de los
+routers ya la evalúa. El test que iba a demostrar la brecha demostró lo
+contrario, que es para lo que sirven.
+
+El motivo de que la tape es incómodo y es el hallazgo de verdad:
+**`ABACService.evaluate_access` no usa el `resource_id`.** Lo recibe, lo mete en
+el detalle de auditoría y no lo mira para decidir; `is_policy_applicable` ni
+siquiera lo acepta. Con `action` pasa lo mismo. La decisión sale del rol, del
+`resource_type` y de los atributos del usuario, así que la evaluación «por
+tarea» y la del router dan **siempre el mismo veredicto**.
+
+Consecuencias, las dos:
+
+* lo que faltaba en la copia era **código de autorización latente, no una
+  brecha**. Se arregla igual —una comprobación que debería estar y no está es un
+  defecto aunque hoy la tape otra capa—, pero no se vende como brecha cerrada;
+* **ABAC por recurso concreto no está implementado**, por mucho que la API pasee
+  el `resource_id` por seis capas hasta el motor. Y había una nota en
+  `app/core/abac_dependency.py` que decía que las llamadas explícitas «aportan
+  grano más fino» **porque** pasan el id: esa frase era inexacta y se corrige
+  allí mismo. Arreglarlo de verdad exige resolver atributos del recurso, que es
+  diseño de producto; queda anotado, no disimulado, y con un test que lo fija
+  (`test_el_motor_abac_ignora_el_resource_id`) para que el día que se implemente
+  haya que cambiarlo a mano.
+
+### La tabla de transiciones, que tampoco era la misma
+
+`_TASK_VALID_TRANSITIONS` existía dos veces y **las dos copias diferían en una
+entrada**: `todo → done` estaba permitida en `task_service.py` —la que se
+ejecuta— y prohibida en `tasks/core.py`. Ningún test cubría esa transición, así
+que nada lo habría dicho.
+
+Se unifica en **la viva**, deliberadamente: marcar hecha una tarea pequeña sin
+pasar por `in_progress` es el gesto normal de un tablero, y cambiar eso en
+producción es una decisión de producto, no un arreglo de auditoría. Se comprobó
+antes de decidir que nadie lee `Task.started_at` salvo el propio asignador de
+sellos, así que saltarse `in_progress` no deja ningún cálculo de duración a
+medias.
+
+Y encima de las dos tablas había un comentario que decía «toda transición entre
+estados está permitida» mientras la tabla de debajo prohibía la mitad. Corregido
+en lugar de borrado: lo que sí es verdad —que la máquina es restrictiva, que la
+trazabilidad va por `TaskMovementLog`, y por qué `todo → done` se queda— merece
+quedar escrito.
+
+### `TaskService`: 387 líneas y ningún sitio de llamada
+
+Once métodos, un espejo exacto de las funciones procedurales, y **nadie la
+importaba** salvo el `__init__` del subpaquete, que tampoco importa nadie.
+
+Se comparó método a método contra la versión viva, normalizando `self.db`→`db` y
+`self.current_user`→`current_user`. En las once parejas el resultado fue el
+mismo: **la versión viva es un superconjunto estricto**. Lo que la copia muerta
+NO tenía:
+
+* `.get` y `.add_comment` → sin el acotado por `Project.organization_id`, así
+  que buscaban la tarea por id **en todos los tenants**;
+* `.cancel` → igual, y sin el 400 de «ya está cancelada»;
+* `.bulk_update_dates` → sin la llamada a `enforce_abac` por tarea;
+* `.create_dependency` → sin reactivar una dependencia borrada en lógico, así
+  que daba 409 y dejaba al usuario sin salida;
+* `.delete_dependency` → `db.delete(dep)` **físico**, cuando la convención de la
+  tabla es `is_active`.
+
+No era una alternativa: era la versión de antes de los arreglos de tenant (#62)
+y de ABAC, esperando a que alguien la resucitara. Borrada.
+
+### El guardián
+
+`tests/test_dominio_de_tareas_una_sola_vez.py` comprueba con `is` —y no con
+`==`— que lo de `task_service` y lo del subpaquete son **el mismo objeto**: dos
+funciones con el mismo cuerpo son iguales para cualquier comparación razonable y
+siguen siendo dos sitios donde arreglar el mismo defecto.
+
+## 3.septdecies El panel de sesiones activas estaba vacío para todo el mundo
+
+`user_sessions.organization_id` existe desde la auditoría #7 —lo dice el
+comentario que lleva al lado en el modelo— y **nadie la rellenaba**.
+`register_or_rotate_user_session` construía la fila con `user_id`,
+`refresh_token_jti`, `auth_method` y `created_at`, y nada más.
+
+El filtro de tenant es `organization_id == org`, y una fila con NULL **no la ve
+su propia organización**. Medido de punta a punta:
+
+```
+GET    /auth/sessions/active   → 0 sesiones, siempre, a cualquier usuario
+DELETE /auth/sessions/{id}     → ninguna fila que revocar
+```
+
+Y sin un solo error en los registros: una lista vacía, que es exactamente lo que
+no se investiga. Es el defecto de §3.quater otra vez, con un agravante: «revocar
+este dispositivo» no es una comodidad, es **la palanca que tiene un usuario que
+ve un inicio de sesión que no reconoce**. Llevaba muerta desde que se añadió la
+columna.
+
+### Por qué el sellado automático no lo salvaba
+
+Y no es un descuido del sellado: **iniciar sesión es anónimo por definición**.
+Cuando se crea esa fila todavía no hay usuario autenticado, así que la sesión de
+base de datos no tiene contexto publicado y `_sellar_organizacion` sale por la
+puerta de atrás. Es el mismo hueco que en `get_current_user` y en los tres
+WebSocket, y la respuesta es la misma que documenta `publicar_contexto_de_tenant`:
+la organización se pregunta explícitamente, **después** de resolver por id el
+sujeto que todavía no se sabe de quién es.
+
+`_organizacion_del_usuario(db, user_id)` hace esa consulta con la sesión sin
+contexto —sin filtrar, que es lo correcto aquí— y devuelve `None` sólo si el
+usuario no existe: `users.organization_id` es NOT NULL, así que no hay usuario
+sin organización, ni siquiera un superadmin.
+
+### Las filas que ya estaban
+
+Se curan solas al rotar el refresh —un usuario que vuelve a entrar recupera su
+panel— y además la revisión **095** rellena de una vez las que no vuelvan
+pronto, que son las que importan: una sesión abierta hace semanas seguiría
+invisible.
+
+El relleno sale de `users.organization_id` por `user_sessions.user_id`, y **no
+recurre a la organización por defecto**. Las revisiones 076 y 080 lo hacían, y
+eso reparte a un tenant las filas de los demás. Una sesión cuyo usuario no
+existe se queda como está: no se puede usar para autenticarse —el refresco busca
+por usuario— y lo que hay que hacer con ella es caducarla, no adoptarla.
+
+Verificada ejecutándola sobre SQLite con cuatro casos —dos que se rellenan, una
+huérfana que se queda, una que ya tenía organización y no se toca—, con segunda
+pasada idempotente y `downgrade` que no revierte y lo dice.
+
+### Cómo salió
+
+Registrando los escuchadores de tenant en la suite (§3.sexdecies). No lo
+encontró ningún detector: los cuatro de esta auditoría buscan nombres que no
+existen, y aquí **todos los nombres existen**. Lo que faltaba era un valor. Ese
+es el límite de esa familia de detectores y conviene tenerlo escrito: una
+columna que nadie rellena es invisible al análisis estático, y sólo se ve
+corriendo el filtro que la usa.
+
+## 3.sexdecies El filtro de tenant, registrado en la suite — y lo que salió debajo
+
+La decisión que llevaba abierta toda la auditoría: `tests/conftest.py` usaba un
+`sessionmaker` plano y los tres mecanismos de aislamiento se registran sobre
+`SessionLocal`, así que **ninguno se disparaba en ningún test**. Eso es lo que
+dejó vivir el apagón de §3.bis y el `TypeError` de su rama vecina.
+
+`TestSession` usa ahora `class_=TenantSession` y tiene registrados el
+escuchador `do_orm_execute` y el sellado `before_flush`, los mismos de
+producción.
+
+**Corrección de lo que se escribió aquí antes de ejecutarlo.** La primera
+versión de esta sección decía que el cambio era «seguro por construcción» y que
+«la suite entera pasa, sin declarar ni una excepción». Lo primero es medio
+verdad y lo segundo era **falso**, y se supo al lanzar la suite: **23 tests en
+rojo**. Ninguno hizo falta declararlo como excepción, pero tampoco pasaron solos.
+Catorce eran del propio banco de pruebas —filas sembradas sin organización que
+ahora nacen con la de la sesión—, **siete destaparon defectos de producción** y
+dos eran regresiones de esta misma jornada. El desglose completo está en
+**§3.vicies**; aquí quedan los cuatro que explican el cambio del banco de
+pruebas.
+
+Lo de «seguro por construcción» sí es cierto en su mitad: las tres capas salen
+por la puerta de atrás cuando `info` no trae `is_superadmin` («sesión no
+inicializada»), así que un test que no autentica no cambia. Lo que no se vio es
+que el **sellado** tiene otra puerta —sale si no hay `organization_id`— y que
+la sesión del fixture `db` no publicaba ninguno.
+
+### 1. El fixture `db` sellaba con NULL (artefacto, y del gordo)
+
+Toda fila creada por un test con `db.add(...)` nacía con `organization_id` NULL,
+y la petición HTTP siguiente —que sí tiene contexto— no la encontraba. Síntoma:
+`test_imputation_rejects_closed_task_status` esperaba el 400 de «tarea cerrada»
+y recibía **404**, porque su tarea era invisible.
+
+La sesión del fixture publica ahora contexto, y el reparto es deliberado:
+`organization_id` de los usuarios de test **y** `is_superadmin=True`. Escribir
+sella —las filas caen donde la API las ve—; leer no filtra —para poder
+comprobar lo que la API debería haber escondido—. Quien quiera comprobar el
+aislamiento de verdad no usa esa sesión: va por HTTP con dos tokens.
+
+### 2. `test_sellado_de_organizacion.py` documentaba la decisión como pendiente
+
+Su cabecera decía que registrar los escuchadores en la factoría era «lo correcto
+a medio plazo» y quedaba anotado en el traspaso. Ya está hecho, así que la nota
+se corrige, el fixture deja de enganchar a mano lo que ya está enganchado, y el
+test del job de fondo se monta su propia sesión sin contexto — que es justo lo
+que quiere probar.
+
+### 3. La configuración de SSO huérfana ya no nacía huérfana (artefacto)
+
+`test_resolve_sso_org_rejects_orphan_autoprovisioning` creaba un `SSOConfig` con
+`organization_id=None` y esperaba que resolverlo fallara. Con el sellado puesto,
+la fila ya no nace sin organización por mucho que se pida. El caso que defiende
+—una configuración anterior al sellado— se construye ahora con un `UPDATE`
+directo, y el test vuelve a probar lo que decía probar.
+
+### 4. Y los que no eran artefactos
+
+El panel de sesiones activas, vacío para todo el mundo (§3.septdecies), y los
+tres defectos de aislamiento de §3.vicies: mover un usuario de organización
+devolvía 500 con el cambio ya hecho, y el traspaso de una suscripción push no
+veía ni actualizaba la fila ajena, que es justo lo que decía arreglar.
+
+Y una `fila_global(db)` en `tests/conftest.py` para los pocos casos que crean
+filas **sin** organización a propósito —los que prueban qué pasa con un valor
+global—, porque pasarle `None` ya no basta: el sellado rellena precisamente los
+`None`.
+
+**Lo que esto dice del método**, que es la parte reutilizable: registrar el
+filtro en la suite no fue «un cambio de configuración de los tests». Fue
+encender una luz. La mayoría de los tropiezos se arreglaron en el propio banco
+de pruebas; los que no, eran código que llevaba tiempo sin funcionar en
+producción y que **ningún test podía haber visto antes**, porque ningún test
+corría con el filtro. Incluidos los tests que creían estar probando justo eso:
+uno de ellos activaba el filtro a mano sobre una sesión que no era la de
+producción, y por eso daba por bueno un arreglo que allí no funcionaba.
 
 ## 3.quaterdecies El tercer detector: siete funciones más, y dos que fallaban en silencio
 
@@ -3514,8 +4060,26 @@ dos imports relativos pasados a absolutos, para poder cargarla suelta.
 
 ## 7. Orden sugerido para continuar
 
-Quedan **3 de 38** hallazgos en «parcial»: #18 complejidad, #22 acceso a base en
-la capa API y #37 las rutas del frontend que no existen. **#37 remedido (§3.ter):
+Queda **1 de 38** hallazgo en «parcial»: **#18 complejidad** — y lo que queda
+de él ya no es «no se ha hecho», es **deuda medida con suelo puesto**: 94
+funciones por encima de 10 → **80**, exceso 253 → **205**, máximo 17 → **16**,
+con `scripts/audit_complejidad.py` y un trinquete que bloquea
+(`tests/test_complejidad_no_empeora.py`). Catorce funciones salieron de la lista y
+**ninguna por trocearla**: las catorce escondían un defecto, incluido el dominio
+de tareas implementado dos veces (§3.novodecies). Y un barrido por AST sobre las
+80 que quedan confirma que **no esconden ninguna tabla de despacho**: son largas
+y lineales, que es una razón distinta de «nadie las ha mirado».
+
+**Lo que salió por debajo al registrar el filtro de tenant en la suite** —la
+decisión que llevaba abierta toda la auditoría— está en **§3.vicies**, y no es
+menor: el panel de sesiones activas llevaba tiempo vacío para todo el mundo, y
+la bandera `bypass_tenant_filter` que documenta la salida de emergencia **sólo
+la respetaba una de las tres capas de aislamiento**.
+
+El **#22**
+(acceso a base en la capa API) esta **cerrado**: de 257 puntos a 0, con guardian
+de tolerancia cero. El **#37** (rutas del frontend que no existen) esta
+**cerrado**: de 62 a 11 y de 11 a 0, con su constante en cero. **#37 remedido (§3.ter):
 42 métodos huérfanos comparando método y ruta, **hoy 11**. Borrado el cliente
 muerto verificado —**53 líneas de método fuera, 11 reescritas**, 42 métodos
 netos y 24 funciones de hook—, remapeado lo que tenía
@@ -3540,17 +4104,20 @@ mismo un método de detección**: la asimetría entre cinco bloques que hacen lo
 mismo, o entre dos evaluadores de la misma condición, sólo se ve cuando están
 uno al lado del otro. Por eso el orden de abajo va por riesgo.
 
-1. **#18: haz `apply_filter` y para ahí como tanda dedicada.** El método está
-   probado cuarenta y cuatro veces y ha dado once defectos reales, tres de
-   seguridad — pero eso fue en las funciones de 18 a 247. De las **ocho más
-   grandes que quedan, medido con un script AST, sólo una oculta una tabla de
-   despacho**: `apply_filter` (15), 12 `elif` sobre el mismo `operator` en 30
-   líneas, y trae defecto (un `in` con valor no-lista devuelve todo sin
-   filtrar). Ésa sí vale la pena. Para las otras 96 —entre 11 y 16, largas por
-   corrutinas anidadas, bucles sobre grafos o cálculo— **el rendimiento
-   decreciente es real y está medido**: pártelas cuando haya que tocar el
-   fichero por otra razón, no en una tanda. La tabla de la medición está en la
-   sección #18.
+1. **#18: ya no hay una tanda dedicada que hacer.** `apply_filter` está hecha
+   —es `_CLAUSULAS`— y con esta tanda se han ido las trece que escondían
+   duplicación o una tabla de despacho. Lo que queda son **80 funciones largas
+   pero lineales**, y para ellas el rendimiento decreciente es real y está
+   medido: pártelas **cuando haya que tocar el fichero por otra razón**, no en
+   una tanda. El orden por el que elegir está en
+   `python scripts/audit_complejidad.py`, que `ci_local.sh` imprime como gate
+   informativo.
+
+   Lo que sí hay que respetar es el trinquete. Sus tres reglas y por qué falla
+   también ante una mejora están en §3.octodecies; la que importa es la
+   primera: **una función nueva no puede nacer por encima de 10, y meterla en
+   `CONOCIDAS` para que pase no es una opción** — esa lista es la deuda que ya
+   había, no un buzón.
 2. **#22, los puntos de acceso a base en la capa API** — por dominios, no de
    golpe, cada tanda con su suite. **Tanda 1 cerrada:** `collaboration`, de 127
    puntos a 0 en ocho ficheros, con diez defectos destapados por el camino
@@ -3590,9 +4157,11 @@ uno al lado del otro. Por eso el orden de abajo va por riesgo.
    fronteras de transaccion, no acceso a datos, asi que el contador nuevo ya
    no las suma con lo demas.
 3. **Registrar el escuchador `do_orm_execute` en la factoría de sesiones de los
-   tests.** Hoy no se ejecuta en ninguna prueba (§3.bis), que es por lo que el
-   apagón vivió sin que nadie lo viera. No se hizo de paso porque activarlo
-   cambia lo que ven tests que hoy leen entre organizaciones sin declararlo.
+   tests — HECHO** (§3.sexdecies). `TestSession` usa `TenantSession` y tiene
+   registrados el escuchador y el sellado. Era seguro por construcción y no se
+   veía hasta ejecutarlo: las tres capas salen por la puerta de atrás cuando la
+   sesión no está inicializada, así que un test que no autentica no cambia. La
+   suite entera pasa **sin una sola excepción declarada**.
 **#16, traducción: CERRADO.** Este documento lo daba por «parcial» y era falso.
 Se declaran tres idiomas —`es`, `en`, `zh`, exactamente los que se venden— y los
 tres están al **100 %** sobre 3.755 claves, con dos gates bloqueantes: cobertura

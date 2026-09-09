@@ -98,8 +98,24 @@ import pytest
 #: funcionar. Bajarlo es el objetivo, y cada bajada va con su pantalla
 #: comprobada en la interfaz.
 #:
-#: 2026-09: baja de 62 a 11. Ver la sección «La segunda tanda» del docstring.
-DESAJUSTES_CONOCIDOS = 11
+#: 2026-09: baja de 62 a 11, y de 11 a **0**. Los once que quedaban eran
+#: endpoints que no existían, y se cerraron uno a uno:
+#:
+#:   · cuatro `GET` de detalle —contrato, riesgo, oportunidad— cuyo CRUD estaba
+#:     completo salvo la lectura de uno;
+#:   · dos manejadores de certificaciones que estaban **escritos y completos**
+#:     y sin decorador de ruta;
+#:   · tres borrados que no hacían nada (problema, cambio, integración OAuth),
+#:     resueltos como cierre/cancelación/desactivación y no como borrado de
+#:     fila, porque las tres entidades son registros con historial;
+#:   · el listado de tickets de un Known Error, cuyo modelo ya existía;
+#:   · y los dos exports de la pantalla de exportaciones, que apuntaban a
+#:     rutas inexistentes: uno existía con otro verbo y otra ruta, el otro
+#:     hubo que añadirlo.
+#:
+#: **Cero es ahora el suelo.** Si sube, hay una pantalla nueva que no puede
+#: funcionar.
+DESAJUSTES_CONOCIDOS = 0
 
 _VERBOS = {"get": "GET", "post": "POST", "put": "PUT", "patch": "PATCH",
            "delete": "DELETE"}

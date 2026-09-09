@@ -76,6 +76,30 @@ def create_opportunity(db: Session, current_user: User, payload_dict: dict) -> O
     return opp
 
 
+def oportunidad_propia(db: Session, current_user: User, opp_id: str) -> Opportunity:
+    """La oportunidad activa, si el sujeto puede verla. 404 si no.
+
+    Auditoria 2026-08. Esta busqueda estaba **copiada literalmente tres veces**
+    —en `update_opportunity`, `delete_opportunity` y
+    `convert_opportunity_to_project`— y hacia falta una cuarta para el
+    `GET /pipeline/{id}` del hallazgo 37, que la interfaz llamaba y no existia.
+    Tres copias de la misma consulta es donde se pierde una guarda, asi que vive
+    aqui.
+
+    El `is_active == True` no es decorativo: el borrado de una oportunidad es
+    logico, y sin ese filtro una ya borrada volveria a aparecer.
+    """
+    opp = scope_opportunity_query(
+        db.query(Opportunity), db, current_user
+    ).filter(
+        Opportunity.id == opp_id,
+        Opportunity.is_active == True,  # noqa: E712
+    ).first()
+    if not opp:
+        raise HTTPException(404, "Oportunidad no encontrada")
+    return opp
+
+
 def update_opportunity(
     db: Session,
     current_user: User,
@@ -84,11 +108,7 @@ def update_opportunity(
     new_stage=None,
     explicit_probability=None,
 ) -> Opportunity:
-    opp = scope_opportunity_query(
-        db.query(Opportunity), db, current_user
-    ).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
-    if not opp:
-        raise HTTPException(404, "Oportunidad no encontrada")
+    opp = oportunidad_propia(db, current_user, opp_id)
 
     old_stage = opp.stage
 
@@ -127,11 +147,7 @@ def update_opportunity(
 
 
 def delete_opportunity(db: Session, current_user: User, opp_id: str) -> dict:
-    opp = scope_opportunity_query(
-        db.query(Opportunity), db, current_user
-    ).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
-    if not opp:
-        raise HTTPException(404, "Oportunidad no encontrada")
+    opp = oportunidad_propia(db, current_user, opp_id)
     if opp.project_id:
         raise HTTPException(400, "No se puede eliminar: la oportunidad esta vinculada a un proyecto")
     opp.is_active = False
@@ -165,11 +181,7 @@ def add_activity(
 
 
 def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str) -> dict:
-    opp = scope_opportunity_query(
-        db.query(Opportunity), db, current_user
-    ).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
-    if not opp:
-        raise HTTPException(404, "Oportunidad no encontrada")
+    opp = oportunidad_propia(db, current_user, opp_id)
     if opp.project_id:
         raise HTTPException(400, f"Esta oportunidad ya está vinculada al proyecto {opp.project_id}")
 

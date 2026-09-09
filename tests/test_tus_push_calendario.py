@@ -207,11 +207,9 @@ def test_EL_HALLAZGO_endpoint_push_de_otra_organizacion_no_da_500(db):
     así que el alta intentaba un INSERT y chocaba con la restricción única. Ahora
     la fila se traspasa, y el traspaso se audita en las dos organizaciones.
 
-    El filtro global de tenant se **activa a mano** en la sesión: en los tests
-    `session.info` viene sin inicializar y `do_orm_execute` se salta el filtro,
-    con lo que sin esto el escenario no se reproduciría y el test pasaría
-    igualmente contra el código defectuoso. Es justo el filtro lo que hacía
-    invisible la fila ajena, así que sin activarlo no se prueba nada.
+    La sesión se pone en modo «usuario normal» —la del fixture es superadmin—
+    porque es justo el filtro lo que hacía invisible la fila ajena: sin él el
+    escenario no existe y el test pasaría igual contra el código defectuoso.
     """
     from app.models.collaboration import (
         CollaborationAuditEvent,
@@ -231,21 +229,20 @@ def test_EL_HALLAZGO_endpoint_push_de_otra_organizacion_no_da_500(db):
     db.add(ajena)
     db.commit()
 
-    # El filtro global de aislamiento por tenant esta registrado sobre
-    # `SessionLocal`, y la suite usa otra factoria (`TestSession`), asi que en
-    # los tests NO se ejecuta. Se engancha a esta sesion y sólo a ella para
-    # reproducir la condicion de produccion: sin el filtro activo el escenario
-    # no existe y el test pasaria igual contra el codigo defectuoso.
-    from sqlalchemy import event as sa_event
-
-    from app.db.session import _enforce_tenant_isolation
-
-    # Se resuelve el `organization_id` ANTES de enganchar el filtro: `admin`
-    # quedo expirado en el `commit` de arriba y leer el atributo dispara un
-    # refresco, que con el filtro ya puesto y la sesion aun sin `org_id`
-    # entraria por la rama de «usuario sin organizacion».
+    # Auditoria 2026-08: aqui se enganchaba `_enforce_tenant_isolation` a mano,
+    # porque «la suite usa otra factoria y en los tests NO se ejecuta». Ya no
+    # hace falta —`TestSession` es una `TenantSession` con los escuchadores
+    # puestos— y **quitarlo importa**, no es limpieza: aquella sesion de pruebas
+    # era un `Session` plano con un escuchador encima, y un `Session` plano deja
+    # pasar las consultas por Core. La de produccion no, porque
+    # `TenantSession.execute()` tambien filtra. Con el montaje viejo, este test
+    # daba por bueno un ayudante que en produccion seguia sin ver la fila ajena:
+    # el 500 que decia arreglar seguia ahi. Ver `_suscripcion_por_endpoint`.
+    #
+    # Lo unico que queda es ponerse en la piel de un usuario normal —la sesion
+    # del fixture es superadmin— y devolver el contexto al salir.
     org_de_quien_llama = admin.organization_id
-    sa_event.listen(db, "do_orm_execute", _enforce_tenant_isolation)
+    contexto_previo = dict(db.info)
     db.info["is_superadmin"] = False
     db.info["organization_id"] = org_de_quien_llama
     try:
@@ -263,9 +260,8 @@ def test_EL_HALLAZGO_endpoint_push_de_otra_organizacion_no_da_500(db):
         })
         assert resultado["reasignada"] is True
     finally:
-        sa_event.remove(db, "do_orm_execute", _enforce_tenant_isolation)
-        db.info.pop("is_superadmin", None)
-        db.info.pop("organization_id", None)
+        db.info.clear()
+        db.info.update(contexto_previo)
 
     fila = (
         db.query(CollaborationPushSubscription)

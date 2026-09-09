@@ -170,8 +170,17 @@ def test_un_token_que_no_es_de_cliente_no_deja_contexto(db):
         CLIENT_TOKEN_SECRET, algorithm=ALGORITHM,
     )
 
+    # Auditoria 2026-08: se mira que la dependencia **no cambie** el contexto,
+    # no que la sesion venga vacia. Desde que la suite corre con la semantica de
+    # produccion, la sesion del fixture ya trae contexto publicado —el del
+    # operador del test—, asi que «no hay contexto» dejo de ser la forma de
+    # comprobar «la dependencia no lo ha tocado». La propiedad que importa es la
+    # misma: un token que no es de cliente no publica nada.
+    antes = dict(db.info)
+
     with pytest.raises(HTTPException) as exc:
         get_current_client(
             authorization=f"Bearer {token}", portal_access_token=None, db=db)
     assert exc.value.status_code == 401
-    assert "organization_id" not in db.info
+    assert dict(db.info) == antes
+    assert "current_client" not in db.info

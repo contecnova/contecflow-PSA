@@ -20,6 +20,7 @@ from app.schemas.service_desk import (
 )
 from app.services.service_desk.problem_service import (
     get_scoped_problem_or_404, apply_problem_update, link_ticket_to_problem_record,
+    cerrar_problema,
 )
 from app.services.service_desk.catalog_service import (
     list_catalog_payload, create_category_record, update_category_record, deactivate_category_record,
@@ -41,6 +42,7 @@ from app.services.service_desk.routing_rule_service import (
 from app.services.service_desk.change_service import (
     serialize_change, list_changes_payload, get_change_payload,
     create_change_record, update_change_record, approve_change_record, get_change_by_id,
+    cancelar_cambio,
 )
 from app.services.service_desk.change_management_service import (
     assess_change_risk_ai,
@@ -173,6 +175,20 @@ def update_problem(request: Request, problem_id: str, payload: ProblemUpdateIn, 
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
 
+@router.delete("/problems/{problem_id}", summary="Cerrar problema")
+@limiter.limit("30/minute")
+def close_problem(request: Request, problem_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Auditoria 2026-08 (hallazgo 37): esta ruta **no existia**.
+
+    El boton de borrar de `ITSMKnowledgeTab` **no hacia nada** — uno de los dos
+    borrados silenciosos que la auditoria dejo anotados. Cierra el problema en
+    vez de borrar la fila; el porque esta en el docstring de `cerrar_problema`.
+    """
+    enforce_abac(db, current_user, "sd_problem", problem_id, action="delete")
+    datos = cerrar_problema(db, current_user, problem_id)
+    _commit_or_rollback(db)
+    return APIResponse.ok(data=datos)
+
 @router.post("/problems/{problem_id}/link-ticket/{ticket_id}", summary="Vincular ticket a problema")
 @limiter.limit("30/minute")
 def link_ticket_to_problem(request: Request, problem_id: str, ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -274,6 +290,19 @@ def update_change(change_id: str, payload: dict = Body(...), db: Session = Depen
     cr = update_change_record(db, current_user, change_id, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data=serialize_change(cr))
+
+@router.delete("/changes/{change_id}", summary="Cancelar Change Request")
+def cancel_change(change_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Auditoria 2026-08 (hallazgo 37): esta ruta **no existia**.
+
+    El boton de borrar de un cambio **no hacia nada** — el otro borrado
+    silencioso. Cancela en vez de borrar; el porque, y por que un cambio ya
+    implementado responde 409, estan en el docstring de `cancelar_cambio`.
+    """
+    enforce_abac(db, current_user, "sd_change", change_id, action="delete")
+    datos = cancelar_cambio(db, current_user, change_id)
+    _commit_or_rollback(db)
+    return APIResponse.ok(data=datos)
 
 @router.post("/changes/{change_id}/approve", summary="Aprobar Change Request (CAB)")
 def approve_change(change_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

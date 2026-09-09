@@ -204,10 +204,15 @@ def test_solo_se_listan_los_proveedores_propios_y_los_globales(db, dos_nubes):
     from app.services.cmdb.discovery import proveedores_visibles
 
     # Un proveedor global, de los que el filtro deja pasar a propósito.
-    db.add(CMDBDiscoveryProvider(
-        id="prov-global", name="Plantilla", provider_type="snmp",
-        organization_id=None, is_active=True))
-    db.commit()
+    # `fila_global` porque el sellado del `flush` le pondria organizacion y
+    # dejaria de ser global — ver el ayudante en `tests/conftest.py`.
+    from tests.conftest import fila_global
+
+    with fila_global(db):
+        db.add(CMDBDiscoveryProvider(
+            id="prov-global", name="Plantilla", provider_type="snmp",
+            organization_id=None, is_active=True))
+        db.commit()
 
     ids = {p.id for p in proveedores_visibles(db, _Usuario(ORG))}
     assert ids == {f"prov-{ORG}", "prov-global"}

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.network import extract_client_ip
 from app.models.sessions import UserSession
+from app.models.user import User as UserModel
 
 logger = logging.getLogger("contecflow.session_security")
 
@@ -40,38 +41,47 @@ def _ip_is_public(ip_raw: str) -> bool:
         return False
 
 
+# ── Reconocimiento del `User-Agent` ──────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). Esto eran dos cascadas de `elif` dentro de
+# `_parse_device_name`, complejidad 12 para lo que es una lista de reglas
+# probadas en orden. **El orden es la parte importante y era justo la que no se
+# veia**: el `User-Agent` de Edge contiene `chrome/` y `safari/`, y el de Chrome
+# contiene `safari/`. Si alguien reordena estas filas por parecerle mas logico,
+# Edge pasa a reconocerse como Chrome sin que nada falle a gritos.
+#
+# Se prueban de arriba abajo y gana la primera que encaje.
+_NAVEGADORES = (
+    ("Edge",    lambda ua: "edg/" in ua or "edge/" in ua),
+    ("Chrome",  lambda ua: "chrome/" in ua and "safari/" in ua),
+    ("Safari",  lambda ua: "safari/" in ua and "chrome/" not in ua),
+    ("Firefox", lambda ua: "firefox/" in ua),
+)
+
+_SISTEMAS = (
+    ("iPhone",  lambda ua: "iphone" in ua),
+    ("iPad",    lambda ua: "ipad" in ua),
+    ("Android", lambda ua: "android" in ua),
+    ("Windows", lambda ua: "windows" in ua),
+    ("macOS",   lambda ua: "mac os" in ua or "macintosh" in ua),
+    ("Linux",   lambda ua: "linux" in ua),
+)
+
+
+def _primera_regla_que_encaje(tabla, ua: str, por_defecto: str) -> str:
+    for nombre, encaja in tabla:
+        if encaja(ua):
+            return nombre
+    return por_defecto
+
+
 def _parse_device_name(user_agent: Optional[str]) -> str:
     ua = (user_agent or "").lower()
     if not ua:
         return "Unknown device"
-
-    if "edg/" in ua or "edge/" in ua:
-        browser = "Edge"
-    elif "chrome/" in ua and "safari/" in ua:
-        browser = "Chrome"
-    elif "safari/" in ua and "chrome/" not in ua:
-        browser = "Safari"
-    elif "firefox/" in ua:
-        browser = "Firefox"
-    else:
-        browser = "Browser"
-
-    if "iphone" in ua:
-        os_name = "iPhone"
-    elif "ipad" in ua:
-        os_name = "iPad"
-    elif "android" in ua:
-        os_name = "Android"
-    elif "windows" in ua:
-        os_name = "Windows"
-    elif "mac os" in ua or "macintosh" in ua:
-        os_name = "macOS"
-    elif "linux" in ua:
-        os_name = "Linux"
-    else:
-        os_name = "Unknown OS"
-
-    return f"{browser} on {os_name}"
+    navegador = _primera_regla_que_encaje(_NAVEGADORES, ua, "Browser")
+    sistema = _primera_regla_que_encaje(_SISTEMAS, ua, "Unknown OS")
+    return f"{navegador} on {sistema}"
 
 
 def _lookup_ip_intel(ip_address: Optional[str], request) -> dict:
@@ -161,6 +171,43 @@ def _compute_risk(
     return score, level, reasons
 
 
+def _organizacion_del_usuario(db: Session, user_id: str) -> Optional[str]:
+    """La organizacion del usuario que esta iniciando sesion.
+
+    Auditoria 2026-08. `user_sessions.organization_id` existe desde la auditoria
+    #7 y **nadie la rellenaba**, asi que toda sesion nacia con NULL. Con el
+    filtro de tenant —`organization_id == org`— una fila con NULL no la ve su
+    propia organizacion, de modo que `GET /auth/sessions/active` devolvia
+    **cero sesiones a cualquier usuario** y `DELETE /auth/sessions/{id}` no
+    encontraba nada que revocar. Un panel vacio y un boton de seguridad muerto,
+    sin un solo error en los registros.
+
+    El sellado automatico del `flush` no puede taparlo, y no es un descuido
+    suyo: **iniciar sesion es anonimo por definicion**. Cuando se crea esta fila
+    todavia no hay usuario autenticado, asi que la sesion de base de datos no
+    tiene contexto publicado y `_sellar_organizacion` sale por la puerta de
+    atras. Aqui hay que preguntarlo explicitamente.
+
+    Se consulta con la sesion tal cual, sin contexto y por tanto sin filtrar,
+    que es lo correcto: buscar al usuario por id es justo el paso que todavia no
+    sabe de que organizacion es. Es el mismo patron que `get_current_user` y que
+    los WebSocket, documentado en `publicar_contexto_de_tenant`.
+
+    Devuelve `None` solo si el usuario **no existe**, porque
+    `users.organization_id` es NOT NULL: no hay usuario sin organizacion, ni
+    siquiera un superadmin. Y una sesion cuyo usuario no existe no vale nada
+    —no se puede refrescar, porque el refresco busca por usuario—, asi que se
+    queda sin organizacion en lugar de adoptarla una cualquiera. La revision 095
+    de alembic hace lo mismo con el relleno historico, y por la misma razon.
+    """
+    fila = (
+        db.query(UserModel.organization_id)
+        .filter(UserModel.id == user_id)
+        .first()
+    )
+    return fila[0] if fila else None
+
+
 def register_or_rotate_user_session(
     db: Session,
     user_id: str,
@@ -211,14 +258,24 @@ def register_or_rotate_user_session(
             .first()
         )
 
+    organizacion = _organizacion_del_usuario(db, user_id)
+
     if existing is None:
         existing = UserSession(
             user_id=user_id,
+            organization_id=organizacion,
             refresh_token_jti=refresh_token_jti,
             auth_method=auth_method,
             created_at=_now(),
         )
         db.add(existing)
+
+    # Auditoria 2026-08. Las filas que ya existen con NULL se curan al rotar el
+    # refresh, asi que un usuario que vuelve a entrar recupera su panel sin
+    # esperar a nada. La migracion 095 hace el relleno de una vez para los que
+    # no vuelvan pronto; esto es el cinturon.
+    if existing.organization_id is None:
+        existing.organization_id = organizacion
 
     existing.refresh_token_jti = refresh_token_jti
     existing.ip_address = ip_address

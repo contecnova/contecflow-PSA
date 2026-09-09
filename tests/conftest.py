@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 # Forzar modo 'plain' para claves JWT en tests (no KMS)
 os.environ["KMS_PROVIDER"] = ""
 os.environ["AWS_KMS_KEY_ID"] = ""
@@ -7,7 +8,6 @@ os.environ["AWS_KMS_KEY_ID"] = ""
 conftest.py — Fixtures compartidos para toda la suite de tests de Contecflow.
 Usa SQLite en memoria para aislamiento total.
 """
-import os
 import secrets
 import pytest
 from fastapi.testclient import TestClient
@@ -15,7 +15,23 @@ from fastapi.testclient import TestClient
 # Disable rate limiting for the entire test suite
 os.environ["TESTING"] = "1"
 from sqlalchemy import create_engine
+from sqlalchemy import event as _sa_event
 from sqlalchemy.orm import sessionmaker
+
+from app.db.session import TenantSession
+
+# Los dos escuchadores de aislamiento. Estan detras de sus perillas
+# (`TENANT_AUTO_FILTER_GLOBAL` y `TENANT_AUTO_STAMP_ON_INSERT`), asi que pueden
+# no existir: si estan apagados en el entorno, la suite corre sin ellos, igual
+# que produccion.
+try:
+    from app.db.session import _enforce_tenant_isolation
+except ImportError:  # pragma: no cover — la perilla esta apagada
+    _enforce_tenant_isolation = None
+try:
+    from app.db.session import _sellar_organizacion
+except ImportError:  # pragma: no cover
+    _sellar_organizacion = None
 
 # Variables de entorno necesarias para pydantic-settings en tests
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-tests-only-not-production-use")
@@ -64,7 +80,86 @@ engine = create_engine(
     # Para SQLite in-memory: mantener una sola conexión durante todo el test
     poolclass=__import__("sqlalchemy.pool", fromlist=["StaticPool"]).StaticPool,
 )
-TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# ── La semantica de tenant, la misma que en produccion ──────────────────────
+#
+# Auditoria 2026-08. Durante toda la auditoria esta factoria fue un
+# `sessionmaker` plano, y los tres mecanismos de aislamiento se registran sobre
+# `SessionLocal`, asi que **ninguno se disparaba en ningun test**. Eso es lo que
+# dejo vivir dos defectos graves sin que nadie los viera:
+#
+#   · el «apagon» del filtro (§3.bis): el criterio con la organizacion cocida en
+#     un argumento por defecto dejaba a cero a toda organizacion que no fuera la
+#     primera atendida por el proceso;
+#   · y el `TypeError` de la rama «usuario sin organizacion», que reventaba
+#     cualquier consulta ORM de esa sesion con un 500.
+#
+# Los dos se verificaron enganchando el escuchador **a mano** en un test. Eso
+# funciona para un caso concreto y no protege del siguiente.
+#
+# Registrarlo aqui es seguro por construccion, y conviene entender por que: las
+# tres capas —`query()`, `execute()` y el escuchador `do_orm_execute`— salen por
+# la puerta de atras cuando `info` no trae `is_superadmin` («sesion no
+# inicializada»). Un test que no autentica no cambia de comportamiento. **Lo que
+# si cambia** es el test que pasa por `get_current_user`, que si publica el
+# contexto: ese corre ahora con el filtro puesto, que es exactamente lo que hace
+# produccion.
+TestSession = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    class_=TenantSession,
+)
+
+if _enforce_tenant_isolation is not None:
+    _sa_event.listen(TestSession, "do_orm_execute", _enforce_tenant_isolation)
+
+if _sellar_organizacion is not None:
+
+    @_sa_event.listens_for(TestSession, "before_flush")
+    def _sellar_en_los_tests(session, flush_context, instances) -> None:
+        """El mismo sellado de organizacion que corre en produccion.
+
+        Sin esto, un test que crea una fila con la sesion autenticada la deja
+        con `organization_id` a NULL y despues no la ve — que es precisamente el
+        defecto de §3.quater, y hay que poder reproducirlo en la suite.
+        """
+        _sellar_organizacion(session)
+
+
+@contextmanager
+def fila_global(sesion):
+    """Dentro de este bloque, las filas nuevas NO reciben organización.
+
+    Auditoría 2026-08. Desde que la suite corre con la semántica de producción,
+    la sesión del fixture `db` publica organización y `_sellar_organizacion`
+    rellena el `organization_id` de toda fila nueva que venga con `None`. Eso es
+    lo correcto para el 99 % de los tests —crean datos de su propio tenant— y es
+    exactamente lo contrario de lo que quiere el 1 % restante: los que
+    comprueban qué pasa con una fila **global**, esa que tiene la columna a NULL
+    a propósito y que todas las organizaciones ven.
+
+    Pasar el valor «None» no sirve, porque el sellado rellena precisamente los
+    None. Hay que quitarle el contexto a la sesión mientras se crea la fila, y
+    eso es lo que hace esto:
+
+        with fila_global(db):
+            db.add(WorkflowBlueprint(name="BP", organization_id=None))
+            db.commit()
+
+    Al salir devuelve el contexto, así que el resto del test sigue viendo lo que
+    veía. Y se lee como lo que es —una declaración de intención— en vez de como
+    un apaño: si mañana el sellado cambia, estos son los sitios que hay que
+    mirar, y están marcados.
+
+    Ojo: los modelos con `_tenant_filter_include_global` (como `AppSetting`) ya
+    los salta el sellado, así que esos no lo necesitan.
+    """
+    previo = sesion.info.pop("organization_id", None)
+    try:
+        yield sesion
+    finally:
+        if previo is not None:
+            sesion.info["organization_id"] = previo
 
 
 def override_get_db():
@@ -162,6 +257,45 @@ def db():
     # --- Inicializar el cache global de claves JWT para la app ---
     from app.services.key_management import refresh_caches
     db_session = TestSession()
+
+    # ── El contexto de tenant de la sesion del fixture ───────────────────────
+    #
+    # Auditoria 2026-08. Desde que `TestSession` registra los escuchadores de
+    # produccion, esta sesion necesita contexto — y no por capricho, por una
+    # razon medible: `_sellar_organizacion` sale por la puerta de atras cuando
+    # `info` no trae `organization_id`, asi que **toda fila creada por un test
+    # con `db.add(...)` se quedaba con `organization_id` a NULL**, y despues la
+    # peticion HTTP —que si tiene contexto— la buscaba con el filtro puesto y no
+    # la encontraba. Sintoma real:
+    # `test_imputation_rejects_closed_task_status` esperaba el 400 de «tarea
+    # cerrada» y recibia un 404, porque su `Task` era invisible.
+    #
+    # `is_superadmin=True` es deliberado y es la otra mitad del arreglo: esta
+    # sesion es la del *operador del test*, que inspecciona y prepara datos de
+    # cualquier organizacion. Con superadmin el filtro de lectura se salta y el
+    # sellado de escritura no —`_sellar_organizacion` solo mira
+    # `organization_id`—, que es exactamente el reparto que hace falta:
+    #
+    #   · escribir  → las filas caen en la organizacion de los usuarios de test,
+    #                 asi que la API las ve;
+    #   · leer      → sin filtrar, para poder comprobar lo que la API deberia
+    #                 haber escondido.
+    #
+    # Y quien quiera comprobar el aislamiento **de verdad** no usa esta sesion:
+    # lo hace por HTTP con dos tokens, o se monta su propia sesion (ver
+    # `tests/test_sesiones_a_mano_con_contexto.py`). Un valor explicito aqui no
+    # afloja nada, porque las filas que ya traen `organization_id` puesto —las
+    # de `org_b` en las pruebas de dos tenants— no se tocan: el sellado solo
+    # rellena los NULL.
+    #
+    # El orden respecto a `refresh_caches` da igual, y merece quedar dicho
+    # porque parece que no: esa llamada escribe el llavero JWT en
+    # `app_settings`, una fila que tiene que ser **global** (`organization_id`
+    # NULL) o los tests de la segunda organizacion no podrian ni autenticarse.
+    # No se sella porque `AppSetting` lleva `_tenant_filter_include_global` y el
+    # sellado salta esos modelos — igual que en produccion.
+    db_session.info["organization_id"] = 1
+    db_session.info["is_superadmin"] = True
 
     refresh_caches(db_session)
     # Debug print the JWT keyring value after initialization
@@ -378,8 +512,16 @@ def seed_multitenant(db):
     db.add_all([project_a, project_b])
     db.flush()
 
+    # Auditoria 2026-08: las dos tareas llevan `organization_id` **explicito**,
+    # como ya lo llevaban sus proyectos. Antes no lo llevaban y funcionaba de
+    # casualidad, porque nada sellaba ni filtraba en la suite; desde que corre
+    # con la semantica de produccion, una tarea sin organizacion recibe la de la
+    # sesion del fixture —que no es ni ORG_A ni ORG_B— y las pruebas de
+    # aislamiento dejan de probar lo que dicen: no es que la tarea ajena se
+    # esconda, es que **ninguna de las dos aparece**.
     task_a = Task(
         id=TASK_A_ID,
+        organization_id=ORG_A_ID,
         code="TSK-TA001",
         project_id=PROJECT_A_ID,
         title="Task tenant A",
@@ -391,6 +533,7 @@ def seed_multitenant(db):
     )
     task_b = Task(
         id=TASK_B_ID,
+        organization_id=ORG_B_ID,
         code="TSK-TB001",
         project_id=PROJECT_B_ID,
         title="Task tenant B",

@@ -212,6 +212,96 @@ def manual_event_notify(
     return APIResponse.ok(data={"ok": True, "dispatched": len(results), "results": results})
 
 
+# ── Inbound bot — la autenticación de cada plataforma ─────────────────────────
+async def _verificar_firma_de_slack(request: Request) -> bytes:
+    """Comprueba la firma de Slack y devuelve el cuerpo crudo.
+
+    Auditoría 2026-08 (hallazgo 18). Vivía dentro del manejador, que por esto y
+    por la tabla de verbos llegaba a complejidad 12. Devolver el cuerpo es
+    obligatorio, no una comodidad: la firma se calcula **sobre los bytes tal
+    como llegaron**, así que quien los lee tiene que ser el mismo que los
+    verifica — un segundo `await request.body()` no está garantizado.
+
+    Las dos cosas que hace, y que se conservan verbatim:
+
+      · el **antirreplay**: una petición con más de cinco minutos se rechaza,
+        porque una firma válida capturada de un log sigue siendo válida para
+        siempre si nadie mira la hora;
+      · `hmac.compare_digest` y no `==`: comparar firmas con `==` filtra por
+        cuánto tarda en fallar.
+
+    Sin `SLACK_SIGNING_SECRET` configurado el receptor devuelve **503 y no 200
+    silencioso**: aceptar comandos sin poder verificar quién los manda sería
+    peor que no tener el bot. La excepción es `TESTING=1`.
+    """
+    import hashlib
+    import hmac
+
+    signing_secret = settings.SLACK_SIGNING_SECRET
+    body_bytes = await request.body()
+    if not signing_secret:
+        if os.getenv("TESTING") != "1":
+            raise HTTPException(503, "Slack inbound commands are not configured")
+        return body_bytes
+
+    ts = request.headers.get("X-Slack-Request-Timestamp", "")
+    sig = request.headers.get("X-Slack-Signature", "")
+    try:
+        import time as _time
+        if abs(_time.time() - float(ts)) > 300:
+            raise HTTPException(403, "Request timestamp too old")
+    except (ValueError, TypeError):
+        raise HTTPException(403, "Missing or invalid X-Slack-Request-Timestamp")
+
+    base = f"v0:{ts}:{body_bytes.decode()}"
+    expected = "v0=" + hmac.new(signing_secret.encode(), base.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, sig):
+        raise HTTPException(403, "Invalid Slack signature")
+    return body_bytes
+
+
+def _verificar_token_de_teams(request: Request) -> None:
+    """Comprueba que el bearer de Teams va dirigido a este bot.
+
+    Auditoría 2026-08 (hallazgo 18): igual que la de Slack, estaba dentro del
+    manejador. Y merece una nota honesta sobre su alcance: esto **no valida la
+    firma del JWT**, sólo decodifica el cuerpo y compara `aud`/`appid` con
+    `TEAMS_BOT_APP_ID`. Es una comprobación de destinatario, no de emisor:
+    frena un token de otro bot, no uno fabricado. La validación completa exige
+    las claves públicas de Bot Framework y queda anotada como pendiente, no
+    disimulada aquí.
+
+    El `except HTTPException: raise` de dentro es a propósito: sin él, el 403 de
+    audiencia lo capturaría el `except Exception` de al lado y saldría como
+    «token malformado», que es un mensaje distinto y falso.
+    """
+    import base64 as _b64
+    import json as _json
+
+    bot_app_id = settings.TEAMS_BOT_APP_ID
+    if not bot_app_id:
+        if os.getenv("TESTING") != "1":
+            raise HTTPException(503, "Teams inbound commands are not configured")
+        return
+
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(401, "Missing Teams bearer token")
+    raw_token = auth_header.removeprefix("Bearer ").strip()
+    try:
+        parts = raw_token.split(".")
+        padded = parts[1] + "=" * (4 - len(parts[1]) % 4)
+        claims = _json.loads(_b64.urlsafe_b64decode(padded))
+        if claims.get("aud") != bot_app_id and claims.get("appid") != bot_app_id:
+            raise HTTPException(403, "Teams token audience mismatch")
+    # intentional: chained re-raise preserves context
+    except HTTPException:
+        raise
+    except Exception:
+        logger.warning("Token bearer de Teams inválido o malformado")
+        raise HTTPException(403, "Invalid Teams bearer token")
+
+
 # ── Inbound bot — Slack slash commands ────────────────────────────────────────
 @router.post("/slack/commands", summary="Receptor de slash commands desde Slack", include_in_schema=False)
 async def slack_inbound_command(
@@ -228,62 +318,19 @@ async def slack_inbound_command(
       /contecflow ayuda                       → lista de comandos
     Security: validates X-Slack-Signature (HMAC-SHA256) when SLACK_SIGNING_SECRET is set.
     """
-    import hashlib
-    import hmac
-
-    # ── Signature verification ────────────────────────────────────────────────
-    signing_secret = settings.SLACK_SIGNING_SECRET
-    body_bytes = await request.body()
-    if not signing_secret:
-        if os.getenv("TESTING") != "1":
-            raise HTTPException(503, "Slack inbound commands are not configured")
-    if signing_secret:
-        ts  = request.headers.get("X-Slack-Request-Timestamp", "")
-        sig = request.headers.get("X-Slack-Signature", "")
-        # Replay attack prevention: reject requests older than 5 minutes
-        try:
-            import time as _time
-            if abs(_time.time() - float(ts)) > 300:
-                raise HTTPException(403, "Request timestamp too old")
-        except (ValueError, TypeError):
-            raise HTTPException(403, "Missing or invalid X-Slack-Request-Timestamp")
-        base = f"v0:{ts}:{body_bytes.decode()}"
-        expected = "v0=" + hmac.new(signing_secret.encode(), base.encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(expected, sig):
-            raise HTTPException(403, "Invalid Slack signature")
+    body_bytes = await _verificar_firma_de_slack(request)
 
     from urllib.parse import parse_qs
     params = {k: v[0] for k, v in parse_qs(body_bytes.decode()).items()}
-
-    command_text = params.get("text", "").strip()
-    user_name    = params.get("user_name", "")
-    params.get("response_url", "")
-
-    # Parse command verb
-    parts = command_text.split(None, 1)
-    verb  = (parts[0] if parts else "").lower()
-    rest  = parts[1] if len(parts) > 1 else ""
 
     # Audit #C7: async webhook (await request.body() for HMAC). DB work via
     # threadpool — the slack_* helpers below are sync internally.
     from app.core.async_db import run_db
     from app.services.integrations import find_user_by_slack_name
-    contecflow_user = await run_db(find_user_by_slack_name, db, user_name)
+    contecflow_user = await run_db(find_user_by_slack_name, db, params.get("user_name", ""))
 
-    try:
-        if verb in ("tarea", "task"):
-            return await _slack_create_task(rest, contecflow_user, db)
-        elif verb in ("tiempo", "time", "horas"):
-            return await _slack_log_time(rest, contecflow_user, db)
-        elif verb in ("ticket",):
-            return await _slack_create_ticket(rest, contecflow_user, db)
-        elif verb in ("estado", "status"):
-            return await _slack_get_status(rest, db)
-        else:
-            return _slack_help()
-    except Exception as exc:
-        logger.warning("Fallo procesando comando entrante de Slack: %s", exc, exc_info=True)
-        return {"response_type": "ephemeral", "text": f"❌ Error: {exc}"}
+    return await _ejecutar_comando_del_bot(
+        params.get("text", "").strip(), contecflow_user, db, canal="Slack")
 
 
 async def _slack_create_task(text: str, user, db):
@@ -307,13 +354,72 @@ async def _slack_create_ticket(text: str, user, db):
     return await run_db(slack_create_ticket_from_text, db, text, user)
 
 
-async def _slack_get_status(code: str, db):
+async def _slack_get_status(code: str, user, db):
+    # `user` no se usa: consultar el estado de un código no depende de quién
+    # pregunta. Está en la firma para que los cinco manejadores tengan la misma
+    # y quepan en `_COMANDOS` sin envoltorios.
     from app.core.async_db import run_db
     from app.services.integrations import slack_get_status_by_code
     return await run_db(slack_get_status_by_code, db, code)
 
 
 from app.services.integrations import slack_help_response as _slack_help
+
+
+# ── El repertorio de comandos, en un solo sitio ───────────────────────────────
+#
+# Auditoría 2026-08 (hallazgo 18). Esta tabla estaba escrita **dos veces**, en
+# forma de `if verb in (...) / elif` dentro de cada receptor: uno para Slack y
+# otro para Teams. Y las dos copias **no decían lo mismo**: Slack aceptaba
+# `horas` como sinónimo de `tiempo` y Teams no, así que un usuario de Teams que
+# escribía «horas 3» recibía la ayuda en lugar de registrar sus tres horas. No
+# había ninguna razón para la diferencia; el docstring del receptor de Teams
+# decía literalmente «commands identical to the Slack bot».
+#
+# Con la tabla, añadir un verbo o un sinónimo es una línea y las dos
+# plataformas lo tienen a la vez. Un verbo desconocido cae en la ayuda, que es
+# lo que hacían las dos ramas `else` — y por eso `ayuda`/`help` no necesitan
+# entrada propia.
+_COMANDOS = {
+    "tarea":  _slack_create_task,
+    "task":   _slack_create_task,
+    "tiempo": _slack_log_time,
+    "time":   _slack_log_time,
+    "horas":  _slack_log_time,
+    "ticket": _slack_create_ticket,
+    "estado": _slack_get_status,
+    "status": _slack_get_status,
+}
+
+
+async def _ejecutar_comando_del_bot(texto: str, usuario, db, *, canal: str) -> dict:
+    """Parte el texto en verbo y resto, y despacha.
+
+    Devuelve siempre el formato de respuesta de Slack —`{"text": ...}`, con
+    `response_type` cuando toca—, y el receptor de Teams se queda con el `text`
+    para meterlo en su `Activity`. Es el formato que ya producían los
+    manejadores; unificarlo aquí evita que el `try/except` de arriba viva
+    duplicado, que era la otra mitad de la copia.
+
+    El `except Exception` es a propósito y es de las veces en que lo es: un
+    comando que revienta tiene que volver como un mensaje legible en el chat de
+    quien lo escribió. Un 500 en un webhook de Slack se ve como «operación
+    fallida» sin más, y el error se pierde. Se registra con `exc_info` y se
+    devuelve; `canal` está para que el log diga de qué plataforma venía.
+    """
+    partes = texto.split(None, 1)
+    verbo = (partes[0] if partes else "").lower()
+    resto = partes[1] if len(partes) > 1 else ""
+
+    manejador = _COMANDOS.get(verbo)
+    if manejador is None:
+        return _slack_help()
+    try:
+        return await manejador(resto, usuario, db)
+    except Exception as exc:
+        logger.warning(
+            "Fallo procesando comando entrante de %s: %s", canal, exc, exc_info=True)
+        return {"response_type": "ephemeral", "text": f"❌ Error: {exc}"}
 
 
 # ── Inbound bot — MS Teams adaptive card actions ──────────────────────────────
@@ -327,65 +433,23 @@ async def teams_inbound_command(
     Supports conversational commands identical to the Slack bot.
     Validates Bearer token audience against TEAMS_BOT_APP_ID env var.
     """
-    import json as _json
-
-    # ── Bearer token validation ───────────────────────────────────────────────
-    bot_app_id = settings.TEAMS_BOT_APP_ID
-    if not bot_app_id:
-        if os.getenv("TESTING") != "1":
-            raise HTTPException(503, "Teams inbound commands are not configured")
-    if bot_app_id:
-        auth_header = request.headers.get("Authorization", "")
-        if not auth_header.startswith("Bearer "):
-            raise HTTPException(401, "Missing Teams bearer token")
-        import base64 as _b64
-        raw_token = auth_header.removeprefix("Bearer ").strip()
-        try:
-            parts = raw_token.split(".")
-            padded = parts[1] + "=" * (4 - len(parts[1]) % 4)
-            claims = _json.loads(_b64.urlsafe_b64decode(padded))
-            if claims.get("aud") != bot_app_id and claims.get("appid") != bot_app_id:
-                raise HTTPException(403, "Teams token audience mismatch")
-        # intentional: chained re-raise preserves context
-        except HTTPException:
-            raise
-        except Exception:
-            logger.warning("Token bearer de Teams inválido o malformado")
-            raise HTTPException(403, "Invalid Teams bearer token")
+    _verificar_token_de_teams(request)
 
     body = await request.json()
     text = (body.get("text") or "").strip().lower()
     # Extract user info from Teams payload
-    from_obj   = body.get("from", {})
-    teams_name = from_obj.get("name", "").strip()
+    teams_name = body.get("from", {}).get("name", "").strip()
 
     # Audit #C7: DB lookup offloaded to threadpool.
     from app.core.async_db import run_db
     from app.services.integrations import find_user_by_teams_name
     contecflow_user = (await run_db(find_user_by_teams_name, db, teams_name)) if teams_name else None
 
-    parts = text.split(None, 1)
-    verb  = (parts[0] if parts else "").lower()
-    rest  = parts[1] if len(parts) > 1 else ""
-
-    try:
-        if verb in ("tarea", "task"):
-            result = await _slack_create_task(rest, contecflow_user, db)
-        elif verb in ("tiempo", "time"):
-            result = await _slack_log_time(rest, contecflow_user, db)
-        elif verb in ("ticket",):
-            result = await _slack_create_ticket(rest, contecflow_user, db)
-        elif verb in ("estado", "status"):
-            result = await _slack_get_status(rest, db)
-        else:
-            result = _slack_help()
-        reply_text = result.get("text", "✅")
-    except Exception as exc:
-        logger.warning("Fallo procesando comando entrante de Teams: %s", exc, exc_info=True)
-        reply_text = f"❌ Error: {exc}"
+    resultado = await _ejecutar_comando_del_bot(
+        text, contecflow_user, db, canal="Teams")
 
     # Return Teams Activity reply format
     return {
         "type": "message",
-        "text": reply_text,
+        "text": resultado.get("text", "✅"),
     }
