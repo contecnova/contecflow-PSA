@@ -56,9 +56,9 @@ def _resolve_org_id(current_user: User, override: Optional[str], db: Session) ->
     # `Organization` vive en `app.models.mfa`, no en `enterprise`. Con la ruta
     # mal, esta comprobacion —que existe para evitar enumeracion de IDs—
     # lanzaba ImportError en vez de validar. Auditoria 2026-08.
-    from app.models.mfa import Organization
-    org = db.query(Organization.id).filter(Organization.id == override).first()
-    if not org:
+    from app.core.tenancy import organizacion_existe
+
+    if not organizacion_existe(db, override):
         raise HTTPException(status_code=404, detail="organization_not_found")
     return override
 

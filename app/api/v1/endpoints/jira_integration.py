@@ -11,6 +11,13 @@ Routes:
   POST   /integrations/jira/tickets/{ticket_id}/push
   POST   /integrations/jira/webhook          — receives Jira Cloud webhooks
   POST   /integrations/jira/sync/{config_id} — manual incremental poll
+
+Auditoria 2026-08 (hallazgo 22). Las consultas de este fichero estan en
+`services/service_desk/jira_sync_service.py`, y al moverlas aparecio la misma
+asimetria de siempre dentro del propio fichero: cuatro endpoints usaban
+`org_scoped_or_404` y otros tres buscaban por id a secas. El que mas importa es
+`push_ticket`: una `JiraConfig` lleva las credenciales de Jira de un cliente, y
+sin acotar se podia empujar un ticket con las de otro.
 """
 from __future__ import annotations
 
@@ -28,15 +35,19 @@ from app.db.session import get_db
 from app.models.jira_integration import (
     JiraConfig,
     JiraSyncDirection,
-    JiraSyncLog,
-    JiraSyncMap,
 )
-from app.models.service_desk import Ticket
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
-from app.core.tenancy import org_scoped_or_404
 from app.services.service_desk.jira_sync_service import (
-    apply_jira_update_to_ticket,
+    aplicar_cambios_de_configuracion,
+    borrar_configuracion,
+    configuracion_activa_propia,
+    configuracion_propia,
+    crear_configuracion,
+    listar_configuraciones,
+    procesar_webhook,
+    registro_de_sincronizacion,
+    ticket_propio,
     push_ticket_to_jira,
     run_incremental_sync,
 )
@@ -123,14 +134,8 @@ def list_jira_configs(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
-    total = db.query(JiraConfig).count()
-    configs = (
-        db.query(JiraConfig)
-        .order_by(JiraConfig.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
+    configs, total = listar_configuraciones(
+        db, current_user, page=page, page_size=page_size)
     items = [_serialize_config(c) for c in configs]
     return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
@@ -141,30 +146,26 @@ def create_jira_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
-    config = JiraConfig(
-        name=payload.name,
-        jira_base_url=payload.jira_base_url,
-        jira_email=payload.jira_email,
-        jira_api_token_enc=payload.jira_api_token,  # encryption deferred to future key-mgmt layer
-        jira_project_key=payload.jira_project_key,
-        jira_issue_type_incident=payload.jira_issue_type_incident,
-        jira_issue_type_service_request=payload.jira_issue_type_service_request,
-        jira_issue_type_change=payload.jira_issue_type_change,
-        jira_issue_type_problem=payload.jira_issue_type_problem,
-        sync_direction=payload.sync_direction,
-        sync_comments=payload.sync_comments,
-        sync_status_changes=payload.sync_status_changes,
-        sync_priority_changes=payload.sync_priority_changes,
-        sync_assignments=payload.sync_assignments,
-        sync_interval_minutes=payload.sync_interval_minutes,
-        status_map_json=json.dumps(payload.status_map) if payload.status_map else None,
-        priority_map_json=json.dumps(payload.priority_map) if payload.priority_map else None,
-        created_by_user_id=current_user.id,
-        organization_id=current_user.organization_id,
-    )
-    db.add(config)
-    db.commit()
-    db.refresh(config)
+    config = crear_configuracion(db, current_user, {
+        "name": payload.name,
+        "jira_base_url": payload.jira_base_url,
+        "jira_email": payload.jira_email,
+        # El cifrado queda para la capa de gestion de claves, como estaba.
+        "jira_api_token_enc": payload.jira_api_token,
+        "jira_project_key": payload.jira_project_key,
+        "jira_issue_type_incident": payload.jira_issue_type_incident,
+        "jira_issue_type_service_request": payload.jira_issue_type_service_request,
+        "jira_issue_type_change": payload.jira_issue_type_change,
+        "jira_issue_type_problem": payload.jira_issue_type_problem,
+        "sync_direction": payload.sync_direction,
+        "sync_comments": payload.sync_comments,
+        "sync_status_changes": payload.sync_status_changes,
+        "sync_priority_changes": payload.sync_priority_changes,
+        "sync_assignments": payload.sync_assignments,
+        "sync_interval_minutes": payload.sync_interval_minutes,
+        "status_map_json": json.dumps(payload.status_map) if payload.status_map else None,
+        "priority_map_json": json.dumps(payload.priority_map) if payload.priority_map else None,
+    })
     return APIResponse.ok(data=_serialize_config(config))
 
 
@@ -175,23 +176,9 @@ def patch_jira_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
-    config: JiraConfig = org_scoped_or_404(
-        db, JiraConfig, config_id, current_user, detail="Jira config not found"
-    )
-
-    updates = payload.model_dump(exclude_none=True)
-    for k, v in updates.items():
-        if k == "jira_api_token":
-            config.jira_api_token_enc = v
-        elif k == "status_map":
-            config.status_map_json = json.dumps(v)
-        elif k == "priority_map":
-            config.priority_map_json = json.dumps(v)
-        else:
-            setattr(config, k, v)
-
-    db.commit()
-    db.refresh(config)
+    config: JiraConfig = configuracion_propia(db, current_user, config_id)
+    config = aplicar_cambios_de_configuracion(
+        db, config, payload.model_dump(exclude_none=True))
     return APIResponse.ok(data=_serialize_config(config))
 
 
@@ -202,9 +189,7 @@ def delete_jira_config(
     current_user: User = Depends(require_admin_or_pm),
 ):
     enforce_abac(db, current_user, "jira_config", config_id, action="delete")
-    config = org_scoped_or_404(db, JiraConfig, config_id, current_user, detail="Jira config not found")
-    db.delete(config)
-    db.commit()
+    borrar_configuracion(db, current_user, config_id)
     return APIResponse.ok(data={"deleted": True})
 
 
@@ -218,7 +203,7 @@ def test_jira_connection(
     import base64
     import httpx
 
-    config = org_scoped_or_404(db, JiraConfig, config_id, current_user, detail="Jira config not found")
+    config = configuracion_propia(db, current_user, config_id)
 
     creds = base64.b64encode(
         f"{config.jira_email}:{config.jira_api_token_enc}".encode()
@@ -248,15 +233,10 @@ def get_sync_log(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
-    # Verify the config belongs to the caller's org before exposing its logs.
-    org_scoped_or_404(db, JiraConfig, config_id, current_user, detail="Jira config not found")
-    q = (
-        db.query(JiraSyncLog)
-        .filter(JiraSyncLog.config_id == config_id)
-        .order_by(JiraSyncLog.occurred_at.desc())
-    )
-    total = q.count()
-    logs = q.offset((page - 1) * page_size).limit(page_size).all()
+    # La configuracion se comprueba ANTES de exponer sus registros.
+    config = configuracion_propia(db, current_user, config_id)
+    logs, total = registro_de_sincronizacion(
+        db, config, page=page, page_size=page_size)
     items = [
         {
             "id": lg.id,
@@ -281,15 +261,11 @@ def push_ticket(
     current_user: User = Depends(get_current_user),
 ):
     """Manually push or re-push a Contecflow ticket to Jira."""
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(404, "Ticket not found")
-
-    config = db.query(JiraConfig).filter(
-        JiraConfig.id == config_id, JiraConfig.is_active == True
-    ).first()
-    if not config:
-        raise HTTPException(404, "Active Jira config not found")
+    # Las dos guardas son de la organizacion de quien llama. La de la
+    # configuracion importa especialmente: lleva las credenciales de Jira de un
+    # cliente, y empujar con las de otro es lo que esto impide.
+    ticket = ticket_propio(db, current_user, ticket_id)
+    config = configuracion_activa_propia(db, current_user, config_id)
 
     try:
         sync_map = push_ticket_to_jira(db, config, ticket)
@@ -342,33 +318,7 @@ async def receive_jira_webhook(
     # The handler is async (it awaits the raw body for auth), so the blocking
     # ORM work is offloaded to the threadpool to avoid stalling the event loop.
     from app.core.async_db import run_db
-    return await run_db(_process_jira_webhook_sync, db, issue, issue_key)
-
-
-def _process_jira_webhook_sync(db: Session, issue: dict, issue_key: str) -> dict:
-    maps: list[JiraSyncMap] = (
-        db.query(JiraSyncMap)
-        .filter(JiraSyncMap.jira_issue_key == issue_key)
-        .all()
-    )
-    if not maps:
-        return {"ok": True, "skipped": "no mapping found"}
-
-    for sm in maps:
-        config = db.query(JiraConfig).filter(
-            JiraConfig.id == sm.config_id, JiraConfig.is_active == True
-        ).first()
-        if not config:
-            continue
-        if config.sync_direction not in (
-            JiraSyncDirection.bidirectional,
-            JiraSyncDirection.jira_to_contecflow,
-        ):
-            continue
-        apply_jira_update_to_ticket(db, config, sm, issue.get("fields", {}))
-
-    db.commit()
-    return {"ok": True, "processed": len(maps)}
+    return await run_db(procesar_webhook, db, issue, issue_key)
 
 
 @router.post("/sync/{config_id}", summary="Sincronización incremental manual")
@@ -379,5 +329,8 @@ def run_manual_sync(
     current_user: User = Depends(require_admin_or_pm),
 ):
     """Trigger an incremental sync poll for all mapped tickets of a config."""
-    background_tasks.add_task(run_incremental_sync, db, config_id)
+    # La configuracion se comprueba antes de encolar: sin esto un administrador
+    # disparaba la sincronizacion de la configuracion de otro cliente.
+    config = configuracion_propia(db, current_user, config_id)
+    background_tasks.add_task(run_incremental_sync, db, config.id)
     return APIResponse.ok(data={"ok": True, "message": "Incremental sync started in background"})

@@ -152,6 +152,16 @@ def create_certification(payload: CertificationIn, db: Session = Depends(get_db)
     return APIResponse.ok(data={"id": c.id})
 
 
+# Auditoria 2026-08 (hallazgo 37). Estos dos manejadores estaban escritos,
+# completos y con su comprobacion de permisos —solo el dueno de la
+# certificacion, o admin/RRHH— y **sin decorador de ruta**. No eran endpoints
+# que faltaran: eran endpoints que no se registraron, asi que la interfaz podia
+# crear una certificacion y no editarla ni borrarla.
+#
+# Un barrido por AST sobre `app/api/` entera dice que son **los dos unicos**
+# casos: las otras funciones sin decorador son dependencias
+# (`get_current_client`, `require_admin_or_pm`) y estan bien asi.
+@router.patch("/certifications/{cert_id}", summary="Actualizar certificación")
 def update_certification(cert_id: str, payload: CertificationIn, db: Session = Depends(get_db),
                          cu: User = Depends(get_current_user), response: Response = None):
     if response is not None:
@@ -167,6 +177,7 @@ def update_certification(cert_id: str, payload: CertificationIn, db: Session = D
     return {"id": c.id}
 
 
+@router.delete("/certifications/{cert_id}", summary="Eliminar certificación")
 def delete_certification(cert_id: str, db: Session = Depends(get_db),
                          cu: User = Depends(get_current_user), response: Response = None):
     if response is not None:

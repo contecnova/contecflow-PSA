@@ -83,15 +83,37 @@ async def gitlab_create_issue(integration, project_id: str, title: str, descript
 
 
 # ── Google Calendar ─────────────────────────────────────────────────────────
-async def google_calendar_list(integration, max_results: int = 10) -> dict:
+async def google_calendar_list(
+    integration,
+    max_results: int = 10,
+    *,
+    desde_iso: Optional[str] = None,
+    hasta_iso: Optional[str] = None,
+) -> dict:
+    """Eventos del calendario primario, opcionalmente acotados a una ventana.
+
+    Auditoría 2026-08. `orderBy=startTime` ordena ascendente desde el principio
+    del calendario, así que sin `timeMin` esto devolvía los eventos MÁS
+    ANTIGUOS —los de hace años— presentándolos como «próximos». La ventana no es
+    un extra: es lo que hace que el orden ascendente signifique lo que dice.
+    """
     token = _token_for(integration)
     if not token:
         return {"error": "Google no autenticado"}
     url = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
+    params: dict = {
+        "maxResults": max_results,
+        "orderBy": "startTime",
+        "singleEvents": True,
+    }
+    if desde_iso:
+        params["timeMin"] = desde_iso
+    if hasta_iso:
+        params["timeMax"] = hasta_iso
     try:
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.get(url, headers={"Authorization": f"Bearer {token}"},
-                            params={"maxResults": max_results, "orderBy": "startTime", "singleEvents": True})
+                            params=params)
             return {"ok": r.status_code < 400, "status": r.status_code, "body": r.json()}
     except Exception as exc:
         return {"error": str(exc)}
@@ -115,16 +137,38 @@ async def google_calendar_create(integration, summary: str, start_iso: str, end_
 
 
 # ── Microsoft 365 ───────────────────────────────────────────────────────────
-async def m365_calendar_list(integration, top: int = 10) -> dict:
+async def m365_calendar_list(
+    integration,
+    top: int = 10,
+    *,
+    desde_iso: Optional[str] = None,
+    hasta_iso: Optional[str] = None,
+) -> dict:
+    """Eventos del calendario del usuario, opcionalmente acotados a una ventana.
+
+    Auditoría 2026-08: mismo defecto que en Google. `$orderby=start/dateTime`
+    con `$top` y sin filtro devuelve los eventos más antiguos de la cuenta.
+
+    Se usa `calendarView`, que es el recurso que Graph destina a una ventana
+    temporal, y no `events` con `$filter`: `calendarView` expande las series
+    periódicas en sus apariciones concretas, mientras que `events` devuelve la
+    serie maestra con su fecha de inicio original —una reunión semanal creada en
+    2024 aparecería como un evento de 2024 y no en la semana que viene—.
+    """
     token = _token_for(integration)
     if not token:
         return {"error": "M365 no autenticado"}
+    if desde_iso and hasta_iso:
+        url = (
+            "https://graph.microsoft.com/v1.0/me/calendarView"
+            f"?startDateTime={desde_iso}&endDateTime={hasta_iso}"
+            f"&$top={top}&$orderby=start/dateTime"
+        )
+    else:
+        url = f"https://graph.microsoft.com/v1.0/me/events?$top={top}&$orderby=start/dateTime"
     try:
         async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.get(
-                f"https://graph.microsoft.com/v1.0/me/events?$top={top}&$orderby=start/dateTime",
-                headers={"Authorization": f"Bearer {token}"},
-            )
+            r = await c.get(url, headers={"Authorization": f"Bearer {token}"})
             return {"ok": r.status_code < 400, "status": r.status_code, "body": r.json()}
     except Exception as exc:
         return {"error": str(exc)}

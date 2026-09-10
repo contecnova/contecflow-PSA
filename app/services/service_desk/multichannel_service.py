@@ -88,7 +88,7 @@ def process_inbound_sms(db: Session, from_phone: str, body: str) -> dict:
     available agent. Returns ticket summary dict.
     """
     from app.models.service_desk import (
-        SLAPolicy, Ticket, TicketImpact, TicketPriority,
+        Ticket, TicketImpact, TicketPriority,
         TicketStatus, TicketType, TicketUrgency,
     )
     from app.models.user import User, UserRole
@@ -106,7 +106,18 @@ def process_inbound_sms(db: Session, from_phone: str, body: str) -> dict:
     )
     assigned_to = agents[0].id if agents else None
 
-    sla = db.query(SLAPolicy).filter(SLAPolicy.is_active.is_(True)).order_by(SLAPolicy.response_hours).first()
+    # Ver la nota de `inbound_email_service`: `SLAPolicy.response_hours` no
+    # existe —son cuatro columnas, una por prioridad— y el vencimiento se
+    # calculaba a mano ignorando el horario laboral. Aqui ademas la aritmetica
+    # se hacia con un `datetime(...).__class__.fromtimestamp(...)`, que es la
+    # misma suma de segundos escrita de forma mas rara.
+    from app.services.service_desk.scoping import resolve_sla_policy_for_ticket
+    from app.services.sla_service import calculate_sla_due
+
+    sla = resolve_sla_policy_for_ticket(db)
+    prioridad = TicketPriority.p3_medium
+    respuesta_due, resolucion_due = calculate_sla_due(
+        prioridad.value, policy=sla, db=db)
 
     ticket = Ticket(
         id=str(uuid.uuid4()),
@@ -114,24 +125,33 @@ def process_inbound_sms(db: Session, from_phone: str, body: str) -> dict:
         ticket_type=TicketType.service_request,
         title=subject,
         description=description,
-        status=TicketStatus.open,
+        # Ver la nota de `inbound_email_service`: `open` no existe.
+        status=TicketStatus.new,
         priority=TicketPriority.p3_medium,
         urgency=TicketUrgency.medium,
         impact=TicketImpact.user,
         source="sms",
         requester_name=from_phone,
-        requester_phone=from_phone if hasattr(Ticket, "requester_phone") else None,
+        # Auditoria 2026-08: aqui habia
+        #     requester_phone=from_phone if hasattr(Ticket, "requester_phone") else None
+        # y `Ticket` **no tiene** esa columna. El `hasattr` protege el VALOR,
+        # no la palabra clave: SQLAlchemy recibe igual `requester_phone=None` y
+        # responde `TypeError: 'requester_phone' is an invalid keyword argument
+        # for Ticket`. Es la forma mas daniña del `hasattr` defensivo — parece
+        # que hace el campo opcional y lo que hace es reventar siempre.
+        #
+        # El telefono del remitente queda en `requester_name` y en la
+        # descripcion, que es donde estaba de verdad. **Anotado y no
+        # inventado:** el modelo no tiene donde guardar un telefono de
+        # solicitante como campo propio; anadir la columna es decision de
+        # producto, no de este arreglo.
         assigned_to_user_id=assigned_to,
         sla_policy_id=sla.id if sla else None,
-        sla_response_due=(
-            datetime(now.year, now.month, now.day, now.hour, now.minute, now.second, tzinfo=timezone.utc)
-            .__class__.fromtimestamp(
-                now.timestamp() + sla.response_hours * 3600, tz=timezone.utc
-            )
-            if sla else None
-        ),
+        sla_response_due=respuesta_due,
+        sla_resolution_due=resolucion_due,
         created_at=now,
     )
+
     db.add(ticket)
     db.flush()
 

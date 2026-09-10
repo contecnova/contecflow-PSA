@@ -39,9 +39,16 @@ def test_list_profiles_with_users_tenant_filter(db):
     db.add(user1)
     db.add(user2)
     db.commit()
-    # Crear perfiles semánticos para ambos
-    profile1 = SemProfile(user_id="u1", profile_text="Perfil Org1")
-    profile2 = SemProfile(user_id="u2", profile_text="Perfil Org2")
+    # Crear perfiles semánticos para ambos.
+    #
+    # Auditoria 2026-08: con `organization_id` **explicito**. Antes no lo
+    # llevaban y el test pasaba porque en la suite no corria ni el sellado ni el
+    # filtro; ahora el perfil sin organizacion recibe la de la sesion del
+    # fixture, que no es ninguna de estas dos, y el listado sale vacio para los
+    # dos usuarios. Un test de aislamiento que da vacio a todos no prueba
+    # aislamiento: prueba que no hay datos.
+    profile1 = SemProfile(user_id="u1", organization_id=org1, profile_text="Perfil Org1")
+    profile2 = SemProfile(user_id="u2", organization_id=org2, profile_text="Perfil Org2")
     db.add(profile1)
     db.add(profile2)
     db.commit()

@@ -8,9 +8,6 @@ from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
-from app.models.collaboration import (
-    CollaborationMention, CollaborationMessage,
-)
 from app.schemas.collaboration import (
     MessageCreate, MessageOut, MessageUpdate, MessageVersionOut,
     PinIn, ReactionToggle, ReadUpdate, SaveIn,
@@ -178,20 +175,11 @@ def unsave_msg(message_id: str, current_user: User = Depends(get_current_user), 
 
 @router.get("/saved", response_model=APIListResponse[dict], summary="Mis mensajes guardados")
 def list_saved(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    rows = msg_svc.list_saved(db, current_user)
-    out = []
-    for r in rows:
-        m = db.query(CollaborationMessage).filter(CollaborationMessage.id == r.message_id).first()
-        if m:
-            out.append({
-                "id": r.id, "message_id": r.message_id, "note": r.note, "saved_at": r.saved_at,
-                "preview": (m.body or "")[:200],
-                "conversation_id": m.conversation_id,
-            })
+    out = msg_svc.list_saved_con_vista_previa(db, current_user)
     return APIListResponse.ok(items=out, total=len(out))
 
 
-# ── Mentions (mine) ──────────────────────────────────────────────────────────
+# ── Anclaje a entidades PSA ──────────────────────────────────────────────────
 @router.post("/messages/{message_id}/link", summary="Anclar mensaje a entidad PSA (task/ticket/deliverable/risk)")
 def link_message(
     message_id: str,
@@ -199,27 +187,10 @@ def link_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from app.services.collaboration import audit_log
-    from app.services.collaboration._permissions import _org as _org_fn
-    org = _org_fn(current_user)
-    msg = db.query(CollaborationMessage).filter(
-        CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org,
-    ).first()
-    if not msg:
-        raise HTTPException(404, "Mensaje no encontrado")
-    assert_conversation_access(db, current_user, msg.conversation_id)
-    kind = (payload.get("kind") or "").lower()
-    eid = payload.get("id")
-    if kind not in {"task", "ticket", "deliverable", "risk"}:
-        raise HTTPException(400, "kind debe ser task|ticket|deliverable|risk")
-    setattr(msg, f"linked_{kind}_id", eid)
-    audit_log.write(
-        db, organization_id=org, actor_user_id=current_user.id, actor_client_id=None,
-        action="message.linked", entity_type="message", entity_id=message_id,
-        payload={"kind": kind, "linked_id": eid},
-    )
-    db.commit()
-    return APIResponse.ok(data={"ok": True, "kind": kind, "linked_id": eid})
+    return APIResponse.ok(data=msg_svc.link_message(
+        db, current_user, message_id,
+        kind=payload.get("kind") or "", linked_id=payload.get("id"),
+    ))
 
 
 @router.get("/messages/{message_id}/link/candidates", summary="Buscar candidatos para anclar")
@@ -231,51 +202,11 @@ def link_candidates(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from app.services.collaboration._permissions import _org as _org_fn
-    org = _org_fn(current_user)
-    msg = db.query(CollaborationMessage).filter(
-        CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org,
-    ).first()
-    if not msg:
-        raise HTTPException(404, "Mensaje no encontrado")
-    if kind == "task":
-        from app.models.task import Task
-        from app.models.collaboration import CollaborationChannel
-        ch = db.query(CollaborationChannel).filter(CollaborationChannel.conversation_id == msg.conversation_id).first()
-        qx = db.query(Task)
-        if hasattr(Task, "organization_id"):
-            qx = qx.filter(Task.organization_id == org)
-        if ch and ch.project_id:
-            qx = qx.filter(Task.project_id == ch.project_id)
-        if q:
-            qx = qx.filter(Task.title.ilike(f"%{q}%"))
-        rows = qx.order_by(Task.created_at.desc()).limit(limit).all()
-        return APIListResponse.ok(items=[{"id": t.id, "label": f"{t.code or '?'} · {t.title}"} for t in rows])
-    if kind == "ticket":
-        from app.models.service_desk import Ticket
-        qx = db.query(Ticket)
-        if hasattr(Ticket, "organization_id"):
-            qx = qx.filter(Ticket.organization_id == org)
-        if q:
-            qx = qx.filter(Ticket.title.ilike(f"%{q}%"))
-        rows = qx.order_by(Ticket.created_at.desc()).limit(limit).all()
-        return APIListResponse.ok(items=[{"id": t.id, "label": f"{getattr(t, 'number', t.id[:8])} · {t.title}"} for t in rows])
-    return APIListResponse.ok(items=[])
+    return APIListResponse.ok(items=msg_svc.link_candidates(
+        db, current_user, message_id, kind=kind, q=q, limit=limit))
 
 
+# ── Mentions (mine) ──────────────────────────────────────────────────────────
 @router.get("/mentions", summary="Mis menciones recientes")
 def list_my_mentions(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    rows = db.query(CollaborationMention).filter(
-        CollaborationMention.mentioned_user_id == current_user.id,
-    ).order_by(CollaborationMention.created_at.desc()).limit(100).all()
-    out = []
-    for r in rows:
-        m = db.query(CollaborationMessage).filter(CollaborationMessage.id == r.message_id).first()
-        if m and m.status != "deleted":
-            out.append({
-                "id": r.id, "message_id": r.message_id,
-                "preview": (m.body or "")[:200],
-                "conversation_id": m.conversation_id,
-                "created_at": r.created_at,
-            })
-    return APIListResponse.ok(items=out)
+    return APIListResponse.ok(items=msg_svc.list_my_mentions(db, current_user))

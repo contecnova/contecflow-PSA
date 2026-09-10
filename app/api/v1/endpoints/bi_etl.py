@@ -10,7 +10,6 @@ Routes:
 """
 from __future__ import annotations
 
-import json
 import logging
 from typing import Optional
 
@@ -22,7 +21,7 @@ from app.core.deps import get_current_user
 from app.core.ratelimit import limiter
 from app.core.responses import APIResponse
 from app.db.session import get_db
-from app.models.settings import AppSetting
+from app.services import bi_etl_service as _bi_etl_svc
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -40,19 +39,12 @@ _SYNC_DATA_KEY_TPL = "bi.etl.sync_data.{connector}.{org}"
 _SYNC_LOG_KEY_TPL = "bi.etl.sync_log.{connector}.{org}"
 
 
-def _get_json(db: Session, key: str, organization_id: Optional[str], *, default=None):
-    q = db.query(AppSetting).filter(AppSetting.key == key)
-    if organization_id:
-        q = q.filter(AppSetting.organization_id == organization_id)
-    else:
-        q = q.filter(AppSetting.organization_id.is_(None))
-    row = q.first()
-    if not row or not row.value:
-        return default
-    try:
-        return json.loads(row.value)
-    except Exception:
-        return default
+# Auditoria 2026-08 (hallazgo 22): la consulta vive en
+# `services/bi_etl_service.leer_json`. El filtro por organizacion ya estaba y
+# es el correcto — su rama `else` filtra por `IS NULL`, que es el valor global
+# del despliegue, y no es el condicional defectuoso que aparecio cuatro veces
+# en esta auditoria. Esta explicado en la cabecera del servicio.
+_get_json = _bi_etl_svc.leer_json
 
 
 def _get_connectors_state(db: Session, organization_id: Optional[str]) -> dict:

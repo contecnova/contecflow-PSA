@@ -73,12 +73,6 @@ export interface ChangePasswordPayload {
   new_password: string
 }
 
-export interface LdapSyncResponse {
-  synced: number
-  failed: number
-  details?: Array<{ email: string; status: string }>
-}
-
 // ── Typed API surface ────────────────────────────────────────────────────────
 
 export const authApi = {
@@ -108,9 +102,6 @@ export const authApi = {
 
   me: (): Promise<AxiosResponse<MeResponse>> =>
     api.get('/auth/me'),
-
-  syncLdap: (): Promise<AxiosResponse<LdapSyncResponse>> =>
-    api.post('/auth/ldap/sync'),
 
   changePassword: (data: ChangePasswordPayload): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.post('/auth/change-password', data),

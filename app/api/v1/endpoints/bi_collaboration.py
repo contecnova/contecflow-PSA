@@ -17,8 +17,11 @@ from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.responses import APIListResponse, APIResponse
 from app.core.security import decode_token
+from app.services.ws_service import (
+    get_active_user_by_id as _usuario_activo,
+)
 from app.db.session import get_db
-from app.db.session import SessionLocal
+from app.db.session import SessionLocal, publicar_contexto_de_tenant
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import bi_collaboration_service as svc
@@ -430,12 +433,15 @@ async def dashboard_updates_ws(websocket: WebSocket, dashboard_key: str, token: 
     from app.core.async_db import run_db
     db = SessionLocal()
     try:
-        user = await run_db(lambda: db.query(User).filter(User.id == user_id).first())
+        user = await run_db(_usuario_activo, db, user_id)
         if not user:
             await websocket.close(code=4004, reason='Usuario no encontrado')
             return
 
         org_id = getattr(user, 'organization_id', None)
+        # Auditoria 2026-08 (hallazgo 22): sesion creada a mano sin contexto de
+        # tenant. Ver `publicar_contexto_de_tenant`.
+        publicar_contexto_de_tenant(db, user)
         policy = await run_db(svc.get_cache_policy, db, organization_id=org_id)
         interval = int(policy.get('critical_refresh_seconds', 10))
         interval = max(5, min(10, interval))

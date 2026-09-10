@@ -49,6 +49,46 @@ MFA_FAIL_THRESHOLD          = 3    # consecutive MFA fails before alert
 
 # ── Event ingestion ───────────────────────────────────────────────────────────
 
+# ── Contadores de la instantanea horaria ─────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 18). Esto eran dos cadenas de `elif` dentro de
+# `_bump_snapshot`, cinco ramas cada una, que hacian lo mismo cinco veces:
+# elegir un contador y sumarle uno. Medido con un barrido por AST sobre las 81
+# funciones que quedaban por encima del umbral, **era la ultima que escondia una
+# tabla de despacho**; las otras 80 son largas pero lineales.
+#
+# Un severidad o un tipo de evento que no este en su tabla **no suma nada y no
+# falla**, que es lo que hacia la cadena de `elif` sin `else`. Se conserva a
+# proposito: el contador total (`total_events`) sigue subiendo, asi que un tipo
+# nuevo aparece en el total aunque todavia no tenga columna propia — y eso es
+# preferible a que registrar un evento reviente por un enumerado nuevo.
+
+_CONTADOR_POR_SEVERIDAD = {
+    EventSeverity.INFO:     "events_info",
+    EventSeverity.LOW:      "events_low",
+    EventSeverity.MEDIUM:   "events_medium",
+    EventSeverity.HIGH:     "events_high",
+    EventSeverity.CRITICAL: "events_critical",
+}
+
+# La clave es el `event_type` tal cual se guarda; el valor, el nombre de la
+# columna. No coinciden en tres de los cinco (`abac_access_denied` cuenta en
+# `abac_denials`), asi que la tabla no es reducible a una regla de nombres.
+_CONTADOR_POR_TIPO = {
+    "login_success":       "login_success",
+    "login_failed":        "login_failed",
+    "mfa_failed":          "mfa_failed",
+    "abac_access_denied":  "abac_denials",
+    "rate_limit_exceeded": "rate_limit_hits",
+}
+
+
+def _sumar_uno(fila, campo) -> None:
+    """Incrementa un contador de la instantanea, o no hace nada si no hay."""
+    if campo:
+        setattr(fila, campo, getattr(fila, campo) + 1)
+
+
 class SecurityEventService:
     """Ingest events and run detections synchronously (fast path)."""
 
@@ -498,19 +538,8 @@ class SecurityEventService:
             self.db.flush()
 
         snap.total_events += 1
-        sev = ev.severity
-        if sev == EventSeverity.INFO:     snap.events_info     += 1
-        elif sev == EventSeverity.LOW:    snap.events_low      += 1
-        elif sev == EventSeverity.MEDIUM: snap.events_medium   += 1
-        elif sev == EventSeverity.HIGH:   snap.events_high     += 1
-        elif sev == EventSeverity.CRITICAL: snap.events_critical += 1
-
-        et = ev.event_type
-        if et == "login_success":       snap.login_success  += 1
-        elif et == "login_failed":      snap.login_failed   += 1
-        elif et == "mfa_failed":        snap.mfa_failed     += 1
-        elif et == "abac_access_denied":snap.abac_denials   += 1
-        elif et == "rate_limit_exceeded":snap.rate_limit_hits += 1
+        _sumar_uno(snap, _CONTADOR_POR_SEVERIDAD.get(ev.severity))
+        _sumar_uno(snap, _CONTADOR_POR_TIPO.get(ev.event_type))
 
         self.db.flush()
 
@@ -536,12 +565,20 @@ class SecurityEventService:
         if reason:
             det.false_positive_reason = reason
 
-        # Update MTTR on detection
-        if det.detected_at:
-            det_time = det.detected_at
-            if det_time.tzinfo is None:
-                det_time = det_time.replace(tzinfo=_UTC)
-            det.mttd_seconds = (det.detected_at - det.first_seen_at).total_seconds() if det.first_seen_at else None
+        # Auditoria 2026-08: aqui se calculaba el tiempo hasta la deteccion y
+        # se asignaba a `det.mttd_seconds`, una columna que **no existe** en
+        # `security_detections`. Es una **asignacion**, asi que SQLAlchemy no se
+        # queja: se quedaba un atributo de Python que no persiste, y el calculo
+        # se tiraba a la basura en cada resolucion.
+        #
+        # **No se inventa la columna.** El dato es derivable en cualquier
+        # momento de `detected_at - first_seen_at`, que ya se guardan las dos,
+        # asi que anadir una columna seria duplicar informacion. Lo que si hacia
+        # falta era dejar de fingir que se guarda: el bloque entero, y con el la
+        # normalizacion de zona horaria que solo servia para esto, se quitan.
+        #
+        # Si el tiempo hasta la deteccion hace falta en una consulta, se calcula
+        # en la lectura; anadir la columna es una decision de producto.
 
         self.db.commit()
         return det

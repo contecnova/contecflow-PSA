@@ -105,13 +105,29 @@ def audit_incident_management(db: Session, days: int = 30) -> dict:
 
     # ── Finding 1: P1 without MajorIncident ───────────────────────────────────
     p1_tickets = [t for t in incidents if t.priority == TicketPriority.p1_critical]
-    p1_without_mi = []
-    for t in p1_tickets:
-        mi = db.query(MajorIncident).filter(
-            MajorIncident.tickets.any(id=t.id)  # type: ignore[attr-defined]
-        ).first() if hasattr(MajorIncident, "tickets") else None
-        if not mi:
-            p1_without_mi.append(t.number)
+    # Auditoria 2026-08 (hallazgo 22). Esto preguntaba por
+    # `MajorIncident.tickets` detras de un `hasattr`, y esa relacion **no
+    # existe**: entre `MajorIncident` y `Ticket` no hay ni columna ni tabla de
+    # union, comprobado sobre `Base.metadata`. El `hasattr` es correcto, asi
+    # que `mi` era **siempre** `None` y **todo** ticket P1 se reportaba como
+    # «P1 sin incidencia mayor declarada»: un hallazgo de cumplimiento que
+    # siempre salta no informa de nada.
+    #
+    # **No se inventa el enlace.** Relacionar las dos entidades es un cambio de
+    # esquema con decision de diseno detras —¿un ticket pertenece a una sola
+    # incidencia mayor, o varias comparten tickets?— y no se cuela en una tanda
+    # de otra cosa. Lo que se hace es **decir la verdad**: mientras no exista
+    # el enlace, esta comprobacion no se puede hacer, y se declara como no
+    # evaluable en vez de dar un falso positivo por cada P1.
+    p1_without_mi: list[str] = []
+    enlace_disponible = hasattr(MajorIncident, "tickets")
+    if enlace_disponible:
+        for t in p1_tickets:
+            mi = db.query(MajorIncident).filter(
+                MajorIncident.tickets.any(id=t.id)  # type: ignore[attr-defined]
+            ).first()
+            if not mi:
+                p1_without_mi.append(t.number)
 
     if p1_without_mi:
         pct = round(len(p1_without_mi) / max(len(p1_tickets), 1) * 100)
@@ -696,3 +712,157 @@ def schedule_compliance_check(db: Session) -> dict:
         "findings_count": len(report["top_findings"]),
         "recommendations_count": len(report["recommendations"]),
     }
+
+
+# ── Gobernanza de IA y contrato de calidad, movidos del endpoint ─────────────
+#
+# Auditoria 2026-08 (hallazgo 22). Las consultas de
+# `endpoints/service_desk/governance_ops.py` estaban ahi, y dos de ellas
+# filtraban asi:
+#
+#     q = db.query(SDAIEvaluationRun)
+#     if org_id:
+#         q = q.filter(SDAIEvaluationRun.organization_id == org_id)
+#
+# Con un sujeto **sin** organizacion eso no lista «los que no tienen
+# organizacion»: lista los de TODOS los clientes. Es el mismo condicional que
+# aparecio en el resumen de costes, y la correccion es la misma: el filtro no es
+# condicional.
+
+import json as _json  # noqa: E402
+
+from sqlalchemy.orm import Session as _Session  # noqa: E402
+
+from app.models.service_desk_ai_governance import (  # noqa: E402
+    SDAIDriftSnapshot as _Drift,
+)
+from app.models.service_desk_ai_governance import (  # noqa: E402
+    SDAIEvaluationRun as _Eval,
+)
+from app.models.settings import AppSetting as _AppSetting  # noqa: E402
+
+#: Clave del contrato de calidad. Lleva version en el nombre porque su forma la
+#: consume el panel de release: cambiarla sin version romperia los guardados.
+CLAVE_CONTRATO_DE_CALIDAD = "service_desk.quality_contract.v1"
+
+#: El contrato por defecto cuando la organizacion no ha guardado el suyo.
+CONTRATO_POR_DEFECTO = {
+    "minimum_tests_pass_rate": 0.98,
+    "max_p1_open": 0,
+    "max_regression_bugs": 3,
+    "required_checks": ["unit", "integration", "e2e_critical", "security_scan"],
+}
+
+
+def _org_de(user) -> "str | None":
+    return getattr(user, "organization_id", None)
+
+
+def listar_evaluaciones(db: _Session, user, *, limit: int) -> list[_Eval]:
+    """Las evaluaciones offline de IA de la organizacion, mas recientes primero."""
+    return (
+        db.query(_Eval)
+        .filter(_Eval.organization_id == _org_de(user))
+        .order_by(_Eval.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def registrar_evaluacion(db: _Session, user, datos: dict) -> _Eval:
+    fila = _Eval(
+        organization_id=_org_de(user),
+        created_by_user_id=user.id,
+        metrics_json=_json.dumps(datos.pop("metrics", None) or {}),
+        **datos,
+    )
+    db.add(fila)
+    db.commit()
+    db.refresh(fila)
+    return fila
+
+
+def listar_deriva(db: _Session, user, *, model_name=None, limit: int) -> list[_Drift]:
+    q = (
+        db.query(_Drift)
+        .filter(_Drift.organization_id == _org_de(user))
+    )
+    if model_name:
+        q = q.filter(_Drift.model_name == model_name)
+    return q.order_by(_Drift.measured_at.desc()).limit(limit).all()
+
+
+#: Umbrales del semaforo de deriva. Estaban en duro en el endpoint (70 y 40) y
+#: son la regla de negocio de cuando una deriva de modelo pasa a ser un aviso o
+#: una alarma, asi que se declaran con nombre en un solo sitio.
+DERIVA_CRITICA = 70
+DERIVA_DE_AVISO = 40
+
+
+def estado_de_deriva(puntuacion: float) -> str:
+    """El semaforo de una puntuacion de deriva."""
+    if puntuacion >= DERIVA_CRITICA:
+        return "critical"
+    if puntuacion >= DERIVA_DE_AVISO:
+        return "warning"
+    return "ok"
+
+
+def registrar_deriva(db: _Session, user, datos: dict) -> _Drift:
+    """Guarda una medida de deriva, con su semaforo ya resuelto.
+
+    `SDAIDriftSnapshot` no tiene `created_by_user_id` —a diferencia de las
+    evaluaciones— asi que aqui no se pasa: la medida es del modelo, no de una
+    persona.
+    """
+    fila = _Drift(
+        organization_id=_org_de(user),
+        status=estado_de_deriva(datos["drift_score"]),
+        details_json=_json.dumps(datos.pop("details", None) or {}),
+        **{k: v for k, v in datos.items() if k != "details"},
+    )
+    db.add(fila)
+    db.commit()
+    db.refresh(fila)
+    return fila
+
+
+def _fila_del_contrato(db: _Session, user):
+    return (
+        db.query(_AppSetting)
+        .filter(
+            _AppSetting.organization_id == _org_de(user),
+            _AppSetting.key == CLAVE_CONTRATO_DE_CALIDAD,
+        )
+        .first()
+    )
+
+
+def contrato_de_calidad(db: _Session, user) -> dict:
+    """El contrato de calidad de la organizacion, o el de por defecto.
+
+    Un valor ilegible se devuelve en crudo bajo `raw` en vez de propagar: es un
+    ajuste editable a mano y romper la pantalla de release por un JSON mal
+    escrito seria peor que mostrarlo tal cual.
+    """
+    fila = _fila_del_contrato(db, user)
+    if not fila or not fila.value:
+        return dict(CONTRATO_POR_DEFECTO)
+    try:
+        return _json.loads(fila.value)
+    except (ValueError, TypeError):
+        return {"raw": fila.value}
+
+
+def guardar_contrato_de_calidad(db: _Session, user, contrato: dict) -> None:
+    fila = _fila_del_contrato(db, user)
+    if fila:
+        fila.value = _json.dumps(contrato)
+    else:
+        db.add(_AppSetting(
+            organization_id=_org_de(user),
+            key=CLAVE_CONTRATO_DE_CALIDAD,
+            value=_json.dumps(contrato),
+            description="Service Desk quality contract",
+        ))
+    db.commit()

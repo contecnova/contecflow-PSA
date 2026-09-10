@@ -5,10 +5,14 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.service_desk import Ticket, TicketComment, TicketHistory
+from app.models.service_desk import (
+    AgentGroupMember, Ticket, TicketComment, TicketHistory,
+)
 from app.models.epics import ThreadedComment
 from app.models.user import User
-from app.services.service_desk.scoping import scope_ticket_query
+from app.services.service_desk.scoping import (
+    get_scoped_ticket_or_404, scope_ticket_query,
+)
 from app.services.service_desk.status_compat import normalize_ticket_status, sanitize_legacy_ticket_statuses
 from app.services.service_desk.ticket_query_service import build_ticket_list_query
 from app.services.service_desk.dynamic_ticket_fields_service import get_ticket_dynamic_fields
@@ -253,3 +257,113 @@ def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticke
         payload["comments"] = comments
 
     return payload
+
+
+# -- Los dos endpoints de IA sobre un ticket ---------------------------------
+#
+# Auditoria 2026-08 (hallazgo 22). Los dos buscaban el ticket asi:
+#
+#     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+#
+# Sin ambito de ninguna clase, mientras su vecino `ticket_detail_payload`, en
+# este mismo modulo, usa `scope_ticket_query`. Es la asimetria de siempre: dos
+# lecturas del mismo ticket por id, una comprobada y la otra no.
+#
+# Lo que se filtraba no era solo el ticket: `/ai-explain` devuelve ademas la
+# lista de agentes candidatos con su puntuacion, es decir **los nombres y el
+# rendimiento del equipo de soporte de otro cliente**, y cuelga de
+# `get_current_user` a secas, no de un rol de gestion.
+#
+# Los miembros del grupo se buscan por `group_id` sin filtro de organizacion, y
+# eso es correcto: el grupo sale de un ticket que ya se verifico, asi que el
+# ambito llega por la clave padre.
+
+#: Los pesos del score de asignacion, tal como los publica la API. Estaban en
+#: duro en el cuerpo del endpoint.
+PESOS_DEL_SCORE_DE_ASIGNACION = {
+    "availability": "30%",
+    "historical_speed": "35%",
+    "historical_csat": "20%",
+    "skill_match": "15%",
+}
+
+#: A partir de que confianza la auto-resolucion se considera fiable. Tambien
+#: estaba en duro.
+UMBRAL_DE_AUTO_RESOLUCION = 85
+
+#: Cuantos candidatos se devuelven en la explicacion.
+TOPE_DE_CANDIDATOS = 5
+
+
+def candidatos_de_asignacion(
+    db: Session, current_user: User, ticket_id: str
+) -> dict:
+    """Los agentes del grupo del ticket, ordenados por su score."""
+    from app.services.service_desk.ml_routing_service import get_routing_candidates
+
+    ticket = get_scoped_ticket_or_404(db, current_user, ticket_id)
+    if not ticket.assigned_group_id:
+        raise HTTPException(400, "El ticket no tiene grupo asignado")
+
+    miembros = (
+        db.query(AgentGroupMember)
+        .filter(AgentGroupMember.group_id == ticket.assigned_group_id)
+        .all()
+    )
+    return {
+        "ticket_id": ticket_id,
+        "ticket_number": ticket.number,
+        "candidates": get_routing_candidates(db, ticket, miembros),
+        "score_weights": PESOS_DEL_SCORE_DE_ASIGNACION,
+    }
+
+
+def explicacion_de_decision_de_ia(
+    db: Session, current_user: User, ticket_id: str
+) -> dict:
+    """Confianza de la auto-resolucion y candidatos de asignacion del ticket.
+
+    Devuelve `{"ok": False, ...}` en vez de lanzar un 404 porque es la forma
+    que ya tenia la respuesta y no hay motivo para cambiarla de paso. Lo que si
+    cambia es que ahora un ticket de otro cliente responde lo mismo que uno que
+    no existe.
+    """
+    from app.services.service_desk.incident_intelligence_service import (
+        score_auto_resolution,
+    )
+    from app.services.service_desk.workload_service import score_agent_for_ticket
+
+    ticket = (
+        scope_ticket_query(db.query(Ticket), db, current_user)
+        .filter(Ticket.id == ticket_id)
+        .first()
+    )
+    if not ticket:
+        return {"ok": False, "error": "Ticket no encontrado"}
+
+    candidatos = []
+    if ticket.assigned_group_id:
+        miembros = (
+            db.query(AgentGroupMember)
+            .filter(AgentGroupMember.group_id == ticket.assigned_group_id)
+            .all()
+        )
+        candidatos = [
+            {
+                "user_id": m.user_id,
+                "assignment_score": score_agent_for_ticket(db, m.user_id, ticket),
+            }
+            for m in miembros
+        ]
+        candidatos.sort(key=lambda c: c["assignment_score"], reverse=True)
+
+    return {
+        "ticket_id": ticket.id,
+        "ticket_number": ticket.number,
+        "auto_resolution": score_auto_resolution(db, ticket),
+        "assignment_candidates": candidatos[:TOPE_DE_CANDIDATOS],
+        "confidence_trace": {
+            "auto_resolution_threshold": UMBRAL_DE_AUTO_RESOLUCION,
+            "routing_method": "ml_score_v1",
+        },
+    }

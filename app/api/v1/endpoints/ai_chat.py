@@ -440,8 +440,12 @@ async def chat_stream(
 
     def _persist_response():
         """Save the streamed assistant reply to the DB after streaming completes."""
-        from app.db.session import SessionLocal
+        from app.db.session import SessionLocal, publicar_contexto_de_tenant
         _db = SessionLocal()
+        # Auditoria 2026-08 (hallazgo 22): sesion creada a mano para persistir
+        # despues del streaming. Sin contexto, `TenantSession` no filtra, y aqui
+        # el sujeto **ya se conoce** —viene del cierre—, asi que no hay excusa.
+        publicar_contexto_de_tenant(_db, current_user)
         try:
             _svc.persist_chat_response(
                 _db, conv_id, current_user.id, payload.message,
@@ -608,8 +612,11 @@ Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
         return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
 
     def generate():
-        from app.db.session import SessionLocal
+        from app.db.session import SessionLocal, publicar_contexto_de_tenant
         _db = SessionLocal()
+        # Ver la nota del otro generador. Aqui importa mas: este ejecuta
+        # herramientas que leen datos de negocio.
+        publicar_contexto_de_tenant(_db, current_user)
         steps_done = []
         step_num   = 0
         try:

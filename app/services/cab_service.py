@@ -73,6 +73,38 @@ logger = logging.getLogger("contecflow.v14")
 
 # ─── WebhookTrigger serializer ────────────────────────────────────────────────
 
+def desactivar_integracion(db, integration_id: str) -> dict:
+    """Desactiva una integracion OAuth. Es el boton de borrar de la interfaz.
+
+    Auditoria 2026-08 (hallazgo 37): `DELETE /oauth-integrations/{id}` **no
+    existia** — habia `GET` y `POST`, asi que se podia configurar una
+    integracion y no quitarla.
+
+    **No borra la fila**: `IntegrationConfig` tiene `is_active`, que es la
+    convencion de borrado logico de este repositorio, y la fila guarda el
+    historial de sincronizacion (`last_sync_at`, `sync_errors`, `last_error`)
+    que sirve para diagnosticar. Se desactiva y **se borran los tokens**, que es
+    lo que de verdad hay que quitar: dejar un `access_token` de un tercero en
+    una fila desactivada es guardar una credencial que ya no se usa.
+    """
+    from fastapi import HTTPException
+
+    fila = (
+        db.query(IntegrationConfig)
+        .filter(IntegrationConfig.id == integration_id)
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "Integración no encontrada")
+
+    fila.is_active = False
+    fila.access_token = None
+    fila.refresh_token = None
+    fila.token_expires_at = None
+    db.commit()
+    return {"ok": True, "id": integration_id, "deactivated": True}
+
+
 def trigger_out(t: WebhookTrigger) -> dict:
     return {
         "id": t.id, "name": t.name, "slug": t.slug,

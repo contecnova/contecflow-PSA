@@ -46,6 +46,41 @@ SUPPORTED_CURRENCIES = ["EUR", "USD", "GBP", "PLN", "CHF", "SEK", "DKK", "NOK", 
 ALLOWED_TERRAFORM_COMMANDS = {"plan", "apply", "destroy"}
 
 
+def paso_de_workflow_propio(db, current_user, wf_id: str, step_id: str):
+    """El paso de un workflow, si el workflow es de la organizacion. 404 si no.
+
+    Auditoria 2026-08 (hallazgo 22). El endpoint que configura los reintentos de
+    un paso lo buscaba asi:
+
+        db.query(WorkflowStep).filter(
+            WorkflowStep.id == step_id,
+            WorkflowStep.workflow_id == wf_id,
+        ).first()
+
+    Los dos ids vienen de la ruta y **no habia ninguna comprobacion de a quien
+    pertenece el workflow**. En produccion el filtro implicito de `TenantSession`
+    lo evitaba —`WorkflowStep` tiene `organization_id`—, pero era la unica capa y
+    esto **escribe**: cambia la politica de reintentos del paso de otro cliente.
+    """
+    from fastapi import HTTPException
+
+    from app.models.billing_reports import WorkflowStep
+
+    consulta = db.query(WorkflowStep).filter(
+        WorkflowStep.id == step_id,
+        WorkflowStep.workflow_id == wf_id,
+    )
+    if not getattr(current_user, "is_superadmin", False):
+        consulta = consulta.filter(
+            WorkflowStep.organization_id
+            == getattr(current_user, "organization_id", None))
+
+    paso = consulta.first()
+    if not paso:
+        raise HTTPException(404, "Workflow step not found")
+    return paso
+
+
 def _coerce_retry_policy(config: dict) -> dict:
     retry = config.get("retry") or {}
     max_retries = int(retry.get("max_retries", config.get("max_retries", 0)) or 0)
@@ -653,8 +688,13 @@ def generate_recurring_now_record(rec_id: str, db, current_user) -> dict:
 def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, current_user, db) -> dict:
     opp = db.query(Opportunity).filter(Opportunity.id == opportunity_id).first()
     if not opp: raise HTTPException(404, "Oportunidad no encontrada")
-    if opp.stage not in [OpportunityStage.closed_won, "closed_won"]:
-        opp.stage = OpportunityStage.closed_won
+    # `OpportunityStage` no tiene `closed_won`: el valor es `won`. Auditoria
+    # 2026-08: la referencia se evaluaba SIEMPRE, asi que convertir una
+    # oportunidad en proyecto reventaba con `AttributeError` en la primera
+    # linea util de la funcion. La cadena `"closed_won"` de la lista tampoco
+    # coincidia nunca con ningun valor de la columna.
+    if opp.stage not in [OpportunityStage.won, OpportunityStage.won.value]:
+        opp.stage = OpportunityStage.won
     last = db.query(Project).order_by(Project.created_at.desc()).first()
     next_num = 1
     if last and last.code and last.code.startswith("PRJ-"):
@@ -675,11 +715,16 @@ def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, cu
         status=ProjectStatus.planning,
         start_date=date.fromisoformat(payload["start_date"]) if payload.get("start_date") else timeutil.today(),
         end_date_planned=date.fromisoformat(payload["end_date"]) if payload.get("end_date") else None,
-        budget_amount=opp.amount,
+        # Auditoria 2026-08: `Opportunity` no tiene `amount`; el importe es
+        # `expected_revenue`. Reventaba con `AttributeError` en las tres lineas
+        # de abajo. Era el **segundo** defecto de esta funcion: el primero
+        # —`OpportunityStage.closed_won`, que tampoco existe— la abortaba antes
+        # de llegar aqui, asi que este solo se veia al arreglar aquel.
+        budget_amount=opp.expected_revenue,
         billing_type=payload.get("billing_type", _bill_type),
         is_billable=True,
         pm_id=payload.get("pm_id"),
-        contract_amount=opp.amount,
+        contract_amount=opp.expected_revenue,
         currency=payload.get("currency", _curr),
         description=opp.description,
         created_by=current_user.id,
@@ -687,7 +732,8 @@ def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, cu
     db.add(project)
     opp.project_id = project.id
     _audit(db, current_user, "CONVERT_OPPORTUNITY", "projects", project.id, project.name,
-           new_values={"opportunity_id": opportunity_id, "amount": opp.amount})
+           new_values={"opportunity_id": opportunity_id,
+                       "amount": opp.expected_revenue})
     db.commit()
     return {"ok": True, "project_id": project.id, "project_code": project.code, "project_name": project.name}
 
@@ -722,7 +768,7 @@ def get_pipeline_revenue_forecast(db) -> dict:
 
 def get_ticket_aging_report(db) -> dict:
     open_statuses = ["new", "assigned", "in_progress", "pending_client"]
-    tickets = db.query(Ticket).options(joinedload(Ticket.assignee)).filter(Ticket.status.in_(open_statuses)).all()
+    tickets = db.query(Ticket).options(joinedload(Ticket.assigned_to)).filter(Ticket.status.in_(open_statuses)).all()
     now = datetime.now(timezone.utc)
     aging_buckets = {
         "0-4h":  {"label": "0-4 horas",  "color": "#00e5a0", "tickets": []},
@@ -1246,7 +1292,12 @@ def _execute_step_action(config: dict, context: dict, db) -> dict:
         db.add(
             Alert(
                 alert_type="workflow",
-                message=config.get("message", "Workflow ejecutado"),
+                # Auditoria 2026-08: `Alert` no tiene `message`. Tiene `title` y
+                # `description`, y SQLAlchemy responde `TypeError` a una palabra
+                # clave que no es columna: la accion «crear alerta» de los
+                # flujos de trabajo no creaba ninguna.
+                title=config.get("message", "Workflow ejecutado"),
+                description=config.get("message", "Workflow ejecutado"),
                 severity=config.get("severity", "info"),
                 # Sin esto, un workflow sin project_id en contexto crea una alerta
                 # con los tres campos de ámbito a NULL, que _scope_alert_to_org

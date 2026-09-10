@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import re
 from app.core.timeutil import utcnow
-from typing import Optional
+from typing import Callable, NamedTuple, Optional
 
 from sqlalchemy.orm import Session
 
@@ -424,21 +424,55 @@ def _slash_escalate(db: Session, user, conversation_id: str, args: str) -> dict:
     return info
 
 
-SLASH_HANDLERS = {
-    "ask": _slash_ask,
-    "task": _slash_task,
-    "ticket": _slash_ticket,
-    "imputar": _slash_imputar,
-    "risk": _slash_risk,
-    "decision": _slash_decision,
-    "poll": _slash_poll,
-    "standup": _slash_standup,
-    "findfile": _slash_findfile,
-    "onboard": _slash_onboard,
-    "meet": _slash_meet,
-    "recap": _slash_recap,
-    "escalate": _slash_escalate,
+class _Comando(NamedTuple):
+    """Un slash command: lo que lo ejecuta y lo que se le cuenta a la gente."""
+
+    handler: Callable
+    descripcion: str
+
+
+# ── Los slash commands, en UNA tabla ────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 22). El despacho estaba aqui y el listado de ayuda
+# escrito a mano en el endpoint, con las trece descripciones repetidas. Hoy
+# coincidian —comprobado uno a uno— pero nada lo garantizaba: un comando nuevo
+# se podia implementar sin anunciarlo, o anunciar sin implementar.
+#
+# Ahora el nombre, el ejecutor y la descripcion van juntos, y `/slash/help` se
+# deriva de esta tabla. Hay un test que cruza las claves con las funciones
+# `_slash_*` del modulo, para que implementar una y olvidarse de la tabla
+# tampoco pase en silencio.
+COMANDOS: dict[str, _Comando] = {
+    "ask": _Comando(_slash_ask, "Pregunta a Nexus IA. Si no resuelve, abre ticket auto-asignado."),
+    "task": _Comando(_slash_task, "Crea tarea PSA en el proyecto del canal."),
+    "ticket": _Comando(_slash_ticket, "Abre ticket de soporte (auto-asignado)."),
+    "imputar": _Comando(_slash_imputar, "Imputa horas al proyecto del canal. Ej: /imputar 30m"),
+    "risk": _Comando(_slash_risk, "Registra un riesgo en el proyecto."),
+    "decision": _Comando(_slash_decision, "Registra decisión gobernada con auditoría."),
+    "poll": _Comando(_slash_poll, "/poll Pregunta? | A | B | C"),
+    "standup": _Comando(_slash_standup, "Lanza standup async."),
+    "findfile": _Comando(_slash_findfile, "Busca documentos del proyecto."),
+    "onboard": _Comando(_slash_onboard, "Mensaje de bienvenida con pasos."),
+    "meet": _Comando(_slash_meet, "Inicia llamada inmediata en este canal."),
+    "recap": _Comando(_slash_recap, "Resumen IA de los últimos mensajes."),
+    "escalate": _Comando(_slash_escalate, "Escala a soporte con prioridad alta."),
 }
+
+#: La tabla de despacho, derivada. Se conserva el nombre porque es el que usa
+#: `handle_slash`, pero ya no es una fuente de verdad aparte.
+SLASH_HANDLERS = {nombre: c.handler for nombre, c in COMANDOS.items()}
+
+
+def slash_help() -> list[dict]:
+    """El listado de ayuda, derivado de la tabla de comandos.
+
+    El orden es el de la tabla, que es el que tenia el listado escrito a mano:
+    los mas usados primero, no alfabetico.
+    """
+    return [
+        {"name": f"/{nombre}", "desc": c.descripcion}
+        for nombre, c in COMANDOS.items()
+    ]
 
 
 # ── Nexus IA backend ─────────────────────────────────────────────────────────

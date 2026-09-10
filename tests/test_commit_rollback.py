@@ -191,6 +191,15 @@ def test_los_de_app_services_estan_contados_y_no_han_crecido():
 # ── El guardia del trabajo de auto-resolución ───────────────────────────────
 
 class TestGuardiaDeAutoResolucion:
+    """El guardia del trabajo de auto-resolucion.
+
+    Auditoria 2026-08: el cerrojo y el estado del trabajo pasaron a ser **por
+    organizacion**. Antes eran uno para todo el proceso, asi que el trabajo de un
+    cliente devolvia `already_running` al de otro, y el estado —`job_id`,
+    tiempos, estadisticas y errores— lo veia cualquiera. Estos tests siguen
+    comprobando lo mismo que antes; lo que cambia es que piden el cerrojo y el
+    estado **de la organizacion de quien lanza**.
+    """
 
     def _correr(self, client, token, **params):
         from urllib.parse import urlencode
@@ -198,6 +207,23 @@ class TestGuardiaDeAutoResolucion:
             "/api/v1/sd/auto-resolution/run-job?" + urlencode(params),
             headers=auth(token),
         )
+
+    def _org(self, db):
+        from app.models.user import User
+        return db.query(User.organization_id).filter(
+            User.username == "admin").scalar()
+
+    def _cerrojo(self, db):
+        from app.services.service_desk.ai_auto_resolution_service import (
+            cerrojo_del_trabajo,
+        )
+        return cerrojo_del_trabajo(self._org(db))
+
+    def _estado(self, db):
+        from app.services.service_desk.ai_auto_resolution_service import (
+            estado_del_trabajo,
+        )
+        return estado_del_trabajo(db, self._org(db))
 
     def test_EL_HALLAZGO_el_camino_sincrono_tambien_toma_el_guardia(
             self, client, admin_token, db, monkeypatch):
@@ -216,11 +242,12 @@ class TestGuardiaDeAutoResolucion:
             return {}
 
         monkeypatch.setattr(mod, "run_daily_auto_resolution_job", registrar)
-        assert mod._AUTO_RES_JOB_LOCK.acquire(blocking=False)
+        cerrojo = self._cerrojo(db)
+        assert cerrojo.acquire(blocking=False)
         try:
             res = self._correr(client, admin_token, run_async=False, limit=5)
         finally:
-            mod._AUTO_RES_JOB_LOCK.release()
+            cerrojo.release()
 
         assert res.status_code == 200, res.text
         assert res.json()["data"]["status"] == "already_running"
@@ -248,11 +275,12 @@ class TestGuardiaDeAutoResolucion:
         res = self._correr(client, admin_token, run_async=False, limit=5)
         assert res.status_code == 500, res.text
 
-        assert mod._AUTO_RES_JOB_LOCK.acquire(blocking=False), (
+        cerrojo = self._cerrojo(db)
+        assert cerrojo.acquire(blocking=False), (
             "el guardia ha quedado cogido tras un fallo: el trabajo no se puede "
             "relanzar"
         )
-        mod._AUTO_RES_JOB_LOCK.release()
+        cerrojo.release()
 
     def test_EL_HALLAZGO_el_error_real_no_queda_tapado(
             self, client, admin_token, db, monkeypatch):
@@ -274,7 +302,7 @@ class TestGuardiaDeAutoResolucion:
         res = self._correr(client, admin_token, run_async=False, limit=5)
         assert res.status_code == 500
 
-        estado = mod._get_runtime_state(db)
+        estado = self._estado(db)
         assert estado.get("error") == "EL-ERROR-DE-VERDAD", (
             "el registro no lleva el error real, lleva: %r" % estado.get("error")
         )
@@ -291,7 +319,7 @@ class TestGuardiaDeAutoResolucion:
         monkeypatch.setattr(mod, "run_daily_auto_resolution_job", revienta)
         assert self._correr(client, admin_token, run_async=False, limit=5).status_code == 500
 
-        estado = mod._get_runtime_state(db)
+        estado = self._estado(db)
         assert estado.get("running") is False, (
             "el panel se ha quedado en «running» tras el fallo: %s" % estado
         )
@@ -315,10 +343,11 @@ class TestGuardiaDeAutoResolucion:
         datos = res.json()["data"]
         assert datos["processed"] == 3
         assert datos["status"] == "completed"
-        assert mod._AUTO_RES_JOB_LOCK.acquire(blocking=False), (
+        cerrojo = self._cerrojo(db)
+        assert cerrojo.acquire(blocking=False), (
             "el guardia no se ha liberado en el camino feliz"
         )
-        mod._AUTO_RES_JOB_LOCK.release()
+        cerrojo.release()
 
     def test_solo_un_administrador_puede_lanzarlo(self, client, dev_token, db):
         """Estaba antes y se fija: el trabajo resuelve tickets solo."""

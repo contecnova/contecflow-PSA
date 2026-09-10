@@ -81,14 +81,37 @@ class _CubetaFalsa:
         return False
 
 
-def _conexion(websocket=None, usuario=None):
-    """Conexión con la base y el workspace a None: los mensajes no los usan."""
-    return modulo._ConexionColab(
+class _SesionFalsa:
+    """Lo minimo de una sesion de SQLAlchemy que usa el handshake.
+
+    `info` existe porque `_abrir_conexion` publica ahi el contexto de tenant en
+    cuanto resuelve al usuario (auditoria 2026-08): la sesion del WebSocket se
+    crea a mano y antes se quedaba sin contexto durante toda la conexion, con lo
+    que las tres capas de aislamiento se saltaban.
+    """
+
+    def __init__(self):
+        self.info: dict = {}
+
+    def close(self) -> None:
+        pass
+
+
+def _conexion(websocket=None, usuario=None, conversaciones=()):
+    """Conexión con la base y el workspace a None: los mensajes no los usan.
+
+    `conversaciones` son los ids a los que la conexión está suscrita. Importa
+    desde la auditoría 2026-08: `_msg_typing` sólo publica en una conversación
+    a la que esta conexión esté suscrita, y antes publicaba en cualquiera.
+    """
+    con = modulo._ConexionColab(
         websocket or _WebSocketFalso(),
         db=None,
         user=usuario or _UsuarioFalso(),
         ws_obj=None,
     )
+    con.channels = [modulo.conv_channel(c) for c in conversaciones]
+    return con
 
 
 @pytest.fixture
@@ -128,7 +151,7 @@ def test_ping_responde_pong():
 
 
 def test_typing_se_publica_en_el_canal_de_la_conversacion(bus_falso):
-    con = _conexion(usuario=_UsuarioFalso("u7"))
+    con = _conexion(usuario=_UsuarioFalso("u7"), conversaciones=["c9"])
     asyncio.run(modulo._manejar_mensaje(
         con, {"type": "typing", "conversation_id": "c9", "active": True}
     ))
@@ -148,9 +171,27 @@ def test_typing_sin_conversacion_se_ignora(bus_falso):
 
 def test_typing_sin_active_se_asume_activo(bus_falso):
     asyncio.run(modulo._manejar_mensaje(
-        _conexion(), {"type": "typing", "conversation_id": "c1"}
+        _conexion(conversaciones=["c1"]), {"type": "typing", "conversation_id": "c1"}
     ))
     assert bus_falso.publicado[0][1]["payload"]["active"] is True
+
+
+def test_EL_HALLAZGO_typing_en_una_conversacion_ajena_no_se_publica(bus_falso):
+    """Auditoría 2026-08. El `conversation_id` llega del cliente y no se
+    comprobaba: se publicaba en `conv_channel(cid)` fuera cual fuera, así que un
+    usuario podía inyectar un «está escribiendo» a su nombre en la conversación
+    de otra organización.
+
+    La comprobación es contra los canales a los que la conexión está suscrita,
+    que el servidor calcula en `canales()` desde las conversaciones del usuario.
+    """
+    con = _conexion(usuario=_UsuarioFalso("intruso"), conversaciones=["la-mia"])
+    asyncio.run(modulo._manejar_mensaje(
+        con, {"type": "typing", "conversation_id": "la-de-otra-organizacion"}
+    ))
+    assert bus_falso.publicado == [], (
+        "se publicó un evento en una conversación a la que esta conexión no "
+        "está suscrita")
 
 
 def test_presence_se_difunde_a_toda_la_organizacion(bus_falso):
@@ -303,7 +344,7 @@ def test_un_usuario_sin_organizacion_se_cierra_con_4403(monkeypatch):
     monkeypatch.setattr(modulo, "get_active_user_by_id",
                         lambda db, uid: _UsuarioFalso(uid, org=None))
     ws = _WebSocketFalso()
-    assert asyncio.run(modulo._abrir_conexion(ws, "ok", db=None)) is None
+    assert asyncio.run(modulo._abrir_conexion(ws, "ok", db=_SesionFalsa())) is None
     assert ws.codigo_cierre == 4403
 
 
@@ -318,7 +359,7 @@ def test_si_falla_el_workspace_se_cierra_con_4403(monkeypatch):
     monkeypatch.setattr(modulo, "get_active_user_by_id", lambda db, uid: _UsuarioFalso(uid))
     monkeypatch.setattr(modulo, "get_or_create_workspace", _revienta)
     ws = _WebSocketFalso()
-    assert asyncio.run(modulo._abrir_conexion(ws, "ok", db=None)) is None
+    assert asyncio.run(modulo._abrir_conexion(ws, "ok", db=_SesionFalsa())) is None
     assert ws.codigo_cierre == 4403
 
 

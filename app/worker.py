@@ -1244,13 +1244,22 @@ def cmdb_discovery_run():
 def change_impact_batch_score():
     """Batch-score Change Requests that haven't been analyzed yet (ITSM-P05).
 
-    Targets changes in 'submitted' or 'in_approval' status with no auto_risk_score.
+    Targets changes pending CAB decision with no auto_risk_score.
     Also auto-approves standard changes with low risk score.
     Runs every 10 minutes via beat schedule.
+
+    Auditoria 2026-08: esta tarea referenciaba `ChangeStatus.in_approval`, que
+    **no existe en el enum del modelo**, asi que **fallaba en cada tic** con un
+    `AttributeError` atrapado por el `except` de abajo — una linea de log y
+    nada mas. Los estados que espera el CAB salen ahora de
+    `ESTADOS_PENDIENTES_DE_CAB`, que se construye desde el enum. El detalle
+    esta en el comentario de esa constante.
     """
     from app.db.session import worker_db_session
-    from app.models.service_desk import ChangeStatus, ITSMChangeRequest
-    from app.services.service_desk.change_impact_service import score_and_persist
+    from app.models.service_desk import ITSMChangeRequest
+    from app.services.service_desk.change_impact_service import (
+        ESTADOS_PENDIENTES_DE_CAB, score_and_persist,
+    )
     from app.services.service_desk.change_service import _maybe_auto_approve
 
     scored = auto_approved = errors = 0
@@ -1259,9 +1268,7 @@ def change_impact_batch_score():
             pending = (
                 db.query(ITSMChangeRequest)
                 .filter(
-                    ITSMChangeRequest.status.in_(
-                        [ChangeStatus.submitted, ChangeStatus.in_approval]
-                    ),
+                    ITSMChangeRequest.status.in_(ESTADOS_PENDIENTES_DE_CAB),
                     ITSMChangeRequest.auto_risk_score.is_(None),
                 )
                 .limit(50)  # process up to 50 per tick to avoid long task

@@ -8,16 +8,16 @@ from __future__ import annotations
 import json
 from typing import Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.deps import get_current_user, get_db, require_admin
 from app.core.responses import APIResponse
-from app.core.tenancy import assert_org_id_is_own
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.services import branding_service as svc
 
 router = APIRouter()
 
@@ -164,16 +164,7 @@ def get_branding(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.mfa import Organization
-    from app.models.white_label import OrgBranding
-
-    # `org_id` viene de la ruta: Organization es el único modelo sin columna de
-    # tenant, así que TenantSession no lo filtra y hay que comprobarlo a mano.
-    assert_org_id_is_own(current_user, org_id, detail="Organization not found")
-    org = db.query(Organization).filter(Organization.id == org_id).first()
-    if not org:
-        raise HTTPException(404, "Organization not found")
-    branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
+    branding = svc.marca_de_la_organizacion(db, current_user, org_id)
     if not branding:
         return APIResponse.ok(data=_marca_por_defecto(org_id))
     return APIResponse.ok(data=_branding_out(branding))
@@ -186,35 +177,8 @@ def update_branding(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.mfa import Organization
-    from app.models.white_label import OrgBranding
-
-    # Sin esta comprobación el SELECT de OrgBranding devuelve None para una org
-    # ajena (TenantSession sí lo filtra) y se cae en la rama de creación, donde
-    # el INSERT no lleva filtro: se escribiría el branding de otro tenant.
-    assert_org_id_is_own(current_user, org_id, detail="Organization not found")
-    org = db.query(Organization).filter(Organization.id == org_id).first()
-    if not org:
-        raise HTTPException(404, "Organization not found")
-
-    branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
-    if not branding:
-        branding = OrgBranding(organization_id=org_id, created_by=current_user.id)
-        db.add(branding)
-
-    for field, val in payload.dict(exclude_none=True).items():
-        if field == "custom_css_vars":
-            safe_vars = {
-                k: v
-                for k, v in val.items()
-                if k.startswith("--") and len(k) < 80 and len(str(v)) < 100
-            }
-            setattr(branding, field, json.dumps(safe_vars))
-        else:
-            setattr(branding, field, val)
-
-    db.commit()
-    db.refresh(branding)
+    branding = svc.guardar_marca(
+        db, current_user, org_id, payload.dict(exclude_none=True))
     return APIResponse.ok(data=_branding_out(branding))
 
 
@@ -224,15 +188,6 @@ def reset_branding(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.white_label import OrgBranding
-
-    # Hoy el SELECT filtrado ya hace que un org_id ajeno no borre nada, pero eso
-    # convierte al filtro de sesión en el control de autorización — y ese filtro
-    # es fail-open ante excepción (app/db/session.py). Guarda explícita.
-    assert_org_id_is_own(current_user, org_id, detail="Organization not found")
     enforce_abac(db, current_user, "org_branding", org_id, action="delete")
-    branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
-    if branding:
-        db.delete(branding)
-        db.commit()
+    svc.restablecer_marca(db, current_user, org_id)
     return None

@@ -73,15 +73,9 @@ def _candidate_users_for_org(db: Session, current_user, explicit_candidates=None
     permitiendo sugerir users de otra organización."""
     if explicit_candidates:
         return explicit_candidates
-    if bool(getattr(current_user, "is_superadmin", False)):
-        return None  # None == sin restricción, el assigner usa todos
-    org_id = getattr(current_user, "organization_id", None)
-    if not org_id:
-        return None
-    from app.models.user import User
-    return [u.id for u in db.query(User.id).filter(
-        User.is_active == True, User.organization_id == org_id
-    ).all()] or ["__none__"]
+    from app.services import semantic_engine_service as _sem_svc
+
+    return _sem_svc.ids_de_usuarios_del_ambito(db, current_user)
 
 
 @router.post("/suggest/ticket")

@@ -55,6 +55,28 @@ def create_contract(
     return APIResponse.ok(data=_contract_out(c))
 
 
+@router.get("/{contract_id}", summary="Detalle de un contrato")
+def get_contract(
+    contract_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    """Auditoria 2026-08 (hallazgo 37): esta ruta **no existia**.
+
+    `contractsApi` del frontend tiene el CRUD completo —listar, crear,
+    actualizar, borrar— y la lectura de uno era la unica cuya ruta no estaba,
+    asi que abrir el detalle de un contrato devolvia 404.
+
+    No hay nada que inventar: la busqueda acotada (`get_contract`) y el
+    serializador (`serialize_contract`) son los mismos que ya usan el `PATCH` y
+    el `DELETE` de aqui debajo.
+    """
+    c = contract_service.get_contract(db, contract_id, current_user)
+    if not c:
+        raise HTTPException(404, "Contrato no encontrado")
+    return APIResponse.ok(data=_contract_out(c))
+
+
 @router.patch("/{contract_id}", summary="Actualizar contrato")
 def update_contract(
     contract_id: str,

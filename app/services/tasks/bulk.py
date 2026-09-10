@@ -16,6 +16,51 @@ from app.services.tasks.core import apply_status_side_effects
 from app.core.abac_enforce import enforce_abac
 
 
+def _puede_modificar_la_tarea(db: Session, current_user, task) -> bool:
+    """¿Este usuario puede tocar **esta** tarea?
+
+    Auditoría 2026-08 (hallazgo 18). Esta cascada estaba dentro del bucle de
+    `bulk_update_tasks`, que con ella llegaba a complejidad 15, y su forma lo
+    decía todo: cuatro ramas por rol y **la misma comprobación de asignatario
+    escrita tres veces**, cada una con su `skipped.append(...)` y su `continue`.
+    Sacarla convierte cuatro ramas y tres copias en una pregunta con respuesta
+    de sí o no, y el bucle se queda con el reparto de trabajo.
+
+    La política que implementa se conserva **exactamente**:
+
+      · `employee` y `subcontractor` no entran, ni sobre sus propias tareas —
+        la actualización masiva es una herramienta de gestión;
+      · `admin`, cualquier tarea;
+      · `pm`, las de los proyectos que dirige;
+      · `team_lead`, las de los proyectos donde es miembro con rol `lead`;
+      · y todos los demás roles, sólo las que tienen asignadas. Ese último
+        `else` cubre también al `pm` y al `team_lead` fuera de su ámbito, que es
+        por lo que aparecía tres veces.
+    """
+    from app.models.project import ProjectMember, ProjectMemberRole
+
+    rol = current_user.role
+    if rol in (UserRole.employee, UserRole.subcontractor):
+        return False
+    if rol == UserRole.admin:
+        return True
+
+    if rol == UserRole.pm:
+        proyecto = db.query(Project).filter(Project.id == task.project_id).first()
+        if proyecto and proyecto.pm_id == current_user.id:
+            return True
+    elif rol == UserRole.team_lead:
+        es_lead = db.query(ProjectMember).filter(
+            ProjectMember.project_id == task.project_id,
+            ProjectMember.user_id == current_user.id,
+            ProjectMember.role == ProjectMemberRole.lead,
+        ).first()
+        if es_lead:
+            return True
+
+    return task.assignee_id == current_user.id
+
+
 def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) -> dict:
     """
     Apply status / assignee_id / priority changes to multiple tasks.
@@ -32,38 +77,14 @@ def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) 
     skipped = []
 
     for task in tasks:
-        if current_user.role in (UserRole.employee, UserRole.subcontractor):
+        if not _puede_modificar_la_tarea(db, current_user, task):
             skipped.append({"id": task.id, "reason": "forbidden"})
             continue
-        # Permitir admin
-        if current_user.role == UserRole.admin:
-            pass
-        # Permitir pm del proyecto
-        elif current_user.role == UserRole.pm:
-            project = db.query(Project).filter(Project.id == task.project_id).first()
-            if not (project and project.pm_id == current_user.id):
-                if task.assignee_id != current_user.id:
-                    skipped.append({"id": task.id, "reason": "forbidden"})
-                    continue
-        # Permitir team_lead si es miembro con rol lead
-        elif current_user.role == UserRole.team_lead:
-            from app.models.project import ProjectMember, ProjectMemberRole
-            is_lead = db.query(ProjectMember).filter(
-                ProjectMember.project_id == task.project_id,
-                ProjectMember.user_id == current_user.id,
-                ProjectMember.role == ProjectMemberRole.lead
-            ).first()
-            if not is_lead:
-                if task.assignee_id != current_user.id:
-                    skipped.append({"id": task.id, "reason": "forbidden"})
-                    continue
-        # Otros solo si son asignee
-        else:
-            if task.assignee_id != current_user.id:
-                skipped.append({"id": task.id, "reason": "forbidden"})
-                continue
 
-        # G5 Fix: Enforce ABAC for each task individually in bulk operation
+        # Auditoría 2026-08 (hallazgo 18): esta comprobación faltaba en la copia
+        # de `task_service.py`, que era la que ejecutaba el endpoint. Por qué
+        # aquello era latente y no una brecha está escrito allí, en el bloque de
+        # reexportación.
         try:
             enforce_abac(db, current_user, "task", task.id, action="update")
         except HTTPException:

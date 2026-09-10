@@ -680,6 +680,71 @@ def discover_snmp_network(provider_config: dict[str, Any]) -> list[dict[str, Any
 # ORCHESTRATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def proveedores_visibles(db: Session, current_user) -> list[CMDBDiscoveryProvider]:
+    """Los proveedores de discovery que puede ver el sujeto, mas los globales.
+
+    Auditoria 2026-08 (hallazgo 22): la consulta estaba en el endpoint, pero el
+    filtro **si** estaba y era el correcto. Se mueve verbatim.
+    """
+    q = db.query(CMDBDiscoveryProvider)
+    if (not getattr(current_user, "is_superadmin", False)
+            and getattr(current_user, "organization_id", None)):
+        q = q.filter(
+            (CMDBDiscoveryProvider.organization_id == current_user.organization_id)
+            | (CMDBDiscoveryProvider.organization_id.is_(None))
+        )
+    return q.order_by(CMDBDiscoveryProvider.created_at.desc()).all()
+
+
+def crear_proveedor(db: Session, current_user, datos: dict) -> CMDBDiscoveryProvider:
+    """Da de alta un proveedor de discovery en la organizacion del sujeto.
+
+    No hace `commit`: la frontera de transaccion se queda en el endpoint, que
+    es donde esta el resto de las de este router.
+    """
+    proveedor = CMDBDiscoveryProvider(
+        name=datos["name"],
+        provider_type=datos["provider_type"],
+        is_active=datos.get("is_active", True),
+        config_json=json.dumps(datos.get("config") or {}),
+        scan_interval_minutes=datos.get("scan_interval_minutes", 60),
+        organization_id=getattr(current_user, "organization_id", None),
+        created_by=getattr(current_user, "id", None),
+    )
+    db.add(proveedor)
+    return proveedor
+
+
+def jobs_de_un_proveedor(
+    db: Session, current_user, provider_id: str, *, page: int, page_size: int
+):
+    """El historial de ejecuciones de un proveedor ya comprobado, y su total.
+
+    La comprobacion de a quien pertenece el proveedor se hace **aqui**, no en
+    el endpoint: antes estaba alli, con un comentario que la explicaba, y era
+    lo unico que impedia listar los jobs de otro cliente. Dentro del servicio
+    no se puede olvidar.
+
+    La consulta de jobs no lleva filtro de organizacion, y es correcto: se
+    busca por `provider_id` de un proveedor ya verificado, asi que el ambito
+    llega por la clave padre.
+    """
+    from app.core.tenancy import org_scoped_or_404
+
+    org_scoped_or_404(
+        db, CMDBDiscoveryProvider, provider_id, current_user,
+        detail="Provider not found")
+
+    q = (
+        db.query(CMDBDiscoveryJob)
+        .filter(CMDBDiscoveryJob.provider_id == provider_id)
+        .order_by(CMDBDiscoveryJob.started_at.desc())
+    )
+    total = q.count()
+    filas = q.offset((page - 1) * page_size).limit(page_size).all()
+    return filas, total
+
+
 def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> CMDBDiscoveryJob:
     """Ejecuta discovery completo para un proveedor y registra el job."""
     job = CMDBDiscoveryJob(

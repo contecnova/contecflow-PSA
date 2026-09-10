@@ -20,7 +20,7 @@ import logging
 
 logger = logging.getLogger("contecflow.client_portal")
 
-from app.db.session import get_db
+from app.db.session import get_db, publicar_contexto_de_tenant
 from app.core.config import settings
 from app.core.deps import require_any_manager
 from app.core.ratelimit import limiter
@@ -82,6 +82,21 @@ def get_current_client(
     client = _svc.get_active_client_by_id(db, client_id)
     if not client:
         raise credentials_exception
+
+    # Contexto de tenant en la sesion, igual que hace `get_current_user`.
+    #
+    # Auditoria 2026-08. Esto no estaba, y `TenantSession` se salta el filtro
+    # cuando `info` no trae `is_superadmin` («sesion no inicializada: job de
+    # fondo o test»). Con **41 dependencias** de endpoints del portal colgando
+    # de aqui, eso significaba que toda consulta del portal sin filtro explicito
+    # devolvia filas de todos los clientes. Comprobado con la sesion real: sin
+    # contexto un `db.query(Client)` devolvia los de DOS organizaciones; con el,
+    # solo los de la suya.
+    #
+    # Va DESPUES de resolver al cliente, y no antes: `get_active_client_by_id`
+    # busca por id sin saber todavia de que organizacion es, asi que esa
+    # consulta tiene que correr sin filtrar.
+    publicar_contexto_de_tenant(db, client, es_cliente=True)
     return client
 
 
@@ -806,7 +821,15 @@ def get_portal_stats(
 # OrgBranding.portal_translations (JSON). Antes vivían en un dict en memoria
 # per-proceso: se perdían al reiniciar y no se compartían entre workers.
 # Shape: { <lang>: { <module>: { <key>: <value> } } }.
-import json
+#
+# Auditoría 2026-08 (hallazgo 22): las dos consultas y el manejo del JSON
+# estaban aquí; viven en `services/branding_service.py`, junto al resto de
+# `OrgBranding`. El filtro por organización ya estaba bien puesto, así que esto
+# es un movimiento y no un arreglo.
+from app.services.branding_service import (  # noqa: E402
+    guardar_traducciones_del_portal,
+    traducciones_del_portal,
+)
 
 
 def _org_key(current_user: User) -> str:
@@ -819,16 +842,8 @@ def get_portal_translations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.white_label import OrgBranding
-
-    org_id = _org_key(current_user)
-    branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
-    if not branding or not branding.portal_translations:
-        return APIResponse.ok(data={})
-    try:
-        return APIResponse.ok(data=json.loads(branding.portal_translations))
-    except (ValueError, TypeError):
-        return APIResponse.ok(data={})
+    return APIResponse.ok(data=traducciones_del_portal(
+        db, _org_key(current_user)))
 
 
 @router.post("/translations", summary="Guardar traducciones personalizadas del portal")
@@ -837,22 +852,8 @@ def save_portal_translations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.white_label import OrgBranding
-
-    org_id = _org_key(current_user)
-    branding = db.query(OrgBranding).filter(OrgBranding.organization_id == org_id).first()
-    if not branding:
-        branding = OrgBranding(organization_id=org_id, created_by=getattr(current_user, "id", None))
-        db.add(branding)
-    # Merge sobre lo existente (mismo comportamiento que el antiguo bucket.update).
-    current = {}
-    if branding.portal_translations:
-        try:
-            current = json.loads(branding.portal_translations)
-        except (ValueError, TypeError):
-            current = {}
-    current.update(data)
-    branding.portal_translations = json.dumps(current, ensure_ascii=False)
+    guardar_traducciones_del_portal(
+        db, current_user, _org_key(current_user), data)
     db.commit()
     return APIResponse.ok(data={"ok": True})
 

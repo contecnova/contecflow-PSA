@@ -300,6 +300,29 @@ def list_known_errors(
     return APIListResponse.ok(items=[serialize_known_error(p) for p in entries], total=len(entries))
 
 
+@router.get('/known-errors/{known_error_id}/tickets',
+            summary='Tickets vinculados a un Known Error')
+def known_error_tickets(
+    known_error_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Auditoria 2026-08 (hallazgo 37): esta ruta **no existia** y la interfaz
+    la llamaba. El modelo si estaba — la tabla de union
+    `sd_known_error_tickets`—, solo faltaba exponerlo.
+
+    Va **despues** de `/known-errors/stats` y de los dos `run-*-scan`: FastAPI
+    resuelve por orden de declaracion y un `/{known_error_id}` declarado antes
+    se tragaria esas rutas literales. Es el defecto de 3.g y no se repite.
+    """
+    from app.services.service_desk.known_error_service import (
+        tickets_de_un_error_conocido,
+    )
+
+    items = tickets_de_un_error_conocido(db, current_user, known_error_id)
+    return APIListResponse.ok(items=items, total=len(items))
+
+
 @router.get('/known-errors/stats', summary='Estadísticas del KEDB')
 def kedb_stats(
     db: Session = Depends(get_db),

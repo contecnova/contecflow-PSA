@@ -184,11 +184,7 @@ def _exigir_mfa_de_la_organizacion(db: Session, user, tiene_factor: bool) -> Non
     """
     if not user.organization_id or tiene_factor:
         return
-    from app.models.mfa import Organization
-    org = (db.query(Organization)
-             .filter(Organization.id == user.organization_id)
-             .first())
-    if org and getattr(org, "require_mfa", False):
+    if _svc.organizacion_exige_mfa(db, user):
         raise HTTPException(
             status_code=403,
             detail=(

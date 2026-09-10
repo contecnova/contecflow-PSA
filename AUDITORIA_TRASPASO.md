@@ -65,6 +65,13 @@ cd "contecflow PSA"
 # Linter del backend: tiene que salir "All checks passed!"
 ./.venv/Scripts/python.exe -m ruff check app/
 
+# Complejidad: informe legible de las funciones por encima de 10. NO falla nunca
+# —el que bloquea es `tests/test_complejidad_no_empeora.py`, dentro de la suite—;
+# esto es para elegir la siguiente sin ir a buscarla.
+./.venv/Scripts/python.exe scripts/audit_complejidad.py
+# Y para regenerar la lista del trinquete despues de una mejora:
+./.venv/Scripts/python.exe scripts/audit_complejidad.py --lista
+
 # Frontend
 cd frontend
 npx tsc --noEmit          # tiene que salir limpio
@@ -75,10 +82,15 @@ node scripts/check_i18n_coverage.mjs   # gate de cobertura de traducción
 bash scripts/ci_local.sh
 ```
 
-**Estado en la última verificación completa (2026-08-31):**
-**2273 passed, 17 skipped, 1 xfailed, 0 fallos** en 19 min con `-n auto`;
+**Estado en la última verificación completa (2026-09-09):**
+**3746 passed, 19 skipped, 1 xfailed, 0 fallos** en 18 min 34 s con `-n auto`;
 `ruff check app tests` limpio; `tsc` limpio; 89/89 vitest; los cinco gates de
 frontend en verde.
+
+> Y es la primera vez que ese «0 fallos» se mide **con la semántica de tenant de
+> producción puesta** (§3.sexdecies). La primera pasada con los escuchadores
+> registrados dio **23 en rojo**: catorce del propio banco de pruebas, dos
+> regresiones de la jornada y **siete defectos de producción** (§3.vicies).
 
 > **Aviso sobre la verificación anterior.** El commit `b4ba85d` se hizo con la
 > suite corriendo y su resultado nunca se reportó, porque en serie no terminaba
@@ -143,6 +155,1971 @@ administración escribiendo en una tabla que **nadie leía**.
 | 17 | Supresiones obsoletas y puertas de calidad |
 
 ### P3 — parcial, ver sección 5
+
+---
+
+## 3.ter #37 remedido: no son endpoints ausentes, son rutas equivocadas
+
+La versión anterior de este documento decía «62 rutas del frontend que no
+existen (7 corregidas, 9 identificadas como endpoints ausentes y 53 en código de
+cliente muerto)». **Al volver a medirlo, el reparto es otro y cambia qué hay que
+hacer.**
+
+Medición: 851 rutas distintas que el frontend llama, cruzadas contra las rutas
+reales de la aplicación normalizando los parámetros. Y para cada método
+huérfano de `frontend/src/services/api/_core.ts`, se busca quién lo llama
+**por su objeto exportado** (`sprintsApi.get`, no `get`), que es lo que decide si
+es código muerto o una función rota de verdad.
+
+> **Un aviso sobre la primera medición que hice hoy**, por si alguien repite el
+> ejercicio: buscar el método por su nombre suelto da basura. Nombres como
+> `get`, `create`, `update`, `delete` o `list` aparecen en todos los ficheros,
+> así que salían «40 llamados» de los que la mayoría eran falsos. Hay que
+> atribuir cada método a su objeto y buscar `objeto.metodo(`.
+
+> **Y una corrección de mi propia medición, a mitad de hacerla.** La primera
+> versión comparaba **sólo la ruta, ignorando el método HTTP**, así que
+> `POST /sprints` parecía existir porque existe `GET /sprints`. Con método y
+> ruta salen **42 huérfanos**, no 47, y el reparto cambia. Las cifras de abajo
+> son las de la medición correcta.
+
+| Categoría | Cuántos |
+|---|---|
+| Métodos que apuntan a un (método, ruta) inexistente | **42** |
+| — inalcanzables: sólo los referencian hooks que nadie consume | **30** |
+| — alcanzables desde una página o un hook vivo: **rotos de verdad** | **12** |
+
+**La causa raíz es un cliente duplicado**, y el propio fichero ya lo comentaba en
+un sitio: hay dos objetos para lo mismo, uno correcto y en uso y otro con la ruta
+mal y sin usar. `projectSprintsApi` (12 métodos, todos correctos, lo usa
+`SprintsPage`) frente a `sprintsApi` (8 de 9 rotos, no lo usa nadie);
+`deliverablesApi.listByProject`/`overviewAll`/`createForProject` frente a
+`list`/`overview`/`create`; `absencesApi.review`/`updateMy`/`deleteMy` frente a
+`approve`/`reject`/`update`/`delete`. Los seis módulos de hooks que consumían las
+versiones rotas —`useSprints`, `useExpenses`, `useOKRs`, `useDeliverables`,
+`useAbsences`, `useTickets`— **no los importa ningún componente**: sólo los
+reexporta el barrel `hooks/index.ts`. Comprobado uno a uno. Por eso nunca falló
+nada: el código roto no se ejecutaba.
+
+> **Aviso para quien repita la medida:** buscar el método por su nombre suelto da
+> basura, porque `get`, `create`, `update`, `delete` o `list` aparecen en todos
+> los ficheros. Hay que atribuir cada método a su objeto exportado y buscar
+> `objeto.metodo(`. Y hay que seguir la cadena: un método que sólo usa un hook
+> que nadie consume está muerto, aunque el hook lo referencie.
+
+#### Hecho en esta tanda
+
+* **Borrados 19 métodos** que no llamaba nadie y sólo podían dar 404
+  (`authApi.syncLdap`, `risksApi.scores`, `absencesApi.get/update/balance`,
+  `invoicesApi.get`, `assetsApi.cmdb`, `licensesApi.revoke`,
+  `biAnomalyApi.predictChurn`, `trainingApi.cert`, `integrationsApi.jiraStatus`,
+  `subcontractorsApi.get` y los cuatro de `slaSchedulesApi`).
+* **Remapeados 6 de `subcontractorsApi`**: se les había caído el prefijo
+  `/enterprise`, que su propio `list` sí llevaba. Verificado 1:1 contra la tabla
+  de rutas, mismos parámetros.
+* **`slaSchedulesApi` reescrito** a `/bookings/sla-schedules`, que es donde está
+  el router; `update` y `delete` de un calendario no existen en el backend, así
+  que se quitan en vez de dejarlos apuntando a nada.
+* **Arreglado un fallo visible**: `dependenciesApi.get` pedía `/dependencies/{id}`
+  cuando el router es `/task-dependencies/{project_id}`. Alimenta las
+  dependencias del Gantt de proyecto, y la página trata la respuesta fallida como
+  lista vacía, así que **el Gantt se dibujaba sin dependencias y sin error
+  visible**. Es el único de los 12 alcanzables que tenía contraparte exacta.
+* `npx tsc --noEmit`: **0 errores** después de todo lo anterior.
+
+* **Borrados 29 métodos más y 24 funciones de hook** que sólo se referenciaban
+  entre ellas: los ocho de `sprintsApi` (que `projectSprintsApi` sustituye), los
+  cinco de `deliverablesApi` con gemelo correcto, los de `absencesApi` y
+  `expensesApi` que duplicaban `review`/`updateMy`/`deleteMy`, y siete sueltos
+  (`contractsApi.workOrders`, `okrsApi.get`, `trainingApi.course`,
+  `ticketsApi.close`, `problemsApi.get`, `cmdbApi.getItem`, `cmdbApi.sdGet`).
+  `hooks/useDeliverables.ts` se quedó sin ninguna función y se borró. Lo que
+  apunta a rutas válidas se conserva intacto: de `useTickets` se fue 1 de 12, de
+  `useExpenses` 3 de 12, de `useAbsences` 5 de 9.
+* **`okrsApi.updateKR` corregido en vez de borrado**: el key result se identifica
+  solo, el objetivo no va en la ruta. Completa un cliente de key-results cuyos
+  `createKR`, `deleteKR` y `checkin` ya eran correctos.
+* **Estado final medido: 42 → 11 huérfanos.** `npx tsc --noEmit` en 0 errores y
+  `eslint` limpio en los ocho ficheros tocados, incluidos los imports que se
+  quedaron sin uso al quitar las funciones.
+
+#### Los 11 que quedan, y por qué no se tocan
+
+Ninguno tiene contraparte: son endpoints que **no existen**, y hay un patrón —el
+cliente ofrece «traer uno» o «borrar» donde el backend sólo implementó el listado
+o el `PATCH`—:
+
+| Método del cliente | Qué falta en el backend |
+|---|---|
+| `integrationsApi.exportImputations` / `exportProjects` | el prefijo `/integrations/export` no tiene **ni una** ruta |
+| `trainingApi.updateCert` / `deleteCert` | `/training/certifications` sólo tiene `GET` y `POST` de colección |
+| `contractsApi.get` / `workOrders` | `/contracts/{id}` tiene `PATCH` y `DELETE`, no `GET` |
+| `risksApi.get` | `/risks/{proj}/{risk}` tiene `PATCH` y `DELETE`, no `GET` |
+| `problemsApi.delete` | `/sd/problems/{id}` sólo tiene `PATCH` |
+| `changesApi.delete` | `/sd/changes/{id}` tiene `GET` y `PATCH`, no `DELETE` |
+| `pipelineApi.get` | no hay `GET /pipeline/{id}` |
+| `sdKbApi.knownErrorTickets` | no hay `/sd/known-errors/{id}/tickets` |
+| `oauthIntegrationsApi.delete` | `/oauth-integrations` sólo tiene `GET` y `POST` |
+| `ticketsApi.close` | no hay `/sd/tickets/{id}/close`; se cierra por `PATCH` |
+
+Implementarlos es decisión de producto: cada uno es un endpoint nuevo con sus
+permisos y su semántica de borrado, no una corrección de ruta. **Son los 11
+únicos que quedan**, y todos son alcanzables desde una página o un hook vivo, así
+que cada uno es una función que hoy falla en la interfaz.
+
+De ellos, dos merecen mención porque el fallo es silencioso igual que el del
+Gantt: `problemsApi.delete` y `changesApi.delete` los llama
+`ITSMKnowledgeTab`/`useChanges` para borrar, y el backend sólo implementó
+`PATCH` — así que **el botón de borrar de un problema o de un cambio no borra
+nada**. Lo que hay que decidir es si esas entidades deben poder borrarse o si el
+cierre correcto es quitar el botón.
+
+**Los duplicados rotos, con su contraparte correcta.** Esta tabla es la que
+explica el defecto: el backend tiene la funcionalidad, en otro prefijo o con otra
+forma, y el cliente muerto apuntaba al sitio equivocado:
+
+| El cliente llama | El backend tiene |
+|---|---|
+| `/subcontractors`, `/subcontractors/{id}` … | `/enterprise/subcontractors/…` (22 rutas) |
+| `/sla-schedules` | `/bookings/sla-schedules` |
+| `/deliverables`, `/deliverables/overview` | `/deliverables/{project_id}`, `/deliverables/all/overview` |
+| `/absences/{id}` (DELETE) | `/absences/my/{absence_id}` |
+| `/absences/{id}/approve` y `/reject` | `/absences/{absence_id}/review` |
+| `/expenses/{id}/approve` y `/reject` | `/expenses/{expense_id}/review` |
+| `/okrs/{objId}/key-results/{krId}` | `/okrs/key-results/{kr_id}` |
+| `/dependencies/{id}` | `/task-dependencies/{project_id}` |
+| `/sprints/{id}/start`, `/burndown`, `/velocity` | `/sprints/{project_id}/sprints/{sprint_id}/…` |
+| `/sprints/{id}/complete` | `/sprints/{project_id}/sprints/{sprint_id}/close` |
+
+Quedan **sí ausentes de verdad**, y éstos son decisión de producto porque hay que
+implementarlos: borrar un sprint, `PATCH`/`DELETE` de una certificación,
+`/absences/policies`, cerrar un ticket por `/close`, los tickets de un error
+conocido, borrar una integración OAuth y las dos exportaciones
+`/integrations/export/imputations` y `/projects` —cuyo prefijo no tiene **ni una**
+ruta registrada—.
+
+**Lo que esto cambia del plan.** Arreglar el prefijo no siempre es un cambio de
+una línea: varias rutas del servidor exigen `project_id` y el cliente hoy no lo
+pasa, así que hay que cambiar la firma del método y sus llamantes, y en algún
+caso el componente no tiene el proyecto a mano. Es trabajo por función, no un
+barrido. Por eso queda medido y ordenado —19 borrables, ~18 remapeables, ~10 por
+implementar— y no forzado en una tanda.
+
+---
+
+## 3.quater El hallazgo más grave de todos: **la columna de tenant que nadie rellenaba**
+
+No lo buscaba. Salió al poner una guarda explícita de organización en
+`endpoints/performance.py`, dentro del #22: los tests se pusieron en rojo y la
+causa **no era la guarda**.
+
+El filtro de tenant es `organization_id == org`. Una fila guardada con **NULL en
+esa columna no la ve su propia organización**: sólo un superadmin. Y en el módulo
+de evaluaciones **ninguna de las nueve creaciones la ponía**.
+
+Medido con la sesión real de la aplicación:
+
+```
+performance_service.create_cycle()          -> organization_id = None
+GET /performance/cycles  (usuario normal)   -> 0 ciclos
+GET /performance/cycles  (superadmin)       -> 1 ciclo
+```
+
+**Se creaba el ciclo y desaparecía.** Editar o borrar una pregunta daba 404. Un
+plan de desarrollo y sus objetivos, lo mismo. El módulo entero de evaluaciones
+estaba muerto en un despliegue con tenant, y **no había un solo error en los
+registros**: sólo listas vacías, que es exactamente lo que no se investiga.
+
+#### Y no era un módulo: es sistémico
+
+Barrido por AST de todo `app/`, contando construcciones de modelos que **tienen**
+la columna y no son exentos ni globales:
+
+| | |
+|---|---|
+| Modelos con `organization_id` (ni exentos ni globales) | **376** |
+| Que se construyen **alguna vez** con ella | 170 |
+| Que **nunca** se construyen con ella | **195** |
+| Construcciones sin ella | **611** |
+
+Segundo caso comprobado de punta a punta, y éste se ve desde la primera pantalla:
+
+```
+activity_service.notify()                   -> organization_id = None
+GET /enterprise/notifications               -> 0 notificaciones
+```
+
+**El listado de notificaciones devuelve vacío.** Y con él el historial de
+tickets, los comentarios de ticket, las imputaciones, las ausencias, los
+sprints, las solicitudes de aprobación, los documentos… todo lo que se cree por
+un camino que no sella la columna.
+
+#### El arreglo: sellar en el `flush`, no parchear 611 sitios
+
+Arreglar las 611 construcciones una a una sería perseguir el síntoma, y la
+siguiente que alguien escriba vuelve a fallar. La causa es que **la organización
+del sujeto de la petición no llega a la fila**, y el sitio donde eso se arregla
+de una vez es el `flush`: `_sellar_organizacion` en `app/db/session.py`, un
+escuchador `before_flush`.
+
+Lo que hace y lo que **no** hace, porque los límites son la mitad del arreglo:
+
+* Sella sólo objetos **nuevos** cuya `organization_id` sea `None`. **Un valor ya
+  puesto no se toca nunca** — un superadmin que crea a propósito en otra
+  organización sigue pudiendo.
+* Sólo si la sesión tiene organización en `info`, que es lo que pone
+  `get_current_user`. Un job de fondo o un script no la tiene, así que **su
+  comportamiento no cambia**: siguen creando NULL como hoy.
+* **No toca los modelos exentos** (`_tenant_exempt`) **ni los globales**
+  (`_tenant_filter_include_global`). En `AppSetting` y en los ajustes de
+  proveedor de IA un NULL significa «valor global del despliegue», y sellarlo lo
+  convertiría en un ajuste de un solo cliente: los demás perderían su valor por
+  defecto.
+* Se desactiva con `TENANT_AUTO_STAMP_ON_INSERT=0`, igual que el filtro, para
+  poder aislar un problema sin tocar código.
+
+Verificado en seis casos: la notificación se sella y su usuario la ve; otra
+organización no; un valor explícito se respeta; un `AppSetting` global no se
+sella; un job de fondo no se sella; `Organization` es exenta.
+
+Y para las filas **ya guardadas** del módulo de evaluaciones está
+`alembic/versions/092_performance_backfill_organization.py`, que las hereda de su
+padre —pregunta del ciclo, objetivo del plan— y las de las dos tablas sin padre
+del usuario que las creó. Ejecutada contra una base con filas NULL: `None → ORG`
+en las cuatro tablas. Sin `downgrade` que borre datos, y dicho por qué.
+
+> **Lo que queda abierto de esto, y es una decisión, no un olvido:** el
+> escuchador está registrado sobre `SessionLocal`, así que **la suite no lo
+> ejercita** — igual que no ejercita el filtro de tenant (§3.bis). Su
+> verificación son los experimentos de arriba y
+> `tests/test_sellado_de_organizacion.py`, que lo engancha a mano. Registrarlo
+> en la factoría de los tests haría que la suite entera trabajara con la
+> semántica de producción, que es lo correcto a medio plazo, y cambia lo que ven
+> los tests que hoy crean filas sin organización. Es el mismo trabajo pendiente
+> que el del filtro, y ahora hay dos razones para hacerlo.
+>
+> **Y las 611 construcciones siguen sin poner la columna.** El sellado las cubre
+> en el camino de peticion, que es donde importa, pero un job de fondo que cree
+> una fila la seguira dejando en NULL. Bajar esa cifra es trabajo aparte y
+> ahora, con el sellado puesto, ya no es urgente.
+
+---
+
+## 3.quindecies El hallazgo 37, cerrado: de 62 a 11 y de 11 a 0
+
+`DESAJUSTES_CONOCIDOS` en `tests/test_rutas_del_frontend.py` está en **cero**, y
+cero es ahora el suelo: si sube, hay una pantalla nueva que no puede funcionar.
+
+Los once que quedaban **no eran un grupo homogéneo**, y por eso ninguno se
+arregló igual. Esa es la parte que importa: «implementar los endpoints que
+faltan» habría sido la respuesta equivocada a cuatro de los cinco casos.
+
+### Cuatro `GET` de detalle: el CRUD completo menos leer uno
+
+`contractsApi`, `risksApi` y `usePipeline` tienen listar, crear, actualizar y
+borrar; **leer uno era la única cuya ruta no estaba**. No hubo nada que
+inventar: la búsqueda acotada y el serializador son los que ya usan el `PATCH` y
+el `DELETE` de al lado.
+
+En el de riesgos, además, la decisión de **no** poner comprobación de rol está
+escrita: editar y borrar exigen admin o PM, leer no — quien puede ver el registro
+de riesgos del proyecto puede ver uno de ellos, y exigir un rol aquí dejaría la
+lectura de uno por detrás de la lectura de todos.
+
+Y en el de oportunidades la búsqueda estaba **copiada literalmente tres veces**
+—`update_opportunity`, `delete_opportunity` y
+`convert_opportunity_to_project`—, así que se extrajo a `oportunidad_propia` y
+las tres la usan. Su `is_active == True` no es decorativo: el borrado de una
+oportunidad es lógico, y sin ese filtro una ya borrada volvería a aparecer.
+
+### Dos manejadores escritos, completos, y sin registrar
+
+`update_certification` y `delete_certification` **existían**, con su
+comprobación de permisos —sólo el dueño de la certificación, o admin/RRHH— y
+**sin decorador de ruta**. No eran endpoints que faltaran: eran endpoints que
+nadie registró. Arreglarlo fue añadir dos líneas.
+
+Y esa pregunta vale para todo el repositorio, así que se hizo: un barrido por
+AST sobre `app/api/` buscando funciones con pinta de manejador —reciben
+`Depends`, `Query`, `Body`…— y sin decorador de ruta. **Son los dos únicos
+casos.** Las otras dos que salen son dependencias (`get_current_client`,
+`require_admin_or_pm`) y están bien así.
+
+### Tres borrados que no hacían nada, y ninguno se resuelve borrando
+
+Los dos «botones silenciosos» que la auditoría llevaba anotados, más uno:
+
+* un **problema** es el registro de una investigación, con su análisis de causa
+  raíz, sus incidentes vinculados y su posible entrada en la base de errores
+  conocidos. Borrar la fila dejaría huérfano todo eso: **se cierra**.
+  `ProblemStatus` no tiene `cancelled`, así que el estado terminal es `closed`;
+* un **cambio** es un registro de gobernanza con aprobaciones, ventana de
+  mantenimiento y plan de rollback: **se cancela**, que sí es un valor de
+  `ChangeStatus`. Y uno ya implementado responde **409** — cancelar lo que ya
+  pasó sería reescribir la historia, y el conflicto es con el estado del
+  recurso, no con la petición;
+* una **integración OAuth** guarda su historial de sincronización, que sirve
+  para diagnosticar: **se desactiva** —`is_active`, la convención del
+  repositorio— **y se borran los tokens**. Eso último es lo que de verdad hay
+  que quitar: dejar un `access_token` de un tercero en una fila desactivada es
+  guardar una credencial que ya no se usa.
+
+Los tres son idempotentes, y los tres tienen test de que lo son.
+
+### El listado de tickets de un Known Error
+
+El modelo ya estaba: la tabla de unión `sd_known_error_tickets` con
+`known_error_id` y `ticket_id`. Sólo faltaba exponerlo. La guarda es la del
+problema, porque un Known Error es un `Problem` promovido.
+
+> La ruta va **después** de `/known-errors/stats` y de los dos `run-*-scan`, y
+> lo mismo en el de oportunidades respecto a `/pipeline` y
+> `/proposals/templates`. FastAPI resuelve por orden de declaración, así que un
+> `/{id}` puesto antes se tragaría esas rutas literales. Es el defecto de §3.g
+> —ocho rutas inalcanzables porque otra las tapaba— y no se repite.
+
+### Y los dos exports, que eran un error del cliente
+
+`ExportsPage` llamaba a `POST /integrations/export/imputations` y
+`/integrations/export/projects`, y **ninguna de las dos está en ningún router**.
+
+* El de **imputaciones sí existía**, con otro verbo y otra ruta:
+  `GET /analytics/exports/imputations-csv`. El arreglo es en el cliente.
+* El de **proyectos no existía**. El export de *recursos* que hay no sirve:
+  exporta instantáneas de utilización por persona y semana, no proyectos. Se
+  añade `GET /analytics/exports/projects-csv`, con el ámbito de
+  `scope_projects_query` —el mismo del listado, así que un gestor exporta lo que
+  ya ve en pantalla— y con `include_costs` opcional y **por defecto apagado**,
+  porque son importes.
+
+**Y un defecto de propina al mirarlo:** el export de imputaciones hacía
+`imp.task.name`, y `Task` tiene `title`. Reventaba con `AttributeError`, así que
+**fallaba en cuanto una imputación tenía tarea** — que es el caso normal. Este no
+lo encuentra `audit_instance_attrs.py`: `imp` viene de una llamada a un
+servicio, y ahí el detector no infiere el tipo. Es exactamente el límite que su
+cabecera declara.
+
+Y una honestidad sobre el formato: esa pantalla tiene un selector CSV/XLSX y el
+backend **sólo sirve CSV**. La extensión del fichero descargado sale ahora del
+formato real y no del botón pulsado — un fichero llamado `.xlsx` con CSV dentro
+es peor que uno llamado `.csv`. El selector sigue en pantalla y no tiene
+contrapartida: **queda anotado, no arreglado**, porque generar XLSX es trabajo
+de producto.
+
+## 3.vicies Tres capas de aislamiento y una bandera que sólo respetaba una
+
+Registrar los escuchadores de tenant en la suite (§3.sexdecies) puso **23 tests
+en rojo**. Dos eran regresiones mías de esta misma jornada y están al final de
+esta sección. De los otros veintiuno, catorce eran del banco de pruebas —filas
+sembradas sin organización que ahora nacen con la de la sesión— y **siete
+destaparon defectos de producción**. Éstos son.
+
+### El defecto de fondo: el aislamiento son tres capas, no una
+
+`app/db/session.py` monta el aislamiento en tres sitios: `TenantSession.query()`,
+`TenantSession.execute()` y el escuchador `do_orm_execute`. La cabecera del
+tercero documenta una salida de emergencia —`bypass_tenant_filter`— «para
+scripts de migración y trabajos de analítica entre tenants».
+
+**Y de las tres capas sólo la respetaba esa.** Las otras dos —que son justo las
+que usa el código normal— la ignoraban. Una bandera documentada que no hace lo
+que dice es peor que no tenerla, porque quien la usa cree que ya está protegido.
+Ahora la respetan las tres, y se enciende por `sin_filtro_de_tenant(session)`,
+un bloque que la devuelve al salir.
+
+De esa suposición —«el filtro es una capa y sé cuál»— salieron los tres defectos
+de abajo, escritos por manos distintas y en módulos distintos.
+
+### 1. Mover un usuario de organización devolvía 500, con el cambio ya hecho
+
+```
+PATCH /users/{id}  con organization_id de otra organización
+  → db.commit()   mueve al usuario
+  → db.refresh(user)   no lo encuentra: la sesión sigue en la organización
+                       de quien llamó, y la fila ya no está ahí
+  → InvalidRequestError: Could not refresh instance '<User>'  →  500
+```
+
+**El peor final posible: la operación tuvo efecto y la respuesta dice que no.**
+El mismo patrón en el alta —un superadmin dando de alta al primer administrador
+de un cliente nuevo—. Y una segunda mitad que no se ve a la primera: las
+pertenencias a organizaciones son una relación **perezosa**, así que aunque el
+`refresh` funcione, cargarlas al serializar la respuesta las trae otra vez
+filtradas y el alta contesta con las organizaciones de quien llama en lugar de
+las del usuario creado. Hay que tocarlas dentro del bloque.
+
+### 2. La suscripción push que decía ir «por Core» y no
+
+`_suscripcion_por_endpoint` buscaba la fila por `endpoint` —columna **única
+global**— con una consulta de SQLAlchemy Core, y lo explicaba así: «va por Core y
+no por el ORM a propósito; el filtro global de tenant sólo actúa sobre sentencias
+ORM».
+
+**Falso.** `TenantSession.execute()` intercepta cualquier `Select`, y
+`_extract_models_from_select` **resuelve la `Table` de vuelta a su clase mapeada**
+por el registro de SQLAlchemy — para eso se escribió. Así que la consulta salía
+filtrada, la fila ajena seguía invisible, y **el 500 por violación de unicidad
+que ese ayudante existe para evitar seguía ocurriendo en producción**.
+
+Y dos líneas más abajo, el mismo error otra vez: el `UPDATE` que traspasa la fila
+colgaba de `db.query(...)`, con un comentario que decía que «el filtro no toca
+las sentencias de escritura». Es verdad del escuchador y falso de esa línea:
+`query()` añade el `WHERE` y `.update()` lo hereda, así que el traspaso
+**actualizaba cero filas en silencio** — y el código auditaba a continuación un
+traspaso que no había ocurrido.
+
+**Por qué el test no lo vio, que es lo importante.** El test *sí* activaba el
+filtro a mano, y su docstring explicaba muy bien por qué hacía falta. Pero lo
+enganchaba sobre una sesión de pruebas que era un `Session` **plano**, y un
+`Session` plano no tiene los `override` de `query()`/`execute()`: deja pasar el
+Core. Es decir, **el test reproducía media condición de producción y daba por
+bueno un arreglo que allí no funcionaba**. Un escenario reproducido a medias no
+es un escenario reproducido, y ésta es la moraleja más cara de la jornada.
+
+### 3. Y las dos regresiones mías, que también las cazó la suite
+
+**`GET /pipeline/{opp_id}` tapaba tres rutas.** El endpoint de detalle que se
+añadió al cerrar el hallazgo 37 se declaró antes que `/forecast`, `/stages` y
+`/stage-configs`, y en FastAPI gana la primera que encaja. Con él cayeron siete
+tests de previsión de ingresos y de configuración de etapas. Lo peor no es el
+error: es que **el comentario que lo acompañaba decía que iba colocado para no
+tapar nada, y citaba §3.g como el defecto que no se repetía**. Se repitió, y
+mientras se escribía que no. La lección corregida está en el propio código: el
+orden de declaración es **global al fichero**, no local al bloque, así que la
+ruta de detalle va la última y no «después de las que me acordaba».
+
+**Y el export de proyectos hacía `db.query()` en la capa API**, que es
+exactamente lo que el hallazgo 22 acababa de cerrar a cero. Lo cazó su guardián
+de tolerancia cero, en un endpoint escrito en la misma auditoría que lo cerró.
+Dice algo bueno del guardián y algo honesto de quien escribe: la disciplina no
+se sostiene sola, por eso se automatiza.
+
+## 3.octodecies El hallazgo 18: de «no había medida» a 94 → 80, con trinquete
+
+El 18 llevaba abierto toda la auditoría y la razón no era la falta de ganas:
+**no había ninguna medida**. `ruff.toml` selecciona `E, F, W, S, B`, y `C901`
+no está entre ellas. Una función podía pasar de 10 a 20 sin que nada dijera
+nada, y «complejidad excesiva» era una opinión.
+
+Ahora hay tres cosas que antes no había:
+
+* `scripts/audit_complejidad.py` — la medida. **Llama a ruff** en vez de
+  reimplementar McCabe: la definición ya existe y tener dos sería peor que tener
+  una. Los otros detectores de esta auditoría son AST puro porque la regla que
+  aplican no existía; aquí sí existe, lo que faltaba era que alguien la mirara.
+* `tests/test_complejidad_no_empeora.py` — el trinquete, con tres reglas.
+* Una línea informativa en `ci_local.sh` con el reparto, para elegir la
+  siguiente sin ir a buscarla.
+
+Medido: **94 funciones por encima de 10 → 80; exceso acumulado 253 → 205;
+máximo 17 → 16.**
+
+### Catorce funciones fuera, y ninguna por partirla en trozos
+
+Esto es lo que importa del número. Ninguna de las catorce se quitó bajando su
+complejidad a base de trocearla: **las catorce escondían un defecto**, y la
+complejidad fue el detector, igual que en §3.b y §3.c. El reparto exacto, porque
+un «catorce» sin desglosar no se puede comprobar:
+
+**Dos copias literales del dominio de tareas** (§3.novodecies, abajo) —
+`bulk_update_tasks` y `cascade_reschedule` de `task_service.py`, que ya existían
+en el subpaquete `app/services/tasks/`. En total el módulo duplicaba cuatro
+funciones; las otras dos no llegaban al umbral y por eso no cuentan aquí.
+
+**Dos métodos de `TaskService`** —`update` y `bulk_update_dates`— de una clase de
+387 líneas, once métodos y **ni un solo sitio de llamada**.
+
+**Una cascada de roles**: la de la actualización masiva de tareas, donde la misma
+comprobación de asignatario estaba escrita tres veces, cada una con su
+`skipped.append` y su `continue`.
+
+**Tres preámbulos de autenticación de WebSocket**: notificaciones de usuario,
+notificaciones de portal y colaboración en documentos tenían el mismo bloque
+copiado —ticket de un solo uso, o JWT en la URL si no estamos en producción, y
+un cierre distinto por cada forma de fallar—, seis ramas cada uno, dieciocho en
+total. Ahora es `_identidad_de_la_conexion`, que devuelve el id **después de
+haber cerrado el socket** si no hay: por eso cada WebSocket se queda en dos
+líneas en vez de repartir otra vez las mismas ramas. Y de `ws_doc_collab` —17,
+la más alta del backend— salió además el bucle de mensajes: no es ciclo de vida
+de conexión, es protocolo.
+
+**Dos tablas de comandos de bot**: `slack_inbound_command` y
+`teams_inbound_command` tenían la misma cascada `if verb in (...)`. Y **las dos
+copias no decían lo mismo**: Slack aceptaba `horas` como sinónimo de `tiempo` y
+Teams no, así que un usuario de Teams que escribía «horas 3» recibía la ayuda en
+lugar de registrar sus tres horas. El docstring de Teams decía literalmente
+«commands identical to the Slack bot». Ahora hay un `_COMANDOS` y las dos
+plataformas comparten repertorio; de paso salieron a funciones propias la
+verificación de firma de Slack y la del bearer de Teams.
+
+**Cuatro cascadas que son literalmente una tabla**: los operadores de búsqueda
+de la mensajería (`from:`, `has:`, `is:`…), las frecuencias de las tareas
+recurrentes, el reconocimiento del `User-Agent` y los contadores de la
+instantánea horaria de seguridad. En la del `User-Agent` la tabla
+además **hace visible una trampa que la cascada escondía**: el orden importa,
+porque el `User-Agent` de Edge contiene `chrome/` y el de Chrome contiene
+`safari/`. Reordenar por parecer más lógico haría que Edge se reconociera como
+Chrome sin que nada fallara a gritos; ahora está escrito encima de la tabla.
+
+### Por qué el trinquete registra cada función y no sólo un total
+
+Porque un total baja partiendo cualquier cosa. `CONOCIDAS` guarda las 80 con su
+valor, y las reglas son tres:
+
+1. Una función que **no está en la lista** no puede superar 10 — el código nuevo
+   nace por debajo del umbral. Ésta es la que de verdad importa.
+2. Una que **sí está** no puede subir de su valor registrado.
+3. Si una **mejora**, el test también falla y pide actualizar la lista. A
+   propósito: un trinquete que sólo mira hacia arriba deja la foto envejecer, y
+   entonces alguien sube de 11 a 16 sin que salte nada.
+
+Validado rompiéndolo: se añadió a `app/` una función de complejidad 12 y el
+guardián falló nombrándola, con el mensaje que dice que **no** se arregla
+metiéndola en la lista. Después se borró y volvió a pasar.
+
+### Las 80 que quedan, medidas y no supinas
+
+«Son largas pero lineales» es una afirmación, así que se comprobó en vez de
+escribirla. Un barrido por AST sobre las 81 de entonces busca la firma de una
+tabla de despacho —una cadena `if/elif` de cuatro ramas o más donde **todas** comparan el
+mismo operando con `==` o `in`—, que es la forma que tenían las tres cascadas
+recién convertidas y la que tenía `apply_filter` cuando se midió lo mismo hace
+dos tandas.
+
+**Resultado: 1 de 81.** `_bump_snapshot` en `security_observability.py`, con dos
+cadenas de cinco ramas que eligen a qué contador de la instantánea horaria
+sumarle uno. Convertida también, y **el barrido repetido sobre las 80 que quedan
+devuelve cero**: no hay ninguna escondida.
+
+Esas 80 son funciones largas pero **lineales**: reglas de negocio
+encadenadas donde partir por partir mueve el problema de sitio y añade
+indirección sin quitar riesgo. Bajarlas es trabajo legítimo y hay que hacerlo;
+lo que no se va a hacer es maquillar el número. El hallazgo 18 pasa de
+**«parcial, sin medida»** a **«medido, con suelo y con la deuda enumerada»**,
+que no es lo mismo que cerrado y no se va a llamar así.
+
+## 3.novodecies El dominio de tareas escrito dos veces, y la nota que lo justificaba
+
+`app/services/task_service.py` tenía este comentario en la cabecera:
+
+> `validate_task_transition` / `apply_status_side_effects` /
+> `_TASK_VALID_TRANSITIONS` / `bulk_update_tasks` / `cascade_reschedule` **are
+> NOT imported here on purpose**: this module defines its own procedural
+> versions below (they carry extra logic such as OKR sync).
+
+**Y era falsa.** Comparadas por AST —ancladas por nombre de función y no por
+número de línea— las cuatro que este módulo duplicaba eran:
+
+| función | diferencia con la del subpaquete |
+|---|---|
+| `validate_task_transition` | **idéntica** |
+| `apply_status_side_effects` | **idéntica**. El «OKR sync» que la nota invocaba para justificar la copia está en las DOS, dentro de esta misma función |
+| `cascade_reschedule` | idéntica menos una línea en blanco |
+| `bulk_update_tasks` | idéntica menos **un bloque**: la llamada a `enforce_abac` |
+
+O sea: la versión local no tenía lógica extra, tenía **una comprobación de
+autorización de menos**. Y `endpoints/tasks.py` importa la de aquí.
+
+### La corrección honesta, porque la primera lectura fue mía y era falsa
+
+Lo primero que se escribió sobre esto —en el código y aquí— fue que
+`POST /tasks/bulk-update` «se saltaba la evaluación ABAC». **No es cierto, y se
+supo ejecutándolo**: con una política `deny` activa sobre `task`, esa ruta
+devuelve 403 **antes de entrar al manejador**, porque la dependencia ABAC de los
+routers ya la evalúa. El test que iba a demostrar la brecha demostró lo
+contrario, que es para lo que sirven.
+
+El motivo de que la tape es incómodo y es el hallazgo de verdad:
+**`ABACService.evaluate_access` no usa el `resource_id`.** Lo recibe, lo mete en
+el detalle de auditoría y no lo mira para decidir; `is_policy_applicable` ni
+siquiera lo acepta. Con `action` pasa lo mismo. La decisión sale del rol, del
+`resource_type` y de los atributos del usuario, así que la evaluación «por
+tarea» y la del router dan **siempre el mismo veredicto**.
+
+Consecuencias, las dos:
+
+* lo que faltaba en la copia era **código de autorización latente, no una
+  brecha**. Se arregla igual —una comprobación que debería estar y no está es un
+  defecto aunque hoy la tape otra capa—, pero no se vende como brecha cerrada;
+* **ABAC por recurso concreto no está implementado**, por mucho que la API pasee
+  el `resource_id` por seis capas hasta el motor. Y había una nota en
+  `app/core/abac_dependency.py` que decía que las llamadas explícitas «aportan
+  grano más fino» **porque** pasan el id: esa frase era inexacta y se corrige
+  allí mismo. Arreglarlo de verdad exige resolver atributos del recurso, que es
+  diseño de producto; queda anotado, no disimulado, y con un test que lo fija
+  (`test_el_motor_abac_ignora_el_resource_id`) para que el día que se implemente
+  haya que cambiarlo a mano.
+
+### La tabla de transiciones, que tampoco era la misma
+
+`_TASK_VALID_TRANSITIONS` existía dos veces y **las dos copias diferían en una
+entrada**: `todo → done` estaba permitida en `task_service.py` —la que se
+ejecuta— y prohibida en `tasks/core.py`. Ningún test cubría esa transición, así
+que nada lo habría dicho.
+
+Se unifica en **la viva**, deliberadamente: marcar hecha una tarea pequeña sin
+pasar por `in_progress` es el gesto normal de un tablero, y cambiar eso en
+producción es una decisión de producto, no un arreglo de auditoría. Se comprobó
+antes de decidir que nadie lee `Task.started_at` salvo el propio asignador de
+sellos, así que saltarse `in_progress` no deja ningún cálculo de duración a
+medias.
+
+Y encima de las dos tablas había un comentario que decía «toda transición entre
+estados está permitida» mientras la tabla de debajo prohibía la mitad. Corregido
+en lugar de borrado: lo que sí es verdad —que la máquina es restrictiva, que la
+trazabilidad va por `TaskMovementLog`, y por qué `todo → done` se queda— merece
+quedar escrito.
+
+### `TaskService`: 387 líneas y ningún sitio de llamada
+
+Once métodos, un espejo exacto de las funciones procedurales, y **nadie la
+importaba** salvo el `__init__` del subpaquete, que tampoco importa nadie.
+
+Se comparó método a método contra la versión viva, normalizando `self.db`→`db` y
+`self.current_user`→`current_user`. En las once parejas el resultado fue el
+mismo: **la versión viva es un superconjunto estricto**. Lo que la copia muerta
+NO tenía:
+
+* `.get` y `.add_comment` → sin el acotado por `Project.organization_id`, así
+  que buscaban la tarea por id **en todos los tenants**;
+* `.cancel` → igual, y sin el 400 de «ya está cancelada»;
+* `.bulk_update_dates` → sin la llamada a `enforce_abac` por tarea;
+* `.create_dependency` → sin reactivar una dependencia borrada en lógico, así
+  que daba 409 y dejaba al usuario sin salida;
+* `.delete_dependency` → `db.delete(dep)` **físico**, cuando la convención de la
+  tabla es `is_active`.
+
+No era una alternativa: era la versión de antes de los arreglos de tenant (#62)
+y de ABAC, esperando a que alguien la resucitara. Borrada.
+
+### El guardián
+
+`tests/test_dominio_de_tareas_una_sola_vez.py` comprueba con `is` —y no con
+`==`— que lo de `task_service` y lo del subpaquete son **el mismo objeto**: dos
+funciones con el mismo cuerpo son iguales para cualquier comparación razonable y
+siguen siendo dos sitios donde arreglar el mismo defecto.
+
+## 3.septdecies El panel de sesiones activas estaba vacío para todo el mundo
+
+`user_sessions.organization_id` existe desde la auditoría #7 —lo dice el
+comentario que lleva al lado en el modelo— y **nadie la rellenaba**.
+`register_or_rotate_user_session` construía la fila con `user_id`,
+`refresh_token_jti`, `auth_method` y `created_at`, y nada más.
+
+El filtro de tenant es `organization_id == org`, y una fila con NULL **no la ve
+su propia organización**. Medido de punta a punta:
+
+```
+GET    /auth/sessions/active   → 0 sesiones, siempre, a cualquier usuario
+DELETE /auth/sessions/{id}     → ninguna fila que revocar
+```
+
+Y sin un solo error en los registros: una lista vacía, que es exactamente lo que
+no se investiga. Es el defecto de §3.quater otra vez, con un agravante: «revocar
+este dispositivo» no es una comodidad, es **la palanca que tiene un usuario que
+ve un inicio de sesión que no reconoce**. Llevaba muerta desde que se añadió la
+columna.
+
+### Por qué el sellado automático no lo salvaba
+
+Y no es un descuido del sellado: **iniciar sesión es anónimo por definición**.
+Cuando se crea esa fila todavía no hay usuario autenticado, así que la sesión de
+base de datos no tiene contexto publicado y `_sellar_organizacion` sale por la
+puerta de atrás. Es el mismo hueco que en `get_current_user` y en los tres
+WebSocket, y la respuesta es la misma que documenta `publicar_contexto_de_tenant`:
+la organización se pregunta explícitamente, **después** de resolver por id el
+sujeto que todavía no se sabe de quién es.
+
+`_organizacion_del_usuario(db, user_id)` hace esa consulta con la sesión sin
+contexto —sin filtrar, que es lo correcto aquí— y devuelve `None` sólo si el
+usuario no existe: `users.organization_id` es NOT NULL, así que no hay usuario
+sin organización, ni siquiera un superadmin.
+
+### Las filas que ya estaban
+
+Se curan solas al rotar el refresh —un usuario que vuelve a entrar recupera su
+panel— y además la revisión **095** rellena de una vez las que no vuelvan
+pronto, que son las que importan: una sesión abierta hace semanas seguiría
+invisible.
+
+El relleno sale de `users.organization_id` por `user_sessions.user_id`, y **no
+recurre a la organización por defecto**. Las revisiones 076 y 080 lo hacían, y
+eso reparte a un tenant las filas de los demás. Una sesión cuyo usuario no
+existe se queda como está: no se puede usar para autenticarse —el refresco busca
+por usuario— y lo que hay que hacer con ella es caducarla, no adoptarla.
+
+Verificada ejecutándola sobre SQLite con cuatro casos —dos que se rellenan, una
+huérfana que se queda, una que ya tenía organización y no se toca—, con segunda
+pasada idempotente y `downgrade` que no revierte y lo dice.
+
+### Cómo salió
+
+Registrando los escuchadores de tenant en la suite (§3.sexdecies). No lo
+encontró ningún detector: los cuatro de esta auditoría buscan nombres que no
+existen, y aquí **todos los nombres existen**. Lo que faltaba era un valor. Ese
+es el límite de esa familia de detectores y conviene tenerlo escrito: una
+columna que nadie rellena es invisible al análisis estático, y sólo se ve
+corriendo el filtro que la usa.
+
+## 3.sexdecies El filtro de tenant, registrado en la suite — y lo que salió debajo
+
+La decisión que llevaba abierta toda la auditoría: `tests/conftest.py` usaba un
+`sessionmaker` plano y los tres mecanismos de aislamiento se registran sobre
+`SessionLocal`, así que **ninguno se disparaba en ningún test**. Eso es lo que
+dejó vivir el apagón de §3.bis y el `TypeError` de su rama vecina.
+
+`TestSession` usa ahora `class_=TenantSession` y tiene registrados el
+escuchador `do_orm_execute` y el sellado `before_flush`, los mismos de
+producción.
+
+**Corrección de lo que se escribió aquí antes de ejecutarlo.** La primera
+versión de esta sección decía que el cambio era «seguro por construcción» y que
+«la suite entera pasa, sin declarar ni una excepción». Lo primero es medio
+verdad y lo segundo era **falso**, y se supo al lanzar la suite: **23 tests en
+rojo**. Ninguno hizo falta declararlo como excepción, pero tampoco pasaron solos.
+Catorce eran del propio banco de pruebas —filas sembradas sin organización que
+ahora nacen con la de la sesión—, **siete destaparon defectos de producción** y
+dos eran regresiones de esta misma jornada. El desglose completo está en
+**§3.vicies**; aquí quedan los cuatro que explican el cambio del banco de
+pruebas.
+
+Lo de «seguro por construcción» sí es cierto en su mitad: las tres capas salen
+por la puerta de atrás cuando `info` no trae `is_superadmin` («sesión no
+inicializada»), así que un test que no autentica no cambia. Lo que no se vio es
+que el **sellado** tiene otra puerta —sale si no hay `organization_id`— y que
+la sesión del fixture `db` no publicaba ninguno.
+
+### 1. El fixture `db` sellaba con NULL (artefacto, y del gordo)
+
+Toda fila creada por un test con `db.add(...)` nacía con `organization_id` NULL,
+y la petición HTTP siguiente —que sí tiene contexto— no la encontraba. Síntoma:
+`test_imputation_rejects_closed_task_status` esperaba el 400 de «tarea cerrada»
+y recibía **404**, porque su tarea era invisible.
+
+La sesión del fixture publica ahora contexto, y el reparto es deliberado:
+`organization_id` de los usuarios de test **y** `is_superadmin=True`. Escribir
+sella —las filas caen donde la API las ve—; leer no filtra —para poder
+comprobar lo que la API debería haber escondido—. Quien quiera comprobar el
+aislamiento de verdad no usa esa sesión: va por HTTP con dos tokens.
+
+### 2. `test_sellado_de_organizacion.py` documentaba la decisión como pendiente
+
+Su cabecera decía que registrar los escuchadores en la factoría era «lo correcto
+a medio plazo» y quedaba anotado en el traspaso. Ya está hecho, así que la nota
+se corrige, el fixture deja de enganchar a mano lo que ya está enganchado, y el
+test del job de fondo se monta su propia sesión sin contexto — que es justo lo
+que quiere probar.
+
+### 3. La configuración de SSO huérfana ya no nacía huérfana (artefacto)
+
+`test_resolve_sso_org_rejects_orphan_autoprovisioning` creaba un `SSOConfig` con
+`organization_id=None` y esperaba que resolverlo fallara. Con el sellado puesto,
+la fila ya no nace sin organización por mucho que se pida. El caso que defiende
+—una configuración anterior al sellado— se construye ahora con un `UPDATE`
+directo, y el test vuelve a probar lo que decía probar.
+
+### 4. Y los que no eran artefactos
+
+El panel de sesiones activas, vacío para todo el mundo (§3.septdecies), y los
+tres defectos de aislamiento de §3.vicies: mover un usuario de organización
+devolvía 500 con el cambio ya hecho, y el traspaso de una suscripción push no
+veía ni actualizaba la fila ajena, que es justo lo que decía arreglar.
+
+Y una `fila_global(db)` en `tests/conftest.py` para los pocos casos que crean
+filas **sin** organización a propósito —los que prueban qué pasa con un valor
+global—, porque pasarle `None` ya no basta: el sellado rellena precisamente los
+`None`.
+
+**Lo que esto dice del método**, que es la parte reutilizable: registrar el
+filtro en la suite no fue «un cambio de configuración de los tests». Fue
+encender una luz. La mayoría de los tropiezos se arreglaron en el propio banco
+de pruebas; los que no, eran código que llevaba tiempo sin funcionar en
+producción y que **ningún test podía haber visto antes**, porque ningún test
+corría con el filtro. Incluidos los tests que creían estar probando justo eso:
+uno de ellos activaba el filtro a mano sobre una sesión que no era la de
+producción, y por eso daba por bueno un arreglo que allí no funcionaba.
+
+## 3.quaterdecies El tercer detector: siete funciones más, y dos que fallaban en silencio
+
+El frente que quedaba señalado, cerrado. `audit_enum_members.py` mira
+`Enumerado.valor`; `audit_model_attrs.py` mira `Modelo.columna`; ninguno de los
+dos puede ver `fila.columna`. `scripts/audit_instance_attrs.py` sí.
+
+### Cómo se infiere el tipo sin inferir tipos
+
+Cuatro formas cubren el código real de este repositorio: el bucle sobre una
+consulta, la comprehensión sobre una consulta, la asignación desde una consulta
+que devuelve una fila (`.first()`, `.one()`…) y el parámetro anotado. **Y un
+nombre religado más de una vez se descarta**, por cualquier vía.
+
+Lo que **no** cubre, y queda dicho: variables que vienen de una llamada a un
+servicio, donde haría falta seguir el tipo de retorno.
+
+### Lo que encontró: diez accesos, siete funciones roídas
+
+| dónde | qué | qué pasaba |
+|---|---|---|
+| `agent_execution_service` | `execution.updated_at` | **reventaba siempre**: el estado de una ejecución de agente de IA no se podía consultar |
+| `ai_planning_service` | `ticket.assignee_id = …` | **asignación silenciosa**: aceptar un triaje de IA cambiaba prioridad y tipo y **no asignaba el ticket a nadie** |
+| `bookings_service` ×3 | `opp.amount` | convertir una oportunidad ganada en proyecto reventaba |
+| `epics_service` | `t.assigned_to_user_id` | el detalle de un epic **no se podía leer** en cuanto tenía una tarea |
+| `security_observability` | `det.mttd_seconds = …` | **asignación silenciosa**: el tiempo hasta la detección se calculaba y se tiraba |
+| `change_management_service` | `change.assigned_to_id` | **ningún aviso a los interesados de un cambio llegaba nunca** — ni al solicitante, ni al aprobador, ni al responsable |
+| `smart_catalog_service` | `svc.popularity_score` | tras un `hasattr` correcto: la actualización de popularidad **no actualizaba nada** y devolvía `updated: 0` sin error |
+
+Los nombres correctos eran `completed_at`, `assigned_to_user_id`,
+`expected_revenue`, `assignee_id` y `owner_id`. Los otros dos no existen y **no
+se inventan**: ver abajo.
+
+### Lo que este detector enseña y los otros dos no
+
+**La asignación es peor que la lectura.** `fila.columna_que_no_existe` al leer
+lanza `AttributeError` y alguien ve un 500. Al **escribir**, SQLAlchemy no se
+queja: se queda un atributo de Python que no persiste. Dos de los diez eran así,
+y los dos tiraban un cálculo a la basura sin un solo error en los registros. Un
+fallo silencioso es peor que un 500 — el 500 se investiga.
+
+**Y un segundo defecto detrás del primero.** En `bookings_service`, el
+`OpportunityStage.closed_won` inexistente abortaba la función **antes** de llegar
+al `opp.amount`. El segundo sólo se vio al arreglar el primero, y sólo porque se
+volvió a pasar el detector después. Es la misma lección que ya dio la pasarela
+de correo, donde había tres apilados: **arreglar el primer defecto de una
+función no la arregla; hay que volver a medir**.
+
+### Dos que no se inventan
+
+**`det.mttd_seconds`.** El tiempo hasta la detección es derivable de
+`detected_at - first_seen_at`, y las dos columnas ya se guardan, así que añadir
+una tercera sería duplicar información. Lo que hacía falta era **dejar de
+fingir que se guarda**: el bloque entero se quita, con la normalización de zona
+horaria que sólo servía para eso.
+
+**`svc.popularity_score`.** La popularidad se calcula en la misma función a
+partir del recuento de tickets, así que guardarla sería un caché que hay que
+invalidar. Se **devuelve** en la respuesta, con `persisted: False`, y la clave
+`updated` se conserva —era API publicada— pero ahora dice la verdad: cero, y por
+qué.
+
+### El guardián, y su honestidad sobre sí mismo
+
+`tests/test_atributos_de_instancia_existen.py`, tolerancia cero, con
+`CONOCIDOS` **vacía**. Importa el propio script de medición en vez de
+reimplementar la regla, y tiene un test que comprueba que la inferencia sigue
+funcionando —si dejara de reconocer las formas del repositorio, no encontraría
+variables que vigilar y el guardián pasaría por vacío—.
+
+Comprobado contra el código anterior con `git worktree`: **encuentra los diez**.
+
+> **Y el detector se equivocó dos veces antes de servir, otra vez.** La primera
+> versión daba **veinte** accesos, y **diez eran un único falso positivo**: en
+> `_get_capacity_plans`, la variable `p` es primero el `Project` de una
+> comprehensión y después el `CapacityPlan` de un `for p in plans`. Descartar
+> los nombres ligados a dos *modelos* distintos tampoco bastaba —la segunda
+> ligadura no es una consulta, así que el detector no le asignaba tipo y no veía
+> el conflicto—: hay que contar **todas** las ligaduras, no sólo las que se
+> saben tipar. Tercer detector, tercera vez que hay que ajustarlo midiendo.
+
+## 3.terdecies El hallazgo 22, cerrado: 257 → 0
+
+`scripts/audit_db_access_in_api.py` da **cero puntos de acceso a datos en toda
+`app/api/`**. Con la misma regla, sobre el histórico:
+
+```
+antes de la tanda 1 (collaboration)   257 puntos de acceso en 41 ficheros
+al empezar la última jornada           46 en 23
+a media jornada                        13 en 12
+ahora                                   0 en 0
+```
+
+Quedan **109 fronteras de transacción** —`commit`, `rollback`, `close` y
+`refresh`— y quedan **a propósito**: el servicio prepara y el endpoint confirma.
+`refresh` es releer la fila que el servicio acaba de devolver para recoger lo
+que pone la base, y va pegado a un `commit`; moverlo obligaría a que el servicio
+confirme, que es lo contrario de lo que estas tandas hicieron.
+
+### Y el guardián, que es la mitad del cierre
+
+`tests/test_capa_api_sin_acceso_a_base.py`, tolerancia cero. **Importa el propio
+script de medición** en vez de reimplementar la regla: dos implementaciones de
+la misma pregunta es exactamente cómo aparecieron las dos puertas del
+marketplace. Y tiene dos tests más que evitan que pase por vacío: uno comprueba
+que el detector sigue viendo ficheros, y otro que las fronteras de transacción
+**siguen** en el endpoint —si caen a cero, alguien movió las transacciones a los
+servicios, y eso es un cambio de arquitectura que merece su propia
+conversación—.
+
+### De los trece últimos, uno traía defecto
+
+`PATCH /automation-workflows/{wf_id}/steps/{step_id}/retries` buscaba el paso
+así:
+
+```python
+db.query(WorkflowStep).filter(
+    WorkflowStep.id == step_id,
+    WorkflowStep.workflow_id == wf_id,
+).first()
+```
+
+Los dos identificadores vienen de la ruta y **no había ninguna comprobación de
+a quién pertenece el workflow**. En producción el filtro implícito de
+`TenantSession` lo evitaba —`WorkflowStep` tiene `organization_id`— pero era la
+única capa, y esto **escribe**: cambia la política de reintentos del paso de
+otro cliente. Es el mismo perfil que el `/batch-score` del CAB, y la misma
+conclusión: la guarda hace falta aunque hoy haya una capa que lo tape.
+
+Los otros doce eran movimientos sin defecto, y eso también hay que decirlo tal
+cual: el filtro ya estaba y era el correcto en los doce.
+
+### Tres detalles que se fijan con test porque se pierden al mover código
+
+**El `["__none__"]` del asignador semántico no es decorativo.** Una organización
+sin usuarios activos tiene que dar **cero candidatos**; una lista vacía
+significaría «sin restricción», que es justo lo contrario. Al mover la función
+es exactamente la clase de detalle que se simplifica sin querer.
+
+**El condicional de `bi_etl` *parece* el defectuoso y no lo es.** Cuatro veces
+en esta auditoría apareció `if org_id: q = q.filter(...)`, que sin organización
+devuelve las filas de todos. El de `bi_etl` tiene rama `else` que filtra por
+`IS NULL` —el valor global del despliegue—, así que **los dos caminos acotan**.
+Queda con test para que nadie lo «arregle» rompiéndolo.
+
+**Y el `fail-open` de la política de MFA.** Si el `organization_id` de un usuario
+no resuelve a ninguna fila, no se exige segundo factor. Es lo correcto —bloquear
+el acceso por una fila que falta convertiría un dato inconsistente en una caída
+de login— pero es una decisión, no una consecuencia, así que está escrita y
+tiene test.
+
+### Y una función que ahora tiene nombre: `organizacion_existe`
+
+La comprobación anti-enumeración de `predictive_observability` vive en
+`app/core/tenancy.py`, junto a `assert_org_id_is_own`, porque es la misma
+familia: **lo que se puede y no se puede saber sobre una organización ajena**.
+Y no filtra por organización a propósito: quien la usa comprueba *antes* que el
+id recibido es el propio, y separar las dos preguntas es lo que permite devolver
+404 en los dos casos —«no existe» y «no es tuya» tienen que ser
+indistinguibles—.
+
+## 3.duodecies El mismo detector sobre las columnas: diez funciones más que no funcionaban
+
+El frente que §3.undecies dejó **medido y abierto**, cerrado. `Ticket.category`,
+`SLAPolicy.response_hours` y `Ticket.requester_phone` eran columnas de modelo, no
+valores de enumerado, así que el detector de enumerados no las veía. El hermano
+está en `scripts/audit_model_attrs.py` y resuelve el lado de la clase con
+`hasattr` sobre la clase **mapeada de verdad**, no por AST: así cubre columnas,
+relaciones, propiedades híbridas, métodos y todo lo heredado.
+
+**43 candidatos en 27 pares (clase, atributo)** sobre 391 clases mapeadas.
+Verificados uno a uno, **ninguno era un falso positivo**: los 43 son nombres
+equivocados o columnas que faltan.
+
+### Lo que rompía cada uno
+
+Diez funciones completas. Y tres de ellas estaban escondidas detrás de un
+`hasattr` **correcto** sobre una columna ausente, que es el peor caso: parece
+una defensa y es un interruptor de apagado.
+
+| qué | consecuencia |
+|---|---|
+| `cmdb_service` con `CMDBItem.project_id` | el `else` del `hasattr` **se saltaba el filtro de organización entero** en el listado de CMDB, dejando un aviso en el log que parecía informar de una limitación temporal del despliegue |
+| `salesforce_service.find_opportunity_by_external_id` | devolvía **siempre None**, así que la sincronización **duplicaba todas las oportunidades en cada pasada** |
+| la comprobación «P1 sin incidencia mayor» | reportaba **todos** los P1, siempre: un hallazgo de cumplimiento que salta siempre no informa de nada |
+| aplicar una plantilla de proyecto | `Deliverable(billing_pct=...)` → `TypeError`: fallaba en cuanto la plantilla traía un entregable |
+| importar imputaciones desde CSV | `Imputation(work_type=...)` → `TypeError`, fila por fila |
+| la detección automática de problemas | `Ticket.category` no existe: **no funcionó nunca** |
+| el cálculo automático de reconocimiento de ingresos | `RevenueRecognitionRule.is_active` no existía |
+| la estimación de horas por tareas similares | `Task.actual_hours` no existe, así que **caía siempre** en la heurística por palabras del título |
+| las tareas de un sprint | `Task.sprint_id` no existe: el enlace es la tabla `sprint_tasks` |
+| la correlación de alertas por CI raíz | las tres columnas de `CMDBRelation` con otro nombre; el `except` lo tragaba y devolvía **siempre cero** |
+| el comentario de la IA en el ticket | `TicketComment(is_internal=...)` → `TypeError` tragado por un `except`: **la resolución nunca llegaba al ticket** |
+| el enlace de tickets duplicados | igual: el ticket se marcaba duplicado **sin quedar enlazado** a su original |
+| la carga por agente (tres informes distintos) | `Ticket.assignee_id` ×11, cuando la columna es `assigned_to_user_id` — `assignee_id` es la de `Task`, y de ahí viene la confusión |
+
+### Los tres grupos, y qué se hizo con cada uno
+
+**Nombres equivocados —34 sitios—: renombrados.** Mecánico y verificable.
+Además de los de arriba: `ClientHealthSnapshot.created_at` (es `snapshot_at`),
+`Contract.amount` (`total_amount`), `Deliverable.due_date` (`planned_date`),
+`Expense.date` (`expense_date`), `KBArticle.is_published` (`is_public`),
+`Task.created_by_user_id` (`created_by`), `Alert.message` (tiene `title` y
+`description`).
+
+> **Y uno que el detector no podía ver.** Al arreglar `KBArticle.is_published`
+> apareció, dos líneas más abajo, `art.content` — y el cuerpo del artículo es
+> `art.body`. `art` es una **instancia**, y el acceso a un atributo de instancia
+> no se puede comprobar estáticamente. Consecuencia: el texto del artículo
+> entraba vacío en la puntuación, así que la sugerencia de artículos del
+> copiloto se decidía **sólo por el título**. Queda dicho como límite del
+> detector: cubre el lado de la clase, no el de la instancia.
+
+**Conceptos que el esquema modela de otra forma —4 sitios—: reimplementados.**
+Las tareas de un sprint pasan por la tabla de unión; las horas reales de una
+tarea se calculan con una subconsulta de imputaciones; la clasificación de un
+ticket es su elemento del catálogo de servicios —y eso queda escrito como
+**lectura de la intención, no renombrado**, para que se revise—; y
+`Imputation.work_type` **no se inventa**: si la columna del CSV llega, hoy se
+descarta, que es preferible a no poder importar nada.
+
+**Columnas que hacían falta de verdad —3—: añadidas**, con la revisión
+`094_columnas_que_el_codigo_leia_sin_existir`. `deliverables.billing_pct`,
+`opportunities.external_id` (indexada) y
+`revenue_recognition_rules.is_active` (NOT NULL, rellenada a `true`). La
+migración se verificó **ejecutándola de verdad**: upgrade, relleno, el
+`NOT NULL` de verdad, el índice, que la segunda pasada no revienta, y el
+downgrade completo.
+
+**Y uno que no se toca.** `MajorIncident.tickets`: entre esas dos entidades no
+hay ni columna ni tabla de unión, comprobado sobre `Base.metadata`. Inventar el
+enlace es una decisión de diseño —¿un ticket pertenece a una sola incidencia
+mayor, o varias comparten tickets?— y no se cuela en una tanda de otra cosa. Lo
+que sí se hace es **decir la verdad**: la comprobación se declara no evaluable
+mientras el enlace no exista, en vez de dar un falso positivo por cada P1.
+
+### El guardián
+
+`tests/test_atributos_de_modelo_existen.py`, de tolerancia cero, con una lista
+`CONOCIDOS` de una sola entrada y su razón escrita. Y un segundo test que
+**comprueba que esa excepción sigue siendo necesaria**: si alguien añade la
+relación que falta, la entrada sobra y el test lo dice, así la excepción no se
+queda ahí para siempre por inercia.
+
+**Comprobado que discrimina, y con la cifra exacta:** ejecutado contra la
+versión anterior del repositorio en un `git worktree`, encuentra **42** sitios
+—los 43 candidatos menos el declarado en `CONOCIDOS`—. Escribí primero 43 y hubo
+que corregirlo: la diferencia es de uno, y aun así se mide.
+
+### Lo que este par de detectores dice sobre el conjunto
+
+Entre los dos —enumerados y columnas— son **52 sitios** y **diecinueve
+funciones completas** que no podían hacer su trabajo, encontrados por dos
+scripts de treinta líneas cada uno. Ninguno lo veía `ruff`, ni el tipado, ni la
+suite. La pregunta que los generó no era sobre seguridad ni sobre rendimiento;
+era la más simple posible: **«¿existe lo que este código está nombrando?»**
+
+Y la tercera versión de la misma pregunta —los atributos de **instancia**, que
+el caso de `art.content` dejó señalada— está **hecha** en §3.quaterdecies: diez
+accesos más, siete funciones roídas, y dos de ellas fallando en silencio. No
+hizo falta inferir tipos de verdad: cuatro formas sintácticas cubren el código
+real de este repositorio.
+
+## 3.undecies La pregunta general, y las nueve vías que no podían funcionar
+
+El hallazgo de §3.decies dejó una pregunta: **«¿cuántos más hay?»** La respuesta
+son nueve, y son la mejor cosecha por unidad de esfuerzo de toda la auditoría:
+un detector de treinta líneas.
+
+### El detector
+
+`scripts/audit_enum_members.py`. Recorre `app/` por AST y, para cada
+`Enumerado.miembro`, comprueba que el miembro exista. Dos reglas:
+
+* **la de la unión** — el miembro tiene que existir en **alguna** definición de
+  ese nombre. Sin falsos positivos, así que puede ser de tolerancia cero;
+* **la del import** — tiene que existir en la definición que **ese fichero
+  importa de verdad**, siguiendo reexportaciones, incluidas las de
+  `from ... import *`.
+
+Las dos están como test en `tests/test_miembros_de_enum_existen.py`.
+
+### Lo que encontró, y lo que pasaba en cada sitio
+
+| dónde | qué usaba | qué pasaba |
+|---|---|---|
+| `inbound_email_service` | `TicketStatus.open` | **la pasarela de correo a ticket, entera**: cada correo entrante reventaba |
+| `multichannel_service` | `TicketStatus.open` | lo mismo con **cada SMS entrante** |
+| `asset_service` | `TicketStatus.open` | el ticket que agenda la renovación de un equipo |
+| `bookings_service` ×2 | `OpportunityStage.closed_won` | **convertir una oportunidad ganada en proyecto**, roto en su primera línea útil |
+| `metrics/okr_nps` | `OKRStatus.at_risk` | atrapado por un `except`: la métrica de progreso de OKR devolvía **lista vacía** en silencio |
+| `change_impact.py` ×2 y `worker.py` | `ChangeStatus.in_approval` | los tres de §3.decies |
+
+Los valores correctos eran `new` —que además es el `default` de la columna y lo
+que usan las **otras tres** vías de creación de tickets—, `won`, y, para el de
+OKR, sólo `active`: «en riesgo» no es un estado que exista ni una columna que se
+pueda consultar, y el docstring de la función ya decía «por objetivo OKR
+activo».
+
+### Y detrás del primero había tres más
+
+Al escribir el test de la pasarela de correo —**que no tenía ninguno**—
+aparecieron, encadenados uno detrás de otro:
+
+1. **`SLAPolicy.response_hours` no existe.** Las columnas son
+   `p1_response_hours` … `p4_response_hours`, una por prioridad. Reventaban el
+   `order_by` de la consulta y los dos cálculos de vencimiento. Está en la vía
+   de correo **y** en la de SMS.
+2. **El vencimiento se calculaba a mano**, `now + timedelta(...)`, ignorando el
+   horario laboral y los festivos que `SLAPolicy` declara — y en la de SMS con
+   un `datetime(...).__class__.fromtimestamp(...)`, que es la misma suma de
+   segundos escrita de forma más rara. Las dos cosas ya estaban resueltas en el
+   repositorio y sin usar aquí: `resolve_sla_policy_for_ticket` elige la
+   política por contrato, cliente y defecto, y `calculate_sla_due` calcula los
+   dos vencimientos con aritmética de horas laborables. Ahora se usan.
+3. **`Ticket.requester_phone` no existe**, y estaba escrito así:
+
+   ```python
+   requester_phone=from_phone if hasattr(Ticket, "requester_phone") else None,
+   ```
+
+   Es la forma **más dañina** del `hasattr` defensivo: protege el *valor* y no
+   la *palabra clave*, así que SQLAlchemy recibe igual `requester_phone=None` y
+   responde `TypeError: 'requester_phone' is an invalid keyword argument for
+   Ticket`. Parece que hace el campo opcional y lo que hace es reventar siempre.
+   El teléfono queda en `requester_name` y en la descripción, que es donde
+   estaba de verdad; añadir la columna es decisión de producto.
+
+Y en el ticket de renovación de activo, un cuarto: se construía **sin
+`number`**, y la columna es NOT NULL, así que detrás del `AttributeError` venía
+un `IntegrityError`.
+
+### Por qué sobrevivieron, que es la parte que importa
+
+**Ninguna de las tres vías tenía un solo test.** Los defectos no son sutiles
+—son un `AttributeError` en la primera línea útil— pero viven en caminos que
+nadie ejercitaba: no los ve `ruff`, que no resuelve el enumerado; no los ve el
+tipado; y no los ve una suite que no llama a la función. Los tests nuevos son la
+cobertura que faltaba, no sólo la comprobación del arreglo.
+
+### El detector estuvo mal dos veces antes de servir, otra vez
+
+La misma lección que con el detector de rutas del frontend, y conviene que quede
+por escrito porque volvió a pasar:
+
+1. Escribí que el fichero de tests cazaba los nueve. **Falso**: la regla de la
+   unión coge seis, porque el enumerado muerto **sí** tenía `in_approval` y para
+   esa regla aquellos tres sitios eran correctos.
+2. Escribí entonces que la regla del import cazaba los tres de `ChangeStatus`.
+   **También falso**: su primera versión no seguía las reexportaciones, así que
+   se callaba justo en los casos que motivaron el test — y sólo cogía tres, los
+   de oportunidades y el de OKR.
+3. Y la segunda versión seguía las reexportaciones **con nombre**, pero los
+   enumerados del Service Desk llegan por `from ... import *`. Con las estrellas
+   resueltas coge los nueve, comprobado ejecutándola contra el código anterior
+   en un `git worktree`.
+
+**Una afirmación sobre qué caza un detector no vale hasta ejecutarla contra el
+código defectuoso.** Tres intentos, tres mediciones, y sólo la tercera era
+cierta.
+
+### El frente que esto abre, medido y NO cerrado
+
+La misma pregunta aplicada a las **columnas de modelo** —que es lo que eran
+`SLAPolicy.response_hours` y `Ticket.requester_phone`— tiene su propio detector
+en `scripts/audit_model_attrs.py`, que resuelve el lado de la clase con
+`hasattr` sobre la clase mapeada de verdad. Da **35 accesos a atributos que no
+existen y 8 constructores con una palabra clave que no es atributo**, sobre 391
+clases mapeadas.
+
+**Cerrado en §3.duodecies**, que es la sección de arriba: los 43 verificados uno
+a uno, **ninguno era un falso positivo**, y entre ellos diez funciones completas
+que no podían hacer su trabajo. Cuando escribí esto eran candidatos y así había
+que decirlo; ahora están medidos.
+
+## 3.decies El estado `in_approval` no existe, y por eso el scoring del CAB no corría
+
+Salió de mover a servicio los dos puntos de acceso de
+`endpoints/service_desk/change_impact.py`. Lo que había detrás es más grande que
+el movimiento, y es la clase de defecto más difícil de ver: **dos enumerados con
+el mismo nombre y valores distintos**.
+
+### Los dos `ChangeStatus`
+
+| dónde | valores |
+|---|---|
+| `app/models/service_desk/_enums.py` | draft, submitted, **cab_review**, approved, scheduled, in_progress, implemented, post_review, closed_success, closed_failed, cancelled |
+| `app/services/service_desk/change_management_service.py` | draft, submitted, **in_approval**, approved, scheduled, in_progress, completed, rolled_back, cancelled |
+
+El primero es el que usa la **columna** `sd_change_requests.status`. El segundo
+era un enumerado local del servicio, y **no lo usaba nadie**: las funciones de
+su propio módulo importan el del modelo, y ni `app/` ni `tests/` lo importan —
+comprobado. Era el único sitio del repositorio donde `in_approval` existía.
+
+### Tres consumidores lo daban por bueno
+
+Los tres importan el enumerado del **modelo** y escriben
+`ChangeStatus.in_approval`. Medido, cada uno con su consecuencia:
+
+1. **`POST /sd/changes/batch-score`.** La referencia era **incondicional**, así
+   que el endpoint respondía **500 siempre**:
+   `AttributeError: type object 'ChangeStatus' has no attribute 'in_approval'`.
+   **Nunca puntuó un solo cambio.**
+2. **`GET /sd/changes/cab-dashboard`.** El valor por defecto del parámetro era
+   `"submitted,in_approval"`, y `in_approval` se caía del filtro por no estar en
+   el enumerado. El panel del CAB listaba **sólo `submitted`** y **no mostraba
+   ninguno** de los cambios que están de verdad esperando decisión del CAB, que
+   es `cab_review`. Y si el cliente mandaba un estado inexistente se llegaba a
+   la rama de respaldo y también devolvía 500.
+3. **La tarea de Celery `change_impact_batch_score`**, programada **cada 10
+   minutos**. Mismo `AttributeError`, atrapado por su `except` exterior, que
+   dejaba una línea de log y devolvía. **La pasada programada llevaba fallando
+   en cada tic**, así que `auto_risk_score` sólo se rellenaba en la transición a
+   `submitted` (`change_service.py`) y **la auto-aprobación de cambios estándar
+   de bajo riesgo no se ejecutaba nunca**.
+
+Y un cuarto sitio, con el mismo error en forma de cadena:
+`change_service.py` re-puntuaba en `new_status in ("submitted", "in_approval")`,
+así que esa mitad de la condición nunca se cumplía.
+
+### Corrección de mi primer diagnóstico
+
+Al ver la consulta de `/batch-score` escribí que **auto-aprobaba las solicitudes
+de cambio de todos los clientes**: no filtra por organización y el bucle
+escribe, firmando la aprobación con el id de quien lanza la pasada.
+
+**El filtro faltaba de verdad, pero esa escritura cruzada nunca fue
+alcanzable**: el endpoint reventaba con el `AttributeError` antes de llegar a la
+consulta. Era un defecto **latente**, no un incidente. La guarda hace falta
+igual —ahora que el endpoint funciona, sin ella sí lo sería— pero decirlo de la
+otra manera sería exagerar lo que pasaba. Es la misma corrección que hubo que
+hacer con el «apagón» de §3.bis, y por la misma razón: describir el defecto por
+la forma del código en vez de por lo que hace al ejecutarse.
+
+### Lo que se hace
+
+* `ESTADOS_PENDIENTES_DE_CAB` se construye **desde el enumerado del modelo**
+  (`submitted`, `cab_review`), así que un renombrado revienta ahí y no en un
+  `AttributeError` a mitad de una petición.
+* Los cuatro sitios usan esa constante: el panel, su rama de respaldo, la tarea
+  de Celery y el re-scoring en la transición.
+* **El enumerado local muerto, fuera.** Dos enumerados con el mismo nombre y
+  valores distintos, uno de ellos sin usar, es una trampa: se importa el que no
+  toca y el intérprete no se queja hasta que se accede al miembro que falta.
+* Y el filtro explícito por organización en las dos consultas, más un tope
+  configurable (`CHANGE_BATCH_SCORE_MAX`, en `.env.example`) para la pasada del
+  endpoint — la tarea de Celery sí tenía `limit(50)`; el endpoint, ninguno.
+
+### El guardián, y que sirve
+
+Un test recorre `app/` **por AST** buscando `ChangeStatus.<algo>` y comprueba
+que `<algo>` es un miembro real del enumerado del modelo. Comprobado contra el
+código de antes con un `git worktree`: **encuentra exactamente los tres
+sitios**.
+
+```
+app/worker.py:1263 -> ChangeStatus.in_approval
+app/api/v1/endpoints/service_desk/change_impact.py:207 -> ChangeStatus.in_approval
+app/api/v1/endpoints/service_desk/change_impact.py:258 -> ChangeStatus.in_approval
+```
+
+Eso es lo que hace que sea un guardián y no un test de acompañamiento: se
+verificó que **falla contra el código defectuoso** antes de darlo por bueno.
+
+> **Y la pregunta que este hallazgo deja abierta**, porque el patrón puede
+> repetirse: ¿cuántos más hay? El guardián sólo mira `ChangeStatus`. La
+> pregunta general —«¿hay dos clases con el mismo nombre y contenido distinto en
+> el repositorio, y alguien importa la que no toca?»— tiene respuesta por AST y
+> **no se ha hecho**. Queda anotada como candidata para la próxima pasada,
+> porque el modo de fallo es exactamente el de aquí: un `AttributeError` en un
+> camino que nadie ejercita.
+
+## 3.novies Las credenciales de e-firma de un cliente eran el valor global del despliegue
+
+Salió de mover a servicio los tres puntos de acceso de `endpoints/esign.py`.
+`dynamic_forms`, `client_portal` y `esign` quedan en **0**.
+
+### Lo que había
+
+Dos ayudantes locales que buscaban `AppSetting` por clave, y nada más:
+
+```python
+def _get_esign_setting(db: Session, key: str) -> Optional[str]:
+    row = db.query(AppSetting).filter(AppSetting.key == key).first()
+    return row.value if row and row.value else None
+```
+
+**Sin organización.** Y lo que guardan son las credenciales de DocuSign y de
+Adobe Sign de cada cliente: su `integration_key`, su `secret_key`, su
+`account_id` y —lo más grave— los **tokens de acceso y de refresco** que
+devuelve el OAuth. Tres consecuencias, en orden:
+
+1. **La escritura creaba la fila con `organization_id` a NULL**, que en
+   `AppSetting` significa «valor global del despliegue». El primer cliente que
+   configurara su DocuSign lo dejaba como valor de **todos**.
+2. **La lectura devolvía la primera fila con esa clave**, sin mirar de quién es.
+   Un cliente firmaba con la cuenta de DocuSign de otro.
+3. **Al completar el OAuth**, el token de acceso de un cliente quedaba guardado
+   como global: cualquier otro enviaba sobres con su token.
+
+No es un descuido aislado: son **26 sitios de llamada** en el fichero, incluidos
+los cuatro pasos de los dos flujos de OAuth y los dos endpoints que guardan un
+token recibido a mano.
+
+### La señal que explica por qué la comprobación nunca se escribió
+
+Las **nueve** funciones que usaban esos ayudantes recibían el sujeto y lo
+descartaban:
+
+```python
+def get_esign_config(
+    db: Session = Depends(get_db),
+    _:  User    = Depends(require_admin),
+):
+```
+
+**Nueve de nueve.** No había a quién preguntarle la organización porque el
+parámetro no tenía nombre. Es el mismo descarte que dejó sin comprobar el coste
+activo de un usuario (§3 de `baselines_y_costes`), y aquí aparece nueve veces
+seguidas en el mismo fichero.
+
+Hay un test que lo comprueba **por AST**: si alguien escribe una décima función
+que lea o escriba ajustes de e-firma sin recibir el sujeto con nombre, se pone
+en rojo. No comprueba el arreglo; comprueba que la forma que causó el defecto no
+vuelve.
+
+### La regla que se aplica
+
+La que ya usa el resto del repositorio para `AppSetting` —ver
+`governance_compliance_service`—: **lo propio si existe, y si no el global**, que
+es el valor que trae el despliegue. La escritura, siempre en lo propio.
+
+Eso importa para no romper nada: las filas que ya existen en un despliegue en
+marcha son globales, así que **siguen sirviendo de respaldo** y el
+comportamiento de hoy se conserva hasta que cada cliente guarde lo suyo.
+
+### Y una transacción de siete en una
+
+`PATCH /esign/config` guarda siete claves, y el ayudante hacía `commit()` en cada
+una: **siete transacciones para una petición**. Un fallo a mitad dejaba unas
+credenciales guardadas y otras no —con la mitad de un DocuSign nuevo y la mitad
+del viejo, que es peor que no haber guardado nada—. Ahora el servicio no
+confirma y el endpoint hace un solo `commit` al final.
+
+### Y `/predictive/stats`: 12 consultas por ticket abierto, medidas
+
+Estaba en la lista de «defectos localizados y no arreglados» desde la tanda 1.
+Cargaba **todos** los tickets abiertos como objetos del ORM y, para cada uno,
+llamaba a `predict_ticket` y a `predict_sla_breach`. Medido con la sesión real:
+
+```
+ 1 ticket abierto  ->    12 consultas
+ 5 tickets         ->    60 consultas
+20 tickets         ->   240 consultas
+```
+
+Exactamente **12 consultas por ticket**, y lineal. Con 500 tickets abiertos son
+**6.000 consultas en una sola petición**, más 500 objetos del ORM en memoria.
+
+El tope —`PREDICTIVE_STATS_MAX_TICKETS`, declarado en `.env.example`— **no
+arregla el N+1: lo acota**, que es lo que se puede hacer sin rediseñar los dos
+predictores. Y la respuesta añade `analyzed_tickets` y `truncated`, para que un
+número acotado no se lea como completo. Los campos de antes siguen: no se cambia
+el contrato.
+
+Hay un test que **mide la pendiente** de consultas por ticket y falla si baja de
+5: si alguien rediseña los predictores para que hagan una sola consulta, se pone
+en rojo, y entonces hay que subir el tope — que es exactamente la conversación
+que hay que tener en ese momento.
+
+**Y el `except Exception` que se tragaba la mitad.** El bucle tenía
+`except Exception: logger.debug(...)`, así que si los predictores fallaban para
+la mitad de los tickets la respuesta salía igual, con la mitad de los datos y
+sin decirlo. Sigue siendo *best-effort* —es lo correcto para una predicción—
+pero ahora se cuenta en `failed_tickets`.
+
+> **Un detalle del esquema que salió al escribir el experimento.** El filtro es
+> `Ticket.status.notin_(["resolved", "closed"])`, con cadenas contra una columna
+> `Enum(TicketStatus)`. Funciona porque `resolved` y `closed` **sí** son valores
+> del enum, comprobado; pero es una comparación por texto contra un enum y no
+> falla hasta que alguien escribe un valor que no existe — mi primer experimento
+> creó tickets con `status="open"` y SQLAlchemy lo rechazó con
+> `LookupError: 'open' is not among the defined enum values`. Los estados
+> cerrados están ahora en una constante con nombre, `ESTADOS_CERRADOS`.
+
+### Las traducciones del portal y los formularios dinámicos
+
+Los otros dos ficheros de esta tanda **no traían defecto**, y conviene decirlo
+tal cual: el filtro por organización ya estaba y era correcto en los dos, así
+que ahí el trabajo fue mover y nada más.
+
+* `client_portal.py`: las dos consultas de `OrgBranding.portal_translations` van
+  a `branding_service.py`, junto al resto de la marca. Al moverlas se quitó una
+  consulta redundante —la versión que escribí primero volvía a leer la fila que
+  ya tenía en la mano, disparando el autoflush de la que acababa de añadir— y se
+  añadió un aviso al registro cuando el JSON guardado es ilegible, que antes se
+  tragaba en silencio.
+* `service_desk/dynamic_forms.py`: **287 líneas** de ayudantes —las claves de
+  `AppSetting`, el historial de configuración, el selector de opciones de
+  contexto— a `dynamic_forms_service.py`. Los modelos Pydantic se quedan en el
+  endpoint, que es donde tienen sentido: son el contrato de entrada de las
+  rutas. El fichero pasa de 608 a 324 líneas y mantiene sus **10** rutas.
+
+> **Y un aviso sobre el método, porque me pasó aquí.** El primer intento del
+> movimiento de `dynamic_forms` cortó el bloque desde la primera clave hasta el
+> primer `@router`, y **se llevó por delante los cinco modelos Pydantic** que
+> estaban en medio. Lo cazó `ruff` al momento con catorce `F821`, no un test.
+> La lección: al mover por rangos de líneas hay que comprobar qué hay *dentro*
+> del rango, no sólo dónde empieza y dónde acaba — y las aserciones del script de
+> movimiento tienen que decir tanto lo que el bloque **tiene** como lo que
+> **no** debe tener.
+
+## 3.octies El contador del #22 estaba mal, y tres defectos más de plantillas y activos
+
+### Primero, la medición: el número que venía dando no era el que decía
+
+El recuento del #22 se venía haciendo con un `grep` de `db.query`, `db.add`,
+`db.commit`, `db.delete` y `db.flush` sobre `app/api/v1/endpoints/`. Y eso tiene
+**tres** problemas, que se compensan entre sí y por eso no se veían:
+
+1. **Cuenta las menciones en comentarios y docstrings.** En cuanto las tandas
+   empezaron a documentar en el propio código lo que había antes —«esto hacía
+   `db.query(Asset).all()`»— cada explicación escrita se contaba como un punto
+   de acceso que sigue ahí. Lo noté al ver `assets.py` **subir** de 5 a 6
+   después de quitarle dos consultas.
+2. **No cuenta `db.execute`, `db.scalar`, `db.get`, `db.merge` ni `db.add_all`**,
+   que son acceso a datos igual.
+3. **Sólo mira `app/api/v1/endpoints/`**, así que `app/api/v1/routers/` quedaba
+   fuera — y ahí hay acceso (`auth_core.py`, `auth_mfa.py`).
+
+Ahora hay `scripts/audit_db_access_in_api.py`, que lo mide **por árbol de
+sintaxis** sobre `app/api/` entera, así que sólo cuenta llamadas de verdad. Y
+separa dos cosas que no son lo mismo:
+
+* **acceso a datos** — `query`, `add`, `add_all`, `delete`, `flush`, `merge`,
+  `execute`, `scalar`, `scalars`, `get`: lo que el hallazgo pide mover;
+* **frontera de transacción** — `commit`, `rollback`, `begin`, `close` y
+  también **`refresh`**: legítimo en el endpoint.
+
+`refresh` está en el segundo grupo a propósito. No es una consulta que el
+endpoint elija: es releer la fila que el servicio acaba de devolver para recoger
+lo que pone la base (`id`, `created_at`, `server_default`), y va siempre pegado
+a un `commit`. Contarlo como acceso infla el número con **44 llamadas**
+—medidas— que no hay dónde mover: ponerlas en el servicio obligaría a que el
+servicio confirme, que es lo contrario de lo que estas tandas hacen.
+
+**Y con la regla nueva, medido sobre el histórico con `git worktree`:**
+
+```
+antes de la tanda 1 (collaboration)   257 puntos de acceso en 41 ficheros
+al empezar hoy                         46 puntos en 23 ficheros
+ahora                                  29 puntos en 18 ficheros
+```
+
+Las cifras viejas de este documento —«204», «95», «91», «82»— eran de la regla
+vieja y **no son comparables** con éstas. No es que hubiera menos trabajo del
+que decía: es que se estaba midiendo con una cinta métrica distinta en cada
+punta. La cifra de referencia a partir de ahora es la del script.
+
+### `templates.py`: la guarda que faltaba y un enum que no cabe en su columna
+
+`endpoints/templates.py` tenía su propio `_get_template_or_404` que buscaba la
+plantilla por id **sin ningún filtro de organización**, y de él colgaban las dos
+altas: añadir un documento o un rol a la plantilla de otro cliente era una
+escritura cruzada. Y las dos funciones de servicio que usa —`get_full_template`
+y `export_project_as_template`— **no recibían al sujeto**, así que no podían
+comprobar nada aunque quisieran: la misma forma que el endpoint de coste activo,
+que sí lo recibía y lo descartaba con `_: User = Depends(...)`.
+
+`export_project_as_template` además **no comprobaba de quién es el proyecto**.
+Recibía `user_id`, una cadena, que no sirve para verificar nada. Cualquiera podía
+exportar el proyecto de otro cliente y quedarse con los títulos de sus tareas y
+sus riesgos.
+
+**Y al arreglarlo salió el defecto que no buscaba.** La exportación escribía la
+probabilidad con `str(getattr(r, "probability", "medium"))`, y
+`Risk.probability` es un `Enum(RiskProbability)` **NOT NULL**, así que `str()` no
+da `medium`: da `RiskProbability.medium`. Medido sobre los diez valores de los
+dos enums:
+
+```
+str(RiskProbability.very_low)  -> RiskProbability.very_low    24 chars
+str(RiskProbability.medium)    -> RiskProbability.medium      22 chars
+str(RiskProbability.very_high) -> RiskProbability.very_high   25 chars
+str(RiskImpact.negligible)     -> RiskImpact.negligible       21 chars
+```
+
+Y `template_risks.probability` es **VARCHAR(20)**. Son dos defectos:
+
+1. **siempre** se guardaba un texto que ningún lector puede comparar contra el
+   enum, así que la plantilla exportada salía con la probabilidad ilegible;
+2. y en **cuatro de los diez valores** —entre ellos `medium`, que es el valor
+   por defecto y el más frecuente— el texto **no cabe en la columna**: en
+   PostgreSQL eso es `value too long for type character varying(20)` y la
+   exportación entera revienta con un 500. **En SQLite se guarda truncado y en
+   silencio, que es por lo que la suite no lo veía** — por eso el test nuevo
+   comprueba la longitud explícitamente y no sólo el valor.
+
+El `getattr(..., "medium")` tampoco hacía nada: la columna es NOT NULL, así que
+el atributo está siempre. Y con él caían **cinco `hasattr` muertos** más
+—`Project.project_type`, `Task.description`, `Task.estimated_hours`,
+`Risk.category`, `Risk.mitigation_plan`—, todos comprobados como existentes. Lo
+que hacían no era proteger: si alguna columna se renombrara, escribirían NULL en
+silencio en vez de fallar.
+
+**Y dos funciones muertas.** `add_template_document` y `add_template_role` ya
+existían en el servicio, **no las llamaba nadie** —comprobado en `app/` y en
+`tests/`— y tampoco filtraban por organización: el endpoint había
+reimplementado lo mismo a mano. Dos implementaciones muertas de la misma cosa es
+exactamente cómo aparecen las dos puertas de §3.septies, así que se deja una.
+
+### `assets.py`: precisión sobre lo que era y lo que no
+
+Las dos auditorías de activos —licencias y software— consultaban `Asset` **sin
+filtro de organización**, y aquí hay que ser preciso:
+
+* **En producción no era una fuga.** `SessionLocal` usa `TenantSession`, que
+  sobrescribe `query()` y añade el filtro por `organization_id` —`Asset` tiene
+  la columna—, así que el filtro estaba, sólo que implícito.
+* **Pero era la única capa.** Y `asset_service.py` **no menciona
+  `organization_id` ni una vez** en sus dieciocho funciones, así que no había
+  nada detrás si esa capa falla. Ya falló una vez: el criterio rancio del §3.bis
+  dejaba a cero a toda organización menos la primera del proceso.
+  `/license-audit` devuelve `license_key`, que es una credencial.
+
+**Lo que sí era un defecto sin mitigar es la carga.** `/software-audit` hacía
+`db.query(Asset).all()` —**todos** los activos, como objetos del ORM, sin tope—
+para acabar contando etiquetas. Ahora son dos consultas acotadas y la de
+hardware trae **sólo la columna `tags`**. Hay un test que comprueba que ninguna
+sentencia de activos sale sin `WHERE`, y que la de etiquetas no carga el activo
+completo.
+
+## 3.septies Dos marketplaces al mismo sitio, y un endpoint que no podía funcionar nunca
+
+Los dos hallazgos salieron de mover a servicio
+`endpoints/service_desk/connectors_marketplace.py` y
+`endpoints/service_desk/cmdb.py`. Los dos ficheros quedan en **0** puntos de
+acceso a base.
+
+### Dos puertas al marketplace de integraciones, y ninguna era la buena en todo
+
+`/api/v1/integrations/*` y `/api/v1/sd/connectors/*` instalan **la misma cosa**
+—una `IntegrationInstance` sobre un `IntegrationConnector`— con dos
+implementaciones escritas a mano por separado. Cada una era mejor en algo:
+
+| | `integrations` | `service_desk` |
+|---|---|---|
+| valida `sync_direction`/`sync_frequency` | **sí** | no |
+| cifra la configuración | **sí** | no la recibía |
+| siembra el catálogo | **sí** | no |
+| lista lo instalado sin N+1 | no (una consulta por instancia) | **sí** (`JOIN`) |
+
+**El defecto con consecuencia es el de la configuración.** La puerta del Service
+Desk no la recibía —`ConnectorInstallIn` no tenía el campo—, así que la
+instancia se guardaba con `encrypted_config` a NULL. Quien la consume la lee
+así, comprobado en `endpoints/salesforce_sync.py`:
+
+```python
+config = json.loads(decrypt_value(inst.encrypted_config) if inst.encrypted_config else "{}")
+```
+
+...y sin `instance_url` ni `access_token` responde **503 «credentials
+incomplete»**. Y **no hay endpoint para rellenarla después**: la integración
+quedaba instalada y muerta para siempre, sin error en ningún registro.
+
+Los otros tres son menores pero de la misma clase: la puerta del Service Desk
+aceptaba cualquier cadena como frecuencia de sincronización y la guardaba
+(«cuando-pueda» incluido), y no sembraba el catálogo, así que en un despliegue
+nuevo devolvía una lista vacía mientras la otra devolvía los seis conectores.
+
+**Ahora las dos comparten** la lista blanca, el sembrado, la visibilidad del
+conector y el cifrado, y el N+1 se arregla usando el `JOIN` que ya tenía la otra
+—cada puerta aportó su mitad buena—. **La forma de las respuestas no cambia en
+ninguna de las dos:** son API publicada, y el campo `config` que se añade es
+opcional para no romper a quien ya llamaba sin él. Hay un test que cuenta las
+sentencias emitidas: tres instalaciones cuestan **una** consulta, así que si el
+N+1 vuelve se ve.
+
+**Y una nota sobre el ámbito del catálogo.** Las dos puertas lo leían sin filtro
+alguno. Hoy los conectores que trae el producto son globales y por tanto no
+había fuga *medible* — pero `IntegrationConnector` tiene columna
+`organization_id`, así que un conector privado es posible y entonces sí la
+habría. El filtro es «los globales, más los propios», que es lo que ya declara
+el modelo con `_tenant_filter_include_global` (§3.quinquies).
+
+### `approve-baseline` no podía aprobar nada
+
+`POST /cmdb/discovery/providers/{provider_id}/approve-baseline` buscaba así:
+
+```python
+db.query(CMDBItem).filter(CMDBItem.discovery_provider == provider_id)
+```
+
+Y `CMDBItem.discovery_provider` guarda el **tipo** de proveedor —`aws`,
+`kubernetes`, `vsphere`; así lo escribe la reconciliación, con las constantes de
+`services/cmdb/utils.py`—, mientras `provider_id` es el **UUID** de una fila de
+`cmdb_discovery_providers`. Medido:
+
+```
+id del proveedor       1add5ac0-82a0-4d6c-812c-e2e1e46794a6
+provider_type          aws
+CI.discovery_provider  aws
+
+consulta del endpoint (por id) ->  0 CIs
+consulta por provider_type     ->  1 CI
+```
+
+Cero filas **siempre**, así que la respuesta era invariablemente
+`{"ok": false, "error": "No CIs found..."}`. Es la misma clase de defecto que el
+nodo «crear ticket» de los flujos de trabajo (§3.c): escrito, expuesto, con
+respuesta de éxito prevista, y sin un solo camino que llegue a ella.
+
+**Y el ámbito tampoco estaba.** No había ninguna comprobación de a quién
+pertenece el proveedor, mientras su vecino `list_discovery_jobs` **sí** la hacía
+y lo decía en un comentario. Con la consulta arreglada eso pasa de inocuo a una
+**escritura cruzada entre clientes**: aprobar la línea base de los CIs de otro
+cliente le limpia `drift_detected_at`, es decir **le apaga una alerta de
+configuración**. Por eso el arreglo lleva las dos cosas juntas y no sólo la
+consulta.
+
+Los CIs se acotan además por organización, y hacía falta: los dos proveedores
+del test son de tipo `aws`, así que filtrar sólo por `provider_type` habría
+alcanzado los CIs de las dos organizaciones.
+
+> **Una limitación que hay que saber, y no es un defecto del arreglo.** El CI
+> sólo guarda el **tipo** de proveedor, no cuál de ellos lo descubrió. Si una
+> organización tiene dos proveedores AWS, aprobar la línea base de uno aprueba
+> también los CIs del otro. Distinguirlos exige una columna nueva en
+> `cmdb_items` y volver a poblarla desde el descubrimiento: es un cambio de
+> esquema con migración, no algo que se cuele en esta tanda. Está escrito en el
+> docstring de `aprobar_linea_base`.
+
+La comprobación del proveedor en el listado de jobs también se mueve **dentro**
+del servicio. Es un movimiento y no un arreglo —el filtro ya estaba y era
+correcto—, pero dentro no se puede olvidar al escribir el siguiente endpoint, y
+olvidarla es exactamente lo que le pasó a `approve-baseline`.
+
+## 3.sexies El Service Desk entero: la columna de tenant, la migración que erró el nombre de la tabla, y dos endpoints de IA sin ámbito
+
+Salió al mover a servicio los cuatro puntos de acceso de
+`endpoints/service_desk/tickets.py`. Son tres cosas distintas y conviene no
+mezclarlas.
+
+### 1. `sd_tickets.organization_id` no la rellenaba nadie
+
+Es §3.quater otra vez, y con el alcance más grande de todos. Medido con la clase
+de sesión real de la aplicación, no razonado:
+
+```
+usuario de ORG-A  ->  ['t-org']              (el ticket con organización)
+usuario de ORG-B  ->  []
+superadmin        ->  ['t-nulo', 't-org']
+```
+
+Y **ninguno de los seis sitios que crean tickets pone la columna**:
+`ai_modules/voice`, `collaboration/bots`, `integrations`,
+`public_forms_service`, `service_desk/asset_service` y
+`service_desk/inbound_email_service`. Uno de ellos lleva además este comentario:
+
+```python
+# NOTA: Ticket no tiene columna organization_id; el scope multi-tenant
+# viene vía project_id → Project.organization_id.
+```
+
+**Y sí la tiene.** Es el mismo comentario rancio que ya me hizo empeorar el
+filtro de un trabajo de fondo, y aquí ha servido de justificación para no
+rellenarla en el resto del módulo. Un comentario que afirma algo sobre el
+esquema caduca cuando el esquema cambia, y nadie lo revisa.
+
+### 2. Por qué las filas viejas sí tienen organización y las nuevas no
+
+La **076** hizo el relleno original con una lista de nombres de tabla
+adivinados por un script. Decía `tickets`, y la tabla real se llama
+`sd_tickets`, así que **se la saltó** — la 076 salta en silencio las tablas que
+no existen. La **080** lo arregló por introspección y rellenó `sd_tickets` con
+la organización por defecto.
+
+Es decir: **todo lo creado después de la 080 quedó en NULL**, y eso es el tráfico
+normal de la aplicación desde entonces. El defecto no estaba en el diseño del
+aislamiento; estaba en que el relleno fue puntual y la escritura nunca se
+arregló.
+
+### 3. La migración 093, y por qué no usa la organización por defecto
+
+`093_tickets_backfill_organization` rellena `sd_tickets` heredando, en este
+orden: quien lo creó, quien lo pidió, a quién está asignado, su proyecto, su
+cliente, y el usuario de portal que lo pidió. Después rellena las **17 tablas
+que cuelgan de un ticket** por `ticket_id` —la lista se comprobó contra
+`Base.metadata`, son todas las que tienen a la vez `organization_id` y
+`ticket_id`—.
+
+**No usa la organización por defecto como respaldo, y eso es deliberado.** Es lo
+que hicieron la 076 y la 080, y en un despliegue con varios clientes eso le
+entrega al primero las filas de los demás. Un ticket sin ninguna de las seis
+referencias se queda en NULL: no hay de dónde deducirlo, e inventarlo sería
+peor que dejarlo.
+
+Verificada ejecutando el `upgrade()` de verdad contra un escenario sembrado a
+mano, once casos: las cinco herencias, la precedencia (el creador manda sobre el
+proyecto), la fila que ya tenía organización y **no** se toca, la hija que
+hereda del ticket, y la hija sin ticket que se queda como estaba. El mismo
+escenario está en `tests/test_tickets_ia_por_tenant.py`, así que no depende de
+que yo lo ejecutara una vez.
+
+### 4. Los dos endpoints de IA que buscaban el ticket por id, sin más
+
+`/tickets/{id}/routing-candidates` y `/tickets/{id}/ai-explain` hacían
+`db.query(Ticket).filter(Ticket.id == ticket_id).first()`, mientras su vecino
+`ticket_detail_payload` —en el mismo módulo de servicio— usa
+`scope_ticket_query`. La asimetría de siempre: dos lecturas del mismo ticket por
+id, una comprobada y la otra no.
+
+**Y lo que se filtraba no era sólo el ticket.** `/ai-explain` devuelve la lista
+de agentes candidatos con su puntuación, es decir **los nombres y el rendimiento
+del equipo de soporte de otro cliente**, y cuelga de `get_current_user` a secas,
+no de un rol de gestión.
+
+Se usa `scope_ticket_query` y no un filtro por `organization_id`, y la razón hay
+que retenerla: **`scope_ticket_query` restringe además a un empleado o
+subcontratado a los tickets que pidió o tiene asignados**, así que filtrar por
+`organization_id` a secas habría sido *más permisivo* que el listado y habría
+dejado la lectura de uno suelto por detrás de la lectura de muchos.
+
+La respuesta de `/ai-explain` mantiene su forma (`{"ok": false, ...}` en vez de
+un 404). Es incoherente con todos sus vecinos y no lo consume nadie del
+frontend, pero cambiarla de paso sería un cambio de contrato que este trabajo no
+necesita. Queda anotado, no cambiado.
+
+### 5. La guarda que estaba copiada tres veces
+
+`get_scoped_ticket_or_404` existía **literalmente por triplicado** en
+`ticket_update_service`, `comment_service` y `ticket_ops_service`, con una única
+diferencia: dos de las copias lanzaban el 404 **sin texto**. Ahora vive en
+`scoping.py`, junto a `scope_ticket_query`, que es de lo que depende, y las tres
+la reexportan con el mismo nombre — así ningún sitio de llamada cambia. Al
+separarla cayeron **seis imports muertos** que las tres copias mantenían vivos.
+
+Hay un test que comprueba la **identidad del objeto**, no que el código sea
+parecido: si alguien vuelve a escribir una copia local, se pone en rojo.
+
+`tickets.py` queda en **0 puntos de acceso a base**, y las 2.029 rutas de la
+aplicación siguen siendo idénticas.
+
+## 3.quinquies El portal de cliente corría con el aislamiento por organización **apagado**
+
+Salió al mover a servicio las tres consultas del selector de contexto de
+`dynamic_forms.py`, que es alcanzable desde el portal. Al preguntarme «¿y aquí
+qué organización filtra?», la respuesta fue: ninguna.
+
+`get_current_client` autentica al usuario del portal por su token, devuelve su
+fila y **nunca poblaba `db.info`**. Y las tres capas de aislamiento de
+`TenantSession` —`query()`, `execute()` y el escuchador `do_orm_execute`— salen
+por la puerta de atrás cuando `info` no trae `is_superadmin`. Esa rama existe
+para los trabajos de fondo y los tests («sesión no inicializada»), no para una
+petición autenticada de un cliente externo.
+
+**41 dependencias de endpoints** cuelgan de `get_current_client`. Medido con la
+sesión real de la aplicación, no razonado:
+
+```
+portal SIN contexto  ->  db.query(Client)  devuelve  ['ORG-A', 'ORG-B']
+portal CON contexto  ->                    devuelve  ['ORG-A']
+```
+
+Es el mismo defecto que el WebSocket del chat, que también fabricaba su sesión a
+mano y la dejaba sin contexto, pero mucho mayor por el número de endpoints que
+cuelgan de aquí. **Y es el contrario del apagón de §3.bis:** allí el filtro
+existía y dejaba a ciegas a todos los clientes menos al primero; aquí no había
+filtro de ninguna clase.
+
+El arreglo va en un solo sitio y **después** de resolver al cliente:
+`get_active_client_by_id` busca por id sin saber todavía de qué organización es,
+así que esa consulta tiene que correr sin filtrar. La misma ordenación que hizo
+falta en el WebSocket:
+
+```python
+db.info["organization_id"] = getattr(client, "organization_id", None)
+db.info["is_superadmin"] = False
+db.info["current_client"] = client
+return client
+```
+
+`tests/test_portal_contexto_de_tenant.py` engancha el filtro de producción a la
+sesión de pruebas a mano —la suite usa otra factoría, así que no se dispara en
+ningún test— y comprueba tres cosas: que el escenario de antes era real, que con
+contexto sólo se ve una organización, y que la dependencia entera publica el
+contexto. Ese último es el que impide que vuelvan a quitarse las tres líneas.
+
+**Además, el filtro explícito.** Las tres consultas del selector (`ServiceItem`,
+`Client`, `ConfigurationItem`) ahora acotan por la organización del sujeto, sea
+un usuario interno o del portal. Depender sólo del filtro implícito es lo que
+hizo que este defecto no se viera: un fallo en una capa lo dejaba todo abierto.
+
+### Cuatro catálogos globales que mi propio sellado habría privatizado
+
+El sellado en el `before_flush` de §3.quater rellena `organization_id` en toda
+fila nueva que no lo traiga. Antes de darlo por bueno fui a buscar qué filas se
+crean **a propósito** sin organización, y aparecieron cuatro:
+`IntegrationConnector`, `CustomProjectType`, `CustomProjectStatus` y
+`CustomTaskStatus`. Son catálogos que trae el producto, sembrados de forma
+perezosa desde un camino de petición (`if count() == 0: sembrar()`), así que la
+primera organización que abriera la pantalla los habría sellado como suyos y
+**habrían desaparecido para todas las demás**.
+
+Los cuatro declaran ahora `_tenant_filter_include_global = True`, que ya existía
+para esto: el filtro pasa a ser `org == X OR org IS NULL`. Comprobado con las
+dos organizaciones: el catálogo sembrado desde ORG-A se queda en `{None}`, las
+dos ven los 22 conectores, y ORG-A ve 23 cuando añade el suyo mientras ORG-B
+sigue viendo 22.
+
+**La lección, que es la que importa para el resto del sellado:** un arreglo de
+raíz sobre 611 sitios de creación necesita saber cuáles de esos sitios *quieren*
+la columna vacía. Sin esa comprobación, el arreglo del aislamiento habría roto
+el catálogo del producto — y el modo de fallo habría sido «a un cliente le
+faltan tipos de proyecto», que nadie relaciona con un `before_flush`.
+
+## 3.bis Hallazgo grave encontrado al cerrar el #22: **el filtro de tenant dejaba a ciegas a todos los clientes menos al primero**
+
+No lo buscaba. Apareció escribiendo un test que necesitaba el filtro global de
+aislamiento por organización activo, y es lo más serio de toda la tanda.
+
+> **Corrección importante de mi primer diagnóstico.** Lo describí como una fuga
+> entre tenants, y **no lo es**. Lo era en el experimento con el que lo
+> encontré, que usaba una `Session` plana; con la clase de sesión real de la
+> aplicación el efecto es distinto y hay que decirlo con precisión. Las cifras y
+> el veredicto de abajo son los de la medición correcta, con `TenantSession`.
+
+`app/db/session.py` monta el aislamiento multi-tenant (auditoría #C5) como un
+escuchador de `do_orm_execute` que engancha un criterio por modelo. El criterio
+estaba escrito así:
+
+```python
+_with_loader_criteria(
+    model,
+    lambda cls, _org=org_id: cls.organization_id == _org,   # ← argumento por defecto
+    include_aliases=True,
+)
+```
+
+**La organización iba en un argumento por defecto.** El sistema de lambdas de
+SQLAlchemy analiza las **variables de cierre** de la lambda para convertirlas en
+parámetros ligados; los argumentos por defecto no: se evalúan una vez, al crear
+la lambda, y quedan cocidos en la sentencia compilada. Esa sentencia se guarda
+en la caché del *engine*, que es **de proceso y compartida por todas las
+peticiones**.
+
+Consecuencia: la primera organización que ejecuta una forma de consulta fija el
+valor para todo el proceso. Con una `Session` plana —sólo el escuchador
+filtrando— eso **devuelve las filas de la primera organización a la segunda**:
+
+```
+sesión 1 (ORG-A) → ['ORG-A']
+sesión 2 (ORG-B) → ['ORG-A']      ← datos de otro tenant
+```
+
+**Pero la aplicación no usa una `Session` plana.** `SessionLocal` usa
+`TenantSession`, que sobrescribe `query()` **y** `execute()` y añade el filtro
+correcto con una expresión directa, no con una lambda cacheada. Esas dos
+sobrescrituras son la capa primaria y **funcionan bien**. El escuchador es una
+tercera capa de respaldo. Medido con `TenantSession`, que es lo que corre:
+
+```
+escuchador DEFECTUOSO:  ORG-A → ['ORG-A']   ORG-B → []          ORG-A → ['ORG-A']
+escuchador CORREGIDO:   ORG-A → ['ORG-A']   ORG-B → ['ORG-B']   ORG-A → ['ORG-A']
+```
+
+Es decir: el filtro correcto de la capa primaria y el criterio rancio del
+escuchador se suman con **organizaciones distintas**, y el resultado es un
+`WHERE org = 'ORG-B' AND org = 'ORG-A'` que no devuelve nada. **No es una fuga:
+es un apagón.** La primera organización que pasa por cada forma de consulta se
+queda con ella, y todas las demás ven cero filas en esa consulta durante la vida
+del proceso. Una sola organización nunca lo delata — hacen falta dos seguidas en
+el mismo proceso.
+
+Que sea un apagón y no una fuga lo hace menos grave en confidencialidad y más
+visible en operación, pero no lo hace aceptable: el control no hacía lo que dice,
+y la capa de respaldo llevaba a cero el trabajo de la primaria.
+
+Se comprobaron las tres formas posibles del criterio antes de elegir:
+
+| Forma | ORG-A → ORG-B → ORG-A |
+|---|---|
+| `lambda cls, _org=org_id:` (la que había) | A, **A**, A — filtra mal |
+| `lambda cls: ... org_id` (variable de cierre) | A, B, A — correcto |
+| `model.organization_id == org_id` (sin lambda) | A, B, A — correcto |
+
+Se usa la variable de cierre: es la forma documentada, SA la extrae como
+parámetro ligado y no infla la clave de caché con un valor por organización.
+
+**Y un segundo defecto en la misma función, en la rama de al lado.** El caso
+«usuario normal sin organización» decía en su comentario *«block any data
+return»* y hacía esto:
+
+```python
+_with_loader_criteria(object, lambda cls: _sql_false(), include_aliases=True)
+```
+
+Pasar `object` como objetivo hace que SA recorra `object.__subclasses__()` hasta
+llamar a `type.__subclasses__()` sin instancia:
+
+```
+TypeError: unbound method type.__subclasses__() needs an argument
+```
+
+Así que no bloqueaba: **reventaba cualquier consulta ORM de esa sesión** con un
+500. Se llega ahí con un usuario sin organización asignada y también con un
+simple refresco de atributos antes de que la sesión tenga su `organization_id`
+—que es cómo lo encontré—. Ahora usa el mismo mecanismo que el filtro normal,
+un criterio `false()` por modelo.
+
+> **El primer arreglo que escribí para esto estaba mal y lo cazó el test.** Puse
+> `execute_state.statement = execute_state.statement.where(false())`, que
+> funciona aislado y falla acompañado: una modificación directa de la sentencia
+> **no entra en la clave de la caché** de sentencias compiladas, mientras que
+> las opciones de criterio sí. La SQL con `WHERE false` se reutilizaba después
+> para la misma consulta con organización válida y devolvía cero filas. Es el
+> mismo error de fondo que el defecto original: suponer que lo que se le hace a
+> la sentencia viaja con ella.
+
+#### Y el gate que debía vigilar esto estaba muerto
+
+`scripts/audit_tenant_isolation.py` marca las consultas de `app/services` sin
+ámbito visible y las compara contra `scripts/tenant_audit_baseline.txt`, 2.334
+líneas ya revisadas. Tres cosas:
+
+1. **El identificador interpolaba el `Path` directamente**, y en Windows eso
+   serializa con barra invertida mientras el baseline se escribió con `/`. Ni una
+   línea coincidía, así que `--strict` daba `STRICT FAIL` con los 2.334 hallazgos
+   conocidos marcados como nuevos. **Un gate que no puede pasar nunca no informa
+   de nada.** Arreglado con `as_posix()`.
+2. **Faltaba `_org(` en las pistas de ámbito.** Es el ayudante real de este
+   repositorio —devuelve la organización del sujeto y lanza 403 si no tiene—, así
+   que toda consulta acotada con él se marcaba como sospechosa.
+3. **La ventana era fija, `lines[i-3:i+3]`.** Una consulta encadenada
+   —`db.query(X)` en una línea y `.filter(X.organization_id == …)` cuatro más
+   abajo, que es el estilo de casi todo el repositorio— dejaba el filtro fuera de
+   la ventana. Medido sobre `app/services/collaboration`: **93 de 118 avisos eran
+   ese falso positivo**. Ahora la ventana es la sentencia completa siguiendo el
+   balance de paréntesis, con un suelo de tres líneas para que domine
+   estrictamente a la anterior y el cambio no pueda hacer aparecer avisos nuevos.
+
+**Lo que queda y por qué no se sigue afinando.** Con el detector arreglado siguen
+marcadas ~2.350 consultas, y al revisar la muestra de `collaboration` una a una
+el resto son **acotación por una clave padre que ya está acotada**
+—`workspace_id`, `team_id`, `conversation_id`— o por `user_id`, que es un ámbito
+**más estrecho** que la organización. El heurístico no puede verificar eso, y su
+propio docstring dice que es «a review aid, not a strict proof». Bajar el número
+metiendo esas claves en las pistas debilitaría el gate: un `workspace_id` que
+viene del cliente sin comprobar es justamente el defecto que debe cazar. Así que
+se deja el detector correcto y el número honesto, en vez de perseguir la cifra.
+
+De la revisión sí salieron **tres consultas propias que merecían filtro explícito
+de organización**: `_usuarios_por_id` y las dos resoluciones de conversación de
+`conversation_detail`, en `services/collaboration/workspaces.py`. Dependían del
+filtro global —el que estaba roto—, y aunque en una petición real el ámbito llega
+por la clave padre, el filtro explícito es defensa en profundidad y cuesta una
+línea. Pendiente de aplicar al cerrar esta tanda.
+
+> Las otras tres que el gate marca en ese fichero —`mark_all_notifications_read`,
+> `mark_notification_read` y `registrar_uso_de_busqueda`— **están bien y no se
+> tocan**: filtran por `user_id == user.id`, que es un ámbito más estrecho que la
+> organización. Añadirles el filtro de organización no cambiaría nada.
+
+#### Hueco de cobertura que esto destapa, y que sigue abierto
+
+**Precisión, porque la primera versión de este párrafo era demasiado gruesa.** La
+suite *sí* tiene pruebas de aislamiento: `test_tenant_filter_coverage.py`
+comprueba que los 392 modelos tienen una vía de filtrado declarada o una exención
+con motivo, y `test_tenancy_isolation.py` e `test_invoice_tenant_isolation.py`
+prueban el aislamiento a nivel de endpoint. Lo que **ninguna** prueba ejercita es
+el **escuchador `do_orm_execute`**: se registra sobre `SessionLocal` y
+`tests/conftest.py` usa otra factoría (`TestSession`, SQLite en memoria), así que
+no se dispara en ningún test. Por eso ni el apagón ni el `TypeError` los vio
+nunca nadie: esa capa está escrita, documentada y **sin ejercitar**.
+
+Los dos tests nuevos enganchan el escuchador a la sesión de pruebas a mano para
+reproducir la condición real (`tests/test_tus_push_calendario.py`, los dos
+`test_EL_HALLAZGO_..._tenant...`). Eso cubre estas dos ramas, no el mecanismo
+entero. **Registrar el filtro en la factoría de tests es una decisión con
+consecuencias** —pasaría a filtrar en toda la suite y hay tests que hoy leen
+entre organizaciones sin declararlo— así que no se toca de paso: queda anotado
+como trabajo propio.
 
 ---
 
@@ -1423,8 +3400,15 @@ los registros.
 > como lo que es.
 
 **Pendiente, y es lo único que mantiene esta fila en «parcial»:** los
-**190 `db.query()` y 108 `db.commit()`** de la capa API — 298 puntos en 44
-ficheros donde un endpoint habla con la base sin pasar por un servicio. Moverlos
+`db.query()` y `db.commit()` de la capa API — los puntos donde un endpoint
+habla con la base sin pasar por un servicio.
+
+> **Corrección del recuento.** Aquí decía «298 puntos en 44 ficheros». La cifra
+> real al empezar el trabajo era **299**: mi propio arreglo del rollback en
+> `ai_auto_resolution` había añadido un `db.commit()` después de la medición
+> original. Y a mitad de camino cité «200 restantes», que también estaba mal:
+> la medición era **204**. Las dos veces el error fue mío al arrastrar cifras en
+> vez de volver a medir. **Estado medido hoy: 204 puntos en 35 ficheros.** Moverlos
 es trabajo grande y de riesgo real sobre código en producción: hacerlo **por
 dominios, no de golpe**, cada tanda con su suite.
 
@@ -1446,6 +3430,237 @@ Las 16 restantes suman 25 puntos entre todas, con 1-3 cada una: **no merecen
 tanda**. El plan que sale de la tabla es `collaboration` primero —y dentro de
 ella `workspaces.py`, que sola es el 17 % del total—, después `service_desk`, y
 parar en el octavo dominio: ahí ya está el 92 %.
+
+#### Tanda 1 cerrada: `collaboration`, de 127 puntos a 0
+
+Ocho ficheros de endpoint, ocho módulos de servicio. El recuento de rutas de
+cada fichero se comparó **uno a uno contra HEAD** antes y después: 35, 12, 8,
+11, 4, 16, 9 y 5 — idénticos. Ninguna ruta añadida, ninguna perdida.
+
+| Fichero de endpoint | Puntos | Servicio | Líneas |
+|---|---|---|---|
+| `workspaces.py` | 52 | `services/collaboration/workspaces.py` | 483 → 1301 |
+| `compliance.py` | 18 | `compliance.py` (nuevo) | 321 → 154 el endpoint |
+| `calls.py` | 18 | `calls.py` (nuevo) | 248 → 106 el endpoint |
+| `bots.py` | 11 | `webhooks.py` (nuevo) | — |
+| `files.py` | 11 | `files.py` (nuevo) | — |
+| `messages.py` | 9 | ampliado | — |
+| `admin.py` | 8 | `admin.py` (nuevo) | 210 → 134 el endpoint |
+| `tus.py` | 1 | `tus.py` (nuevo) | — |
+
+#### Cómo se verificó, porque un recuento de decoradores no prueba nada
+
+La primera versión de esta sección decía «ninguna ruta perdida» contando
+decoradores `@router.`. **Eso no prueba que las rutas sean las mismas**, así que
+se comprobó de verdad, con un `git worktree` en HEAD y dos procesos separados
+—dos versiones del paquete `app` no se pueden importar en el mismo intérprete—:
+
+| Comprobación | Resultado |
+|---|---|
+| Conjunto de `(método, ruta)` de toda la aplicación | **2.029 en HEAD, 2.029 ahora, conjuntos idénticos**: 0 perdidas, 0 nuevas |
+| OpenAPI de las 1.574 rutas, campo a campo | idéntico salvo **`description` en 7 rutas** (docstrings). Ni un cambio en `parameters`, `requestBody`, `responses`, esquemas o seguridad |
+| Acceso directo a base en los endpoints, **por AST** y no por `grep` | **0**, mirando llamadas a los 19 métodos de sesión sobre cualquier receptor |
+
+**Y el AST destapó algo que el `grep` no vio**: `ws.py` —que no estaba entre los
+ocho ficheros porque ya tenía cero puntos— **crea su propia sesión** con
+`SessionLocal()`. Ver más abajo.
+
+#### El hueco de mi propia verificación, y cómo se cerró
+
+Cruzando las rutas de colaboración con los tests salió que **20 no las menciona
+ninguno**, y nueve estaban en ficheros que este refactor reescribió: `presence`,
+`presence/me`, `mentions`, `retention/settings` (GET y PUT), `push/subscribe`,
+`push/unsubscribe`, `bots/invoke` y `rotation-status`.
+
+Los tests que había escrito cubren los **servicios**. El cableado del endpoint no
+lo cubría nada, y el cableado es justo lo que rompe un refactor: un argumento en
+otro orden, un `await` que falta, un modelo de respuesta que ya no encaja.
+
+`tests/test_collaboration_endpoints_cableado.py` (12 tests) los ejercita por
+HTTP. **Y encontró un fallo en el acto**: yo había escrito el test suponiendo que
+los ajustes de retención tenían una clave `retention_months`, y son
+`default_months` y `max_months`. Suponer la forma de la respuesta era
+exactamente el error que este test existe para cazar.
+
+**Lo importante no es el recuento: es que mover el acceso a base funciona como
+detector.** Sacar las consultas del endpoint obliga a nombrar qué devuelve cada
+operación, y ahí se ve lo que dentro de un bucle de construcción de respuesta no
+se veía. Lo que apareció:
+
+1. **El legal hold no retenía lo que decía retener** — dos defectos en la misma
+   función y en direcciones opuestas: un caso con custodia sólo de cliente o de
+   canal no protegía nada (destrucción de material bajo retención legal), y un
+   caso que no nombraba a nadie paralizaba la retención entera. Ninguno daba
+   error. Fijado en `tests/test_legal_hold_retencion.py` (14 tests).
+2. **El plazo de las URL firmadas estaba en duro a 3600 s en cuatro sitios**,
+   ignorando `S3_URL_EXPIRATION_HOURS`, que es configurable en caliente por
+   organización.
+3. **TUS era una puerta trasera a la validación de subidas**: tope propio de
+   500 MB —cinco veces `MAX_FILE_SIZE_MB`— y **cero validación de contenido**,
+   mientras `/attachments`, que escribe en la misma tabla y el mismo almacén,
+   comprueba extensión, MIME declarado, bytes mágicos y su coherencia. Bastaba
+   subir por TUS para colar lo que la otra puerta rechaza. Además duplicaba la
+   materialización del adjunto; ahora las dos vías pasan por
+   `files.crear_adjunto`.
+4. **`days` del calendario se declaraba y no se usaba.** Y sin límite inferior,
+   `orderBy=startTime` devolvía los eventos **más antiguos** del calendario
+   presentándolos como «próximos». En M365 se pasó a `calendarView`, que es el
+   recurso con ventana temporal: `events` con `$filter` habría devuelto la serie
+   maestra de una reunión periódica con su fecha original.
+5. **Una integración con el token caducado seguía anunciándose como conectada**
+   y aportaba cero eventos, sin log: el bucle tenía un `except: continue` mudo y
+   los clientes devuelven `{"error": ...}` en vez de lanzar.
+6. **El alta de suscripción Web Push podía dar un 500.** `endpoint` es único
+   global; la consulta quedaba acotada al tenant, así que el mismo navegador
+   usado luego por alguien de otra organización no encontraba su fila y chocaba
+   contra la restricción única. Es un caso real —una suscripción Web Push
+   pertenece al registro del service worker, no a la sesión—, así que la fila se
+   traspasa y el traspaso se audita **en las dos organizaciones**: la que pierde
+   las notificaciones tiene que poder verlo en su propia auditoría.
+7. **7 patrones N+1** escondidos en bucles de construcción de respuesta.
+8. **Dos fuentes de verdad para los slash commands** —la tabla de ejecutores y
+   una lista de ayuda escrita a mano— unificadas en una sola.
+9. **Contenido remoto sin escapar en HTML**: el callback de OAuth interpolaba
+   `r.text[:200]` de la respuesta del proveedor en un `<pre>`.
+10. **Cuatro límites operativos en duro** ahora son ajustes declarados, y el
+    idioma de la transcripción sale de `DEFAULT_LANGUAGE`.
+11. **El WebSocket del chat corría con el aislamiento por organización
+    apagado.** Su sesión es un `SessionLocal()` creado a mano y `info` estaba
+    vacío durante toda la conexión: con `is_superadmin` ausente, las **tres**
+    capas se saltan por la rama de «sesión no inicializada (job de fondo /
+    test)» —`TenantSession.query()`, `TenantSession.execute()` y el escuchador
+    `do_orm_execute`—. El contexto se pone ahora en cuanto se resuelve el
+    usuario, y no antes: `get_active_user_by_id` busca por id sin saber todavía
+    de qué organización es, así que ésa tiene que correr sin filtrar.
+12. **Un evento «está escribiendo» se podía inyectar en la conversación de otra
+    organización.** El `conversation_id` llegaba del cliente y no se comprobaba:
+    se publicaba en `conv_channel(cid)` fuera cual fuera. No leía nada —la
+    suscripción sí está acotada por pertenencia y organización, comprobado— pero
+    escribía en un canal ajeno a nombre del usuario. Ahora se exige que el canal
+    esté entre los que esta conexión tiene suscritos, que es la lista que el
+    servidor ya calcula.
+
+Los dos últimos vienen de `ws.py`, que **no estaba en los ocho ficheros de la
+tanda**: tenía cero puntos de acceso directo, así que el hallazgo 22 no lo
+señalaba. Apareció al cambiar el `grep` por un análisis AST para comprobar mi
+propia afirmación de «cero accesos». Es la tercera vez en esta auditoría que la
+verificación de una afirmación mía destapa un defecto que no se estaba
+buscando.
+
+Y **un defecto mío**, corregido en el mismo trabajo: audité el traspaso de la
+suscripción push **después** del `db.commit()`. `_audit.write` sólo hace `add` y
+deja la confirmación a quien llama, así que esos registros no se guardaban. Un
+solo `commit` al final, y el cambio queda atómico.
+
+---
+
+#### Tanda 2, en marcha: `service_desk`, y lo que había en la auto-resolución de IA
+
+**El dominio mide 89 puntos, no los 74 de la tabla de arriba**: esa cifra es
+anterior a cambios posteriores y se corrige aquí. Y ya tiene ~30 módulos de
+servicio, así que casi todo es ampliar y no crear.
+
+El primer fichero, `ai_auto_resolution.py` (17 puntos), tenía **cuatro defectos
+de la misma familia: algo que debería ser por cliente y no lo era.**
+
+1. **El trabajo procesaba tickets de TODAS las organizaciones.**
+   `run_daily_auto_resolution_job` acepta `organization_id` y su propio docstring
+   dice que sin él «procesa todos». El endpoint **no lo pasaba**, y en el camino
+   asíncrono la sesión es un `SessionLocal()` recién creado —sin contexto de
+   tenant—, así que el filtro se salta por diseño. Un administrador de un cliente
+   lanzaba la auto-resolución sobre los tickets de **todos los demás**,
+   resolviéndolos y comentándolos. **No es una lectura cruzada: es una escritura
+   cruzada**, y es el defecto más serio de esta tanda.
+2. **La configuración era global.** Clave de `AppSetting` sin organización: los
+   umbrales de confianza, el auto-cierre y el tope del trabajo los cambiaba
+   cualquier administrador **para todos los clientes**. Y el comentario de
+   cabecera del propio servicio ya decía que esa config es «por organización»:
+   la intención estaba escrita y el código no la cumplía.
+3. **El estado y el historial del trabajo eran globales**: un cliente veía el
+   `job_id`, las marcas de tiempo, las estadísticas y los errores de otro.
+4. **El cerrojo era uno para todo el proceso.** `_AUTO_RES_JOB_LOCK = Lock()` a
+   nivel de módulo: con el trabajo de un cliente en marcha, el de otro recibía
+   `already_running`. Sigue siendo un cerrojo en proceso —no coordina entre
+   varios workers de Uvicorn, y eso queda dicho en su docstring—, pero ya no
+   bloquea a los demás clientes.
+
+**El módulo ya tenía la convención buena y sólo para una cosa.** El contador de
+feedback se arregló en su día a `feedback_stats::{org}`, con un comentario que
+explica que antes «stats de orgs distintas se mezclaban y el composite_confidence
+usaba historical rate cross-tenant». La config, el estado y el historial se
+quedaron fuera. Se sigue esa misma convención en vez de inventar otra, con una
+regla por dato: **la config hereda de la clave global** —es el valor por defecto
+del despliegue y una organización que no ha tocado nada debe usarlo—, **el estado
+del trabajo no** —el trabajo de otro no es el suyo—.
+
+> **Y un error mío en el primer intento, que cazó el test:** guardaba con la
+> clave heredada cuando no había organización y leía de `::global`. Guardar en
+> una clave y leer de otra. Ahora la misma función resuelve las dos.
+
+**Un comentario obsoleto que había hecho el filtro peor.** El acotado por
+organización del trabajo era un `outerjoin` a `Project` con esto al lado:
+«FIX: Ticket no tiene organization_id propia; scope vía Project». **Sí la
+tiene** —comprobado en el modelo—, y el filtro que implementaba dejaba pasar los
+tickets **sin proyecto a todas las organizaciones** por su
+`or_(project_id IS NULL, ...)`. Es además la columna que usa la propia guarda de
+tenant de `TenantSession`, así que filtrar por otra vía era incoherente. Ahora es
+`Ticket.organization_id == organization_id`.
+
+> Yo también me fié de ese comentario: dije que `Ticket` no tenía la columna
+> antes de mirarlo. Un comentario no es una comprobación.
+
+Fijado en `tests/test_auto_resolution_por_tenant.py` (7 tests, los siete en rojo
+antes del arreglo). Los dos dobles de `run_daily_auto_resolution_job` que ya
+existían en la suite se actualizaron a la firma nueva, y el del camino sincrono
+**comprueba ahora que llega la organización de quien llama**, que es la pregunta
+que estaba sin hacer.
+
+**Lo que queda de este fichero:** nueve `commit()`/`rollback()` de frontera de
+transacción. Bajarlos significa mover la **orquestación del trabajo** —cerrojo,
+transiciones de estado, tarea de fondo y registro del fallo— a la capa de
+servicio, con la disciplina de rollback que ya lleva documentada. Es un paso
+aparte y se hace con su verificación, no de refilón.
+
+#### `collaboration_portal`: el portal era una segunda vía de envío sin los controles de la primera
+
+21 consultas y escrituras, **y ninguno de sus ocho endpoints lo tocaba un test**.
+Su envío de mensajes reimplementaba una versión pobre del interno:
+
+* **Reparto de notificaciones parcial, con una comparación imposible.** Sólo
+  avisaba en conversaciones directas, sólo a los dos usuarios internos, y se
+  protegía con `uid != current_client.id`. `user_a_id` y `user_b_id` son de
+  `users`; `current_client.id` es de `client_users`. **Esa comparación nunca
+  podía ser falsa**: ni filtraba al autor ni alcanzaba a los clientes. Los
+  clientes contraparte no recibían nada, y en canales y grupos no se avisaba a
+  nadie. El aparato interno ya sabía tratar destinatarios cliente y excluir al
+  autor por `client_user_id` — hacía falta usarlo, no duplicarlo.
+* **Sin escaneo DLP.** La vía interna sí lo aplica. Misma forma que las dos
+  puertas de subida de adjuntos: mismo destino, una con controles y otra sin.
+* **Sin indexado para búsqueda.** Ver el aviso de abajo sobre el alcance.
+* **Sin hilos**: `parent_message_id` no creaba `CollaborationThread`.
+* **El ancla de paginación se buscaba por id sin acotarla a la conversación**,
+  así que un id de otra conversación desplazaba la ventana con una fecha ajena.
+* **El tope de 25 mensajes por minuto, en duro.** Ahora
+  `COLLAB_PORTAL_MESSAGE_PER_MIN`.
+* **N+1 en el listado de conversaciones**: una consulta por conversación para
+  averiguar su título. Ahora son tres, una por tipo.
+
+El arreglo no reescribe nada de eso: llama a `messages.send_message` con
+`client_user_id`, que pasa a ser **la única vía de envío**.
+
+> **Corrección de mi propia lectura, y del primer test que escribí.** Documenté
+> el indexado como «un cliente no encontraba sus propios mensajes», y **eso es
+> falso en la configuración por defecto**: `SimpleSqlSearch.index()` —y el
+> `PgFtsSearch` que hereda de él— son **no-op**, y su búsqueda consulta la tabla
+> de mensajes, así que con SQLite o Postgres se encontraban igual. El indexado
+> sólo hace algo con `COLLAB_SEARCH_BACKEND=opensearch`, y ahí sí eran
+> invisibles. Peor: mi primer test comprobaba que la búsqueda encontraba el
+> mensaje, y **pasaba también sin el arreglo** — no discriminaba nada. El de
+> ahora espía la llamada al indexado, que es lo que de verdad cambió. Lo dejo
+> escrito porque un test que pasa por la razón equivocada es peor que no tenerlo.
+
+15 tests nuevos (`tests/test_collaboration_portal.py`) para ocho rutas que no
+tenían ninguno.
 
 #### Y lo que salió de medirlo: cinco `commit()` que dejaban la sesión abortada
 
@@ -1789,6 +4004,9 @@ afirmar una diferencia exacta.**
 app/core/deps.py                    require_superadmin (no existía)
 app/core/tenancy.py                 guarda estricta de org_id del cliente
 app/db/session.py                   filtro de tenant fail-closed + TenantIsolationError
+                                    (2026-08: criterio por variable de cierre —
+                                    con el argumento por defecto la 2a org del
+                                    proceso no veia nada, ver §3.bis)
 app/core/abac_dependency.py         reemplaza al ABACMiddleware borrado
 app/core/grc_catalog.py             dimensiones GRC derivadas de las rutas
 app/core/grc_enforce.py             matriz GRC aplicada, aditiva-deny
@@ -1842,9 +4060,34 @@ dos imports relativos pasados a absolutos, para poder cargarla suelta.
 
 ## 7. Orden sugerido para continuar
 
-Quedan **3 de 38** hallazgos en «parcial»: #18 complejidad, #22 acceso a base en
-la capa API y #37 las 62 rutas del frontend que no existen (7 corregidas, 9
-identificadas como endpoints ausentes y 53 en código de cliente muerto), y ninguno es un fallo latente: son deuda medida. Nada de lo que
+Queda **1 de 38** hallazgo en «parcial»: **#18 complejidad** — y lo que queda
+de él ya no es «no se ha hecho», es **deuda medida con suelo puesto**: 94
+funciones por encima de 10 → **80**, exceso 253 → **205**, máximo 17 → **16**,
+con `scripts/audit_complejidad.py` y un trinquete que bloquea
+(`tests/test_complejidad_no_empeora.py`). Catorce funciones salieron de la lista y
+**ninguna por trocearla**: las catorce escondían un defecto, incluido el dominio
+de tareas implementado dos veces (§3.novodecies). Y un barrido por AST sobre las
+80 que quedan confirma que **no esconden ninguna tabla de despacho**: son largas
+y lineales, que es una razón distinta de «nadie las ha mirado».
+
+**Lo que salió por debajo al registrar el filtro de tenant en la suite** —la
+decisión que llevaba abierta toda la auditoría— está en **§3.vicies**, y no es
+menor: el panel de sesiones activas llevaba tiempo vacío para todo el mundo, y
+la bandera `bypass_tenant_filter` que documenta la salida de emergencia **sólo
+la respetaba una de las tres capas de aislamiento**.
+
+El **#22**
+(acceso a base en la capa API) esta **cerrado**: de 257 puntos a 0, con guardian
+de tolerancia cero. El **#37** (rutas del frontend que no existen) esta
+**cerrado**: de 62 a 11 y de 11 a 0, con su constante en cero. **#37 remedido (§3.ter):
+42 métodos huérfanos comparando método y ruta, **hoy 11**. Borrado el cliente
+muerto verificado —**53 líneas de método fuera, 11 reescritas**, 42 métodos
+netos y 24 funciones de hook—, remapeado lo que tenía
+contraparte exacta y arreglado un fallo visible: el Gantt de proyecto se dibujaba
+sin dependencias porque el cliente pedía `/dependencies/{id}` en vez de
+`/task-dependencies/{project_id}`. Los 11 restantes son endpoints que no existen
+y su implementación es decisión de producto.** No son fallos
+latentes: son deuda medida. Nada de lo que
 queda corrompe datos ni abre un agujero.
 
 **#32, marca blanca: CERRADO.** El documento lleva la marca del tenant y los
@@ -1861,19 +4104,64 @@ mismo un método de detección**: la asimetría entre cinco bloques que hacen lo
 mismo, o entre dos evaluadores de la misma condición, sólo se ve cuando están
 uno al lado del otro. Por eso el orden de abajo va por riesgo.
 
-1. **#18: haz `apply_filter` y para ahí como tanda dedicada.** El método está
-   probado cuarenta y cuatro veces y ha dado once defectos reales, tres de
-   seguridad — pero eso fue en las funciones de 18 a 247. De las **ocho más
-   grandes que quedan, medido con un script AST, sólo una oculta una tabla de
-   despacho**: `apply_filter` (15), 12 `elif` sobre el mismo `operator` en 30
-   líneas, y trae defecto (un `in` con valor no-lista devuelve todo sin
-   filtrar). Ésa sí vale la pena. Para las otras 96 —entre 11 y 16, largas por
-   corrutinas anidadas, bucles sobre grafos o cálculo— **el rendimiento
-   decreciente es real y está medido**: pártelas cuando haya que tocar el
-   fichero por otra razón, no en una tanda. La tabla de la medición está en la
-   sección #18.
-2. **#22, los 298 puntos de acceso a base en la capa API** — por dominios, no de
-   golpe, cada tanda con su suite.
+1. **#18: ya no hay una tanda dedicada que hacer.** `apply_filter` está hecha
+   —es `_CLAUSULAS`— y con esta tanda se han ido las trece que escondían
+   duplicación o una tabla de despacho. Lo que queda son **80 funciones largas
+   pero lineales**, y para ellas el rendimiento decreciente es real y está
+   medido: pártelas **cuando haya que tocar el fichero por otra razón**, no en
+   una tanda. El orden por el que elegir está en
+   `python scripts/audit_complejidad.py`, que `ci_local.sh` imprime como gate
+   informativo.
+
+   Lo que sí hay que respetar es el trinquete. Sus tres reglas y por qué falla
+   también ante una mejora están en §3.octodecies; la que importa es la
+   primera: **una función nueva no puede nacer por encima de 10, y meterla en
+   `CONOCIDAS` para que pase no es una opción** — esa lista es la deuda que ya
+   había, no un buzón.
+2. **#22, los puntos de acceso a base en la capa API** — por dominios, no de
+   golpe, cada tanda con su suite. **Tanda 1 cerrada:** `collaboration`, de 127
+   puntos a 0 en ocho ficheros, con diez defectos destapados por el camino
+   (§#22) y, al verificarlo, un **apagón de datos para toda organización que no
+   fuera la primera del proceso** en el filtro de aislamiento (§3.bis).
+   **CERRADO: 0 puntos de acceso en 0 ficheros**, medido con
+   `scripts/audit_db_access_in_api.py`, mas 111 fronteras de transaccion, que no son acceso a datos
+   y se tratan aparte. Con la misma regla, medido sobre el historico:
+   **257 en 41 ficheros** antes de la tanda 1, **46 en 23** al empezar hoy.
+
+   Las cifras viejas de este documento —204, 95, 91, 82— salian de un `grep` que
+   contaba tambien las menciones en comentarios, no contaba `db.execute` ni
+   `db.get`, y no miraba `app/api/v1/routers/`. **No son comparables** con
+   estas; el porque esta en 3.octies. Cerrado **todo**: `collaboration` (127 -> 0), `tickets`, `performance`,
+   `jira_integration`, `user_costs`, `baselines`, `branding`,
+   `workflow_designer`, `governance_ops`, `smart_catalog`,
+   `connectors_marketplace`, `cmdb`, `templates`, `assets`, `esign`,
+   `client_portal`, `dynamic_forms`, `predictive`, `change_impact`, `scim`,
+   `auth_core`, `auth_mfa`, `alert_correlation`, `semantic_engine`,
+   `predictive_observability`, `bpmn_processes`, `bi_etl`, `bi_collaboration`,
+   `bi_intelligence`, `billing_reports`, `invoices` y `backlog`.
+
+   **No queda nada.** El detector da cero, y hay un guardian de tolerancia cero
+   en `tests/test_capa_api_sin_acceso_a_base.py` que importa el propio script de
+   medicion en vez de reimplementar la regla. El detalle del cierre esta en
+   3.terdecies.
+
+   Cerrados a 0: `collaboration` (8 ficheros), `tickets`,
+   `connectors_marketplace`, `cmdb`, `templates`, `assets`, `esign`,
+   `client_portal`, `dynamic_forms`, `performance`, `workflow_designer`,
+   `user_costs`, `baselines`, `branding`, `jira_integration`,
+   `governance_ops`, `smart_catalog` y `ai_auto_resolution`.
+
+   `service_desk/predictive.py` **ya esta** (ver 3.novies): era el unico
+   defecto localizado y sin arreglar de la lista. La orquestacion del trabajo de auto-resolucion (cerrojo,
+   estado, tarea de fondo, registro del fallo) sigue en el endpoint: son
+   fronteras de transaccion, no acceso a datos, asi que el contador nuevo ya
+   no las suma con lo demas.
+3. **Registrar el escuchador `do_orm_execute` en la factoría de sesiones de los
+   tests — HECHO** (§3.sexdecies). `TestSession` usa `TenantSession` y tiene
+   registrados el escuchador y el sellado. Era seguro por construcción y no se
+   veía hasta ejecutarlo: las tres capas salen por la puerta de atrás cuando la
+   sesión no está inicializada, así que un test que no autentica no cambia. La
+   suite entera pasa **sin una sola excepción declarada**.
 **#16, traducción: CERRADO.** Este documento lo daba por «parcial» y era falso.
 Se declaran tres idiomas —`es`, `en`, `zh`, exactamente los que se venden— y los
 tres están al **100 %** sobre 3.755 claves, con dos gates bloqueantes: cobertura

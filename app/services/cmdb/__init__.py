@@ -12,6 +12,9 @@ Exports:
 
 # Orchestration
 from app.services.cmdb.discovery import (
+    crear_proveedor,
+    jobs_de_un_proveedor,
+    proveedores_visibles,
     run_discovery_for_provider,
     run_all_active_discoveries,
     run_due_discoveries,
@@ -54,6 +57,9 @@ from app.services.cmdb.utils import (
 
 __all__ = [
     # Orchestration
+    "crear_proveedor",
+    "jobs_de_un_proveedor",
+    "proveedores_visibles",
     "run_discovery_for_provider",
     "run_all_active_discoveries",
     "run_due_discoveries",

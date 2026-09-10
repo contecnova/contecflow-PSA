@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
@@ -39,7 +40,156 @@ FEEDBACK_SETTING_KEY = "sd.auto_resolution.feedback_stats"  # legacy key (org-le
 FEEDBACK_SETTING_KEY_TEMPLATE = "sd.auto_resolution.feedback_stats::{org}"
 AUTO_CLOSE_HOURS_AFTER_RESOLUTION = 72  # Auto-close resolved tickets after 72h
 VALIDATION_WINDOW_HOURS = 48            # Check for reopens within 48h
-AUTO_CONFIG_SETTING_KEY = "sd.auto_resolution.config"
+AUTO_CONFIG_SETTING_KEY = "sd.auto_resolution.config"           # legacy key (org-less)
+AUTO_CONFIG_SETTING_KEY_TEMPLATE = "sd.auto_resolution.config::{org}"
+
+# ── Estado y historial del trabajo, por organizacion ────────────────────────
+#
+# Auditoria 2026-08 (P3-22, tanda 2). Estas tres cosas vivian en el endpoint con
+# claves de `AppSetting` **sin organizacion**, asi que eran globales: un cliente
+# veia el `job_id`, los tiempos, las estadisticas y los errores del trabajo de
+# otro, y cualquier administrador cambiaba los umbrales de todos. El comentario
+# de cabecera de este modulo ya decia que la config es «por organizacion»: la
+# intencion estaba escrita y el codigo no la cumplia.
+#
+# Se sigue la convencion que este modulo ya tenia para el contador de feedback
+# —`clave::{org}` con respaldo en la clave desnuda— en vez de inventar otra. El
+# respaldo importa: en un despliegue en marcha ya hay filas bajo la clave sin
+# organizacion, y leerlas es lo que evita perder la configuracion al desplegar.
+JOB_RUNTIME_KEY_LEGACY = "sd.auto_resolution.job_runtime"   # sin organizacion
+JOB_HISTORY_KEY_LEGACY = "sd.auto_resolution.job_history"   # sin organizacion
+JOB_RUNTIME_KEY_TEMPLATE = "sd.auto_resolution.job_runtime::{org}"
+JOB_HISTORY_KEY_TEMPLATE = "sd.auto_resolution.job_history::{org}"
+
+#: Cuantas ejecuciones se conservan. Es un `AppSetting`, no una tabla de
+#: eventos: sin tope la fila crece sin freno y se lee entera en cada consulta.
+MAX_HISTORIAL_DEL_TRABAJO = 20
+
+#: Marcador de organizacion para las claves cuando no hay ninguna.
+_SIN_ORGANIZACION = "global"
+
+_CERROJOS_DEL_TRABAJO: dict[str, threading.Lock] = {}
+_GUARDA_DE_CERROJOS = threading.Lock()
+
+
+def cerrojo_del_trabajo(organization_id: str | None) -> threading.Lock:
+    """El cerrojo del trabajo de auto-resolucion de esa organizacion.
+
+    Auditoria 2026-08: era `_AUTO_RES_JOB_LOCK = Lock()` a nivel de modulo, uno
+    para todo el proceso, asi que con el trabajo de un cliente en marcha el de
+    otro recibia `already_running` y no podia ejecutar el suyo.
+
+    Sigue siendo un cerrojo **en proceso**, con lo que no coordina entre varios
+    workers de Uvicorn: dos procesos pueden lanzar el trabajo de la misma
+    organizacion a la vez. Para eso hace falta un cerrojo distribuido, y no se
+    monta aqui de paso; lo que se corrige es que uno solo bloqueaba a todos.
+    """
+    clave = organization_id or _SIN_ORGANIZACION
+    with _GUARDA_DE_CERROJOS:
+        cerrojo = _CERROJOS_DEL_TRABAJO.get(clave)
+        if cerrojo is None:
+            cerrojo = threading.Lock()
+            _CERROJOS_DEL_TRABAJO[clave] = cerrojo
+        return cerrojo
+
+
+def _clave_por_organizacion(
+    plantilla: str, organization_id: str | None, heredada: str | None = None,
+) -> str:
+    """La clave de ese dato para esa organizacion.
+
+    Sin organizacion se devuelve la clave **heredada** —la desnuda, sin sufijo—
+    cuando existe, y no `::global`. No es cosmetico: en un despliegue en marcha
+    los valores ya estan guardados bajo la clave desnuda, y una ejecucion de
+    plataforma (`organization_id=None`) tiene que leer y escribir esos mismos, no
+    una fila nueva y vacia. Al escribir y al leer se usa esta misma funcion, que
+    es lo que faltaba: guardaba en una clave y leia de otra.
+    """
+    if organization_id is None and heredada:
+        return heredada
+    return plantilla.format(org=organization_id or _SIN_ORGANIZACION)
+
+
+def _leer_json_de_ajuste(db: Session, clave: str, respaldo: str | None = None):
+    """El JSON de ese ajuste, con respaldo en otra clave si no existe.
+
+    Devuelve `None` cuando no hay nada legible, para que quien llama distinga
+    «no hay fila» de «hay fila con un valor vacio».
+    """
+    from app.models.settings import AppSetting
+
+    for k in (clave, respaldo):
+        if not k:
+            continue
+        try:
+            fila = db.query(AppSetting).filter(AppSetting.key == k).first()
+            if fila and fila.value:
+                return json.loads(fila.value)
+        except Exception:
+            _logger.debug(
+                "no se pudo leer el ajuste %s; se prueba el respaldo", k, exc_info=True)
+    return None
+
+
+def _escribir_json_de_ajuste(db: Session, clave: str, valor, descripcion: str = "") -> None:
+    from app.models.settings import AppSetting
+
+    serializado = json.dumps(valor)
+    fila = db.query(AppSetting).filter(AppSetting.key == clave).first()
+    if fila:
+        fila.value = serializado
+    else:
+        db.add(AppSetting(key=clave, value=serializado, description=descripcion))
+    db.flush()
+
+
+def estado_del_trabajo(db: Session, organization_id: str | None = None) -> dict:
+    """El estado de la ultima ejecucion del trabajo de esa organizacion."""
+    datos = _leer_json_de_ajuste(
+        db, _clave_por_organizacion(
+            JOB_RUNTIME_KEY_TEMPLATE, organization_id, JOB_RUNTIME_KEY_LEGACY))
+    if not isinstance(datos, dict):
+        return {
+            "running": False,
+            "status": "never_run",
+            "last_job_id": None,
+            "started_at": None,
+            "completed_at": None,
+            "duration_ms": None,
+            "stats": None,
+            "error": None,
+        }
+    return datos
+
+
+def guardar_estado_del_trabajo(
+    db: Session, estado: dict, organization_id: str | None = None,
+) -> None:
+    _escribir_json_de_ajuste(
+        db, _clave_por_organizacion(
+            JOB_RUNTIME_KEY_TEMPLATE, organization_id, JOB_RUNTIME_KEY_LEGACY),
+        estado, "Auto-resolution job runtime state")
+
+
+def historial_del_trabajo(db: Session, organization_id: str | None = None) -> list:
+    """Las ultimas ejecuciones, de la mas reciente a la mas antigua."""
+    datos = _leer_json_de_ajuste(
+        db, _clave_por_organizacion(
+            JOB_HISTORY_KEY_TEMPLATE, organization_id, JOB_HISTORY_KEY_LEGACY))
+    return datos if isinstance(datos, list) else []
+
+
+def anotar_en_el_historial(
+    db: Session, registro: dict, organization_id: str | None = None,
+) -> None:
+    """Añade una ejecucion al principio y recorta al tope."""
+    clave = _clave_por_organizacion(
+        JOB_HISTORY_KEY_TEMPLATE, organization_id, JOB_HISTORY_KEY_LEGACY)
+    historial = historial_del_trabajo(db, organization_id)
+    historial = [registro] + historial
+    _escribir_json_de_ajuste(
+        db, clave, historial[:MAX_HISTORIAL_DEL_TRABAJO],
+        "Auto-resolution job history")
 
 
 def _feedback_key_for(ticket: "Ticket") -> str:
@@ -87,34 +237,38 @@ def _normalize_auto_resolution_config(raw: dict | None) -> dict:
     }
 
 
-def get_auto_resolution_config(db: Session) -> dict:
-    """Return persisted auto-resolution config with defaults and normalization."""
-    try:
-        from app.models.settings import AppSetting
+def get_auto_resolution_config(db: Session, organization_id: str | None = None) -> dict:
+    """La config de auto-resolucion de esa organizacion, ya normalizada.
 
-        row = db.query(AppSetting).filter(AppSetting.key == AUTO_CONFIG_SETTING_KEY).first()
-        if row and row.value:
-            return _normalize_auto_resolution_config(json.loads(row.value))
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
-        _logger.debug("get_auto_resolution_config: fallo best-effort ignorado", exc_info=True)
-    return _normalize_auto_resolution_config(None)
+    Auditoria 2026-08: esto usaba una sola clave sin organizacion, asi que
+    **cualquier administrador cambiaba los umbrales de todos los clientes** —los
+    de confianza, el auto-cierre y el tope del trabajo—. Ahora la clave lleva la
+    organizacion, con respaldo en la desnuda para no perder la configuracion de
+    un despliegue en marcha.
+    """
+    datos = _leer_json_de_ajuste(
+        db,
+        _clave_por_organizacion(
+            AUTO_CONFIG_SETTING_KEY_TEMPLATE, organization_id, AUTO_CONFIG_SETTING_KEY),
+        # La config SI hereda de la global: es el valor por defecto del
+        # despliegue, y una organizacion que no ha tocado nada debe usarlo. El
+        # estado del trabajo no hereda, porque el trabajo de otro no es el suyo.
+        respaldo=AUTO_CONFIG_SETTING_KEY if organization_id else None,
+    )
+    return _normalize_auto_resolution_config(datos if isinstance(datos, dict) else None)
 
 
-def save_auto_resolution_config(db: Session, payload: dict) -> dict:
-    """Persist auto-resolution config into AppSetting."""
-    from app.models.settings import AppSetting
-
-    current = get_auto_resolution_config(db)
-    updated = _normalize_auto_resolution_config({**current, **(payload or {})})
-
-    row = db.query(AppSetting).filter(AppSetting.key == AUTO_CONFIG_SETTING_KEY).first()
-    if row:
-        row.value = json.dumps(updated)
-    else:
-        db.add(AppSetting(key=AUTO_CONFIG_SETTING_KEY, value=json.dumps(updated)))
-    db.flush()
-    return updated
+def save_auto_resolution_config(
+    db: Session, payload: dict, organization_id: str | None = None,
+) -> dict:
+    """Guarda la config de esa organizacion, fusionada sobre la vigente."""
+    actual = get_auto_resolution_config(db, organization_id)
+    actualizada = _normalize_auto_resolution_config({**actual, **(payload or {})})
+    clave = _clave_por_organizacion(
+        AUTO_CONFIG_SETTING_KEY_TEMPLATE, organization_id, AUTO_CONFIG_SETTING_KEY)
+    _escribir_json_de_ajuste(
+        db, clave, actualizada, "Auto-resolution dynamic config")
+    return actualizada
 
 def _load_feedback_stats(db: Session, key: str = FEEDBACK_SETTING_KEY) -> dict:
     """Load per-category/priority feedback counters from AppSetting."""
@@ -313,16 +467,21 @@ def get_auto_resolution_stats(db: Session) -> dict:
     }
 
 
-def run_auto_close_job(db: Session) -> dict:
+def run_auto_close_job(db: Session, organization_id: str | None = None) -> dict:
     """Auto-close tickets that were auto-resolved and have had no reopening
     within AUTO_CLOSE_HOURS_AFTER_RESOLUTION hours.
 
     Also triggers post-resolution validation for eligible tickets.
 
+    Con `organization_id` solo cierra tickets de esa organizacion, y usa SU
+    configuracion de horas. Sin el recorre todo, que es lo que quiere un cron
+    global — pero no lo que quiere un administrador de un cliente pulsando un
+    boton, y eso es lo que hacia el endpoint. Auditoria 2026-08.
+
     Returns: {processed, auto_closed, validated, failed}
     """
     stats = {"processed": 0, "auto_closed": 0, "validated": 0, "failed": 0}
-    cfg = get_auto_resolution_config(db)
+    cfg = get_auto_resolution_config(db, organization_id)
     auto_close_hours = int(cfg["auto_close_hours_after_resolution"])
     validation_hours = int(cfg["validation_window_hours"])
     cutoff = datetime.now(timezone.utc) - timedelta(hours=auto_close_hours)
@@ -330,15 +489,14 @@ def run_auto_close_job(db: Session) -> dict:
 
     try:
         # Tickets eligible for auto-close: auto_resolved, still in resolved state, resolved > cutoff ago
-        candidates = (
-            db.query(Ticket)
-            .filter(
-                Ticket.auto_resolved == True,
-                Ticket.status == TicketStatus.resolved,
-                Ticket.auto_resolved_at <= cutoff,
-            )
-            .all()
+        consulta = db.query(Ticket).filter(
+            Ticket.auto_resolved == True,
+            Ticket.status == TicketStatus.resolved,
+            Ticket.auto_resolved_at <= cutoff,
         )
+        if organization_id:
+            consulta = consulta.filter(Ticket.organization_id == organization_id)
+        candidates = consulta.all()
 
         for ticket in candidates:
             try:
@@ -487,7 +645,10 @@ def analyze_ticket_for_resolution(
             root_cause = "No determinada"
 
         # ── Step 5: Composite confidence (AI + KB similarity + historical) ─
-        cfg = get_auto_resolution_config(db)
+        # Los umbrales son los de la organizacion del ticket. Antes se leia una
+        # config global, asi que un ticket de un cliente se juzgaba con el
+        # umbral que hubiera puesto otro. Auditoria 2026-08.
+        cfg = get_auto_resolution_config(db, getattr(ticket, "organization_id", None))
         threshold_auto = float(cfg["threshold_auto"])
         threshold_suggest = float(cfg["threshold_suggest"])
 
@@ -609,10 +770,15 @@ def _post_resolution_comment(db: Session, ticket: Ticket, suggestion: str, *, is
         from app.models.service_desk import TicketComment
         prefix = "🤖 **Resolución automática por IA:**" if is_auto else "🤖 **Sugerencia de resolución por IA (revisión manual recomendada):**"
         body = f"{prefix}\n\n{suggestion}"
+        # Auditoria 2026-08: `TicketComment` no tiene `is_internal`; lo que
+        # tiene es `is_public`, que es lo mismo al reves. SQLAlchemy responde
+        # `TypeError` a una palabra clave que no es columna, y el `except` de
+        # esta funcion lo registraba y seguia: **la resolucion de la IA nunca
+        # llegaba al ticket**, asi que el solicitante no la veia.
         comment = TicketComment(
             ticket_id=ticket.id,
             body=body,
-            is_internal=False,
+            is_public=True,
             author_name="AI Auto-Resolution",
         )
         db.add(comment)
@@ -723,7 +889,7 @@ def run_daily_auto_resolution_job(db: Session, *, limit: int | None = None,
     stats = {"processed": 0, "auto_resolved": 0, "suggested": 0, "failed": 0}
 
     try:
-        cfg = get_auto_resolution_config(db)
+        cfg = get_auto_resolution_config(db, organization_id)
         configured_limit = int(cfg.get("default_job_limit", 100))
         safe_limit = max(1, min(int(limit if limit is not None else configured_limit), 500))
         # Solo analiza tickets con al menos 15 min de antigüedad para evitar
@@ -740,12 +906,15 @@ def run_daily_auto_resolution_job(db: Session, *, limit: int | None = None,
             )
         )
         if organization_id:
-            # FIX: Ticket no tiene organization_id propia; scope vía Project.
-            from app.models.project import Project as _Project
-            from sqlalchemy import or_ as _or
-            q = q.outerjoin(_Project, Ticket.project_id == _Project.id).filter(
-                _or(Ticket.project_id.is_(None), _Project.organization_id == organization_id)
-            )
+            # Auditoria 2026-08: aqui habia un `outerjoin` a `Project` con un
+            # comentario que decia «Ticket no tiene organization_id propia». Ese
+            # comentario esta obsoleto: **si la tiene**, y el filtro que
+            # implementaba era peor, porque su
+            # `or_(project_id IS NULL, Project.organization_id == org)` dejaba
+            # pasar los tickets sin proyecto a TODAS las organizaciones. Es
+            # ademas la columna que usa la propia guarda de tenant de
+            # `TenantSession`, asi que filtrar por otra via era incoherente.
+            q = q.filter(Ticket.organization_id == organization_id)
         open_tickets = q.order_by(Ticket.created_at.desc()).limit(safe_limit).all()
 
         for ticket in open_tickets:

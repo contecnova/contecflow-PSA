@@ -378,9 +378,14 @@ def get_epic_record(epic_id: str, db) -> dict:
             continue
         t = db.query(Task).filter(Task.id == et.task_id).first()
         if t:
+            # Auditoria 2026-08: aqui habia `t.assigned_to_user_id`, y esa es
+            # la columna de `Ticket`, no de `Task` —en `Task` se llama
+            # `assignee_id`—. Reventaba con `AttributeError`, asi que el detalle
+            # de un epic **no se podia leer** en cuanto tenia una tarea. La
+            # clave de la respuesta se conserva para no cambiar el contrato.
             d["tasks"].append({"id": t.id, "title": t.title, "status": t.status,
                                "story_points": t.story_points,
-                               "assigned_to_user_id": t.assigned_to_user_id})
+                               "assigned_to_user_id": t.assignee_id})
     d["dependencies"] = [dep.depends_on_id for dep in (e.dependencies or []) if dep.is_active]
     return d
 

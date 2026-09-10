@@ -323,3 +323,140 @@ def serialize_profile(p: UserCostProfile) -> dict:
         "is_active": p.valid_to is None,
         "created_at": p.created_at.isoformat() if p.created_at else None,
     }
+
+
+# ── Guardas por organizacion, movidas del endpoint ───────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 22). `endpoints/user_costs.py` era mas cuidadoso
+# que la media —`update_country`, `delete_country` y `/summary` si comprueban la
+# organizacion— pero cuatro sitios buscaban por id a secas, y aqui lo que se
+# expone son **salarios**:
+#
+#   · `GET /users/{id}/active` devolvia el perfil de coste y el
+#     `legacy_hourly_rate` de CUALQUIER usuario por id;
+#   · `GET /users/{id}/profiles` devolvia el historico salarial completo;
+#   · `update_profile` y `delete_profile` buscaban el perfil por id, asi que se
+#     podia editar o borrar el de otro cliente.
+#
+# Lo unico que lo impedia era el filtro implicito de `TenantSession`.
+
+from fastapi import HTTPException  # noqa: E402
+
+
+def _org_de(user) -> Optional[str]:
+    return getattr(user, "organization_id", None)
+
+
+def usuario_propio(db: Session, actor, user_id: str) -> User:
+    """El usuario, si comparte organizacion con quien pregunta. 404 si no.
+
+    404 y no 403: confirmar que esa persona existe en otra organizacion ya seria
+    contar algo.
+    """
+    fila = (
+        db.query(User)
+        .filter(User.id == user_id, User.organization_id == _org_de(actor))
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "User not found")
+    return fila
+
+
+def perfil_propio(db: Session, actor, profile_id: str) -> UserCostProfile:
+    """El perfil de coste, si es de la organizacion de quien pregunta."""
+    fila = (
+        db.query(UserCostProfile)
+        .filter(
+            UserCostProfile.id == profile_id,
+            UserCostProfile.organization_id == _org_de(actor),
+        )
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "Profile not found")
+    return fila
+
+
+def preset_propio_o_global(db: Session, actor, preset_id: str) -> CountryEmployerCost:
+    """El preset de pais: el propio o uno global. 404 si es de otro cliente.
+
+    Los globales (`organization_id IS NULL`) son los valores que trae el
+    producto y se pueden leer y sobrescribir por organizacion, asi que aqui se
+    admiten; lo que no se admite es el de otro cliente.
+    """
+    fila = (
+        db.query(CountryEmployerCost)
+        .filter(CountryEmployerCost.id == preset_id)
+        .filter(
+            or_(
+                CountryEmployerCost.organization_id == _org_de(actor),
+                CountryEmployerCost.organization_id.is_(None),
+            )
+        )
+        .first()
+    )
+    if not fila:
+        raise HTTPException(404, "Preset not found")
+    return fila
+
+
+def guardar_preset_de_pais(db: Session, actor, datos: dict) -> CountryEmployerCost:
+    """Crea o sobrescribe el preset de un pais para esta organizacion.
+
+    El codigo de pais se normaliza a mayusculas: la unicidad es por
+    `(country_code, organization_id)` y sin normalizar «es» y «ES» serian dos.
+    """
+    org_id = _org_de(actor)
+    codigo = (datos.get("country_code") or "").upper()
+    existente = (
+        db.query(CountryEmployerCost)
+        .filter(
+            CountryEmployerCost.country_code == codigo,
+            CountryEmployerCost.organization_id == org_id,
+        )
+        .first()
+    )
+    if existente:
+        for clave, valor in datos.items():
+            if clave == "country_code":
+                continue
+            setattr(existente, clave, valor)
+        db.commit()
+        db.refresh(existente)
+        return existente
+
+    fila = CountryEmployerCost(
+        organization_id=org_id,
+        **{**datos, "country_code": codigo},
+    )
+    db.add(fila)
+    db.commit()
+    db.refresh(fila)
+    return fila
+
+
+def borrar_preset_de_pais(db: Session, actor, preset_id: str) -> None:
+    """Borra un preset propio. Los globales no se borran: se sobrescriben."""
+    fila = preset_propio_o_global(db, actor, preset_id)
+    if fila.organization_id is None:
+        raise HTTPException(
+            400, "Global presets cannot be deleted; override per-org instead.")
+    db.delete(fila)
+    db.commit()
+
+
+def usuarios_activos_de_la_organizacion(db: Session, actor, *, tope: int) -> list:
+    """Los usuarios activos de la organizacion, con un tope.
+
+    El filtro de organizacion **no es condicional**: si el sujeto no tiene
+    organizacion se listan los usuarios sin organizacion, no los de todos los
+    clientes. Antes era `if org_id: q = q.filter(...)`, que es lo contrario.
+    """
+    return (
+        db.query(User)
+        .filter(User.status == "active",
+                User.organization_id == _org_de(actor))
+        .limit(tope)
+        .all()
+    )

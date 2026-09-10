@@ -72,8 +72,28 @@ def test_jira_periodic_sync_skips_incomplete_config():
     assert result.get("skipped"), f"Expected 'skipped', got: {result}"
 
 
-def test_jira_periodic_sync_handles_http_errors(db):
-    """jira_periodic_sync raises on Jira HTTP errors (re-raises for Celery retry)."""
+def test_jira_periodic_sync_handles_http_errors(db, monkeypatch):
+    """jira_periodic_sync relanza el error HTTP de Jira, para que Celery reintente.
+
+    Auditoria 2026-08: este test no comprobaba lo que dice, y su resultado
+    dependia de estado de fuera. `jira_periodic_sync` usa `worker_db_session()`,
+    que abre un `SessionLocal()` contra `DATABASE_URL` —la base de desarrollo del
+    repositorio— mientras el test escribia los ajustes de Jira en la base de
+    pruebas. Es decir: escribia en una base y comprobaba otra.
+
+    Con la base de desarrollo sin tabla `app_settings`, la consulta reventaba con
+    *no such table*, y como la asercion era un `pytest.raises(Exception)`
+    generico, **el test pasaba por la excepcion equivocada**. Con la tabla
+    presente devolvia `{"skipped": ...}` y el test fallaba con «DID NOT RAISE».
+    Medido: dos ejecuciones de la suite completa con el MISMO codigo, una en rojo
+    y otra en verde.
+
+    Se redirige la sesion del worker a la sesion de pruebas, que es lo que hace
+    que el test ejercite el camino que describe, y se comprueba el tipo de error
+    concreto en vez de `Exception` a secas.
+    """
+    from contextlib import contextmanager
+
     from app.models.settings import AppSetting
     from app.worker import jira_periodic_sync
     import httpx
@@ -85,9 +105,15 @@ def test_jira_periodic_sync_handles_http_errors(db):
         db.add(AppSetting(key=key, value=val))
     db.commit()
 
+    @contextmanager
+    def sesion_de_pruebas():
+        yield db
+
+    monkeypatch.setattr("app.db.session.worker_db_session", sesion_de_pruebas)
+
     with patch("httpx.post") as mock_post:
         mock_post.side_effect = httpx.ConnectError("Connection refused")
-        with pytest.raises(Exception):  # noqa: B017
+        with pytest.raises(httpx.ConnectError):
             jira_periodic_sync()
 
 

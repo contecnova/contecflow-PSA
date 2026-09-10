@@ -341,6 +341,155 @@ def get_expiring_soon(db: Session, days: int = 30) -> list[dict]:
     return results
 
 
+# ── Las dos auditorias de activos ───────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 22). Estaban en el endpoint, y las dos consultaban
+# `Asset` **sin filtro de organizacion**. Hay que decir con precision lo que eso
+# significaba y lo que no:
+#
+#   · En produccion NO era una fuga. `SessionLocal` usa `TenantSession`, que
+#     sobrescribe `query()` y anade el filtro por `organization_id` —`Asset`
+#     tiene la columna—, asi que el filtro estaba, solo que implicito.
+#   · Pero era la UNICA capa. Y este modulo entero no menciona
+#     `organization_id` ni una vez en sus dieciocho funciones, asi que no habia
+#     nada detras si esa capa falla. Ya fallo una vez (§3.bis del traspaso: el
+#     criterio rancio dejaba a cero a toda organizacion menos la primera).
+#
+# Lo que **si** era un defecto sin mitigar es la carga: `/software-audit` hacia
+# `db.query(Asset).all()` —**todos** los activos, como objetos del ORM, sin
+# tope— para acabar contando etiquetas. Ahora son dos consultas acotadas, y la
+# de las etiquetas trae solo esa columna.
+
+#: Por debajo de que porcentaje de uso una licencia se considera sobrada.
+#: Estaba en duro en el cuerpo del endpoint.
+UMBRAL_DE_LICENCIA_SOBRADA = 40
+
+
+def _activos_de_la_organizacion(db: Session, current_user):
+    """La consulta base de activos, acotada de forma EXPLICITA.
+
+    Un superadmin no filtra, que es la excepcion declarada de toda la politica
+    de aislamiento. Un sujeto sin organizacion ve las filas sin organizacion,
+    no las de todos: el filtro no es condicional.
+    """
+    q = db.query(Asset)
+    if getattr(current_user, "is_superadmin", False):
+        return q
+    return q.filter(
+        Asset.organization_id == getattr(current_user, "organization_id", None))
+
+
+def auditoria_de_licencias(db: Session, current_user) -> dict:
+    """Butacas contratadas contra butacas usadas, licencia a licencia.
+
+    Devuelve `license_key`, asi que el ambito importa: es una credencial.
+    """
+    from app.models.service_desk import AssetType
+
+    activos = (
+        _activos_de_la_organizacion(db, current_user)
+        .filter(
+            Asset.asset_type.in_([AssetType.software, AssetType.license]),
+            Asset.license_seats.isnot(None),
+            Asset.license_seats > 0,
+        )
+        .all()
+    )
+
+    items = []
+    for a in activos:
+        butacas = a.license_seats or 0
+        usadas = a.license_used or 0
+        uso = round(usadas / butacas * 100, 1) if butacas > 0 else 0
+        if uso < UMBRAL_DE_LICENCIA_SOBRADA:
+            estado = "over_licensed"
+        elif usadas > butacas:
+            estado = "under_licensed"
+        else:
+            estado = "ok"
+        items.append({
+            "asset_id": a.id,
+            "code": a.code,
+            "name": a.name,
+            "vendor": a.vendor,
+            "license_seats": butacas,
+            "license_used": usadas,
+            "utilization_pct": uso,
+            "status": estado,
+            "license_key": a.license_key,
+            "warranty_expiry": a.warranty_expiry,
+        })
+    items.sort(key=lambda x: x["utilization_pct"])
+
+    total_butacas = sum(i["license_seats"] for i in items)
+    total_usadas = sum(i["license_used"] for i in items)
+    return {
+        "items": items,
+        "summary": {
+            "total_licenses": len(items),
+            "total_seats": total_butacas,
+            "total_used": total_usadas,
+            "overall_utilization_pct": (
+                round(total_usadas / total_butacas * 100, 1)
+                if total_butacas else 0
+            ),
+            "over_licensed_count": sum(
+                1 for i in items if i["status"] == "over_licensed"),
+            "under_licensed_count": sum(
+                1 for i in items if i["status"] == "under_licensed"),
+        },
+    }
+
+
+def auditoria_de_software(db: Session, current_user) -> dict:
+    """Software licenciado contra software desplegado, segun las etiquetas.
+
+    Dos consultas acotadas en vez de `db.query(Asset).all()`. La de hardware
+    trae **solo la columna `tags`**, que es lo unico que se usa: cargar el
+    activo entero para leer una cadena era el coste de verdad de esto.
+    """
+    from app.models.service_desk import AssetStatus, AssetType
+
+    licenciados = (
+        _activos_de_la_organizacion(db, current_user)
+        .filter(Asset.asset_type.in_([AssetType.software, AssetType.license]))
+        .all()
+    )
+    por_nombre = {a.name.lower(): a for a in licenciados if a.name}
+
+    etiquetas = (
+        _activos_de_la_organizacion(db, current_user)
+        .with_entities(Asset.tags)
+        .filter(
+            Asset.asset_type == AssetType.hardware,
+            Asset.status == AssetStatus.deployed,
+            Asset.tags.isnot(None),
+        )
+        .all()
+    )
+    desplegados: dict[str, int] = {}
+    for (crudas,) in etiquetas:
+        for etiqueta in (crudas or "").split(","):
+            clave = etiqueta.strip().lower()
+            if clave:
+                desplegados[clave] = desplegados.get(clave, 0) + 1
+
+    filas = [
+        {
+            "software": activo.name,
+            "vendor": activo.vendor,
+            "license_seats": activo.license_seats or 0,
+            "deployed_count": desplegados.get(
+                nombre, activo.license_used or 0),
+            "license_key_present": bool(activo.license_key),
+            "warranty_expiry": activo.warranty_expiry,
+            "asset_id": activo.id,
+        }
+        for nombre, activo in por_nombre.items()
+    ]
+    return {"audit_rows": filas, "total": len(filas)}
+
+
 def calculate_depreciation(asset: Asset) -> Optional[float]:
     """Estimate current value via straight-line or declining-balance depreciation.
 
@@ -464,12 +613,22 @@ def create_refresh_ticket(
 
     from uuid import uuid4
     ticket_id = str(uuid4())
+    # Auditoria 2026-08: este `Ticket` se construia **sin `number`**, y la
+    # columna es NOT NULL, asi que despues del `AttributeError` de
+    # `TicketStatus.open` venia un `IntegrityError`. Dos defectos encadenados en
+    # la misma funcion, y ninguno de los dos se veia porque no habia un solo
+    # test que llamara aqui.
+    #
+    # El numero se genera con el mismo prefijo-mas-hexadecimal que usan las
+    # otras vias que no pasan por el contador de tickets (`EML-`, `SMS-`).
     ticket = Ticket(
         id=ticket_id,
+        number=f"REF-{uuid4().hex[:8].upper()}",
         title=title,
         description=description,
         ticket_type="service_request",
-        status=TicketStatus.open,
+        # Ver la nota de `inbound_email_service`: `open` no existe.
+        status=TicketStatus.new,
         priority=TicketPriority.p3_medium,
         requester_user_id=acting_user_id,
         ci_id=asset.ci_id,

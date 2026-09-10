@@ -359,3 +359,37 @@ def delete_stage_config(
     enforce_abac(db, current_user, "pipeline_stage_config", stage_id, action="delete")
     pipeline_service.delete_stage_config(db, stage_id)
     return None
+
+
+# ── El detalle de una oportunidad va EL ULTIMO, y no es estetica ─────────────
+#
+# Auditoria 2026-08 (hallazgo 37): esta ruta **no existia**. `usePipeline` la
+# llama para abrir el detalle de una oportunidad y recibia 404; el `PATCH` y el
+# `DELETE` si estaban.
+#
+# **Y la primera version se puso mal.** Se declaro justo antes del `PATCH`, con
+# un comentario que decia que iba «despues de `/pipeline` y de
+# `/proposals/templates`, asi que no tapa nada». Esas dos si estaban a salvo
+# —una va antes y la otra tiene dos segmentos—, pero quedaban **tres rutas
+# literales de un solo segmento declaradas mas abajo**: `/forecast`, `/stages` y
+# `/stage-configs`. Un `GET /{opp_id}` declarado antes se las traga, y se las
+# tragó: `test_rutas_tapadas.py` las nombro una a una, y con ellas cayeron siete
+# tests de la prevision de ingresos y de la configuracion de etapas.
+#
+# Es exactamente el defecto de 3.g —ocho rutas inalcanzables porque otra las
+# tapaba— cometido **mientras se escribia que no se repetia**. Queda aqui porque
+# la leccion no es «mira las rutas de al lado», es **mira todas las del router**:
+# el orden de declaracion es global al fichero, no local al bloque.
+#
+# Por eso ahora va al final y no «despues de las que me acordaba». Y el guardian
+# que lo caza es estructural y ya existia; lo que fallo fue fiarse de una lectura
+# en vez de ejecutarlo.
+@router.get("/{opp_id}", summary="Detalle de una oportunidad")
+def get_opportunity(
+    opp_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    """Detalle de una oportunidad. Ver la nota de arriba sobre el orden."""
+    opp = pipeline_service.oportunidad_propia(db, current_user, opp_id)
+    return APIResponse.ok(data=_opp_out(opp))

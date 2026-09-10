@@ -205,12 +205,16 @@ def _expand_ci_dependencies(db: Session, ci_ids: list[str]) -> list[str]:
     if not ci_ids:
         return []
     try:
+        # Auditoria 2026-08: ninguna de las tres columnas existe con ese
+        # nombre. Son `from_item_id`, `to_item_id` y `rel_type`. Reventaba con
+        # `AttributeError`, lo atrapaba el `except` de abajo, y la correlacion
+        # de alertas devolvia SIEMPRE cero CIs raiz.
         from app.models.cmdb import CMDBRelation
         rows = (
-            db.query(CMDBRelation.target_ci_id)
+            db.query(CMDBRelation.to_item_id)
             .filter(
-                CMDBRelation.source_ci_id.in_(ci_ids),
-                CMDBRelation.relation_type.in_(["depends_on", "runs_on"]),
+                CMDBRelation.from_item_id.in_(ci_ids),
+                CMDBRelation.rel_type.in_(["depends_on", "runs_on"]),
             )
             .all()
         )
@@ -423,6 +427,24 @@ def _semantic_score(tickets: list[Ticket]) -> float:
         return round(sum(sims) / len(sims), 3) if sims else 0.0
     except Exception:
         return 0.0
+
+
+def tickets_por_id(db, ticket_ids):
+    """Los tickets de una lista de ids, indexados por id.
+
+    Auditoria 2026-08 (hallazgo 22): estaba en el endpoint. La consulta no anade
+    filtro de organizacion y eso es correcto: los ids salen de los clusteres que
+    devuelve este mismo servicio, asi que el ambito llega por la procedencia de
+    los ids.
+    """
+    from app.models.service_desk import Ticket
+
+    if not ticket_ids:
+        return {}
+    return {
+        t.id: t for t in
+        db.query(Ticket).filter(Ticket.id.in_(list(ticket_ids))).all()
+    }
 
 
 def _enrich_cluster_score(cluster: AlertCluster, tickets_by_id: dict[str, Ticket]) -> AlertCluster:

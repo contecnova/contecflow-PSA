@@ -247,7 +247,6 @@ export const authApi = {
   forgotPassword: (payload: unknown)     => api.post('/auth/password/forgot', payload),
   resetPassword:  (payload: unknown)     => api.post('/auth/password/reset', payload),
   me:             ()            => api.get('/auth/me'),
-  syncLdap:       ()            => api.post('/auth/ldap/sync'),
   changePassword: (data: unknown)        => api.post('/auth/change-password', data),
 }
 
@@ -461,10 +460,14 @@ export const alertsApi = {
 }
 
 export const integrationsApi = {
-  exportImputations: (data: unknown) => api.post('/integrations/export/imputations', data, { responseType: 'blob' }),
-  exportProjects:    (data: unknown) => api.post('/integrations/export/projects', data, { responseType: 'blob' }),
+  // Auditoria 2026-08 (hallazgo 37): estas dos apuntaban a
+  // `POST /integrations/export/...`, rutas que no existen en ningun router, asi
+  // que los dos botones de la pantalla de exportaciones devolvian 404. El
+  // export de imputaciones si existia con otro verbo y otra ruta; el de
+  // proyectos hubo que anadirlo (`/analytics/exports/projects-csv`).
+  exportImputations: (params: unknown) => api.get('/analytics/exports/imputations-csv', { params, responseType: 'blob' }),
+  exportProjects:    (params: unknown) => api.get('/analytics/exports/projects-csv', { params, responseType: 'blob' }),
   jiraSync:          (projectId: any) => api.post(`/integrations/jira/sync/${projectId}`),
-  jiraStatus:        (projectId: any) => api.get(`/integrations/jira/status/${projectId}`),
 }
 
 export const clientsApi = {
@@ -482,14 +485,6 @@ export const clientsApi = {
 // ── Sprints ───────────────────────────────────────────────────────────────────
 export const sprintsApi = {
   list:    (projectId: any, params?: any) => api.get('/sprints', { params: { project_id: projectId, ...params } }),
-  get:     (id: any)                => api.get(`/sprints/${id}`),
-  create:  (data: unknown)              => api.post('/sprints', data),
-  update:  (id: any, data: unknown)          => api.patch(`/sprints/${id}`, data),
-  delete:  (id: any)                => api.delete(`/sprints/${id}`),
-  start:   (id: any)                => api.post(`/sprints/${id}/start`),
-  complete:(id: any)                => api.post(`/sprints/${id}/complete`),
-  burndown:(id: any)                => api.get(`/sprints/${id}/burndown`),
-  velocity:(projectId: any)         => api.get(`/sprints/velocity/${projectId}`),
 }
 
 // ── Epics ─────────────────────────────────────────────────────────────────────
@@ -518,7 +513,6 @@ export const contractsApi = {
   create:              (data: unknown)             => api.post('/contracts', data),
   update:              (id: any, data: unknown)         => api.patch(`/contracts/${id}`, data),
   delete:              (id: any)               => api.delete(`/contracts/${id}`),
-  workOrders:          (id: any)               => api.get(`/contracts/${id}/work-orders`),
   createWorkOrder:     (id: any, data: unknown)         => api.post(`/contracts/${id}/work-orders`, data),
   updateWorkOrderStatus:(id: any, woId: any, status: any)=> api.patch(`/contracts/${id}/work-orders/${woId}/status`, null, { params: { status } }),
 }
@@ -529,17 +523,13 @@ export const expensesApi = {
   my:        (params?: any)    => api.get('/expenses/my', { params }),
   pending:   ()          => api.get('/expenses/pending'),
   team:      (params?: any)    => api.get('/expenses/team', { params }),
-  get:       (id: any)        => api.get(`/expenses/${id}`),
   create:    (data: unknown)      => api.post('/expenses', data),
   update:    (id: any, data: unknown)  => api.patch(`/expenses/${id}`, data),
   updateMy:  (id: any, data: unknown)  => api.patch(`/expenses/my/${id}`, data),
-  approve:   (id: any)        => api.post(`/expenses/${id}/approve`),
-  reject:    (id: any, data: unknown)  => api.post(`/expenses/${id}/reject`, data),
   review:    (id: any, data: unknown)  => api.post(`/expenses/${id}/review`, data),
   submitMy:  (id: any)        => api.post(`/expenses/my/${id}/submit`),
   recall:    (id: any)        => api.post(`/expenses/my/${id}/recall`),
   reimburse: (id: any)        => api.post(`/expenses/${id}/reimburse`),
-  delete:    (id: any)        => api.delete(`/expenses/${id}`),
   deleteMy:  (id: any)        => api.delete(`/expenses/my/${id}`),
   ocr:       (fd: unknown)        => api.post('/expenses/ocr', fd),
 }
@@ -551,18 +541,17 @@ export const risksApi = {
   create:       (projectId: any, data: unknown)   => api.post(`/risks/${projectId}`, data),
   update:       (projectId: any, riskId: any, data: unknown) => api.patch(`/risks/${projectId}/${riskId}`, data),
   delete:       (projectId: any, riskId: any) => api.delete(`/risks/${projectId}/${riskId}`),
-  scores:       ()                  => api.get('/risks/scores'),
   portfolioAll: ()                  => api.get('/risks/all/portfolio'),
 }
 
 // ── OKRs ─────────────────────────────────────────────────────────────────────
 export const okrsApi = {
   list:     (params?: any)      => api.get('/okrs', { params }),
-  get:      (id: any)          => api.get(`/okrs/${id}`),
   create:   (data: unknown)        => api.post('/okrs', data),
   update:   (id: any, data: unknown)    => api.patch(`/okrs/${id}`, data),
   delete:   (id: any)          => api.delete(`/okrs/${id}`),
-  updateKR: (id: any, krid: any, d: unknown) => api.patch(`/okrs/${id}/key-results/${krid}`, d),
+  // El key result se identifica solo: el objetivo no va en la ruta. Auditoria #37.
+  updateKR: (krid: any, d: unknown) => api.patch(`/okrs/key-results/${krid}`, d),
   createKR: (data: unknown)        => api.post('/okrs/key-results', data),
   deleteKR: (id: any)          => api.delete(`/okrs/key-results/${id}`),
   checkin:  (krId: any, data: unknown)  => api.post(`/okrs/key-results/${krId}/checkin`, data),
@@ -585,20 +574,15 @@ export const pipelineApi = {
 
 // ── Deliverables ──────────────────────────────────────────────────────────────
 export const deliverablesApi = {
-  list:            (projectId: any) => api.get('/deliverables', { params: { project_id: projectId } }),
   listByProject:   (projectId: any) => api.get(`/deliverables/${projectId}`),
   overviewAll:     ()          => api.get('/deliverables/all/overview'),
   get:             (id: any)        => api.get(`/deliverables/${id}`),
-  create:          (data: unknown)      => api.post('/deliverables', data),
   createForProject:(projectId: any, data: unknown) => api.post(`/deliverables/${projectId}`, data),
-  update:          (id: any, data: unknown)  => api.patch(`/deliverables/${id}`, data),
   updateInProject: (projectId: any, id: any, data: unknown) => api.patch(`/deliverables/${projectId}/${id}`, data),
   updateStatus:    (projectId: any, id: any, status: any) => api.patch(`/deliverables/${projectId}/${id}`, { status }),
-  delete:          (id: any)        => api.delete(`/deliverables/${id}`),
   deleteFromProject:(projectId: any, id: any) => api.delete(`/deliverables/${projectId}/${id}`),
   accept:          (projectId: any, id: any) => api.post(`/deliverables/${projectId}/${id}/accept`),
   reject:          (projectId: any, id: any, reason: any) => api.post(`/deliverables/${projectId}/${id}/reject`, {}, { params: { reason } }),
-  overview:        ()          => api.get('/deliverables/overview'),
 }
 
 // ── Subcontractors ────────────────────────────────────────────────────────────
@@ -608,24 +592,21 @@ export const subcontractorsApi = {
   // mismo fichero que ya apuntaba bien — dos clientes para lo mismo, uno
   // roto y otro correcto.
   list:        (params?: any)    => api.get('/enterprise/subcontractors', { params }),
-  get:         (id: any)        => api.get(`/subcontractors/${id}`),
-  create:      (data: unknown)      => api.post('/subcontractors', data),
-  update:      (id: any, data: unknown)  => api.patch(`/subcontractors/${id}`, data),
-  delete:      (id: any)        => api.delete(`/subcontractors/${id}`),
-  assignments: (id: any)        => api.get(`/subcontractors/${id}/assignments`),
-  timelogs:    (id: any, params?: any)=> api.get(`/subcontractors/${id}/timelogs`, { params }),
-  invoices:    (id: any)        => api.get(`/subcontractors/${id}/invoices`),
+  create:      (data: unknown)      => api.post('/enterprise/subcontractors', data),
+  update:      (id: any, data: unknown)  => api.patch(`/enterprise/subcontractors/${id}`, data),
+  delete:      (id: any)        => api.delete(`/enterprise/subcontractors/${id}`),
+  assignments: (id: any)        => api.get(`/enterprise/subcontractors/${id}/assignments`),
+  timelogs:    (id: any, params?: any)=> api.get(`/enterprise/subcontractors/${id}/timelogs`, { params }),
+  invoices:    (id: any)        => api.get(`/enterprise/subcontractors/${id}/invoices`),
 }
 
 // ── Training ──────────────────────────────────────────────────────────────────
 export const trainingApi = {
   courses:     (params?: any)    => api.get('/training/courses', { params }),
-  course:      (id: any)        => api.get(`/training/courses/${id}`),
   createCourse:(data: unknown)      => api.post('/training/courses', data),
   updateCourse:(id: any, data: unknown)  => api.patch(`/training/courses/${id}`, data),
   deleteCourse:(id: any)        => api.delete(`/training/courses/${id}`),
   certs:       (params?: any)    => api.get('/training/certifications', { params }),
-  cert:        (id: any)        => api.get(`/training/certifications/${id}`),
   createCert:  (data: unknown)      => api.post('/training/certifications', data),
   updateCert:  (id: any, data: unknown)  => api.patch(`/training/certifications/${id}`, data),
   deleteCert:  (id: any)        => api.delete(`/training/certifications/${id}`),
@@ -640,19 +621,11 @@ export const absencesApi = {
   pending:        ()          => api.get('/absences/pending'),
   team:           (params?: any)    => api.get('/absences/team', { params }),
   calendar:       (params?: any)    => api.get('/absences/calendar', { params }),
-  get:            (id: any)        => api.get(`/absences/${id}`),
-  create:         (data: unknown)      => api.post('/absences', data),
   createMy:       (data: unknown)      => api.post('/absences/my', data),
-  update:         (id: any, data: unknown)  => api.patch(`/absences/${id}`, data),
   updateMy:       (id: any, data: unknown)  => api.patch(`/absences/my/${id}`, data),
-  approve:        (id: any)        => api.post(`/absences/${id}/approve`),
-  reject:         (id: any, data: unknown)  => api.post(`/absences/${id}/reject`, data),
   review:         (id: any, data: unknown)  => api.post(`/absences/${id}/review`, data),
-  delete:         (id: any)        => api.delete(`/absences/${id}`),
   deleteMy:       (id: any)        => api.delete(`/absences/my/${id}`),
-  balance:        (params?: any)    => api.get('/absences/balance', { params }),
   vacationBalance:()          => api.get('/absences/my/vacation-balance'),
-  policies:       ()          => api.get('/absences/policies'),
 }
 
 // ── ALM — Assets, Licenses, Vendors ──────────────────────────────────────────
@@ -662,7 +635,6 @@ export const assetsApi = {
   create:  (data: unknown)     => api.post('/alm/assets', data),
   update:  (id: any, data: unknown) => api.patch(`/alm/assets/${id}`, data),
   delete:  (id: any)       => api.delete(`/alm/assets/${id}`),
-  cmdb:    (id: any)       => api.get(`/alm/assets/${id}/cmdb`),
 }
 
 export const licensesApi = {
@@ -672,7 +644,6 @@ export const licensesApi = {
   update:  (id: any, data: unknown) => api.patch(`/alm/licenses/${id}`, data),
   delete:  (id: any)       => api.delete(`/alm/licenses/${id}`),
   assign:  (id: any, data: unknown) => api.post(`/alm/licenses/${id}/assign`, data),
-  revoke:  (id: any, uid: any)  => api.delete(`/alm/licenses/${id}/users/${uid}`),
 }
 
 export const vendorsApi = {
@@ -690,7 +661,6 @@ export const ticketsApi = {
   get:     (id: any)       => api.get(`/sd/tickets/${id}`),
   create:  (data: unknown)     => api.post('/sd/tickets', data),
   update:  (id: any, data: unknown) => api.patch(`/sd/tickets/${id}`, data),
-  close:   (id: any, data: unknown) => api.post(`/sd/tickets/${id}/close`, data),
   comment: (id: any, data: unknown) => api.post(`/sd/tickets/${id}/comments`, data),
   aiSuggest: (id: any, data: unknown) => api.post(`/sd/tickets/${id}/ai-suggest`, data),
   split:   (id: any, data: unknown) => api.post(`/sd/tickets/${id}/split`, data),
@@ -711,7 +681,6 @@ export const ticketsApi = {
 
 export const problemsApi = {
   list:   (params?: any)   => api.get('/sd/problems', { params }),
-  get:    (id: any)       => api.get(`/sd/problems/${id}`),
   create: (data: unknown)     => api.post('/sd/problems', data),
   update: (id: any, data: unknown) => api.patch(`/sd/problems/${id}`, data),
   delete:             (id: any)       => api.delete(`/sd/problems/${id}`),
@@ -758,7 +727,6 @@ export const revenueApi = {
 // ── Invoices ──────────────────────────────────────────────────────────────────
 export const invoicesApi = {
   list:          (params?: any)          => api.get('/invoices', { params }),
-  get:           (id: any)              => api.get(`/invoices/${id}`),
   summary:       ()                => api.get('/invoices/summary'),
   create:        (data: unknown)            => api.post('/invoices', data),
   updateStatus:  (id: any, status: any)      => api.patch(`/billing-reports/invoices/${id}/status`, { status }),
@@ -850,7 +818,6 @@ export const revenueRecognitionApi = {
 // ── CMDB ──────────────────────────────────────────────────────────────────────
 export const cmdbApi = {
   items:          (params?: any)   => api.get('/cmdb/items', { params }),
-  getItem:        (id: any)       => api.get(`/cmdb/items/${id}`),
   createItem:     (data: unknown)     => api.post('/cmdb/items', data),
   updateItem:     (id: any, data: unknown) => api.patch(`/cmdb/items/${id}`, data),
   deleteItem:     (id: any)       => api.delete(`/cmdb/items/${id}`),
@@ -863,7 +830,6 @@ export const cmdbApi = {
   topologyItems:  ()         => api.get('/sd/cmdb'),
   // SD CMDB
   sdList:         (params?: any)   => api.get('/sd/cmdb', { params }),
-  sdGet:          (id: any)       => api.get(`/sd/cmdb/${id}`),
   sdCreate:       (data: unknown)     => api.post('/sd/cmdb', data),
   sdUpdate:       (id: any, data: unknown) => api.patch(`/sd/cmdb/${id}`, data),
   sdRelations:    (id: any)       => api.get(`/sd/cmdb/${id}/relations`),
@@ -1111,7 +1077,6 @@ export const biForecastingApi = {
 export const biAnomalyApi = {
   getInfo:        ()                   => api.get('/bi/anomaly/info'),
   detect:         (data: unknown)               => api.post('/bi/anomaly/detect', data),
-  predictChurn:   (data: unknown)               => api.post('/bi/anomaly/churn', data),
   churnPredict:   (data: unknown)               => api.post('/bi/churn/predict', data),
 }
 
@@ -1569,8 +1534,12 @@ export const templatesApi = {
 }
 
 // ── Dependencies ──────────────────────────────────────────────────────────────
+// El router real es /task-dependencies. Con el prefijo equivocado la consulta
+// daba 404 y el Gantt de proyecto se dibujaba SIN dependencias, sin error
+// visible: la pagina trata la respuesta fallida como lista vacia. Auditoria
+// 2026-08 (#37).
 export const dependenciesApi = {
-  get: (projectId: any) => api.get(`/dependencies/${projectId}`),
+  get: (projectId: any) => api.get(`/task-dependencies/${projectId}`),
 }
 
 // ── Jira Integration ─────────────────────────────────────────────────────────
@@ -1892,11 +1861,13 @@ export const onboardingApi = {
 }
 
 // ── SLA Schedules ─────────────────────────────────────────────────────────────
+// El router real vive bajo /bookings. `update` y `delete` de un calendario no
+// existen en el backend —solo alta, listado y las excepciones de festivos— y
+// nadie los llamaba, asi que se quitan en vez de dejarlos apuntando a nada.
 export const slaSchedulesApi = {
-  list:   (params?: any) => api.get('/sla-schedules', { params }),
-  create: (data: unknown)   => api.post('/sla-schedules', data),
-  update: (id: any, data: unknown) => api.patch(`/sla-schedules/${id}`, data),
-  delete: (id: any)     => api.delete(`/sla-schedules/${id}`),
+  list:   (params?: any) => api.get('/bookings/sla-schedules', { params }),
+  create: (data: unknown)   => api.post('/bookings/sla-schedules', data),
+  calculateDeadline: (data: unknown) => api.post('/bookings/sla-schedules/calculate-deadline', data),
 }
 
 // ── Auto-Resolution ───────────────────────────────────────────────────────────

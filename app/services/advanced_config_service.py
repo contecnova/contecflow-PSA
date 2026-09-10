@@ -8,6 +8,7 @@ import json
 import logging
 from datetime import date, datetime, timedelta
 from typing import Optional
+from uuid import uuid4
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
@@ -870,31 +871,142 @@ def delete_template(template_id: str, db: Session) -> dict:
 # TEMPLATE DOCUMENTS + ROLES (v23.9.0)
 # ──────────────────────────────────────────────────────────────────────────────
 
-def add_template_document(template_id: str, payload, db: Session) -> dict:
-    if not db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first():
-        raise HTTPException(404, "Template not found")
-    doc = TemplateDocument(template_id=template_id, **payload.model_dump())
-    db.add(doc)
-    db.commit()
-    db.refresh(doc)
-    return {"id": doc.id, "name": doc.name, "created": True}
+#: Los valores por defecto de `template_risks`, tal como los declara la tabla.
+#: Se usan cuando el riesgo de origen no trae probabilidad o impacto.
+PROBABILIDAD_POR_DEFECTO = "medium"
+IMPACTO_POR_DEFECTO = "moderate"
 
 
-def add_template_role(template_id: str, payload, db: Session) -> dict:
-    if not db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first():
-        raise HTTPException(404, "Template not found")
-    role = TemplateRole(template_id=template_id, **payload.model_dump())
-    db.add(role)
-    db.commit()
-    db.refresh(role)
-    return {"id": role.id, "role_name": role.role_name, "created": True}
+def _valor_de_enum(valor, por_defecto: str) -> str:
+    """El texto que hay que guardar para un enum de SQLAlchemy.
+
+    Auditoria 2026-08 (hallazgo 22). `export_project_as_template` hacia
+    `str(getattr(r, "probability", "medium"))`, y `Risk.probability` es un
+    `Enum(RiskProbability)` **NOT NULL**, asi que `str()` no da `"medium"`: da
+    `"RiskProbability.medium"`. Medido sobre los diez valores de los dos enums:
+
+        str(RiskProbability.very_low)  -> 'RiskProbability.very_low'   24 chars
+        str(RiskProbability.medium)    -> 'RiskProbability.medium'     22 chars
+        str(RiskProbability.very_high) -> 'RiskProbability.very_high'  25 chars
+        str(RiskImpact.negligible)     -> 'RiskImpact.negligible'      21 chars
+
+    Y `template_risks.probability` es **VARCHAR(20)**. O sea dos defectos, no
+    uno:
+
+    1. **Siempre** se guardaba un texto que ningun lector puede volver a
+       comparar contra el enum —`"RiskProbability.medium"` no es `"medium"`—,
+       asi que la plantilla exportada salia con la probabilidad ilegible;
+    2. y en **cuatro de los diez valores**, entre ellos `medium`, que es el
+       valor por defecto y el mas frecuente, el texto **no cabe en la
+       columna**: en PostgreSQL eso es `value too long for type character
+       varying(20)` y la exportacion entera revienta con un 500. En SQLite se
+       guarda truncado y en silencio, que es por lo que la suite no lo veia.
+
+    El `getattr(..., por_defecto)` del original tampoco hacia nada: la columna
+    es NOT NULL, asi que el atributo esta siempre. El respaldo que si hace
+    falta es para `None`, que es lo que se comprueba aqui.
+    """
+    if valor is None:
+        return por_defecto
+    return getattr(valor, "value", None) or str(valor)
 
 
-def get_full_template(template_id: str, db: Session) -> dict:
+def plantilla_propia(db: Session, current_user, template_id: str) -> ProjectTemplate:
+    """La plantilla, si es de la organizacion del sujeto. 404 si no.
 
-    tmpl = db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first()
+    Auditoria 2026-08 (hallazgo 22): `endpoints/templates.py` tenia su propio
+    `_get_template_or_404` que buscaba por id **sin ningun filtro**, y de el
+    colgaban las dos altas. Anadir un documento o un rol a la plantilla de otro
+    cliente era una escritura cruzada.
+    """
+    from app.core.tenancy import assert_same_org
+
+    tmpl = (
+        db.query(ProjectTemplate)
+        .filter(ProjectTemplate.id == template_id)
+        .first()
+    )
     if not tmpl:
         raise HTTPException(404, "Template not found")
+    assert_same_org(
+        current_user, getattr(tmpl, "organization_id", None),
+        detail="Template not found")
+    return tmpl
+
+
+def agregar_documento_a_plantilla(
+    db: Session, current_user, template_id: str, datos: dict
+) -> TemplateDocument:
+    """Un documento nuevo en una plantilla propia. No confirma.
+
+    Sustituye a `add_template_document`, que estaba aqui, **no la llamaba
+    nadie** —comprobado en `app/` y en `tests/`— y tampoco filtraba por
+    organizacion: el endpoint habia reimplementado lo mismo a mano en vez de
+    usarla. Dos implementaciones muertas de la misma cosa es exactamente como
+    aparecen las dos puertas de §3.septies, asi que se deja una.
+    """
+    plantilla_propia(db, current_user, template_id)
+    doc = TemplateDocument(
+        id=str(uuid4()),
+        template_id=template_id,
+        name=datos.get("name", "Document"),
+        document_type=datos.get("document_type", "spec"),
+        description=datos.get("description"),
+        url=datos.get("url"),
+        is_required=bool(datos.get("is_required", False)),
+        due_week_offset=datos.get("due_week_offset"),
+        organization_id=getattr(current_user, "organization_id", None),
+    )
+    db.add(doc)
+    return doc
+
+
+def agregar_rol_a_plantilla(
+    db: Session, current_user, template_id: str, datos: dict
+) -> TemplateRole:
+    """Un rol nuevo en una plantilla propia. No confirma.
+
+    Sustituye a `add_template_role`, en las mismas condiciones que el de
+    documentos.
+    """
+    plantilla_propia(db, current_user, template_id)
+    rol = TemplateRole(
+        id=str(uuid4()),
+        template_id=template_id,
+        role_name=datos.get("role_name") or datos.get("name", "Role"),
+        skill_required=datos.get("skill_required"),
+        min_seniority=datos.get("min_seniority"),
+        estimated_hours=datos.get("estimated_hours"),
+        is_mandatory=bool(datos.get("is_mandatory", True)),
+        notes=datos.get("notes"),
+        organization_id=getattr(current_user, "organization_id", None),
+    )
+    db.add(rol)
+    return rol
+
+
+
+
+def get_full_template(template_id: str, db: Session, current_user=None) -> dict:
+    """La plantilla entera con sus fases, tareas, riesgos y entregables.
+
+    Auditoria 2026-08: esta funcion **no recibia al sujeto**, asi que no podia
+    comprobar nada aunque quisiera — la misma forma que el endpoint de coste
+    activo, que si lo recibia y lo descartaba. Ahora lo recibe, y el
+    parametro es opcional por una razon acotada: los llamadores internos que no
+    tienen sujeto (scripts, siembra) siguen funcionando. Todo endpoint tiene
+    sujeto y **debe** pasarlo.
+
+    El resto de las consultas van por `template_id` de una plantilla ya
+    comprobada, asi que el ambito llega por la clave padre.
+    """
+    if current_user is not None:
+        tmpl = plantilla_propia(db, current_user, template_id)
+    else:
+        tmpl = db.query(ProjectTemplate).filter(
+            ProjectTemplate.id == template_id).first()
+        if not tmpl:
+            raise HTTPException(404, "Template not found")
 
     phases = db.query(TemplatePhase).filter(
         TemplatePhase.template_id == template_id
@@ -946,41 +1058,74 @@ def get_full_template(template_id: str, db: Session) -> dict:
 
 def export_project_as_template(
     project_id: str, name, description, user_id: str, db: Session,
+    current_user=None,
 ) -> dict:
+    """Convierte un proyecto en plantilla: sus tareas y sus riesgos.
+
+    Auditoria 2026-08 (hallazgo 22). Aqui habia tres cosas:
+
+    1. **Sin comprobar de quien es el proyecto.** Recibia `user_id`, una cadena,
+       que no sirve para verificar nada. Cualquiera podia exportar el proyecto de
+       otro cliente y quedarse con los titulos de sus tareas y sus riesgos.
+    2. **Cinco `hasattr` muertos.** `Project.project_type`, `Task.description`,
+       `Task.estimated_hours`, `Risk.category` y `Risk.mitigation_plan` existen
+       todos, comprobado. Lo que hacian no era proteger: si alguna columna se
+       renombrara, escribirian NULL en silencio en vez de fallar. Fuera.
+    3. **El `str()` sobre los enums**, que es el defecto de verdad. Ver el
+       docstring de `_valor_de_enum`.
+
+    `current_user` es opcional por lo mismo que en `get_full_template`, y todo
+    endpoint debe pasarlo.
+    """
+    from app.core.tenancy import assert_same_org
 
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:
         raise HTTPException(404, "Project not found")
+    if current_user is not None:
+        assert_same_org(
+            current_user, getattr(proj, "organization_id", None),
+            detail="Project not found")
+
+    org_id = (
+        getattr(current_user, "organization_id", None)
+        if current_user is not None
+        else getattr(proj, "organization_id", None)
+    )
 
     tmpl_name = name or f"Template from {proj.name}"
     tmpl = ProjectTemplate(
         name=tmpl_name,
         description=description or proj.description,
-        project_type=proj.project_type if hasattr(proj, "project_type") else None,
+        project_type=proj.project_type,
         created_by=user_id,
+        organization_id=org_id,
     )
     db.add(tmpl); db.flush()
 
-    phase = TemplatePhase(template_id=tmpl.id, name="Fase Principal", order=0)
+    phase = TemplatePhase(template_id=tmpl.id, name="Fase Principal", order=0,
+                          organization_id=org_id)
     db.add(phase); db.flush()
 
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     for i, t in enumerate(tasks):
         db.add(TemplateTask(
             phase_id=phase.id, title=t.title,
-            description=t.description if hasattr(t, "description") else None,
-            estimated_hours=t.estimated_hours if hasattr(t, "estimated_hours") else None,
+            description=t.description,
+            estimated_hours=t.estimated_hours,
             order=i,
+            organization_id=org_id,
         ))
 
     risks = db.query(RiskModel).filter(RiskModel.project_id == project_id).all()
     for r in risks:
         db.add(TemplateRisk(
             template_id=tmpl.id, title=r.title,
-            category=r.category if hasattr(r, "category") else None,
-            probability=str(getattr(r, "probability", "medium")),
-            impact=str(getattr(r, "impact", "moderate")),
-            mitigation_plan=r.mitigation_plan if hasattr(r, "mitigation_plan") else None,
+            category=r.category,
+            probability=_valor_de_enum(r.probability, PROBABILIDAD_POR_DEFECTO),
+            impact=_valor_de_enum(r.impact, IMPACTO_POR_DEFECTO),
+            mitigation_plan=r.mitigation_plan,
+            organization_id=org_id,
         ))
 
     db.commit(); db.refresh(tmpl)

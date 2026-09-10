@@ -407,7 +407,16 @@ def export_imputations_csv(
         writer.writerow([
             imp.date,
             imp.project.name if imp.project else "",
-            imp.task.name if imp.task else "",
+            # Auditoria 2026-08: aqui habia `imp.task.name`, y `Task` no tiene
+            # esa columna — se llama `title`. Reventaba con `AttributeError`,
+            # asi que **el export de imputaciones a CSV fallaba** en cuanto una
+            # imputacion tenia tarea asociada (que es el caso normal).
+            #
+            # Este no lo encuentra `audit_instance_attrs.py`: `imp` viene de una
+            # llamada a un servicio, y ahi el detector no infiere el tipo. Es
+            # exactamente el limite que su cabecera declara, y salio al mirar
+            # este endpoint por otra razon.
+            imp.task.title if imp.task else "",
             imp.hours,
             "Yes" if imp.is_billable else "No",
             "Yes" if imp.is_approved else "No",
@@ -421,6 +430,70 @@ def export_imputations_csv(
         iter([output.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=imputations.csv"},
+    )
+
+
+@router.get("/exports/projects-csv", summary="Export projects to CSV")
+def export_projects_csv(
+    include_costs: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    """Auditoria 2026-08 (hallazgo 37): este export **no existia**.
+
+    `ExportsPage` tiene un boton «descargar proyectos» que llamaba a
+    `POST /integrations/export/projects`, una ruta que no esta en ningun router.
+    El export de *recursos* que si existe no sirve: exporta instantaneas de
+    utilizacion por persona y semana, no proyectos.
+
+    El ambito sale de `scope_projects_query`, el mismo que usa el listado de
+    proyectos, asi que aqui no se inventa una consulta: un gestor exporta lo que
+    ya puede ver en pantalla. La consulta vive en
+    `project_service.proyectos_para_exportar` y no aqui, porque la primera
+    version la escribio en linea y **el guardian del hallazgo 22 la cazó**.
+
+    `include_costs` sale del formulario de esa pantalla. Los importes son datos
+    sensibles, asi que **es opcional y por defecto no van**.
+    """
+    from app.services.project_service import proyectos_para_exportar
+
+    proyectos = proyectos_para_exportar(db, current_user)
+
+    cabecera = [
+        "Code", "Name", "Client", "Type", "Status",
+        "Start", "Planned End", "PM",
+    ]
+    if include_costs:
+        cabecera += ["Budget", "Contract Amount", "Currency"]
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(cabecera)
+
+    for p in proyectos:
+        fila = [
+            p.code,
+            p.name,
+            p.client_name or "",
+            str(getattr(p, "project_type", "") or ""),
+            str(getattr(p, "status", "") or ""),
+            p.start_date or "",
+            p.end_date_planned or "",
+            p.project_manager.full_name if p.project_manager else "",
+        ]
+        if include_costs:
+            fila += [
+                p.budget_amount if p.budget_amount is not None else "",
+                p.contract_amount if p.contract_amount is not None else "",
+                p.currency or "",
+            ]
+        writer.writerow(fila)
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=projects.csv"},
     )
 
 

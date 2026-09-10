@@ -213,6 +213,18 @@ class Deliverable(Base):
 
     status = Column(Enum(DeliverableStatus), default=DeliverableStatus.planned, nullable=False, index=True)
 
+    # Porcentaje de facturacion asociado a la aceptacion de este entregable.
+    #
+    # Auditoria 2026-08 (hallazgo 22): la plantilla de proyecto lo declara
+    # —`TemplateDeliverable.billing_pct`, FLOAT— y `advanced_config_service`
+    # lo pasaba al construir el entregable, pero la columna **no existia**.
+    # SQLAlchemy responde `TypeError` a una palabra clave que no es columna,
+    # asi que **aplicar una plantilla de proyecto fallaba** en cuanto la
+    # plantilla traia un entregable. Se anade la columna en vez de quitar el
+    # dato: la plantilla lo declara porque el dato existe en el dominio, y
+    # tirarlo dejaria la plantilla a medias.
+    billing_pct = Column(Float, nullable=True)
+
     # Dates
     planned_date = Column(Date, nullable=True)
     delivered_date = Column(Date, nullable=True)

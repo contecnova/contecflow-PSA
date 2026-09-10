@@ -14,6 +14,27 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 
+def organizacion_existe(db, org_id) -> bool:
+    """¿Existe esa organizacion?
+
+    Auditoria 2026-08 (hallazgo 22): la consulta estaba en
+    `endpoints/predictive_observability.py`, y su razon de ser esta escrita
+    alli: **evitar la enumeracion de identificadores**. Un endpoint que acepta
+    un `org_id` del cliente y responde distinto segun exista o no permite
+    descubrir que organizaciones hay; devolver 404 en los dos casos es lo que
+    lo cierra.
+
+    Vive aqui, junto a `assert_org_id_is_own`, porque es la misma familia: lo
+    que se puede y no se puede saber sobre una organizacion ajena.
+    """
+    from app.models.mfa import Organization
+
+    if not org_id:
+        return False
+    return db.query(Organization.id).filter(
+        Organization.id == org_id).first() is not None
+
+
 def org_scoped_or_404(
     db: Session,
     model,

@@ -44,6 +44,42 @@ Así que el trabajo se entrega **medido y listado**, para hacerlo pantalla por
 pantalla con la interfaz delante, y este test impide que la cifra **crezca**: una
 llamada nueva a una ruta inexistente lo pone en rojo con fichero y línea.
 
+## La segunda tanda (2026-09): de 62 a 11
+
+Se cerró el resto del código de cliente muerto y los remapeos inequívocos, y la
+cifra baja de **62 a 11**.
+
+**La causa raíz confirmada: clientes duplicados.** `projectSprintsApi` (12
+métodos, todos correctos, lo usa `SprintsPage`) frente a `sprintsApi` (8 de 9
+rotos, sin un solo consumidor). `deliverablesApi.listByProject` frente a `list`.
+`absencesApi.review`/`updateMy`/`deleteMy` frente a `approve`/`reject`/`update`/
+`delete`. Y `authApi.syncLdap` estaba **dos veces**, en `_core.ts` y en `auth.ts`,
+las dos sin usar. Los seis módulos de hooks que consumían las versiones rotas
+—`useSprints`, `useExpenses`, `useOKRs`, `useDeliverables`, `useAbsences`,
+`useTickets`— no los importa ningún componente: sólo los reexporta el barrel.
+Comprobado uno a uno.
+
+Se fueron 53 líneas de método y 24 funciones de hook, `useDeliverables.ts`
+completo, y se reescribieron 11 líneas. `tsc --noEmit` y `eslint` en verde.
+
+**Un arreglo con efecto visible:** `dependenciesApi.get` pedía
+`/dependencies/{id}` cuando el router es `/task-dependencies/{project_id}`.
+Alimenta las dependencias del Gantt de proyecto, y la página trata la respuesta
+fallida como lista vacía, así que el Gantt se dibujaba **sin dependencias y sin
+error**.
+
+**Las 11 que quedan son endpoints que no existen**, y con un patrón: el cliente
+ofrece «traer uno» o «borrar» donde el backend sólo implementó el listado o el
+`PATCH`. Dos son silenciosas como la del Gantt: el botón de borrar de un problema
+y el de un cambio no borran nada. Implementarlas —o quitar el botón— es decisión
+de producto, y por eso siguen aquí en vez de arregladas a ciegas.
+
+> **Aviso, y viene de equivocarme yo.** Al medir esto por mi cuenta conté
+> **declaraciones de método en `_core.ts`**, no puntos de llamada, y me dejé
+> fuera `auth.ts`. Este test cuenta pares (verbo, ruta) de **todo** el frontend
+> y empareja con el router real: es la cifra que vale. Las dos medidas coinciden
+> ahora en 11, pero no coincidían al empezar.
+
 ## El detector usa el emparejador de Starlette, no una regex mía
 
 `route.matches(scope)` es la autoridad sobre si una petición encuentra ruta. Mis
@@ -61,7 +97,25 @@ import pytest
 #: para que el test pase**: si sube, hay una pantalla nueva que no puede
 #: funcionar. Bajarlo es el objetivo, y cada bajada va con su pantalla
 #: comprobada en la interfaz.
-DESAJUSTES_CONOCIDOS = 62
+#:
+#: 2026-09: baja de 62 a 11, y de 11 a **0**. Los once que quedaban eran
+#: endpoints que no existían, y se cerraron uno a uno:
+#:
+#:   · cuatro `GET` de detalle —contrato, riesgo, oportunidad— cuyo CRUD estaba
+#:     completo salvo la lectura de uno;
+#:   · dos manejadores de certificaciones que estaban **escritos y completos**
+#:     y sin decorador de ruta;
+#:   · tres borrados que no hacían nada (problema, cambio, integración OAuth),
+#:     resueltos como cierre/cancelación/desactivación y no como borrado de
+#:     fila, porque las tres entidades son registros con historial;
+#:   · el listado de tickets de un Known Error, cuyo modelo ya existía;
+#:   · y los dos exports de la pantalla de exportaciones, que apuntaban a
+#:     rutas inexistentes: uno existía con otro verbo y otra ruta, el otro
+#:     hubo que añadirlo.
+#:
+#: **Cero es ahora el suelo.** Si sube, hay una pantalla nueva que no puede
+#: funcionar.
+DESAJUSTES_CONOCIDOS = 0
 
 _VERBOS = {"get": "GET", "post": "POST", "put": "PUT", "patch": "PATCH",
            "delete": "DELETE"}

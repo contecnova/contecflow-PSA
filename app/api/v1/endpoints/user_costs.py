@@ -22,7 +22,7 @@ All endpoints require admin or hr role — this is confidential information.
 from datetime import date as Date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -30,7 +30,6 @@ from app.core.abac_enforce import enforce_abac
 from app.core.deps import require_admin_or_hr
 from app.db.session import get_db
 from app.models.user import User
-from app.models.user_cost import CountryEmployerCost
 from app.core.responses import APIListResponse, APIResponse
 import app.services.cost_service as svc
 
@@ -103,32 +102,7 @@ def create_country(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_hr),
 ):
-    org_id = getattr(current_user, "organization_id", None)
-    code = payload.country_code.upper()
-    existing = (db.query(CountryEmployerCost)
-                  .filter(CountryEmployerCost.country_code == code,
-                          CountryEmployerCost.organization_id == org_id)
-                  .first())
-    if existing:
-        for k, v in payload.model_dump().items():
-            if k == "country_code":
-                continue
-            setattr(existing, k, v)
-        db.commit()
-        db.refresh(existing)
-        return APIResponse.ok(data=svc.serialize_country(existing))
-    row = CountryEmployerCost(
-        organization_id=org_id,
-        country_code=code,
-        country_name=payload.country_name,
-        currency=payload.currency,
-        employer_cost_pct=payload.employer_cost_pct,
-        productive_hours_year=payload.productive_hours_year,
-        notes=payload.notes,
-    )
-    db.add(row)
-    db.commit()
-    db.refresh(row)
+    row = svc.guardar_preset_de_pais(db, current_user, payload.model_dump())
     return APIResponse.ok(data=svc.serialize_country(row))
 
 
@@ -149,12 +123,7 @@ def update_country(
     current_user: User = Depends(require_admin_or_hr),
 ):
     enforce_abac(db, current_user, "country_preset", preset_id, action="update")
-    row = db.query(CountryEmployerCost).filter(CountryEmployerCost.id == preset_id).first()
-    if not row:
-        raise HTTPException(404, "Preset not found")
-    org_id = getattr(current_user, "organization_id", None)
-    if row.organization_id is not None and row.organization_id != org_id:
-        raise HTTPException(403, "Cannot edit another org's preset")
+    row = svc.preset_propio_o_global(db, current_user, preset_id)
     for k, v in payload.model_dump(exclude_none=True).items():
         setattr(row, k, v)
     db.commit()
@@ -169,16 +138,7 @@ def delete_country(
     current_user: User = Depends(require_admin_or_hr),
 ):
     enforce_abac(db, current_user, "country_preset", preset_id, action="delete")
-    row = db.query(CountryEmployerCost).filter(CountryEmployerCost.id == preset_id).first()
-    if not row:
-        raise HTTPException(404, "Preset not found")
-    if row.organization_id is None:
-        raise HTTPException(400, "Global presets cannot be deleted; override per-org instead.")
-    org_id = getattr(current_user, "organization_id", None)
-    if row.organization_id != org_id:
-        raise HTTPException(403, "Cannot delete another org's preset")
-    db.delete(row)
-    db.commit()
+    svc.borrar_preset_de_pais(db, current_user, preset_id)
     return APIResponse.ok(data={"ok": True})
 
 
@@ -201,9 +161,7 @@ def create_user_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_hr),
 ):
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(404, "User not found")
+    svc.usuario_propio(db, current_user, user_id)
     org_id = getattr(current_user, "organization_id", None)
     profile = svc.create_profile(
         db,
@@ -227,11 +185,14 @@ def get_active(
     user_id: str,
     on: Optional[Date] = Query(None, description="Resolve as of this date (default: today)"),
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_hr),
+    # Antes esta dependencia se descartaba con `_`, y por eso nunca se escribio
+    # la comprobacion de organizacion: el sujeto estaba ahi y se tiraba.
+    current_user: User = Depends(require_admin_or_hr),
 ):
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(404, "User not found")
+    # Este endpoint devuelve el perfil de coste y el `legacy_hourly_rate`: son
+    # datos salariales, asi que la persona tiene que ser de la organizacion de
+    # quien pregunta y no basta con que exista.
+    user = svc.usuario_propio(db, current_user, user_id)
     profile = svc.get_active_profile(db, user_id, on)
     rate = svc.cost_per_hour(db, user, on)
     return APIResponse.ok(data={
@@ -267,9 +228,8 @@ def update_profile(
     current_user: User = Depends(require_admin_or_hr),
 ):
     enforce_abac(db, current_user, "user_cost_profile", profile_id, action="update")
+    svc.perfil_propio(db, current_user, profile_id)
     p = svc.update_profile(db, profile_id, **payload.model_dump(exclude_none=True))
-    if not p:
-        raise HTTPException(404, "Profile not found")
     return APIResponse.ok(data=svc.serialize_profile(p))
 
 
@@ -280,8 +240,8 @@ def delete_profile(
     current_user: User = Depends(require_admin_or_hr),
 ):
     enforce_abac(db, current_user, "user_cost_profile", profile_id, action="delete")
-    if not svc.delete_profile(db, profile_id):
-        raise HTTPException(404, "Profile not found")
+    svc.perfil_propio(db, current_user, profile_id)
+    svc.delete_profile(db, profile_id)
     return APIResponse.ok(data={"ok": True})
 
 
@@ -298,11 +258,8 @@ def cost_summary(
     current_user: User = Depends(require_admin_or_hr),
 ):
     on = on or Date.today()
-    org_id = getattr(current_user, "organization_id", None)
-    q = db.query(User).filter(User.status == "active")
-    if org_id:
-        q = q.filter(User.organization_id == org_id)
-    users = q.limit(COST_SUMMARY_HARD_CAP + 1).all()
+    users = svc.usuarios_activos_de_la_organizacion(
+        db, current_user, tope=COST_SUMMARY_HARD_CAP + 1)
     truncated = len(users) > COST_SUMMARY_HARD_CAP
     if truncated:
         users = users[:COST_SUMMARY_HARD_CAP]

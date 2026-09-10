@@ -24,7 +24,6 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, require_admin_or_pm
 from app.core.abac_enforce import enforce_abac
 from app.db.session import get_db
-from app.models.bpmn_process import BPMNProcess
 from app.models.user import User
 from app.core.responses import APIListResponse, APIResponse
 import app.services.bpmn_process_service as svc
@@ -71,15 +70,10 @@ def _slugify(text: str) -> str:
     return s.strip("_")[:120] or "process"
 
 
-def _ensure_unique_key(db: Session, key: str, organization_id: Optional[str]) -> str:
-    base = key
-    n = 1
-    while (db.query(BPMNProcess)
-            .filter(BPMNProcess.key == key,
-                    BPMNProcess.organization_id == organization_id).first()):
-        n += 1
-        key = f"{base}_{n}"
-    return key
+# Auditoria 2026-08 (hallazgo 22): la consulta vive en
+# `services/bpmn_process_service.clave_unica`. El filtro por organizacion ya
+# estaba y es el correcto: la unicidad de la clave es por organizacion.
+_ensure_unique_key = svc.clave_unica
 
 
 # ── List & catalogue ──────────────────────────────────────────────────────────

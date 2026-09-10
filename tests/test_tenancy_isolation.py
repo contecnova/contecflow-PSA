@@ -16,9 +16,17 @@ class _User:
 
 
 def _mk_blueprint(db, org_id):
-    bp = WorkflowBlueprint(name="BP", process_type="ticket", organization_id=org_id)
-    db.add(bp)
-    db.commit()
+    # Auditoria 2026-08: `fila_global` para el caso `org_id=None`. Desde que la
+    # suite corre con la semantica de produccion, el sellado del `flush` rellena
+    # la organizacion de la sesion en toda fila nueva que venga con None — que
+    # es justo lo contrario de lo que quiere probar `test_null_org_row_is_global`.
+    from contextlib import nullcontext
+    from tests.conftest import fila_global
+
+    with (fila_global(db) if org_id is None else nullcontext()):
+        bp = WorkflowBlueprint(name="BP", process_type="ticket", organization_id=org_id)
+        db.add(bp)
+        db.commit()
     db.refresh(bp)
     return bp
 

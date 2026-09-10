@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
+import type { UseQueryResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { sprintsApi } from '../services/api'
 
@@ -39,69 +39,3 @@ export function useAllSprints(params: SprintListParams = {}): UseQueryResult<Spr
   })
 }
 
-export function useSprint(id: string | undefined): UseQueryResult<unknown> {
-  return useQuery({
-    queryKey: ['sprints', id],
-    queryFn: () => sprintsApi.get(id).then((r: { data: unknown }) => r.data),
-    enabled: !!id,
-    staleTime: STALE,
-  })
-}
-
-export function useCreateSprint(): UseMutationResult<unknown, unknown, Partial<Sprint>> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (data: Partial<Sprint>) => sprintsApi.create(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sprints'] }),
-  })
-}
-
-export function useUpdateSprint(): UseMutationResult<unknown, unknown, UpdateArgs<Partial<Sprint>>> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: UpdateArgs<Partial<Sprint>>) => sprintsApi.update(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sprints'] }),
-  })
-}
-
-export function useDeleteSprint(): UseMutationResult<unknown, unknown, string> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => sprintsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sprints'] }),
-  })
-}
-
-export function useStartSprint(): UseMutationResult<unknown, unknown, string> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => sprintsApi.start(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sprints'] }),
-  })
-}
-
-export function useCompleteSprint(): UseMutationResult<unknown, unknown, string> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => sprintsApi.complete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sprints'] }),
-  })
-}
-
-export function useSprintBurndown(sprintId: string | undefined): UseQueryResult<unknown> {
-  return useQuery({
-    queryKey: ['sprint-burndown', sprintId],
-    queryFn: () => sprintsApi.burndown(sprintId).then((r: { data: unknown }) => r.data),
-    enabled: !!sprintId,
-    staleTime: STALE,
-  })
-}
-
-export function useSprintVelocity(projectId: string | undefined): UseQueryResult<unknown> {
-  return useQuery({
-    queryKey: ['sprint-velocity', projectId],
-    queryFn: () => sprintsApi.velocity(projectId).then((r: { data: unknown }) => r.data),
-    enabled: !!projectId,
-    staleTime: STALE,
-  })
-}

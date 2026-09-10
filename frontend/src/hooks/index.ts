@@ -4,8 +4,7 @@
  */
 
 export {
-	useMyAbsences, usePendingAbsences, useTeamAbsences, useAbsenceCalendar, useVacationPolicies,
-	useCreateAbsence, useApproveAbsence, useRejectAbsence, useDeleteAbsence,
+	useMyAbsences, usePendingAbsences, useTeamAbsences, useAbsenceCalendar,
 } from './useAbsences'
 export { useAlerts, useReadAlert, useResolveAlert, useRunAlerts } from './useAlerts'
 export {
@@ -25,12 +24,10 @@ export { useChanges, useAllChanges, useChange, useCreateChange, useUpdateChange,
 export { useClients, useAllClients, useClient, useCreateClient, useUpdateClient, useDeleteClient } from './useClients'
 export { useContracts, useAllContracts, useContract, useCreateContract, useUpdateContract, useDeleteContract } from './useContracts'
 export { useKpis, useProjectsHealth, useResourceLoad, useProfitability, useTeamProductivity } from './useDashboard'
-export { useDeliverables, useDeliverableOverview, useCreateDeliverable, useUpdateDeliverable, useDeleteDeliverable } from './useDeliverables'
 export { useEpics, useAllEpics, useCreateEpic, useUpdateEpic, useDeleteEpic } from './useEpics'
 export {
 	useMyExpenses, useTeamExpenses, usePendingExpenses, useCreateExpense, useUpdateExpense,
-	useApproveExpense, useDeleteExpense, useRejectExpense, useReimburseExpense, useSubmitExpense,
-	useRecallExpense, useExpenseOCR,
+	useReimburseExpense, useSubmitExpense, useRecallExpense, useExpenseOCR,
 } from './useExpenses'
 export {
 	useForecastHeatmap, useForecastUserDetail, useForecastAvailability, useForecastSummary,
@@ -43,7 +40,7 @@ export {
 } from './useImputations'
 export { useLicenses, useAllLicenses, useLicense, useCreateLicense, useUpdateLicense, useAssignLicense, useDeleteLicense } from './useLicenses'
 export { useMilestones, useMilestoneDashboard, useCreateMilestone, useUpdateMilestone, useCompleteMilestone, useDeleteMilestone } from './useMilestones'
-export { useOKRs, useOKR, useCreateOKR, useUpdateOKR, useUpdateKeyResult, useDeleteOKR } from './useOKRs'
+export { useOKRs, useCreateOKR, useUpdateOKR, useDeleteOKR } from './useOKRs'
 export { useProblems, useAllProblems, useCreateProblem, useUpdateProblem, useDeleteProblem } from './useProblems'
 export {
 	useProjects, useAllProjects, useProject, useCreateProject, useUpdateProject, useDeleteProject,
@@ -56,17 +53,14 @@ export {
 	useUpdateRateCardEntry, useDeleteRateCardEntry,
 } from './useRateCards'
 export { useRisks, useAllRisks, useRisk, useCreateRisk, useUpdateRisk, useDeleteRisk } from './useRisks'
-export {
-	useSprints, useAllSprints, useSprint, useCreateSprint, useUpdateSprint, useDeleteSprint,
-	useStartSprint, useCompleteSprint, useSprintBurndown, useSprintVelocity,
-} from './useSprints'
+export { useSprints, useAllSprints } from './useSprints'
 export { useSubcontractors, useAllSubcontractors, useCreateSubcontractor, useUpdateSubcontractor, useDeleteSubcontractor } from './useSubcontractors'
 export {
 	useTasks, useTask, useKanban, useTaskComments, useCreateTask, useUpdateTask,
 	useDeleteTask, useBulkUpdateTasks, useAddTaskComment, useTaskMovementLog,
 } from './useTasks'
 export {
-	useTickets, useTicket, useCreateTicket, useUpdateTicket, useCloseTicket, useCommentTicket,
+	useTickets, useTicket, useCreateTicket, useUpdateTicket, useCommentTicket,
 	useTicketMyQueue, useEscalateTicket, useTicketInternalComments,
 	useAddTicketInternalComment, useTicketTimelog, useAiSuggestTicket,
 } from './useTickets'

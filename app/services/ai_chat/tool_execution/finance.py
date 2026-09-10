@@ -19,7 +19,7 @@ def _get_expenses(tool_input, db, user, now, is_financial_role):
         if p: q = q.filter(Expense.project_id == p.id)
     status = tool_input.get("status", "")
     if status and status != "all": q = q.filter(Expense.status == status)
-    expenses = q.order_by(Expense.date.desc()).limit(tool_input.get("limit", 30)).all()
+    expenses = q.order_by(Expense.expense_date.desc()).limit(tool_input.get("limit", 30)).all()
     proj_ids = {e.project_id for e in expenses if e.project_id}
     proj_map = {p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
     total = sum(e.amount or 0 for e in expenses)

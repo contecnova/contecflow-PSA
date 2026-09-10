@@ -6,16 +6,15 @@ from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
 from app.models.service_desk import Ticket, TicketComment, TicketTimeLog
-from app.models.user import User
-from app.services.service_desk.scoping import scope_ticket_query as _scope_ticket_query
 from app.services.sla_service import log_history as _log_history
 
 
-def get_scoped_ticket_or_404(db: Session, current_user: User, ticket_id: str) -> Ticket:
-    ticket = _scope_ticket_query(db.query(Ticket), db, current_user).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(404)
-    return ticket
+# La guarda vive en `scoping.py`, junto a `scope_ticket_query`, de la que
+# depende. Se reexporta con el mismo nombre para que ningun sitio de llamada
+# cambie: estaba copiada literalmente en este modulo y en dos mas.
+from app.services.service_desk.scoping import (  # noqa: E402,F401
+    get_scoped_ticket_or_404,
+)
 
 
 def _to_minutes(value: int, unit: str) -> int:

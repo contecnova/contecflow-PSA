@@ -207,7 +207,7 @@ def sync_jira_issues(
                     jira_issue_key=jira_key,
                     jira_issue_id=jira_id,
                     jira_synced_at=now,
-                    created_by_user_id=current_user_id,
+                    created_by=current_user_id,
                 )
                 db.add(task)
             created += 1

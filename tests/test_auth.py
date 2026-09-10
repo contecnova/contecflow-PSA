@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pyotp
 import pytest
+from sqlalchemy import text as _sa_text
 from fastapi import HTTPException
 from pydantic import ValidationError
 
@@ -309,6 +310,20 @@ def test_resolve_sso_org_rejects_orphan_autoprovisioning(db):
     )
     db.add(config)
     db.commit()
+
+    # Auditoria 2026-08. El `organization_id` se vuelve a poner a NULL con SQL
+    # directo **a proposito**: desde que la suite corre con la semantica de
+    # produccion, `_sellar_organizacion` rellena en el `flush` la organizacion
+    # de la sesion, asi que la fila ya no nace huerfana por mucho que se pida.
+    # Y la fila huerfana es justo el caso que este test defiende: una
+    # configuracion de SSO anterior al sellado, que no puede servir para
+    # autoaprovisionar usuarios porque no se sabe en que organizacion meterlos.
+    db.execute(_sa_text(
+        "UPDATE sso_configs SET organization_id = NULL WHERE id = :i"),
+        {"i": config.id})
+    db.commit()
+    db.refresh(config)
+    assert config.organization_id is None
 
     with pytest.raises(Exception) as exc:
         _resolve_sso_organization_id(db, config, "user@example.com")

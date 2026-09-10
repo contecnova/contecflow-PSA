@@ -16,12 +16,14 @@ from __future__ import annotations
 
 import json
 import logging
+import os as _os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.models.service_desk import ChangeStatus as _ChangeStatus
 from app.models.service_desk import (
     CIRelation,
     ConfigurationItem,
@@ -357,6 +359,169 @@ def generate_impact_report(db: Session, change_id: str) -> dict:
 
 
 # ── Persist scoring back to the Change Request ────────────────────────────────
+
+#: Los estados en los que un cambio esta esperando decision del CAB.
+#:
+#: Auditoria 2026-08 (hallazgo 22). Esto era `["submitted", "in_approval"]`, y
+#: **`in_approval` no existe en el enum del modelo**. Hay DOS enums llamados
+#: `ChangeStatus` en el repositorio:
+#:
+#:   · `app/models/service_desk/_enums.py` -> draft, submitted, **cab_review**,
+#:     approved, scheduled, in_progress, implemented, post_review,
+#:     closed_success, closed_failed, cancelled. Es el que usa la **columna**.
+#:   · `app/services/service_desk/change_management_service.py` -> draft,
+#:     submitted, **in_approval**, approved, ... Un enum local del servicio, y
+#:     **no lo usaba nadie**: las funciones de su propio modulo importan el del
+#:     modelo. Era el unico sitio donde `in_approval` existia.
+#:
+#: Tres consumidores importaban el del modelo y escribian
+#: `ChangeStatus.in_approval`. Medido:
+#:
+#:   1. **`POST /sd/changes/batch-score`**: la referencia era incondicional, asi
+#:      que el endpoint respondia **500 siempre** —`AttributeError: type object
+#:      'ChangeStatus' has no attribute 'in_approval'`— y **nunca puntuo un solo
+#:      cambio**. La escritura cruzada entre clientes que tenia dentro nunca fue
+#:      alcanzable: reventaba antes de llegar a la consulta.
+#:   2. **`GET /sd/changes/cab-dashboard`**: el valor por defecto del parametro
+#:      era `"submitted,in_approval"`, y `in_approval` se caia del filtro por no
+#:      estar en el enum. El panel del CAB listaba **solo `submitted`** y no
+#:      mostraba **ninguno** de los cambios que estan de verdad en revision del
+#:      CAB, que es `cab_review`. Y si el cliente mandaba un estado inexistente
+#:      se llegaba a la rama de respaldo y respondia 500.
+#:   3. **La tarea de Celery `change_impact_batch_score`**, cada 10 minutos:
+#:      mismo `AttributeError`, atrapado por su `except` exterior, que dejaba una
+#:      linea de log y devolvia. **La pasada programada de scoring llevaba
+#:      fallando en cada tic**, asi que `auto_risk_score` solo se rellenaba en la
+#:      transicion a `submitted` (`change_service.py`) y la auto-aprobacion de
+#:      cambios estandar de bajo riesgo no se ejecutaba nunca.
+#:
+#: Ahora la constante sale del enum, asi que un renombrado revienta aqui y no
+#: en un `AttributeError` a mitad de una peticion.
+ESTADOS_PENDIENTES_DE_CAB = [
+    _ChangeStatus.submitted.value,
+    _ChangeStatus.cab_review.value,
+]
+
+#: Cuantos cambios puntua como maximo una pasada de `/batch-score`.
+#:
+#: Auditoria 2026-08 (hallazgo 22). El endpoint cargaba **todos** los cambios
+#: pendientes sin puntuar, sin tope, y por cada uno hacia un `score_and_persist`
+#: —que consulta elementos de configuracion, sus dependencias, los tickets
+#: abiertos sobre ellos y el historial de incidencias— **y un `commit`**. Sin
+#: tope, una cola acumulada convierte una peticion HTTP en un trabajo de lote de
+#: duracion desconocida.
+TOPE_DE_CAMBIOS_POR_PASADA = int(
+    _os.getenv("CHANGE_BATCH_SCORE_MAX", "100"))
+
+
+def _cambios_de_la_organizacion(db: Session, current_user):
+    """La consulta base de cambios, acotada de forma EXPLICITA.
+
+    Un superadmin no filtra. Un sujeto sin organizacion ve los cambios sin
+    organizacion, no los de todos: el filtro no es condicional.
+    """
+    from app.models.service_desk import ITSMChangeRequest
+
+    q = db.query(ITSMChangeRequest)
+    if getattr(current_user, "is_superadmin", False):
+        return q
+    return q.filter(
+        ITSMChangeRequest.organization_id
+        == getattr(current_user, "organization_id", None))
+
+
+def panel_del_cab(
+    db: Session,
+    current_user,
+    *,
+    estados: list[str],
+    min_risk_score: int,
+    page: int,
+    page_size: int,
+) -> dict:
+    """Los cambios pendientes de decision, ordenados por riesgo."""
+    from app.models.service_desk import ITSMChangeRequest
+    from app.services.service_desk.change_service import serialize_change
+
+    q = _cambios_de_la_organizacion(db, current_user).filter(
+        ITSMChangeRequest.status.in_(estados))
+    if min_risk_score > 0:
+        q = q.filter(
+            (ITSMChangeRequest.auto_risk_score >= min_risk_score)
+            | ITSMChangeRequest.auto_risk_score.is_(None)
+        )
+
+    total = q.count()
+    cambios = (
+        q.order_by(ITSMChangeRequest.auto_risk_score.desc().nullslast())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "unscored": sum(1 for c in cambios if c.auto_risk_score is None),
+        "items": [serialize_change(c) for c in cambios],
+    }
+
+
+def puntuar_cambios_pendientes(db: Session, current_user) -> dict:
+    """Puntua los cambios pendientes sin score y auto-aprueba los de bajo riesgo.
+
+    Auditoria 2026-08 (hallazgo 22). Aqui habia dos cosas, y la segunda es
+    grave:
+
+    1. **Sin tope.** Ver el comentario de `TOPE_DE_CAMBIOS_POR_PASADA`.
+    2. **Sin filtro de organizacion, y esto ESCRIBE.** Un administrador de un
+       cliente que llamara a `/batch-score` puntuaba y **auto-aprobaba las
+       solicitudes de cambio de todos los demas**. No es una lectura de mas: es
+       aprobar un cambio en la infraestructura de otro cliente, y queda firmado
+       con el id de quien lanzo la pasada. En produccion el filtro implicito de
+       `TenantSession` lo evitaba, pero era la unica capa y esto es una
+       escritura, no una lectura.
+
+    El `except Exception` que cuenta errores viene del original y se conserva
+    —una pasada no debe abortar por un cambio que falla—, pero ahora el fallo
+    se registra con el id del cambio en vez de perderse.
+    """
+    from app.models.service_desk import ITSMChangeRequest
+    from app.services.service_desk.change_service import _maybe_auto_approve
+
+    consulta = _cambios_de_la_organizacion(db, current_user).filter(
+        ITSMChangeRequest.status.in_(ESTADOS_PENDIENTES_DE_CAB),
+        ITSMChangeRequest.auto_risk_score.is_(None),
+    )
+    total_pendientes = consulta.count()
+    pendientes = consulta.limit(TOPE_DE_CAMBIOS_POR_PASADA).all()
+
+    puntuados = auto_aprobados = errores = 0
+    for cambio in pendientes:
+        try:
+            score_and_persist(db, cambio.id)
+            if _maybe_auto_approve(
+                    db, cambio, system_user_id=str(current_user.id)):
+                auto_aprobados += 1
+            db.commit()
+            puntuados += 1
+        except Exception:
+            db.rollback()
+            errores += 1
+            logger.warning(
+                "batch-score: fallo al puntuar el cambio %s", cambio.id,
+                exc_info=True)
+
+    return {
+        "ok": True,
+        # Se conserva el nombre y el significado: cuantos habia pendientes.
+        "total_pending": total_pendientes,
+        "scored": puntuados,
+        "auto_approved": auto_aprobados,
+        "errors": errores,
+        "truncated": total_pendientes > len(pendientes),
+    }
+
 
 def score_and_persist(db: Session, change_id: str) -> dict:
     """Compute risk score + impact report and write back to the Change Request.

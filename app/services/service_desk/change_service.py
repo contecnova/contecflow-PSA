@@ -16,6 +16,52 @@ from app.services.service_desk.scoping import (
 )
 
 
+def cancelar_cambio(db, current_user, change_id: str) -> dict:
+    """Cancela una solicitud de cambio. Es el boton de borrar de la interfaz.
+
+    Auditoria 2026-08 (hallazgo 37). `DELETE /sd/changes/{id}` **no existia**,
+    asi que el boton de borrar de un cambio **no hacia nada** — el otro borrado
+    silencioso de la auditoria.
+
+    **No borra la fila.** Una solicitud de cambio es un registro de gobernanza:
+    tiene aprobaciones, ventana de mantenimiento, plan de rollback y su
+    historial. `ChangeStatus` **si** tiene `cancelled`, que es exactamente el
+    estado que corresponde.
+
+    Un cambio ya implementado **no se cancela**: eso seria reescribir lo que
+    paso. Se responde 409, no 400: el conflicto es con el estado actual del
+    recurso.
+    """
+    from fastapi import HTTPException
+
+    from app.models.service_desk import ChangeStatus
+
+    cambio = get_change_by_id(db, current_user, change_id)
+    if not cambio:
+        raise HTTPException(404)
+
+    TERMINALES = {
+        ChangeStatus.implemented,
+        ChangeStatus.closed_success,
+        ChangeStatus.closed_failed,
+    }
+    if cambio.status in TERMINALES:
+        raise HTTPException(
+            409,
+            f"No se puede cancelar un cambio en estado "
+            f"{cambio.status.value}: ya se ha ejecutado")
+
+    ya_estaba = cambio.status == ChangeStatus.cancelled
+    if not ya_estaba:
+        cambio.status = ChangeStatus.cancelled
+    return {
+        "ok": True,
+        "id": cambio.id,
+        "status": ChangeStatus.cancelled.value,
+        "already_cancelled": ya_estaba,
+    }
+
+
 def scope_change_query(q, db: Session, current_user: User):
     if current_user.is_superadmin:
         return q
@@ -291,9 +337,18 @@ def update_change_record(db: Session, current_user: User, change_id: str, payloa
     apply_change_update(change, payload, current_user.id)
     enforce_change_org_constraints(db, current_user, change)
 
-    # Re-score when change moves to submitted or in_approval (ITSM-P05)
+    # Re-score when the change enters a state pending CAB decision (ITSM-P05).
+    #
+    # Auditoria 2026-08: la comparacion era contra `("submitted", "in_approval")`
+    # y `in_approval` no es un valor del enum de la columna, asi que esa mitad
+    # de la condicion nunca se cumplia. El estado de espera del CAB es
+    # `cab_review`. Ver `ESTADOS_PENDIENTES_DE_CAB`.
     new_status = payload.get("status", "")
-    if new_status in ("submitted", "in_approval") and prev_status != new_status:
+    from app.services.service_desk.change_impact_service import (
+        ESTADOS_PENDIENTES_DE_CAB,
+    )
+
+    if new_status in ESTADOS_PENDIENTES_DE_CAB and prev_status != new_status:
         db.flush()
         _auto_score_change(db, change)
         _maybe_auto_approve(db, change, system_user_id=current_user.id)

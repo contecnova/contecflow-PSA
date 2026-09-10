@@ -230,7 +230,7 @@ def run_tickets_report(db: Session, filters: dict, group_by, date_from, date_to,
         org_agent_ids = [r.id for r in db.query(User.id).filter(
             User.organization_id == org_id
         ).all()]
-        q = q.filter(Ticket.assigned_to_id.in_(org_agent_ids))
+        q = q.filter(Ticket.assigned_to_user_id.in_(org_agent_ids))
     if date_from: q = q.filter(Ticket.created_at >= date_from)
     if date_to:   q = q.filter(Ticket.created_at <= date_to)
     if filters.get("priority"): q = q.filter(Ticket.priority == filters["priority"])
@@ -1488,8 +1488,15 @@ def _crear_imputacion(db: Session, row: dict, i: int, current_user: User, ctx: d
         hours=float(row["hours"]),
         description=row.get("description", ""),
         is_billable=row.get("is_billable", "true").lower() == "true",
-        work_type=row.get("work_type", "development"),
     )
+    # Auditoria 2026-08: aqui habia `work_type=row.get("work_type",
+    # "development")` y **`Imputation` no tiene esa columna**. SQLAlchemy
+    # responde `TypeError` a una palabra clave que no es columna, asi que la
+    # importacion de imputaciones desde CSV **fallaba siempre**, fila por fila.
+    #
+    # Anotado y no inventado: el modelo no tiene donde guardar un tipo de
+    # trabajo. Anadir la columna es decision de producto; si la columna del CSV
+    # llega, hoy se descarta, y eso es preferible a no poder importar nada.
 
 
 # Que se construye por cada tipo importable. Los tres bloques del original eran

@@ -37,7 +37,16 @@ def get_agent_status(db: Session, exec_id: str, user_id: str) -> dict:
         "result": execution.result,
         "steps_count": len(execution.steps) if hasattr(execution, "steps") else 0,
         "created_at": str(execution.created_at)[:19],
-        "updated_at": str(execution.updated_at)[:19] if execution.updated_at else None,
+        # Auditoria 2026-08: aqui habia `execution.updated_at`, y esa columna
+        # **no existe** en `ai_agent_executions`. La marca de fin es
+        # `completed_at`. El `if ... else None` no protegia de nada: el
+        # `AttributeError` salta al **leer** el atributo, antes de evaluar la
+        # condicion, asi que `get_agent_status` reventaba SIEMPRE — el estado de
+        # una ejecucion de agente de IA no se podia consultar.
+        #
+        # La clave de la respuesta se conserva para no cambiar el contrato.
+        "updated_at": (
+            str(execution.completed_at)[:19] if execution.completed_at else None),
     }
 
 

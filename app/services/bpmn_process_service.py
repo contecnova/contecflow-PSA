@@ -263,6 +263,27 @@ PROCESS_CATALOGUE: list[dict] = [
 
 
 # ── BPMN XML generator ────────────────────────────────────────────────────────
+def clave_unica(db, clave: str, organization_id) -> str:
+    """Una clave de proceso libre en esa organizacion, con sufijo si hace falta.
+
+    Auditoria 2026-08 (hallazgo 22): estaba en el endpoint. El filtro por
+    organizacion ya estaba y es el correcto — la unicidad de la clave es **por
+    organizacion**, no global, asi que dos clientes pueden tener cada uno un
+    proceso `aprobacion`.
+    """
+    from app.models.bpmn_process import BPMNProcess
+
+    base = clave
+    n = 1
+    while (db.query(BPMNProcess)
+             .filter(BPMNProcess.key == clave,
+                     BPMNProcess.organization_id == organization_id)
+             .first()):
+        n += 1
+        clave = f"{base}_{n}"
+    return clave
+
+
 def build_bpmn_xml(process_key: str, process_name: str, steps: list[str]) -> str:
     """
     Generate a valid BPMN 2.0 XML diagram from a linear list of steps.

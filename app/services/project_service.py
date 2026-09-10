@@ -710,3 +710,24 @@ def remove_member_record(db: Session, m) -> None:
     emit(db, EventType.PROJECT_MEMBER_REMOVED,
          {"project_id": project_id, "user_id": user_id},
          resource_type="project", resource_id=project_id, project_id=project_id)
+
+
+def proyectos_para_exportar(db: Session, current_user):
+    """Los proyectos activos que este usuario puede ver, ordenados por codigo.
+
+    Auditoria 2026-08 (hallazgo 22). Vivia dentro del endpoint del export a CSV,
+    y el guardian de la capa API lo cazó — con razon, y merece la nota: la
+    consulta estaba escrita **en el mismo sitio donde se decide que columnas
+    lleva un fichero**, que es justo la mezcla que hizo falta deshacer en 41
+    ficheros. Que el defecto se colara en un endpoint nuevo, escrito en la misma
+    auditoria que cerro el hallazgo, dice que el guardian no sobra.
+
+    El ambito sale de `scope_projects_query`, el mismo del listado: un gestor
+    exporta lo que ya ve en pantalla, ni una fila mas.
+    """
+    return (
+        scope_projects_query(db.query(Project), db, current_user)
+        .filter(Project.is_active == True)  # noqa: E712
+        .order_by(Project.code)
+        .all()
+    )

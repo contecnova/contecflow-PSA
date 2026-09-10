@@ -11,7 +11,6 @@ from app.core.uploads import UploadProfile, read_and_validate_upload_sync
 from app.db.session import get_db
 from app.core.config import settings
 from app.core.deps import get_current_user, require_any_manager
-from app.models.billing_reports import WorkflowStep
 from app.models.user import User
 from app.services.billing_reports.history_service import (
     get_import_jobs,
@@ -507,12 +506,8 @@ def update_workflow_step_retries(
     if backoff not in {"none", "linear", "exponential"}:
         raise HTTPException(400, "backoff must be one of: none, linear, exponential")
 
-    step = db.query(WorkflowStep).filter(
-        WorkflowStep.id == step_id,
-        WorkflowStep.workflow_id == wf_id,
-    ).first()
-    if not step:
-        raise HTTPException(404, "Workflow step not found")
+    step = _bookings_svc.paso_de_workflow_propio(
+        db, current_user, wf_id, step_id)
 
     cfg = json.loads(step.config) if step.config else {}
     cfg["retry"] = {

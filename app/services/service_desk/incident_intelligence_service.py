@@ -332,18 +332,24 @@ def deduplicate_new_ticket(
         from app.models.service_desk import TicketLink, TicketLinkType
         existing_link = (
             db.query(TicketLink)
+            # Auditoria 2026-08: las columnas son `source_id`, `target_id` y
+            # `created_by`. Con los nombres viejos, la consulta reventaba con
+            # `AttributeError` y el constructor con `TypeError` — y el `except`
+            # de abajo lo registraba en `debug` y seguia, asi que **el enlace
+            # de duplicado nunca se creaba**: el ticket se marcaba como
+            # duplicado sin quedar enlazado a su original.
             .filter(
-                TicketLink.source_ticket_id == ticket.id,
-                TicketLink.target_ticket_id == parent.id,
+                TicketLink.source_id == ticket.id,
+                TicketLink.target_id == parent.id,
             )
             .first()
         )
         if not existing_link:
             db.add(TicketLink(
-                source_ticket_id=ticket.id,
-                target_ticket_id=parent.id,
+                source_id=ticket.id,
+                target_id=parent.id,
                 link_type=TicketLinkType.duplicates,
-                created_by_user_id=acting_user_id,
+                created_by=acting_user_id,
             ))
     except Exception as exc:
         logger.debug("Could not create TicketLink for dedup: %s", exc)
@@ -459,9 +465,18 @@ def detect_recurring_incidents(db: Session) -> list[dict]:
     """
     since = datetime.now(timezone.utc) - timedelta(hours=PROBLEM_DETECTION_WINDOW_HOURS)
 
+    # Auditoria 2026-08: `Ticket.category` **no existe**. Esta funcion
+    # reventaba con `AttributeError`, asi que la deteccion automatica de
+    # problemas a partir de incidencias repetidas **no funciono nunca**.
+    #
+    # La clasificacion de un ticket en este esquema es `service_item_id`, el
+    # elemento del catalogo de servicios, y es lo que se agrupa. **Esto es una
+    # lectura de la intencion, no un renombrado**: si el concepto que se queria
+    # agrupar era otro —las etiquetas, por ejemplo— hay que cambiarlo aqui. La
+    # clave `category` de la respuesta se conserva para no romper el contrato.
     rows = (
         db.query(
-            Ticket.category,
+            Ticket.service_item_id.label("category"),
             Ticket.priority,
             func.count(Ticket.id).label("cnt"),
         )
@@ -473,7 +488,7 @@ def detect_recurring_incidents(db: Session) -> list[dict]:
             ),
             Ticket.problem_id.is_(None),  # not already linked to a problem
         )
-        .group_by(Ticket.category, Ticket.priority)
+        .group_by(Ticket.service_item_id, Ticket.priority)
         .having(func.count(Ticket.id) >= PROBLEM_DETECTION_THRESHOLD)
         .all()
     )
@@ -484,7 +499,7 @@ def detect_recurring_incidents(db: Session) -> list[dict]:
             t.id
             for t in db.query(Ticket.id)
             .filter(
-                Ticket.category == row.category,
+                Ticket.service_item_id == row.category,
                 Ticket.priority == row.priority,
                 Ticket.ticket_type == "incident",
                 Ticket.created_at >= since,

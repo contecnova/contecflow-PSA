@@ -31,15 +31,6 @@ export function useOKRs(params: OKRListParams = {}): UseQueryResult<OKR[]> {
   })
 }
 
-export function useOKR(id: string | undefined): UseQueryResult<unknown> {
-  return useQuery({
-    queryKey: ['okrs', id],
-    queryFn: () => okrsApi.get(id).then((r: { data: unknown }) => r.data),
-    enabled: !!id,
-    staleTime: STALE,
-  })
-}
-
 export function useCreateOKR(): UseMutationResult<unknown, unknown, Partial<OKR>> {
   const qc = useQueryClient()
   return useMutation({
@@ -52,14 +43,6 @@ export function useUpdateOKR(): UseMutationResult<unknown, unknown, UpdateArgs<P
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: UpdateArgs<Partial<OKR>>) => okrsApi.update(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['okrs'] }),
-  })
-}
-
-export function useUpdateKeyResult(): UseMutationResult<unknown, unknown, UpdateKRArgs> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, krid, data }: UpdateKRArgs) => okrsApi.updateKR(id, krid, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['okrs'] }),
   })
 }

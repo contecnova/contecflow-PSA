@@ -1,4 +1,14 @@
-"""Performance Reviews — Evaluaciones de rendimiento 360°."""
+"""Evaluaciones de desempeño, campañas 360 y planes de desarrollo.
+
+Auditoria 2026-08 (hallazgo 22). Las consultas de este fichero estan en
+`services/performance_service.py`, y todas buscaban por id **sin acotar por
+organizacion**: la pregunta de un ciclo, el objetivo de un plan y la persona
+evaluada. Lo unico que impedia editar o borrar la pregunta de otro cliente era
+el filtro implicito de `TenantSession`, y `organization_id` es nullable en todos
+estos modelos, asi que una fila sin organizacion queda fuera de ese filtro.
+
+Son datos nominativos sobre personas: aqui la guarda explicita no es cosmetica.
+"""
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -9,9 +19,7 @@ from app.core.deps import get_current_user, require_admin_or_hr, require_any_man
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
-from app.models.performance import (
-    ReviewCycleStatus, ReviewStatus, ReviewQuestion,
-)
+from app.models.performance import ReviewCycleStatus, ReviewStatus
 from app.services import performance_service
 from app.services.performance_service import (
     serialize_review as _ser_review,
@@ -48,7 +56,10 @@ def _can_view_review(current_user: User, review, db: Session) -> bool:
         return True
     if review.reviewee_id == current_user.id or review.reviewer_id == current_user.id:
         return True
-    reviewee = db.query(User).filter(User.id == review.reviewee_id).first()
+    # Acotado a la organizacion de quien pregunta: sin ello, la relacion de
+    # jefatura de OTRA organizacion decidia si se puede ver una evaluacion.
+    reviewee = performance_service.usuario_de_la_organizacion(
+        db, current_user, review.reviewee_id)
     return bool(reviewee and reviewee.manager_id == current_user.id)
 
 
@@ -57,7 +68,8 @@ def _can_view_campaign(current_user: User, camp, db: Session) -> bool:
         return True
     if current_user.id == camp.subject_id or current_user.id == camp.created_by:
         return True
-    subject = db.query(User).filter(User.id == camp.subject_id).first()
+    subject = performance_service.usuario_de_la_organizacion(
+        db, current_user, camp.subject_id)
     return bool(subject and subject.manager_id == current_user.id)
 
 
@@ -86,7 +98,9 @@ def list_cycles(
 @router.post("/cycles", summary="Crear ciclo", status_code=201)
 def create_cycle(payload: CycleIn, db: Session = Depends(get_db),
                  cu: User = Depends(require_admin_or_hr)):
-    c = performance_service.create_cycle(db, created_by=cu.id, **payload.model_dump())
+    c = performance_service.create_cycle(
+        db, created_by=cu.id, organization_id=cu.organization_id,
+        **payload.model_dump())
     return APIResponse.ok(data={"id": c.id, "name": c.name})
 
 
@@ -145,9 +159,7 @@ def add_cycle_question(cycle_id: str, payload: ReviewQuestionIn,
 def update_cycle_question(question_id: str, payload: ReviewQuestionUpdate,
                           db: Session = Depends(get_db),
                           cu: User = Depends(require_admin_or_hr)):
-    q = db.query(ReviewQuestion).filter(ReviewQuestion.id == question_id).first()
-    if not q:
-        raise HTTPException(404, "Pregunta no encontrada")
+    q = performance_service.pregunta_propia(db, cu, question_id)
     try:
         q = performance_service.update_question(db, q, payload.model_dump(exclude_unset=True))
     except ValueError as e:
@@ -161,9 +173,7 @@ def update_cycle_question(question_id: str, payload: ReviewQuestionUpdate,
 def delete_cycle_question(question_id: str, db: Session = Depends(get_db),
                           cu: User = Depends(require_admin_or_hr)):
     enforce_abac(db, cu, "performance_question", question_id, action="delete")
-    q = db.query(ReviewQuestion).filter(ReviewQuestion.id == question_id).first()
-    if not q:
-        raise HTTPException(404, "Pregunta no encontrada")
+    q = performance_service.pregunta_propia(db, cu, question_id)
     try:
         performance_service.delete_question(db, q)
     except ValueError as e:
@@ -215,7 +225,7 @@ def list_eligible_reviewers(cycle_id: str, reviewee_id: str, review_type: str,
                             cu: User = Depends(require_admin_or_hr)):
     if review_type not in ("self", "manager", "peer", "upward"):
         raise HTTPException(422, "review_type debe ser self|manager|peer|upward")
-    reviewee = db.query(User).filter(User.id == reviewee_id).first()
+    reviewee = performance_service.usuario_propio(db, cu, reviewee_id)
     if not reviewee:
         raise HTTPException(404, "Persona evaluada no encontrada")
 
@@ -320,9 +330,7 @@ def submit_review(review_id: str, db: Session = Depends(get_db),
 @router.get("/users/{user_id}/history", summary="Histórico de evaluaciones de un usuario")
 def user_review_history(user_id: str, db: Session = Depends(get_db),
                         cu: User = Depends(get_current_user)):
-    target = db.query(User).filter(User.id == user_id).first()
-    if not target:
-        raise HTTPException(404, "Usuario no encontrado")
+    target = performance_service.usuario_propio(db, cu, user_id)
     if not _can_view_subject(cu, target):
         raise HTTPException(403, "Acceso denegado")
     reviews = performance_service.get_user_review_history(db, user_id)
@@ -488,7 +496,7 @@ def list_user_plans(user_id: str, db: Session = Depends(get_db),
     is_priv = cu.is_superadmin or cu.role in ("admin", "hr")
     if not is_priv and cu.id != user_id:
         # Manager? lo permitimos si es manager directo
-        target = db.query(User).filter(User.id == user_id).first()
+        target = performance_service.usuario_de_la_organizacion(db, cu, user_id)
         if not target or target.manager_id != cu.id:
             raise HTTPException(403, "No tienes acceso a estos planes")
     plans = dev_plan_service.list_plans_for_subject(db, user_id)
@@ -512,14 +520,13 @@ def create_dev_plan(payload: DevPlanIn, db: Session = Depends(get_db),
                     cu: User = Depends(get_current_user)):
     from app.services import dev_plan_service
     # Solo el subject, su manager o admin/HR pueden crear
-    target = db.query(User).filter(User.id == payload.subject_id).first()
-    if not target:
-        raise HTTPException(404, "Persona no encontrada")
+    target = performance_service.usuario_propio(db, cu, payload.subject_id)
     is_priv = cu.is_superadmin or cu.role in ("admin", "hr")
     if not is_priv and cu.id != payload.subject_id and target.manager_id != cu.id:
         raise HTTPException(403, "Solo puedes crear planes propios o de tus reportes directos")
     plan = dev_plan_service.create_plan(
         db, subject_id=payload.subject_id, created_by=cu.id,
+        organization_id=cu.organization_id,
         title=payload.title, summary=payload.summary,
         campaign_id=payload.campaign_id, cycle_id=payload.cycle_id,
         target_date=payload.target_date, next_review_at=payload.next_review_at,
@@ -562,11 +569,8 @@ def patch_dev_goal(goal_id: str, payload: DevGoalUpdate,
                    db: Session = Depends(get_db),
                    cu: User = Depends(get_current_user)):
     from app.services import dev_plan_service
-    from app.models.performance import DevGoal
     enforce_abac(db, cu, "dev_goal", goal_id, action="update")
-    g = db.query(DevGoal).filter(DevGoal.id == goal_id).first()
-    if not g:
-        raise HTTPException(404, "Objetivo no encontrado")
+    g = performance_service.objetivo_propio(db, cu, goal_id)
     if not dev_plan_service.can_edit_plan(current_user=cu, plan=g.plan, db=db):
         raise HTTPException(403, "Sin permisos")
     g = dev_plan_service.update_goal(db, g, payload.model_dump(exclude_unset=True))
@@ -577,11 +581,8 @@ def patch_dev_goal(goal_id: str, payload: DevGoalUpdate,
 def remove_dev_goal(goal_id: str, db: Session = Depends(get_db),
                     cu: User = Depends(get_current_user)):
     from app.services import dev_plan_service
-    from app.models.performance import DevGoal
     enforce_abac(db, cu, "dev_goal", goal_id, action="delete")
-    g = db.query(DevGoal).filter(DevGoal.id == goal_id).first()
-    if not g:
-        raise HTTPException(404, "Objetivo no encontrado")
+    g = performance_service.objetivo_propio(db, cu, goal_id)
     if not dev_plan_service.can_edit_plan(current_user=cu, plan=g.plan, db=db):
         raise HTTPException(403, "Sin permisos")
     dev_plan_service.delete_goal(db, g)

@@ -1,4 +1,21 @@
-"""Service Desk governance operations: AI eval/drift and quality contract."""
+"""Service Desk governance operations: AI eval/drift and quality contract.
+
+Auditoria 2026-08 (hallazgo 22). Las consultas de este fichero estan en
+`services/service_desk/governance_compliance_service.py`, y dos de ellas
+filtraban asi:
+
+    q = db.query(SDAIEvaluationRun)
+    if org_id:
+        q = q.filter(SDAIEvaluationRun.organization_id == org_id)
+
+Con un sujeto **sin** organizacion eso no lista «los que no tienen
+organizacion»: lista los de TODOS los clientes. Es el mismo condicional que
+aparecio en el resumen de costes de usuario, y la correccion es la misma: el
+filtro no es condicional.
+
+Los umbrales del semaforo de deriva (70 y 40) tambien estaban en duro aqui y
+ahora se declaran con nombre en el servicio.
+"""
 from __future__ import annotations
 
 import json
@@ -10,9 +27,8 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, require_any_manager
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
-from app.models.service_desk_ai_governance import SDAIEvaluationRun, SDAIDriftSnapshot
-from app.models.settings import AppSetting
 from app.models.user import User
+from app.services.service_desk import governance_compliance_service as svc
 
 router = APIRouter()
 
@@ -42,20 +58,12 @@ class DriftSnapshotIn(BaseModel):
     details: dict | None = None
 
 
-def _quality_key() -> str:
-    return "service_desk.quality_contract.v1"
-
-
 @router.get("/governance/ai/evaluations", summary="Listar evaluaciones offline de IA Service Desk")
 def list_ai_evaluations(
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    org_id = getattr(current_user, "organization_id", None)
-    q = db.query(SDAIEvaluationRun)
-    if org_id:
-        q = q.filter(SDAIEvaluationRun.organization_id == org_id)
-    items = q.order_by(SDAIEvaluationRun.created_at.desc()).limit(limit).all()
+    items = svc.listar_evaluaciones(db, current_user, limit=limit)
     return APIListResponse.ok(items=[
         {
             "id": x.id,
@@ -76,20 +84,14 @@ def create_ai_evaluation(
     payload: EvalRunIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    org_id = getattr(current_user, "organization_id", None)
-    row = SDAIEvaluationRun(
-        organization_id=org_id,
-        model_name=payload.model_name,
-        task_type=payload.task_type,
-        dataset_name=payload.dataset_name,
-        score=payload.score,
-        metrics_json=json.dumps(payload.metrics or {}),
-        notes=payload.notes,
-        created_by_user_id=current_user.id,
-    )
-    db.add(row)
-    db.commit()
-    db.refresh(row)
+    row = svc.registrar_evaluacion(db, current_user, {
+        "model_name": payload.model_name,
+        "task_type": payload.task_type,
+        "dataset_name": payload.dataset_name,
+        "score": payload.score,
+        "metrics": payload.metrics,
+        "notes": payload.notes,
+    })
     return APIResponse.ok(data={"ok": True, "id": row.id})
 
 
@@ -99,13 +101,8 @@ def list_ai_drift(
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    org_id = getattr(current_user, "organization_id", None)
-    q = db.query(SDAIDriftSnapshot)
-    if org_id:
-        q = q.filter(SDAIDriftSnapshot.organization_id == org_id)
-    if model_name:
-        q = q.filter(SDAIDriftSnapshot.model_name == model_name)
-    items = q.order_by(SDAIDriftSnapshot.measured_at.desc()).limit(limit).all()
+    items = svc.listar_deriva(
+        db, current_user, model_name=model_name, limit=limit)
     return APIListResponse.ok(items=[
         {
             "id": x.id,
@@ -125,25 +122,13 @@ def create_ai_drift_snapshot(
     payload: DriftSnapshotIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    org_id = getattr(current_user, "organization_id", None)
-    status = "ok"
-    if payload.drift_score >= 70:
-        status = "critical"
-    elif payload.drift_score >= 40:
-        status = "warning"
-
-    row = SDAIDriftSnapshot(
-        organization_id=org_id,
-        model_name=payload.model_name,
-        feature_set=payload.feature_set,
-        drift_score=payload.drift_score,
-        status=status,
-        details_json=json.dumps(payload.details or {}),
-    )
-    db.add(row)
-    db.commit()
-    db.refresh(row)
-    return APIResponse.ok(data={"ok": True, "id": row.id, "status": status})
+    row = svc.registrar_deriva(db, current_user, {
+        "model_name": payload.model_name,
+        "feature_set": payload.feature_set,
+        "drift_score": payload.drift_score,
+        "details": payload.details,
+    })
+    return APIResponse.ok(data={"ok": True, "id": row.id, "status": row.status})
 
 
 @router.get("/governance/metrics/catalog", summary="Catálogo estándar de métricas operativas")
@@ -155,19 +140,7 @@ def get_metrics_catalog(current_user: User = Depends(get_current_user)):
 def get_quality_contract(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    org_id = getattr(current_user, "organization_id", None)
-    row = db.query(AppSetting).filter(AppSetting.organization_id == org_id, AppSetting.key == _quality_key()).first()
-    if not row or not row.value:
-        return APIResponse.ok(data={
-            "minimum_tests_pass_rate": 0.98,
-            "max_p1_open": 0,
-            "max_regression_bugs": 3,
-            "required_checks": ["unit", "integration", "e2e_critical", "security_scan"],
-        })
-    try:
-        return APIResponse.ok(data=json.loads(row.value))
-    except Exception:
-        return APIResponse.ok(data={"raw": row.value})
+    return APIResponse.ok(data=svc.contrato_de_calidad(db, current_user))
 
 
 @router.put("/governance/quality-contract", summary="Actualizar contrato de calidad por release")
@@ -175,17 +148,5 @@ def put_quality_contract(
     payload: dict = Body(...),
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    org_id = getattr(current_user, "organization_id", None)
-    row = db.query(AppSetting).filter(AppSetting.organization_id == org_id, AppSetting.key == _quality_key()).first()
-    if not row:
-        row = AppSetting(
-            organization_id=org_id,
-            key=_quality_key(),
-            value=json.dumps(payload),
-            description="Service Desk quality contract",
-        )
-        db.add(row)
-    else:
-        row.value = json.dumps(payload)
-    db.commit()
+    svc.guardar_contrato_de_calidad(db, current_user, payload)
     return APIResponse.ok(data={"ok": True})

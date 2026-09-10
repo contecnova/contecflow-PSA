@@ -293,11 +293,35 @@ def send_message(
     linked_task_id: Optional[str] = None,
     linked_ticket_id: Optional[str] = None,
     bot_id: Optional[str] = None,
+    client_user_id: Optional[str] = None,
 ) -> CollaborationMessage:
+    """Crea y reparte un mensaje. Es la UNICA via de envio.
+
+    `client_user_id` marca que quien escribe es un usuario del portal, y entonces
+    `user` es ese `ClientUser`. Auditoria 2026-08: el portal tenia su propia
+    implementacion de envio en `endpoints/collaboration_portal.py`, y le faltaba
+    casi todo lo que hace esta —el escaneo DLP, el indexado para busqueda, el
+    reparto completo de notificaciones y los hilos—. El efecto visible: un
+    cliente **no encontraba sus propios mensajes** en la busqueda que el propio
+    portal le ofrece, porque nadie los indexaba. Es la misma forma que las dos
+    puertas de subida de adjuntos: mismo destino, una con controles y otra sin
+    ellos.
+
+    La comprobacion de acceso cambia con el tipo de remitente, y por eso se
+    ramifica aqui y no en quien llama: un cliente no pasa por ABAC —las
+    politicas estan escritas sobre usuarios internos— sino por la comprobacion
+    de participante-cliente.
+    """
     org = _org(user)
     conv = _resolve_conversation(db, conversation_id=conversation_id, channel_id=channel_id, direct_id=direct_id, group_id=group_id)
 
-    if not bot_id:
+    if client_user_id:
+        from app.services.collaboration._permissions import (
+            is_client_conversation_participant,
+        )
+        if not is_client_conversation_participant(db, user, conv.id):
+            raise HTTPException(403, "No tienes acceso a esta conversación")
+    elif not bot_id:
         assert_conversation_access(db, user, conv.id)
         enforce_abac(db, user, "collaboration_message", resource_id=conv.id, action="send")
 
@@ -310,7 +334,8 @@ def send_message(
         conversation_id=conv.id,
         thread_id=None,
         parent_message_id=parent_message_id,
-        user_id=None if bot_id else user.id,
+        user_id=None if (bot_id or client_user_id) else user.id,
+        client_user_id=client_user_id,
         bot_id=bot_id,
         type=type,
         status="visible",
@@ -374,9 +399,13 @@ def send_message(
 
     # Audit + index
     audit_log.write(
-        db, organization_id=org, actor_user_id=user.id, actor_client_id=None,
+        db, organization_id=org,
+        actor_user_id=None if client_user_id else user.id,
+        actor_client_id=client_user_id,
         action="message.sent", entity_type="message", entity_id=msg.id,
-        payload={"conversation_id": conv.id, "type": type, "dlp": dlp_status, "redacted": is_redacted},
+        payload={"conversation_id": conv.id, "type": type, "dlp": dlp_status,
+                 "redacted": is_redacted,
+                 "kind": "client" if client_user_id else "user"},
     )
     db.commit()
     search_engine.index(db, msg.id)
@@ -752,3 +781,180 @@ def _serialize_message(db: Session, msg: CollaborationMessage) -> dict:
         "deleted_at": msg.deleted_at.isoformat() if msg.deleted_at else None,
         "sent_at": msg.sent_at.isoformat() if msg.sent_at else None,
     }
+
+
+# ── Lo que antes hacia el endpoint ───────────────────────────────────────────
+#
+# Auditoria 2026-08 (hallazgo 22). Cuatro operaciones vivian en
+# `endpoints/collaboration/messages.py` con acceso directo a base, y dos de
+# ellas con un N+1 escondido dentro del bucle que construia la respuesta:
+# `/saved` pedia un mensaje POR CADA guardado y `/mentions` uno POR CADA
+# mencion. Con cien menciones eran 101 consultas.
+#
+# Y dos defensas muertas retiradas: `hasattr(Task, "organization_id")` y
+# `hasattr(Ticket, "organization_id")`. Las dos son columnas declaradas del
+# modelo, asi que la comprobacion siempre era verdadera — solo escondia el dia
+# en que dejara de serlo.
+
+#: Caracteres de mensaje que se devuelven como vista previa en las listas de
+#: guardados y menciones. Es una lista para saltar a la conversacion, no para
+#: leer el mensaje entero.
+CARACTERES_DE_VISTA_PREVIA = 200
+
+#: Tope de menciones recientes que se devuelven.
+MAX_MENCIONES = 100
+
+#: Las entidades PSA a las que se puede anclar un mensaje. La lista es cerrada a
+#: proposito: cada valor se convierte en el nombre de una columna
+#: `linked_<kind>_id` del modelo, asi que aceptar cualquier cadena permitiria
+#: escribir en un atributo arbitrario.
+ENTIDADES_ANCLABLES = ("task", "ticket", "deliverable", "risk")
+
+
+def _vista_previa(cuerpo: Optional[str]) -> str:
+    return (cuerpo or "")[:CARACTERES_DE_VISTA_PREVIA]
+
+
+def _mensajes_por_id(db: Session, ids) -> dict:
+    """Los mensajes de esos ids en una sola consulta."""
+    ids = [i for i in ids if i]
+    if not ids:
+        return {}
+    filas = (
+        db.query(CollaborationMessage)
+        .filter(CollaborationMessage.id.in_(ids))
+        .all()
+    )
+    return {m.id: m for m in filas}
+
+
+def list_saved_con_vista_previa(db: Session, user) -> list[dict]:
+    """Los mensajes guardados con su vista previa.
+
+    Los mensajes se cargan en una consulta: el endpoint pedia uno por guardado.
+    Un guardado cuyo mensaje ya no existe se omite, que es lo que hacia antes.
+    """
+    guardados = list_saved(db, user)
+    mensajes = _mensajes_por_id(db, (g.message_id for g in guardados))
+    salida = []
+    for g in guardados:
+        m = mensajes.get(g.message_id)
+        if not m:
+            continue
+        salida.append({
+            "id": g.id, "message_id": g.message_id, "note": g.note,
+            "saved_at": g.saved_at, "preview": _vista_previa(m.body),
+            "conversation_id": m.conversation_id,
+        })
+    return salida
+
+
+def list_my_mentions(db: Session, user) -> list[dict]:
+    """Las menciones recientes de quien pregunta.
+
+    Se omiten las de mensajes borrados: una mencion a un mensaje que ya no
+    existe no lleva a ninguna parte. Los mensajes se cargan en una consulta.
+    """
+    filas = (
+        db.query(CollaborationMention)
+        .filter(CollaborationMention.mentioned_user_id == user.id)
+        .order_by(CollaborationMention.created_at.desc())
+        .limit(MAX_MENCIONES)
+        .all()
+    )
+    mensajes = _mensajes_por_id(db, (r.message_id for r in filas))
+    salida = []
+    for r in filas:
+        m = mensajes.get(r.message_id)
+        if not m or m.status == "deleted":
+            continue
+        salida.append({
+            "id": r.id, "message_id": r.message_id,
+            "preview": _vista_previa(m.body),
+            "conversation_id": m.conversation_id,
+            "created_at": r.created_at,
+        })
+    return salida
+
+
+def _mensaje_accesible(db: Session, user, message_id: str) -> CollaborationMessage:
+    org = _org(user)
+    msg = (
+        db.query(CollaborationMessage)
+        .filter(
+            CollaborationMessage.id == message_id,
+            CollaborationMessage.organization_id == org,
+        )
+        .first()
+    )
+    if not msg:
+        raise HTTPException(404, "Mensaje no encontrado")
+    assert_conversation_access(db, user, msg.conversation_id)
+    return msg
+
+
+def link_message(db: Session, user, message_id: str, *, kind: str, linked_id) -> dict:
+    """Ancla un mensaje a una entidad PSA.
+
+    `kind` se valida contra una lista cerrada **antes** de usarlo para construir
+    el nombre de la columna: sin esa validacion, un `kind` arbitrario escribiria
+    en cualquier atributo del modelo.
+    """
+    from app.services.collaboration import audit_log
+
+    org = _org(user)
+    msg = _mensaje_accesible(db, user, message_id)
+    kind = (kind or "").lower()
+    if kind not in ENTIDADES_ANCLABLES:
+        raise HTTPException(400, "kind debe ser task|ticket|deliverable|risk")
+    setattr(msg, f"linked_{kind}_id", linked_id)
+    audit_log.write(
+        db, organization_id=org, actor_user_id=user.id, actor_client_id=None,
+        action="message.linked", entity_type="message", entity_id=message_id,
+        payload={"kind": kind, "linked_id": linked_id},
+    )
+    db.commit()
+    return {"ok": True, "kind": kind, "linked_id": linked_id}
+
+
+def link_candidates(db: Session, user, message_id: str, *, kind: str, q: str,
+                    limit: int) -> list[dict]:
+    """Candidatos a los que anclar un mensaje.
+
+    Para tareas se acota al proyecto del canal si lo tiene: en un canal de
+    proyecto, ofrecer tareas de otro no ayuda. Para tickets no hay ese acote
+    porque un ticket no cuelga de un proyecto del canal.
+
+    Un `kind` que no se sabe buscar devuelve lista vacia en vez de error: es un
+    autocompletado, y fallar mientras alguien escribe no aporta nada.
+    """
+    org = _org(user)
+    msg = _mensaje_accesible(db, user, message_id)
+
+    if kind == "task":
+        from app.models.collaboration import CollaborationChannel
+        from app.models.task import Task
+
+        canal = (
+            db.query(CollaborationChannel)
+            .filter(CollaborationChannel.conversation_id == msg.conversation_id)
+            .first()
+        )
+        consulta = db.query(Task).filter(Task.organization_id == org)
+        if canal and canal.project_id:
+            consulta = consulta.filter(Task.project_id == canal.project_id)
+        if q:
+            consulta = consulta.filter(Task.title.ilike(f"%{q}%"))
+        filas = consulta.order_by(Task.created_at.desc()).limit(limit).all()
+        return [{"id": t.id, "label": f"{t.code or '?'} · {t.title}"} for t in filas]
+
+    if kind == "ticket":
+        from app.models.service_desk import Ticket
+
+        consulta = db.query(Ticket).filter(Ticket.organization_id == org)
+        if q:
+            consulta = consulta.filter(Ticket.title.ilike(f"%{q}%"))
+        filas = consulta.order_by(Ticket.created_at.desc()).limit(limit).all()
+        return [{"id": t.id, "label": f"{t.number} · {t.title}"} for t in filas]
+
+    return []

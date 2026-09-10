@@ -1,27 +1,84 @@
 """
-task_service.py — kept for backward compatibility.
+task_service.py — el API procedural del dominio de tareas.
 
-All core logic has been moved to app/services/tasks/ sub-package.
-This file re-exports the new class-based API AND preserves all original
-procedural functions so that every existing import continues to work.
+Es lo que importa `endpoints/tasks.py`. Las piezas que también viven en el
+subpaquete `app/services/tasks/` se reexportan desde ahí y no se copian: el
+porqué, largo y con nombre y apellidos, está en el bloque de abajo.
 """
 from __future__ import annotations
 
-# ── Re-export from the tasks sub-package ─────────────────────────────────────
-# `build_task_list_query` lives only in the sub-package; re-export it so
-# `from app.services.task_service import build_task_list_query` keeps working.
-# NOTE: validate_task_transition / apply_status_side_effects / _TASK_VALID_TRANSITIONS /
-# bulk_update_tasks / cascade_reschedule are NOT imported here on purpose: this module
-# defines its own procedural versions below (they carry extra logic such as OKR sync),
-# and importing them too would just shadow the imports (dead code / F811).
+# ── Reexportado del subpaquete `tasks/` ──────────────────────────────────────
+#
+# Auditoría 2026-08 (hallazgo 18). Aquí había esta nota:
+#
+#     NOTE: validate_task_transition / apply_status_side_effects /
+#     _TASK_VALID_TRANSITIONS / bulk_update_tasks / cascade_reschedule are NOT
+#     imported here on purpose: this module defines its own procedural versions
+#     below (they carry extra logic such as OKR sync)
+#
+# **Y era falsa.** Comparadas por AST, ancladas por nombre de función y no por
+# número de línea, las cuatro que este módulo duplicaba eran:
+#
+#   · `validate_task_transition`   → **idéntica** a la del subpaquete;
+#   · `apply_status_side_effects`  → **idéntica**. El «OKR sync» que la nota
+#                                    invocaba para justificar la copia está en
+#                                    las DOS, dentro de esta misma función;
+#   · `cascade_reschedule`         → idéntica menos una línea en blanco;
+#   · `bulk_update_tasks`          → idéntica menos **un bloque**, y el bloque
+#                                    que faltaba era éste:
+#
+#         try:
+#             enforce_abac(db, current_user, "task", task.id, action="update")
+#         except HTTPException:
+#             skipped.append({"id": task.id, "reason": "abac_denied"})
+#             continue
+#
+# Es decir: la versión local no tenía lógica extra, tenía **una comprobación de
+# autorización de menos** — y `endpoints/tasks.py` importa la de aquí.
+#
+# ── Y aquí va la corrección honesta, porque la primera lectura era falsa ─────
+#
+# Lo primero que se escribió en este bloque fue que `POST /tasks/bulk-update`
+# «se saltaba la evaluación ABAC». **No es cierto, y se comprobó ejecutándolo**:
+# con una política `deny` activa sobre `task`, esa ruta devuelve 403 **antes de
+# entrar al manejador**, porque la dependencia ABAC de los routers
+# (`app/core/abac_dependency.py`) ya la evalúa.
+#
+# El motivo de que la tape es incómodo: `ABACService.evaluate_access` **no usa
+# el `resource_id`**. Lo recibe, lo mete en el detalle de auditoría y no lo mira
+# para decidir; `is_policy_applicable` ni lo acepta. La decisión sale del rol,
+# del `resource_type` y de los atributos del usuario. Con `action` pasa lo mismo
+# y `abac_dependency.py` ya lo dice de sí mismo. Consecuencia: la evaluación
+# «por tarea» y la del router dan **siempre el mismo veredicto**, así que la que
+# faltaba aquí no podía denegar nada que el router hubiese dejado pasar.
+#
+# Así que el hueco era **latente, no explotable**: código de autorización que no
+# corría, tapado por otra capa que decide lo mismo. Se arregla igual —una
+# comprobación que debería estar y no estaba es un defecto aunque hoy no se
+# alcance—, pero no se vende como una brecha cerrada. Y deja a la vista el
+# defecto de verdad, que es más grande y no se toca desde aquí: **ABAC por
+# recurso concreto no está implementado**, aunque la API pasee `resource_id` por
+# seis capas hasta el motor. Queda anotado en la auditoría, no disimulado.
+#
+# `bulk_update_dates_record`, en este mismo módulo, sí llamaba a `enforce_abac`:
+# la copia había perdido la comprobación en una sola de las dos rutas masivas.
+#
+# Se reexportan las cuatro y se borran las copias. Los nombres no cambian, así
+# que ningún sitio de llamada se toca, y las cuatro pasan a tener **un solo**
+# sitio donde arreglarlas.
+from app.services.tasks.bulk import bulk_update_tasks  # noqa: F401
+from app.services.tasks.core import (  # noqa: F401
+    _TASK_VALID_TRANSITIONS,
+    apply_status_side_effects,
+    validate_task_transition,
+)
 from app.services.tasks.queries import build_task_list_query  # noqa: F401
+from app.services.tasks.scheduling import cascade_reschedule  # noqa: F401
 
 # ─────────────────────────────────────────────────────────────────────────────
 # All original imports kept verbatim so the procedural wrappers below compile.
 # ─────────────────────────────────────────────────────────────────────────────
 import logging
-from collections import deque
-from datetime import datetime, timezone, timedelta, date
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -31,7 +88,7 @@ from sqlalchemy.orm import Session
 
 from app.models.task import TaskStatus
 from app.db.session import SessionLocal
-from app.models.bookings import TaskDependency, DependencyType
+from app.models.bookings import TaskDependency
 from app.models.epics import ThreadedComment
 from app.models.project import Project, ProjectMember
 from app.models.semantic_engine import SemConfig
@@ -86,217 +143,16 @@ def _auto_assign_task_on_create(db: Session, task: Task) -> None:
     task.assignee_id = suggested
 
 
-# ── Transition policy ─────────────────────────────────────────────────────────
-# Toda transición entre estados está permitida: el kanban es una herramienta de
-# trabajo donde el usuario decide cómo mueve sus tareas. La trazabilidad se
-# garantiza vía TaskMovementLog (cada cambio queda registrado con quién, cuándo,
-# desde/hasta y motivo opcional). Si el frontend considera una transición
-# "sensible" (p.ej. reabrir una tarea ya done/cancelled) puede solicitar al
-# usuario un `move_reason` antes de enviar el PATCH.
 
 
-# Valid forward/backward transitions per state.
-# cancelled is terminal; todo cannot jump directly to in_review.
-_TASK_VALID_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {
-    TaskStatus.backlog:     {TaskStatus.todo, TaskStatus.cancelled},
-    TaskStatus.todo:        {TaskStatus.in_progress, TaskStatus.done, TaskStatus.backlog, TaskStatus.cancelled},
-    TaskStatus.in_progress: {TaskStatus.in_review, TaskStatus.todo, TaskStatus.done,
-                              TaskStatus.blocked, TaskStatus.cancelled},
-    TaskStatus.in_review:   {TaskStatus.done, TaskStatus.in_progress, TaskStatus.cancelled},
-    TaskStatus.done:        {TaskStatus.in_progress},  # reopen
-    TaskStatus.blocked:     {TaskStatus.in_progress, TaskStatus.todo, TaskStatus.cancelled},
-    TaskStatus.cancelled:   set(),  # terminal
-}
-
-
-def validate_task_transition(current_status: TaskStatus, new_status: TaskStatus) -> None:
-    """Raise 400 if the transition is not permitted by _TASK_VALID_TRANSITIONS."""
-    allowed = _TASK_VALID_TRANSITIONS.get(current_status, set())
-    if new_status not in allowed:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Transición inválida: {current_status.value} → {new_status.value}.",
-        )
-
-
-def apply_status_side_effects(task, new_status: TaskStatus) -> None:
-    """Set started_at / completed_at timestamps when status changes."""
-    if new_status == TaskStatus.in_progress:
-        task.started_at = datetime.now(timezone.utc)
-    elif new_status == TaskStatus.done:
-        task.completed_at = datetime.now(timezone.utc)
-
-        # Trigger OKR sync si la tarea está vinculada a un proyecto con OKRs
-        try:
-            from app.services import okr_service
-            getattr(task, '_sa_instance_state', None)
-            if hasattr(task, 'project_id') and task.project_id:
-                session = getattr(task, '_sa_instance_state', None)
-                if session:
-                    db_session = session.session
-                    krs = db_session.query(okr_service.KeyResult).join(okr_service.Objective).filter(
-                        okr_service.Objective.project_id == task.project_id
-                    ).all()
-                    for kr in krs:
-                        try:
-                            okr_service.sync_kr_from_tasks(kr.id, task.assignee_id or "system", db_session)
-                        except Exception as e:
-                            import logging
-                            logging.getLogger(__name__).warning(f"OKR sync failed for KR {kr.id}: {e}")
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"OKR sync global error: {e}")
 
 
 # ── Cascade reschedule (BFS) ───────────────────────────────────────────────────
 
-def cascade_reschedule(task_id: str, new_end_date: date, db: Session) -> dict:
-    """
-    Propagate a due-date shift to all FS successor tasks via BFS.
-    Returns rescheduled task list + total count.
-    """
-
-    root_task = db.query(Task).filter(Task.id == task_id).first()
-    if not root_task:
-        raise HTTPException(404, "Tarea no encontrada")
-
-    old_end = root_task.due_date
-    if not old_end:
-        raise HTTPException(400, "La tarea raíz no tiene fecha de fin definida")
-
-    delta = new_end_date - old_end
-    if delta.days == 0:
-        return {
-            "rescheduled": [],
-            "total_shifted": 0,
-            "message": "No hay cambio de fecha — nada que replanificar",
-        }
-
-    root_task.due_date = new_end_date
-    if root_task.start_date:
-        root_task.start_date = root_task.start_date + delta
-    rescheduled = [{
-        "task_id": root_task.id,
-        "title": root_task.title,
-        "old_due_date": str(old_end),
-        "new_due_date": str(new_end_date),
-        "shift_days": delta.days,
-    }]
-
-    visited = {task_id}
-    queue: deque = deque([task_id])
-
-    while queue:
-        current_id = queue.popleft()
-        current_task = db.query(Task).filter(Task.id == current_id).first()
-        if not current_task or not current_task.due_date:
-            continue
-
-        deps = db.query(TaskDependency).filter(
-            TaskDependency.predecessor_id == current_id,
-            TaskDependency.dependency_type == DependencyType.finish_to_start,
-        ).all()
-
-        for dep in deps:
-            succ_id = dep.successor_id
-            if succ_id in visited:
-                continue
-            visited.add(succ_id)
-            succ = db.query(Task).filter(Task.id == succ_id).first()
-            if not succ:
-                continue
-
-            lag = timedelta(days=dep.lag_days or 0)
-            new_start = current_task.due_date + timedelta(days=1) + lag
-            if succ.start_date and succ.due_date:
-                duration = succ.due_date - succ.start_date
-                old_due = succ.due_date
-                succ.start_date = new_start
-                succ.due_date = new_start + duration
-            elif succ.due_date:
-                old_due = succ.due_date
-                shift_here = new_start - (succ.start_date or succ.due_date)
-                succ.due_date = succ.due_date + shift_here
-            else:
-                continue
-
-            rescheduled.append({
-                "task_id": succ.id,
-                "title": succ.title,
-                "old_due_date": str(old_due),
-                "new_due_date": str(succ.due_date),
-                "shift_days": (succ.due_date - old_due).days,
-            })
-            queue.append(succ_id)
-
-    db.commit()
-    return {"rescheduled": rescheduled, "total_shifted": len(rescheduled)}
 
 
 # ── Bulk update ────────────────────────────────────────────────────────────────
 
-def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) -> dict:
-    """
-    Apply status / assignee_id / priority changes to multiple tasks.
-    Returns {"updated": int, "skipped": list}.
-    """
-
-    task_id_list = list(set(task_ids))
-    tasks = db.query(Task).options(joinedload(Task.assignee)).filter(Task.id.in_(task_id_list)).all()
-
-    new_status = updates.get("status")
-    new_assignee_id = updates.get("assignee_id")
-    new_priority = updates.get("priority")
-
-    updated = 0
-    skipped = []
-
-    for task in tasks:
-        if current_user.role in (UserRole.employee, UserRole.subcontractor):
-            skipped.append({"id": task.id, "reason": "forbidden"})
-            continue
-        # Permitir admin
-        if current_user.role == UserRole.admin:
-            pass
-        # Permitir pm del proyecto
-        elif current_user.role == UserRole.pm:
-            project = db.query(Project).filter(Project.id == task.project_id).first()
-            if not (project and project.pm_id == current_user.id):
-                if task.assignee_id != current_user.id:
-                    skipped.append({"id": task.id, "reason": "forbidden"})
-                    continue
-        # Permitir team_lead si es miembro con rol lead
-        elif current_user.role == UserRole.team_lead:
-            from app.models.project import ProjectMember, ProjectMemberRole
-            is_lead = db.query(ProjectMember).filter(
-                ProjectMember.project_id == task.project_id,
-                ProjectMember.user_id == current_user.id,
-                ProjectMember.role == ProjectMemberRole.lead
-            ).first()
-            if not is_lead:
-                if task.assignee_id != current_user.id:
-                    skipped.append({"id": task.id, "reason": "forbidden"})
-                    continue
-        # Otros solo si son asignee
-        else:
-            if task.assignee_id != current_user.id:
-                skipped.append({"id": task.id, "reason": "forbidden"})
-                continue
-
-        if new_status and new_status != task.status:
-            apply_status_side_effects(task, new_status)
-            task.status = new_status
-
-        if new_assignee_id is not None:
-            task.assignee_id = new_assignee_id or None
-        if new_priority is not None:
-            task.priority = new_priority
-
-        task.version = (task.version or 1) + 1
-        updated += 1
-
-    db.commit()
-    return {"updated": updated, "skipped": skipped}
 
 
 # ── Query helpers (scoped to org) ──────────────────────────────────────────────
@@ -811,8 +667,21 @@ def get_tasks_for_project(
 
 
 def get_tasks_for_sprint(sprint_id: str, db: Session) -> list[Task]:
-    """Return all tasks assigned to a sprint."""
-    return db.query(Task).filter(Task.sprint_id == sprint_id).all()
+    """Return all tasks assigned to a sprint.
+
+    Auditoria 2026-08: esto filtraba por `Task.sprint_id`, y **esa columna no
+    existe**. Una tarea se enlaza a un sprint por la tabla `sprint_tasks`
+    (`SprintTask`), asi que la consulta reventaba con `AttributeError` y
+    «las tareas de un sprint» no se podian listar.
+    """
+    from app.models.sprints import SprintTask
+
+    return (
+        db.query(Task)
+        .join(SprintTask, SprintTask.task_id == Task.id)
+        .filter(SprintTask.sprint_id == sprint_id)
+        .all()
+    )
 
 
 def get_threaded_comments_for_task(

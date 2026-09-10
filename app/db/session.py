@@ -233,6 +233,20 @@ class TenantSession(Session):
     def query(self, *entities, **kwargs):
         q = super().query(*entities, **kwargs)
 
+        # Auditoria 2026-08. `bypass_tenant_filter` estaba documentado en la
+        # cabecera de `do_orm_execute` como «escape hatch por sesion», y **de las
+        # tres capas de aislamiento solo lo respetaba esa**. Es decir: un script
+        # de migracion o un trabajo de analitica entre tenants que lo pusiera
+        # seguia filtrado por `query()` y por `execute()`, que son justo las dos
+        # que usa el codigo normal. Una bandera documentada que no hace lo que
+        # dice es peor que no tenerla, porque quien la usa cree que ya esta.
+        #
+        # Salio arreglando un 500 real: mover un usuario a otra organizacion y
+        # releerlo despues. Ver `sin_filtro_de_tenant`, que es la unica forma
+        # recomendada de encenderla.
+        if self.info.get("bypass_tenant_filter") is True:
+            return q
+
         # is_superadmin is explicitly set by deps.get_current_user:
         #   True  → superadmin, bypass all tenant filters
         #   False → regular user, enforce tenant isolation
@@ -286,7 +300,7 @@ class TenantSession(Session):
         unchanged — they carry explicit WHERE clauses by design.
         """
         from sqlalchemy.sql import Select
-        if isinstance(statement, Select):
+        if isinstance(statement, Select) and self.info.get("bypass_tenant_filter") is not True:
             is_superadmin = self.info.get("is_superadmin", None)
             if is_superadmin is False:
                 org_id = self.info.get("organization_id")
@@ -351,11 +365,16 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, clas
 # Bypass options:
 #   • `session.info["is_superadmin"] = True` — already used for superadmin paths.
 #   • `session.info["bypass_tenant_filter"] = True` — explicit per-session escape
-#     hatch for migration scripts / cross-tenant analytics jobs.
+#     hatch for migration scripts / cross-tenant analytics jobs. Auditoria
+#     2026-08: lo respetan **las tres** capas desde entonces; antes solo esta, y
+#     `query()`/`execute()` —las que usa el codigo normal— lo ignoraban. Usalo
+#     via `sin_filtro_de_tenant(session)`, que lo devuelve al salir.
 #   • Set env `TENANT_AUTO_FILTER_GLOBAL=0` to disable the event entirely.
 
 import os as _os
+from contextlib import contextmanager as _contextmanager
 from sqlalchemy import event as _sa_event
+from sqlalchemy import false as _sql_false_expr
 from sqlalchemy.orm import with_loader_criteria as _with_loader_criteria
 
 _TENANT_AUTO_FILTER_GLOBAL = _os.getenv("TENANT_AUTO_FILTER_GLOBAL", "1") == "1"
@@ -398,31 +417,64 @@ if _TENANT_AUTO_FILTER_GLOBAL:
             # Uninitialised session (background job, test) or superadmin: skip.
             return
         org_id = info.get("organization_id")
-        if org_id is None:
-            # Regular user with no org → block any data return.
-            from sqlalchemy import false as _sql_false
-            execute_state.statement = execute_state.statement.options(
-                _with_loader_criteria(
-                    object,  # base — will be skipped by SA when no class matches
-                    lambda cls: _sql_false(),
-                    include_aliases=True,
-                )
-            )
-            return
+        sin_organizacion = org_id is None
+        # Regular user with no org → block any data return.
+        #
+        # Auditoria 2026-08: esta rama NO bloqueaba, reventaba. Pasaba `object`
+        # como objetivo de `with_loader_criteria`, y SA recorre
+        # `object.__subclasses__()` hasta llamar a `type.__subclasses__()` sin
+        # instancia: `TypeError: unbound method type.__subclasses__() needs an
+        # argument`. Es decir, un usuario normal sin organizacion —o un simple
+        # refresco de atributos antes de que la sesion tenga su
+        # `organization_id`— daba un 500 en CUALQUIER consulta ORM en vez de no
+        # devolver filas.
+        #
+        # El bloqueo se hace ahora con el MISMO mecanismo que el filtro normal,
+        # un criterio por modelo, y no tocando `execute_state.statement` con un
+        # `.where(false())`: las opciones de criterio entran en la clave de la
+        # cache de sentencias compiladas de SA y una modificacion directa de la
+        # sentencia no, asi que la SQL con `WHERE false` se reutilizaba despues
+        # para la misma consulta con organizacion valida y devolvia cero filas.
 
         # Attach a loader_criteria for every tenant-scoped model. SA filters out
         # criteria whose target class is not in the statement, so the cost is
         # mostly evaluation at plan time, not execution.
+        #
+        # Auditoria 2026-08 — FUGA ENTRE TENANTS. El criterio se escribia como
+        # `lambda cls, _org=org_id: cls.organization_id == _org`, metiendo la
+        # organizacion en un ARGUMENTO POR DEFECTO. El sistema de lambdas de
+        # SQLAlchemy analiza las **variables de cierre** para convertirlas en
+        # parametros ligados, pero no los argumentos por defecto: esos se
+        # evaluan al crear la lambda y quedan cocidos en la sentencia compilada
+        # que se guarda en la cache del engine, que es de proceso. Resultado
+        # comprobado: la primera organizacion que pasaba por aqui fijaba el
+        # filtro, y la SIGUIENTE organizacion recibia las filas de la primera.
+        #
+        #   sesion 1 (ORG-A) -> ['ORG-A']
+        #   sesion 2 (ORG-B) -> ['ORG-A']   <-- datos de otro tenant
+        #
+        # Con `org_id` como variable de cierre, SA lo extrae como parametro y
+        # cada sesion filtra por la suya. No es un detalle de estilo: es la
+        # diferencia entre que este control aisle o no.
         criteria_options = []
         for model in _iter_tenant_scoped_models():
+            if sin_organizacion:
+                criteria_options.append(
+                    _with_loader_criteria(
+                        model,
+                        lambda cls: _sql_false_expr(),
+                        include_aliases=True,
+                    )
+                )
+                continue
             include_global = getattr(model, "_tenant_filter_include_global", False)
             if include_global:
                 from sqlalchemy import or_ as _or
                 criteria_options.append(
                     _with_loader_criteria(
                         model,
-                        lambda cls, _org=org_id: _or(
-                            cls.organization_id == _org,
+                        lambda cls: _or(
+                            cls.organization_id == org_id,
                             cls.organization_id.is_(None),
                         ),
                         include_aliases=True,
@@ -432,7 +484,7 @@ if _TENANT_AUTO_FILTER_GLOBAL:
                 criteria_options.append(
                     _with_loader_criteria(
                         model,
-                        lambda cls, _org=org_id: cls.organization_id == _org,
+                        lambda cls: cls.organization_id == org_id,
                         include_aliases=True,
                     )
                 )
@@ -486,3 +538,151 @@ def is_postgres() -> bool:
 
 def get_db_type() -> str:
     return "postgresql" if not _is_sqlite else "sqlite"
+
+
+# ── Auditoria 2026-08: sellar la organizacion al insertar ─────────────────────
+#
+# El filtro de tenant es `organization_id == org`, asi que una fila guardada con
+# NULL **no la ve su propia organizacion**: solo un superadmin. Y al barrer el
+# codigo por AST resulto que **195 de los 376 modelos con esa columna no se
+# construyen NUNCA con ella**, en 611 sitios. No es un descuido aislado: es que
+# nadie la sella.
+#
+# Comprobado de punta a punta con dos casos:
+#
+#   - `performance_service.create_cycle()` -> ciclo con organization_id NULL,
+#     y `GET /performance/cycles` devolvia CERO a su propio creador.
+#   - `activity_service.notify()` -> notificacion con NULL, y
+#     `GET /enterprise/notifications` devolvia CERO al usuario.
+#
+# En los dos casos sin un solo error en los logs: solo listas vacias, que es
+# exactamente lo que no se investiga.
+#
+# Arreglar 611 construcciones una a una seria perseguir el sintoma. La causa es
+# que la organizacion del sujeto de la peticion no llega a la fila, y el sitio
+# donde eso se arregla de una vez es el flush.
+#
+# Lo que este escuchador hace y lo que NO hace:
+#
+#   · Sella solo objetos NUEVOS cuya `organization_id` sea None. Un valor ya
+#     puesto no se toca nunca — un superadmin que crea a proposito en otra
+#     organizacion sigue pudiendo.
+#   · Solo si la sesion tiene organizacion en `info`, que es lo que pone
+#     `get_current_user`. Un job de fondo o un script no la tiene, asi que su
+#     comportamiento no cambia: siguen creando NULL como hoy.
+#   · NO toca los modelos exentos (`_tenant_exempt`) ni los que declaran
+#     `_tenant_filter_include_global`. En estos ultimos —`AppSetting` y los
+#     ajustes de proveedor de IA— un NULL significa «valor global del
+#     despliegue», y sellarlo lo convertiria en un ajuste de un solo cliente.
+#
+# Se puede desactivar con `TENANT_AUTO_STAMP_ON_INSERT=0`, igual que el filtro,
+# para poder aislar un problema sin tocar codigo.
+
+_TENANT_AUTO_STAMP = _os.getenv("TENANT_AUTO_STAMP_ON_INSERT", "1") == "1"
+
+
+@_contextmanager
+def sin_filtro_de_tenant(session):
+    """Dentro de este bloque, la sesion lee sin el filtro de organizacion.
+
+    Auditoria 2026-08. La cabecera de `do_orm_execute` ya declaraba
+    `bypass_tenant_filter` como «escape hatch para scripts de migracion y
+    trabajos de analitica entre tenants». Falta un caso que no es ninguno de
+    esos dos y que **da un 500 en produccion**:
+
+        PATCH /users/{id}  con `organization_id` de otra organizacion
+        -> `db.commit()` mueve al usuario
+        -> `db.refresh(user)` no lo encuentra: la sesion sigue en la
+           organizacion de quien llamo, y la fila ya no esta ahi
+        -> InvalidRequestError: Could not refresh instance '<User>'
+
+    El cambio **queda hecho** —el `commit` ya paso— y quien lo pidio recibe un
+    error del servidor. Es el peor final posible: la operacion tuvo efecto y la
+    respuesta dice que no.
+
+    No se arregla aflojando el filtro ni quitando el `refresh`: se arregla
+    diciendo que **esta lectura concreta es legitimamente de otra
+    organizacion**, que es justo lo que este bloque declara. Alcance minimo, y
+    se devuelve el valor anterior al salir por si alguien ya lo habia puesto.
+
+    No usarlo para «que no me moleste el filtro». Si una consulta necesita esto
+    y no es releer una fila que uno mismo acaba de mover, casi seguro que lo que
+    falta es acotar mejor, no saltarse el acotado.
+    """
+    previo = session.info.get("bypass_tenant_filter")
+    session.info["bypass_tenant_filter"] = True
+    try:
+        yield session
+    finally:
+        if previo is None:
+            session.info.pop("bypass_tenant_filter", None)
+        else:
+            session.info["bypass_tenant_filter"] = previo
+
+
+def publicar_contexto_de_tenant(session, sujeto, *, es_cliente=False) -> None:
+    """Pone en `session.info` la organizacion del sujeto de esta peticion.
+
+    Las tres capas de aislamiento de `TenantSession` —`query()`, `execute()` y
+    el escuchador `do_orm_execute`— salen por la puerta de atras cuando `info`
+    no trae `is_superadmin`. Esa rama existe para los trabajos de fondo y los
+    tests («sesion no inicializada»), **no** para una peticion autenticada.
+
+    Auditoria 2026-08 (hallazgo 22). El mismo defecto aparecio tres veces, y
+    siempre en el mismo sitio: una sesion creada a mano con `SessionLocal()`
+    que nadie inicializaba.
+
+      · el WebSocket del chat de colaboracion;
+      · `get_current_client`, de la que cuelgan **41 dependencias** del portal;
+      · y las de este arreglo: los dos WebSocket de BI, los dos generadores de
+        SSE del chat de IA y los tres WebSocket de notificaciones.
+
+    Tres veces el mismo arreglo escrito a mano es una senal: existe este
+    ayudante para que sea **una linea** y para que un test pueda buscarla.
+
+    **Se llama DESPUES de resolver al sujeto**, y eso no es un detalle: la
+    consulta que lo busca por id todavia no sabe de que organizacion es, asi
+    que tiene que correr sin filtrar. Publicar el contexto antes la dejaria sin
+    resultados.
+    """
+    session.info["organization_id"] = getattr(sujeto, "organization_id", None)
+    # Un usuario del portal nunca es superadmin de la plataforma, y su modelo no
+    # tiene ese atributo: por eso el parametro, en vez de un `getattr` que
+    # devolveria `False` por casualidad y no por decision.
+    session.info["is_superadmin"] = (
+        False if es_cliente
+        else bool(getattr(sujeto, "is_superadmin", False))
+    )
+    session.info["current_client" if es_cliente else "current_user"] = sujeto
+
+
+def _sellar_organizacion(session) -> None:
+    """Pone la organizacion de la sesion en las filas nuevas que no la traigan."""
+    info = getattr(session, "info", {}) or {}
+    org_id = info.get("organization_id")
+    if org_id is None:
+        return
+    for obj in session.new:
+        cls = type(obj)
+        if getattr(cls, "_tenant_exempt", False):
+            continue
+        if getattr(cls, "_tenant_filter_include_global", False):
+            continue
+        if not hasattr(cls, "organization_id"):
+            continue
+        try:
+            if getattr(obj, "organization_id", None) is None:
+                obj.organization_id = org_id
+        except Exception:
+            # Un modelo con `organization_id` como propiedad de solo lectura no
+            # debe romper el flush entero.
+            logging.getLogger(__name__).debug(
+                "no se pudo sellar la organizacion en %s", cls.__name__,
+                exc_info=True)
+
+
+if _TENANT_AUTO_STAMP:
+
+    @_sa_event.listens_for(SessionLocal, "before_flush")
+    def _sellar_organizacion_al_insertar(session, flush_context, instances) -> None:
+        _sellar_organizacion(session)

@@ -103,23 +103,50 @@ def update_service_popularity(db: Session) -> dict:
     Does NOT commit — caller must commit.
 
     Returns:
-        {"updated": N, "top_service": str}
+        {"updated": 0, "persisted": False, "top_service": str, "scores": [...]}
+
+    `updated` es siempre cero y `persisted` siempre falso: la puntuacion no se
+    guarda porque no hay columna donde hacerlo. Ver el comentario de abajo.
     """
     popular = get_popular_services(db, weeks=_POPULARITY_WEEKS, limit=999)
 
     max_count = popular[0]["ticket_count"] if popular else 1
-    updated = 0
     top_service = popular[0]["service_name"] if popular else ""
 
-    for entry in popular:
-        svc = db.query(ServiceItem).filter(ServiceItem.id == entry["service_id"]).first()
-        if svc and hasattr(svc, "popularity_score"):
-            # Normalize 0-100
-            svc.popularity_score = round(entry["ticket_count"] / max_count * 100, 1)
-            updated += 1
+    # Auditoria 2026-08 (hallazgo 22). Este bucle recorria los servicios mas
+    # pedidos para guardarles una puntuacion de popularidad en
+    # `svc.popularity_score`, y esa columna **no existe** en `sd_service_items`.
+    #
+    # El `hasattr` es **correcto**, y por eso el defecto era invisible: la
+    # condicion daba `False` siempre, el cuerpo no se ejecutaba nunca, y la
+    # funcion devolvia `{"updated": 0}` sin un solo error. Es el mismo patron
+    # que apago el filtro de organizacion del listado de CMDB y que dejaba la
+    # sincronizacion de Salesforce duplicando oportunidades: una defensa bien
+    # escrita sobre una columna ausente es un interruptor de apagado.
+    #
+    # **No se inventa la columna.** La popularidad se calcula aqui mismo a
+    # partir del recuento de tickets, asi que guardarla seria un cache que hay
+    # que invalidar. Lo que se hace es **devolverla**, que es lo que el
+    # consumidor puede usar hoy, y decir que no se persiste.
+    puntuaciones = [
+        {
+            "service_id": entry["service_id"],
+            "service_name": entry.get("service_name"),
+            "ticket_count": entry["ticket_count"],
+            "popularity_score": round(
+                entry["ticket_count"] / max_count * 100, 1),
+        }
+        for entry in popular
+    ]
 
-    db.flush()
-    return {"updated": updated, "top_service": top_service}
+    return {
+        # Se conserva la clave: era API publicada. Y ahora dice la verdad —
+        # cero filas actualizadas, porque no hay donde guardarlo.
+        "updated": 0,
+        "persisted": False,
+        "top_service": top_service,
+        "scores": puntuaciones,
+    }
 
 
 # ── User-specific recommendations ────────────────────────────────────────────
@@ -404,3 +431,136 @@ def enrich_catalog_with_stats(
             svc["avg_csat_recent"] = stats.get("avg_csat")
 
     return catalog
+
+
+# ── Configuración de aprovisionamiento y su rastro, movidos del endpoint ─────
+#
+# Auditoria 2026-08 (hallazgo 22). Estaban en
+# `endpoints/service_desk/smart_catalog.py`. Las dos consultas de configuracion
+# ya estaban bien acotadas por organizacion; lo que faltaba es que las filas que
+# el aprovisionamiento **crea** —el comentario del ticket y las entradas de
+# historial— no llevaban `organization_id`.
+#
+# Con el sellado de `app/db/session.py` la recibirian en una peticion, pero aqui
+# se pone explicita: la fila cuelga de un ticket que ya se comprobo, asi que la
+# organizacion se sabe sin depender de la sesion, y el aprovisionamiento tambien
+# se dispara desde caminos de fondo.
+
+import json as _json_prov  # noqa: E402
+import uuid as _uuid_prov  # noqa: E402
+
+from sqlalchemy.orm import Session as _SesionProv  # noqa: E402
+
+from app.models.settings import AppSetting as _AjusteProv  # noqa: E402
+
+#: Prefijo de la clave de configuracion por servicio del catalogo.
+PREFIJO_CLAVE_APROVISIONAMIENTO = "sd.catalog.provisioning."
+
+#: Cuanto se guarda del resultado de un paso en el historial. El resultado de un
+#: proveedor externo puede traer una respuesta larga y esto es un campo de
+#: auditoria, no un almacen de respuestas.
+MAX_CARACTERES_DEL_RESULTADO = 1000
+
+
+def _clave_de_aprovisionamiento(service_item_id: str) -> str:
+    return f"{PREFIJO_CLAVE_APROVISIONAMIENTO}{service_item_id}"
+
+
+def _fila_de_configuracion(db: _SesionProv, service_item_id: str, org_id):
+    return (
+        db.query(_AjusteProv)
+        .filter(
+            _AjusteProv.key == _clave_de_aprovisionamiento(service_item_id),
+            _AjusteProv.organization_id == org_id,
+        )
+        .first()
+    )
+
+
+def configuracion_de_aprovisionamiento(
+    db: _SesionProv, service_item_id: str, org_id,
+) -> dict:
+    """La configuracion de aprovisionamiento de ese servicio, o vacia.
+
+    Una configuracion ilegible devuelve `{}`, que desactiva el
+    aprovisionamiento: es preferible no aprovisionar a aprovisionar a medias con
+    un JSON roto.
+    """
+    fila = _fila_de_configuracion(db, service_item_id, org_id)
+    if not fila or not fila.value:
+        return {}
+    try:
+        return _json_prov.loads(fila.value)
+    except (ValueError, TypeError):
+        return {}
+
+
+def guardar_configuracion_de_aprovisionamiento(
+    db: _SesionProv, service_item_id: str, org_id, config: dict,
+) -> None:
+    fila = _fila_de_configuracion(db, service_item_id, org_id)
+    valor = _json_prov.dumps(config, ensure_ascii=False)
+    if fila:
+        fila.value = valor
+    else:
+        db.add(_AjusteProv(
+            key=_clave_de_aprovisionamiento(service_item_id),
+            organization_id=org_id,
+            value=valor,
+            description=f"Provisioning config for service {service_item_id}",
+        ))
+    db.commit()
+
+
+def anotar_comentario_de_aprovisionamiento(
+    db: _SesionProv, ticket, autor, cuerpo: str, *, nombre_del_bot: str,
+) -> None:
+    """El comentario que el aprovisionamiento deja en el ticket."""
+    from app.models.service_desk import TicketComment
+
+    db.add(TicketComment(
+        id=str(_uuid_prov.uuid4()),
+        organization_id=ticket.organization_id,
+        ticket_id=ticket.id,
+        body=cuerpo,
+        is_public=True,
+        is_solution=False,
+        author_user_id=autor.id,
+        author_name=nombre_del_bot,
+    ))
+
+
+def anotar_en_el_historial_del_ticket(
+    db: _SesionProv, ticket, autor, *, campo: str,
+    valor_anterior=None, valor_nuevo=None,
+) -> None:
+    """Una entrada de historial del ticket, con su organizacion.
+
+    La organizacion sale del ticket, que el endpoint ya comprobo: asi la fila
+    queda acotada aunque esto se llame desde un camino sin sesion de peticion.
+    """
+    from app.models.service_desk import TicketHistory
+
+    db.add(TicketHistory(
+        id=str(_uuid_prov.uuid4()),
+        organization_id=ticket.organization_id,
+        ticket_id=ticket.id,
+        field_name=campo,
+        old_value=valor_anterior,
+        new_value=valor_nuevo,
+        changed_by_user_id=autor.id,
+    ))
+
+
+def resumen_de_paso(tipo: str, resultado: dict) -> str:
+    """Lo que se guarda en el historial de un paso de proveedor externo."""
+    return _json_prov.dumps(
+        {
+            "type": tipo,
+            "ok": bool(resultado.get("ok", False)),
+            "provider": resultado.get("provider"),
+            "status_code": resultado.get("status_code"),
+            "exit_code": resultado.get("exit_code"),
+        },
+        ensure_ascii=False,
+    )[:MAX_CARACTERES_DEL_RESULTADO]
