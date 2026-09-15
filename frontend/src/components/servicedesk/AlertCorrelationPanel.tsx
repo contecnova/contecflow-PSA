@@ -178,7 +178,7 @@ export default function AlertCorrelationPanel() {
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
-  const { data: clustersData, isLoading: clustersLoading } = useQuery<{ clusters?: AlertCluster[] }>({
+  const { data: clustersData, isLoading: clustersLoading } = useQuery<{ clusters?: AlertCluster[]; window_hours?: number; total?: number }>({
     queryKey: ['sd-alert-clusters'],
     queryFn: () => alertClustersApi.list().then(r => r.data),
     refetchInterval: 60_000,

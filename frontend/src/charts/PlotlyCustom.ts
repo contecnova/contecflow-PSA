@@ -32,16 +32,15 @@
  * comprobó fichero a fichero antes de recortar, que es la diferencia entre
  * recortar y romper.
  */
-// @ts-expect-error — `plotly.js/lib/*` no publica tipos; el componente que se
-// exporta abajo sí los tiene, vía `@types/react-plotly.js/factory`.
+// Los `plotly.js/lib/*` sí tienen tipos: `@types/react-plotly.js` arrastra
+// `@types/plotly.js`, que los declara. La primera versión de este fichero puso
+// un `@ts-expect-error` sobre cada import por si acaso, y `noUnusedLocals`
+// —bueno, `TS2578`— los delató como innecesarios. Quitarlos importa: un
+// `@ts-expect-error` de más silencia el error que sí aparezca mañana.
 import Plotly from 'plotly.js/lib/core'
-// @ts-expect-error — idem.
 import box from 'plotly.js/lib/box'
-// @ts-expect-error — idem.
 import violin from 'plotly.js/lib/violin'
-// @ts-expect-error — idem.
 import scatter3d from 'plotly.js/lib/scatter3d'
-// @ts-expect-error — idem.
 import surface from 'plotly.js/lib/surface'
 import createPlotlyComponent from 'react-plotly.js/factory'
 

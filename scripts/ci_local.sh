@@ -233,7 +233,7 @@ if [[ "$MODE" != "--fast" ]]; then
   # react-router-dom 6→7). Cada uno es una migración con riesgo real sobre las
   # 119 rutas lazy, así que se dejan medidos y no forzados. El gate bloqueante
   # en nivel high está entre los de arriba.
-  run_gate informativo "npm audit (3 moderate: echarts 6, react-router 7)" \
+  run_gate informativo "npm audit (nivel moderate; el 15-09-2026 estaba en cero)" \
     bash -c 'cd frontend && npm audit --audit-level=moderate'
 fi
 

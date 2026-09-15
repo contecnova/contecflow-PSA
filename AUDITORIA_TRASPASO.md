@@ -4390,8 +4390,26 @@ Lo demás yo lo dejaría donde está, y digo por qué:
 - **Consolidar las cuatro librerías de gráficos en una.** El coste de carga ya
   está resuelto (#19: −68 % al abrir las páginas afectadas), así que migrar 25
   usos de echarts y 18 de recharts es riesgo alto por beneficio hoy marginal.
-- **`echarts` 5→6 y `react-router-dom` 6→7** — los 3 avisos `moderate` de
-  `npm audit`. Cada uno es una migración con riesgo sobre 119 rutas lazy.
+- **`echarts` 5→6 y `react-router-dom` 6→7: HECHAS** (2026-09-15), y resultaron
+  mucho más baratas de lo que este documento suponía. Aquí decía «cada uno es
+  una migración con riesgo sobre 119 rutas lazy», **sin haberlas intentado**.
+  Costaron media hora entre las dos y `npm audit` quedó en **cero**.
+
+  De `react-router` 6 a 7 **no hubo que cambiar ni una ruta**, y la razón merece
+  quedar escrita: el proyecto ya declaraba `future={{ v7_startTransition,
+  v7_relativeSplatPath }}` en el `BrowserRouter`, es decir, **ya corría con la
+  semántica de la 7**. Lo único que cambió es que esas banderas son ahora el
+  comportamiento por defecto y la prop desapareció. Y la aplicación sólo usa la
+  API declarativa —`BrowserRouter`, `Routes`, `Route`, los hooks, `Link`,
+  `NavLink`, `Navigate`—, ninguna de las de datos (`createBrowserRouter`,
+  `loader`, `json`), que es donde estaban los cambios de verdad.
+
+  `echarts` 5→6 tampoco pidió nada: `echarts-for-react` subió solo a 3.0.6 y el
+  build salió en verde a la primera.
+
+  **La lección, que es la reutilizable:** estimar el riesgo de una migración
+  leyendo el número de versión es como contar `db.query` con `grep` — sale un
+  número, y no es el que importa.
 
   **Corrección del 2 de septiembre:** el gate bloqueante está en nivel `high`, y
   cuando se escribió esto estaba a 0 — pero para entonces **ya había aparecido un
@@ -4408,7 +4426,10 @@ Lo demás yo lo dejaría donde está, y digo por qué:
   medias, el gate bloqueante estaba en rojo: **2 críticas y 1 alta**. La historia
   completa está en §3.unvicies; el resumen es que las críticas entraban por una
   librería de mapas que esta aplicación no usa, y que se fueron recortando el
-  bundle en vez de subiendo de versión mayor. Quedan las 3 moderadas de siempre
-  —`echarts` 6 y `react-router` 7—, que siguen siendo deuda deliberada.
+  bundle en vez de subiendo de versión mayor.
+
+  Ese mismo día se hicieron también las dos migraciones mayores que quedaban, y
+  **`npm audit` está en cero**: 0 críticas, 0 altas, 0 moderadas, 0 bajas. Es la
+  primera vez en toda la auditoría.
 - **`strictNullChecks` (226) y `noImplicitAny` (387).** El camino es la whitelist
   de `tsconfig.strict.json`: añadir ficheros y dejar el gate verde.

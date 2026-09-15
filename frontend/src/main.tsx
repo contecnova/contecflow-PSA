@@ -171,8 +171,15 @@ if (import.meta.env.DEV) {
 // ── Render ────────────────────────────────────────────────────────────────────
 const rootEl = document.getElementById('root')
 if (!rootEl) throw new Error('Root element #root not found in index.html')
+// Auditoria 2026-09: el `BrowserRouter` llevaba
+// `future={{ v7_startTransition: true, v7_relativeSplatPath: true }}`. Esas dos
+// banderas servian para adoptar por adelantado el comportamiento de
+// react-router 7 estando en la 6; con la 7 instalada **son el comportamiento
+// por defecto** y la prop ya no existe, asi que dejarla puesta es un error de
+// tipos. Que el proyecto las tuviera activadas es la razon de que la migracion
+// 6 -> 7 no haya cambiado nada mas: el codigo ya corria con la semantica nueva.
 ReactDOM.createRoot(rootEl).render(
-  <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+  <BrowserRouter>
     <AppProviders queryClient={queryClient}>
       <RootBoundary>
         <App />
