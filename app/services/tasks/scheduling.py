@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import date, timedelta
+from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -16,83 +17,100 @@ from app.models.bookings import TaskDependency, DependencyType
 from app.models.task import Task
 
 
+def _mover_sucesora(succ, current_task, dep) -> Optional[dict]:
+    """Mueve una tarea sucesora detrás de su predecesora. `None` si no se puede.
+
+    La sucesora empieza al día siguiente de que acabe la predecesora, más el
+    desfase declarado en la dependencia.
+
+    Dos casos:
+      · Con fecha de inicio y de fin, **se conserva la duración**: la tarea se
+        desplaza entera, no se estira.
+      · Sólo con fecha de fin, se desplaza lo mismo que se habría desplazado el
+        inicio.
+
+    Una tarea sin ninguna fecha no se puede mover, y devuelve `None`.
+    """
+    nuevo_inicio = current_task.due_date + timedelta(days=1) + timedelta(days=dep.lag_days or 0)
+
+    if succ.start_date and succ.due_date:
+        duracion = succ.due_date - succ.start_date
+        fin_anterior = succ.due_date
+        succ.start_date = nuevo_inicio
+        succ.due_date = nuevo_inicio + duracion
+    elif succ.due_date:
+        fin_anterior = succ.due_date
+        succ.due_date = succ.due_date + (nuevo_inicio - (succ.start_date or succ.due_date))
+    else:
+        return None
+
+    return {
+        "task_id": succ.id,
+        "title": succ.title,
+        "old_due_date": str(fin_anterior),
+        "new_due_date": str(succ.due_date),
+        "shift_days": (succ.due_date - fin_anterior).days,
+    }
+
+
 def cascade_reschedule(task_id: str, new_end_date: date, db: Session) -> dict:
+    """Propaga un cambio de fecha de fin a todas las sucesoras fin-a-inicio.
+
+    El recorrido es en anchura y lleva un conjunto de visitadas: un grafo de
+    dependencias puede tener ciclos, y sin eso esto giraría para siempre.
     """
-    Propagate a due-date shift to all FS successor tasks via BFS.
-    Returns rescheduled task list + total count.
-    """
-    root_task = db.query(Task).filter(Task.id == task_id).first()
-    if not root_task:
+    raiz = db.query(Task).filter(Task.id == task_id).first()
+    if not raiz:
         raise HTTPException(404, "Tarea no encontrada")
 
-    old_end = root_task.due_date
-    if not old_end:
+    fin_anterior = raiz.due_date
+    if not fin_anterior:
         raise HTTPException(400, "La tarea raíz no tiene fecha de fin definida")
 
-    delta = new_end_date - old_end
-    if delta.days == 0:
+    desplazamiento = new_end_date - fin_anterior
+    if desplazamiento.days == 0:
         return {
             "rescheduled": [],
             "total_shifted": 0,
             "message": "No hay cambio de fecha — nada que replanificar",
         }
 
-    root_task.due_date = new_end_date
-    if root_task.start_date:
-        root_task.start_date = root_task.start_date + delta
-    rescheduled = [{
-        "task_id": root_task.id,
-        "title": root_task.title,
-        "old_due_date": str(old_end),
+    raiz.due_date = new_end_date
+    if raiz.start_date:
+        raiz.start_date = raiz.start_date + desplazamiento
+
+    replanificadas = [{
+        "task_id": raiz.id,
+        "title": raiz.title,
+        "old_due_date": str(fin_anterior),
         "new_due_date": str(new_end_date),
-        "shift_days": delta.days,
+        "shift_days": desplazamiento.days,
     }]
 
-    visited = {task_id}
-    queue: deque = deque([task_id])
-
-    while queue:
-        current_id = queue.popleft()
-        current_task = db.query(Task).filter(Task.id == current_id).first()
-        if not current_task or not current_task.due_date:
+    vistas = {task_id}
+    cola: deque = deque([task_id])
+    while cola:
+        actual_id = cola.popleft()
+        actual = db.query(Task).filter(Task.id == actual_id).first()
+        if not actual or not actual.due_date:
             continue
 
-        deps = db.query(TaskDependency).filter(
-            TaskDependency.predecessor_id == current_id,
+        dependencias = db.query(TaskDependency).filter(
+            TaskDependency.predecessor_id == actual_id,
             TaskDependency.dependency_type == DependencyType.finish_to_start,
         ).all()
 
-        for dep in deps:
-            succ_id = dep.successor_id
-            if succ_id in visited:
+        for dep in dependencias:
+            if dep.successor_id in vistas:
                 continue
-            visited.add(succ_id)
-            succ = db.query(Task).filter(Task.id == succ_id).first()
+            vistas.add(dep.successor_id)
+            succ = db.query(Task).filter(Task.id == dep.successor_id).first()
             if not succ:
                 continue
-
-            lag = timedelta(days=dep.lag_days or 0)
-            new_start = current_task.due_date + timedelta(days=1) + lag
-            if succ.start_date and succ.due_date:
-                duration = succ.due_date - succ.start_date
-                old_due = succ.due_date
-                succ.start_date = new_start
-                succ.due_date = new_start + duration
-            elif succ.due_date:
-                old_due = succ.due_date
-                shift_here = new_start - (succ.start_date or succ.due_date)
-                succ.due_date = succ.due_date + shift_here
-            else:
-                continue
-
-            rescheduled.append({
-                "task_id": succ.id,
-                "title": succ.title,
-                "old_due_date": str(old_due),
-                "new_due_date": str(succ.due_date),
-                "shift_days": (succ.due_date - old_due).days,
-            })
-            queue.append(succ_id)
+            movida = _mover_sucesora(succ, actual, dep)
+            if movida:
+                replanificadas.append(movida)
+                cola.append(dep.successor_id)
 
     db.commit()
-    return {"rescheduled": rescheduled, "total_shifted": len(rescheduled)}
+    return {"rescheduled": replanificadas, "total_shifted": len(replanificadas)}

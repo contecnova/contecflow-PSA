@@ -217,39 +217,68 @@ def approval_chain_for_user(user, db: Session, requesting_user) -> list:
 
 # ── Create user ────────────────────────────────────────────────────────────────
 
-def create_user_record(payload, current_user, db: Session):
+def _resolver_organizaciones_del_alta(user_data: dict, requested_org_ids: list,
+                                      current_user, db: Session) -> list:
+    """Decide en qué organizaciones se da de alta al usuario, y comprueba que se puede.
 
+    Dos caminos que no se parecen:
+
+      · **Administrador de cliente**: no puede dar de alta fuera de su propia
+        organización, ni como principal ni como pertenencia adicional. Si lo
+        intenta es un 403, no un silencio: pedir una organización ajena y que
+        el alta salga en la propia sería peor que fallar.
+      · **Superadmin**: puede elegir, así que las organizaciones pedidas se
+        validan contra las que existen. Si da pertenencias pero no principal, la
+        primera pasa a ser la principal — un usuario sin organización principal
+        no se puede listar en ningún sitio.
+
+    Devuelve la lista de pertenencias y deja `organization_id` puesto en
+    `user_data`.
+    """
+    principal = user_data.get("organization_id")
+
+    if current_user.organization_id and current_user.role != UserRole.admin:
+        propia = current_user.organization_id
+        if principal and principal != propia:
+            raise HTTPException(403, "No puedes crear usuarios en otra organización")
+        if any(org_id != propia for org_id in requested_org_ids):
+            raise HTTPException(403, "No puedes crear usuarios en otra organización")
+        user_data["organization_id"] = propia
+        return [str(propia)]
+
+    pertenencias = _validate_org_ids(requested_org_ids, db)
+    if principal:
+        principal = str(principal)
+        _validate_org_ids([principal], db)
+        if principal not in pertenencias:
+            pertenencias.append(principal)
+    elif pertenencias:
+        principal = pertenencias[0]
+    user_data["organization_id"] = principal
+    return pertenencias
+
+
+def create_user_record(payload, current_user, db: Session):
+    """Da de alta un usuario, con sus pertenencias a organizaciones."""
     if db.query(User).filter(User.username == payload.username).first():
         raise HTTPException(status_code=400, detail="Username ya existe")
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=400, detail="Email ya registrado")
 
     if payload.password:
-        ok, err = validate_password_policy(payload.password, db=db, org_id=getattr(current_user, "organization_id", None))
+        ok, err = validate_password_policy(
+            payload.password, db=db,
+            org_id=getattr(current_user, "organization_id", None),
+        )
         if not ok:
             raise HTTPException(status_code=400, detail=err)
 
     user_data = payload.model_dump(exclude={"password"})
-    requested_org_id = user_data.get("organization_id")
-    requested_org_ids = _normalize_org_ids(user_data.pop("organization_ids", None))
-
-    if current_user.organization_id and current_user.role != UserRole.admin:
-        if requested_org_id and requested_org_id != current_user.organization_id:
-            raise HTTPException(status_code=403, detail="No puedes crear usuarios en otra organización")
-        if any(org_id != current_user.organization_id for org_id in requested_org_ids):
-            raise HTTPException(status_code=403, detail="No puedes crear usuarios en otra organización")
-        user_data["organization_id"] = current_user.organization_id
-        requested_org_ids = [str(current_user.organization_id)]
-    else:
-        requested_org_ids = _validate_org_ids(requested_org_ids, db)
-        if requested_org_id:
-            requested_org_id = str(requested_org_id)
-            _validate_org_ids([requested_org_id], db)
-            if requested_org_id not in requested_org_ids:
-                requested_org_ids.append(requested_org_id)
-        if requested_org_ids and not requested_org_id:
-            requested_org_id = requested_org_ids[0]
-        user_data["organization_id"] = requested_org_id
+    pertenencias = _resolver_organizaciones_del_alta(
+        user_data,
+        _normalize_org_ids(user_data.pop("organization_ids", None)),
+        current_user, db,
+    )
 
     user = User(**user_data)
     if payload.password:
@@ -257,9 +286,10 @@ def create_user_record(payload, current_user, db: Session):
 
     db.add(user)
     db.flush()
-    if requested_org_ids:
-        _sync_user_memberships(user, requested_org_ids, db)
+    if pertenencias:
+        _sync_user_memberships(user, pertenencias, db)
     db.commit()
+
     # Mismo caso que en `update_user_record`: si el alta crea al usuario en otra
     # organizacion —un superadmin dando de alta al primer administrador de un
     # cliente nuevo—, la sesion de quien llama no puede releer la fila. El

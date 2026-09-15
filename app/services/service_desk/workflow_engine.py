@@ -253,88 +253,115 @@ def start_run(
     return run
 
 
-def advance(db: Session, run: WorkflowRun) -> WorkflowRun:
-    """Ejecuta nodos automáticos hasta llegar a `end`, `wait` o un nodo humano."""
-    if run.status not in (WorkflowRunStatus.running,):
-        return run
-    pub = (
+def _grafo_de_la_ejecucion(db: Session, run: WorkflowRun):
+    """El grafo de la versión que esta ejecución está siguiendo, o `None`.
+
+    Se busca primero la versión **anclada en la ejecución** y sólo después la
+    publicada: una ejecución en curso tiene que seguir el plano con el que
+    empezó, aunque se haya publicado otro por medio.
+    """
+    version = (
         db.query(WorkflowBlueprintVersion)
         .filter(WorkflowBlueprintVersion.id == run.blueprint_version_id)
         .first()
     ) or _get_published_version(db, run.blueprint_id)
-    if not pub:
+    return _graph_of(version) if version else None
+
+
+def _pausar_en(db: Session, run: WorkflowRun, node, ntype: str, payload: dict,
+               wait_seconds=None) -> WorkflowRun:
+    """Deja la ejecución esperando en este nodo.
+
+    Dos motivos, misma consecuencia: un nodo humano —que espera a que alguien
+    responda— o un temporizador, que además fija `wake_at` para que el
+    planificador sepa cuándo volver.
+    """
+    if wait_seconds is not None:
+        run.wake_at = datetime.now(timezone.utc) + timedelta(seconds=int(wait_seconds or 0))
+        payload = {**payload, "wake_at": run.wake_at.isoformat()}
+
+    db.add(WorkflowRunStep(
+        run_id=run.id, node_id=str(node.get("id")), node_type=ntype,
+        status=WorkflowRunStepStatus.waiting,
+        branch_taken=None, payload_json=payload,
+    ))
+    run.status = WorkflowRunStatus.waiting
+    db.flush()
+    return run
+
+
+def _ejecutar_un_nodo(db: Session, run: WorkflowRun, graph, node) -> Optional[WorkflowRun]:
+    """Ejecuta un nodo y avanza. Devuelve la ejecución si hay que parar, o `None`.
+
+    `None` significa «sigue el bucle»: el nodo era automático, se registró y se
+    movió el puntero al siguiente.
+    """
+    ntype = _node_type(node)
+    try:
+        branch, payload, wait_seconds = _execute_node(ntype, _node_config(node), run, db)
+    except Exception as exc:
+        _record_error(db, run, f"executor {ntype} falló: {exc}")
+        return run
+
+    if branch == WAIT:
+        return _pausar_en(
+            db, run, node, ntype, payload,
+            wait_seconds=wait_seconds if ntype == "wait" else None,
+        )
+
+    db.add(WorkflowRunStep(
+        run_id=run.id, node_id=str(node.get("id")), node_type=ntype,
+        status=WorkflowRunStepStatus.done,
+        branch_taken=branch, payload_json=payload,
+        completed_at=datetime.now(timezone.utc),
+    ))
+
+    if ntype == "end":
+        run.status = WorkflowRunStatus.completed
+        run.completed_at = datetime.now(timezone.utc)
+        run.current_node_id = None
+        db.flush()
+        return run
+
+    siguiente = _pick_next(graph, str(node.get("id")), branch)
+    if not siguiente:
+        _record_error(db, run, f"sin transición desde {node.get('id')!r} branch={branch!r}")
+        return run
+
+    run.current_node_id = siguiente
+    db.flush()
+    return None
+
+
+def advance(db: Session, run: WorkflowRun) -> WorkflowRun:
+    """Ejecuta nodos automáticos hasta llegar a `end`, `wait` o un nodo humano."""
+    if run.status != WorkflowRunStatus.running:
+        return run
+
+    graph = _grafo_de_la_ejecucion(db, run)
+    if graph is None:
         run.status = WorkflowRunStatus.error
         run.last_error = "blueprint version not found"
         db.flush()
         return run
-    graph = _graph_of(pub)
 
-    steps = 0
+    pasos = 0
     while run.status == WorkflowRunStatus.running and run.current_node_id:
-        steps += 1
-        if steps > MAX_STEPS_PER_ADVANCE:
+        pasos += 1
+        # El tope corta los bucles del grafo: un flujo mal diseñado que vuelve
+        # sobre sí mismo giraría aquí para siempre dentro de una petición.
+        if pasos > MAX_STEPS_PER_ADVANCE:
             _record_error(db, run, "límite de pasos alcanzado en un solo avance (posible bucle)")
             return run
+
         node = _node_by_id(graph, run.current_node_id)
         if not node:
             _record_error(db, run, f"nodo {run.current_node_id} no existe en el grafo")
             return run
 
-        ntype = _node_type(node)
-        config = _node_config(node)
-        try:
-            branch, payload, wait_seconds = _execute_node(ntype, config, run, db)
-        except Exception as exc:
-            _record_error(db, run, f"executor {ntype} falló: {exc}")
-            return run
-
-        # Caso 1: nodo bloqueante (approval) — graba step waiting + sale
-        if branch == WAIT and ntype != "wait":
-            step = WorkflowRunStep(
-                run_id=run.id, node_id=str(node.get("id")), node_type=ntype,
-                status=WorkflowRunStepStatus.waiting,
-                branch_taken=None, payload_json=payload,
-            )
-            db.add(step)
-            run.status = WorkflowRunStatus.waiting
-            db.flush()
-            return run
-
-        # Caso 2: timer (wait) — programa wake_at y pausa
-        if branch == WAIT and ntype == "wait":
-            run.wake_at = datetime.now(timezone.utc) + timedelta(seconds=int(wait_seconds or 0))
-            step = WorkflowRunStep(
-                run_id=run.id, node_id=str(node.get("id")), node_type=ntype,
-                status=WorkflowRunStepStatus.waiting,
-                branch_taken=None, payload_json={**payload, "wake_at": run.wake_at.isoformat()},
-            )
-            db.add(step)
-            run.status = WorkflowRunStatus.waiting
-            db.flush()
-            return run
-
-        # Caso 3: nodo automático completado → registrar y mover
-        step = WorkflowRunStep(
-            run_id=run.id, node_id=str(node.get("id")), node_type=ntype,
-            status=WorkflowRunStepStatus.done,
-            branch_taken=branch, payload_json=payload,
-            completed_at=datetime.now(timezone.utc),
-        )
-        db.add(step)
-
-        if ntype == "end":
-            run.status = WorkflowRunStatus.completed
-            run.completed_at = datetime.now(timezone.utc)
-            run.current_node_id = None
-            db.flush()
-            return run
-
-        next_node_id = _pick_next(graph, str(node.get("id")), branch)
-        if not next_node_id:
-            _record_error(db, run, f"sin transición desde {node.get('id')!r} branch={branch!r}")
-            return run
-        run.current_node_id = next_node_id
-        db.flush()
+        parada = _ejecutar_un_nodo(db, run, graph, node)
+        if parada is not None:
+            return parada
 
     return run
 

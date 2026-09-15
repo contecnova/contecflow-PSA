@@ -163,58 +163,73 @@ def _visible_options(values: list[str]) -> list[str]:
     return uniq[:20]
 
 
-def _normalize_mapping_rule(rule: str | dict | None, fallback_col: str) -> tuple[str, str, Optional[str], Optional[str]]:
-    """Return (field_id, field_type, data_source, data_attribute)."""
-    field_id = fallback_col.strip().lower().replace(" ", "_")
-    field_type = "text"
-    data_source = None
-    data_attribute = None
+#: Las tres fuentes de contexto que un campo puede tomar de otra entidad.
+#: Auditoría 2026-09 (hallazgo 18): estaban escritas **tres veces cada una**
+#: —una por prefijo de regla de texto, otra por clave de regla de diccionario y
+#: otra por heurística de nombre de columna—, en tres cascadas paralelas de
+#: `elif`. Como conjunto, las tres formas de reconocerlas comparten la lista.
+_FUENTES_DE_CONTEXTO = ("ci", "service", "client")
 
-    if isinstance(rule, str):
-        clean = rule.strip()
-        if clean:
-            field_id = clean.lower().replace(" ", "_")
-            if clean.startswith("ci."):
-                field_id = clean.replace(".", "_").lower()
-                field_type = "context_ci"
-                data_source = "ci"
-                data_attribute = clean.split(".", 1)[1]
-            elif clean.startswith("service."):
-                field_type = "context_service"
-                data_source = "service"
-                data_attribute = clean.split(".", 1)[1]
-            elif clean.startswith("client."):
-                field_type = "context_client"
-                data_source = "client"
-                data_attribute = clean.split(".", 1)[1]
+
+def _regla_de_texto(clean: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Una regla `fuente.atributo`, como `ci.hostname`. Devuelve (tipo, fuente, atributo)."""
+    for fuente in _FUENTES_DE_CONTEXTO:
+        if clean.startswith(f"{fuente}."):
+            return f"context_{fuente}", fuente, clean.split(".", 1)[1]
+    return None, None, None
+
+
+def _regla_por_nombre_de_columna(col: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Adivina la fuente por el nombre de la columna, para el alta sin fricción.
+
+    Reconoce `ci_algo` y los nombres sueltos (`ci`, `ci_name`, ...). El atributo
+    es lo que queda tras el prefijo, y `name` cuando no queda nada: `ci` a secas
+    significa «el nombre del CI».
+    """
+    for fuente in _FUENTES_DE_CONTEXTO:
+        sueltos = {fuente, f"{fuente}_name"}
+        if fuente == "ci":
+            sueltos |= {"configuration_item", "configuration_item_code"}
+        if col.startswith(f"{fuente}_") or col in sueltos:
+            return f"context_{fuente}", fuente, col.replace(f"{fuente}_", "") or "name"
+    return None, None, None
+
+
+def _normalize_mapping_rule(
+    rule: str | dict | None, fallback_col: str,
+) -> tuple[str, str, Optional[str], Optional[str]]:
+    """Devuelve `(field_id, field_type, data_source, data_attribute)`.
+
+    La regla puede venir como texto (`"ci.hostname"`), como diccionario
+    (`{"source": "ci", "attribute": "hostname"}`) o no venir: en ese último
+    caso se adivina por el nombre de la columna.
+    """
+    col = fallback_col.strip().lower().replace(" ", "_")
+    field_id = col
+    tipo = fuente = atributo = None
+
+    if isinstance(rule, str) and rule.strip():
+        limpia = rule.strip()
+        field_id = limpia.lower().replace(" ", "_")
+        tipo, fuente, atributo = _regla_de_texto(limpia)
+        if fuente == "ci":
+            # El identificador de un campo de CI lleva guion bajo, no punto:
+            # `ci.hostname` es el campo `ci_hostname` del formulario.
+            field_id = limpia.replace(".", "_").lower()
+
     elif isinstance(rule, dict):
-        explicit_id = str(rule.get("id") or "").strip()
-        if explicit_id:
-            field_id = explicit_id.lower().replace(" ", "_")
-        source = str(rule.get("source") or "").strip().lower()
-        attr = str(rule.get("attribute") or "").strip().lower() or None
-        if source in {"ci", "service", "client"}:
-            field_type = f"context_{source}"
-            data_source = source
-            data_attribute = attr
+        explicito = str(rule.get("id") or "").strip()
+        if explicito:
+            field_id = explicito.lower().replace(" ", "_")
+        declarada = str(rule.get("source") or "").strip().lower()
+        if declarada in _FUENTES_DE_CONTEXTO:
+            tipo, fuente = f"context_{declarada}", declarada
+            atributo = str(rule.get("attribute") or "").strip().lower() or None
 
-    # Heuristic fallback by column name for frictionless onboarding.
-    col_l = fallback_col.strip().lower().replace(" ", "_")
-    if field_type == "text":
-        if col_l.startswith("ci_") or col_l in {"ci", "ci_name", "configuration_item", "configuration_item_code"}:
-            field_type = "context_ci"
-            data_source = "ci"
-            data_attribute = col_l.replace("ci_", "") or "name"
-        elif col_l.startswith("service_") or col_l in {"service", "service_name"}:
-            field_type = "context_service"
-            data_source = "service"
-            data_attribute = col_l.replace("service_", "") or "name"
-        elif col_l.startswith("client_") or col_l in {"client", "client_name"}:
-            field_type = "context_client"
-            data_source = "client"
-            data_attribute = col_l.replace("client_", "") or "name"
+    if tipo is None:
+        tipo, fuente, atributo = _regla_por_nombre_de_columna(col)
 
-    return field_id, field_type, data_source, data_attribute
+    return field_id, tipo or "text", fuente, atributo
 
 
 def _pick(obj: object, attr: str, default: str = "") -> str:

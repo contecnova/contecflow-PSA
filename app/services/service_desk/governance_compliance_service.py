@@ -28,6 +28,8 @@ from uuid import uuid4
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from typing import Optional
+
 from app.models.service_desk import (
     ITSMChangeRequest,
     ChangeType,
@@ -72,16 +74,109 @@ _CMM_LABELS = {1: "Initial", 2: "Repeatable", 3: "Defined", 4: "Managed", 5: "Op
 
 # ── Incident management audit ─────────────────────────────────────────────────
 
+def _hallazgo_p1_sin_incidencia_mayor(db: Session, incidentes) -> tuple[int, Optional[dict]]:
+    """P1 sin una incidencia mayor declarada. Devuelve `(penalización, hallazgo)`.
+
+    Auditoría 2026-08/09. Esto preguntaba por `MajorIncident.tickets` detrás de
+    un `hasattr`, y esa relación **no existía**: entre las dos entidades no
+    había ni columna ni tabla de unión. El `hasattr` era correcto, así que la
+    comprobación quedó declarada **no evaluable** — mejor eso que un falso
+    positivo por cada P1.
+
+    Desde la revisión 096 el enlace existe: `Ticket.major_incident_id`, con la
+    decisión de cardinalidad dicha en voz alta —un ticket pertenece como mucho
+    a UNA incidencia mayor, que es el modelo de ITIL y el conservador—. Así que
+    esta comprobación vuelve a hacer su trabajo **sin tocar una línea de ella**.
+
+    El `hasattr` se queda: un despliegue con la revisión 096 sin aplicar no debe
+    reventar el informe de cumplimiento entero.
+    """
+    if not hasattr(MajorIncident, "tickets"):
+        return 0, None
+
+    p1 = [t for t in incidentes if t.priority == TicketPriority.p1_critical]
+    sin_declarar = [
+        t.number for t in p1
+        if not db.query(MajorIncident).filter(
+            MajorIncident.tickets.any(id=t.id)  # type: ignore[attr-defined]
+        ).first()
+    ]
+    if not sin_declarar:
+        return 0, None
+
+    pct = round(len(sin_declarar) / max(len(p1), 1) * 100)
+    return min(30, pct // 3), {
+        "severity": "high" if pct >= 50 else "medium",
+        "title": "P1 incidents without Major Incident record",
+        "count": len(sin_declarar),
+        "details": (
+            f"{pct}% of P1 incidents ({len(sin_declarar)}) lack a Major Incident declaration."
+        ),
+        "sample": sin_declarar[:5],
+    }
+
+
+def _hallazgo_recurrentes_sin_problema(incidentes) -> tuple[int, Optional[dict]]:
+    """CIs con tres o más incidentes y ningún problema enlazado.
+
+    Tres es el corte de ITIL para «esto ya no es casualidad»: a partir de ahí
+    hay una causa raíz que alguien debería estar investigando.
+    """
+    por_ci: dict[str, list] = {}
+    for t in incidentes:
+        if t.ci_id:
+            por_ci.setdefault(t.ci_id, []).append(t)
+
+    recurrentes = [
+        {"ci_id": ci_id, "incident_count": len(tickets)}
+        for ci_id, tickets in por_ci.items()
+        if len(tickets) >= 3 and not any(getattr(t, "problem_id", None) for t in tickets)
+    ]
+    if not recurrentes:
+        return 0, None
+
+    return min(20, len(recurrentes) * 4), {
+        "severity": "medium",
+        "title": "Recurring incidents without Problem record",
+        "count": len(recurrentes),
+        "details": f"{len(recurrentes)} CIs had 3+ incidents with no linked Problem.",
+        "sample": recurrentes[:5],
+    }
+
+
+def _hallazgo_incumplimiento_de_sla(incidentes) -> tuple[int, Optional[dict]]:
+    """Tasa de incumplimiento de SLA por encima del 10 %.
+
+    Sólo se miran los resueltos: un incidente abierto todavía puede cumplir.
+    """
+    resueltos = [t for t in incidentes if t.resolved_at]
+    if not resueltos:
+        return 0, None
+
+    incumplidos = [t for t in resueltos if getattr(t, "sla_resolution_breached", False)]
+    tasa = len(incumplidos) / len(resueltos)
+    if tasa <= 0.10:
+        return 0, None
+
+    return min(20, int(tasa * 100) // 2), {
+        "severity": "high" if tasa > 0.25 else "medium",
+        "title": "SLA resolution breach rate above threshold",
+        "count": len(incumplidos),
+        "details": (
+            f"{round(tasa * 100, 1)}% of resolved incidents breached SLA (target <10%)."
+        ),
+    }
+
+
 def audit_incident_management(db: Session, days: int = 30) -> dict:
-    """Audit incident management practices for the last *days* days.
+    """Audita la gestión de incidentes de los últimos *days* días.
 
-    Checks:
-      - P1 incidents without a linked MajorIncident
-      - Recurring incidents (same CI, > 3 times) without a linked Problem
-      - Average resolution time vs SLA targets
-      - FCR (first contact resolution) rate
+    Comprueba:
+      - P1 sin incidencia mayor enlazada,
+      - incidentes recurrentes del mismo CI (>3) sin problema enlazado,
+      - tasa de incumplimiento de SLA en resolución.
 
-    Returns::
+    Devuelve::
 
         {
           "score": int (0-100),
@@ -89,104 +184,34 @@ def audit_incident_management(db: Session, days: int = 30) -> dict:
           "summary": str,
         }
     """
-    since = datetime.now(tz=timezone.utc) - timedelta(days=days)
-
-    incidents = (
+    desde = datetime.now(tz=timezone.utc) - timedelta(days=days)
+    incidentes = (
         db.query(Ticket)
-        .filter(
-            Ticket.ticket_type == TicketType.incident,
-            Ticket.created_at >= since,
-        )
+        .filter(Ticket.ticket_type == TicketType.incident, Ticket.created_at >= desde)
         .all()
     )
 
-    findings = []
     score = 100
-
-    # ── Finding 1: P1 without MajorIncident ───────────────────────────────────
-    p1_tickets = [t for t in incidents if t.priority == TicketPriority.p1_critical]
-    # Auditoria 2026-08/09. Esto preguntaba por `MajorIncident.tickets` detras
-    # de un `hasattr`, y esa relacion **no existia**: entre las dos entidades no
-    # habia ni columna ni tabla de union. El `hasattr` era correcto, asi que la
-    # comprobacion quedo declarada **no evaluable** — mejor eso que un falso
-    # positivo por cada P1.
-    #
-    # Desde la revision 096 el enlace existe: `Ticket.major_incident_id`, con la
-    # decision de cardinalidad dicha en voz alta —un ticket pertenece como mucho
-    # a UNA incidencia mayor, que es el modelo de ITIL y el conservador—. Asi
-    # que esta comprobacion vuelve a hacer su trabajo, y **sin tocar una linea
-    # de ella**: estaba escrita contra la relacion que ahora existe.
-    #
-    # El `hasattr` se queda como esta: un despliegue con la revision 096 sin
-    # aplicar no debe reventar el informe de cumplimiento entero.
-    p1_without_mi: list[str] = []
-    enlace_disponible = hasattr(MajorIncident, "tickets")
-    if enlace_disponible:
-        for t in p1_tickets:
-            mi = db.query(MajorIncident).filter(
-                MajorIncident.tickets.any(id=t.id)  # type: ignore[attr-defined]
-            ).first()
-            if not mi:
-                p1_without_mi.append(t.number)
-
-    if p1_without_mi:
-        pct = round(len(p1_without_mi) / max(len(p1_tickets), 1) * 100)
-        penalty = min(30, pct // 3)
-        score -= penalty
-        findings.append({
-            "severity": "high" if pct >= 50 else "medium",
-            "title": "P1 incidents without Major Incident record",
-            "count": len(p1_without_mi),
-            "details": f"{pct}% of P1 incidents ({len(p1_without_mi)}) lack a Major Incident declaration.",
-            "sample": p1_without_mi[:5],
-        })
-
-    # ── Finding 2: Recurring incidents without Problem ────────────────────────
-    ci_counts: dict[str, list] = {}
-    for t in incidents:
-        if t.ci_id:
-            ci_counts.setdefault(t.ci_id, []).append(t)
-
-    recurring_without_problem = []
-    for ci_id, ci_tickets in ci_counts.items():
-        if len(ci_tickets) >= 3:
-            has_problem = any(t.problem_id for t in ci_tickets if hasattr(t, "problem_id") and t.problem_id)  # type: ignore[attr-defined]
-            if not has_problem:
-                recurring_without_problem.append({"ci_id": ci_id, "incident_count": len(ci_tickets)})
-
-    if recurring_without_problem:
-        score -= min(20, len(recurring_without_problem) * 4)
-        findings.append({
-            "severity": "medium",
-            "title": "Recurring incidents without Problem record",
-            "count": len(recurring_without_problem),
-            "details": f"{len(recurring_without_problem)} CIs had 3+ incidents with no linked Problem.",
-            "sample": recurring_without_problem[:5],
-        })
-
-    # ── Finding 3: SLA compliance ─────────────────────────────────────────────
-    resolved = [t for t in incidents if t.resolved_at]
-    breached = [t for t in resolved if getattr(t, "sla_resolution_breached", False)]
-    if resolved:
-        breach_rate = len(breached) / len(resolved)
-        if breach_rate > 0.10:
-            penalty = min(20, int(breach_rate * 100) // 2)
-            score -= penalty
-            findings.append({
-                "severity": "high" if breach_rate > 0.25 else "medium",
-                "title": "SLA resolution breach rate above threshold",
-                "count": len(breached),
-                "details": f"{round(breach_rate*100, 1)}% of resolved incidents breached SLA (target <10%).",
-            })
+    findings = []
+    for penalizacion, hallazgo in (
+        _hallazgo_p1_sin_incidencia_mayor(db, incidentes),
+        _hallazgo_recurrentes_sin_problema(incidentes),
+        _hallazgo_incumplimiento_de_sla(incidentes),
+    ):
+        score -= penalizacion
+        if hallazgo:
+            findings.append(hallazgo)
 
     score = max(0, score)
-    summary = (
-        f"Incident management score: {score}/100 (CMM Level {_cmm_level(score)} — "
-        f"{_CMM_LABELS[_cmm_level(score)]}). "
-        f"Analysed {len(incidents)} incidents over {days} days."
-    )
-
-    return {"score": score, "findings": findings, "summary": summary}
+    return {
+        "score": score,
+        "findings": findings,
+        "summary": (
+            f"Incident management score: {score}/100 (CMM Level {_cmm_level(score)} — "
+            f"{_CMM_LABELS[_cmm_level(score)]}). "
+            f"Analysed {len(incidentes)} incidents over {days} days."
+        ),
+    }
 
 
 # ── Change management audit ───────────────────────────────────────────────────

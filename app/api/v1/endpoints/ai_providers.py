@@ -102,6 +102,57 @@ def set_default(pid: str, db: Session = Depends(get_db), _=Depends(require_admin
     return APIResponse.ok(data={"ok": True})
 
 
+def _anotar_resultado_de_prueba(db, proveedor, *, ok: bool, error: str = "") -> None:
+    """Deja constancia de la prueba, sin dejar que el registro tape el resultado.
+
+    Auditoría 2026-09 (hallazgo 18): este `try/except` estaba escrito **cuatro
+    veces, palabra por palabra** dentro de `test_provider` —una por rama de
+    error—, y era la mitad de su complejidad.
+
+    El fallo al anotar se traga a propósito: la prueba ya dio su veredicto, y
+    perderlo porque no se pudo escribir en la base sería sustituir un
+    diagnóstico bueno por uno peor.
+    """
+    try:
+        if ok:
+            update_provider_test_result(db, proveedor, success=True)
+        else:
+            update_provider_test_result(db, proveedor, success=False, error=error)
+    except Exception as exc:
+        _logger.error("Failed to update provider test result in DB: %s", exc)
+
+
+#: Qué significa un error del proveedor, por las palabras que trae. Cada fila:
+#: (marcas que lo identifican, código HTTP, mensaje).
+#:
+#: Se clasifica por subcadena porque **cada proveedor devuelve el error a su
+#: manera** y ninguno expone un código estable. El orden importa: gana la
+#: primera que encaje, y las credenciales van primero porque un 401 mal
+#: clasificado como 502 manda a mirar el sitio equivocado.
+_ERRORES_DE_PROVEEDOR: tuple[tuple[tuple[str, ...], int, str], ...] = (
+    (("api key not valid", "api key invalid", "invalid api key", "unauthorized",
+      " 401", "authentication", "permission denied", " 403", "forbidden"),
+     401, "Credenciales inválidas en el proveedor"),
+    (("rate limit", "rate_limit", " 429", "too many requests", "quota"),
+     429, "Límite de uso alcanzado en el proveedor"),
+    (("model not found", "not_found", " 404", "no such model"),
+     404, "Modelo o endpoint no encontrado"),
+)
+
+
+def _http_del_error_de_proveedor(mensaje: str) -> HTTPException:
+    """Traduce un error del proveedor al código que le corresponde.
+
+    Lo que no se reconoce es **502 y no 500**: el fallo es de un tercero, y
+    devolver 500 haría pensar que el fallo es nuestro.
+    """
+    minusculas = mensaje.lower()
+    for marcas, codigo, texto in _ERRORES_DE_PROVEEDOR:
+        if any(marca in minusculas for marca in marcas):
+            return HTTPException(codigo, f"{texto}: {mensaje[:300]}")
+    return HTTPException(502, f"El proveedor devolvió un error: {mensaje[:300]}")
+
+
 @router.post("/{pid}/test")
 def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_admin)):
     """Probar la conexión con el proveedor enviando un mensaje de prueba."""
@@ -111,51 +162,27 @@ def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_adm
 
     t0 = time.time()
     try:
-        result = _call_provider(p, [{"role": "user", "content": "Di solo 'OK' sin nada más."}],
-                                system="Eres un asistente de prueba.", max_tokens=10)
-        latency = int((time.time() - t0) * 1000)
-        try:
-            update_provider_test_result(db, p, success=True)
-        except Exception as db_exc:
-            _logger.error("Failed to update provider test result in DB: %s", db_exc)
-            # Continue anyway - test succeeded even if we can't update DB
-        return APIResponse.ok(data={"ok": True, "response": result.get("text", ""), "latency_ms": latency,
-                                    "model": result.get("model", p.default_model)})
+        resultado = _call_provider(
+            p, [{"role": "user", "content": "Di solo 'OK' sin nada más."}],
+            system="Eres un asistente de prueba.", max_tokens=10,
+        )
     except ValueError as e:
-        try:
-            update_provider_test_result(db, p, success=False, error=str(e))
-        except Exception as db_exc:
-            _logger.error("Failed to update provider test result in DB: %s", db_exc)
+        _anotar_resultado_de_prueba(db, p, ok=False, error=str(e))
         raise HTTPException(400, f"Error de datos: {str(e)[:200]}")
     except ConnectionError as e:
-        try:
-            update_provider_test_result(db, p, success=False, error=str(e))
-        except Exception as db_exc:
-            _logger.error("Failed to update provider test result in DB: %s", db_exc)
+        _anotar_resultado_de_prueba(db, p, ok=False, error=str(e))
         raise HTTPException(503, f"No se pudo conectar con el proveedor: {str(e)[:200]}")
     except Exception as e:
-        msg = str(e)
-        msg_lower = msg.lower()
-        try:
-            update_provider_test_result(db, p, success=False, error=msg)
-        except Exception as db_exc:
-            _logger.error("Failed to update provider test result in DB: %s", db_exc)
+        _anotar_resultado_de_prueba(db, p, ok=False, error=str(e))
+        raise _http_del_error_de_proveedor(str(e))
 
-        # Auth/credenciales: API key inválida o sin permisos
-        if any(k in msg_lower for k in (
-            "api key not valid", "api key invalid", "invalid api key",
-            "unauthorized", " 401", "authentication", "permission denied",
-            " 403", "forbidden",
-        )):
-            raise HTTPException(401, f"Credenciales inválidas en el proveedor: {msg[:300]}")
-        # Rate limit
-        if any(k in msg_lower for k in ("rate limit", "rate_limit", " 429", "too many requests", "quota")):
-            raise HTTPException(429, f"Límite de uso alcanzado en el proveedor: {msg[:300]}")
-        # Modelo desconocido / endpoint no encontrado
-        if any(k in msg_lower for k in ("model not found", "not_found", " 404", "no such model")):
-            raise HTTPException(404, f"Modelo o endpoint no encontrado: {msg[:300]}")
-        # Cualquier otro fallo aguas arriba → 502 Bad Gateway (no es bug nuestro)
-        raise HTTPException(502, f"El proveedor devolvió un error: {msg[:300]}")
+    _anotar_resultado_de_prueba(db, p, ok=True)
+    return APIResponse.ok(data={
+        "ok": True,
+        "response": resultado.get("text", ""),
+        "latency_ms": int((time.time() - t0) * 1000),
+        "model": resultado.get("model", p.default_model),
+    })
 
 
 @router.post("/{pid}/sync-models")

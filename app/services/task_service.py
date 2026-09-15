@@ -491,44 +491,68 @@ def add_comment_record(db: Session, task_id: str, payload, current_user):
 
 # ── Bulk dates ─────────────────────────────────────────────────────────────────
 
-def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> dict:
-    import logging
+def _a_fecha(valor):
+    """Una fecha, o `None` si no se puede leer. No levanta.
+
+    Aquí un valor ilegible no puede tumbar una actualización en masa: la fila se
+    queda sin fecha y las demás siguen.
+    """
+    if not valor:
+        return None
+    if isinstance(valor, _date):
+        return valor
+    try:
+        return _date.fromisoformat(str(valor)[:10])
+    except (ValueError, TypeError):
+        return None
+
+
+def _aplicar_fechas_a_tarea(db: Session, cambio: dict, current_user) -> Optional[dict]:
+    """Aplica las fechas a una tarea. Devuelve el error, o `None` si fue bien.
+
+    G5: ABAC se comprueba **tarea a tarea**. Una actualización en masa no es una
+    excepción al control de acceso; sería justo la forma de saltárselo.
+    """
     from app.core.abac_enforce import enforce_abac
+
+    task_id = cambio.get("id")
+    task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+    if not task:
+        return {"id": task_id, "reason": "not_found"}
+
+    if current_user:
+        try:
+            enforce_abac(db, current_user, "task", task.id, action="update")
+        except HTTPException:
+            return {"id": task.id, "reason": "abac_denied"}
+
+    if "start_date" in cambio:
+        task.start_date = _a_fecha(cambio["start_date"])
+    if "due_date" in cambio:
+        task.due_date = _a_fecha(cambio["due_date"])
+    return None
+
+
+def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> dict:
+    """Mueve las fechas de varias tareas de una vez.
+
+    Las tareas que fallan **no detienen** al resto: se devuelven en `errors` con
+    su motivo. Es lo que necesita un Gantt donde el usuario arrastra un bloque y
+    algunas de las tareas no son suyas.
+    """
+    import logging
 
     logger = logging.getLogger(__name__)
 
-    def _to_date(v):
-        if not v:
-            return None
-        if isinstance(v, _date):
-            return v
-        try:
-            return _date.fromisoformat(str(v)[:10])
-        except (ValueError, TypeError):
-            return None
-
-    updated = 0
     errors = []
-    for u in updates:
-        task_id = u.get("id")
-        task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
-        if not task:
-            errors.append({"id": task_id, "reason": "not_found"})
-            continue
+    actualizadas = 0
+    for cambio in updates:
+        error = _aplicar_fechas_a_tarea(db, cambio, current_user)
+        if error:
+            errors.append(error)
+        else:
+            actualizadas += 1
 
-        # G5 Fix: Enforce ABAC for each task individually in bulk date update
-        if current_user:
-            try:
-                enforce_abac(db, current_user, "task", task.id, action="update")
-            except HTTPException:
-                errors.append({"id": task.id, "reason": "abac_denied"})
-                continue
-
-        if "start_date" in u:
-            task.start_date = _to_date(u["start_date"])
-        if "due_date" in u:
-            task.due_date = _to_date(u["due_date"])
-        updated += 1
     try:
         db.commit()
     except IntegrityError as e:
@@ -539,7 +563,8 @@ def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> d
         db.rollback()
         logger.error(f"Database error in bulk_update_dates: {str(e)}")
         raise HTTPException(status_code=503, detail="Database operation failed")
-    return {"updated": updated, "errors": errors}
+
+    return {"updated": actualizadas, "errors": errors}
 
 
 # ── Background task helpers ────────────────────────────────────────────────────

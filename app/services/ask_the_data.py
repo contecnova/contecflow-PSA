@@ -75,83 +75,94 @@ class SQLValidationError(ValueError):
     pass
 
 
-def validate_sql(sql: str, org_id: Optional[str] = None) -> tuple[str, dict]:
-    """Validate and transform LLM-generated SQL before execution.
+def _comprobar_politica(sql: str) -> None:
+    """Rechaza la consulta si viola alguna regla de la política.
 
-    Returns a tuple ``(safe_sql, params)`` where ``params`` carries any bound
-    parameters (e.g. the tenant ``org_id``) that the caller MUST pass to the
-    DB driver — never string-interpolated.
-
-    Tenant scoping is ALWAYS enforced when ``org_id`` is provided: the validated
-    LLM query is wrapped as an outer ``SELECT * FROM (<llm_sql>) WHERE
-    organization_id = ?`` so a tenant predicate cannot be bypassed by the model
-    happening to mention ``organization_id`` itself.
-
-    Raises SQLValidationError on any policy violation.
+    Tres reglas, y las tres son de lista blanca o negra explícita: sólo SELECT,
+    sin palabras prohibidas, y sólo tablas permitidas. Esto se aplica a SQL que
+    **ha escrito un modelo de lenguaje** a partir de texto del usuario, así que
+    la postura es «lo que no está permitido está prohibido».
     """
-    # Strip markdown fences if model included them
-    sql = re.sub(r"```(?:sql)?", "", sql, flags=re.IGNORECASE).strip().rstrip(";")
-
-    # Must start with SELECT
     if not re.match(r"^\s*SELECT\b", sql, re.IGNORECASE):
         raise SQLValidationError("Only SELECT queries are allowed")
 
-    # Check forbidden keywords (word-boundary match to avoid false positives)
-    sql_lower = sql.lower()
-    for kw in FORBIDDEN_KEYWORDS:
-        if re.search(rf"\b{kw}\b", sql_lower):
-            raise SQLValidationError(f"Forbidden keyword: {kw}")
+    minuscula = sql.lower()
+    for palabra in FORBIDDEN_KEYWORDS:
+        # Con límite de palabra: si no, `delete` saltaría dentro de
+        # `deleted_at`, que es un nombre de columna corriente.
+        if re.search(rf"\b{palabra}\b", minuscula):
+            raise SQLValidationError(f"Forbidden keyword: {palabra}")
 
-    # Extract referenced tables using simple regex
-    referenced = set(re.findall(r"\bFROM\s+(\w+)|\bJOIN\s+(\w+)", sql, re.IGNORECASE))
-    flat_refs = {t for pair in referenced for t in pair if t}
-    if not flat_refs:
+    referencias = set(re.findall(r"\bFROM\s+(\w+)|\bJOIN\s+(\w+)", sql, re.IGNORECASE))
+    tablas = {t for par in referencias for t in par if t}
+    if not tablas:
         raise SQLValidationError("Query must reference at least one allowed table")
-    unknown = flat_refs - ALLOWED_TABLES
-    if unknown:
-        raise SQLValidationError(f"Unauthorized tables: {unknown}")
+    desconocidas = tablas - ALLOWED_TABLES
+    if desconocidas:
+        raise SQLValidationError(f"Unauthorized tables: {desconocidas}")
 
-    # Enforce LIMIT on the inner query before wrapping
+
+def _acotar_limite(sql: str) -> str:
+    """Garantiza un LIMIT y lo acota a `MAX_ROWS`.
+
+    Si el modelo no puso ninguno se añade; si puso uno mayor, se baja. Sin esto
+    una consulta sin límite puede traerse la tabla entera a memoria.
+    """
     if not re.search(r"\bLIMIT\b", sql, re.IGNORECASE):
-        sql = sql + f" LIMIT {MAX_ROWS}"
-    else:
-        # Clamp existing LIMIT to MAX_ROWS
-        def _clamp_limit(m):
-            n = int(m.group(1))
-            return f"LIMIT {min(n, MAX_ROWS)}"
-        sql = re.sub(r"\bLIMIT\s+(\d+)", _clamp_limit, sql, flags=re.IGNORECASE)
+        return sql + f" LIMIT {MAX_ROWS}"
+    return re.sub(
+        r"\bLIMIT\s+(\d+)",
+        lambda m: f"LIMIT {min(int(m.group(1)), MAX_ROWS)}",
+        sql, flags=re.IGNORECASE,
+    )
 
-    # ALWAYS enforce tenant scoping (no conditional bypass).
-    #
-    # We do NOT trust any ``organization_id`` predicate the model may have
-    # written: the model controls its value and could scope to a foreign org.
-    # Instead we inject our OWN tenant predicate, bound to the trusted org_id,
-    # into the query's WHERE clause. Every allowed fact/dim table exposes
-    # ``organization_id``, so this filters rows before any GROUP BY/aggregation
-    # (an outer ``SELECT * ... WHERE organization_id`` wrapper would break on
-    # aggregate queries that don't project the column — injection avoids that).
-    #
-    # The org_id is passed as a BOUND parameter ($org_id) — never
-    # string-interpolated — so it cannot be used for injection.
-    params: dict = {}
-    if org_id:
-        params["org_id"] = org_id
-        tenant_clause = "organization_id = $org_id"
-        if re.search(r"\bWHERE\b", sql, re.IGNORECASE):
-            sql = re.sub(
-                r"\bWHERE\b", f"WHERE {tenant_clause} AND", sql, count=1, flags=re.IGNORECASE
-            )
-        else:
-            insert_before = re.search(
-                r"\b(GROUP\s+BY|HAVING|ORDER\s+BY|LIMIT)\b", sql, re.IGNORECASE
-            )
-            if insert_before:
-                pos = insert_before.start()
-                sql = sql[:pos] + f" WHERE {tenant_clause} " + sql[pos:]
-            else:
-                sql = sql + f" WHERE {tenant_clause}"
 
-    return sql, params
+def _inyectar_filtro_de_tenant(sql: str) -> str:
+    """Mete `organization_id = $org_id` en el WHERE de la consulta.
+
+    **Se inyecta el nuestro y se ignora el que el modelo haya podido escribir**:
+    el modelo controla ese valor y podría apuntar a otra organización.
+
+    Se inyecta en el WHERE y no se envuelve la consulta en un
+    `SELECT * FROM (...) WHERE ...` porque el envoltorio se rompe con las
+    consultas agregadas, que no proyectan la columna. Inyectando, el filtro
+    actúa antes del GROUP BY, que además es lo correcto.
+
+    Tres sitios posibles, en orden: si hay WHERE se antepone la condición; si
+    no, va justo antes de la primera cláusula que cierre el cuerpo (GROUP BY,
+    HAVING, ORDER BY o LIMIT); y si no hay ninguna, al final.
+    """
+    clausula = "organization_id = $org_id"
+
+    if re.search(r"\bWHERE\b", sql, re.IGNORECASE):
+        return re.sub(r"\bWHERE\b", f"WHERE {clausula} AND", sql, count=1, flags=re.IGNORECASE)
+
+    siguiente = re.search(r"\b(GROUP\s+BY|HAVING|ORDER\s+BY|LIMIT)\b", sql, re.IGNORECASE)
+    if siguiente:
+        return sql[:siguiente.start()] + f" WHERE {clausula} " + sql[siguiente.start():]
+    return sql + f" WHERE {clausula}"
+
+
+def validate_sql(sql: str, org_id: Optional[str] = None) -> tuple[str, dict]:
+    """Valida y transforma el SQL generado por el modelo antes de ejecutarlo.
+
+    Devuelve ``(sql_seguro, params)``, donde ``params`` trae los parámetros
+    enlazados —entre ellos el ``org_id``— que quien llama **tiene que** pasar al
+    driver: nunca interpolados en la cadena.
+
+    El acotado por organización se aplica **siempre** que se pase ``org_id``.
+
+    Levanta `SQLValidationError` ante cualquier violación de política.
+    """
+    # Los modelos suelen envolver el SQL en vallas de markdown.
+    sql = re.sub(r"```(?:sql)?", "", sql, flags=re.IGNORECASE).strip().rstrip(";")
+
+    _comprobar_politica(sql)
+    sql = _acotar_limite(sql)
+
+    if not org_id:
+        return sql, {}
+    return _inyectar_filtro_de_tenant(sql), {"org_id": org_id}
 
 
 # ── LLM SQL generation ────────────────────────────────────────────────────────

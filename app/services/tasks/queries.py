@@ -97,6 +97,52 @@ def get_project_member_ids(db: Session, project_id: str) -> list:
     return [m.user_id for m in members if getattr(m, "user_id", None)]
 
 
+def _filtrar_por_asignado(q, current_user, assigned_to_me: bool, assignee_id):
+    """A quién se le ven las tareas.
+
+    Empleados y subcontratistas ven **sólo las suyas**, pidan lo que pidan: el
+    `assignee_id` de la petición no puede ampliar lo que uno ve, sólo acotarlo.
+    """
+    from app.models.user import UserRole
+
+    if assigned_to_me or getattr(current_user, "role", None) in (
+        UserRole.employee, UserRole.subcontractor,
+    ):
+        return q.filter(Task.assignee_id == current_user.id)
+    if assignee_id:
+        return q.filter(Task.assignee_id == assignee_id)
+    return q
+
+
+def _filtrar_por_sprint(q, db: Session, sprint_id: str):
+    """Tareas de un sprint.
+
+    Auditoría 2026-08: `Task.sprint_id` **no existe**; el enlace es la tabla
+    `sprint_tasks`. Ver `task_service.get_tasks_for_sprint`.
+    """
+    from app.models.sprints import SprintTask
+
+    return q.filter(Task.id.in_(
+        db.query(SprintTask.task_id)
+        .filter(SprintTask.sprint_id == sprint_id)
+        .scalar_subquery()
+    ))
+
+
+def _filtrar_por_estado(q, status: str):
+    """Uno o varios estados, separados por comas.
+
+    Con un solo valor se usa igualdad y no `IN`: es la misma respuesta y el
+    plan de consulta es mejor.
+    """
+    valores = [v.strip() for v in status.split(",") if v.strip()]
+    if len(valores) == 1:
+        return q.filter(Task.status == valores[0])
+    if valores:
+        return q.filter(Task.status.in_(valores))
+    return q
+
+
 def build_task_list_query(
     db: Session,
     current_user,
@@ -112,61 +158,35 @@ def build_task_list_query(
     sprint_id: Optional[str] = None,
     parent_task_id: Optional[str] = None,
 ):
-    """Build a filtered Task query scoped to the current user's org.
+    """Consulta de tareas filtrada y acotada a la organización del usuario.
 
-    Centralises all list-endpoint filter logic so the endpoint only handles
-    HTTP concerns (pagination, response headers).
+    Centraliza la lógica de filtros de los endpoints de lista, para que el
+    endpoint sólo se ocupe de lo suyo: paginación y cabeceras.
     """
-    from app.models.user import UserRole
-
     q = task_query_for_user(db, current_user).options(
         joinedload(Task.assignee),
         joinedload(Task.reporter),
     )
+    q = _filtrar_por_asignado(q, current_user, assigned_to_me, assignee_id)
 
-    if assigned_to_me or getattr(current_user, "role", None) in (
-        UserRole.employee, UserRole.subcontractor
+    for valor, columna in (
+        (project_id, Task.project_id),
+        (phase_id, Task.phase_id),
+        (parent_task_id, Task.parent_task_id),
+        (priority, Task.priority),
     ):
-        q = q.filter(Task.assignee_id == current_user.id)
-    elif assignee_id:
-        q = q.filter(Task.assignee_id == assignee_id)
+        if valor:
+            q = q.filter(columna == valor)
 
-    if project_id:
-        q = q.filter(Task.project_id == project_id)
-    if phase_id:
-        q = q.filter(Task.phase_id == phase_id)
     if sprint_id:
-        # Auditoria 2026-08: `Task.sprint_id` no existe; el enlace es la tabla
-        # `sprint_tasks`. Ver `task_service.get_tasks_for_sprint`.
-        from app.models.sprints import SprintTask
-
-        q = q.filter(
-            Task.id.in_(
-                db.query(SprintTask.task_id)
-                .filter(SprintTask.sprint_id == sprint_id)
-                .scalar_subquery()
-            )
-        )
-    if parent_task_id:
-        q = q.filter(Task.parent_task_id == parent_task_id)
-
+        q = _filtrar_por_sprint(q, db, sprint_id)
     if status:
-        status_vals = [s.strip() for s in status.split(",") if s.strip()]
-        if len(status_vals) == 1:
-            q = q.filter(Task.status == status_vals[0])
-        elif status_vals:
-            q = q.filter(Task.status.in_(status_vals))
-
-    if priority:
-        q = q.filter(Task.priority == priority)
-
+        q = _filtrar_por_estado(q, status)
     if search:
-        q = q.filter(
-            (Task.title.ilike(f"%{search}%")) |
-            (Task.code.ilike(f"%{search}%"))
-        )
-
+        q = q.filter(Task.title.ilike(f"%{search}%") | Task.code.ilike(f"%{search}%"))
     if overdue_only:
+        # Vencida es «pasó la fecha y sigue viva»: una tarea hecha tarde ya no
+        # está vencida, está hecha.
         q = q.filter(
             Task.due_date < timeutil.today(),
             Task.status.not_in([TaskStatus.done, TaskStatus.cancelled]),

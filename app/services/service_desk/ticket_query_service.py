@@ -12,6 +12,46 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+#: Filtro de lista → columna de igualdad. Auditoría 2026-09 (hallazgo 18): eran
+#: seis `if` idénticos seguidos. Como tabla se ve de un vistazo qué se puede
+#: filtrar, que es lo que hace falta para escribir el cliente.
+#:
+#: `status`, `sla_breached` y `search` no están aquí: el primero se normaliza
+#: antes, y los otros dos no son igualdad.
+_FILTROS_DE_IGUALDAD: tuple[tuple[str, str], ...] = (
+    ("priority", "priority"),
+    ("ticket_type", "ticket_type"),
+    ("assigned_to", "assigned_to_user_id"),
+    ("group_id", "assigned_group_id"),
+    ("project_id", "project_id"),
+    ("support_level", "support_level"),
+)
+
+
+def _acotar_a_lo_visible(q, db: Session, current_user: User):
+    """Reduce la consulta a los tickets que este usuario puede ver.
+
+    Tres ámbitos, y el orden importa: superadmin lo ve todo; empleado y
+    subcontratista, **sólo los suyos** —no los de su organización, los suyos—;
+    el resto, los de cualquiera de su organización, como solicitante o como
+    asignado.
+    """
+    if current_user.is_superadmin:
+        return q
+    if current_user.role in (UserRole.employee, UserRole.subcontractor):
+        return q.filter(Ticket.requester_user_id == current_user.id)
+    if not current_user.organization_id:
+        return q
+
+    de_la_organizacion = db.query(User.id).filter(
+        User.organization_id == current_user.organization_id
+    ).scalar_subquery()
+    return q.filter(or_(
+        Ticket.requester_user_id.in_(de_la_organizacion),
+        Ticket.assigned_to_user_id.in_(de_la_organizacion),
+    ))
+
+
 def build_ticket_list_query(
     db: Session,
     current_user: User,
@@ -25,7 +65,9 @@ def build_ticket_list_query(
     sla_breached: Optional[bool] = None,
     search: Optional[str] = None,
 ):
-    """Build service-desk tickets query with scoping and all list filters."""
+    """Consulta de tickets del service desk, acotada y con todos los filtros."""
+    valores = locals()
+
     q = db.query(Ticket).options(
         joinedload(Ticket.requester_user),
         joinedload(Ticket.requester_client),
@@ -35,43 +77,28 @@ def build_ticket_list_query(
         joinedload(Ticket.ci),
         joinedload(Ticket.client),
     )
+    q = _acotar_a_lo_visible(q, db, current_user)
 
-    if not current_user.is_superadmin:
-        if current_user.role in (UserRole.employee, UserRole.subcontractor):
-            q = q.filter(Ticket.requester_user_id == current_user.id)
-        elif current_user.organization_id:
-            org_user_ids = db.query(User.id).filter(
-                User.organization_id == current_user.organization_id
-            ).scalar_subquery()
-            q = q.filter(
-                or_(
-                    Ticket.requester_user_id.in_(org_user_ids),
-                    Ticket.assigned_to_user_id.in_(org_user_ids),
-                )
-            )
+    estado = normalize_ticket_status(status)
+    if estado:
+        q = q.filter(Ticket.status == estado)
 
-    normalized_status = normalize_ticket_status(status)
-    if normalized_status:
-        q = q.filter(Ticket.status == normalized_status)
-    if priority:
-        q = q.filter(Ticket.priority == priority)
-    if ticket_type:
-        q = q.filter(Ticket.ticket_type == ticket_type)
-    if assigned_to:
-        q = q.filter(Ticket.assigned_to_user_id == assigned_to)
-    if group_id:
-        q = q.filter(Ticket.assigned_group_id == group_id)
-    if project_id:
-        q = q.filter(Ticket.project_id == project_id)
-    if support_level:
-        q = q.filter(Ticket.support_level == support_level)
+    for parametro, columna in _FILTROS_DE_IGUALDAD:
+        if valores.get(parametro):
+            q = q.filter(getattr(Ticket, columna) == valores[parametro])
+
     if sla_breached:
-        now = datetime.now(timezone.utc)
+        # Un ticket cerrado no incumple: el SLA se mide mientras está vivo.
+        ahora = datetime.now(timezone.utc)
         q = q.filter(
             Ticket.status.notin_(["resolved", "closed", "cancelled"]),
-            or_(Ticket.sla_response_due < now, Ticket.sla_resolution_due < now),
+            or_(Ticket.sla_response_due < ahora, Ticket.sla_resolution_due < ahora),
         )
+
     if search:
-        q = q.filter(or_(Ticket.number.ilike(f"%{search}%"), Ticket.title.ilike(f"%{search}%")))
+        q = q.filter(or_(
+            Ticket.number.ilike(f"%{search}%"),
+            Ticket.title.ilike(f"%{search}%"),
+        ))
 
     return q

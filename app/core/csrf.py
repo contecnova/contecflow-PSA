@@ -28,7 +28,7 @@ from __future__ import annotations
 import logging
 import os
 import secrets
-from typing import Iterable, Set
+from typing import Iterable, Optional, Set
 from urllib.parse import urlparse
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -118,7 +118,60 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         # send an Origin header by default.
         self._enabled = os.getenv("DISABLE_CSRF_MIDDLEWARE", "0") != "1" and os.getenv("TESTING", "0") != "1"
 
+    def _rechazo_por_origen(self, request: Request, method: str, path: str) -> Optional[Response]:
+        """Capa 1: el `Origin`/`Referer` tiene que ser uno de los permitidos.
+
+        Es la defensa de verdad contra CSRF con cookies: un formulario de otro
+        sitio no puede falsear estas cabeceras. Sin orígenes configurados la
+        capa no aplica —no hay contra qué comparar—, y entonces manda la capa 2.
+        """
+        permitidos = _normalised_origins()
+        if not permitidos:
+            return None
+
+        origen = _request_origin(request)
+        if origen is None:
+            logger.warning("CSRF block: missing Origin/Referer on %s %s", method, path)
+            return JSONResponse(
+                {"detail": "CSRF protection: missing Origin/Referer header"}, status_code=403,
+            )
+        if origen not in permitidos:
+            logger.warning(
+                "CSRF block: Origin %s not in ALLOWED_ORIGINS for %s %s", origen, method, path,
+            )
+            return JSONResponse(
+                {"detail": "CSRF protection: origin not allowed"}, status_code=403,
+            )
+        return None
+
+    def _rechazo_por_doble_envio(self, request: Request) -> Optional[Response]:
+        """Capa 2: la cabecera y la cookie tienen que llevar el mismo testigo.
+
+        La comparación es en tiempo constante: comparar testigos con `==` filtra
+        información por el tiempo de respuesta.
+        """
+        if not self._double_submit:
+            return None
+
+        cabecera = request.headers.get("x-csrf-token")
+        cookie = request.cookies.get("csrf_token")
+        if not cabecera or not cookie:
+            return JSONResponse(
+                {"detail": "CSRF protection: missing csrf token"}, status_code=403,
+            )
+        if not secrets.compare_digest(cabecera, cookie):
+            return JSONResponse(
+                {"detail": "CSRF protection: csrf token mismatch"}, status_code=403,
+            )
+        return None
+
     async def dispatch(self, request: Request, call_next) -> Response:
+        """Dos capas de protección CSRF sobre las peticiones que cambian estado.
+
+        Sólo aplica a métodos inseguros, rutas no exentas y **autenticación por
+        cookie**: una petición con `Authorization: Bearer` no es vulnerable a
+        CSRF, porque el navegador no manda esa cabecera sola.
+        """
         if not self._enabled:
             return await call_next(request)
 
@@ -129,41 +182,15 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         path = request.url.path or "/"
         if _is_exempt_path(path, self._exempt_prefixes):
             return await call_next(request)
-
         if not _uses_cookie_auth(request):
             return await call_next(request)
 
-        # Layer 1: Origin / Referer must match an allowed origin
-        allowed = _normalised_origins()
-        if allowed:
-            origin = _request_origin(request)
-            if origin is None:
-                logger.warning("CSRF block: missing Origin/Referer on %s %s", method, path)
-                return JSONResponse(
-                    {"detail": "CSRF protection: missing Origin/Referer header"},
-                    status_code=403,
-                )
-            if origin not in allowed:
-                logger.warning("CSRF block: Origin %s not in ALLOWED_ORIGINS for %s %s", origin, method, path)
-                return JSONResponse(
-                    {"detail": "CSRF protection: origin not allowed"},
-                    status_code=403,
-                )
-
-        # Layer 2: double-submit cookie (opt-in)
-        if self._double_submit:
-            header_token = request.headers.get("x-csrf-token")
-            cookie_token = request.cookies.get("csrf_token")
-            if not header_token or not cookie_token:
-                return JSONResponse(
-                    {"detail": "CSRF protection: missing csrf token"},
-                    status_code=403,
-                )
-            if not secrets.compare_digest(header_token, cookie_token):
-                return JSONResponse(
-                    {"detail": "CSRF protection: csrf token mismatch"},
-                    status_code=403,
-                )
+        rechazo = self._rechazo_por_origen(request, method, path)
+        if rechazo is not None:
+            return rechazo
+        rechazo = self._rechazo_por_doble_envio(request)
+        if rechazo is not None:
+            return rechazo
 
         return await call_next(request)
 

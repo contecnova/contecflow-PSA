@@ -28,146 +28,215 @@ from sqlalchemy import or_ as sql_or
 _logger = logging.getLogger(__name__)
 
 
-def estimate_task_hours(task_id: str, db: Session) -> dict:
-    """Estimate task hours using historical similar tasks or heuristics + optional Claude API."""
+def _tareas_similares(db: Session, task, task_id: str) -> list[tuple]:
+    """Tareas parecidas ya cerradas, con sus **horas reales**.
 
-    task = db.query(Task).options(__import__('sqlalchemy.orm', fromlist=['joinedload']).joinedload(Task.project)).filter(Task.id == task_id).first()
-    if not task:
-        raise ValueError("task_not_found")
+    Devuelve pares `(tarea, horas_reales)`.
 
-    keywords = [w for w in (task.title or "").lower().split() if len(w) > 3]
-    similar_tasks = []
-    if keywords:
-        filters = sql_or(*[
-            func.lower(Task.title).contains(kw) for kw in keywords[:5]
-        ])
-        # Auditoria 2026-08: `Task.actual_hours` **no existe**. Las horas
-        # reales de una tarea son la suma de sus imputaciones, asi que se
-        # calculan con una subconsulta y se piden solo las que tienen alguna.
-        # Antes esto reventaba con `AttributeError` y la estimacion caia
-        # SIEMPRE en la heuristica por palabras del titulo, que es el `else`
-        # de mas abajo: la parte de «basado en tareas similares completadas»
-        # no se ejecuto nunca.
-        from app.models.imputation import Imputation
+    Auditoría 2026-08: `Task.actual_hours` **no existe**. Las horas reales de
+    una tarea son la suma de sus imputaciones, así que se calculan con una
+    subconsulta y sólo se piden las que tienen alguna. Antes esto reventaba con
+    `AttributeError` y la estimación caía SIEMPRE en la heurística por palabras
+    del título: la parte de «basado en tareas similares completadas» no se
+    ejecutó nunca.
+    """
+    from app.models.imputation import Imputation
 
-        horas_reales = (
-            db.query(
-                Imputation.task_id.label("task_id"),
-                func.sum(Imputation.hours).label("reales"),
-            )
-            .filter(Imputation.task_id.isnot(None))
-            .group_by(Imputation.task_id)
-            .subquery()
+    palabras = [w for w in (task.title or "").lower().split() if len(w) > 3]
+    if not palabras:
+        return []
+
+    horas_reales = (
+        db.query(
+            Imputation.task_id.label("task_id"),
+            func.sum(Imputation.hours).label("reales"),
         )
-        similar_tasks = (
-            db.query(Task, horas_reales.c.reales)
-            .join(horas_reales, horas_reales.c.task_id == Task.id)
-            .filter(
-                Task.status == "done",
-                Task.estimated_hours.isnot(None),
-                horas_reales.c.reales > 0,
-                Task.id != task_id,
-                filters,
-            )
-            .limit(10)
-            .all()
+        .filter(Imputation.task_id.isnot(None))
+        .group_by(Imputation.task_id)
+        .subquery()
+    )
+    return (
+        db.query(Task, horas_reales.c.reales)
+        .join(horas_reales, horas_reales.c.task_id == Task.id)
+        .filter(
+            Task.status == "done",
+            Task.estimated_hours.isnot(None),
+            horas_reales.c.reales > 0,
+            Task.id != task_id,
+            sql_or(*[func.lower(Task.title).contains(kw) for kw in palabras[:5]]),
         )
+        .limit(10)
+        .all()
+    )
 
-    estimated_hours = None
-    confidence = 0
-    reasoning = ""
-    similar_ids = []
 
-    if similar_tasks:
-        estimates = []
-        # `similar_tasks` son pares (tarea, horas reales): las reales vienen de
-        # la subconsulta de imputaciones, no de una columna de la tarea.
-        for st, reales in similar_tasks:
-            reales = float(reales or 0)
-            accuracy = 1 - abs(reales - st.estimated_hours) / max(st.estimated_hours, 1)
-            estimates.append((reales, max(accuracy, 0.1)))
-            similar_ids.append(st.id)
+def _estimar_por_historial(similares: list[tuple]) -> tuple[float, int, str, list]:
+    """Media de horas reales ponderada por lo bien que se estimó cada una.
 
-        total_weight = sum(w for _, w in estimates)
-        estimated_hours = round(sum(h * w for h, w in estimates) / total_weight, 1)
-        confidence = min(round(len(similar_tasks) / 10 * 70 + 20), 85)
-        reasoning = f"Basado en {len(similar_tasks)} tareas similares completadas. Promedio ponderado por precisión histórica."
-    else:
-        title_lower = (task.title or "").lower()
-        base = 4.0
-        if any(w in title_lower for w in ["implementar", "desarrollar", "crear", "diseñar"]): base += 4
-        if any(w in title_lower for w in ["integración", "migración", "refactor"]): base += 6
-        if any(w in title_lower for w in ["fix", "corrección", "bug", "error"]): base = 2
-        if any(w in title_lower for w in ["test", "prueba", "validar"]): base = 3
-        estimated_hours = round(base, 1)
-        confidence = 30
-        reasoning = "Sin tareas similares en el historial. Estimación heurística por tipo de tarea."
+    La precisión histórica es el peso: una tarea que se estimó bien pesa más
+    que una que se pasó por el triple. El suelo de 0,1 evita que una estimación
+    pésima quede en peso cero y desaparezca del cálculo.
+    """
+    estimaciones = []
+    ids = []
+    for tarea, reales in similares:
+        reales = float(reales or 0)
+        precision = 1 - abs(reales - tarea.estimated_hours) / max(tarea.estimated_hours, 1)
+        estimaciones.append((reales, max(precision, 0.1)))
+        ids.append(tarea.id)
 
+    peso_total = sum(w for _, w in estimaciones)
+    horas = round(sum(h * w for h, w in estimaciones) / peso_total, 1)
+    confianza = min(round(len(similares) / 10 * 70 + 20), 85)
+    return horas, confianza, (
+        f"Basado en {len(similares)} tareas similares completadas. "
+        "Promedio ponderado por precisión histórica."
+    ), ids
+
+
+#: Palabras del título que mueven la estimación heurística, y cuánto. Un `+N`
+#: suma sobre la base; un número suelto la **sustituye**, porque un arreglo o
+#: una prueba son trabajos acotados por naturaleza. La última que encaje manda.
+_HEURISTICA_DE_TITULO: tuple[tuple[tuple[str, ...], str, float], ...] = (
+    (("implementar", "desarrollar", "crear", "diseñar"), "suma", 4),
+    (("integración", "migración", "refactor"), "suma", 6),
+    (("fix", "corrección", "bug", "error"), "fija", 2),
+    (("test", "prueba", "validar"), "fija", 3),
+)
+
+
+def _estimar_por_heuristica(task) -> tuple[float, int, str, list]:
+    """Estimación por las palabras del título, cuando no hay historial."""
+    titulo = (task.title or "").lower()
+    horas = 4.0
+    for palabras, modo, valor in _HEURISTICA_DE_TITULO:
+        if any(w in titulo for w in palabras):
+            horas = horas + valor if modo == "suma" else valor
+    return round(horas, 1), 30, (
+        "Sin tareas similares en el historial. Estimación heurística por tipo de tarea."
+    ), []
+
+
+def _afinar_estimacion_con_claude(task, similares: list[tuple], horas, confianza, razon):
+    """Pide a Claude una segunda opinión sobre la estimación.
+
+    Auditoría 2026-09 (hallazgo 18): al sacar esto a su propia función se vio
+    que **nunca había funcionado**. El contexto se construía con
+    `for t in similar_tasks[:5]` leyendo `t.title` y `t.actual_hours`, pero
+    `similar_tasks` son filas `(Task, horas_reales)`: `t.title` levantaba
+    `AttributeError` sobre la fila, y `actual_hours` es justo la columna que el
+    hallazgo de 2026-08 ya documentó como inexistente. Las dos excepciones caían
+    en el `except Exception` de abajo, que registraba un aviso y seguía con la
+    estimación anterior. El resultado era correcto por accidente; el refinamiento
+    no se ha ejecutado jamás.
+
+    Ahora el par se desempaqueta como par, y las horas reales salen de donde
+    salen: de la suma de imputaciones que ya trae la consulta.
+    """
     api_key = settings.ANTHROPIC_API_KEY or None
-    if api_key and similar_tasks:
-        try:
-            import urllib.request
-            similar_context = "\n".join([
-                f"- '{t.title}': estimado {t.estimated_hours}h, real {t.actual_hours}h"
-                for t in similar_tasks[:5]
-            ])
-            prompt = f"""Tarea a estimar: "{task.title}"
+    if not api_key or not similares:
+        return horas, confianza, razon
+
+    try:
+        import urllib.request
+
+        contexto = "\n".join([
+            f"- '{tarea.title}': estimado {tarea.estimated_hours}h, real {float(reales or 0)}h"
+            for tarea, reales in similares[:5]
+        ])
+        prompt = f"""Tarea a estimar: "{task.title}"
 Proyecto: {task.project.name if task.project else "—"}
 Descripción: {(task.description or "Sin descripción")[:200]}
 
 Tareas similares completadas:
-{similar_context}
+{contexto}
 
 Responde SOLO con JSON: {{"hours": <número>, "confidence": <0-100>, "reasoning": "<explicación breve>"}}"""
 
-            data = json.dumps({
-                "model": settings.CONTECFLOW_AI_MODEL,
-                "max_tokens": 200,
-                "messages": [{"role": "user", "content": prompt}]
-            }).encode()
-            req = urllib.request.Request(  # noqa: S310
-                validate_outbound_url(settings.ANTHROPIC_API_URL, field="ANTHROPIC_API_URL"),
-                data=data,
-                headers={
-                    "Content-Type": "application/json",
-                    "x-api-key": api_key,
-                    "anthropic-version": "2023-06-01",
-                }
-            )
-            with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
-                result = json.loads(resp.read())
-                text = result["content"][0]["text"]
-                parsed = json.loads(text)
-                estimated_hours = parsed["hours"]
-                confidence = parsed.get("confidence", confidence)
-                reasoning = parsed.get("reasoning", reasoning) + " [Claude API]"
-        except Exception:
-            _logger.warning("Fallo llamando a Claude API para estimación de horas; usando fallback", exc_info=True)
+        data = json.dumps({
+            "model": settings.CONTECFLOW_AI_MODEL,
+            "max_tokens": 200,
+            "messages": [{"role": "user", "content": prompt}],
+        }).encode()
+        req = urllib.request.Request(  # noqa: S310
+            validate_outbound_url(settings.ANTHROPIC_API_URL, field="ANTHROPIC_API_URL"),
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+            parsed = json.loads(json.loads(resp.read())["content"][0]["text"])
+        return (
+            parsed["hours"],
+            parsed.get("confidence", confianza),
+            parsed.get("reasoning", razon) + " [Claude API]",
+        )
+    except Exception:
+        _logger.warning(
+            "Fallo llamando a Claude API para estimación de horas; usando fallback",
+            exc_info=True,
+        )
+        return horas, confianza, razon
 
-    existing = db.query(AITaskEstimate).filter(AITaskEstimate.task_id == task_id).first()
-    if existing:
-        existing.estimated_hours = estimated_hours
-        existing.confidence_pct = confidence
-        existing.reasoning = reasoning
-        existing.similar_tasks = json.dumps(similar_ids)
-    else:
-        db.add(AITaskEstimate(
-            task_id=task_id,
-            estimated_hours=estimated_hours,
-            confidence_pct=confidence,
-            reasoning=reasoning,
-            similar_tasks=json.dumps(similar_ids),
-            model_used="claude_api" if api_key else "rule_based",
-        ))
+
+def _guardar_estimacion(db: Session, task_id: str, *, horas, confianza, razon,
+                        ids_similares: list, con_api: bool) -> None:
+    """Escribe o actualiza la estimación. Una tarea tiene una, no un historial."""
+    existente = db.query(AITaskEstimate).filter(AITaskEstimate.task_id == task_id).first()
+    if existente:
+        existente.estimated_hours = horas
+        existente.confidence_pct = confianza
+        existente.reasoning = razon
+        existente.similar_tasks = json.dumps(ids_similares)
+        db.commit()
+        return
+    db.add(AITaskEstimate(
+        task_id=task_id,
+        estimated_hours=horas,
+        confidence_pct=confianza,
+        reasoning=razon,
+        similar_tasks=json.dumps(ids_similares),
+        model_used="claude_api" if con_api else "rule_based",
+    ))
     db.commit()
+
+
+def estimate_task_hours(task_id: str, db: Session) -> dict:
+    """Estima las horas de una tarea con el historial, o con heurística si no hay."""
+    from sqlalchemy.orm import joinedload
+
+    task = (
+        db.query(Task).options(joinedload(Task.project))
+        .filter(Task.id == task_id).first()
+    )
+    if not task:
+        raise ValueError("task_not_found")
+
+    similares = _tareas_similares(db, task, task_id)
+    if similares:
+        horas, confianza, razon, ids = _estimar_por_historial(similares)
+    else:
+        horas, confianza, razon, ids = _estimar_por_heuristica(task)
+
+    horas, confianza, razon = _afinar_estimacion_con_claude(
+        task, similares, horas, confianza, razon,
+    )
+
+    _guardar_estimacion(
+        db, task_id, horas=horas, confianza=confianza, razon=razon,
+        ids_similares=ids, con_api=bool(settings.ANTHROPIC_API_KEY),
+    )
 
     return {
         "task_id": task_id,
         "task_title": task.title,
-        "estimated_hours": estimated_hours,
-        "confidence_pct": confidence,
-        "reasoning": reasoning,
-        "similar_count": len(similar_tasks),
+        "estimated_hours": horas,
+        "confidence_pct": confianza,
+        "reasoning": razon,
+        "similar_count": len(similares),
         "current_estimate": task.estimated_hours,
     }
 

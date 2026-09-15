@@ -192,6 +192,82 @@ def delete_override(db: Session, table_id: str, override_id: str, org_id, is_sup
 
 # ── Effective rate ─────────────────────────────────────────────────────────────
 
+def _tarifa_por_excepcion(db: Session, role_label: str, client_id, project_id,
+                          hoy: str) -> Optional[dict]:
+    """Una excepción de tarifa vigente, si la hay.
+
+    El orden es proyecto y después cliente, y **no** es alfabético: lo más
+    concreto gana. Una tarifa pactada para un proyecto manda sobre la del
+    cliente al que pertenece.
+    """
+    for ambito_id, columna in ((project_id, "project_id"), (client_id, "client_id")):
+        if not ambito_id:
+            continue
+        excepciones = db.query(RateOverride).filter(
+            getattr(RateOverride, columna) == ambito_id,
+            RateOverride.role_label == role_label,
+        ).all()
+        for o in excepciones:
+            if _date_valid(o.valid_from, o.valid_to, hoy):
+                return {
+                    "billing_rate": o.billing_rate,
+                    "source": f"override_{columna}",
+                    "role_label": role_label,
+                    "override_id": o.id,
+                }
+    return None
+
+
+def _con_escalado(entry, hoy_anio: int) -> float:
+    """La tarifa con el escalado anual aplicado, si la entrada lo declara.
+
+    El escalado es compuesto y se cuenta por años enteros desde `valid_from`:
+    una tarifa de 2024 con 3 % anual vale, en 2026, `base * 1.03²`. El
+    `max(0, ...)` evita que una entrada con fecha futura escale hacia atrás.
+    """
+    tarifa = entry.billing_rate or 0
+    if not entry.escalation_pct or not entry.valid_from:
+        return tarifa
+    anios = hoy_anio - int(entry.valid_from[:4])
+    return round(tarifa * ((1 + entry.escalation_pct / 100) ** max(0, anios)), 2)
+
+
+def _tarifa_en_tablas(db: Session, role_label: str, client_id, project_id,
+                      hoy: str, org_id, is_superadmin: bool) -> Optional[dict]:
+    """La primera tabla de tarifas vigente que tenga este rol.
+
+    Las tablas se ordenan por concreción: las de cliente cuando se preguntó por
+    un proyecto o un cliente, luego la tabla por defecto, luego el resto.
+    """
+    q = _org_filter(
+        db.query(RateTable).filter(RateTable.is_active == True),  # noqa: E712
+        RateTable, org_id, is_superadmin,
+    )
+    tablas = sorted(q.all(), key=lambda t: (
+        0 if (project_id and t.applies_to == "client") else
+        1 if (client_id and t.applies_to == "client") else
+        2 if t.is_default else 3
+    ))
+
+    anio = timeutil.today().year
+    for tabla in tablas:
+        for entry in (tabla.entries or []):
+            if not entry.is_active or entry.label.lower() != role_label.lower():
+                continue
+            if not _date_valid(entry.valid_from, entry.valid_to, hoy):
+                continue
+            return {
+                "billing_rate": _con_escalado(entry, anio),
+                "cost_rate": entry.cost_rate,
+                "source": f"table:{tabla.name}",
+                "role_label": role_label,
+                "table_id": tabla.id,
+                "entry_id": entry.id,
+                "escalation_applied": entry.escalation_pct > 0,
+            }
+    return None
+
+
 def get_effective_rate(
     db: Session,
     role_label: str,
@@ -201,59 +277,19 @@ def get_effective_rate(
     org_id,
     is_superadmin: bool,
 ) -> dict:
+    """La tarifa que aplica a un rol, en este orden: excepción y luego tabla.
 
-    today = as_of or str(timeutil.today())
+    Devuelve siempre un diccionario; `source` dice de dónde salió la cifra, y
+    `not_found` es una respuesta válida —no hay tarifa para ese rol— y no un
+    error.
+    """
+    hoy = as_of or str(timeutil.today())
 
-    # 1 & 2: Overrides
-    for scope_id, scope_col in [(project_id, "project_id"), (client_id, "client_id")]:
-        if not scope_id:
-            continue
-        overrides = db.query(RateOverride).filter(
-            getattr(RateOverride, scope_col) == scope_id,
-            RateOverride.role_label == role_label,
-        ).all()
-        for o in overrides:
-            if _date_valid(o.valid_from, o.valid_to, today):
-                return {
-                    "billing_rate": o.billing_rate,
-                    "source": f"override_{scope_col}",
-                    "role_label": role_label,
-                    "override_id": o.id,
-                }
-
-    # 3 & 4 & 5: Tables
-    q = db.query(RateTable).filter(RateTable.is_active == True)
-    q = _org_filter(q, RateTable, org_id, is_superadmin)
-    tables = q.all()
-
-    tables_sorted = sorted(tables, key=lambda t: (
-        0 if (project_id and t.applies_to == "client") else
-        1 if (client_id and t.applies_to == "client") else
-        2 if t.is_default else 3
-    ))
-
-    for table in tables_sorted:
-        for entry in (table.entries or []):
-            if not entry.is_active:
-                continue
-            if entry.label.lower() == role_label.lower():
-                if _date_valid(entry.valid_from, entry.valid_to, today):
-                    rate = entry.billing_rate or 0
-                    if entry.escalation_pct and entry.valid_from:
-                        years = timeutil.today().year - int(entry.valid_from[:4])
-                        rate = rate * ((1 + entry.escalation_pct / 100) ** max(0, years))
-                        rate = round(rate, 2)
-                    return {
-                        "billing_rate": rate,
-                        "cost_rate": entry.cost_rate,
-                        "source": f"table:{table.name}",
-                        "role_label": role_label,
-                        "table_id": table.id,
-                        "entry_id": entry.id,
-                        "escalation_applied": entry.escalation_pct > 0,
-                    }
-
-    return {"billing_rate": None, "source": "not_found", "role_label": role_label}
+    return (
+        _tarifa_por_excepcion(db, role_label, client_id, project_id, hoy)
+        or _tarifa_en_tablas(db, role_label, client_id, project_id, hoy, org_id, is_superadmin)
+        or {"billing_rate": None, "source": "not_found", "role_label": role_label}
+    )
 
 
 # ── Serialization helpers ─────────────────────────────────────────────────────────

@@ -41,21 +41,42 @@ _BLOCKED_HOSTNAMES: frozenset[str] = frozenset({
 })
 
 
-def _validate_webhook_url(url: str) -> None:
-    """Raise ValueError if *url* is not safe for outbound webhook delivery.
+def _rechazar_si_es_interna(ip_str: str) -> None:
+    """Levanta si esta IP es interna, reservada o está en la lista de bloqueo.
 
-    Checks:
-    - Scheme must be https.
-    - Hostname must not be a known metadata endpoint.
-    - Resolved IP addresses must not fall in any RFC 1918 / loopback /
-      link-local / reserved range (SSRF prevention).
+    Una cadena que no sea una IP se ignora en silencio: `getaddrinfo` puede
+    devolver formas que `ip_address` no entiende, y eso no es un destino
+    peligroso, es una entrada que no sabemos leer.
+    """
+    try:
+        ip = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return
+
+    if ip.is_loopback or ip.is_link_local or ip.is_private or ip.is_reserved or ip.is_unspecified:
+        raise ValueError(f"Destino bloqueado — IP interna/reservada: {ip_str}")
+    for red in _BLOCKED_NETWORKS:
+        if ip in red:
+            raise ValueError(f"Destino bloqueado — red interna {red}: {ip_str}")
+
+
+def _validate_webhook_url(url: str) -> None:
+    """Levanta `ValueError` si *url* no es un destino seguro para un webhook.
+
+    Comprueba:
+    - que el esquema sea https,
+    - que el nombre no sea un punto de metadatos conocido,
+    - que **ninguna** de las direcciones a las que resuelve caiga en un rango
+      privado, de bucle local, link-local o reservado (prevención de SSRF).
+
+    Se comprueban todas las direcciones y no sólo la primera: un nombre puede
+    resolver a varias, y bastaría con que una fuera interna.
 
     Raises:
-        ValueError: with a human-readable reason; caller should log this.
+        ValueError: con un motivo legible; quien llama debe registrarlo.
     """
     try:
         parsed = _urlparse.urlparse(url)
-    # intentional: chained re-raise preserves context
     except Exception as exc:
         raise ValueError(f"URL malformada: {url!r}") from exc
 
@@ -65,28 +86,16 @@ def _validate_webhook_url(url: str) -> None:
     hostname = (parsed.hostname or "").lower()
     if not hostname:
         raise ValueError("URL de webhook sin hostname")
-
     if hostname in _BLOCKED_HOSTNAMES:
         raise ValueError(f"Hostname de metadata bloqueado: {hostname!r}")
 
-    # Resolve all addresses the hostname maps to and reject any internal one.
     try:
-        addr_infos = socket.getaddrinfo(hostname, None)
-    # intentional: chained re-raise preserves context
+        direcciones = socket.getaddrinfo(hostname, None)
     except socket.gaierror as exc:
         raise ValueError(f"No se pudo resolver el hostname {hostname!r}: {exc}") from exc
 
-    for _family, _type, _proto, _canonname, sockaddr in addr_infos:
-        ip_str = sockaddr[0]
-        try:
-            ip = ipaddress.ip_address(ip_str)
-        except ValueError:
-            continue
-        if ip.is_loopback or ip.is_link_local or ip.is_private or ip.is_reserved or ip.is_unspecified:
-            raise ValueError(f"Destino bloqueado — IP interna/reservada: {ip_str}")
-        for net in _BLOCKED_NETWORKS:
-            if ip in net:
-                raise ValueError(f"Destino bloqueado — red interna {net}: {ip_str}")
+    for *_ignorado, sockaddr in direcciones:
+        _rechazar_si_es_interna(sockaddr[0])
 
 from app.core.config import settings
 from app.core.encryption import encrypt_value

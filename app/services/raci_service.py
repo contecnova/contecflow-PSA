@@ -230,88 +230,102 @@ def compute_retro_insights(sprint: Sprint, db: Session) -> dict:
 
 # ── Burnout risk ──────────────────────────────────────────────────────────────
 
-def compute_user_burnout_risk(user: User, db: Session, today: date) -> dict:
-    """
-    Compute burnout risk for a user based on workload patterns.
-    Uses last 8 weeks of imputation data.
-    """
-    weeks_data = []
-    for w in range(8):
-        week_end   = today - timedelta(days=today.weekday()) - timedelta(weeks=w - 1)
-        week_start = week_end - timedelta(days=7)
-        hours = db.query(func.sum(Imputation.hours)).filter(
-            Imputation.user_id == user.id,
-            Imputation.date >= week_start,
-            Imputation.date < week_end,
-        ).scalar() or 0.0
-        capacity = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
-        weeks_data.append({
-            "week_start": week_start,
-            "hours": hours,
-            "capacity": capacity,
-            "load_pct": round(hours / capacity * 100, 1),
-        })
+#: Señales de agotamiento: (condición sobre las métricas, puntos, texto).
+#: `puntos` puede ser `None` cuando la señal sólo añade una observación sin
+#: subir la puntuación — cuatro semanas seguidas ya han sumado por la racha.
+#:
+#: Auditoría 2026-09 (hallazgo 18): eran cinco `if` seguidos con los textos en
+#: línea. Como tabla se ve la escala de pesos de un vistazo, que es lo que hay
+#: que poder revisar con quien lleva el equipo.
+_SENALES_DE_AGOTAMIENTO: tuple[tuple, ...] = (
+    (lambda m: m["current"] > 100, 25, "Sobrecarga actual: {current:.0f}%"),
+    (lambda m: m["media_4s"] > 90, 20, "Media 4 semanas: {media_4s:.0f}%"),
+    (lambda m: m["racha"] >= 2, "racha_x10", "{racha} semanas consecutivas al 100%+"),
+    (lambda m: m["racha"] >= 4, None, "Riesgo alto de agotamiento sostenido"),
+    (lambda m: m["current"] > 130, 20, "Sobrecarga severa (>130%)"),
+)
 
-    current_load = weeks_data[0]["load_pct"] if weeks_data else 0
-    avg_load_4w  = (
-        sum(w["load_pct"] for w in weeks_data[:4]) / 4
-        if len(weeks_data) >= 4 else current_load
+#: Umbrales de nivel, de más grave a menos. El primero que alcance manda.
+_NIVELES_DE_AGOTAMIENTO = (
+    (70, BurnoutRiskLevel.red),
+    (45, BurnoutRiskLevel.orange),
+    (20, BurnoutRiskLevel.yellow),
+    (0, BurnoutRiskLevel.green),
+)
+
+
+def _semanas_de_carga(user: User, db: Session, today: date) -> list[dict]:
+    """La carga semanal de las últimas ocho semanas, la más reciente primero."""
+    semanas = []
+    for w in range(8):
+        fin = today - timedelta(days=today.weekday()) - timedelta(weeks=w - 1)
+        inicio = fin - timedelta(days=7)
+        horas = db.query(func.sum(Imputation.hours)).filter(
+            Imputation.user_id == user.id,
+            Imputation.date >= inicio,
+            Imputation.date < fin,
+        ).scalar() or 0.0
+        capacidad = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+        semanas.append({
+            "week_start": inicio,
+            "hours": horas,
+            "capacity": capacidad,
+            "load_pct": round(horas / capacidad * 100, 1),
+        })
+    return semanas
+
+
+def compute_user_burnout_risk(user: User, db: Session, today: date) -> dict:
+    """Riesgo de agotamiento de una persona, según su carga de las últimas 8 semanas."""
+    semanas = _semanas_de_carga(user, db, today)
+
+    actual = semanas[0]["load_pct"] if semanas else 0
+    media_4s = (
+        sum(w["load_pct"] for w in semanas[:4]) / 4 if len(semanas) >= 4 else actual
     )
 
-    streak = 0
-    for w in weeks_data:
-        if w["load_pct"] > 100:
-            streak += 1
-        else:
+    # Semanas consecutivas por encima del 100 %, contando desde la más reciente:
+    # el bucle para en la primera que no lo esté, y eso es lo que hace que sea
+    # una racha viva y no un recuento histórico.
+    racha = 0
+    for w in semanas:
+        if w["load_pct"] <= 100:
             break
+        racha += 1
 
-    score = 0.0
-    factors = []
+    m = {"current": actual, "media_4s": media_4s, "racha": racha}
+    puntos = 0.0
+    factores = []
+    for condicion, peso, texto in _SENALES_DE_AGOTAMIENTO:
+        if not condicion(m):
+            continue
+        if peso == "racha_x10":
+            puntos += racha * 10
+        elif peso:
+            puntos += peso
+        factores.append(texto.format(**m))
 
-    if current_load > 100:
-        score += 25
-        factors.append(f"Sobrecarga actual: {current_load:.0f}%")
-    if avg_load_4w > 90:
-        score += 20
-        factors.append(f"Media 4 semanas: {avg_load_4w:.0f}%")
-    if streak >= 2:
-        score += streak * 10
-        factors.append(f"{streak} semanas consecutivas al 100%+")
-    if streak >= 4:
-        factors.append("Riesgo alto de agotamiento sostenido")
-    if current_load > 130:
-        score += 20
-        factors.append("Sobrecarga severa (>130%)")
-
-    score = min(score, 100)
-
-    if score >= 70:
-        level = BurnoutRiskLevel.red
-    elif score >= 45:
-        level = BurnoutRiskLevel.orange
-    elif score >= 20:
-        level = BurnoutRiskLevel.yellow
-    else:
-        level = BurnoutRiskLevel.green
+    puntos = min(puntos, 100)
+    nivel = next(n for umbral, n in _NIVELES_DE_AGOTAMIENTO if puntos >= umbral)
 
     return {
         "user_id": user.id,
         "full_name": user.full_name,
         "department": user.department,
         "job_title": getattr(user, "job_title", None),
-        "current_load_pct": current_load,
-        "avg_load_4w": round(avg_load_4w, 1),
-        "overload_weeks_streak": streak,
-        "risk_score": round(score, 1),
-        "risk_level": level.value,
-        "factors": factors,
+        "current_load_pct": actual,
+        "avg_load_4w": round(media_4s, 1),
+        "overload_weeks_streak": racha,
+        "risk_score": round(puntos, 1),
+        "risk_level": nivel.value,
+        "factors": factores,
         "weekly_history": [
             {
                 "week_start": w["week_start"].isoformat(),
                 "load_pct": w["load_pct"],
                 "hours": round(w["hours"], 1),
             }
-            for w in weeks_data
+            for w in semanas
         ],
     }
 

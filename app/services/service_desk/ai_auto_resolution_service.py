@@ -689,79 +689,89 @@ def analyze_ticket_for_resolution(
     return result
 
 
-def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
-    """Search KB using cosine similarity via incident_intelligence_service when available,
-    falling back to keyword scoring for simpler environments.
+def _articulos_publicados(db: Session, ticket_org) -> list[KBArticle]:
+    """Los artículos publicados y públicos **de la organización del ticket**.
 
-    Multi-tenant fix: limita los artículos KB a la organización del ticket.
-    Antes este search leía todos los `is_public=True` sin filtrar org,
-    permitiendo que un ticket de la org A usara KB de la org B como source.
+    Corrección multi-tenant: antes se leían todos los `is_public=True` sin
+    filtrar por organización, así que un ticket de la organización A podía usar
+    como fuente un artículo de la B.
     """
-    ticket_org = getattr(ticket, "organization_id", None)
+    q = db.query(KBArticle).filter(
+        KBArticle.status == KBStatus.published,
+        KBArticle.is_public == True,  # noqa: E712
+    )
+    if ticket_org and hasattr(KBArticle, "organization_id"):
+        q = q.filter(KBArticle.organization_id == ticket_org)
+    return q.all()
 
-    def _scope_kb(q):
-        if ticket_org and hasattr(KBArticle, "organization_id"):
-            return q.filter(KBArticle.organization_id == ticket_org)
-        return q
 
-    # Try semantic cosine similarity first
+def _kb_por_semejanza(ticket: Ticket, articulos: list[KBArticle]) -> list[KBArticle]:
+    """Los artículos más parecidos al ticket, por coseno sobre embeddings.
+
+    Devuelve lista vacía si el módulo de embeddings no está disponible o si
+    ninguno pasa el umbral de 0,30 — quien llama cae entonces a palabras clave.
+    """
+    from app.services.service_desk.incident_intelligence_service import (
+        _embed_text, _cosine_similarity,
+    )
+
+    consulta = _embed_text(f"{ticket.title or ''}\n{ticket.description or ''}".strip())
+    puntuados = []
+    for a in articulos:
+        texto = f"{a.title or ''}\n{a.summary or ''}\n{a.body or ''}".strip()
+        if not texto:
+            continue
+        semejanza = _cosine_similarity(consulta, _embed_text(texto))
+        if semejanza > 0.30:
+            puntuados.append((semejanza, a))
+    puntuados.sort(key=lambda x: x[0], reverse=True)
+    return [a for _, a in puntuados[:5]]
+
+
+def _kb_por_palabras(ticket: Ticket, articulos: list[KBArticle]) -> list[KBArticle]:
+    """Respaldo sin embeddings: puntuación por coincidencia de texto.
+
+    Los pesos —título 3, cuerpo 2, etiquetas 1— dicen qué señal vale más: que el
+    título entero aparezca en el ticket es mucho más fuerte que compartir una
+    etiqueta.
+    """
+    texto = ((ticket.title or "") + " " + (ticket.description or ""))[:200].lower()
+    primeras = texto.split()[:5]
+
+    puntuados = []
+    for a in articulos:
+        puntos = 0
+        if a.title and a.title.lower() in texto:
+            puntos += 3
+        if a.body and any(palabra in a.body.lower() for palabra in primeras):
+            puntos += 2
+        if a.tags and any(etiqueta in texto for etiqueta in (a.tags or "").split(",")):
+            puntos += 1
+        if puntos > 0:
+            puntuados.append((puntos, a))
+    puntuados.sort(key=lambda x: x[0], reverse=True)
+    return [a for _, a in puntuados[:5]]
+
+
+def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
+    """Artículos de la base de conocimiento que pueden resolver este ticket.
+
+    Primero semejanza semántica; si el módulo no está o no encuentra nada, se
+    cae a puntuación por palabras clave.
+    """
+    articulos = _articulos_publicados(db, getattr(ticket, "organization_id", None))
+
     try:
-        from app.services.service_desk.incident_intelligence_service import (
-            _embed_text, _cosine_similarity,
-        )
-        query_text = f"{ticket.title or ''}\n{ticket.description or ''}".strip()
-        q_emb = _embed_text(query_text)
-
-        articles = _scope_kb(
-            db.query(KBArticle)
-            .filter(
-                KBArticle.status == KBStatus.published,
-                KBArticle.is_public == True,
-            )
-        ).all()
-        scored = []
-        for a in articles:
-            text = f"{a.title or ''}\n{a.summary or ''}\n{a.body or ''}".strip()
-            if not text:
-                continue
-            sim = _cosine_similarity(q_emb, _embed_text(text))
-            if sim > 0.30:
-                scored.append((sim, a))
-        scored.sort(key=lambda x: x[0], reverse=True)
-        if scored:
-            return [a for _, a in scored[:5]]
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
+        semanticos = _kb_por_semejanza(ticket, articulos)
+        if semanticos:
+            return semanticos
     except Exception:
-        _logger.debug("_scope_kb: fallo best-effort ignorado", exc_info=True)
+        # A propósito: el módulo de embeddings es opcional y el respaldo por
+        # palabras da un resultado utilizable. Registrar cada fallo aquí sería
+        # ruido en cada ticket de una instalación sin embeddings.
+        _logger.debug("_search_kb: semejanza semántica no disponible", exc_info=True)
 
-    # Keyword fallback
-    search_terms = (ticket.title or "") + " " + (ticket.description or "")
-    search_terms = search_terms[:200].lower()
-
-    articles = _scope_kb(
-        db.query(KBArticle)
-        .filter(
-            KBArticle.status == KBStatus.published,
-            KBArticle.is_public == True,
-        )
-    ).all()
-
-    # Score each article
-    scored = []
-    for a in articles:
-        score = 0
-        if a.title and a.title.lower() in search_terms:
-            score += 3
-        if a.body and any(word in a.body.lower() for word in search_terms.split()[:5]):
-            score += 2
-        if a.tags and any(tag in search_terms for tag in (a.tags or "").split(",")):
-            score += 1
-        if score > 0:
-            scored.append((score, a))
-
-    # Sort by score desc
-    scored.sort(key=lambda x: x[0], reverse=True)
-    return [a for _, a in scored[:5]]
+    return _kb_por_palabras(ticket, articulos)
 
 
 def _post_resolution_comment(db: Session, ticket: Ticket, suggestion: str, *, is_auto: bool) -> None:

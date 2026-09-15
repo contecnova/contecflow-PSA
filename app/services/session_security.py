@@ -111,6 +111,70 @@ def _lookup_ip_intel(ip_address: Optional[str], request) -> dict:
     return out
 
 
+#: Qué cambia respecto a la sesión anterior y cuánto pesa. Auditoría 2026-09
+#: (hallazgo 18): eran cuatro `if` con la misma forma. Como tabla se ve de un
+#: vistazo la escala relativa —cambiar de ASN pesa más que cambiar de IP, porque
+#: una IP nueva del mismo operador es normal y un operador nuevo no—, que es lo
+#: que hay que poder discutir de un cálculo de riesgo.
+_CAMBIOS_DE_SESION: tuple[tuple[str, int, str], ...] = (
+    ("ip_address",   20, "Cambio de IP"),
+    ("ip_asn",       25, "Cambio de ASN"),
+    ("country_code", 20, "Cambio de país"),
+)
+
+#: Palabras en el nombre del operador que sugieren anonimización u hosting.
+_OPERADORES_SOSPECHOSOS = (
+    "vpn", "proxy", "hosting", "cloud", "digitalocean", "ovh", "linode",
+)
+
+#: Umbrales de nivel, de más grave a menos. El primero que alcance manda.
+_NIVELES_DE_RIESGO: tuple[tuple[int, str], ...] = (
+    (75, "critical"), (50, "high"), (25, "medium"), (0, "low"),
+)
+
+
+def _riesgo_de_la_ip(ip_address: Optional[str]) -> tuple[int, Optional[str]]:
+    """Cuánto suma la IP por sí sola.
+
+    Sin IP suma más que una IP pública: no saber de dónde viene una sesión es
+    peor que saber que viene de un sitio corriente.
+    """
+    if not ip_address:
+        return 20, "IP ausente"
+    if not _ip_is_public(ip_address):
+        return 5, "IP privada/no enrutable"
+    return 10, None
+
+
+def _riesgo_por_cambios(previous, *, ip_address, ip_asn, country_code,
+                        user_agent) -> tuple[int, list[str]]:
+    """Cuánto suman las diferencias con la sesión anterior.
+
+    Un campo que falta en cualquiera de las dos **no cuenta como cambio**: no
+    tener el dato no es lo mismo que tenerlo distinto.
+    """
+    if previous is None:
+        return 0, []
+
+    actuales = {"ip_address": ip_address, "ip_asn": ip_asn, "country_code": country_code}
+    puntos, motivos = 0, []
+    for campo, peso, motivo in _CAMBIOS_DE_SESION:
+        anterior = getattr(previous, campo, None)
+        actual = actuales[campo]
+        if anterior and actual and anterior != actual:
+            puntos += peso
+            motivos.append(motivo)
+
+    # El agente de usuario se compara recortado: las versiones menores del
+    # navegador cambian solas y dispararían la alarma en cada actualización.
+    ua_anterior = (previous.user_agent or "")[:180]
+    ua_actual = (user_agent or "")[:180]
+    if ua_anterior and ua_actual and ua_anterior != ua_actual:
+        puntos += 10
+        motivos.append("Cambio de agente de usuario")
+    return puntos, motivos
+
+
 def _compute_risk(
     db: Session,
     user_id: str,
@@ -120,55 +184,31 @@ def _compute_risk(
     user_agent: Optional[str],
     ip_org: Optional[str],
 ) -> tuple[int, str, list[str]]:
-    score = 0
-    reasons: list[str] = []
+    """Riesgo de una sesión: puntuación de 0 a 100, nivel y los motivos."""
+    puntos, motivo = _riesgo_de_la_ip(ip_address)
+    motivos = [motivo] if motivo else []
 
-    if not ip_address:
-        score += 20
-        reasons.append("IP ausente")
-    elif not _ip_is_public(ip_address):
-        score += 5
-        reasons.append("IP privada/no enrutable")
-    else:
-        score += 10
-
-    previous = (
+    anterior = (
         db.query(UserSession)
         .filter(UserSession.user_id == user_id)
         .order_by(UserSession.last_seen_at.desc())
         .first()
     )
-    if previous is not None:
-        if previous.ip_address and ip_address and previous.ip_address != ip_address:
-            score += 20
-            reasons.append("Cambio de IP")
-        if previous.ip_asn and ip_asn and previous.ip_asn != ip_asn:
-            score += 25
-            reasons.append("Cambio de ASN")
-        if previous.country_code and country_code and previous.country_code != country_code:
-            score += 20
-            reasons.append("Cambio de país")
-        prev_ua = (previous.user_agent or "")[:180]
-        curr_ua = (user_agent or "")[:180]
-        if prev_ua and curr_ua and prev_ua != curr_ua:
-            score += 10
-            reasons.append("Cambio de agente de usuario")
+    por_cambios, motivos_de_cambio = _riesgo_por_cambios(
+        anterior, ip_address=ip_address, ip_asn=ip_asn,
+        country_code=country_code, user_agent=user_agent,
+    )
+    puntos += por_cambios
+    motivos += motivos_de_cambio
 
-    org = (ip_org or "").lower()
-    if any(word in org for word in ("vpn", "proxy", "hosting", "cloud", "digitalocean", "ovh", "linode")):
-        score += 20
-        reasons.append("ASN/ISP con perfil de anonimización u hosting")
+    operador = (ip_org or "").lower()
+    if any(palabra in operador for palabra in _OPERADORES_SOSPECHOSOS):
+        puntos += 20
+        motivos.append("ASN/ISP con perfil de anonimización u hosting")
 
-    score = min(score, 100)
-    if score >= 75:
-        level = "critical"
-    elif score >= 50:
-        level = "high"
-    elif score >= 25:
-        level = "medium"
-    else:
-        level = "low"
-    return score, level, reasons
+    puntos = min(puntos, 100)
+    nivel = next(etiqueta for umbral, etiqueta in _NIVELES_DE_RIESGO if puntos >= umbral)
+    return puntos, nivel, motivos
 
 
 def _organizacion_del_usuario(db: Session, user_id: str) -> Optional[str]:
