@@ -12,9 +12,9 @@ complejidad ya existe y tener dos sería peor que tener una.
 
 ## Qué se registró, y por qué no es cero
 
-`CONOCIDAS` es la foto de hoy: 77 funciones por encima de 10, con 187 de
+`CONOCIDAS` es la foto de hoy: 74 funciones por encima de 10, con 173 de
 exceso acumulado y 16 de máximo. Se llegó ahí desde 94 / 253 / 17,
-quitando diecisiete funciones de la lista — y **ninguna se quitó
+quitando diecinueve funciones de la lista — y **ninguna se quitó
 por partirla en trozos para bajar un número**. Las catorce escondían un defecto:
 
 * cuatro eran copias literales del mismo dominio de tareas en dos módulos, y a
@@ -73,7 +73,6 @@ CONOCIDAS = {
     ("app/services/adhoc_analytics_service.py", "run_analytics_drilldown"): 11,
     ("app/services/ai_chat/tool_execution/resources.py", "_get_imputations"): 13,
     ("app/services/ai_copilot_service.py", "get_ai_timesheet_anomalies"): 13,
-    ("app/services/ai_governance.py", "evaluate"): 15,
     ("app/services/ai_modules/meetings.py", "process_meeting"): 11,
     ("app/services/ai_planning_service.py", "estimate_task_hours"): 12,
     ("app/services/ai_planning_service.py", "triage_ticket"): 14,
@@ -93,13 +92,11 @@ CONOCIDAS = {
     ("app/services/client_portal_service.py", "respond_to_fr"): 12,
     ("app/services/client_service.py", "get_client_360"): 11,
     ("app/services/cmdb/discovery.py", "discover_kubernetes"): 11,
-    ("app/services/documents_service.py", "check_document_access"): 14,
     ("app/services/documents_service.py", "extract_document_text"): 13,
     ("app/services/enterprise_service.py", "_validate_webhook_url"): 11,
     ("app/services/enterprise_service.py", "update_worker"): 14,
     ("app/services/epics_service.py", "execute_nql_search"): 13,
     ("app/services/esign_service.py", "create_provider_envelope"): 13,
-    ("app/services/imputation_service.py", "stop_timer_session"): 15,
     ("app/services/key_management.py", "get_integration_rotation_status"): 11,
     ("app/services/key_management.py", "rotate_due_materials"): 11,
     ("app/services/m365_bi_embed_service.py", "export_dashboard_excel"): 14,
@@ -193,5 +190,5 @@ def test_los_totales_registrados_cuadran(medicion):
     assert max(medicion.values()) == MAXIMO_REGISTRADO
 
 
-EXCESO_REGISTRADO = 187
+EXCESO_REGISTRADO = 173
 MAXIMO_REGISTRADO = 16

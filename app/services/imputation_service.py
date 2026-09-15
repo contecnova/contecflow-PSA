@@ -575,24 +575,24 @@ def cancel_timer_session(current_user: User, db: Session):
     return {"message": "Cronómetro cancelado"}
 
 
-def stop_timer_session(payload, current_user: User, db: Session):
-    """Stop timer and create the resulting Imputation. Returns the Imputation."""
+def _proyecto_valido_para_parar(timer, current_user: User, db: Session):
+    """El proyecto del cronómetro, comprobado **al parar** y no al arrancar.
 
-    timer = db.query(TimerSession).filter(
-        and_(TimerSession.user_id == current_user.id, TimerSession.ended_at == None)
-    ).first()
-    if not timer:
-        raise HTTPException(status_code=404, detail="No active timer found")
+    La revalidación no es paranoia: entre que alguien arranca el cronómetro y lo
+    para pueden pasar horas, y en ese rato le pueden haber sacado del proyecto o
+    el proyecto puede haberse cerrado. Imputar contra un proyecto cerrado es
+    exactamente lo que el control de estados existe para impedir.
 
+    La tarifa se comprueba aquí por el mismo motivo que en el alta manual: sin
+    tarifa la imputación no se puede valorar, y una hora sin coste contamina
+    todos los informes de rentabilidad en silencio.
+    """
     if not resolve_user_rate(db, current_user):
         raise HTTPException(
             status_code=400,
             detail="No puedes registrar horas sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.",
         )
 
-    # Re-validate project membership and status at stop time.
-    # The user may have been removed from the project, or the project status may
-    # have changed since the timer was started.
     project = db.query(Project).filter(Project.id == timer.project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="El proyecto asociado ya no existe.")
@@ -604,46 +604,96 @@ def stop_timer_session(payload, current_user: User, db: Session):
                 "y no admite nuevas imputaciones."
             ),
         )
+    return project
+
+
+def _horas_del_cronometro(timer) -> tuple[float, "date"]:
+    """Las horas trabajadas y la fecha a la que se imputan.
+
+    Tres sutilezas que estaban sueltas dentro del cuerpo principal y que aquí
+    quedan juntas con su razón:
+
+    * **las pausas se descuentan**, incluida la que siga abierta al parar —si
+      alguien pausa y se va a casa, ese tiempo no es trabajo;
+    * **la fecha es la de inicio, no la de hoy**: un cronómetro que cruza la
+      medianoche pertenece al día en que se empezó a trabajar, y si no, el
+      trabajo de la noche del viernes aparecería el sábado;
+    * **el mínimo es un cuarto de hora**. Un cronómetro de tres minutos se
+      registra como 0,25: por debajo de eso el dato no dice nada y ensucia los
+      informes con filas de cero.
+
+    El apaño de `tzinfo` es para las filas guardadas antes de que las fechas
+    llevaran zona: restarle a un `datetime` con zona uno sin ella revienta.
+    """
+    ahora = datetime.now(timezone.utc)
+    inicio = (timer.started_at if timer.started_at.tzinfo
+              else timer.started_at.replace(tzinfo=timezone.utc))
+
+    transcurrido = (ahora - inicio).total_seconds()
+    pausado = timer.paused_duration_secs or 0
+    if timer.paused_at:
+        desde = (timer.paused_at if timer.paused_at.tzinfo
+                 else timer.paused_at.replace(tzinfo=timezone.utc))
+        pausado += (ahora - desde).total_seconds()
+
+    segundos_activos = max(0, transcurrido - pausado)
+    return max(0.25, round(segundos_activos / 3600, 2)), inicio.date()
+
+
+def _comprobar_cierre_y_tope_diario(current_user: User, db: Session,
+                                    fecha, horas: float) -> None:
+    """Las dos guardas que comparte con el alta manual: cierre de periodo y 24h.
+
+    Están aquí y no en línea porque son **las mismas reglas** que aplica
+    `validate_and_create_imputation`, y tenerlas en dos sitios era pedirle a
+    alguien que se acordara de cambiarlas en los dos. El mensaje de cierre sí
+    cambia —dice que fue el temporizador el que empezó en fecha bloqueada—
+    porque el usuario no eligió esa fecha y conviene que lo sepa.
+
+    El tope de 24 h se calcula sobre lo ya registrado ese día: un cronómetro que
+    se quedó corriendo toda la noche no puede meter 30 horas en una jornada.
+    """
+    if current_user.role != UserRole.admin:
+        minima = get_lockout_cutoff(current_user, db)
+        if fecha < minima:
+            dias = (today_for_user(current_user) - minima).days
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"No puedes imputar en fechas anteriores a hace {dias} días "
+                    f"({minima}). El temporizador empezó en una fecha bloqueada."
+                ),
+            )
+
+    ya_registradas = db.query(func.sum(Imputation.hours)).filter(
+        Imputation.user_id == current_user.id,
+        Imputation.date == fecha,
+    ).scalar() or 0.0
+    if ya_registradas + horas > 24:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"No puedes imputar más de 24h en un día. Ya tienes "
+                    f"{ya_registradas}h registradas para el {fecha}."),
+        )
+
+
+def stop_timer_session(payload, current_user: User, db: Session):
+    """Stop timer and create the resulting Imputation. Returns the Imputation."""
+
+    timer = db.query(TimerSession).filter(
+        and_(TimerSession.user_id == current_user.id, TimerSession.ended_at == None)
+    ).first()
+    if not timer:
+        raise HTTPException(status_code=404, detail="No active timer found")
+
+    project = _proyecto_valido_para_parar(timer, current_user, db)
     task = _resolve_timer_stop_task(payload, timer, db)
     selected_task_id = task.id if task else None
     _assert_project_membership(project, task, current_user, db)
 
-    now = datetime.now(timezone.utc)
-    started = timer.started_at if timer.started_at.tzinfo else timer.started_at.replace(tzinfo=timezone.utc)
-    elapsed = (now - started).total_seconds()
-    pause_duration = timer.paused_duration_secs or 0
-    if timer.paused_at:
-        paused_at = timer.paused_at if timer.paused_at.tzinfo else timer.paused_at.replace(tzinfo=timezone.utc)
-        pause_duration += (now - paused_at).total_seconds()
-    active_seconds = max(0, elapsed - pause_duration)
-    hours = max(0.25, round(active_seconds / 3600, 2))
+    hours, imputation_date = _horas_del_cronometro(timer)
 
-    # Use the date the timer *started*, not today — timers may span midnight
-    imputation_date = started.date()
-
-    # Lockout enforcement (same rules as validate_and_create_imputation)
-    if current_user.role != UserRole.admin:
-        earliest_allowed = get_lockout_cutoff(current_user, db)
-        if imputation_date < earliest_allowed:
-            lockout_days = (today_for_user(current_user) - earliest_allowed).days
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"No puedes imputar en fechas anteriores a hace {lockout_days} días "
-                    f"({earliest_allowed}). El temporizador empezó en una fecha bloqueada."
-                ),
-            )
-
-    # Daily 24h cap
-    existing_hours = db.query(func.sum(Imputation.hours)).filter(
-        Imputation.user_id == current_user.id,
-        Imputation.date == imputation_date,
-    ).scalar() or 0.0
-    if existing_hours + hours > 24:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No puedes imputar más de 24h en un día. Ya tienes {existing_hours}h registradas para el {imputation_date}.",
-        )
+    _comprobar_cierre_y_tope_diario(current_user, db, imputation_date, hours)
 
     # Duplicate check (mirrors validate_and_create_imputation)
     duplicate_imputation_id = None

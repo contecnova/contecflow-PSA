@@ -116,6 +116,61 @@ def get_document_or_404(db, doc_id: str, current_user=None):
     return doc
 
 
+#: De menos a mas, y el orden ES la jerarquia: la comparacion de niveles se
+#: hace por posicion en esta lista.
+_NIVELES = [DocumentAccessLevel.viewer, DocumentAccessLevel.editor,
+            DocumentAccessLevel.admin]
+
+
+def _nivel_concedido(doc, user) -> int:
+    """La posicion del permiso mas fuerte que aplica a este usuario, o -1.
+
+    Auditoria 2026-09: esto vivia dentro de `check_document_access`, que con
+    ello llegaba a complejidad 14. Es una pregunta con nombre propio —«que nivel
+    tiene esta persona sobre este documento»— y separarla deja la funcion que
+    autoriza en tres lineas legibles.
+
+    Un permiso concede por **uno** de tres sujetos: usuario concreto, rol o
+    departamento. Las tres condiciones se comprueban en negativo —«si declara un
+    usuario y no es este, fuera»— para que un permiso que declara rol Y
+    departamento tenga que cumplir los dos, que es lo que hacia y lo razonable:
+    cuanto mas concreto es el permiso, mas condiciones pide.
+
+    Un permiso que no declara ninguno de los tres esta **mal formado** y se
+    descarta, no se aplica a todo el mundo. Es la diferencia entre un fallo de
+    datos y un agujero.
+
+    Gana el nivel mas alto, no el primero que encaje: si alguien tiene permiso
+    de lector por su departamento y de editor por su nombre, es editor.
+    """
+    rol = user.role.value if hasattr(user.role, "value") else str(user.role)
+    departamento = ((user.department or "").strip().lower()
+                    if getattr(user, "department", None) else "")
+    ahora = datetime.now(timezone.utc)
+
+    mejor = -1
+    for permiso in doc.permissions:
+        if permiso.user_id and permiso.user_id != user.id:
+            continue
+        if permiso.role and permiso.role != rol:
+            continue
+        if permiso.department and permiso.department.strip().lower() != departamento:
+            continue
+        if not (permiso.user_id or permiso.role or permiso.department):
+            continue
+
+        # Las filas guardadas antes de que las fechas llevaran zona se comparan
+        # como UTC; sin esto, restar reventaria.
+        caduca = (permiso.expires_at
+                  if permiso.expires_at is None or permiso.expires_at.tzinfo
+                  else permiso.expires_at.replace(tzinfo=timezone.utc))
+        if caduca and caduca < ahora:
+            continue
+
+        mejor = max(mejor, _NIVELES.index(permiso.access_level))
+    return mejor
+
+
 def check_document_access(doc, user, required_level=None) -> None:
     if required_level is None:
         required_level = DocumentAccessLevel.viewer
@@ -128,32 +183,7 @@ def check_document_access(doc, user, required_level=None) -> None:
         if is_member and required_level == DocumentAccessLevel.viewer:
             return
 
-    levels = [DocumentAccessLevel.viewer, DocumentAccessLevel.editor, DocumentAccessLevel.admin]
-    user_role_value = user.role.value if hasattr(user.role, 'value') else str(user.role)
-    user_dept = (user.department or '').strip().lower() if getattr(user, 'department', None) else ''
-    now = datetime.now(timezone.utc)
-
-    # Pick the strongest matching grant (user > role > department) for this user.
-    best_level_idx = -1
-    for p in doc.permissions:
-        # Subject match: exactly one of user_id / role / department applies.
-        if p.user_id and p.user_id != user.id:
-            continue
-        if p.role and p.role != user_role_value:
-            continue
-        if p.department and p.department.strip().lower() != user_dept:
-            continue
-        if not (p.user_id or p.role or p.department):
-            continue  # malformed grant
-        # Expiration
-        perm_exp = p.expires_at if p.expires_at is None or p.expires_at.tzinfo else p.expires_at.replace(tzinfo=timezone.utc)
-        if perm_exp and perm_exp < now:
-            continue
-        idx = levels.index(p.access_level)
-        if idx > best_level_idx:
-            best_level_idx = idx
-
-    if best_level_idx >= levels.index(required_level):
+    if _nivel_concedido(doc, user) >= _NIVELES.index(required_level):
         return
     raise HTTPException(403, "Insufficient access level to this document")
 

@@ -352,68 +352,28 @@ class AIGuardrailEngine:
         warnings:  List[str]     = []
 
         for policy in sorted(policies, key=lambda p: -p.priority):
-            # 1. Forbidden keywords
-            lower = working_text.lower()
-            for kw in policy.forbidden_keywords:
-                if kw in lower:
-                    if policy.action == "block":
-                        result = GuardrailResult(
-                            allowed=False, redacted_text=None,
-                            blocked_by=policy.name,
-                            action_taken="blocked",
-                            warnings=[f"Forbidden keyword '{kw}' matched policy '{policy.name}'"],
-                        )
-                        self._audit(user_id, scope, module, text, result, policy.id, request_id)
-                        return result
-                    elif policy.action in ("warn", "log"):
-                        warnings.append(f"Keyword '{kw}' flagged by policy '{policy.name}'")
+            motivo, avisos = _revisar_palabras_prohibidas(policy, working_text)
+            warnings.extend(avisos)
+            if motivo is None:
+                motivo = _revisar_limite_de_tokens(policy, working_text, scope)
 
-            # 2. Token limit. Item #63: ``len // 4`` infraestimaba con
-            # caracteres no-ASCII (español, emojis usan 2-3 bytes/char). Si
-            # ``tiktoken`` está disponible, lo usamos para una cuenta real;
-            # si no, caemos a aprox ``max(len//4, palabras × 1.3)`` que es
-            # más conservador con textos en español.
-            if policy.max_prompt_tokens and scope == "prompt":
-                estimated_tokens = _estimate_tokens(working_text)
-                if estimated_tokens > policy.max_prompt_tokens:
-                    if policy.action == "block":
-                        result = GuardrailResult(
-                            allowed=False, redacted_text=None,
-                            blocked_by=policy.name,
-                            action_taken="blocked",
-                            warnings=[f"Prompt exceeds {policy.max_prompt_tokens} token limit"],
-                        )
-                        self._audit(user_id, scope, module, text, result, policy.id, request_id)
-                        return result
+            hallazgos_pii = []
+            if motivo is None:
+                working_text, hallazgos_pii, motivo, avisos = _revisar_pii(
+                    policy, working_text)
+                warnings.extend(avisos)
+                pii_total.extend(hallazgos_pii)
 
-            # 3. PII detection + redaction
-            entity_filter = policy.pii_entity_types if policy.pii_entity_types else None
-            pii_matches = detect_pii(working_text)
-            if entity_filter:
-                pii_matches = [m for m in pii_matches if m.entity_type in entity_filter]
-
-            if pii_matches:
-                pii_total.extend(pii_matches)
-                if policy.action == "block":
-                    result = GuardrailResult(
-                        allowed=False, redacted_text=None,
-                        pii_found=pii_matches,
-                        blocked_by=policy.name,
-                        action_taken="blocked",
-                        warnings=[f"PII detected: {', '.join(set(m.entity_type for m in pii_matches))}"],
-                    )
-                    self._audit(user_id, scope, module, text, result, policy.id, request_id)
-                    return result
-                elif policy.action in ("redact", "warn"):
-                    redacted, _ = redact_pii(
-                        working_text,
-                        entity_types=entity_filter,
-                        strategy=policy.redact_strategy,
-                    )
-                    working_text = redacted
-                    if policy.action == "warn":
-                        warnings.append(f"PII redacted by policy '{policy.name}': "
-                                        f"{', '.join(set(m.entity_type for m in pii_matches))}")
+            if motivo is not None:
+                result = GuardrailResult(
+                    allowed=False, redacted_text=None,
+                    pii_found=hallazgos_pii or None,
+                    blocked_by=policy.name,
+                    action_taken="blocked",
+                    warnings=[motivo],
+                )
+                self._audit(user_id, scope, module, text, result, policy.id, request_id)
+                return result
 
         result = GuardrailResult(
             allowed     = True,
@@ -642,3 +602,86 @@ def get_org_id(user) -> str:
     if not user.organization_id:
         raise HTTPException(400, "User has no organization")
     return str(user.organization_id)
+
+
+# -- Los tres guardarrailes, uno por concepto ---------------------------------
+#
+# Auditoria 2026-09. `GuardrailEngine.evaluate` los llevaba dentro del bucle y
+# llegaba a complejidad 15 — pero lo que de verdad pesaba no eran las ramas, era
+# que el bloque «construir el resultado bloqueado, auditar y devolver» estaba
+# **escrito tres veces**, una por guardarrail, con el mismo cuerpo y distinto
+# mensaje. Tres copias del camino de denegacion en una funcion de seguridad es
+# justo donde no se quieren tres copias.
+#
+# Cada revisor devuelve el **motivo** del bloqueo o `None`, y quien llama
+# construye el resultado una sola vez. El orden de evaluacion se conserva
+# exactamente: palabras prohibidas, limite de tokens, PII.
+
+
+def _revisar_palabras_prohibidas(policy, texto):
+    """Palabras vetadas. Devuelve (motivo de bloqueo o None, avisos)."""
+    avisos = []
+    minusculas = texto.lower()
+    for palabra in policy.forbidden_keywords:
+        if palabra not in minusculas:
+            continue
+        if policy.action == "block":
+            return (
+                "Forbidden keyword '%s' matched policy '%s'" % (palabra, policy.name),
+                avisos,
+            )
+        if policy.action in ("warn", "log"):
+            avisos.append(
+                "Keyword '%s' flagged by policy '%s'" % (palabra, policy.name))
+    return None, avisos
+
+
+def _revisar_limite_de_tokens(policy, texto, scope):
+    """Tope de tokens del prompt, o `None` si no aplica.
+
+    Se conserva la cuenta de #63: `len // 4` infraestimaba con caracteres no
+    ASCII —en espanol y con emojis un caracter son dos o tres bytes—, asi que si
+    `tiktoken` esta disponible se usa la cuenta real y si no, la aproximacion
+    `max(len//4, palabras x 1.3)`, que es la conservadora.
+
+    Solo bloquea, nunca avisa, y eso es deliberado: un prompt que pasa del tope
+    no se puede «avisar» y enviar igual, porque el modelo lo rechaza de todas
+    formas. Un aviso aqui seria una promesa que no se puede cumplir.
+    """
+    if not (policy.max_prompt_tokens and scope == "prompt"):
+        return None
+    if _estimate_tokens(texto) <= policy.max_prompt_tokens:
+        return None
+    if policy.action == "block":
+        return "Prompt exceeds %s token limit" % policy.max_prompt_tokens
+    return None
+
+
+def _revisar_pii(policy, texto):
+    """Datos personales: detectar, y bloquear o tachar.
+
+    Devuelve `(texto resultante, hallazgos, motivo de bloqueo, avisos)`. El
+    texto vuelve tachado cuando la politica es `redact` o `warn`, y es lo que
+    sigue evaluando la siguiente politica — **el orden importa**: una politica
+    de menor prioridad ve el texto ya tachado por la anterior, que es el
+    comportamiento que habia y el que tiene sentido.
+    """
+    filtro = policy.pii_entity_types if policy.pii_entity_types else None
+    hallazgos = detect_pii(texto)
+    if filtro:
+        hallazgos = [m for m in hallazgos if m.entity_type in filtro]
+    if not hallazgos:
+        return texto, [], None, []
+
+    tipos = ", ".join(sorted({m.entity_type for m in hallazgos}))
+    if policy.action == "block":
+        return texto, hallazgos, "PII detected: %s" % tipos, []
+
+    if policy.action in ("redact", "warn"):
+        tachado, _ = redact_pii(
+            texto, entity_types=filtro, strategy=policy.redact_strategy)
+        avisos = (["PII redacted by policy '%s': %s" % (policy.name, tipos)]
+                  if policy.action == "warn" else [])
+        return tachado, hallazgos, None, avisos
+
+    return texto, hallazgos, None, []

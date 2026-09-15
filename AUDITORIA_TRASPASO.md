@@ -576,8 +576,8 @@ veces cada export**. Decisiones que merecen quedar dichas:
 
 ### Y cuatro funciones más del hallazgo 18
 
-**77 funciones** sobre el umbral, exceso **187**. No se han partido por el
-número: las tres tenían costura con nombre.
+**74 funciones** sobre el umbral, exceso **173**. No se han partido por el
+número: las seis tenían costura con nombre.
 
 * **`send_message`** (16 → bajo el umbral): autorizar según quién escribe
   —cliente de portal, bot o usuario, y cada uno por una vía distinta—, enganchar
@@ -587,6 +587,22 @@ número: las tres tenían costura con nombre.
   regla de desempate que ahora está escrita donde se puede leer: si ninguna
   vigencia contiene la fecha, se usa el perfil abierto más reciente, y el
   `coverage_pct` que devuelve la función dice cuánto del número se calculó así.
+* **`stop_timer_session`** (15 → bajo el umbral): validar la parada —que se
+  revalida **al parar y no al arrancar**, porque entre una cosa y otra pueden
+  pasar horas y al usuario le pueden haber sacado del proyecto—, calcular las
+  horas con sus tres sutilezas (pausas, cambio de medianoche y mínimo de cuarto
+  de hora) y las dos guardas que comparte con el alta manual.
+* **`GuardrailEngine.evaluate`** (15 → bajo el umbral): tres guardarraíles
+  —palabras vetadas, tope de tokens, datos personales— y, sobre todo, **el
+  bloque de «construir el resultado bloqueado, auditar y devolver» escrito tres
+  veces**. Tres copias del camino de denegación en una función de seguridad es
+  justo donde no se quieren tres copias; ahora cada revisor devuelve el motivo y
+  el resultado se construye una vez.
+* **`check_document_access`** (14 → bajo el umbral): «qué nivel tiene esta
+  persona sobre este documento» es una pregunta con nombre. Al separarla quedó
+  escrito lo que estaba implícito: un permiso que no declara ni usuario ni rol
+  ni departamento está **mal formado y se descarta**, que es la diferencia entre
+  un fallo de datos y un agujero.
 * **`critical_path_payload`** (16 → bajo el umbral): las cinco fases del CPM
   **tienen nombre de libro** —grafo, orden topológico, pasada adelante, pasada
   atrás—, así que el cuerpo principal se lee ahora como el algoritmo que es. Y
@@ -4483,12 +4499,12 @@ dos imports relativos pasados a absolutos, para poder cargarla suelta.
 
 Queda **1 de 38** hallazgo en «parcial»: **#18 complejidad** — y lo que queda
 de él ya no es «no se ha hecho», es **deuda medida con suelo puesto**: 94
-funciones por encima de 10 → **77**, exceso 253 → **187**, máximo 17 → **16**,
+funciones por encima de 10 → **74**, exceso 253 → **173**, máximo 17 → **16**,
 con `scripts/audit_complejidad.py` y un trinquete que bloquea
-(`tests/test_complejidad_no_empeora.py`). Diecisiete funciones salieron de la lista y
-**ninguna por trocearla**: catorce escondían un defecto —incluido el dominio de
-tareas implementado dos veces (§3.novodecies)— y las tres últimas tenían costura
-con nombre propio (§3.quinvicies). Y un barrido por AST sobre las que quedan
+(`tests/test_complejidad_no_empeora.py`). Veinte funciones salieron de la lista y **ninguna
+por trocearla**: catorce escondían un defecto —incluido el dominio de tareas
+implementado dos veces (§3.novodecies)— y las seis últimas tenían costura con
+nombre propio (§3.quinvicies). Y un barrido por AST sobre las que quedan
 confirma que **no esconden ninguna tabla de despacho**: son largas
 y lineales, que es una razón distinta de «nadie las ha mirado».
 
