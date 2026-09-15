@@ -294,11 +294,12 @@ export default function NotificationsPage() {
         }
       }
       const wsUrl = `${wsProto}://${wsHost}/api/v1/ws/notifications?ticket=${ticket}`
-      ws = new WebSocket(wsUrl)
-      wsRef.current = ws
-      ws.onopen = () => {
+      const socket = new WebSocket(wsUrl)
+      ws = socket
+      wsRef.current = socket
+      socket.onopen = () => {
         if (shouldCloseOnOpen) {
-          ws.close()
+          socket.close()
           return
         }
         if (!cancelled) setWsConnected(true)
@@ -320,14 +321,14 @@ export default function NotificationsPage() {
             if (!changed) return
             lastWsNotifRef.current = { count: msg.count ?? null, firstId }
 
-            if (!(msg.count > 0 || firstId)) return
+            if (!((msg.count ?? 0) > 0 || firstId)) return
             qc.invalidateQueries({ queryKey: ['notifications-page'] })
             qc.invalidateQueries({ queryKey: ['notifications'] })
-            toastRef.current?.info?.(`🔔 ${msg.count} notificación${msg.count > 1 ? 'es' : ''} nueva${msg.count > 1 ? 's' : ''}`)
+            toastRef.current?.info?.(`🔔 ${msg.count ?? 0} notificación${(msg.count ?? 0) > 1 ? 'es' : ''} nueva${(msg.count ?? 0) > 1 ? 's' : ''}`)
           }
         } catch { /* noop */ }
       }
-      ping = setInterval(() => ws.readyState === 1 && ws.send(JSON.stringify({ type:'ping' })), 30000)
+      ping = setInterval(() => socket.readyState === 1 && socket.send(JSON.stringify({ type:'ping' })), 30000)
     }).catch(() => { /* WS optional; polling fallback already active */ })
     return () => {
       cancelled = true

@@ -271,11 +271,12 @@ export default function NPSPage() {
                 <div>
                   <NPSGauge nps={summary?.nps} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
-                    {[
+                    {([
                       { label: t('nps.promoters'), key: 'promoters', color: 'var(--success)' },
                       { label: t('nps.passives'),  key: 'passives',  color: 'var(--orange)' },
                       { label: t('nps.detractors'),key: 'detractors',color: 'var(--danger)' },
-                    ].map(({ label, key, color }) => (
+                    ] as Array<{ label: string; key: 'promoters' | 'passives' | 'detractors'; color: string }>)
+                      .map(({ label, key, color }) => (
                       <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)" }}>
                         <span style={{ color: 'var(--text-2)' }}>{label}</span>
                         <span style={{ color }}>{summary?.[key] ?? 0}</span>

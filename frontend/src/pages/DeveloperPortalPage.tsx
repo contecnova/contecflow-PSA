@@ -251,7 +251,7 @@ export default function DeveloperPortalPage(): JSX.Element {
       {isLoading ? <Spinner /> : apps.length === 0 ? (
         <EmptyState
           title={t('developer.no_apps')}
-          subtitle={t('developer.no_apps_subtitle')}
+          description={t('developer.no_apps_subtitle')}
           action={<Button onClick={() => setShowCreate(true)}>{t('developer.create_app_btn')}</Button>}
         />
       ) : (

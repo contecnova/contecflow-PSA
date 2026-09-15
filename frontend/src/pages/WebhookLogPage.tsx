@@ -85,7 +85,7 @@ export default function WebhookLogPage() {
     return STATUS_COLOR[code as keyof typeof STATUS_COLOR] || (code >= 200 && code < 300 ? 'var(--success)' : code >= 400 ? 'var(--danger)' : 'var(--text-2)')
   }
 
-  const successCount = allLogs.filter(l => l.http_status >= 200 && l.http_status < 300).length
+  const successCount = allLogs.filter(l => (l.http_status ?? 0) >= 200 && (l.http_status ?? 0) < 300).length
   const failCount = allLogs.filter(l => !l.http_status || l.http_status >= 400).length
 
   return (
@@ -142,7 +142,7 @@ export default function WebhookLogPage() {
             <tbody>
               {allLogs.slice(0, 200).map((log, i) => {
                 const statusColor = getStatusColor(log.http_status)
-                const ok = log.http_status >= 200 && log.http_status < 300
+                const ok = (log.http_status ?? 0) >= 200 && (log.http_status ?? 0) < 300
                 return (
                   <tr key={log.id || i}
                     style={{ borderBottom:'1px solid var(--surface-4)20', cursor:'pointer' }}
@@ -205,7 +205,7 @@ export default function WebhookLogPage() {
                 <span style={{ fontSize: "var(--text-base)", color:'var(--text-1)', wordBreak:'break-all' }}>{String(value)}</span>
               </div>
             ))}
-            {selectedLog.payload && (
+            {Boolean(selectedLog.payload) && (
               <div>
                 <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)',
                   textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Payload</div>
@@ -217,7 +217,7 @@ export default function WebhookLogPage() {
                 </pre>
               </div>
             )}
-            {selectedLog.response_body && (
+            {Boolean(selectedLog.response_body) && (
               <div>
                 <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)',
                   textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Respuesta</div>

@@ -2,7 +2,7 @@
  * Shared context, auth, API client, and styles for the client portal.
  * Import from here in all portal-client sub-pages.
  */
-import { createContext, useContext, useState, useEffect, useId } from 'react'
+import React, { createContext, useContext, useState, useEffect, useId } from 'react'
 import type { CSSProperties } from 'react'
 import axios, { type AxiosResponse } from 'axios'
 import { PORTAL_TRANSLATIONS as T, PORTAL_LANGUAGES as LANGUAGES } from '../../i18n/portalTranslations'
@@ -42,27 +42,75 @@ CLIENT_API.interceptors.response.use((res: AxiosResponse<unknown>) => {
   return res
 })
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// La sesion del portal de cliente
+//
+// Auditoria 2026-09 (modo estricto): `createContext(null)` sin argumento de tipo
+// fija el contexto a `null` **para siempre**, asi que `useClientAuth()` devolvia
+// `null` y cualquier `const { login } = useClientAuth()` era un error que nadie
+// veia. Declarar el valor del contexto es lo que arregla los 15 errores de este
+// fichero de raiz.
+//
+// El contexto puede ser `null` de verdad —fuera del proveedor no hay sesion— y
+// eso queda en el tipo a proposito: `useClientAuth()` devuelve
+// `SesionDeCliente | null` y quien lo use tiene que decidir que hace sin sesion.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** El cliente autenticado, con lo que el portal puede o no puede hacer. */
+export interface ClienteDelPortal {
+  id?: string | number
+  email?: string
+  name?: string
+  full_name?: string
+  language?: string
+  organization_name?: string
+  company?: string
+  project_id?: string | number | null
+  project_ids?: Array<string | number>
+  projects?: unknown[]
+  can_approve_deliverables?: boolean
+  can_request_changes?: boolean
+  can_view_budget?: boolean
+  can_view_team?: boolean
+}
+
+/** Lo que el proveedor de sesion ofrece a sus hijos. */
+export interface SesionDeCliente {
+  client: ClienteDelPortal | null
+  login: (email: string, password: string) => Promise<unknown>
+  logout: () => Promise<void>
+  /** `false` mientras se comprueba la sesion contra el servidor: distinto de
+   *  «no hay sesion», y por eso es un campo aparte y no un `client === null`. */
+  isReady: boolean
+}
+
 // ── Language Context ──────────────────────────────────────────────────────────
 export const LangContext = createContext('es')
 export const PORTAL_CUSTOM_KEY = 'contecflow_portal_custom'
 
+/** `T` con el tipo que el codigo ya usa: se indexa por codigo de idioma, que
+ *  viene de la configuracion del usuario y no de la lista literal de hoy. El
+ *  respaldo a espanol de mas abajo es justo el caso «no esta». */
+const TRADUCCIONES = T as unknown as Record<string, Record<string, string> | undefined>
+
 export function useLang() {
   const lang = useContext(LangContext)
-  return (key) => {
+  return (key: string): string => {
     try {
       const custom = JSON.parse(localStorage.getItem(PORTAL_CUSTOM_KEY) || '{}')
       if (custom[lang]?.[key]) return custom[lang][key]
-      if (custom['es']?.[key] && !T[lang]?.[key]) return custom['es'][key]
+      if (custom['es']?.[key] && !TRADUCCIONES[lang]?.[key]) return custom['es'][key]
     } catch { /* noop */ }
-    return T[lang]?.[key] || T['es']?.[key] || key
+    return TRADUCCIONES[lang]?.[key] || TRADUCCIONES['es']?.[key] || key
   }
 }
 
 // ── Client Auth Context ───────────────────────────────────────────────────────
-export const ClientAuthContext = createContext(null)
+export const ClientAuthContext = createContext<SesionDeCliente | null>(null)
 export function useClientAuth() { return useContext(ClientAuthContext) }
 
-function _pickClientUiFields(client) {
+function _pickClientUiFields(client: ClienteDelPortal | null) {
   if (!client) return null
   const {
     id,
@@ -98,8 +146,8 @@ function _pickClientUiFields(client) {
   }
 }
 
-export function ClientAuthProvider({ children }) {
-  const [client, setClient] = useState(() => {
+export function ClientAuthProvider({ children }: { children?: React.ReactNode }) {
+  const [client, setClient] = useState<ClienteDelPortal | null>(() => {
     try { return JSON.parse(localStorage.getItem('client_user') || 'null') } catch { return null }
   })
   const [isReady, setIsReady] = useState(false)
@@ -132,7 +180,7 @@ export function ClientAuthProvider({ children }) {
       })
     return () => { mounted = false }
   }, [])
-  const login = async (email, password) => {
+  const login = async (email: string, password: string) => {
     const res = await CLIENT_API.post('/portal/auth/login', { email, password })
     const clientData = _pickClientUiFields(res.data.client)
     localStorage.setItem('client_user', JSON.stringify(clientData))
@@ -226,7 +274,7 @@ export function ClientAuthProvider({ children }) {
 export const S = {
   page: { minHeight: '100vh', background: 'var(--surface-0)', color: 'var(--text-1)', fontFamily: "'Inter', system-ui, sans-serif" },
   card: { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: 'var(--space-4) var(--space-5)' },
-  badge: (color) => ({ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: color + '20', color, border: `1px solid ${color}40`, textTransform: 'uppercase' }),
+  badge: (color: string) => ({ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: color + '20', color, border: `1px solid ${color}40`, textTransform: 'uppercase' }),
   btn: { background: 'var(--accent)', border: 'none', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--portal-bg)', fontSize: "var(--text-md)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
   btnSec: { background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit' },
   input: { background: 'var(--surface-4)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-md)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
@@ -234,12 +282,19 @@ export const S = {
 }
 
 // ── Shared components ─────────────────────────────────────────────────────────
-export function Badge({ status }) {
-  const cfg = STATUS_CFG[status] || { label: status, color: 'var(--text-2)' }
+export function Badge({ status }: { status?: string }) {
+  const cfg = (status && STATUS_CFG[status]) || { label: status, color: 'var(--text-2)' }
   return <span style={S.badge(cfg.color)}>{cfg.label}</span>
 }
 
-export function LangSelector({ onChange, current, dark = false }) {
+interface LangSelectorProps {
+  onChange: (code: string) => void
+  current?: string
+  /** Variante para fondos oscuros. */
+  dark?: boolean
+}
+
+export function LangSelector({ onChange, current, dark = false }: LangSelectorProps) {
   return (
     <div style={{ display: 'flex', gap: 6 }}>
       {LANGUAGES.map(l => (
@@ -259,8 +314,11 @@ export function LangSelector({ onChange, current, dark = false }) {
   )
 }
 
-export function LoginScreen({ _changeLang, _currentLang }) {
-  const { login } = useClientAuth()
+export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code: string) => void; _currentLang?: string }) {
+  // Sin proveedor no hay sesion. Pasa solo si alguien monta esta pantalla
+  // fuera del portal, y con el `?.` falla en el sitio y no cinco lineas mas
+  // abajo con un «login is not a function».
+  const login = useClientAuth()?.login
   const t = useLang()
   const idPrefix = useId()
   const [email, setEmail] = useState('')
@@ -270,7 +328,7 @@ export function LoginScreen({ _changeLang, _currentLang }) {
 
   const handleLogin = async () => {
     setError(''); setLoading(true)
-    try { await login(email, password) }
+    try { await login?.(email, password) }
     catch { setError(t('login_error')) }
     finally { setLoading(false) }
   }

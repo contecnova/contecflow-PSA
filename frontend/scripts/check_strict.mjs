@@ -1,54 +1,49 @@
 #!/usr/bin/env node
 /**
- * check_strict.mjs — Audit #C9 helper.
+ * check_strict.mjs — el gate de tipos en modo estricto.
  *
- * Runs `tsc --noEmit -p tsconfig.strict.json` and filters the output so that
- * only errors located in files listed under `include` count toward the exit
- * code. TypeScript will still LOAD non-include files (it has to, to resolve
- * imports), but their errors are not the responsibility of this gate — they
- * belong to the gradual migration of @ts-nocheck files.
+ * Corre `tsc --noEmit -p tsconfig.strict.json` y falla con cualquier error.
  *
- * Usage:
- *   node scripts/check_strict.mjs           # CI gate
+ * Auditoría 2026-09 — por qué este script ya no filtra nada
+ * ---------------------------------------------------------
+ * Hasta hoy leía la lista `include` de `tsconfig.strict.json` y sólo contaba
+ * los errores de esos ficheros, porque la migración a estricto iba fichero a
+ * fichero. La migración ha terminado: el config cubre todo `src/`, tests
+ * incluidos, con cero errores.
+ *
+ * Y el filtro no sólo sobraba: **se había vuelto peligroso**. Ahora que
+ * `include` son globs (`src/**\/*.ts`), la comparación que hacía
+ * —`file === entrada || file.endsWith('/' + entrada)`— no habría encajado con
+ * ningún fichero real, así que habría dado por bueno un proyecto con cualquier
+ * número de errores. Un gate que no puede fallar es peor que no tener gate,
+ * porque además da tranquilidad.
+ *
+ * Lo mismo valía para un fichero nuevo: mientras nadie lo añadiera a mano a la
+ * lista, sus errores no contaban. Con `tsc` mandando sobre todo el proyecto eso
+ * ya no puede pasar.
+ *
+ * Uso:
+ *   node scripts/check_strict.mjs
  */
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 
-const cfgPath = resolve('tsconfig.strict.json')
-// Naive include extraction — we only need the file paths; using JSON.parse
-// would require stripping the leading "//xx" pseudo-comment keys.
-const raw = readFileSync(cfgPath, 'utf-8')
-const includeMatch = raw.match(/"include"\s*:\s*\[([\s\S]*?)\]/)
-const whitelist = includeMatch
-  ? [...includeMatch[1].matchAll(/"([^"]+)"/g)].map((m) => m[1].replace(/\\/g, '/'))
-  : []
+const tsc = spawnSync(
+  'node',
+  ['node_modules/typescript/bin/tsc', '--noEmit', '-p', 'tsconfig.strict.json'],
+  { encoding: 'utf-8' },
+)
 
-if (whitelist.length === 0) {
-  console.log('check_strict: whitelist empty, nothing to check.')
+const salida = `${tsc.stdout || ''}${tsc.stderr || ''}`
+const errores = salida.split('\n').filter((l) => /\(\d+,\d+\): error /.test(l))
+
+if (errores.length === 0 && tsc.status === 0) {
+  console.log('check_strict: 0 errores en todo src/ (tests incluidos).')
   process.exit(0)
 }
 
-const tsc = spawnSync('node', ['node_modules/typescript/bin/tsc', '--noEmit', '-p', 'tsconfig.strict.json'], {
-  encoding: 'utf-8',
-})
-
-const lines = (tsc.stdout || '').split('\n')
-const offenders = lines.filter((line) => {
-  // Match lines like "src/foo.ts(12,3): error TS1234"
-  const m = line.match(/^([^()]+)\(\d+,\d+\): error /)
-  if (!m) return false
-  const file = m[1].replace(/\\/g, '/')
-  return whitelist.some((w) => file === w || file.endsWith('/' + w))
-})
-
-const totalOutput = (tsc.stdout || '').match(/error /g)?.length || 0
-console.log(`check_strict: ${offenders.length} error(s) in ${whitelist.length} whitelisted file(s).`)
-console.log(`check_strict: (${totalOutput - offenders.length} additional errors in non-whitelisted files were ignored — those belong to the gradual @ts-nocheck migration.)`)
-
-if (offenders.length > 0) {
-  console.error('\nErrors in whitelisted files:')
-  for (const line of offenders) console.error('  ' + line)
-  process.exit(1)
-}
-process.exit(0)
+console.error(`check_strict: ${errores.length} error(es) en modo estricto.\n`)
+for (const linea of errores) console.error('  ' + linea)
+// `tsc` puede fallar sin emitir errores con formato (config mal, binario
+// ausente). Eso también es un fallo del gate, no un pase.
+if (errores.length === 0) console.error(salida.trim())
+process.exit(1)

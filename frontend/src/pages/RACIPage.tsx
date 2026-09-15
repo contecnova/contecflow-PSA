@@ -48,7 +48,7 @@ interface RaciResponse {
   items?: RaciItem[]
 }
 
-const ROLES_META = {
+const ROLES_META: Record<string, { label: string; short: string; color: string; bg: string; desc: string }> = {
   R: { label: 'Responsible',  short: 'R', color: 'var(--accent)',   bg: 'rgba(79,142,247,0.15)',  desc: 'Ejecuta el trabajo' },
   A: { label: 'Accountable',  short: 'A', color: 'var(--success)',  bg: 'rgba(74,222,128,0.15)',  desc: 'Aprueba y responde' },
   C: { label: 'Consulted',    short: 'C', color: 'var(--warning)',  bg: 'rgba(251,191,36,0.15)',  desc: 'Aporta información' },

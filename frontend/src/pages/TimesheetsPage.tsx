@@ -43,7 +43,7 @@ type RoleAuth = {
   hasRole: (...roles: string[]) => boolean
 }
 
-const STATUS_CFG = {
+const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string }> = {
   draft:     { label: 'Borrador',  color: 'var(--text-2)', bg: 'rgba(120,138,170,0.09)', border: 'rgba(122,138,170,0.19)' },
   submitted: { label: 'Enviado',   color: 'var(--warning)', bg: 'var(--warning-bg)', border: 'var(--warning-border)' },
   approved:  { label: 'Aprobado',  color: 'var(--success)', bg: 'var(--success-bg)', border: 'var(--success-border)' },

@@ -47,7 +47,7 @@ const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 
 
 const _TABS = ['calendar', 'teams', 'config']
 
-function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
+function StatusBadge({ ok, label }: { ok?: boolean; label: string }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -151,7 +151,7 @@ function CalendarTab() {
         {msResult && !msResult.error && (
           <div style={{ marginTop: 10, fontSize: "var(--text-sm)" }}>
             <span style={{ color: 'var(--success)' }}>✓ {msResult.created} milestones sincronizados</span>
-            {msResult.errors?.length > 0 && <span style={{ color: '#fb923c', marginLeft: 10 }}>⚠ {msResult.errors.length} errores</span>}
+            {(msResult.errors?.length ?? 0) > 0 && <span style={{ color: '#fb923c', marginLeft: 10 }}>⚠ {msResult.errors?.length} errores</span>}
           </div>
         )}
         {msResult?.error && <div style={{ marginTop: 10, color: 'var(--danger)', fontSize: "var(--text-sm)" }}>⚠ {typeof msResult.error === 'string' ? msResult.error : JSON.stringify(msResult.error)}</div>}

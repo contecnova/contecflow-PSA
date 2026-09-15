@@ -125,7 +125,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8,
-              color: HEALTH_COLOR[data.health], fontWeight: 600, fontSize: "var(--text-md)" }}>
+              color: HEALTH_COLOR[data.health ?? 'grey'], fontWeight: 600, fontSize: "var(--text-md)" }}>
               {React.createElement(HEALTH_ICON[data.health || 'grey'], { size: 16 })}
               {HEALTH_LABEL[data.health || 'grey']}
             </div>
@@ -133,7 +133,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
 
           {/* Progress */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-            <ProgressBar pct={data.pct_complete} label="Avance real" color={HEALTH_COLOR[data.health]} />
+            <ProgressBar pct={data.pct_complete} label="Avance real" color={HEALTH_COLOR[data.health ?? 'grey']} />
             <ProgressBar pct={data.pct_time_elapsed} label="Tiempo transcurrido" color="var(--accent)" />
           </div>
 
@@ -214,10 +214,12 @@ export default function EVMPage(): JSX.Element {
 
       {/* Summary KPIs */}
       {portfolio.length > 0 && (() => {
-        const withCpi = portfolio.filter(p => p.cpi != null);
-        const avgCpi  = withCpi.length ? withCpi.reduce((s, p) => s + p.cpi, 0) / withCpi.length : null;
-        const withSpi = portfolio.filter(p => p.spi != null);
-        const avgSpi  = withSpi.length ? withSpi.reduce((s, p) => s + p.spi, 0) / withSpi.length : null;
+        // `flatMap` filtra y estrecha el tipo a la vez: un `filter(x => x != null)`
+        // deja el array con el tipo de antes y TypeScript sigue viendo nulos.
+        const cpis = portfolio.flatMap(p => p.cpi != null ? [p.cpi] : []);
+        const avgCpi  = cpis.length ? cpis.reduce((s, v) => s + v, 0) / cpis.length : null;
+        const spis = portfolio.flatMap(p => p.spi != null ? [p.spi] : []);
+        const avgSpi  = spis.length ? spis.reduce((s, v) => s + v, 0) / spis.length : null;
         const totalBac = portfolio.reduce((s, p) => s + (p.bac || 0), 0);
         const totalAc  = portfolio.reduce((s, p) => s + (p.ac || 0), 0);
         const reds     = portfolio.filter((p) => p.health === 'red').length;
@@ -225,8 +227,8 @@ export default function EVMPage(): JSX.Element {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
             {[
               { label: 'Proyectos activos', value: portfolio.length, sub: `${reds} en riesgo`, color: reds > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: Target },
-              { label: 'CPI medio cartera', value: fmtIdx(avgCpi), sub: avgCpi >= 0.9 ? 'Bajo presupuesto ✓' : 'Sobre presupuesto ✗', color: avgCpi == null ? 'var(--text-2)' : avgCpi >= 0.9 ? 'var(--success)' : 'var(--danger)', Icon: DollarSign },
-              { label: 'SPI medio cartera', value: fmtIdx(avgSpi), sub: avgSpi >= 0.9 ? 'En plazo ✓' : 'Retrasado ✗', color: avgSpi == null ? 'var(--text-2)' : avgSpi >= 0.9 ? 'var(--success)' : 'var(--danger)', Icon: Clock },
+              { label: 'CPI medio cartera', value: fmtIdx(avgCpi), sub: (avgCpi ?? 0) >= 0.9 ? 'Bajo presupuesto ✓' : 'Sobre presupuesto ✗', color: avgCpi == null ? 'var(--text-2)' : avgCpi >= 0.9 ? 'var(--success)' : 'var(--danger)', Icon: DollarSign },
+              { label: 'SPI medio cartera', value: fmtIdx(avgSpi), sub: (avgSpi ?? 0) >= 0.9 ? 'En plazo ✓' : 'Retrasado ✗', color: avgSpi == null ? 'var(--text-2)' : avgSpi >= 0.9 ? 'var(--success)' : 'var(--danger)', Icon: Clock },
               { label: 'Presupuesto total', value: fmtEur(totalBac), sub: `Gastado: ${fmtEur(totalAc)}`, color: 'var(--text-1)', Icon: BarChart2 },
             ].map(({ label, value, sub, color, Icon }) => (
               <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '16px 20px' }}>
@@ -264,7 +266,7 @@ export default function EVMPage(): JSX.Element {
                 const HIcon = HEALTH_ICON[health];
                 return (
                   <tr key={p.project_id}
-                    onClick={() => setSelected(p.project_id)}
+                    onClick={() => p.project_id != null && setSelected(p.project_id)}
                     style={{ borderTop: i > 0 ? '1px solid var(--surface-3)' : 'none', cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}

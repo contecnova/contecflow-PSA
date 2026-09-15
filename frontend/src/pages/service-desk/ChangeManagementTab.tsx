@@ -72,7 +72,7 @@ interface StatusAction {
   action?: 'approve' | 'reject'
 }
 
-const CHANGE_STATUS_COLOR = {
+const CHANGE_STATUS_COLOR: Record<string, string> = {
   draft: COLOR.text2,
   submitted: COLOR.accent,
   cab_review: COLOR.warning,
@@ -110,7 +110,7 @@ function ChangeDetailPanel({
   })
 
   const c = (detail || change) as ChangeItem
-  const sc = CHANGE_STATUS_COLOR[c.status] || COLOR.text2
+  const sc = CHANGE_STATUS_COLOR[c.status ?? ''] || COLOR.text2
   const rc = c.risk === 'critical' ? COLOR.danger : c.risk === 'high' ? 'var(--orange)' : c.risk === 'medium' ? COLOR.warning : COLOR.success
 
   const Section = ({ title, content: text }: { title: string; content?: string }) => text ? (
@@ -325,9 +325,9 @@ export default function ChangeManagementTab() {
             <thead><tr style={{ borderBottom: '2px solid var(--surface-4)' }}><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={changeSort} onSort={setChangeSort}>Nº</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={changeSort} onSort={setChangeSort}>Título</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="change_type" sort={changeSort} onSort={setChangeSort}>Tipo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="risk" sort={changeSort} onSort={setChangeSort}>Riesgo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={changeSort} onSort={setChangeSort}>Estado</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="planned_start" sort={changeSort} onSort={setChangeSort}>Inicio planif.</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="owner" sort={changeSort} onSort={setChangeSort}>Owner</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Acciones</th></tr></thead>
             <tbody>
               {sortedChanges.map(c => {
-                const sc = CHANGE_STATUS_COLOR[c.status] || COLOR.text2
+                const sc = CHANGE_STATUS_COLOR[c.status ?? ''] || COLOR.text2
                 const rc = c.risk === 'critical' ? COLOR.danger : c.risk === 'high' ? 'var(--orange)' : c.risk === 'medium' ? COLOR.warning : COLOR.success
-                const actions = STATUS_ACTIONS[c.status] || []
+                const actions = STATUS_ACTIONS[c.status ?? ''] || []
                 return (
                   <tr key={c.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
                     <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600 }}>{c.number}</td>

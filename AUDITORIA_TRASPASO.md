@@ -95,8 +95,9 @@ bash scripts/ci_local.sh
 
 **Estado en la última verificación completa (2026-09-15):**
 **3765 passed, 19 skipped, 1 xfailed, 0 fallos** con `-n 4`;
-`ruff check app tests` limpio; `tsc` limpio; 91/91 vitest; `npm audit` en
-**cero**; `typecheck:strict` 0 errores en 284 de 338 ficheros.
+`ruff check app tests` limpio; `tsc` limpio; **92/92 vitest**; `npm audit` en
+**cero**; `typecheck:strict` **0 errores en 338 de 338 ficheros, tests
+incluidos** — la migración gradual a modo estricto ha terminado (§3.sexvicies).
 
 > Y es la primera vez que ese «0 fallos» se mide **con la semántica de tenant de
 > producción puesta** (§3.sexdecies). La primera pasada con los escuchadores
@@ -767,6 +768,142 @@ La migración se verificó **ejecutándola**: partiendo de un esquema sin las tr
 columnas, comprueba que se añaden, que son nullable, que el índice está, que se
 puede escribir y leer en las tres, que una segunda pasada no revienta y que el
 `downgrade` las quita. Más 22 tests en verde entre los nuevos y los guardianes.
+
+---
+
+## 3.sexvicies El modo estricto llega a 338 de 338, y lo que había debajo
+
+La lista blanca de `tsconfig.strict.json` iba por 284 de 338 ficheros y 311
+errores. Hoy cubre **todo `src/`, tests incluidos, con cero errores**, y el
+fichero de migración gradual ha dejado de existir como tal.
+
+Lo que importa de esta pasada no es el número: es **lo que apareció al tipar**.
+Un modo estricto no «arregla» nada por sí solo; lo que hace es obligar a
+escribir suposiciones que hasta entonces vivían en la cabeza de quien escribió
+el código. Ahí es donde salieron los defectos.
+
+### Lo que el gate escondía
+
+Dos cosas, y las dos importan más que los 311 errores:
+
+**1. La lista blanca nombraba 27 ficheros de test que nunca se comprobaron.**
+El `exclude` del `tsconfig.json` base descarta `**/*.test.ts(x)`, y en
+TypeScript `exclude` gana sobre `include`. Así que el gate decía «284 ficheros»
+y comprobaba 257. Al meterlos de verdad salieron **36 errores** más, uno de
+ellos un test que pasaba `entityType` / `entityId` a `DocumentsPanel` —props que
+ese componente **no tiene**— y por tanto renderizaba el panel sin ninguna
+entidad; pasaba igual, porque lo único que comprobaba es que hubiera un primer
+hijo.
+
+**2. El filtro de `check_strict.mjs` se habría vuelto ciego.** El script leía la
+lista `include` y sólo contaba errores de esos ficheros. Al pasar `include` a
+globs (`src/**/*.ts`), la comparación por nombre de fichero no habría encajado
+con **ninguno**, y el gate habría dado por bueno un proyecto con cualquier
+número de errores. Se ha quitado el filtro entero: ahora `tsc` manda sobre todo
+el proyecto y el script sólo traduce su salida. **Validado rompiéndolo**: un
+fichero *nuevo* con un `any` implícito lo tumba (salida 1), y limpio da 0 — que
+es justo el agujero que tenía la lista, donde un fichero nuevo no contaba hasta
+que alguien lo añadiera a mano.
+
+### Los defectos que destapó tipar el kit de UI
+
+`src/components/ui/index.tsx` es el kit que usa toda la aplicación y **no
+declaraba ni una sola prop**: la mitad de los componentes llevaban `: any` en la
+desestructuración y la otra mitad ni eso. Declararlas bajó ese fichero de 37
+errores a 7 **sin romper una sola llamada**, y sacó cuatro fallos reales que
+llevaban tiempo ahí, todos de la misma familia — *props que se pasaban y nadie
+leía*, que React descarta en silencio:
+
+| Lo que se pasaba | Dónde | Qué pasaba de verdad |
+|---|---|---|
+| `Modal size="lg"` | 8 llamadas | `Modal` no tenía `size`. Ocho modales que pedían ser anchos salían con los 520 px por defecto. |
+| `EmptyState subtitle=` | 2 llamadas | El componente lee `description`. Ese texto no se ha visto nunca. |
+| `EmptyState message=` | 3 llamadas | Lo mismo. |
+| `Card className=` | 1 llamada | `Card` no reenviaba la clase al `div`: no llegaba al DOM. |
+
+`size` se ha **implementado** (lo que pedían era legítimo y estaba escrito);
+`subtitle` y `message` se han corregido en las llamadas, porque dos nombres para
+lo mismo es como empieza este tipo de fallo.
+
+Y uno más, de otra clase: `Button` escribía `gap: s.gap` y tres líneas después
+`...s`, que vuelve a poner `gap`. Código muerto, destapado por `TS2783`.
+
+### El fallo más serio: un hook que leía haciendo POST
+
+`useTaskComments` llamaba a `tasksApi.comment(id, null)` —un **POST** a
+`/tasks/{id}/comments`, que es el endpoint de *crear* un comentario— para
+*leerlos*. No existe endpoint GET de comentarios de tarea. El hook **no ha
+funcionado nunca**: el `.catch(() => [])` se tragaba el error y devolvía una
+lista vacía, indistinguible de «no hay comentarios».
+
+Se ha **borrado**, no arreglado: está exportado y no lo llama ni un sitio. Crear
+un endpoint de backend para un hook que nadie usa sería escribir más código
+muerto, esta vez con bendición.
+
+### Dos decisiones de comportamiento, escritas a propósito
+
+Tipar obliga a contestar preguntas que el código esquivaba. Dos respuestas
+cambian lo que se ve en pantalla, y van dichas aquí para que no se lean como un
+efecto colateral:
+
+- **`ProfitabilityPage`: un margen que falta ya no se pinta verde.** Los 20
+  errores de ese fichero eran la misma pregunta —«¿de qué color pinto un margen
+  que puede no venir?»— y la respuesta que daba el código era, sin querer,
+  *verde*: en JavaScript `undefined < 0` es `false`, así que un dato ausente
+  caía en la rama buena de cada ternaria. Ahora es **neutro**. Un dato que falta
+  no es un dato bueno, y en una pantalla de rentabilidad esa diferencia se lee
+  como una afirmación sobre el negocio.
+- **`ValidationResult<T>` es una unión discriminada.** Declaraba `success` y
+  `data` como campos independientes, así que la invariante «si validó, hay
+  datos» vivía en la cabeza de quien lo escribió. Escribirla arregló cuatro
+  sitios a la vez.
+
+### Duplicación que apareció de paso
+
+- `PortalUsersTab` tenía la lista de permisos del portal **escrita dos veces**:
+  la constante tipada `PORTAL_PERMISSIONS` en el formulario de edición y una
+  copia a mano, sin tipo, en el de alta. Añadir un permiso en una y no en la
+  otra era cuestión de tiempo.
+- `ChangesPage` tenía una copia local de `IMPACT_CFG`, palabra por palabra, que
+  sombreaba la del módulo.
+- `ResourceForecastPage` repetía la cadena de umbrales de carga —100 / 85 / 50 /
+  10— **tres veces** en el mismo fichero. Ahora es `estadoDeCarga()`.
+
+Las tres eran reglas de negocio que se podían cambiar en un sitio y quedarse mal
+en otro sin que nada avisara.
+
+### El guardián de plotly, reescrito por un motivo de tipos
+
+Leía el disco con `node:fs` y `__dirname`, lo que obligaba a meter `@types/node`
+en la compilación. Y una `/// <reference types="node" />` **no es local al
+fichero**: vale para el programa entero. Con ella cargada, `window.setTimeout`
+se resuelve contra la declaración de Node y devuelve `NodeJS.Timeout` en vez de
+`number`, y `PortalClientePage` —que guarda el identificador con el idioma
+correcto— dejaba de compilar. Un fichero de test no puede cambiarle los tipos al
+navegador.
+
+Ahora usa `import.meta.glob` con `?raw`: nativo de Vite, el contenido lo inlinea
+el bundler, no hay E/S en ejecución y no necesita un solo tipo de Node. Se le ha
+añadido **un tercer test que vigila al guardián**: comprueba que el barrido
+encuentra el árbol. Hizo falta de inmediato — la primera versión buscaba la
+clave `../../charts/PlotlyCustom.ts` y Vite la devuelve como
+`../PlotlyCustom.ts`, normalizada a la ruta relativa más corta. Sin ese tercer
+test, los otros dos habrían pasado sin mirar nada.
+
+**Validado rompiéndolo**: un componente nuevo con `import Plot from
+'react-plotly.js'` lo tumba y aparece por nombre en el mensaje.
+
+### Cómo queda el gate
+
+`tsconfig.strict.json` ya no es una lista: cubre `src/**` con `exclude`
+reducido a `node_modules` y `dist`, para que los tests entren. El objetivo
+siguiente, ya sin migración de por medio, es mover esos flags a
+`tsconfig.json` y borrar el fichero; mientras el base siga en `strict: false`
+—lo usa `npm run typecheck`, y ahí conviven aún ficheros `.mjs` sin tipar— el
+estricto es el que manda para el gate.
+
+**Verificado:** `npm run typecheck:strict` 0 errores · `npx vitest run` 27
+ficheros, **92/92** · `npm run build` correcto.
 
 ## 3.duovicies El barrido de duplicación: 31 parejas, cero defectos
 

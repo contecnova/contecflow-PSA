@@ -4,8 +4,8 @@ import OfflineIndicator from '../components/OfflineIndicator';
 
 // Mock any i18n/context dependencies that OfflineIndicator may pull in transitively
 vi.mock('../i18n/AppLangContext', () => ({
-  useAppT: () => (key) => key,
-  useAppLang: () => ({ t: (key) => key, lang: 'es' }),
+  useAppT: () => (key: string) => key,
+  useAppLang: () => ({ t: (key: string) => key, lang: 'es' }),
 }));
 
 vi.mock('../services/api', () => ({

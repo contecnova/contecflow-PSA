@@ -121,7 +121,7 @@ const RESPONSE_TYPES = [
   { value: 'transfer', label: 'Transferir' },
   { value: 'accept', label: 'Aceptar' },
 ]
-const LEVEL_CFG = {
+const LEVEL_CFG: Record<string, { color: string; bg: string; label: string }> = {
   critical: { color: 'var(--danger)', bg: 'var(--danger-bg)', label: 'Crítico' },
   high:     { color: 'var(--warning)', bg: 'var(--warning-bg)', label: 'Alto' },
   medium:   { color: 'var(--accent)', bg: 'var(--accent-muted)', label: 'Medio' },
@@ -132,7 +132,7 @@ function RiskMatrix({ risks }: { risks: RiskItem[] }) {
   const probs = ['very_low', 'low', 'medium', 'high', 'very_high']
   const impacts = ['negligible', 'minor', 'moderate', 'major', 'critical']
   const t = useAppT() as (key: string) => string
-  const probLabels = {
+  const probLabels: Record<string, string> = {
     very_low: t('risks.options.prob_very_low_short'),
     low: t('risks.options.prob_low_short'),
     medium: t('risks.options.prob_medium_short'),
@@ -430,7 +430,7 @@ export default function RisksPage() {
           {view === 'list' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {sortedRisks.map((r: RiskItem) => {
-            const lvl = LEVEL_CFG[r.risk_level] || LEVEL_CFG.low
+            const lvl = (r.risk_level && LEVEL_CFG[r.risk_level]) || LEVEL_CFG.low
             return (
               <div key={r.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${lvl.color}30`, borderRadius: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
@@ -471,7 +471,7 @@ export default function RisksPage() {
           ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
             {sortedRisks.map((r: RiskItem) => {
-              const lvl = LEVEL_CFG[r.risk_level] || LEVEL_CFG.low
+              const lvl = (r.risk_level && LEVEL_CFG[r.risk_level]) || LEVEL_CFG.low
               return (
                 <div key={r.id} style={{ padding: '14px 16px', background: 'var(--surface-2)', border: `1px solid ${lvl.color}30`, borderRadius: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>

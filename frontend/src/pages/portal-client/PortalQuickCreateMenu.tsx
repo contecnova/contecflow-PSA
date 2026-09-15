@@ -62,22 +62,22 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
       color: 'var(--purple, #7c3aed)',
       run: () => onAction('messages'),
     },
-    badges.uat > 0 && {
+    (badges.uat ?? 0) > 0 && {
       id: 'uat', icon: FlaskConical, label: `Ejecutar UAT pendiente (${badges.uat})`,
       hint: 'UAT', color: 'var(--accent)',
       run: () => onAction('uat'),
     },
-    badges.documents > 0 && {
+    (badges.documents ?? 0) > 0 && {
       id: 'sign', icon: FileSignature, label: `Firmar documento (${badges.documents})`,
       hint: 'Documentos', color: 'var(--warning, #f59e0b)',
       run: () => onAction('documents'),
     },
-    badges.invoices > 0 && {
+    (badges.invoices ?? 0) > 0 && {
       id: 'invoice', icon: Receipt, label: `Aprobar factura (${badges.invoices})`,
       hint: 'Facturas', color: 'var(--warning, #f59e0b)',
       run: () => onAction('invoices'),
     },
-    badges.surveys > 0 && {
+    (badges.surveys ?? 0) > 0 && {
       id: 'survey', icon: Sparkles, label: `Responder encuesta (${badges.surveys})`,
       hint: 'Encuestas', color: 'var(--purple, #7c3aed)',
       run: () => onAction('surveys'),

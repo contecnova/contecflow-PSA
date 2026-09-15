@@ -35,7 +35,7 @@ const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var
 const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
-const ENTITY_ICONS = { task:'📌', ticket:'🎫', wiki_comment:'💬', wiki_page:'📄', comment:'💬' }
+const ENTITY_ICONS: Record<string, string> = { task:'📌', ticket:'🎫', wiki_comment:'💬', wiki_page:'📄', comment:'💬' }
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const TASK_CODE_RE = /^TSK-\d{4,}$/i
 const TICKET_NUMBER_RE = /^(INC|REQ|QST|PRB|CHG)-\d{4,}$/i
@@ -80,7 +80,7 @@ function MentionCard({ mention, onRead }: { mention: MentionItem; onRead: (id: s
   )
 }
 
-function ThreadedCommentSection({ entityType, entityId, title }) {
+function ThreadedCommentSection({ entityType, entityId, title }: { entityType: string; entityId: string; title: string }) {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()

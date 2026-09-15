@@ -302,7 +302,7 @@ function InvoicesTab() {
                     const client = proj?.client_id ? clients.find(c => c.id === proj.client_id) : null
                     setForm(f => ({...f, project_id: e.target.value,
                       client_id: proj?.client_id ? String(proj.client_id) : f.client_id,
-                      client_name: client ? client.name : f.client_name
+                      client_name: client?.name ?? f.client_name
                     }))
                   }} style={fs}>
                     <option value="">{t('invoices.select')}</option>

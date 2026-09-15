@@ -150,7 +150,7 @@ function SubmissionsModal({ form, onClose }: { form: PublicForm; onClose: () => 
   return (
     <Modal open title={`${t('public_forms.submissions_title')} — ${form.name}`} onClose={onClose} width={700}>
       {isLoading ? <Spinner /> : subs.length === 0 ? (
-        <EmptyState title={t('public_forms.no_submissions')} subtitle={t('public_forms.no_submissions_subtitle')} />
+        <EmptyState title={t('public_forms.no_submissions')} description={t('public_forms.no_submissions_subtitle')} />
       ) : (
         <div style={{ maxHeight: 420, overflowY: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
@@ -234,7 +234,7 @@ export default function PublicFormsPage() {
       {isLoading ? <Spinner /> : forms.length === 0 ? (
         <EmptyState
           title={t('public_forms.empty_title')}
-          subtitle={t('public_forms.empty_subtitle')}
+          description={t('public_forms.empty_subtitle')}
           action={<Button onClick={() => setShowCreate(true)}>{t('public_forms.create_form')}</Button>}
         />
       ) : (

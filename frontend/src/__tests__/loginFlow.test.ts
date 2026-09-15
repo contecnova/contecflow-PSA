@@ -11,6 +11,9 @@ describe('resolveLoginResponse', () => {
     })
 
     expect(result.kind).toBe('mfa')
+    // Estrecha la union: el `expect` de arriba comprueba en ejecucion pero
+    // no cambia el tipo, y sin esto los accesos de abajo no compilan.
+    if (result.kind !== 'mfa') throw new Error('se esperaba un reto MFA')
     expect(result.mfaChallengeToken).toBe('challenge-123')
     expect(result.mfaMethods).toEqual(['totp'])
   })
@@ -21,6 +24,7 @@ describe('resolveLoginResponse', () => {
     })
 
     expect(result.kind).toBe('success')
+    if (result.kind !== 'success') throw new Error('se esperaba un login correcto')
     expect(result.user).toEqual({ id: '1', role: 'admin' })
   })
 

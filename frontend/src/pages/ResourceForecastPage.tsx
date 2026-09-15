@@ -8,14 +8,14 @@ import { EmptyState } from '../components/ui'
 import { BarChart } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const STATUS_COLOR = {
+const STATUS_COLOR: Record<string, string> = {
   overloaded: 'var(--danger)',
   high:       'var(--warning)',
   medium:     'var(--accent)',
   low:        'var(--success)',
   available:  'var(--surface-4)',
 }
-const STATUS_LABEL = {
+const STATUS_LABEL: Record<string, string> = {
   overloaded: 'Sobrecargado',
   high:       'Alto',
   medium:     'Medio',
@@ -23,11 +23,92 @@ const STATUS_LABEL = {
   available:  'Libre',
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Las formas que esta pagina consume
+//
+// Auditoria 2026-09 (modo estricto): el cliente de API devuelve `any` y ningun
+// componente de este fichero declaraba sus props. Se declara lo que la pagina
+// lee; los campos opcionales lo son porque este fichero no puede prometer lo
+// que manda el backend.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** El reparto de horas de una semana entre proyectos. */
+interface RepartoDeSemana {
+  project_name?: string
+  hours?: number
+}
+
+/** Una semana de carga de una persona. */
+interface SemanaDeCarga {
+  week: string
+  status?: string
+  load_pct?: number
+  committed_hours?: number
+  available_hours?: number
+  split?: unknown
+  breakdown?: RepartoDeSemana[]
+}
+
+/** Una fila del heatmap: una persona y sus semanas. */
+interface FilaDeCarga {
+  user_id: string | number
+  user_name?: string
+  avg_load_pct?: number
+  overloaded_weeks?: number
+  weeks?: SemanaDeCarga[]
+}
+
+/** La respuesta del heatmap. */
+interface RespuestaDeHeatmap {
+  week_labels?: string[]
+  users?: FilaDeCarga[]
+}
+
+/** El detalle de carga de una persona. */
+interface DetalleDeCarga {
+  user_name?: string
+  weeks?: SemanaDeCarga[]
+}
+
+/** El resumen de cartera. */
+interface ResumenDeCarga {
+  avg_team_load_pct?: number
+  total_available_hrs?: number
+  total_committed_hrs?: number
+  risk_weeks_count?: number
+  overloaded_users_count?: number
+  week_trend?: SemanaDeCarga[]
+  /** Etiquetas de las semanas en riesgo, no las semanas enteras: el
+   *  grafico solo pregunta «esta esta en la lista». */
+  risk_weeks?: string[]
+}
+
+/** El estado de carga que corresponde a un porcentaje.
+ *
+ *  Auditoria 2026-09: esta cadena de umbrales —100 / 85 / 50 / 10— estaba
+ *  escrita **tres veces** en este mismo fichero, palabra por palabra. Tres
+ *  copias de una regla de negocio es una regla que se puede cambiar en dos
+ *  sitios y quedarse mal en el tercero sin que nada avise.
+ *
+ *  Sin dato el estado es `available`, que es lo que el codigo ya hacia: en
+ *  JavaScript `undefined > 100` es falso y la cadena caia hasta el ultimo
+ *  escalon. Aqui va escrito en vez de deducirse.
+ */
+function estadoDeCarga(pct?: number): string {
+  const carga = pct ?? 0
+  if (carga > 100) return 'overloaded'
+  if (carga > 85) return 'high'
+  if (carga > 50) return 'medium'
+  if (carga > 10) return 'low'
+  return 'available'
+}
+
 // ── Celda del heatmap ─────────────────────────────────────────────────────────
-function HeatCell({ week }) {
+function HeatCell({ week }: { week: SemanaDeCarga }) {
   const [hover, setHover] = useState(false)
-  const color = STATUS_COLOR[week.status] || 'var(--surface-4)'
-  const pct   = Math.min(week.load_pct, 100)
+  const color = (week.status && STATUS_COLOR[week.status]) || 'var(--surface-4)'
+  const pct   = Math.min(week.load_pct ?? 0, 100)
 
   return (
     <div
@@ -51,7 +132,7 @@ function HeatCell({ week }) {
         fontSize: "var(--text-3xs)", fontWeight: 700, color,
         fontFamily: 'var(--font-mono)',
       }}>
-        {week.load_pct > 0 ? `${Math.round(week.load_pct)}%` : '—'}
+        {(week.load_pct ?? 0) > 0 ? `${Math.round(week.load_pct ?? 0)}%` : '—'}
       </div>
 
       {/* Tooltip */}
@@ -65,7 +146,7 @@ function HeatCell({ week }) {
           boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
           minWidth: 140,
         }}>
-          <div style={{ fontWeight: 700, marginBottom: 4, color }}>{STATUS_LABEL[week.status]}</div>
+          <div style={{ fontWeight: 700, marginBottom: 4, color }}>{STATUS_LABEL[week.status ?? '']}</div>
           <div>Comprometido: <strong>{week.committed_hours}h</strong></div>
           <div>Disponible: <strong>{week.available_hours}h</strong></div>
           <div style={{ marginTop: 4, fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{week.week}</div>
@@ -76,14 +157,17 @@ function HeatCell({ week }) {
 }
 
 // ── Fila de usuario ───────────────────────────────────────────────────────────
-function UserRow({ user, selectedUser, onSelect }) {
+interface UserRowProps {
+  user: FilaDeCarga
+  /** El usuario resaltado, o `null` si no hay ninguno. */
+  selectedUser: string | number | null
+  /** Recibe `null` al deseleccionar: pulsar la fila activa la quita. */
+  onSelect: (userId: string | number | null) => void
+}
+
+function UserRow({ user, selectedUser, onSelect }: UserRowProps) {
   const isSelected = selectedUser === user.user_id
-  const avgColor = STATUS_COLOR[
-    user.avg_load_pct > 100 ? 'overloaded' :
-    user.avg_load_pct > 85  ? 'high' :
-    user.avg_load_pct > 50  ? 'medium' :
-    user.avg_load_pct > 10  ? 'low' : 'available'
-  ]
+  const avgColor = STATUS_COLOR[estadoDeCarga(user.avg_load_pct)]
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -99,9 +183,9 @@ function UserRow({ user, selectedUser, onSelect }) {
           border: isSelected ? '1px solid rgba(79,142,247,0.3)' : '1px solid transparent',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign:'left', fontFamily:'inherit'
         }}
-        title={user.user_name}
+        title={user.user_name ?? ''}
       >
-        {user.user_name.split(' ')[0]} {user.user_name.split(' ')[1]?.[0] || ''}.
+        {(user.user_name ?? '').split(' ')[0]} {(user.user_name ?? '').split(' ')[1]?.[0] || ''}.
       </button>
 
       {/* Carga media */}
@@ -114,11 +198,11 @@ function UserRow({ user, selectedUser, onSelect }) {
 
       {/* Celdas del heatmap */}
       <div style={{ display: 'flex', gap: 3, flex: 1, overflowX: 'hidden' }}>
-        {user.weeks.map(w => <HeatCell key={w.week} week={w} />)}
+        {(user.weeks ?? []).map(w => <HeatCell key={w.week} week={w} />)}
       </div>
 
       {/* Indicador semanas saturadas */}
-      {user.overloaded_weeks > 0 && (
+      {(user.overloaded_weeks ?? 0) > 0 && (
         <div style={{
           fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 4,
           background: 'var(--danger-bg)', color: 'var(--danger)', flexShrink: 0,
@@ -131,9 +215,9 @@ function UserRow({ user, selectedUser, onSelect }) {
 }
 
 // ── Panel de detalle de usuario ───────────────────────────────────────────────
-function UserDetailPanel({ userId, weeks }) {
+function UserDetailPanel({ userId, weeks }: { userId: string | number; weeks: number }) {
   const _toast = useToast()
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<DetalleDeCarga>({
     queryKey: ['forecast-user', userId, weeks],
     queryFn: () => forecastApi.userDetail(userId, { weeks }).then(r => r.data),
     enabled: !!userId,
@@ -152,7 +236,7 @@ function UserDetailPanel({ userId, weeks }) {
       borderRadius: 12, padding: '18px 20px', marginTop: 16,
     }}>
       <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 14, color: 'var(--accent)' }}>
-        📊 {data.user_name} — Detalle {weeks} semanas
+        📊 {data?.user_name} — Detalle {weeks} semanas
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: "var(--text-xs)" }}>
@@ -166,13 +250,8 @@ function UserDetailPanel({ userId, weeks }) {
             </tr>
           </thead>
           <tbody>
-            {data.weeks.map(w => {
-              const color = STATUS_COLOR[
-                w.load_pct > 100 ? 'overloaded' :
-                w.load_pct > 85  ? 'high' :
-                w.load_pct > 50  ? 'medium' :
-                w.load_pct > 10  ? 'low' : 'available'
-              ]
+            {(data?.weeks ?? []).map(w => {
+              const color = STATUS_COLOR[estadoDeCarga(w.load_pct)]
               return (
                 <tr key={w.week} style={{ borderBottom: '1px solid var(--surface-1)' }}>
                   <td style={{ padding: '5px 8px', color: 'var(--text-2)' }}>{w.week}</td>
@@ -180,7 +259,7 @@ function UserDetailPanel({ userId, weeks }) {
                   <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--text-1)' }}>{w.committed_hours}h</td>
                   <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--success)' }}>{w.available_hours}h</td>
                   <td style={{ padding: '5px 8px', color: 'var(--text-2)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {w.breakdown.map(b => `${b.project_name} (${b.hours}h)`).join(', ') || '—'}
+                    {(w.breakdown ?? []).map(b => `${b.project_name} (${b.hours}h)`).join(', ') || '—'}
                   </td>
                 </tr>
               )
@@ -198,16 +277,16 @@ export default function ResourceForecastPage() {
   const _toast = useToast()
   const [weeks, setWeeks]             = useState(13)
   const [department, setDepartment]   = useState('')
-  const [selectedUser, setSelectedUser] = useState(null)
+  const [selectedUser, setSelectedUser] = useState<string | number | null>(null)
   const [view, setView]               = useState('heatmap')   // heatmap | summary | availability
 
-  const { data: heatmapData, isLoading: loadingHeatmap } = useQuery({
+  const { data: heatmapData, isLoading: loadingHeatmap } = useQuery<RespuestaDeHeatmap>({
     queryKey: ['forecast-heatmap', weeks, department],
     queryFn: () => forecastApi.heatmap({ weeks, department: department || undefined }).then(r => r.data),
     staleTime: 60000,
   })
 
-  const { data: summaryData, isLoading: loadingSummary, isError: summaryError } = useQuery({
+  const { data: summaryData, isLoading: loadingSummary, isError: summaryError } = useQuery<ResumenDeCarga>({
     queryKey: ['forecast-summary', weeks, department],
     queryFn: () => forecastApi.summary({ weeks, department: department || undefined }).then(r => r.data),
     staleTime: 60000,
@@ -331,7 +410,7 @@ export default function ResourceForecastPage() {
               {visibleUsers.map(u => (
                 <UserRow
                   key={u.user_id}
-                  user={{ ...u, weeks: u.weeks.slice(0, VISIBLE_WEEKS) }}
+                  user={{ ...u, weeks: (u.weeks ?? []).slice(0, VISIBLE_WEEKS) }}
                   selectedUser={selectedUser}
                   onSelect={setSelectedUser}
                 />
@@ -375,8 +454,8 @@ export default function ResourceForecastPage() {
           ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {(summary.week_trend || []).map(w => {
-              const pct = w.load_pct
-              const color = pct > 100 ? 'var(--danger)' : pct > 85 ? 'var(--warning)' : pct > 50 ? 'var(--accent)' : 'var(--success)'
+              const pct = w.load_pct ?? 0
+              const color = STATUS_COLOR[estadoDeCarga(pct)]
               return (
                 <div key={w.week} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', width: 70, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>

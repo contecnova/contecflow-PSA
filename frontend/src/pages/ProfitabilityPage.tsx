@@ -89,6 +89,41 @@ const _BILLING_TYPES = [
   { value: 'hourly_bag', label: 'Bolsa de horas' },
 ]
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// El color de una cifra de dinero
+//
+// Auditoria 2026-09 (modo estricto): los 20 errores de este fichero eran todos
+// la misma pregunta —«¿de que color pinto un margen que puede no venir?»— y la
+// respuesta que daba el codigo era, sin querer, **verde**: en JavaScript
+// `undefined < 0` es `false`, asi que un margen ausente caia en la rama buena de
+// cada ternaria y se pintaba como si el proyecto fuera bien.
+//
+// Se corrige a proposito: sin dato el color es **neutro**. Un dato que falta no
+// es un dato bueno, y en una pantalla de rentabilidad esa diferencia se lee como
+// una afirmacion sobre el negocio. Es un cambio de comportamiento, y va escrito
+// aqui para que se vea que es intencionado y no un efecto colateral de tipar.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Neutro: ni bien ni mal, porque no hay dato. */
+const SIN_DATO = 'var(--text-3)'
+
+/** Verde por encima de cero, rojo por debajo, neutro sin dato. */
+function colorDeSigno(valor?: number, positivo = 'var(--accent)'): string {
+  if (valor == null) return SIN_DATO
+  return valor >= 0 ? positivo : 'var(--danger)'
+}
+
+/** El semaforo de un margen en porcentaje, con los cortes del negocio. */
+function colorDeMargen(pct?: number, cortes: number[] = [0, 15, 30]): string {
+  if (pct == null) return SIN_DATO
+  const [malo, flojo, medio] = cortes as [number, number, number]
+  if (pct < malo) return 'var(--danger)'
+  if (pct < flojo) return 'var(--warning)'
+  if (pct < medio) return 'var(--accent)'
+  return 'var(--success)'
+}
+
 function MarginBar({ margin_pct }: { margin_pct: number }) {
   const color = margin_pct < 0 ? 'var(--danger)' : margin_pct < 15 ? 'var(--warning)' : margin_pct < 30 ? 'var(--accent)' : 'var(--success)'
   const w = Math.min(Math.abs(margin_pct), 100)
@@ -193,9 +228,9 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 12 }}>
             {[
-              { label: 'EAC', value: fmtCurrency(data.eac), desc: 'Coste total estimado', color: data.vac < 0 ? 'var(--danger)' : 'var(--success)' },
+              { label: 'EAC', value: fmtCurrency(data.eac), desc: 'Coste total estimado', color: colorDeSigno(data.vac, 'var(--success)') },
               { label: 'ETC', value: fmtCurrency(data.etc), desc: 'Coste restante',        color: 'var(--accent)' },
-              { label: 'VAC', value: fmtCurrency(data.vac), desc: 'Desviación al cierre',  color: data.vac < 0 ? 'var(--danger)' : 'var(--success)' },
+              { label: 'VAC', value: fmtCurrency(data.vac), desc: 'Desviación al cierre',  color: colorDeSigno(data.vac, 'var(--success)') },
               { label: 'Margen final est.', value: `${data.margin_at_completion?.toFixed(1) || '—'}%`, desc: 'Al completar proyecto', color: (data.margin_at_completion||0) < 10 ? 'var(--danger)' : 'var(--success)' },
             ].map(k => (
               <div key={k.label} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
@@ -261,7 +296,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
       </div>
 
       {/* Weekly evolution */}
-      {data.by_week?.length > 0 && (
+      {(data.by_week?.length ?? 0) > 0 && (
         <Card style={{ padding: 16, marginBottom: 20 }}>
           <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Evolución semanal</h4>
           <ResponsiveContainer width="100%" height={160}>
@@ -286,13 +321,13 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
           <EmptyState icon="🏁" title="Sin hitos de facturacion" description="Anade hitos para seguir la facturacion del proyecto" />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {data.milestones.map(m => (
+            {(data.milestones ?? []).map(m => (
               <MilestoneRow key={m.id} m={m} projectId={projectId} />
             ))}
             <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)" }}>
               <span style={{ color: 'var(--text-2)' }}>Total facturado:</span>
               <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>
-                {fmtCurrency(data.milestones.filter(m => m.is_billed).reduce((s, m) => s + (m.billing_amount || 0), 0))}
+                {fmtCurrency((data.milestones ?? []).filter(m => m.is_billed).reduce((s, m) => s + (m.billing_amount || 0), 0))}
               </span>
             </div>
           </div>
@@ -348,13 +383,13 @@ export default function ProfitabilityPage() {
       />
 
       {/* Portfolio KPIs */}
-      {portfolio.project_count > 0 && (
+      {(portfolio.project_count ?? 0) > 0 && (
         <div style={{ display: 'flex', gap: 14, marginBottom: 28, flexWrap: 'wrap' }}>
           {[
             { label: 'Ingresos cartera', value: fmtCurrency(portfolio.total_revenue), color: 'var(--success)', icon: '💰' },
             { label: 'Coste total', value: fmtCurrency(portfolio.total_cost), color: 'var(--warning)', icon: '💸' },
-            { label: 'Margen total', value: fmtCurrency(portfolio.total_margin), color: portfolio.total_margin >= 0 ? 'var(--accent)' : 'var(--danger)', icon: '📊' },
-            { label: 'Margen medio', value: `${portfolio.margin_pct?.toFixed(1)}%`, color: portfolio.margin_pct >= 20 ? 'var(--success)' : portfolio.margin_pct >= 10 ? 'var(--warning)' : 'var(--danger)', icon: '📈' },
+            { label: 'Margen total', value: fmtCurrency(portfolio.total_margin), color: colorDeSigno(portfolio.total_margin), icon: '📊' },
+            { label: 'Margen medio', value: portfolio.margin_pct == null ? '—' : `${portfolio.margin_pct.toFixed(1)}%`, color: colorDeMargen(portfolio.margin_pct, [10, 20, Infinity]), icon: '📈' },
             { label: 'Proyectos', value: portfolio.project_count, color: 'var(--text-2)', icon: '📁' },
           ].map(({ label, value, color, icon }) => (
             <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px', flex: 1, minWidth: 140 }}>
@@ -381,7 +416,7 @@ export default function ProfitabilityPage() {
                 <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${(v as number).toFixed(1)}%`, 'Margen']} />
                 <Bar dataKey="margin_pct" radius={[3, 3, 0, 0]}>
                   {projects.slice().reverse().map((p, i) => (
-                    <Cell key={i} fill={p.margin_pct < 0 ? 'var(--danger)' : p.margin_pct < 15 ? 'var(--warning)' : p.margin_pct < 30 ? 'var(--accent)' : 'var(--success)'} />
+                    <Cell key={i} fill={colorDeMargen(p.margin_pct)} />
                   ))}
                 </Bar>
               </BarChart>
@@ -397,23 +432,23 @@ export default function ProfitabilityPage() {
               <div key={p.project_id}
                 style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 100px 80px', gap: 16, padding: '14px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', cursor: 'pointer', transition: 'background 0.15s' }}
                 role="button" tabIndex={0}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedProject(p.project_id) } }}
+                onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && p.project_id != null) { e.preventDefault(); setSelectedProject(p.project_id) } }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                onClick={() => setSelectedProject(p.project_id)}>
+                onClick={() => p.project_id != null && setSelectedProject(p.project_id)}>
                 <div>
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{p.project_name}</div>
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{p.project_code} · {p.client_name || p.department || '—'}</div>
                 </div>
                 <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{fmtCurrency(p.billing_revenue)}</span>
                 <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{fmtCurrency(p.internal_cost)}</span>
-                <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: p.gross_margin >= 0 ? 'var(--accent)' : 'var(--danger)', fontWeight: 700 }}>{fmtCurrency(p.gross_margin)}</span>
+                <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: colorDeSigno(p.gross_margin), fontWeight: 700 }}>{fmtCurrency(p.gross_margin)}</span>
                 <div>
-                  <div style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: p.margin_pct < 0 ? 'var(--danger)' : p.margin_pct < 15 ? 'var(--warning)' : 'var(--success)', fontWeight: 700, marginBottom: 4 }}>{p.margin_pct.toFixed(1)}%</div>
-                  <MarginBar margin_pct={p.margin_pct} />
+                  <div style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: colorDeMargen(p.margin_pct, [0, 15, Infinity]), fontWeight: 700, marginBottom: 4 }}>{p.margin_pct == null ? '—' : `${p.margin_pct.toFixed(1)}%`}</div>
+                  <MarginBar margin_pct={p.margin_pct ?? 0} />
                 </div>
                 <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{fmtHours(p.total_hours)}</span>
-                <button onClick={e => { e.stopPropagation(); setSelectedProject(p.project_id) }} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Detalle</button>
+                <button onClick={e => { e.stopPropagation(); if (p.project_id != null) setSelectedProject(p.project_id) }} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Detalle</button>
               </div>
             ))}
           </div>

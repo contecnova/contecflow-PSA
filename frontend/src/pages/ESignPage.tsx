@@ -175,7 +175,7 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
   }
 
   return (
-    <Modal title={t('esign.create_title')} onClose={onClose} style={{ maxWidth: 560 }}>
+    <Modal open title={t('esign.create_title')} onClose={onClose} width={560}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <label style={ls}>{t('esign.document')}</label>
@@ -286,8 +286,8 @@ export default function ESignPage(): JSX.Element {
 
       {/* Provider status */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-        <ProviderBadge label="DocuSign" ok={docusignOk} />
-        <ProviderBadge label="Adobe Sign" ok={adobeOk} />
+        <ProviderBadge label="DocuSign" ok={!!docusignOk} />
+        <ProviderBadge label="Adobe Sign" ok={!!adobeOk} />
         {!docusignOk && !adobeOk && (
           <a
             href="/settings"
@@ -384,7 +384,7 @@ export default function ESignPage(): JSX.Element {
 
       {/* Detail modal */}
       {detail && (
-        <Modal title={detail.subject || 'Detalles de firma'} onClose={() => setDetail(null)} style={{ maxWidth: 500 }}>
+        <Modal open title={detail.subject || 'Detalles de firma'} onClose={() => setDetail(null)} width={500}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <StatusPill status={detail.status} />

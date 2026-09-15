@@ -20,11 +20,11 @@ import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 
 // ── Colores por rol ───────────────────────────────────────────────────────────
-const ROLE_COLOR = {
+const ROLE_COLOR: Record<string, string> = {
   admin: '#4f8ef7', pm: '#a78bfa', team_lead: '#0891b2',
   employee: '#34d399', hr: '#f59e0b', client: '#7a8aaa',
 }
-const ROLE_LABEL = {
+const ROLE_LABEL: Record<string, string> = {
   admin: 'Admin', pm: 'PM', team_lead: 'Team Lead',
   employee: 'Empleado', hr: 'RRHH', client: 'Cliente',
 }
@@ -172,7 +172,7 @@ function UserNode({ node, depth = 0, onEdit, isAdmin }: {
   isAdmin: boolean
 }) {
   const [expanded, setExpanded] = useState(depth < 2)
-  const hasChildren = node.children?.length > 0
+  const hasChildren = (node.children?.length ?? 0) > 0
   const indent = depth * 24
 
   return (
@@ -212,7 +212,7 @@ function UserNode({ node, depth = 0, onEdit, isAdmin }: {
         </span>
         {hasChildren && (
           <span style={{ fontSize: "var(--text-2xs)", color:'var(--text-4)', flexShrink:0 }}>
-            {node.children.length} reporte{node.children.length!==1?'s':''}
+            {node.children?.length ?? 0} reporte{(node.children?.length ?? 0)!==1?'s':''}
           </span>
         )}
         {isAdmin && (
@@ -224,7 +224,7 @@ function UserNode({ node, depth = 0, onEdit, isAdmin }: {
           </button>
         )}
       </div>
-      {expanded && hasChildren && node.children.map(child => (
+      {expanded && hasChildren && (node.children ?? []).map(child => (
         <UserNode key={child.id} node={child} depth={depth+1} onEdit={onEdit} isAdmin={isAdmin} />
       ))}
     </div>

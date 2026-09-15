@@ -49,13 +49,13 @@ type Objective = {
 }
 
 const PERIOD_OPTS = ['Q1','Q2','Q3','Q4','H1','H2','annual']
-const KR_TYPE_CFG = {
+const KR_TYPE_CFG: Record<string, { icon: string; label: string; unit: string }> = {
   percentage: { icon:'%', label:'Porcentaje', unit:'%' },
   number:     { icon:'#', label:'Número',     unit:'' },
   boolean:    { icon:'✓', label:'Sí/No',      unit:'' },
   currency:   { icon:'€', label:'Importe',    unit:'€' },
 }
-const STATUS_CFG = {
+const STATUS_CFG: Record<string, { color: string; label: string }> = {
   draft:     { color:'var(--text-3)',   label:'Borrador' },
   active:    { color:'var(--accent)',   label:'Activo' },
   completed: { color:'var(--success)',  label:'Completado' },
@@ -90,7 +90,7 @@ function KRRow({ kr, _onCheckin, onDelete }: { kr: KeyResult; _onCheckin?: () =>
   const [checkinNote, setCheckinNote] = useState('')
   const toast = useToast()
   const qc = useQueryClient()
-  const typeCfg = KR_TYPE_CFG[kr.kr_type] || KR_TYPE_CFG.percentage
+  const typeCfg = KR_TYPE_CFG[kr.kr_type ?? ''] || KR_TYPE_CFG.percentage
 
   const { mutate: submitCheckin, isPending } = useMutation({
     mutationFn: () => okrsApi.checkin(kr.id, { value: parseFloat(String(checkinVal)), note: checkinNote }),
@@ -164,7 +164,7 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
   onDeleteKR: (id: string | number) => void
 }) {
   const [expanded, setExpanded] = useState(true)
-  const statusCfg = STATUS_CFG[obj.status] || STATUS_CFG.draft
+  const statusCfg = STATUS_CFG[obj.status ?? ''] || STATUS_CFG.draft
   const pct = obj.progress ?? 0
   const color = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : pct >= 30 ? 'var(--warning)' : 'var(--danger)'
 
@@ -213,9 +213,9 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
         </div>
       </div>
 
-      {expanded && obj.key_results?.length > 0 && (
+      {expanded && (obj.key_results?.length ?? 0) > 0 && (
         <div style={{ marginTop:10 }}>
-          {obj.key_results.map((kr) => (
+          {(obj.key_results ?? []).map((kr) => (
             <KRRow key={kr.id} kr={kr} onDelete={onDeleteKR} />
           ))}
         </div>

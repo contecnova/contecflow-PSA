@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen} from '@testing-library/react';
 import { useSort } from '../components/ui/TableControls';
 
-function TestTable({ data }) {
+function TestTable({ data }: { data: Array<{ name: string }> }) {
   const { setSort, sortedData } = useSort(data, 'name');
   return (
     <table>

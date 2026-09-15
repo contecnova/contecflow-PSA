@@ -31,7 +31,10 @@ export function useTasks(params: TaskListParams = {}): UseQueryResult<Task[]> {
 export function useTask(id: string | undefined): UseQueryResult<unknown> {
   return useQuery({
     queryKey: queryKeys.tasks.detail(id),
-    queryFn: () => tasksApi.get(id).then((r: { data: unknown }) => r.data),
+    // `!` respaldado por el `enabled` de abajo: react-query no ejecuta
+    // `queryFn` mientras `enabled` sea falso, asi que aqui el id nunca
+    // es undefined. Sin esa garantia habria que cambiar la firma.
+    queryFn: () => tasksApi.get(id!).then((r: { data: unknown }) => r.data),
     enabled: !!id,
     staleTime: STALE,
   })
@@ -41,20 +44,15 @@ export function useKanban(projectId: string | undefined): UseQueryResult<unknown
   return useQuery({
     // TODO #82: migrate to queryKeys — kanban is task-derived per project but lacks a dedicated factory entry
     queryKey: ['kanban', projectId],
-    queryFn: () => tasksApi.kanban(projectId).then((r: { data: unknown }) => r.data),
+    // `!` respaldado por el `enabled` de abajo: react-query no ejecuta
+    // `queryFn` mientras `enabled` sea falso, asi que aqui el id nunca
+    // es undefined. Sin esa garantia habria que cambiar la firma.
+    queryFn: () => tasksApi.kanban(projectId!).then((r: { data: unknown }) => r.data),
     enabled: !!projectId,
     staleTime: STALE,
   })
 }
 
-export function useTaskComments(taskId: string | undefined): UseQueryResult<unknown> {
-  return useQuery({
-    queryKey: queryKeys.tasks.comments(taskId),
-    queryFn: () => tasksApi.comment(taskId, null).then((r: { data: unknown }) => r.data).catch(() => [] as unknown[]),
-    enabled: !!taskId,
-    staleTime: STALE,
-  })
-}
 
 export function useCreateTask(): UseMutationResult<unknown, unknown, Partial<Task>> {
   const qc = useQueryClient()
@@ -110,7 +108,10 @@ export function useTaskMovementLog(taskId: string | undefined): UseQueryResult<u
   return useQuery<unknown[]>({
     // TODO #82: migrate to queryKeys — movement log is task-derived but lacks a dedicated factory entry
     queryKey: ['task-movement-log', taskId],
-    queryFn: () => tasksApi.movementLog(taskId).then((r: { data?: { items?: unknown[] } | unknown[] | null }) => {
+    // `!` respaldado por el `enabled` de abajo: react-query no ejecuta
+    // `queryFn` mientras `enabled` sea falso, asi que aqui el id nunca
+    // es undefined. Sin esa garantia habria que cambiar la firma.
+    queryFn: () => tasksApi.movementLog(taskId!).then((r: { data?: { items?: unknown[] } | unknown[] | null }) => {
       const d = r?.data
       if (Array.isArray(d)) return d
       return (d as { items?: unknown[] } | null)?.items ?? []

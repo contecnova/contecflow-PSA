@@ -30,7 +30,10 @@ const Loading = () => <div style={{ padding: 40, textAlign: 'center' }}><Spinner
 export default function ServiceDeskPage() {
   const t = useAppT()
   const [tab, setTab] = useState('queue')
-  const [selId, setSelId] = useState(null)
+  // `TicketDetail` pide `string | null`: los ids de ticket son cadenas en
+  // toda la aplicacion, y el tablero kanban es el unico sitio que los saca
+  // como `string | number`. Se normalizan aqui, en la frontera.
+  const [selId, setSelId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [mobileView, setMobileView] = useState('list') // 'list' | 'detail'
   const windowWidth = useWindowWidth()
@@ -118,9 +121,9 @@ export default function ServiceDeskPage() {
         {/* List panel — hidden on mobile when viewing detail */}
         {(!isMobile || !splitMode || mobileView === 'list') && (
           <div>
-            {tab === 'queue'    && <div id="sd-panel-queue" role="tabpanel" aria-labelledby="sd-tab-queue"><TicketList queueOnly={true}  onSelect={tk => setSelId(tk.id)} /></div>}
-            {tab === 'all'      && <div id="sd-panel-all" role="tabpanel" aria-labelledby="sd-tab-all"><TicketList queueOnly={false} onSelect={tk => setSelId(tk.id)} /></div>}
-            {tab === 'kanban'   && <div id="sd-panel-kanban" role="tabpanel" aria-labelledby="sd-tab-kanban"><KanbanTicketsTab onSelect={tk => setSelId(tk.id)} /></div>}
+            {tab === 'queue'    && <div id="sd-panel-queue" role="tabpanel" aria-labelledby="sd-tab-queue"><TicketList queueOnly={true}  onSelect={tk => setSelId(String(tk.id))} /></div>}
+            {tab === 'all'      && <div id="sd-panel-all" role="tabpanel" aria-labelledby="sd-tab-all"><TicketList queueOnly={false} onSelect={tk => setSelId(String(tk.id))} /></div>}
+            {tab === 'kanban'   && <div id="sd-panel-kanban" role="tabpanel" aria-labelledby="sd-tab-kanban"><KanbanTicketsTab onSelect={tk => setSelId(String(tk.id))} /></div>}
             {tab === 'changes'  && (
               <div id="sd-panel-changes" role="tabpanel" aria-labelledby="sd-tab-changes"><Suspense fallback={<Loading />}>
                 <LazyChangeManagementTab />
@@ -175,7 +178,7 @@ export default function ServiceDeskPage() {
       {showCreate && (
         <CreateTicketModal
           onClose={() => setShowCreate(false)}
-          onCreated={tk => { const created = tk as { id?: unknown }; if (created?.id) setSelId(created.id) }}
+          onCreated={tk => { const created = tk as { id?: unknown }; if (created?.id) setSelId(String(created.id)) }}
         />
       )}
     </PageShell>

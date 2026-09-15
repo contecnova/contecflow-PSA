@@ -150,7 +150,7 @@ export default function TeamDashboardPage() {
 
   const todayAbsences = absences.filter(a => {
     const today = new Date().toISOString().slice(0, 10)
-    return a.start_date <= today && a.end_date >= today && a.status === 'approved'
+    return Boolean(a.start_date && a.end_date) && a.start_date! <= today && a.end_date! >= today && a.status === 'approved'
   }).length
 
   const deptCounts = resources.reduce<Record<string, number>>((acc, r) => {

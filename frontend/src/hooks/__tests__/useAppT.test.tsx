@@ -15,13 +15,20 @@ const mockTranslations = {
 };
 
 describe('useAppT (enterprise)', () => {
-  function wrapper({ children }) {
+  function wrapper({ children }: { children?: React.ReactNode }) {
     return (
       <AppLangContext.Provider value={{
+        // El contexto tiene nueve campos; el doble los da todos aunque
+        // `useAppT` hoy solo lea algunos. Un doble incompleto es una
+        // suposicion sobre la implementacion escondida en el test.
         lang: 'es',
         setLang: vi.fn(),
+        t: (clave: string) => clave,
         loading: false,
         translations: mockTranslations,
+        baseTranslations: mockTranslations,
+        allTranslations: { es: mockTranslations },
+        customTrans: {},
         setCustomTranslations: vi.fn()
       }}>
         {children}
@@ -52,11 +59,13 @@ describe('useAppT (enterprise)', () => {
   });
 
   it('usa fallback en/es antes de humanizar', () => {
-    function wrapperWithFallback({ children }) {
+    function wrapperWithFallback({ children }: { children?: React.ReactNode }) {
       return (
         <AppLangContext.Provider value={{
           lang: 'fr',
           setLang: vi.fn(),
+          t: (clave: string) => clave,
+          customTrans: {},
           loading: false,
           translations: { dashboard: {} },
           baseTranslations: { dashboard: { title: 'Dashboard' } },

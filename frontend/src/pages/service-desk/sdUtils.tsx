@@ -12,7 +12,7 @@ export const PRIORITY_COLOR = {
   p3_medium:   COLOR.warning,
   p4_low:      COLOR.text2,
 }
-export const PRIORITY_LABEL = {
+export const PRIORITY_LABEL: Record<string, string> = {
   p1_critical: 'P1 Crítico', p2_high: 'P2 Alto',
   p3_medium: 'P3 Medio', p4_low: 'P4 Bajo',
 }

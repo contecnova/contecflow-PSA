@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -10,7 +10,7 @@ import { Bot } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const STATUS_CFG = {
+const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
   done:    { label: 'Completado', color: 'var(--success)', bg: 'var(--success-bg)' },
   failed:  { label: 'Error',      color: 'var(--danger)', bg: 'var(--danger-bg)' },
   running: { label: 'Ejecutando', color: 'var(--warning)', bg: 'var(--warning-bg)' },
@@ -45,10 +45,58 @@ const EXAMPLES = [
   { icon: '📈', text: 'Dame el análisis de productividad del equipo del último mes' },
 ]
 
-function StepBadge({ step }) {
-  const colors = { list_projects:'var(--accent)', list_tasks:'var(--success)', create_task:'var(--warning)',
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Las formas que esta pagina consume
+//
+// Auditoria 2026-09 (modo estricto): el cliente de API devuelve `any` —esta sin
+// tipar de origen— y de ahi salian 23 errores en este fichero. Declararlas aqui,
+// al lado de donde se usan, es lo correcto mientras la capa de API no tenga
+// tipos: describe **lo que esta pagina lee**, ni mas ni menos, y se rompe sola
+// si el backend deja de mandar algo que aqui se pinta. Los campos van
+// opcionales a proposito: el backend los envia, pero prometer que siempre
+// vienen seria afirmar algo que este fichero no puede garantizar.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Un paso que el agente ejecuto: que herramienta y que devolvio. */
+interface PasoDeAgente {
+  step?: number
+  tool?: string
+  output?: string
+}
+
+/** Una ejecucion del agente, tal como la lista el historial. */
+interface EjecucionDeAgente {
+  id?: string
+  status?: string
+  instruction?: string
+  result?: string
+  created_at?: string
+  steps?: PasoDeAgente[]
+}
+
+/** Un proveedor de IA configurado. */
+interface ProveedorDeIa {
+  id?: string
+  name?: string
+  is_default?: boolean
+  default_model?: string
+}
+
+/** Un evento del flujo SSE del agente. Los cuatro tipos llevan campos
+ *  distintos, y por eso la union esta discriminada por `type`: sin eso el
+ *  codigo tendria que confiar en que el campo que lee existe en el evento que
+ *  llego. */
+type EventoDeAgente =
+  | { type: 'token'; text: string }
+  | { type: 'step'; step?: number; tool?: string; output?: string }
+  | { type: 'done'; result?: string; steps?: PasoDeAgente[] }
+  | { type: 'error'; message?: string }
+
+function StepBadge({ step }: { step: PasoDeAgente }) {
+  const colors: Record<string, string> = { list_projects:'var(--accent)', list_tasks:'var(--success)', create_task:'var(--warning)',
                    update_task:'var(--warning)', list_tickets:'var(--purple)', get_project_stats:'var(--accent)' }
-  const c = colors[step.tool] || 'var(--text-2)'
+  const c = (step.tool && colors[step.tool]) || 'var(--text-2)'
   return (
     <div style={{ display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, marginBottom: 6 }}>
       <div style={{ width: 24, height: 24, borderRadius: 6, background: c + '20', border: `1px solid ${c}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: c, flexShrink: 0 }}>
@@ -71,23 +119,23 @@ export default function ContecflowAgentPage() {
   const _qc = useQueryClient()
   const toast = useToast()
   const [instruction, setInstruction] = useState('')
-  const [result, setResult] = useState(null)
-  const [_selectedExec, _setSelectedExec] = useState(null)
+  const [result, setResult] = useState<EjecucionDeAgente | null>(null)
+  const [_selectedExec, _setSelectedExec] = useState<EjecucionDeAgente | null>(null)
   const [showTools, setShowTools] = useState(false)
   const [streaming, setStreaming] = useState(true)
-  const [liveSteps, setLiveSteps] = useState([])
+  const [liveSteps, setLiveSteps] = useState<PasoDeAgente[]>([])
   const [liveText, setLiveText] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
-  const textareaRef = useRef(null)
-  const abortRef = useRef(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
-  const { data: providers = [] } = useQuery({
+  const { data: providers = [] } = useQuery<ProveedorDeIa[]>({
     queryKey: ['ai-providers'],
     queryFn: () => aiProvidersApi.list().then(r => r.data),
   })
   const defaultProvider = providers.find(p => p.is_default) || providers[0]
 
-  const { data: history = [], refetch } = useQuery({
+  const { data: history = [], refetch } = useQuery<EjecucionDeAgente[]>({
     queryKey: ['agent-history'],
     queryFn: () => nexusAgentApi.history().then(r => r.data),
   })
@@ -98,7 +146,7 @@ export default function ContecflowAgentPage() {
     onError: e => toast.error(extractErr(e, 'Error al ejecutar el agente')),
   })
 
-  const runStream = useCallback(async (inst) => {
+  const runStream = useCallback(async (inst: string) => {
     if (isStreaming) return
     setIsStreaming(true)
     setLiveSteps([])
@@ -124,6 +172,11 @@ export default function ContecflowAgentPage() {
         return
       }
 
+      if (!resp.body) {
+        toast.error('El servidor no devolvio flujo de respuesta')
+        setIsStreaming(false)
+        return
+      }
       const reader = resp.body.getReader()
       const decoder = new TextDecoder()
       let buf = ''
@@ -133,15 +186,15 @@ export default function ContecflowAgentPage() {
         if (done) break
         buf += decoder.decode(value, { stream: true })
         const lines = buf.split('\n')
-        buf = lines.pop()
+        buf = lines.pop() ?? ''
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue
           try {
-            const evt = JSON.parse(line.slice(6))
+            const evt = JSON.parse(line.slice(6)) as EventoDeAgente
             if (evt.type === 'token') {
               setLiveText(prev => prev + evt.text)
             } else if (evt.type === 'step') {
-              setLiveSteps(prev => [...prev, evt])
+              setLiveSteps(prev => [...prev, { step: evt.step, tool: evt.tool, output: evt.output }])
             } else if (evt.type === 'done') {
               setResult({ status: 'done', result: evt.result, steps: evt.steps || [] })
               refetch()
@@ -152,7 +205,7 @@ export default function ContecflowAgentPage() {
         }
       }
     } catch (e) {
-      if (e.name !== 'AbortError') toast.error('Error de conexión en streaming')
+      if ((e as { name?: string })?.name !== 'AbortError') toast.error('Error de conexión en streaming')
     } finally {
       setIsStreaming(false)
     }
@@ -167,7 +220,7 @@ export default function ContecflowAgentPage() {
 
   const isRunning = isPending || isStreaming
 
-  const handleKey = e => {
+  const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && instruction.trim() && !isRunning) {
       execute()
     }
@@ -253,19 +306,19 @@ export default function ContecflowAgentPage() {
             <div style={{ ...card, padding: 24, marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>Resultado</div>
-                <span style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 20, background: STATUS_CFG[result.status]?.bg, color: STATUS_CFG[result.status]?.color, fontWeight: 600 }}>
-                  {STATUS_CFG[result.status]?.label || result.status}
+                <span style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 20, background: STATUS_CFG[result.status ?? '']?.bg, color: STATUS_CFG[result.status ?? '']?.color, fontWeight: 600 }}>
+                  {STATUS_CFG[result.status ?? '']?.label || result.status}
                 </span>
               </div>
               <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: '14px 16px', fontSize: "var(--text-base)", lineHeight: 1.7, whiteSpace: 'pre-wrap', marginBottom: result.steps?.length ? 16 : 0, color: 'var(--text-1)' }}>
                 {result.result}
               </div>
-              {result.steps?.length > 0 && (
+              {(result.steps?.length ?? 0) > 0 && (
                 <div>
                   <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-                    Pasos ejecutados ({result.steps.length})
+                    Pasos ejecutados ({result.steps?.length ?? 0})
                   </div>
-                  {result.steps.map((s, i) => <StepBadge key={i} step={s} />)}
+                  {(result.steps ?? []).map((s: PasoDeAgente, i: number) => <StepBadge key={i} step={s} />)}
                 </div>
               )}
             </div>
@@ -280,8 +333,8 @@ export default function ContecflowAgentPage() {
               <div style={{ padding: 32 }}>
                 <EmptyState icon="⚡" title="Sin ejecuciones recientes" description="Ejecuta una instruccion para ver el historial" />
               </div>
-            ) : history.map(e => {
-              const sc = STATUS_CFG[e.status] || STATUS_CFG.pending
+            ) : history.map((e: EjecucionDeAgente) => {
+              const sc = (e.status && STATUS_CFG[e.status]) || STATUS_CFG.pending
               return (
                 <button key={e.id} type="button" onClick={() => setResult(e)}
                   style={{ padding: '14px 20px', borderBottom: '1px solid var(--surface-4)30', cursor: 'pointer', transition: 'background 0.15s' }}

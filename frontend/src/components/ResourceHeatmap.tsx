@@ -63,7 +63,7 @@ interface HeatmapData {
   week_labels?: string[]
 }
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, { bg: string; border: string; text: string; label: string }> = {
   overloaded: { bg: 'var(--danger-border)', border: 'rgba(248,113,113,0.50)', text: 'var(--danger)', label: 'Sobrecargado' },
   high:       { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.38)', text: 'var(--warning)', label: 'Alta carga' },
   ok:         { bg: 'var(--accent-muted)', border: 'rgba(79,142,247,0.25)', text: 'var(--accent)', label: 'Ok' },
@@ -238,7 +238,7 @@ export default function ResourceHeatmap() {
     ? users.filter(u => u.weeks.some(w => w.status === filterStatus))
     : users
 
-  const getStatusColor = (status) => STATUS_COLORS[status] || STATUS_COLORS.ok
+  const getStatusColor = (status?: string) => (status && STATUS_COLORS[status]) || STATUS_COLORS.ok
 
   const overloadedCount = users.filter(u => u.weeks.some(w => w.status === 'overloaded')).length
   const highCount = users.filter(u => u.weeks.some(w => w.status === 'high')).length
@@ -318,7 +318,7 @@ export default function ResourceHeatmap() {
               {bookings.map(b => (
                 <div key={b.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 120px 120px 80px 80px auto', gap:10, padding:'8px 12px', background:'var(--surface-3)', borderRadius:8, alignItems:'center', fontSize: "var(--text-sm)" }}>
                   <span style={{ fontWeight:600 }}>{b.user_name}</span>
-                  <span style={{ fontSize: "var(--text-xs)", fontWeight:700, color:BOOKING_COLORS[b.booking_type], background:BOOKING_COLORS[b.booking_type]+'20', padding:'2px 6px', borderRadius:4, textAlign:'center' }}>{b.booking_type}</span>
+                  <span style={{ fontSize: "var(--text-xs)", fontWeight:700, color:(b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)', background:((b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)')+'20', padding:'2px 6px', borderRadius:4, textAlign:'center' }}>{b.booking_type}</span>
                   <span style={{ color:'var(--text-2)' }}>{b.project_name || t('resource_heatmap.no_project')}</span>
                   <span style={{ color:'var(--text-2)' }}>{b.start_date} → {b.end_date}</span>
                   <span>{b.hours_per_day}h/día</span>

@@ -5,7 +5,7 @@ import ResourceHeatmap from '../components/ResourceHeatmap';
 
 // ResourceHeatmap uses useAppT() — mock the i18n hook
 vi.mock('../i18n/AppLangContext', () => ({
-  useAppT: () => (key) => key,
+  useAppT: () => (key: string) => key,
 }));
 
 // Mock the api service (useQuery internally calls api.get)

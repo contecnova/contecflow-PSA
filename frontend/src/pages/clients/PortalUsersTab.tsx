@@ -301,24 +301,24 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
               <label style={lbl}>Nombre completo *</label>
-              <input value={editForm.full_name} onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))} style={inp} />
+              <input value={editForm?.full_name ?? ''} onChange={e => setEditForm(f => f && ({ ...f, full_name: e.target.value }))} style={inp} />
             </div>
             <div>
               <label style={lbl}>Email *</label>
-              <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} style={inp} />
+              <input type="email" value={editForm?.email ?? ''} onChange={e => setEditForm(f => f && ({ ...f, email: e.target.value }))} style={inp} />
             </div>
             <div>
               <label style={lbl}>Cargo</label>
-              <input value={editForm.job_title} onChange={e => setEditForm(f => ({ ...f, job_title: e.target.value }))} style={inp} placeholder="Cargo" aria-label="Cargo" />
+              <input value={editForm?.job_title ?? ''} onChange={e => setEditForm(f => f && ({ ...f, job_title: e.target.value }))} style={inp} placeholder="Cargo" aria-label="Cargo" />
             </div>
             <div>
               <label style={lbl}>Teléfono</label>
-              <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} style={inp} placeholder="Telefono" aria-label="Telefono" />
+              <input value={editForm?.phone ?? ''} onChange={e => setEditForm(f => f && ({ ...f, phone: e.target.value }))} style={inp} placeholder="Telefono" aria-label="Telefono" />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={lbl}>Proyectos asociados</label>
               <select multiple value={editForm.project_ids || []}
-                onChange={e => setEditForm(f => ({ ...f, project_ids: Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean) }))}
+                onChange={e => setEditForm(f => f && ({ ...f, project_ids: Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean) }))}
                 style={{ ...inp, height: 38 + Math.min(projects.length, 4) * 28 }}>
                 {projects.map(p => (
                   <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
@@ -346,7 +346,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                   borderRadius: 8, padding: '8px 10px',
                 }}>
                   <input type="checkbox" checked={!!editForm[p.key]}
-                    onChange={e => setEditForm(f => ({ ...f, [p.key]: e.target.checked }))}
+                    onChange={e => setEditForm(f => f && ({ ...f, [p.key]: e.target.checked }))}
                     style={{ accentColor: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 600,
@@ -370,8 +370,8 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
               onClick={() => updateUser({ id: editUser.id, data: {
                 full_name:                editForm.full_name,
                 email:                    editForm.email,
-                job_title:                editForm.job_title || null,
-                phone:                    editForm.phone || null,
+                job_title:                editForm.job_title,
+                phone:                    editForm.phone,
                 project_ids:              editForm.project_ids || [],
                 can_approve_deliverables: editForm.can_approve_deliverables,
                 can_request_changes:      editForm.can_request_changes,
@@ -388,7 +388,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
 
       {showAdd && (
         <Modal open title="Nuevo usuario de portal" onClose={() => setShowAdd(false)} width={560}>
-          <form onSubmit={e => { e.preventDefault(); add({ ...form, client_org_id: cid, project_ids: form.project_ids && form.project_ids.length > 0 ? form.project_ids : undefined }) }}>
+          <form onSubmit={e => { e.preventDefault(); add({ ...form, client_org_id: cid, project_ids: form.project_ids ?? [] }) }}>
           <div style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
             🔐 Crea las credenciales que el cliente usará para entrar en <strong style={{ color: 'var(--text-1)' }}>{portalUrl}</strong>
           </div>
@@ -411,12 +411,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
           <div style={{ ...panel, padding: '12px 16px', marginBottom: 14 }}>
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, marginBottom: 10, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Permisos en el portal</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {[
-                { key: 'can_approve_deliverables', label: 'Puede aprobar entregables', desc: 'Validar o rechazar entregables del proyecto' },
-                { key: 'can_request_changes', label: '↩ Puede solicitar cambios', desc: 'Enviar solicitudes de cambio' },
-                { key: 'can_view_budget', label: 'Puede ver presupuesto', desc: 'Ver consumo vs presupuesto' },
-                { key: 'can_view_team', label: 'Puede ver equipo', desc: 'Ver miembros del equipo asignado' },
-              ].map(p => (
+              {PORTAL_PERMISSIONS.map(p => (
                 <label key={p.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer',
                   background: form[p.key] ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${form[p.key] ? 'var(--accent)' : 'var(--surface-4)'}`,
                   borderRadius: 8, padding: '8px 10px' }}>

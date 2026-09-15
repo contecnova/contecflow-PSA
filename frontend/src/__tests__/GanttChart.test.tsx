@@ -4,8 +4,8 @@ import GanttChart from '../components/GanttChart';
 
 // GanttChart uses useAppT() for translated labels
 vi.mock('../i18n/AppLangContext', () => ({
-  useAppT: () => (key) => key,
-  useAppLang: () => ({ t: (key) => key, lang: 'es' }),
+  useAppT: () => (key: string) => key,
+  useAppLang: () => ({ t: (key: string) => key, lang: 'es' }),
 }));
 
 describe('GanttChart', () => {

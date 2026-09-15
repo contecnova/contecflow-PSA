@@ -56,7 +56,7 @@ const STATUS_CFG = {
   accepted: {color:'var(--success)', bg:'var(--success-bg)'},
   rejected: {color:'var(--danger)', bg:'var(--danger-bg)'},
 }
-const PRIORITY_COLORS = {critical:'var(--danger)',high:'var(--warning)',medium:'var(--warning)',low:'var(--text-2)'}
+const PRIORITY_COLORS: Record<string, string> = {critical:'var(--danger)',high:'var(--warning)',medium:'var(--warning)',low:'var(--text-2)'}
 
 function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () => void }) {
   const t = useAppT()
@@ -189,7 +189,7 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
               </pre>
             </div>
             {/* Warning tareas sin story points */}
-            {result.unestimated_count > 0 && (
+            {(result.unestimated_count ?? 0) > 0 && (
               <div style={{padding:'8px 12px',background:'rgba(255,184,0,0.08)',border:'1px solid rgba(255,184,0,0.3)',borderRadius:8,fontSize: "var(--text-sm)",color:'var(--warning)'}}>
                 ⚠ {result.unestimated_count} {t('sprint_planning.unestimated_warning_suffix')}
               </div>
@@ -201,7 +201,7 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
                   borderBottom:'1px solid var(--surface-4)',fontSize: "var(--text-sm)",background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
                   <span style={{color:'var(--text-3)',minWidth:20}}>{i+1}</span>
                   <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title}</span>
-                  <span style={{color:PRIORITY_COLORS[t.priority]||'var(--text-2)',flexShrink:0}}>{t.priority}</span>
+                  <span style={{color:(t.priority && PRIORITY_COLORS[t.priority])||'var(--text-2)',flexShrink:0}}>{t.priority}</span>
                   <span style={{color: t.unestimated ? 'var(--warning)' : 'var(--accent)',flexShrink:0,fontWeight:600}}>
                     {t.story_points}p{t.unestimated ? ' ~' : ''}
                   </span>

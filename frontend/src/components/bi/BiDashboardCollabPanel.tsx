@@ -71,6 +71,65 @@ interface BiDashboardCollabPanelProps {
   dashboardKey?: string
 }
 
+
+// Auditoria 2026-09 (modo estricto): las cinco listas de este panel salian de
+// `datos?.items ?? datos?.<lista> ?? []` con el cliente de API sin tipar, asi
+// que todo lo que se pinta debajo era `any`. Se declara lo que el panel lee.
+
+/** Un comentario sobre un panel de BI. */
+interface ComentarioDeBi {
+  id: string
+  message?: string
+  author_name?: string
+  user_id?: string | number
+  widget_id?: string | number
+  resolved?: boolean
+  created_at?: string
+}
+
+/** Una vista guardada del panel. */
+interface VistaGuardada {
+  id: string
+  name?: string
+  dashboard_key?: string
+  created_by_name?: string
+  /** `false` la desactiva. `undefined` cuenta como activa, y por eso todas las
+   *  comprobaciones de este fichero son `=== false` y no `!activa`. */
+  active?: boolean
+  created_at?: string
+}
+
+/** Una comparticion del panel con otra persona. */
+interface ComparticionDeBi {
+  id: string
+  target_user_name?: string
+  target_user_id?: string | number
+  user_name?: string
+  user_id?: string | number
+  permission?: string
+}
+
+/** Una version guardada del panel. */
+interface VersionDeBi {
+  id: string
+  version?: number
+  label?: string
+  change_log?: string
+  created_by_name?: string
+  created_at?: string
+}
+
+/** Un aviso del panel. */
+interface AvisoDeBi {
+  id: string
+  event_type?: string
+  type?: string
+  message?: string
+  dashboard_key?: string
+  created_at?: string
+  is_read?: boolean
+}
+
 export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDashboardCollabPanelProps) {
   const t = useAppT()
   const toast = useToast()
@@ -188,11 +247,11 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al marcar leída'),
   })
 
-  const comments = commentsData?.items ?? commentsData?.comments ?? []
-  const views = viewsData?.items ?? viewsData?.views ?? []
-  const shares = sharesData?.items ?? sharesData?.shares ?? []
-  const versions = versionsData?.items ?? versionsData?.versions ?? []
-  const notifications = notificationsData?.items ?? notificationsData?.notifications ?? []
+  const comments: ComentarioDeBi[] = commentsData?.items ?? commentsData?.comments ?? []
+  const views: VistaGuardada[] = viewsData?.items ?? viewsData?.views ?? []
+  const shares: ComparticionDeBi[] = sharesData?.items ?? sharesData?.shares ?? []
+  const versions: VersionDeBi[] = versionsData?.items ?? versionsData?.versions ?? []
+  const notifications: AvisoDeBi[] = notificationsData?.items ?? notificationsData?.notifications ?? []
 
   function submitComment() {
     const msg = newComment.trim()
@@ -412,8 +471,8 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {s.permission === 'view' && <Lock size={12} style={{ color: 'var(--text-3)' }} />}
-                    <span style={chip(PERMISSION_COLOR[s.permission] || 'var(--text-3)')}>
-                      {PERMISSION_LABEL[s.permission] || s.permission}
+                    <span style={chip(PERMISSION_COLOR[s.permission ?? ''] || 'var(--text-3)')}>
+                      {PERMISSION_LABEL[s.permission ?? ''] || s.permission}
                     </span>
                     <button
                       type="button"

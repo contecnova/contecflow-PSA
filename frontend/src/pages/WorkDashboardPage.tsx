@@ -54,7 +54,7 @@ function startOfMonthIso() {
   d.setDate(1)
   return d.toISOString().slice(0, 10)
 }
-function fmtShort(dateStr) {
+function fmtShort(dateStr: string) {
   return new Intl.DateTimeFormat('es-ES', { month: 'short', day: 'numeric' }).format(new Date(dateStr + 'T12:00:00'))
 }
 function weekDateRangeLabel() {
@@ -63,17 +63,19 @@ function weekDateRangeLabel() {
   if (from.slice(0, 7) === to.slice(0, 7)) return null
   return `${fmtShort(from)} – ${fmtShort(to)}`
 }
-function totalCountFrom(response) {
+function totalCountFrom(response?: { headers?: Record<string, unknown> }) {
   const total = response?.headers?.['x-total-count']
   const parsed = Number(total)
   return Number.isFinite(parsed) ? parsed : 0
 }
 
 const TREND_MIN_BASELINE_HOURS = 8
-const formatTrendDelta = (delta) =>
+const formatTrendDelta = (delta: number) =>
   !Number.isFinite(delta) || delta === 0 ? '0.0h' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)}h`
-const formatTrendPct = (deltaPct, baseline) =>
-  !Number.isFinite(deltaPct) ? (baseline > 0 ? 'Base baja' : 'Nuevo') : `${deltaPct > 0 ? '+' : ''}${deltaPct}%`
+const formatTrendPct = (deltaPct: number | null, baseline: number) =>
+  deltaPct == null || !Number.isFinite(deltaPct)
+    ? (baseline > 0 ? 'Base baja' : 'Nuevo')
+    : `${deltaPct > 0 ? '+' : ''}${deltaPct}%`
 
 // ── Hero banner ─────────────────────────────────────────────────────────────
 // Saludo + acciones rápidas. Sustituye "¿qué hacemos hoy?" por una versión

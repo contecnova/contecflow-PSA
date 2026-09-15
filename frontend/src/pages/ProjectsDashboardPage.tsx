@@ -14,7 +14,7 @@ import {
 } from '../components/dashboard/DashKit'
 import { useAppT } from '../i18n/AppLangContext'
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, string> = {
   active:    COLOR.accent,
   planning:  'var(--sky-blue)',
   on_hold:   COLOR.warning,
@@ -49,7 +49,7 @@ interface RiskRow {
 
 export default function ProjectsDashboardPage() {
   const t = useAppT()
-  const STATUS_LABELS = {
+  const STATUS_LABELS: Record<string, string> = {
     active:    t('projects_dashboard.status_active'),
     planning:  t('projects_dashboard.status_planning'),
     on_hold:   t('projects_dashboard.status_on_hold'),
@@ -116,7 +116,9 @@ export default function ProjectsDashboardPage() {
   const highRisks = risks.filter((r) => r.severity === 'high' || r.severity === 'critical').length
 
   const statusCounts = allProjects.reduce<Record<string, number>>((acc, p) => {
-    acc[p.status] = (acc[p.status] || 0) + 1; return acc
+    const estado = p.status ?? 'desconocido'
+    acc[estado] = (acc[estado] || 0) + 1
+    return acc
   }, {})
   const statusRows = Object.entries(statusCounts)
     .sort((a, b) => b[1] - a[1])
@@ -207,7 +209,7 @@ export default function ProjectsDashboardPage() {
           <SectionCard title={t('projects_dashboard.section_critical_projects')} badge={crit}>
             <div className="ds-stack-sm">
               {health
-                .filter(p => p.schedule_deviation_days > 0 || p.budget_used_pct > 100)
+                .filter(p => (p.schedule_deviation_days ?? 0) > 0 || (p.budget_used_pct ?? 0) > 100)
                 .slice(0, 8)
                 .map(p => {
                   const budPct = Math.round(p.budget_used_pct || 0)
@@ -225,7 +227,7 @@ export default function ProjectsDashboardPage() {
                           {p.project_name}
                         </div>
                         <div className="ds-muted">
-                          {t('projects_dashboard.budget_label')}: {budPct}% · {t('projects_dashboard.deviation_label')}: {p.schedule_deviation_days > 0 ? `+${p.schedule_deviation_days}d` : t('projects_dashboard.deviation_ok')}
+                          {t('projects_dashboard.budget_label')}: {budPct}% · {t('projects_dashboard.deviation_label')}: {(p.schedule_deviation_days ?? 0) > 0 ? `+${p.schedule_deviation_days}d` : t('projects_dashboard.deviation_ok')}
                         </div>
                       </div>
                       <span style={{

@@ -40,7 +40,7 @@ describe('Dexie Offline Sync', () => {
       expect(ops.length).toBe(1)
       expect(ops[0].url).toBe('/api/projects')
       expect(ops[0].priority).toBe(1) // 'normal'
-      expect(ops[0].body.name).toBe('Test Project')
+      expect((ops[0]?.body as { name?: string })?.name).toBe('Test Project')
     })
 
     it('should queue operations with different priorities', async () => {
@@ -192,7 +192,7 @@ describe('Dexie Offline Sync', () => {
 
       // Resolve with server version
       await resolveConflict({
-        conflictId: conflicts[0].id,
+        conflictId: conflicts[0]!.id!,
         resolution: 'server',
       })
 
@@ -256,7 +256,7 @@ describe('Dexie Offline Sync', () => {
 
   describe('Sync Events', () => {
     it('should emit sync events', async () => {
-      const events = []
+      const events: Array<{ type?: string }> = []
       const unsub = subscribeToSyncEvents((event) => {
         events.push(event)
       })
@@ -316,7 +316,7 @@ describe('Dexie Offline Sync', () => {
 
       const conflicts = await getPendingConflicts()
       await resolveConflict({
-        conflictId: conflicts[0].id,
+        conflictId: conflicts[0]!.id!,
         resolution: 'server',
       })
 

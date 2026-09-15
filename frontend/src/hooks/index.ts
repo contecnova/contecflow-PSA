@@ -56,7 +56,7 @@ export { useRisks, useAllRisks, useRisk, useCreateRisk, useUpdateRisk, useDelete
 export { useSprints, useAllSprints } from './useSprints'
 export { useSubcontractors, useAllSubcontractors, useCreateSubcontractor, useUpdateSubcontractor, useDeleteSubcontractor } from './useSubcontractors'
 export {
-	useTasks, useTask, useKanban, useTaskComments, useCreateTask, useUpdateTask,
+	useTasks, useTask, useKanban, useCreateTask, useUpdateTask,
 	useDeleteTask, useBulkUpdateTasks, useAddTaskComment, useTaskMovementLog,
 } from './useTasks'
 export {

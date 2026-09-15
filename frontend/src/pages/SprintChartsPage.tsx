@@ -179,9 +179,9 @@ export default function SprintChartsPage() {
         <div style={sf}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: "var(--text-lg)", color: 'var(--text-1)' }}>📈 Burnup — {burnupData?.sprint?.name || 'Sprint'}</h3>
-            {burnupData?.target > 0 && (
+            {(burnupData?.target ?? 0) > 0 && (
               <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
-                Objetivo: <strong style={{ color: 'var(--warning)' }}>{burnupData.target} pts</strong>
+                Objetivo: <strong style={{ color: 'var(--warning)' }}>{burnupData?.target} pts</strong>
               </span>
             )}
           </div>
@@ -220,9 +220,9 @@ export default function SprintChartsPage() {
                     strokeWidth={2.5}
                     dot={{ r: 3, fill: 'var(--success)' }}
                   />
-                  {burnupData?.target > 0 && (
+                  {(burnupData?.target ?? 0) > 0 && (
                     <ReferenceLine
-                      y={burnupData.target}
+                      y={burnupData?.target}
                       stroke="var(--warning)"
                       strokeDasharray="5 5"
                       label={{ value: 'Objetivo', fill: 'var(--warning)', fontSize: "var(--text-xs)", position: 'right' }}

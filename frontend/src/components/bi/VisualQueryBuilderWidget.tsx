@@ -192,7 +192,7 @@ export default function VisualQueryBuilderWidget() {
           value: f.value == null ? '' : String(f.value),
         }
       })
-      .filter((f) => NULL_OPS.has(f.operator) || (f.operator === 'in' ? f.value.length > 0 : f.value !== ''))
+      .filter((f) => NULL_OPS.has(f.operator) || (f.operator === 'in' ? (f.value?.length ?? 0) > 0 : (f.value ?? '') !== ''))
 
     const sort = validColumns.has(sortColumn)
       ? { column: sortColumn, direction: sortDirection }
@@ -310,7 +310,7 @@ export default function VisualQueryBuilderWidget() {
                 {allColumns.map((col) => (
                   <label key={col} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 7 }}>
                     <input type="checkbox" checked={selectedColumns.includes(col)} onChange={() => toggleColumn(col)} />
-                    {entityDef.columns[col]?.label || col}
+                    {entityDef.columns?.[col]?.label || col}
                   </label>
                 ))}
               </div>
@@ -331,7 +331,7 @@ export default function VisualQueryBuilderWidget() {
                 <div key={i} style={{ display: 'grid', gap: 6, gridTemplateColumns: '1.2fr 1fr 1fr auto' }}>
                   <select value={f.column} onChange={(e) => patchFilter(i, { column: e.target.value })} style={{ background: 'var(--surface-1)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 8px', fontSize: "var(--text-sm)" }}>
                     <option value="">{t('visual_query_builder.field_placeholder')}</option>
-                    {allColumns.map((c) => <option key={c} value={c}>{entityDef.columns[c]?.label || c}</option>)}
+                    {allColumns.map((c) => <option key={c} value={c}>{entityDef.columns?.[c]?.label || c}</option>)}
                   </select>
                   <select value={f.operator} onChange={(e) => patchFilter(i, { operator: e.target.value })} style={{ background: 'var(--surface-1)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 8px', fontSize: "var(--text-sm)" }}>
                     {(Object.entries(operators) as Array<[string, OperatorDef]>).map(([k, op]) => <option key={k} value={k}>{op?.label || k}</option>)}
@@ -355,7 +355,7 @@ export default function VisualQueryBuilderWidget() {
                 style={{ background: 'var(--surface-1)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 8px', fontSize: "var(--text-sm)" }}
               >
                 <option value="">{t('visual_query_builder.no_sort')}</option>
-                {allColumns.map((c) => <option key={c} value={c}>{entityDef.columns[c]?.label || c}</option>)}
+                {allColumns.map((c) => <option key={c} value={c}>{entityDef.columns?.[c]?.label || c}</option>)}
               </select>
               <select
                 value={sortDirection}
