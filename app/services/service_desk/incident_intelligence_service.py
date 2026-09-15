@@ -29,30 +29,18 @@ from app.services.sla_service import SLA_HOURS
 logger = logging.getLogger(__name__)
 
 
-def _ticket_category_value(t) -> Optional[str]:
-    """FIX: ``Ticket`` no expone columna ``category`` directa. La "categoría"
-    real vive en ``service_item.category_id`` (cuando hay service_item) o se
-    aproxima con ``ticket_type``. Centralizamos el accessor para evitar
-    AttributeError en runtime.
-    """
-    if t is None:
-        return None
-    try:
-        si = getattr(t, "service_item", None)
-        cat_id = getattr(si, "category_id", None) if si is not None else None
-        if cat_id:
-            return str(cat_id)
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
-        logger.debug("_ticket_category_value: fallo best-effort ignorado", exc_info=True)
-    tt = getattr(t, "ticket_type", None)
-    if tt is None:
-        return None
-    return str(getattr(tt, "value", tt))
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 # Score threshold above which a ticket is auto-resolved via KB
+# Auditoria 2026-09: el mismo accesor estaba escrito aqui y en
+# `alert_correlation_service`. Ahora es uno solo; el alias conserva el nombre
+# local para no tocar los dos sitios de llamada.
+from app.services.service_desk.ticket_category import (  # noqa: E402
+    ticket_category as _ticket_category_value,
+)
+
+
 AUTO_RESOLVE_CONFIDENCE_THRESHOLD = 0.85
 
 # Percentage of SLA window consumed that triggers a proactive breach alert

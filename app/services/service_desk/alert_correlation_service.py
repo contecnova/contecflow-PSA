@@ -105,30 +105,15 @@ def _category_hash(category: Optional[str]) -> float:
     return (digest % 10_000) / 10_000.0
 
 
-def _ticket_category(t) -> Optional[str]:
-    """Devuelve un identificador estable de "categoría" para un Ticket usando
-    la mejor fuente disponible: service_item.category_id si está enlazado,
-    de lo contrario el ticket_type.
 
-    FIX: ``Ticket`` no expone una columna ``category`` directa — el atributo
-    estaba mal asumido y rompía clustering / stats con AttributeError. La
-    semántica que el clustering necesita es solo un discriminador estable,
-    cualquiera de los dos sirve.
-    """
-    if t is None:
-        return None
-    try:
-        si = getattr(t, "service_item", None)
-        cat_id = getattr(si, "category_id", None) if si is not None else None
-        if cat_id:
-            return str(cat_id)
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
-        logger.debug("_ticket_category: fallo best-effort ignorado", exc_info=True)
-    tt = getattr(t, "ticket_type", None)
-    if tt is None:
-        return None
-    return str(getattr(tt, "value", tt))
+
+# Auditoria 2026-09: `_ticket_category` vivia aqui **y** en
+# `incident_intelligence_service`, idénticas y las dos con la misma nota de
+# `FIX:` sobre el mismo defecto. Ahora vive en un solo sitio; el alias conserva
+# el nombre para no tocar los cuatro sitios de llamada de este modulo.
+from app.services.service_desk.ticket_category import (  # noqa: E402
+    ticket_category as _ticket_category,
+)
 
 
 def _time_offset(created_at: Optional[datetime], window_start: datetime) -> float:

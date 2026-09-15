@@ -65,6 +65,12 @@ cd "contecflow PSA"
 # Linter del backend: tiene que salir "All checks passed!"
 ./.venv/Scripts/python.exe -m ruff check app/
 
+# Duplicacion: parejas de funciones casi identicas, para mirarlas. NO falla
+# nunca; la duplicacion no tiene un numero que deba ser cero. Es el barrido que
+# destapo la copia del dominio de tareas sin ABAC y los dos generadores de
+# factura con NIF distinto.
+./.venv/Scripts/python.exe scripts/audit_funciones_duplicadas.py
+
 # Complejidad: informe legible de las funciones por encima de 10. NO falla nunca
 # —el que bloquea es `tests/test_complejidad_no_empeora.py`, dentro de la suite—;
 # esto es para elegir la siguiente sin ir a buscarla.
@@ -505,6 +511,109 @@ formato real y no del botón pulsado — un fichero llamado `.xlsx` con CSV dent
 es peor que uno llamado `.csv`. El selector sigue en pantalla y no tiene
 contrapartida: **queda anotado, no arreglado**, porque generar XLSX es trabajo
 de producto.
+
+## 3.duovicies El barrido de duplicación: 31 parejas, cero defectos
+
+La duplicación ha sido **el detector más productivo de toda esta auditoría**, y
+hasta ahora se encontraba siempre de casualidad, mirando otra cosa: la copia del
+dominio de tareas a la que le faltaba ABAC, los dos marketplaces, los dos
+generadores de factura —y el que usaba la interfaz no llevaba el NIF—,
+`execute_report` contra su gemela paginada, el `PUT` y el `PATCH` de SCIM
+cubriendo campos distintos, las dos copias del sondeo SNMP.
+
+Seis hallazgos por el mismo camino y **nadie había barrido el repositorio
+entero buscándolo**. Ahora hay `scripts/audit_funciones_duplicadas.py`.
+
+### Cómo mide, y por qué así
+
+Normaliza cada función a su **esqueleto de AST**: desaparecen los nombres de
+variables locales, las constantes y los comentarios; quedan la forma de las
+sentencias, los atributos, las llamadas y **los nombres que la función
+importa**. Dos copias con las variables renombradas siguen saliendo iguales, que
+es justo el caso que un `diff` de texto no ve.
+
+Sólo compara funciones de doce sentencias o más y de tamaño parecido. Por debajo
+de eso el parecido no significa nada: cinco líneas de `getattr` con respaldo se
+repiten en todas partes y no son una copia, son un idioma.
+
+### Lo que el propio detector me enseñó
+
+**Los nombres importados tienen que contar.** La primera versión los descartaba
+y dio como **idénticas** a `metric_tasks_by_status` y `metric_epics_by_status`,
+que son correctas: una consulta `Task` y la otra `Epic`. Como este repositorio
+importa los modelos **dentro** de la función para evitar ciclos, ambos eran un
+`ast.Name` cualquiera y la única diferencia real se perdía en la normalización.
+Conservarlos arregla el falso positivo sin romper lo que el detector busca, y
+bajó el recuento de **35 parejas a 31**.
+
+### El resultado, que es un negativo y conviene decirlo
+
+**Las 31 parejas se miraron una a una, y ninguna es un defecto.** Cada una
+difiere exactamente en lo que debe: los umbrales de `users_at_capacity` contra
+`users_underutilized`, el `grant_type` de un intercambio de código OAuth contra
+un refresco, `int()` contra `float()`, `Expense` contra `GitPullRequest`.
+
+Dos merecen mención por lo cerca que estuvieron de ser algo:
+
+* **`_tenant_filter_for_model` y `_tenant_where_for_model`** —las dos capas del
+  aislamiento— son **idénticas en política**. Sólo cambian el docstring, un
+  ajuste de línea y un mensaje de error. Es el sitio donde una divergencia
+  costaría más cara, y ya divergió dos veces en esta auditoría (§3.bis,
+  §3.vicies), así que comprobarlo tenía valor aunque saliera limpio.
+* **`_serie_users_at_capacity` y `_serie_users_underutilized`** llevan a mirar si
+  el motor de alertas BI filtra por organización. Filtra: se llama desde
+  endpoints con la sesión de la petición, que ya trae contexto, y no hay
+  evaluación programada en el `worker` que lo haga sin él. Comprobado, no
+  supuesto.
+
+### Y una consolidación que sí hacía falta
+
+`_ticket_category` estaba escrita dos veces —en `alert_correlation_service` y en
+`incident_intelligence_service`—, idénticas salvo el nombre, y **las dos llevaban
+la misma nota de `FIX:`** explicando el mismo defecto: alguien asumió que
+`Ticket` tiene una columna `category` y no la tiene, así que el clustering
+reventaba con `AttributeError`.
+
+Que el mismo arreglo esté escrito dos veces es el aviso. Cuando la fuente de la
+categoría cambie habrá que acordarse de los dos sitios, y **el que se olvide no
+fallará a gritos**: devolverá un discriminador distinto y los grupos saldrán mal.
+Ahora vive en `service_desk/ticket_category.py` y los dos servicios la
+reexportan con su nombre local, así que ningún sitio de llamada cambia.
+Comprobado que los tres nombres son **el mismo objeto**.
+
+Vive en módulo propio y no en uno de los dos servicios a propósito: correlación
+de alertas e inteligencia de incidentes son dominios hermanos, y hacer que uno
+dependa del otro por un accesor de doce líneas sería peor que la copia.
+
+### Cómo se verificó, y qué NO se pudo verificar
+
+**26 tests en verde** —los dos ficheros que ejercitan los servicios tocados más
+los cuatro guardianes estructurales (complejidad, acceso a base en la capa API,
+rutas tapadas)—, `ruff` limpio, y comprobado por identidad que los tres nombres
+apuntan al **mismo objeto**.
+
+**La suite completa no se pudo ejecutar en esta sesión**, y conviene decirlo en
+lugar de omitirlo: `pytest-xdist` se quedaba colgado —los trabajadores arrancan
+y no consumen CPU—, tanto con `-n auto` como con `-n 2` sobre un solo fichero, y
+en un solo proceso la suite no cabe en ninguna ventana razonable. El cambio de
+backend de esta tanda es un módulo nuevo y dos alias en su sitio, así que lo
+verificado cubre lo tocado; la próxima tanda debe empezar por una pasada
+completa.
+
+### Lo que este barrido no cubre, dicho antes de que se olvide
+
+El umbral de doce sentencias deja fuera a los ayudantes cortos, y ahí hay
+**dieciocho** definiciones del par `_get_json`/`_set_json` sobre `AppSetting`
+repartidas por los servicios de BI y de Service Desk. Cinco de ellas **no
+reciben `organization_id`**, lo que tenía toda la pinta de ser §3.novies otra vez
+—las credenciales de e-firma de un cliente guardadas como valor global—.
+
+**No lo es, y se comprobó una por una**: las cinco meten el `org_id` dentro de la
+clave (`bi.embed.config.{org_id}`, `sd.capacity.config.{org_id}`,
+`sd.reports.presets.{org_id}`…), así que el aislamiento existe; lo consigue el
+nombre de la clave en vez de la columna. Funciona, y **depende de que cada sitio
+de llamada se acuerde**, que es una garantía más débil que una columna. Queda
+anotado como lo que es: deuda de diseño con el comportamiento correcto hoy.
 
 ## 3.unvicies Dos críticas por una librería de mapas que nadie usa
 
@@ -4159,6 +4268,18 @@ decisión que llevaba abierta toda la auditoría— está en **§3.vicies**, y n
 menor: el panel de sesiones activas llevaba tiempo vacío para todo el mundo, y
 la bandera `bypass_tenant_filter` que documenta la salida de emergencia **sólo
 la respetaba una de las tres capas de aislamiento**.
+
+**Y el barrido de duplicación, que faltaba, ya está hecho** (§3.duovicies).
+`scripts/audit_funciones_duplicadas.py` recorre `app/` por esqueleto de AST y
+saca 31 parejas de funciones casi idénticas. **Se miraron una a una y ninguna es
+un defecto**: cada una difiere exactamente en lo que debe. Es un resultado
+negativo y por eso merece estar escrito — la duplicación había producido seis
+hallazgos reales encontrados de casualidad, y ahora se sabe que no quedan más
+por ese camino, al menos por encima de doce sentencias. Lo que sí salió fue una
+consolidación (`_ticket_category`, escrita dos veces con la misma nota de
+`FIX:`) y una deuda de diseño anotada: dieciocho copias del par
+`_get_json`/`_set_json` sobre `AppSetting`, cinco sin `organization_id`, que se
+aíslan por el nombre de la clave en vez de por la columna.
 
 El **#22**
 (acceso a base en la capa API) esta **cerrado**: de 257 puntos a 0, con guardian
