@@ -20,6 +20,14 @@ import { useAppT } from '../i18n/AppLangContext'
 // Con `lazy` se paga sólo al abrir la pestaña de topología, que es cuando de
 // verdad hace falta. Es el mismo patrón que ya usaba `charts/DynamicChart` para
 // las otras cuatro gráficas de plotly.
+//
+// Actualización 2026-09: esos 4.633 kB son ahora **1.563 kB** (gzip 510). No se
+// tocó nada de esta página: el chunk adelgazó porque plotly dejó de venir
+// entero. `src/charts/PlotlyCustom.ts` registra sólo las cuatro trazas que la
+// aplicación dibuja, y con ello salió del bundle `maplibre-gl`, que traía dos
+// avisos **críticos** de `npm audit` por una librería de mapas que aquí no se
+// usa. El `lazy` de arriba sigue mereciendo la pena; simplemente ya no esconde
+// tanto.
 const CMDBTopologyGraph = lazy(() => import('../components/cmdb/CMDBTopologyGraph'))
 // Mismo caso que arriba: sólo se usa en la pestaña 3D y arrastraba
 // `vendor-d3` (130 kB) al chunk de la ruta.

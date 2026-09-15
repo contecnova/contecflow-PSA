@@ -506,6 +506,90 @@ es peor que uno llamado `.csv`. El selector sigue en pantalla y no tiene
 contrapartida: **queda anotado, no arreglado**, porque generar XLSX es trabajo
 de producto.
 
+## 3.unvicies Dos críticas por una librería de mapas que nadie usa
+
+El 15 de septiembre, **sin un solo commit de código desde el 9**, el gate
+bloqueante `npm audit --audit-level=high` estaba en rojo: 9 avisos, **2 críticos
+y 1 alto**. Es exactamente lo que este documento avisaba dos párrafos más
+arriba: «`npm audit` cambia sin que nadie toque el código; una frase como "está
+a 0" caduca sola». Conviene que quede escrito que la advertencia se cumplió, y
+en menos de una semana.
+
+### Qué había
+
+| Severidad | Paquete | Por dónde entra | Arreglo que ofrecía npm |
+|---|---|---|---|
+| crítico ×2 | `maplibre-gl` ≤ 6.4.0 (bypass del sanitizador, XSS) | `plotly.js` 2.35.3 | `plotly.js@4` — **mayor** |
+| alto | `js-yaml` 4.0.0–4.3.1 (CPU sin límite en claves de mezcla) | `eslint` → `@eslint/eslintrc` | sin romper |
+| moderado ×3 | `@humanfs/node`, `@vitest/mocker`, `vitest` | herramientas | sin romper |
+| moderado ×3 | `echarts` < 6.1.0, `react-router(-dom)` | directas | **mayor** (deuda ya declarada) |
+
+### La medición que cambió la respuesta
+
+La ruta que proponía npm era subir `plotly.js` de 2 a 4: una migración mayor
+sobre seis componentes de gráficos. Antes de aceptarla se hizo la pregunta
+barata: **¿esta aplicación dibuja algún mapa?**
+
+Un barrido de tipos de traza sobre `src/` devuelve `box`, `violin`, `scatter3d` y
+`surface` en plotly — y **ninguna de mapa**. Los otros cuatro tipos que aparecen
+en el código (`candlestick`, `funnel`, `gauge`, `heatmap`) los dibuja
+`echarts-for-react`, no plotly; se comprobó fichero a fichero, que es la
+diferencia entre recortar y romper.
+
+Es decir: `maplibre-gl` viajaba dentro del bundle completo de `plotly.js` sin que
+nadie lo llamara. **La vulnerabilidad estaba en código que se servía al
+navegador y no se ejecutaba nunca.**
+
+### El arreglo: recortar, no subir de versión
+
+`src/charts/PlotlyCustom.ts` parte de `plotly.js/lib/core` —que no trae ninguna
+traza— registra las cuatro que se usan, y exporta el componente con
+`createPlotlyComponent`. Los cinco componentes que importaban
+`react-plotly.js` pasan a importar ése. Con eso el grafo de módulos deja de
+alcanzar `maplibre`, `mapbox` y `geo`.
+
+Dos resultados medidos sobre el build:
+
+* **`vendor-plotly`: 4.633 kB → 1.563 kB** (gzip 510 kB), un **−66 %**. La cifra
+  vieja no es una estimación: estaba escrita en el comentario de `CMDBPage.tsx`,
+  que por eso ya cargaba la topología en diferido. Ese `lazy` sigue mereciendo la
+  pena; simplemente ya no esconde tanto.
+* Los **dos críticos desaparecen**.
+
+### Por qué además hace falta un `override`, y por qué es seguro aquí
+
+Un bundle a medida quita el código vulnerable de lo que se sirve, **pero no pone
+el gate en verde**: `npm audit` lee el árbol de dependencias, no lo que se
+importa. Así que `package.json` fija `overrides: { "maplibre-gl": "^6.9.1" }`,
+por encima del rango afectado.
+
+Un `override` así sería temerario con el bundle completo —`plotly.js` 2.x está
+escrito contra la API de `maplibre` 4.x—, y es sano **precisamente porque** el
+bundle a medida no incluye ninguna traza de mapa: ese código ya no entra en la
+compilación. Las dos piezas se sostienen la una a la otra, y por eso van juntas.
+
+### El guardián
+
+`src/charts/__tests__/plotlyCustom.test.ts` falla si cualquier fichero vuelve a
+escribir `import ... from 'react-plotly.js'`, y comprueba que el módulo a medida
+registra las cuatro trazas y **ninguna de mapa**.
+
+Hace falta porque el arreglo se deshace con una sola línea y **el fallo sería
+silencioso en lo que se mira**: el gráfico se vería perfectamente. Lo que
+volvería —el peso y la dependencia vulnerable— no se nota en pantalla. Validado
+rompiéndolo: se añadió un componente con el import prohibido, el test falló
+nombrando el fichero, y se borró.
+
+### Y lo no-rompedor, de paso
+
+`npm audit fix` sin `--force` resolvió el alto (`js-yaml`) y las tres moderadas
+de herramientas tocando **sólo el lockfile**: `package.json` no cambia más que
+por el `override`. De 9 avisos a 3, y los 3 que quedan son las dos migraciones
+mayores que ya estaban declaradas como deuda deliberada.
+
+Verificado: `npm audit --audit-level=high` **en verde**, build `exit 0`, `tsc`
+limpio y **91/91** en vitest (27 ficheros, con los dos guardianes nuevos).
+
 ## 3.vicies Tres capas de aislamiento y una bandera que sólo respetaba una
 
 Registrar los escuchadores de tenant en la suite (§3.sexdecies) puso **23 tests
@@ -4198,5 +4282,12 @@ Lo demás yo lo dejaría donde está, y digo por qué:
   Lo que hay que retener: **`npm audit` cambia sin que nadie toque el código.**
   Una frase como «está a 0» caduca sola. Conviene ejecutarlo antes de cada tanda,
   no confiar en lo que diga este documento.
+
+  **Y volvió a pasar, el 15 de septiembre.** Sin un solo commit de código entre
+  medias, el gate bloqueante estaba en rojo: **2 críticas y 1 alta**. La historia
+  completa está en §3.unvicies; el resumen es que las críticas entraban por una
+  librería de mapas que esta aplicación no usa, y que se fueron recortando el
+  bundle en vez de subiendo de versión mayor. Quedan las 3 moderadas de siempre
+  —`echarts` 6 y `react-router` 7—, que siguen siendo deuda deliberada.
 - **`strictNullChecks` (226) y `noImplicitAny` (387).** El camino es la whitelist
   de `tsconfig.strict.json`: añadir ficheros y dejar el gate verde.

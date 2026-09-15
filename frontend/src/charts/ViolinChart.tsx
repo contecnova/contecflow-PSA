@@ -1,4 +1,4 @@
-import Plot from 'react-plotly.js'
+import Plot from './PlotlyCustom'
 import { useChartTheme } from './useChartTheme'
 
 export interface ViolinChartData {

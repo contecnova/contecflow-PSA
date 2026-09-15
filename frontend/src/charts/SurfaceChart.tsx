@@ -2,7 +2,7 @@
  * SurfaceChart — Plotly 3D surface chart.
  * Supports dark mode via useChartTheme.
  */
-import Plot from 'react-plotly.js'
+import Plot from './PlotlyCustom'
 import { useChartTheme } from './useChartTheme'
 
 export interface SurfaceChartData {
