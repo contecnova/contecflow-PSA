@@ -4,11 +4,11 @@ import Confirm from '../components/ui/Confirm';
 
 // Confirm uses useAppT() for button labels
 vi.mock('../i18n/AppLangContext', () => ({
-  useAppT: () => (key) => {
+  useAppT: () => (key: string) => {
     const map = { 'common.cancel': 'Cancelar', 'common.confirm': 'Confirmar' };
-    return map[key] ?? key;
+    return (map as Record<string, string>)[key] ?? key;
   },
-  useAppLang: () => ({ t: (key) => key, lang: 'es' }),
+  useAppLang: () => ({ t: (key: string) => key, lang: 'es' }),
 }));
 
 describe('Confirm', () => {

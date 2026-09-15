@@ -352,6 +352,20 @@ class Settings(
 
     # ── Teams Bot ─────────────────────────────────────────────────────────────
     TEAMS_BOT_APP_ID: str = Field(default="", env="TEAMS_BOT_APP_ID")
+    # Metadatos OpenID de Bot Framework, de donde salen las claves publicas con
+    # las que se verifica la FIRMA del bearer entrante. Auditoria 2026-09: hasta
+    # entonces solo se comprobaba la audiencia, que frena un token de otro bot
+    # pero no uno fabricado.
+    #
+    # Es configurable y no una constante porque las nubes soberanas de Microsoft
+    # —government, China— publican sus claves en otro dominio, y con la URL a
+    # fuego el bot no se podria desplegar ahi.
+    TEAMS_BOT_OPENID_METADATA_URL: str = Field(
+        default="https://login.botframework.com/v1/.well-known/openidconfiguration",
+        env="TEAMS_BOT_OPENID_METADATA_URL")
+    # El emisor que tiene que declarar el token. Mismo motivo para no fijarlo.
+    TEAMS_BOT_ISSUER: str = Field(
+        default="https://api.botframework.com", env="TEAMS_BOT_ISSUER")
 
     # ── QR code service (MFA provisioning) ───────────────────────────────────
     GOOGLE_CHART_URL: str = Field(

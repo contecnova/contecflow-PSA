@@ -163,7 +163,7 @@ export default function OfflineConflictResolver() {
                 <div>{t('offline_conflicts.operation', { opId: item.opId })}</div>
                 <div>{t('offline_conflicts.resolution', { resolution: item.resolution })}</div>
                 <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 4 }}>
-                  {new Date(item.resolvedAt).toLocaleTimeString()}
+                  {item.resolvedAt == null ? '—' : new Date(item.resolvedAt).toLocaleTimeString()}
                 </div>
               </div>
             ))

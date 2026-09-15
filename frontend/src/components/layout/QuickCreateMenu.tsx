@@ -44,7 +44,10 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
   })
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: () => tasksApi.create({ title, project_id: projectId || undefined, status: 'todo', priority: 'medium' }),
+    // `project_id` es obligatorio en el payload: una tarea sin proyecto no
+    // existe en este modelo y el backend la rechaza. El boton ya esta
+    // deshabilitado sin proyecto; esto lo dice tambien en el tipo.
+    mutationFn: () => tasksApi.create({ title, project_id: projectId!, status: 'todo', priority: 'medium' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] })
       qc.invalidateQueries({ queryKey: ['kanban-board'] })
@@ -154,7 +157,7 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
             open={true}
             onClose={onClose}
             projectId={null}
-            projectName={null}
+            projectName={undefined}
           />
         ) : (
           <>

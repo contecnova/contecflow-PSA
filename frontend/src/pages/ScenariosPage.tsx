@@ -151,7 +151,7 @@ export default function ScenariosPage() {
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
                     {[
                       { l:'Resultado', v: results.feasible?'✓ Viable':'✗ Inviable', c: results.feasible?'var(--success)':'var(--danger)' },
-                      { l:'Semanas sobrecargadas', v: results.overloaded_weeks_count, c: results.overloaded_weeks_count>0?'var(--danger)':'var(--success)' },
+                      { l:'Semanas sobrecargadas', v: results.overloaded_weeks_count, c: (results.overloaded_weeks_count ?? 0)>0?'var(--danger)':'var(--success)' },
                       { l:'Utilización media', v: `${results.avg_utilization_pct}%` },
                       { l:'Demanda total', v: `${results.total_demand_hours}h` },
                     ].map((k,i) => (
@@ -163,11 +163,11 @@ export default function ScenariosPage() {
                   </div>
 
                   {/* Timeline chart */}
-                  {results.capacity_timeline?.length > 0 && (
+                  {(results.capacity_timeline?.length ?? 0) > 0 && (
                     <div style={{ ...card, padding:'16px 20px', marginBottom:16 }}>
                       <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>Utilización semanal</div>
                       <ResponsiveContainer width="100%" height={180}>
-                        <BarChart data={results.capacity_timeline.slice(0,16)}>
+                        <BarChart data={(results.capacity_timeline ?? []).slice(0,16)}>
                           <XAxis dataKey="week" tick={{ fontSize: "var(--text-3xs)" }} tickFormatter={w=>w.slice(-4)} />
                           <YAxis tick={{ fontSize: "var(--text-2xs)" }} tickFormatter={v=>`${v}%`} />
                           <Tooltip formatter={v=>[`${v}%`,'Utilización']} />
@@ -189,10 +189,10 @@ export default function ScenariosPage() {
               )}
 
               {/* Projects list */}
-              {detail.projects?.length > 0 && (
+              {(detail.projects?.length ?? 0) > 0 && (
                 <div style={{ ...card, padding:'16px 20px', marginTop:16 }}>
                   <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>Proyectos en el escenario</div>
-                  {detail.projects.map(p => (
+                  {(detail.projects ?? []).map(p => (
                     <div key={p.id} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                       <div>
                         <span style={{ fontWeight:500, marginRight:8 }}>{p.name}</span>

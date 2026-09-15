@@ -231,6 +231,74 @@ def map_reduce_analysis(
     )
 
 
+def _coste_por_hora_vigente(perfiles: list, fecha) -> float | None:
+    """El coste/hora que estaba vigente en esa fecha, o `None` si no hay.
+
+    Auditoria 2026-09: esto era una clausura dentro de `_project_internal_cost`,
+    que con ella llegaba a complejidad 16. Y no es un trozo de ese calculo: es
+    una pregunta con nombre propio —«cuanto costaba la hora de esta persona el
+    dia 15 de marzo»— que ademas tiene una regla de desempate que merece estar
+    escrita en un sitio donde se pueda leer.
+
+    La regla: gana el perfil cuya vigencia `[valid_from, valid_to]` contiene la
+    fecha. Si ninguno la contiene —la imputacion es anterior al primer perfil
+    registrado, que pasa al dar de alta a alguien con historico— se usa **el
+    abierto mas reciente**, es decir el vigente hoy. Es una aproximacion
+    deliberada: mejor el coste actual que ninguno, y el porcentaje de cobertura
+    que devuelve la funcion que llama dice cuanto se calculo asi.
+    """
+    if not perfiles:
+        return None
+    for perfil in perfiles:
+        desde, hasta = perfil.valid_from, perfil.valid_to
+        if desde and fecha < desde:
+            continue
+        if hasta is not None and fecha > hasta:
+            continue
+        return float(perfil.cost_per_hour or 0)
+
+    abiertos = [p for p in perfiles if p.valid_to is None]
+    if abiertos:
+        abiertos.sort(key=lambda p: p.valid_from or 0, reverse=True)
+        return float(abiertos[0].cost_per_hour or 0)
+    return None
+
+
+def _perfiles_por_usuario(db: Session, UserCostProfile, imputaciones: list) -> dict:
+    """Los perfiles de coste de todos los implicados, en una sola consulta.
+
+    Se carga de golpe y no por imputacion a proposito: un proyecto con mil
+    imputaciones serian mil consultas, y el calculo lo dispara un panel.
+    """
+    ids = {i.user_id for i in imputaciones if i.user_id}
+    if not ids:
+        return {}
+    por_usuario: dict = {}
+    for fila in db.query(UserCostProfile).filter(
+            UserCostProfile.user_id.in_(list(ids))).all():
+        por_usuario.setdefault(fila.user_id, []).append(fila)
+    return por_usuario
+
+
+def _coste_de_una_imputacion(imp, horas: float, perfiles_por_usuario: dict,
+                             tarifa_de_respaldo: float) -> tuple[float, bool]:
+    """Lo que costo esa imputacion, y si sale de un dato real.
+
+    La cascada de fuentes, en orden: el importe ya calculado en la fila, el
+    coste/hora vigente de esa persona, y como ultimo recurso una tarifa global.
+    El booleano de vuelta es lo que alimenta el `coverage_pct`, que es la forma
+    honesta de decir cuanto de este numero es dato y cuanto es estimacion.
+    """
+    if imp.cost_amount is not None and imp.cost_amount > 0:
+        return float(imp.cost_amount), True
+
+    tarifa = (_coste_por_hora_vigente(perfiles_por_usuario.get(imp.user_id, []), imp.date)
+              if imp.user_id else None)
+    if tarifa is not None and tarifa > 0:
+        return horas * tarifa, True
+    return horas * tarifa_de_respaldo, False
+
+
 def _project_internal_cost(db: Session, project_id: str) -> dict:
     """Calcula el coste INTERNO de un proyecto (lo que gastamos en sueldos +
     overhead), no lo que facturamos al cliente.
@@ -257,36 +325,7 @@ def _project_internal_cost(db: Session, project_id: str) -> dict:
     if not imps:
         return {"cost_eur": 0.0, "method": "no_data", "coverage_pct": 0.0}
 
-    # Cargamos todos los cost profiles de los users involucrados de una sola vez
-    # (evita N queries por user).
-    user_ids = {i.user_id for i in imps if i.user_id}
-    profiles_by_user: dict = {}
-    if user_ids:
-        rows = db.query(UserCostProfile).filter(
-            UserCostProfile.user_id.in_(list(user_ids))
-        ).all()
-        for r in rows:
-            profiles_by_user.setdefault(r.user_id, []).append(r)
-
-    def _rate_for(user_id, imp_date):
-        profiles = profiles_by_user.get(user_id, [])
-        if not profiles:
-            return None
-        # Buscar el profile cuya vigencia [valid_from, valid_to|None] contenga imp_date
-        for prof in profiles:
-            vf = prof.valid_from
-            vt = prof.valid_to
-            if vf and imp_date < vf:
-                continue
-            if vt is not None and imp_date > vt:
-                continue
-            return float(prof.cost_per_hour or 0)
-        # Si ninguno aplica, tomar el más reciente con vt=None (current)
-        current_open = [p for p in profiles if p.valid_to is None]
-        if current_open:
-            current_open.sort(key=lambda p: p.valid_from or 0, reverse=True)
-            return float(current_open[0].cost_per_hour or 0)
-        return None
+    profiles_by_user = _perfiles_por_usuario(db, UserCostProfile, imps)
 
     total_cost = 0.0
     real_hours = 0.0
@@ -296,16 +335,12 @@ def _project_internal_cost(db: Session, project_id: str) -> dict:
         hours = float(imp.hours or 0)
         if hours <= 0:
             continue
-        if imp.cost_amount is not None and imp.cost_amount > 0:
-            total_cost += float(imp.cost_amount)
-            real_hours += hours
-            continue
-        rate = _rate_for(imp.user_id, imp.date) if imp.user_id else None
-        if rate is not None and rate > 0:
-            total_cost += hours * rate
+        coste, con_dato_real = _coste_de_una_imputacion(
+            imp, hours, profiles_by_user, fallback_rate)
+        total_cost += coste
+        if con_dato_real:
             real_hours += hours
         else:
-            total_cost += hours * fallback_rate
             fallback_hours += hours
 
     total_hours = real_hours + fallback_hours

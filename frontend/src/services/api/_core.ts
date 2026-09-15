@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { type AxiosRequestConfig } from 'axios'
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || '/api/v1'
 
@@ -745,7 +745,7 @@ export const accountingApi = {
 }
 
 // ── Currency Rates ────────────────────────────────────────────────────────────
-const getWithFallback = async (paths: string[], config?: unknown) => {
+const getWithFallback = async (paths: string[], config?: AxiosRequestConfig) => {
   let lastErr: unknown
   for (const path of paths) {
     try {
@@ -758,7 +758,7 @@ const getWithFallback = async (paths: string[], config?: unknown) => {
   throw lastErr
 }
 
-const postWithFallback = async (paths: string[], data?: unknown, config: unknown | undefined = undefined) => {
+const postWithFallback = async (paths: string[], data?: unknown, config?: AxiosRequestConfig) => {
   let lastErr: unknown
   for (const path of paths) {
     try {

@@ -349,12 +349,12 @@ export default function RiskScoresPage() {
       {tab === 'rules' && <>
       {/* Summary KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:28 }}>
-        {[
+        {([
           { level:'critical', label:'Crítico', count: summary.critical || 0 },
           { level:'high',     label:'Alto',    count: summary.high || 0 },
           { level:'medium',   label:'Medio',   count: summary.medium || 0 },
           { level:'low',      label:'Bajo',    count: summary.low || 0 },
-        ].map((s) => {
+        ] as Array<{ level: RiskLevel; label: string; count: number }>).map((s) => {
           const cfg = LEVEL_CFG[s.level]
           return (
             <button key={s.level} type="button"
@@ -431,9 +431,9 @@ export default function RiskScoresPage() {
                         )}
                       </div>
                     </div>
-                    {p.delay_probability_pct > 20 && (
+                    {(p.delay_probability_pct ?? 0) > 20 && (
                       <div style={{ marginTop:8, display:'flex', gap:16, paddingTop:8, borderTop:`.5px solid var(--surface-4)`, fontSize: "var(--text-sm)" }}>
-                        <span>Prob. retraso: <strong style={{ color:'var(--danger)' }}>{Math.round(p.delay_probability_pct)}%</strong></span>
+                        <span>Prob. retraso: <strong style={{ color:'var(--danger)' }}>{Math.round(p.delay_probability_pct ?? 0)}%</strong></span>
                         {p.predicted_delay_weeks && (
                           <span>Retraso estimado: <strong style={{ color:'var(--warning)' }}>{p.predicted_delay_weeks}sem</strong></span>
                         )}
@@ -477,10 +477,10 @@ export default function RiskScoresPage() {
               <div style={{ fontSize: "var(--text-sm)", color:'var(--text-1)' }}>{detail.recommendation}</div>
             </div>
 
-            {(detail.delay_probability_pct > 0) && (
+            {((detail.delay_probability_pct ?? 0) > 0) && (
               <div style={{ marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                 <div style={{ background:'var(--danger-bg)', borderRadius:8, padding:'10px 12px', textAlign:'center' }}>
-                  <div style={{ fontSize: "var(--text-lg-em)", fontWeight:600, color:'var(--danger)' }}>{Math.round(detail.delay_probability_pct)}%</div>
+                  <div style={{ fontSize: "var(--text-lg-em)", fontWeight:600, color:'var(--danger)' }}>{Math.round(detail.delay_probability_pct ?? 0)}%</div>
                   <div style={{ fontSize: "var(--text-2xs)", color:'var(--danger)' }}>Prob. retraso</div>
                 </div>
                 <div style={{ background:'var(--warning-bg)', borderRadius:8, padding:'10px 12px', textAlign:'center' }}>

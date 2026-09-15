@@ -21,7 +21,7 @@ const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
 const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
-const PLAN_COLORS = { starter:'var(--text-2)', pro:'var(--accent)', enterprise:'var(--success)' }
+const PLAN_COLORS: Record<string, string> = { starter:'var(--text-2)', pro:'var(--accent)', enterprise:'var(--success)' }
 
 const PLAN_VALUES = ['starter', 'pro', 'enterprise'] as const
 
@@ -46,12 +46,67 @@ const organizationUpdateSchema = z.object({
   primary_color: z.string().optional(),
 })
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Las formas que esta pagina consume
+//
+// Auditoria 2026-09 (modo estricto): el cliente de API devuelve `any` y los
+// estados arrancaban en `null` sin argumento de tipo, con lo que TypeScript los
+// fijaba a `null` **para siempre** y todo lo que se pintaba a partir de ellos
+// era `never`. Se declara lo que esta pagina lee, con los campos opcionales
+// porque este fichero no puede prometer lo que manda el backend.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Una organizacion, tal como la lista el maestro. */
+interface OrganizacionEnLista {
+  id: string | number
+  name?: string
+  slug?: string
+  plan?: string
+  admin_email?: string
+  is_active?: boolean
+  created_at?: string
+  user_count?: number
+  project_count?: number
+}
+
+/** Un usuario asignado a una organizacion. */
+interface UsuarioDeOrganizacion {
+  id: string | number
+  full_name?: string
+  role?: string
+  is_active?: boolean
+}
+
+/** El detalle de una organizacion, con sus usuarios. */
+interface DetalleDeOrganizacion extends OrganizacionEnLista {
+  timezone?: string
+  locale?: string
+  primary_color?: string
+  max_users?: number
+  max_projects?: number
+  users?: UsuarioDeOrganizacion[]
+}
+
+/** El formulario de edicion. Arranca en `null` —no hay formulario hasta que se
+ *  abre el modal— y por eso cada campo se lee con `?.`. */
+interface FormularioDeEdicion {
+  name: string
+  plan: string
+  max_users: number
+  max_projects: number
+  admin_email: string
+  timezone: string
+  locale: string
+  primary_color: string
+}
+
 type OrgCreateForm = z.infer<typeof organizationCreateSchema>
 type OrgUpdateForm = z.infer<typeof organizationUpdateSchema>
 
 export default function OrganizationsPage() {
   // ...existing code...
-  const [removingUserId, setRemovingUserId] = useState(null)
+  const [removingUserId, setRemovingUserId] = useState<string | number | null>(null)
     // Mutación para eliminar usuario de la organización
     const { mutate: removeUser, isPending: isRemoving } = useMutation({
       mutationFn: ({ orgId, userId }: { orgId: string | number; userId: string | number }) => organizationsApi.removeUser(orgId, userId),
@@ -83,17 +138,19 @@ export default function OrganizationsPage() {
   const { timezone: defaultTimezone } = useOrgSettings()
   const [showCreate, setShowCreate] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
-  const [selected, setSelected] = useState(null)
+  const [selected, setSelected] = useState<string | number | null>(null)
   const [form, setForm] = useState({ name:'', slug:'', plan:'starter', max_users:25, max_projects:100, admin_email:'', timezone: defaultTimezone })
-  const [editForm, setEditForm] = useState(null)
+  const [editForm, setEditForm] = useState<FormularioDeEdicion | null>(null)
   const createValidation = useFormValidation(organizationCreateSchema)
   const editValidation = useFormValidation(organizationUpdateSchema)
 
-  const { data: orgs = [], isLoading } = useQuery({ queryKey:['orgs'], queryFn:() => organizationsApi.list().then(r=>r.data) })
-  const { data: detail } = useQuery({ queryKey:['org-detail', selected], queryFn:() => organizationsApi.get(selected).then(r=>r.data), enabled:!!selected })
+  const { data: orgs = [], isLoading } = useQuery<OrganizacionEnLista[]>({ queryKey:['orgs'], queryFn:() => organizationsApi.list().then(r=>r.data) })
+  // `selected!` respaldado por el `enabled`: react-query no ejecuta `queryFn`
+  // mientras `enabled` sea falso, asi que aqui nunca es null.
+  const { data: detail } = useQuery<DetalleDeOrganizacion>({ queryKey:['org-detail', selected], queryFn:() => organizationsApi.get(selected!).then(r=>r.data), enabled:!!selected })
   const removingUser = detail?.users?.find(u => u.id === removingUserId) || null
   // Todos los usuarios activos
-  const { data: allUsers = [] } = useQuery({ queryKey:['users'], queryFn:() => usersApi.list({}).then(r=>r.data) })
+  const { data: allUsers = [] } = useQuery<UsuarioDeOrganizacion[]>({ queryKey:['users'], queryFn:() => usersApi.list({}).then(r=>r.data) })
   // Mutación para asignar usuario
   const { mutate: assignUser, isPending: isAssigning } = useMutation({
     mutationFn: ({ orgId, userId }: { orgId: string | number; userId: string | number }) => organizationsApi.assignUser(orgId, { user_id: userId }),
@@ -119,6 +176,7 @@ export default function OrganizationsPage() {
   }
 
   const submitEdit = () => {
+    if (selected == null || !editForm) return
     const result = editValidation.validateForm(editForm)
     if (!result.success || !result.data) return
     update({ id: selected, data: result.data as OrgUpdateForm })
@@ -183,7 +241,7 @@ export default function OrganizationsPage() {
                     <div>
                       <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:4 }}>
                         <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{o.name}</span>
-                        <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color: PLAN_COLORS[o.plan] || 'var(--text-2)', fontWeight:500 }}>{o.plan}</span>
+                        <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color: (o.plan && PLAN_COLORS[o.plan]) || 'var(--text-2)', fontWeight:500 }}>{o.plan}</span>
                         {!o.is_active && <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--danger-bg)', color:'var(--danger)' }}>Inactiva</span>}
                       </div>
                       <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
@@ -275,7 +333,7 @@ export default function OrganizationsPage() {
                         <Button variant="secondary" onClick={()=>setShowAssignUser(false)}>Cancelar</Button>
                         <Button
                           onClick={()=>assignUser({ orgId: detail.id, userId: assignUserId })}
-                          disabled={!assignUserId || isAssigning || (assignUserId && allUsers.find(u => u.id === assignUserId)?.is_active === false) || (assignUserId && (detail.users || []).some(u => u.id === assignUserId))}
+                          disabled={Boolean(!assignUserId || isAssigning || (assignUserId && allUsers.find(u => u.id === assignUserId)?.is_active === false) || (assignUserId && (detail?.users || []).some(u => u.id === assignUserId)))}
                         >{isAssigning ? 'Asignando...' : 'Asignar'}</Button>
                       </div>
                     </div>
@@ -336,32 +394,32 @@ export default function OrganizationsPage() {
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
               <div>
                 <label style={ls}>Nombre</label>
-                <input value={editForm.name} onChange={e=>{ setEditForm(f=>({...f,name:e.target.value})); editValidation.clearFieldError('name') }} style={editValidation.inputStyle(fs, 'name')} />
+                <input value={editForm?.name ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,name:e.target.value})); editValidation.clearFieldError('name') }} style={editValidation.inputStyle(fs, 'name')} />
                 {editValidation.errors.name && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.name}</div>}
               </div>
               {/* El slug no se puede editar */}
-              <div><label style={ls}>Slug</label><input value={detail.slug} disabled style={{...fs, background:'#f5f5f5'}} /></div>
+              <div><label style={ls}>Slug</label><input value={detail?.slug ?? ''} disabled style={{...fs, background:'#f5f5f5'}} /></div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
               <div><label style={ls}>Plan</label>
-                <select value={editForm.plan} onChange={e=>setEditForm(f=>({...f,plan:e.target.value}))} style={fs}>
+                <select value={editForm?.plan ?? ''} onChange={e=>setEditForm(f => f && ({...f,plan:e.target.value}))} style={fs}>
                   {['starter','pro','enterprise'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div>
                 <label style={ls}>Máx. usuarios</label>
-                <input type="number" value={editForm.max_users} onChange={e=>{ setEditForm(f=>({...f,max_users:+e.target.value})); editValidation.clearFieldError('max_users') }} style={editValidation.inputStyle(fs, 'max_users')} />
+                <input type="number" value={editForm?.max_users ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_users:+e.target.value})); editValidation.clearFieldError('max_users') }} style={editValidation.inputStyle(fs, 'max_users')} />
                 {editValidation.errors.max_users && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.max_users}</div>}
               </div>
               <div>
                 <label style={ls}>Máx. proyectos</label>
-                <input type="number" value={editForm.max_projects} onChange={e=>{ setEditForm(f=>({...f,max_projects:+e.target.value})); editValidation.clearFieldError('max_projects') }} style={editValidation.inputStyle(fs, 'max_projects')} />
+                <input type="number" value={editForm?.max_projects ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_projects:+e.target.value})); editValidation.clearFieldError('max_projects') }} style={editValidation.inputStyle(fs, 'max_projects')} />
                 {editValidation.errors.max_projects && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.max_projects}</div>}
               </div>
             </div>
             <div>
               <label style={ls}>Email del admin</label>
-              <input value={editForm.admin_email} onChange={e=>{ setEditForm(f=>({...f,admin_email:e.target.value})); editValidation.clearFieldError('admin_email') }} style={editValidation.inputStyle(fs, 'admin_email')} />
+              <input value={editForm?.admin_email ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,admin_email:e.target.value})); editValidation.clearFieldError('admin_email') }} style={editValidation.inputStyle(fs, 'admin_email')} />
               {editValidation.errors.admin_email && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.admin_email}</div>}
             </div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>

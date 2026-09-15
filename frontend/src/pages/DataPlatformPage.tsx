@@ -87,9 +87,9 @@ const S = {
   btnAccentOutline: (c: string = COLOR.accent) => ({ padding: '7px 14px', borderRadius: 8, border: `1px solid ${c}`, background: `${c}18`, color: c, cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }),
 }
 
-const getLocale = (lang) => (lang === 'en' ? 'en-US' : 'es-ES')
+const getLocale = (lang?: string) => (lang === 'en' ? 'en-US' : 'es-ES')
 
-function SectionHeading({ title, description }) {
+function SectionHeading({ title, description }: { title?: React.ReactNode; description?: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <h2 style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, color: 'var(--text-1)', margin: '0 0 4px' }}>{title}</h2>
@@ -170,7 +170,7 @@ export default function DataPlatformPage(): JSX.Element {
   // WebSocket realtime stream
   useEffect(() => {
     if (!streamLive) return undefined
-    let ws = null
+    let ws: WebSocket | null = null
     let closed = false
     async function connect() {
       try {

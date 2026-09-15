@@ -211,6 +211,14 @@ if [[ "$MODE" != "--fast" ]]; then
   # 10, para poder elegir la siguiente sin tener que ir a buscarla.
   run_gate informativo "complejidad de app/ — hallazgo 18" \
     "$PY_BIN" scripts/audit_complejidad.py
+
+  # Informativo por naturaleza y no por prudencia: la duplicación no tiene un
+  # número que deba ser cero —dos CRUD se parecen y está bien—, así que lo que
+  # esto produce es una lista de parejas para mirar, no un veredicto. Mirarlas
+  # ha destapado, entre otros, la copia del dominio de tareas a la que le
+  # faltaba ABAC y los dos generadores de factura con NIF distinto.
+  run_gate informativo "funciones casi idénticas en app/" \
+    "$PY_BIN" scripts/audit_funciones_duplicadas.py
   # lint:a11y ya vale algo: hasta la auditoría 2026-08 informaba "0 findings"
   # porque no podía parsear 304 de 343 ficheros. Con el parser instalado sus
   # números son reales (1.480 avisos de etiquetas), y son deuda de marcado que
@@ -225,7 +233,7 @@ if [[ "$MODE" != "--fast" ]]; then
   # react-router-dom 6→7). Cada uno es una migración con riesgo real sobre las
   # 119 rutas lazy, así que se dejan medidos y no forzados. El gate bloqueante
   # en nivel high está entre los de arriba.
-  run_gate informativo "npm audit (3 moderate: echarts 6, react-router 7)" \
+  run_gate informativo "npm audit (nivel moderate; el 15-09-2026 estaba en cero)" \
     bash -c 'cd frontend && npm audit --audit-level=moderate'
 fi
 

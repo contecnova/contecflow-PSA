@@ -437,7 +437,7 @@ export default function BiQueryBuilderPanel() {
                     ))}
                   </tbody>
                 </table>
-                {results.rows?.length > 200 && (
+                {results.rows && results.rows.length > 200 && (
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 8, textAlign: 'center' }}>
                     Mostrando 200 de {results.rows.length} filas
                   </div>

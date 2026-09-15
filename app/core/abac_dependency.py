@@ -49,9 +49,17 @@ al filtro de tenant (estructural, fail-closed) ni al RBAC. Lo que arregla es que
 una política que un cliente define de verdad se aplique donde el mapa dice que se
 aplica.
 
-Sobre `action`: informativo, como antes. `enforce_abac()` no lo pasa a
-`evaluate_access()`; solo alimenta log y métrica. El mapa lo conserva para no
-perder la intención declarada.
+Sobre `action`: **ya no es informativo** (auditoría 2026-09). Aquí decía que
+`enforce_abac()` no lo pasaba a `evaluate_access()` y que sólo alimentaba log y
+métrica — era cierto, y era la mitad del problema. Ahora se pasa, y una regla
+puede escribir `{"attribute": "accion", "operator": "equals", "value":
+"delete"}`.
+
+Lo que sigue siendo cierto es que **esta dependencia no conoce el
+`resource_id`**: sabe el prefijo de la ruta, no qué fila se está tocando. Por
+eso las llamadas explícitas de los endpoints sí aportan grano más fino desde que
+el motor mira los atributos del recurso — que es justo lo que la nota anterior
+de este bloque afirmaba sin que fuera verdad.
 """
 from __future__ import annotations
 

@@ -20,21 +20,26 @@ const mockTranslations = {
   },
 };
 
-function makeWrapper(value) {
-  return function Wrapper({ children }) {
+function makeWrapper(value: React.ContextType<typeof AppLangContext>) {
+  return function Wrapper({ children }: { children?: React.ReactNode }) {
     return (
       <AppLangContext.Provider value={value}>{children}</AppLangContext.Provider>
     );
   };
 }
 
-const baseCtx = {
+// El contexto tiene nueve campos; el doble los da todos aunque `useAppT` hoy
+// solo lea algunos. Un doble incompleto es una suposicion sobre la
+// implementacion escondida dentro del test.
+const baseCtx: React.ContextType<typeof AppLangContext> = {
   lang: 'es',
   setLang: vi.fn(),
+  t: (clave: string) => clave,
   loading: false,
   translations: mockTranslations,
   baseTranslations: mockTranslations,
   allTranslations: { es: mockTranslations, en: mockTranslations },
+  customTrans: {},
   setCustomTranslations: vi.fn(),
 };
 

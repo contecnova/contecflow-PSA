@@ -29,16 +29,18 @@ nombres equivocados o columnas que faltan. Los grupos:
 `Task.sprint_id`: una tarea se enlaza a un sprint por la tabla `sprint_tasks`.
 `Task.actual_hours`: las horas reales son la suma de las imputaciones.
 `Ticket.category`: la clasificación de un ticket es `service_item_id`.
-`Imputation.work_type`: no existe y no se inventa.
+`Imputation.work_type`: existe desde la revisión 096 — media aplicación ya
+contaba con ella y lo que faltaba era el sitio donde guardarla.
 
 **Columnas que hacían falta de verdad** — 3, añadidas en la revisión 094:
 `deliverables.billing_pct`, `opportunities.external_id`,
 `revenue_recognition_rules.is_active`.
 
-**Y uno que no se toca:** `MajorIncident.tickets`. Entre esas dos entidades no
-hay ni columna ni tabla de unión, así que la relación no existe. Inventarla es
-una decisión de diseño —¿un ticket pertenece a una sola incidencia mayor?— y no
-se cuela en una tanda de otra cosa.
+**Y el que no se tocaba, ya está:** `MajorIncident.tickets`. Entre esas dos
+entidades no había ni columna ni tabla de unión, y la decisión de cardinalidad
+—¿un ticket pertenece a una sola incidencia mayor?— no se colaba en una tanda de
+otra cosa. La revisión 096 la toma: **un ticket pertenece como mucho a una**, que
+es el modelo de ITIL y el conservador. `CONOCIDOS` está vacía.
 
 ## Lo que rompía cada uno, que es lo que importa
 
@@ -82,14 +84,19 @@ def _clases_mapeadas() -> dict:
 #: Atributos que no son del modelo y aparecen sobre una clase mapeada.
 _NO_SON_COLUMNAS = {"metadata", "registry"}
 
-#: Lo que queda a propósito, con su razón. Vacía es la meta.
-CONOCIDOS = {
-    # Entre `MajorIncident` y `Ticket` no hay ni columna ni tabla de unión.
-    # Inventar la relación es una decisión de diseño; el sitio que la consulta
-    # declara la comprobación como no evaluable en vez de dar un falso
-    # positivo por cada ticket P1.
-    ("MajorIncident", "tickets"),
-}
+#: Lo que queda a propósito, con su razón. Vacía es la meta, **y ya lo está**.
+#:
+#: Auditoría 2026-09: aquí vivía `("MajorIncident", "tickets")`, con su razón
+#: escrita — entre esas dos entidades no había ni columna ni tabla de unión, y
+#: el sitio que la consultaba declaraba la comprobación de cumplimiento como no
+#: evaluable en vez de dar un falso positivo por cada P1.
+#:
+#: La revisión 096 añadió el enlace (`Ticket.major_incident_id`) tomando la
+#: decisión de cardinalidad que faltaba, así que la excepción sobra. **Y lo dijo
+#: este fichero**: su segundo test comprueba que cada excepción siga siendo
+#: necesaria, y al añadir la relación se puso en rojo pidiendo que se quitara.
+#: Es justo para lo que estaba.
+CONOCIDOS: set[tuple[str, str]] = set()
 
 
 def _accesos_sospechosos():

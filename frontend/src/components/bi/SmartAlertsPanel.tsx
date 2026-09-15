@@ -165,7 +165,7 @@ export default function SmartAlertsPanel() {
                 <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>
                   {entry.metric_key} · {String(entry.condition || '').replace(/_/g, ' ')} · {entry.triggered_at ? new Date(entry.triggered_at).toLocaleDateString('es-ES') : '—'}
                 </div>
-                {entry.correlated?.length > 0 && (
+                {entry.correlated && entry.correlated.length > 0 && (
                   <div style={{ fontSize: 'var(--text-2xs)', color: COLOR.warning, marginTop: 2 }}>
                     ↔ Correlada con: {entry.correlated.map(c => c.metric_key).join(', ')}
                   </div>

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { useSwipeGesture } from '../hooks/useSwipeGesture'
 
-function Harness({ handlers }) {
+function Harness({ handlers }: { handlers: Parameters<typeof useSwipeGesture>[0] }) {
   const gestureHandlers = useSwipeGesture(handlers)
   return <div data-testid="gesture-area" {...gestureHandlers}>gesture area</div>
 }

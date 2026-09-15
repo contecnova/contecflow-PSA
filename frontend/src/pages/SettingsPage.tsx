@@ -69,7 +69,11 @@ const TABS = TAB_GROUPS.flatMap(g => g.tabs)
 export default function SettingsPage() {
   const { user } = useAuth()
   const { t } = useAppLang()
-  const visibleTabs = TABS.filter(tab => tab.roles.includes(user?.role))
+  // `user?.role` es `string | undefined` y `includes` no lo acepta. Un rol
+  // ausente no encaja en ninguna pestaña, que es justo lo que hacía antes
+  // `includes(undefined)`: devolver falso.
+  const rol = user?.role ?? ''
+  const visibleTabs = TABS.filter(tab => tab.roles.includes(rol))
   const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id || 'general')
 
   return (
@@ -84,7 +88,7 @@ export default function SettingsPage() {
         display: 'flex', flexDirection: 'column', gap: 'var(--space-2)',
       }}>
         {TAB_GROUPS.map(group => {
-          const groupVisible = group.tabs.filter(tab => tab.roles.includes(user?.role))
+          const groupVisible = group.tabs.filter(tab => tab.roles.includes(rol))
           if (groupVisible.length === 0) return null
           return (
             <div key={group.label}>

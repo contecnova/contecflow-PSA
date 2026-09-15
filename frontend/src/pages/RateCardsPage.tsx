@@ -263,7 +263,7 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
                       )}
                     </td>
                     <td style={{ padding: '10px 16px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-                      {e.escalation_pct > 0 ? `+${e.escalation_pct}%/año` : '—'}
+                      {(e.escalation_pct ?? 0) > 0 ? `+${e.escalation_pct}%/año` : '—'}
                     </td>
                     <td style={{ padding: '10px 16px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                       {e.valid_from || e.valid_to ? `${e.valid_from || '?'} → ${e.valid_to || '∞'}` : '—'}

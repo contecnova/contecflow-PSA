@@ -29,6 +29,33 @@ class Ticket(Base):
     requester_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
     requester_client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True)
     requester_name = Column(String(255), nullable=True)
+    # Auditoria 2026-09. Esta columna no existia y el servicio de SMS entrantes
+    # la pasaba igual —detras de un `hasattr` que protegia el valor y no la
+    # palabra clave—, asi que **crear un ticket desde un SMS reventaba
+    # siempre** con `TypeError`. El telefono se guardaba de rebote en
+    # `requester_name` y en la descripcion.
+    #
+    # Se anade como campo propio porque en un ticket abierto por SMS el
+    # telefono **es** la identidad de quien lo abre: sin el no hay a quien
+    # responder. Nullable, porque los tickets que no vienen por SMS no lo
+    # tienen. 32 caracteres dan para un E.164 con extension.
+    requester_phone = Column(String(32), nullable=True)
+    # Auditoria 2026-09. Enlace a la incidencia mayor que agrupa este ticket.
+    #
+    # La decision de diseno que faltaba, dicha en voz alta: **un ticket
+    # pertenece como mucho a UNA incidencia mayor**, y una incidencia mayor
+    # agrupa muchos tickets. Es el modelo de ITIL y es el conservador — una
+    # tabla de union permitiria que dos incidencias mayores compartieran
+    # tickets, y eso hay que quererlo explicitamente, no heredarlo de una
+    # eleccion tecnica.
+    #
+    # Sin esta columna, la comprobacion de cumplimiento «P1 sin incidencia
+    # mayor declarada» estaba declarada **no evaluable**: el codigo preguntaba
+    # por `MajorIncident.tickets` detras de un `hasattr` correcto sobre una
+    # relacion inexistente, asi que o saltaba en todos los P1 o en ninguno.
+    major_incident_id = Column(
+        String(36), ForeignKey("sd_major_incidents.id", ondelete="SET NULL"),
+        nullable=True, index=True)
     requester_email = Column(String(255), nullable=True)
 
     assigned_to_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
@@ -105,6 +132,10 @@ class Ticket(Base):
     assigned_group = relationship("AgentGroup")
     project = relationship("Project")
     ci = relationship("ConfigurationItem")
+    # El otro extremo de `MajorIncident.tickets`. Ver la nota de
+    # `major_incident_id` arriba para la decision de cardinalidad.
+    major_incident = relationship(
+        "MajorIncident", foreign_keys=[major_incident_id], back_populates="tickets")
     service_item = relationship("ServiceItem")
     sla_policy = relationship("SLAPolicy")
     kb_article = relationship("KBArticle", foreign_keys=[kb_article_id])

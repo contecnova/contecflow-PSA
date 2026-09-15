@@ -178,7 +178,7 @@ export default function AlertCorrelationPanel() {
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
-  const { data: clustersData, isLoading: clustersLoading } = useQuery({
+  const { data: clustersData, isLoading: clustersLoading } = useQuery<{ clusters?: AlertCluster[]; window_hours?: number; total?: number }>({
     queryKey: ['sd-alert-clusters'],
     queryFn: () => alertClustersApi.list().then(r => r.data),
     refetchInterval: 60_000,
@@ -204,7 +204,7 @@ export default function AlertCorrelationPanel() {
     },
     onError: (e: unknown) => {
       const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-      toast.error((detail && String(detail)) || 'Error al crear problema desde cluster')
+      toast.error(detail ? String(detail) : 'Error al crear problema desde cluster')
     },
   })
 
@@ -220,7 +220,7 @@ export default function AlertCorrelationPanel() {
     },
     onError: (e: unknown) => {
       const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-      toast.error((detail && String(detail)) || 'Error al ejecutar el escáner')
+      toast.error(detail ? String(detail) : 'Error al ejecutar el escáner')
     },
   })
 

@@ -35,18 +35,63 @@ const TYPE_ICONS: Record<string, TypeIcon> = {
 }
 const _PALETTE = ['var(--danger)','var(--warning)','var(--accent)','var(--text-2)','var(--success)','var(--purple)']
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Las formas que esta pagina consume
+//
+// Auditoria 2026-09 (modo estricto): el cliente de API devuelve `any`, asi que
+// nada de lo que se pinta aqui estaba comprobado. Se declara lo que **esta
+// pagina lee**; los campos van opcionales porque este fichero no puede prometer
+// que el backend los mande siempre.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Una prediccion del oraculo sobre una entidad del sistema. */
+interface Prediccion {
+  id?: string
+  type?: string
+  title?: string
+  severity?: string
+  probability?: number
+  entity_type?: string
+  entity_name?: string
+  explanation?: string
+  recommended_action?: string
+  is_acknowledged?: boolean
+}
+
+/** Una alerta generada durante una pasada del oraculo. */
+interface AlertaDelOraculo {
+  type?: string
+  entity?: string
+  probability?: number
+}
+
+/** El resumen que devuelve una pasada del oraculo. */
+interface AnalisisDelOraculo {
+  alerts_generated?: number
+  methodology?: string
+  alerts?: AlertaDelOraculo[]
+}
+
+/** Un proveedor de IA configurado. */
+interface ProveedorDeIa {
+  id?: string
+  name?: string
+  is_default?: boolean
+}
+
 export default function OraclePage() {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [filter, setFilter] = useState('all')
-  const [analysis, setAnalysis] = useState(null)
+  const [analysis, setAnalysis] = useState<AnalisisDelOraculo | null>(null)
 
-  const { data: preds = [], isLoading } = useQuery({
+  const { data: preds = [], isLoading } = useQuery<Prediccion[]>({
     queryKey: ['oracle-preds'],
     queryFn: () => oracleApi.predictions({ only_unacked: false }).then(r => r.data),
   })
-  const { data: providers = [] } = useQuery({
+  const { data: providers = [] } = useQuery<ProveedorDeIa[]>({
     queryKey: ['ai-providers'],
     queryFn: () => aiProvidersApi.list().then(r => r.data),
   })
@@ -61,13 +106,17 @@ export default function OraclePage() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: ack } = useMutation({
-    mutationFn: id => oracleApi.acknowledge(id),
+    mutationFn: (id: string) => oracleApi.acknowledge(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['oracle-preds'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const filtered = filter === 'all' ? preds : preds.filter(p => p.severity === filter)
-  const byType = preds.reduce((acc, p) => { acc[p.type] = (acc[p.type]||0)+1; return acc }, {})
+  const byType = preds.reduce<Record<string, number>>((acc, p) => {
+    const tipo = p.type ?? 'desconocido'
+    acc[tipo] = (acc[tipo] || 0) + 1
+    return acc
+  }, {})
   const bySev  = Object.entries(SEV).map(([k,v]) => ({ name: v.label, value: preds.filter(p=>p.severity===k).length, color: v.color })).filter(x=>x.value>0)
   const typeData = Object.entries(byType).map(([k,v]) => ({ name: TYPE_ICONS[k]?.label || k, count: v }))
 
@@ -108,10 +157,10 @@ export default function OraclePage() {
           </div>
           {(analysis.alerts || []).length > 0 && (
             <div style={{ marginTop: 10, fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.6, padding: '10px 12px', background: 'var(--surface-1)', borderRadius: 8 }}>
-              {analysis.alerts.slice(0, 5).map((a, i) => (
+              {(analysis.alerts ?? []).slice(0, 5).map((a, i) => (
                 <div key={i}>• {a.type}: {a.entity} ({Math.round((a.probability || 0) * 100)}%)</div>
               ))}
-              {analysis.alerts.length > 5 && <div style={{ color: 'var(--text-3)' }}>… {analysis.alerts.length - 5} más</div>}
+              {(analysis.alerts?.length ?? 0) > 5 && <div style={{ color: 'var(--text-3)' }}>… {(analysis.alerts?.length ?? 0) - 5} más</div>}
             </div>
           )}
         </div>
@@ -178,8 +227,8 @@ export default function OraclePage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(p => {
-            const sv = SEV[p.severity] || SEV.low
-            const ti = TYPE_ICONS[p.type] || { icon: '⚡', label: p.type }
+            const sv = (p.severity && SEV[p.severity]) || SEV.low
+            const ti = (p.type && TYPE_ICONS[p.type]) || { icon: '⚡', label: p.type }
             return (
               <div key={p.id} style={{ ...card, padding: '16px 20px', borderLeft: `3px solid ${sv.color}`, opacity: p.is_acknowledged ? 0.6 : 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -198,7 +247,7 @@ export default function OraclePage() {
                       <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{Math.round(p.probability * 100)}% prob.</span>
                     )}
                     {!p.is_acknowledged && (
-                      <button onClick={() => ack(p.id)}
+                      <button onClick={() => p.id && ack(p.id)}
                         style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-2)' }}>
                         ✓ Reconocer
                       </button>

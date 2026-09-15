@@ -12,7 +12,7 @@ import { useAppT } from '../i18n/AppLangContext'
 
 const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
-const MODULE_CFG = {
+const MODULE_CFG: Record<string, { icon: string; labelKey: string; descKey: string }> = {
   nexusassist:          { icon: '💬', labelKey: 'governance.nexusassist_label',           descKey: 'governance.nexusassist_desc' },
   nexusagent:           { icon: '⚡', labelKey: 'governance.nexusagent_label',            descKey: 'governance.nexusagent_desc' },
   nexusoracle:          { icon: '🔮', labelKey: 'governance.nexusoracle_label',           descKey: 'governance.nexusoracle_desc' },
@@ -213,7 +213,7 @@ export default function GovernancePage(): JSX.Element {
           ) : logs.map(l => (
             <div key={l.id} style={{ padding: '10px 20px', borderBottom: '1px solid var(--surface-4)20', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: "var(--text-sm)", alignItems: 'center' }}>
               <span style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)" }}>{l.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
-              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{MODULE_CFG[l.module]?.icon} {MODULE_CFG[l.module] ? t(MODULE_CFG[l.module].labelKey) : l.module}</span>
+              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{MODULE_CFG[l.module ?? '']?.icon} {MODULE_CFG[l.module ?? ''] ? t(MODULE_CFG[l.module ?? ''].labelKey) : l.module}</span>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-2)' }}>{l.input_summary || l.action_type || t('governance.dash')}</span>
               <span style={{ color: 'var(--warning)' }}>{(l.tokens_used || 0).toLocaleString()}</span>
             </div>

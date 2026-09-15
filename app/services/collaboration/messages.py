@@ -276,6 +276,81 @@ def _publish_async(channel: str, event: dict) -> None:
 
 
 # ── Send / edit / delete ─────────────────────────────────────────────────────
+def _autorizar_envio(db: Session, user, conv, *, client_user_id, bot_id) -> None:
+    """Quién puede escribir en esta conversación, según quién escribe.
+
+    La comprobación cambia con el tipo de remitente, y por eso vive aquí y no en
+    quien llama: **un cliente del portal no pasa por ABAC**, porque las
+    políticas están escritas sobre usuarios internos. Pasa por la comprobación
+    de participante-cliente, que es su equivalente.
+
+    Un bot no pasa por ninguna de las dos: lo que autoriza a un bot es haberlo
+    dado de alta, y eso ocurre antes de llegar aquí.
+    """
+    if client_user_id:
+        from app.services.collaboration._permissions import (
+            is_client_conversation_participant,
+        )
+        if not is_client_conversation_participant(db, user, conv.id):
+            raise HTTPException(403, "No tienes acceso a esta conversación")
+        return
+    if bot_id:
+        return
+    assert_conversation_access(db, user, conv.id)
+    enforce_abac(db, user, "collaboration_message", resource_id=conv.id, action="send")
+
+
+def _enganchar_al_hilo(db: Session, org, conv, msg, parent_message_id) -> None:
+    """Mete el mensaje en el hilo de su padre, creando el hilo si es el primero.
+
+    El hilo se identifica por su mensaje raíz, no por un id propio: eso permite
+    que el primer «responder» a un mensaje cualquiera cree el hilo sin que nadie
+    lo haya declarado antes, que es como funciona en un chat.
+    """
+    if not parent_message_id:
+        return
+    hilo = db.query(CollaborationThread).filter(
+        CollaborationThread.root_message_id == parent_message_id,
+    ).first()
+    if not hilo:
+        hilo = CollaborationThread(
+            organization_id=org, conversation_id=conv.id,
+            root_message_id=parent_message_id,
+        )
+        db.add(hilo)
+        db.flush()
+    msg.thread_id = hilo.id
+    hilo.reply_count = (hilo.reply_count or 0) + 1
+    hilo.last_reply_at = datetime.now(timezone.utc)
+
+
+def _crear_menciones(
+    db: Session, org, msg, *, mention_user_ids, mention_client_ids, is_everyone
+) -> list:
+    """Las menciones del mensaje: a usuarios, a clientes del portal y a todos.
+
+    Se devuelven además de guardarse porque el reparto de notificaciones las
+    necesita, y volver a consultarlas sería una consulta de más por mensaje.
+    """
+    menciones = []
+    for uid in (mention_user_ids or []):
+        m = CollaborationMention(
+            organization_id=org, message_id=msg.id, mentioned_user_id=uid)
+        db.add(m)
+        menciones.append(m)
+    for cid in (mention_client_ids or []):
+        m = CollaborationMention(
+            organization_id=org, message_id=msg.id, mentioned_client_user_id=cid)
+        db.add(m)
+        menciones.append(m)
+    if is_everyone:
+        m = CollaborationMention(
+            organization_id=org, message_id=msg.id, is_everyone=True)
+        db.add(m)
+        menciones.append(m)
+    return menciones
+
+
 def send_message(
     db: Session, user, *,
     body: str,
@@ -315,15 +390,7 @@ def send_message(
     org = _org(user)
     conv = _resolve_conversation(db, conversation_id=conversation_id, channel_id=channel_id, direct_id=direct_id, group_id=group_id)
 
-    if client_user_id:
-        from app.services.collaboration._permissions import (
-            is_client_conversation_participant,
-        )
-        if not is_client_conversation_participant(db, user, conv.id):
-            raise HTTPException(403, "No tienes acceso a esta conversación")
-    elif not bot_id:
-        assert_conversation_access(db, user, conv.id)
-        enforce_abac(db, user, "collaboration_message", resource_id=conv.id, action="send")
+    _autorizar_envio(db, user, conv, client_user_id=client_user_id, bot_id=bot_id)
 
     # DLP scan on body
     dlp_status, dlp_findings = scan_dlp(body)
@@ -351,42 +418,14 @@ def send_message(
     db.add(msg)
     db.flush()
 
-    # Thread root assignment
-    if parent_message_id:
-        thread = db.query(CollaborationThread).filter(
-            CollaborationThread.root_message_id == parent_message_id,
-        ).first()
-        if not thread:
-            thread = CollaborationThread(
-                organization_id=org, conversation_id=conv.id,
-                root_message_id=parent_message_id,
-            )
-            db.add(thread)
-            db.flush()
-        msg.thread_id = thread.id
-        thread.reply_count = (thread.reply_count or 0) + 1
-        thread.last_reply_at = datetime.now(timezone.utc)
+    _enganchar_al_hilo(db, org, conv, msg, parent_message_id)
 
-    # Mentions
-    mentions: list[CollaborationMention] = []
-    for uid in (mention_user_ids or []):
-        m = CollaborationMention(
-            organization_id=org, message_id=msg.id, mentioned_user_id=uid,
-        )
-        db.add(m)
-        mentions.append(m)
-    for cid in (mention_client_ids or []):
-        m = CollaborationMention(
-            organization_id=org, message_id=msg.id, mentioned_client_user_id=cid,
-        )
-        db.add(m)
-        mentions.append(m)
-    if is_everyone:
-        m = CollaborationMention(
-            organization_id=org, message_id=msg.id, is_everyone=True,
-        )
-        db.add(m)
-        mentions.append(m)
+    mentions = _crear_menciones(
+        db, org, msg,
+        mention_user_ids=mention_user_ids,
+        mention_client_ids=mention_client_ids,
+        is_everyone=is_everyone,
+    )
 
     # Update conv last activity
     conv.last_activity_at = datetime.now(timezone.utc)

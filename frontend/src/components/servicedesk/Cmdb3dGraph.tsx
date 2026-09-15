@@ -114,7 +114,11 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
 
     const g = svg.append('g')
     svg.call(
-      d3.zoom().scaleExtent([0.2, 5]).on('zoom', (event) => {
+      // El genérico dice sobre qué elemento actúa el zoom. Sin `@types/d3`
+      // instalado esto era `any` y compilaba igual; con los tipos puestos hay
+      // que decirlo, y decirlo es mejor: `svg.call(...)` sólo acepta un
+      // comportamiento declarado sobre `SVGSVGElement`.
+      d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.2, 5]).on('zoom', (event) => {
         g.attr('transform', event.transform)
       })
     )
@@ -131,7 +135,10 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
       .attr('d', 'M0,-5L10,0L0,5')
 
     const simulation = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(80))
+      // Los genéricos hacen que `d` sea un `CiNode` y no el
+      // `SimulationNodeDatum` genérico, que no tiene `id`. Los tipos ya
+      // estaban declarados arriba; lo que faltaba era usarlos aquí.
+      .force('link', d3.forceLink<CiNode, CiEdge>(links).id(d => d.id).distance(80))
       .force('charge', d3.forceManyBody().strength(-200))
       .force('center', d3.forceCenter(w / 2, h / 2))
       .force('collision', d3.forceCollide(22))
@@ -147,7 +154,9 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
 
     const nodeG = g.append('g').selectAll('g')
       .data(nodes).enter().append('g')
-      .call(d3.drag()
+      // Igual que el zoom: el arrastre se declara sobre el elemento y el dato
+      // que de verdad lleva la selección.
+      .call(d3.drag<SVGGElement, CiNode>()
         .on('start', (event, d) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y })
         .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y })
         .on('end', (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null })

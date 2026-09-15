@@ -84,4 +84,11 @@ def test_teams_commands_reject_wrong_audience(monkeypatch, client, db):
     )
 
     assert res.status_code == 403
-    assert "audience" in (res.json().get("detail") or "").lower()
+    # Auditoria 2026-09: antes se exigia que el mensaje dijera «audience».
+    # Ya no, **y el cambio es deliberado**: desde que el bearer se verifica por
+    # firma, todos los modos de fallo —firma mala, emisor equivocado, audiencia
+    # equivocada, caducado— responden lo mismo. Distinguirlos en la respuesta le
+    # dice a quien lo intenta que parte ya tiene bien; el detalle va al
+    # registro, que es donde sirve. Que sea 403 sigue siendo lo que importa, y
+    # `test_teams_bearer_firmado.py` comprueba que el mensaje NO distingue.
+    assert res.json().get("detail") == "Invalid Teams bearer token"

@@ -155,7 +155,7 @@ let _onSyncCallback: ((result: SyncResult) => void) | null = null;
 
 export function initOfflineSync(apiInstance: ApiLike, onSync?: (result: SyncResult) => void) {
   _apiRef = apiInstance;
-  _onSyncCallback = onSync;
+  _onSyncCallback = onSync ?? null;
 
   window.addEventListener('online', async () => {
     const result = await syncPending(apiInstance);

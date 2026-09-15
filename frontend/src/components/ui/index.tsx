@@ -24,7 +24,7 @@ export { useSort, SortableTH, ViewToggle, FilterSelect, SearchInput, ActiveFilte
 
 // ── Badge ─────────────────────────────────────────────────────────────────────
 /** Human-readable labels for common status/priority enum values. */
-const BADGE_DISPLAY = {
+const BADGE_DISPLAY: Record<string, string> = {
   // Task / project statuses
   in_progress:  'In Progress',
   todo:         'To Do',
@@ -74,14 +74,71 @@ const BADGE_DISPLAY = {
   normal:       'Normal',
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tipos del kit
+//
+// Auditoría 2026-09 (modo estricto): este fichero es el kit de componentes que
+// usa toda la aplicación y **no declaraba ni una sola prop**. La mitad de los
+// componentes llevaban `: any` en la desestructuración y la otra mitad ni eso,
+// así que cada sitio que los usa venía pasando lo que quería sin que nadie lo
+// comprobara. Tiparlos aquí es lo que más rinde de la pasada: un error de props
+// en el kit se multiplica por los sitios que lo llaman.
+//
+// Dos decisiones conscientes:
+//
+//  · `Table` y `DataTable` son **genéricas sobre la fila**. Es lo que son: la
+//    tabla no sabe qué hay en la fila, la columna sí. Con la fila fijada a
+//    `Record<string, unknown>` ninguna `interface` del dominio encajaría —las
+//    interfaces de TypeScript no tienen índice implícito— y todas las llamadas
+//    romperían por un detalle del sistema de tipos, no por un fallo real.
+//  · `render` recibe el valor como `unknown`. Sale de `fila[col.key]`, que es un
+//    acceso dinámico de verdad: prometer un tipo ahí sería inventarlo.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** La definición de una columna de `Table` / `DataTable`. */
+export interface ColumnaDeTabla<T = unknown> {
+  /** La clave con la que se lee el valor en la fila. */
+  key: string
+  label: React.ReactNode
+  /** `false` desactiva la ordenación por esta columna (`DataTable`). */
+  sortable?: boolean
+  style?: React.CSSProperties
+  /** Pinta la celda. Sin él se muestra el valor crudo, o un guion si no hay. */
+  render?: (valor: never, fila: T) => React.ReactNode
+}
+
+/** El contenido de una celda: lo que diga `render`, o el valor crudo, o guion.
+ *
+ *  Vive fuera de los dos componentes porque los dos hacían exactamente esto, y
+ *  el acceso dinámico `fila[col.key]` necesita **un** sitio donde justificarse:
+ *  la tabla no conoce la forma de la fila —es genérica— y la columna sí, así
+ *  que aquí es donde el `Record` es la verdad y no una tirita.
+ */
+function celda<T>(col: ColumnaDeTabla<T>, fila: T): React.ReactNode {
+  const valor = (fila as Record<string, unknown>)[col.key]
+  if (col.render) return (col.render as unknown as (v: unknown, f: T) => React.ReactNode)(valor, fila)
+  return (valor ?? '—') as React.ReactNode
+}
+
 /** Convert snake_case to Title Case as fallback for unknown values. */
-function humanize(str) {
-  if (!str) return str
+function humanize(str?: string | null): string {
+  if (!str) return ''
   return String(str).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-export function Badge({ label, display, _color }) {
-  const presets = {
+interface BadgeProps {
+  /** El valor crudo (p. ej. `p1_critical`); elige color y, si no hay
+   *  `display`, tambien el texto. */
+  label?: string | null
+  /** Texto a mostrar cuando el valor crudo no se quiere ensenar tal cual. */
+  display?: React.ReactNode
+  /** Sin uso: se conserva porque hay llamadas que lo pasan. */
+  _color?: string
+}
+
+export function Badge({ label, display, _color }: BadgeProps) {
+  const presets: Record<string, { bg: string; text: string; border: string }> = {
     low:         { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
     medium:      { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
     high:        { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
@@ -112,8 +169,9 @@ export function Badge({ label, display, _color }) {
     resolved:    { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
     normal:      { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
   }
-  const c = presets[label] || presets.normal
-  const shown = display || BADGE_DISPLAY[label] || humanize(label)
+  const c = (label && presets[label]) || presets.normal
+  const texto = (label && BADGE_DISPLAY[label]) || humanize(label)
+  const shown: React.ReactNode = display || texto
   return (
     <span
       style={{
@@ -122,7 +180,7 @@ export function Badge({ label, display, _color }) {
         textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap',
         display: 'inline-block',
       }}
-      aria-label={shown}
+      aria-label={texto}
     >
       {shown}
     </span>
@@ -130,7 +188,15 @@ export function Badge({ label, display, _color }) {
 }
 
 // ── LoadBar ───────────────────────────────────────────────────────────────────
-export function LoadBar({ value, max = 100, height = 5, label }) {
+interface LoadBarProps {
+  value: number
+  max?: number
+  height?: number
+  /** Etiqueta accesible; sin ella se anuncia el porcentaje. */
+  label?: string
+}
+
+export function LoadBar({ value, max = 100, height = 5, label }: LoadBarProps) {
   const pct   = Math.min((value / max) * 100, 100)
   const color = value > max ? 'var(--danger)' : value / max > 0.85 ? 'var(--warning)' : 'var(--success)'
   return (
@@ -146,7 +212,14 @@ export function LoadBar({ value, max = 100, height = 5, label }) {
 }
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
-export function Avatar({ name = '', size = 34, url }) {
+interface AvatarProps {
+  name?: string
+  size?: number
+  /** Si hay foto se usa; si no, se pintan las iniciales. */
+  url?: string | null
+}
+
+export function Avatar({ name = '', size = 34, url }: AvatarProps) {
   const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
   const palettes = [
     ['var(--accent)', 'rgba(26,58,110,0.8)'], ['var(--success)', 'rgba(15,70,50,0.8)'], ['var(--warning)', 'rgba(107,62,0,0.8)'],
@@ -171,9 +244,21 @@ export function Avatar({ name = '', size = 34, url }) {
 }
 
 // ── Card ──────────────────────────────────────────────────────────────────────
-export function Card({ children, style = {}, accent = false, onClick = undefined }: any) {
+interface CardProps {
+  children?: React.ReactNode
+  /** Auditoria 2026-09: se pasaba desde fuera y `Card` no lo reenviaba, asi que
+   *  la clase no llegaba al DOM y el estilo que dependia de ella no existia. */
+  className?: string
+  style?: React.CSSProperties
+  /** Resalta el borde y la sombra. */
+  accent?: boolean
+  /** Si se pasa, la tarjeta pasa a ser pulsable **y navegable con teclado**. */
+  onClick?: (e: React.MouseEvent | React.KeyboardEvent) => void
+}
+
+export function Card({ children, className, style = {}, accent = false, onClick = undefined }: CardProps) {
   if (onClick) {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         onClick(e)
@@ -182,6 +267,7 @@ export function Card({ children, style = {}, accent = false, onClick = undefined
 
     return (
       <div
+        className={className}
         onClick={onClick}
         onKeyDown={handleKeyDown}
         role="button"
@@ -212,6 +298,7 @@ export function Card({ children, style = {}, accent = false, onClick = undefined
 
   return (
     <div
+      className={className}
       style={{
         background: 'var(--surface-2)',
         border: `1px solid ${accent ? 'rgba(79,142,247,0.25)' : 'var(--surface-4)'}`,
@@ -229,9 +316,22 @@ export function Card({ children, style = {}, accent = false, onClick = undefined
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
-export function KpiCard({ icon, label, value, sub, accent, danger, warning, trend }) {
+interface KpiCardProps {
+  icon?: React.ReactNode
+  label?: React.ReactNode
+  value?: React.ReactNode
+  sub?: React.ReactNode
+  accent?: boolean
+  danger?: boolean
+  warning?: boolean
+  /** Variacion en porcentaje. `undefined` esconde el indicador; 0 lo muestra
+   *  en neutro, que no es lo mismo que no tener dato. */
+  trend?: number
+}
+
+export function KpiCard({ icon, label, value, sub, accent, danger, warning, trend }: KpiCardProps) {
   const valueColor = danger ? 'var(--danger)' : warning ? 'var(--warning)' : accent ? 'var(--accent)' : 'var(--text-1)'
-  const trendColor = trend > 0 ? 'var(--success)' : trend < 0 ? 'var(--danger)' : 'var(--text-3)'
+  const trendColor = (trend ?? 0) > 0 ? 'var(--success)' : (trend ?? 0) < 0 ? 'var(--danger)' : 'var(--text-3)'
   return (
     <Card accent={accent} style={{ flex: 1, minWidth: 140 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
@@ -255,8 +355,22 @@ export function KpiCard({ icon, label, value, sub, accent, danger, warning, tren
 }
 
 // ── Button ────────────────────────────────────────────────────────────────────
-export function Button({ children, onClick, variant = 'primary', size = 'md', disabled = false, loading = false, icon = null, style = {}, type = 'button', title = undefined }: any) {
-  const variants = {
+interface ButtonProps {
+  children?: React.ReactNode
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'subtle'
+  size?: 'xs' | 'sm' | 'md' | 'lg'
+  disabled?: boolean
+  /** Deshabilita ademas de mostrar el spinner: un boton cargando no se pulsa. */
+  loading?: boolean
+  icon?: React.ReactNode
+  style?: React.CSSProperties
+  type?: 'button' | 'submit' | 'reset'
+  title?: string
+}
+
+export function Button({ children, onClick, variant = 'primary', size = 'md', disabled = false, loading = false, icon = null, style = {}, type = 'button', title = undefined }: ButtonProps) {
+  const variants: Record<string, React.CSSProperties> = {
     primary:   {
       background: 'var(--accent)',
       color: '#fff',
@@ -284,7 +398,7 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
       border: '1px solid rgba(79,142,247,0.15)',
     },
   }
-  const sizes = {
+  const sizes: Record<string, { fontSize: string; padding: string; borderRadius: string; gap: number }> = {
     xs: { fontSize: "var(--text-xs)", padding: '4px 10px',  borderRadius: 'var(--radius-sm)', gap: 4 },
     sm: { fontSize: "var(--text-sm)", padding: '6px 14px',  borderRadius: 'var(--radius-md)', gap: 5 },
     md: { fontSize: "var(--text-base)", padding: '8px 18px',  borderRadius: 'var(--radius-md)', gap: 6 },
@@ -303,7 +417,7 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
       aria-busy={loading || undefined}
       disabled={isDisabled}
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: s.gap,
+        display: 'inline-flex', alignItems: 'center',
         fontFamily: 'var(--font-sans)', fontWeight: 600,
         cursor: isDisabled ? 'not-allowed' : 'pointer',
         opacity: isDisabled ? 0.5 : 1,
@@ -329,7 +443,19 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
 }
 
 // ── Input ─────────────────────────────────────────────────────────────────────
-export function Input({ label, value, onChange, placeholder, type = 'text', required, style = {}, hint }) {
+interface InputProps {
+  label?: React.ReactNode
+  value?: string | number
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
+  placeholder?: string
+  type?: string
+  /** Solo pinta el asterisco: la validacion es de quien lo usa. */
+  required?: boolean
+  style?: React.CSSProperties
+  hint?: React.ReactNode
+}
+
+export function Input({ label, value, onChange, placeholder, type = 'text', required, style = {}, hint }: InputProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       {label && (
@@ -361,7 +487,15 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
 }
 
 // ── Select ────────────────────────────────────────────────────────────────────
-export function Select({ label, value, onChange, options = [] as Array<{ value: string; label: string }>, style = {} }: any) {
+interface SelectProps {
+  label?: React.ReactNode
+  value?: string
+  onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void
+  options?: Array<{ value: string; label: string }>
+  style?: React.CSSProperties
+}
+
+export function Select({ label, value, onChange, options = [], style = {} }: SelectProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       {label && (
@@ -386,7 +520,13 @@ export function Select({ label, value, onChange, options = [] as Array<{ value: 
 }
 
 // ── Spinner ───────────────────────────────────────────────────────────────────
-export function Spinner({ size = 22, color = 'var(--accent)', label = 'Cargando...' }) {
+interface SpinnerProps {
+  size?: number
+  color?: string
+  label?: string
+}
+
+export function Spinner({ size = 22, color = 'var(--accent)', label = 'Cargando...' }: SpinnerProps) {
   return (
     <div role="status" aria-label={label} style={{
       width: size, height: size, borderRadius: '50%',
@@ -440,7 +580,20 @@ const EMPTY_ICONS = {
   ),
 }
 
-export function EmptyState({ icon = null, svgIcon = null, title = '', description = '', action = null, ctaLabel = '', onCta = undefined }: any) {
+interface EmptyStateProps {
+  /** Clave de `EMPTY_ICONS`, o un emoji/texto suelto (compatibilidad). */
+  icon?: React.ReactNode
+  /** Un SVG explicito, que gana sobre `icon`. */
+  svgIcon?: React.ReactNode
+  title?: React.ReactNode
+  description?: React.ReactNode
+  /** Un nodo de accion completo; gana sobre el par `ctaLabel` + `onCta`. */
+  action?: React.ReactNode
+  ctaLabel?: React.ReactNode
+  onCta?: () => void
+}
+
+export function EmptyState({ icon = null, svgIcon = null, title = '', description = '', action = null, ctaLabel = '', onCta = undefined }: EmptyStateProps) {
   // svgIcon: explicit SVG node
   // icon: named key from EMPTY_ICONS dict, OR emoji/text string (backward-compat)
   const resolvedIcon = svgIcon
@@ -473,7 +626,29 @@ export function EmptyState({ icon = null, svgIcon = null, title = '', descriptio
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
-export function Modal({ open, onClose, title, children, width = 520, subtitle }: any) {
+/** Los anchos con nombre. `size` gana sobre el defecto y pierde contra un
+ *  `width` explicito, que es el orden que uno espera: lo mas concreto manda. */
+const ANCHOS_DE_MODAL: Record<'sm' | 'md' | 'lg' | 'xl', number> = {
+  sm: 400, md: 520, lg: 760, xl: 1040,
+}
+
+interface ModalProps {
+  open?: boolean
+  onClose: () => void
+  title?: React.ReactNode
+  children?: React.ReactNode
+  /** Ancho maximo en pixeles, o cualquier medida CSS. Gana sobre `size`. */
+  width?: number | string
+  /** Ancho con nombre. Auditoria 2026-09: ocho llamadas ya lo pasaban y el
+   *  componente **no tenia esta prop**, asi que React la descartaba sin avisar
+   *  y esos ocho modales salian con el ancho por defecto. Lo destapo tipar las
+   *  props del kit; antes no habia nada que pudiera destaparlo. */
+  size?: 'sm' | 'md' | 'lg' | 'xl'
+  subtitle?: React.ReactNode
+}
+
+export function Modal({ open, onClose, title, children, width, size, subtitle }: ModalProps) {
+  const anchoFinal = width ?? ANCHOS_DE_MODAL[size ?? 'md']
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   const onCloseRef = React.useRef(onClose)
   React.useEffect(() => { onCloseRef.current = onClose })
@@ -536,7 +711,7 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle }:
           background: 'var(--surface-2)',
           border: '1px solid var(--surface-4)',
           borderRadius: 'var(--radius-xl)',
-          width: '100%', maxWidth: width,
+          width: '100%', maxWidth: anchoFinal,
           padding: 28, animation: 'fadeUp 0.2s ease',
           boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
           flexShrink: 0,
@@ -566,13 +741,22 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle }:
 }
 
 // ── DataTable ─────────────────────────────────────────────────────────────────
-export function DataTable({ columns, data = [], loading, emptyIcon = '○', emptyTitle = 'Sin datos', pageSize = 15 }: any) {
+interface DataTableProps<T> {
+  columns: Array<ColumnaDeTabla<T>>
+  data?: T[]
+  loading?: boolean
+  emptyIcon?: React.ReactNode
+  emptyTitle?: React.ReactNode
+  pageSize?: number
+}
+
+export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', emptyTitle = 'Sin datos', pageSize = 15 }: DataTableProps<T>) {
   const [sort, setSort] = React.useState<{ col: string | null; dir: 'asc' | 'desc' }>({ col: null, dir: 'asc' })
   const [page, setPage] = React.useState(0)
   const [filter, setFilter] = React.useState('')
 
   const filtered = filter
-    ? data.filter(row => Object.values(row).some(v => String(v || '').toLowerCase().includes(filter.toLowerCase())))
+    ? data.filter(row => Object.values(row as Record<string, unknown>).some(v => String(v || '').toLowerCase().includes(filter.toLowerCase())))
     : data
   const sorted = sort.col
     ? [...filtered].sort((a, b) => {
@@ -583,7 +767,7 @@ export function DataTable({ columns, data = [], loading, emptyIcon = '○', empt
     : filtered
   const pages    = Math.max(1, Math.ceil(sorted.length / pageSize))
   const pageData = sorted.slice(page * pageSize, (page + 1) * pageSize)
-  const toggleSort = (col) => setSort(s => s.col === col ? { col, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: 'asc' })
+  const toggleSort = (col: string) => setSort(s => s.col === col ? { col, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: 'asc' })
 
   const btnBase = {
     background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -633,13 +817,13 @@ export function DataTable({ columns, data = [], loading, emptyIcon = '○', empt
                 <EmptyState icon={emptyIcon} title={emptyTitle} />
               </td></tr>
             ) : pageData.map((row, i) => (
-              <tr key={row.id || i}
+              <tr key={(row as { id?: string }).id || i}
                 style={{ borderBottom: '1px solid var(--surface-4)', transition: 'background 0.1s' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 {columns.map(col => (
                   <td key={col.key} style={{ padding: '11px 14px', color: 'var(--text-1)', ...col.style }}>
-                    {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
+                    {celda(col, row)}
                   </td>
                 ))}
               </tr>
@@ -660,7 +844,14 @@ export function DataTable({ columns, data = [], loading, emptyIcon = '○', empt
 }
 
 // ── Table simple ──────────────────────────────────────────────────────────────
-export function Table({ columns = [], data = [], onRowClick }: any) {
+interface TableProps<T> {
+  columns?: Array<ColumnaDeTabla<T>>
+  data?: T[]
+  /** Si se pasa, cada fila es pulsable **y navegable con teclado**. */
+  onRowClick?: (fila: T) => void
+}
+
+export function Table<T>({ columns = [], data = [], onRowClick }: TableProps<T>) {
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
@@ -682,7 +873,7 @@ export function Table({ columns = [], data = [], onRowClick }: any) {
             }}
               role={onRowClick ? 'button' : undefined}
               tabIndex={onRowClick ? 0 : undefined}
-              onKeyDown={onRowClick ? (e) => {
+              onKeyDown={onRowClick ? (e: React.KeyboardEvent<HTMLTableRowElement>) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
                   onRowClick(row)
@@ -693,7 +884,7 @@ export function Table({ columns = [], data = [], onRowClick }: any) {
             >
               {columns.map(col => (
                 <td key={col.key} style={{ padding: '11px 14px', color: 'var(--text-1)' }}>
-                  {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
+                  {celda(col, row)}
                 </td>
               ))}
             </tr>

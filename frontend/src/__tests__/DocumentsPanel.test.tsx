@@ -17,8 +17,8 @@ vi.mock('../i18n/AppLangContext', () => {
   return {
     default: ctx,
     AppLangContext: ctx,
-    useAppT: () => (key) => key,
-    useAppLang: () => ({ t: (key) => key, lang: 'es' }),
+    useAppT: () => (key: string) => key,
+    useAppLang: () => ({ t: (key: string) => key, lang: 'es' }),
   };
 });
 
@@ -36,7 +36,7 @@ describe('DocumentsPanel', () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { container } = render(
       <QueryClientProvider client={qc}>
-        <DocumentsPanel entityType="project" entityId="proj-1" />
+        <DocumentsPanel projectId="proj-1" />
       </QueryClientProvider>
     );
     expect(container.firstChild).toBeDefined();

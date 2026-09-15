@@ -607,6 +607,89 @@ def materialize_recurring_tasks_cmd(db: Session, dry_run: bool, current_user: Us
 # CRITICAL PATH (CPM)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# ── Camino crítico (CPM), fase a fase ────────────────────────────────────────
+#
+# Auditoría 2026-09. `critical_path_payload` llevaba las cinco fases del método
+# en un solo cuerpo y llegaba a complejidad 16. No se ha partido por el número:
+# las fases del CPM **tienen nombre de libro** —construir el grafo, ordenar
+# topológicamente, pasada adelante, pasada atrás—, y con cada una en su función
+# el cuerpo principal se lee como el algoritmo que es.
+
+
+def _duracion_en_dias(t: Task) -> float:
+    """Los días que dura una tarea, con la cascada de fuentes que ya tenía.
+
+    Las horas estimadas mandan —a ocho por día—; si no hay, la ventana entre
+    fechas; y si tampoco, un día. Nunca menos de uno: una tarea de duración
+    cero no existe en un camino crítico, colapsaría a sus vecinas.
+    """
+    if t.estimated_hours:
+        return max(1, t.estimated_hours / 8)
+    if t.start_date and t.due_date:
+        return max(1, (t.due_date - t.start_date).days + 1)
+    return 1.0
+
+
+def _grafo_de_dependencias(task_map: dict, deps: list) -> tuple[dict, dict]:
+    """Sucesores y predecesores de cada tarea, con su desfase."""
+    sucesores: dict = {tid: [] for tid in task_map}
+    predecesores: dict = {tid: [] for tid in task_map}
+    for d in deps:
+        sucesores[d.predecessor_id].append((d.successor_id, d.lag_days or 0))
+        predecesores[d.successor_id].append((d.predecessor_id, d.lag_days or 0))
+    return sucesores, predecesores
+
+
+def _orden_topologico(task_map: dict, sucesores: dict, predecesores: dict) -> list:
+    """Las tareas en orden de dependencia (Kahn).
+
+    Las que quedan fuera del recorrido —porque forman un ciclo— **se añaden al
+    final en vez de descartarse**. Un ciclo de dependencias es un dato malo, no
+    una excepción: descartar esas tareas dejaría un diagrama al que le faltan
+    filas sin decir por qué. Puestas al final, el cálculo sigue y se ven.
+    """
+    grado = {tid: len(predecesores[tid]) for tid in task_map}
+    cola = [tid for tid, g in grado.items() if g == 0]
+    orden = []
+    while cola:
+        n = cola.pop(0)
+        orden.append(n)
+        for (suc, _) in sucesores[n]:
+            grado[suc] -= 1
+            if grado[suc] == 0:
+                cola.append(suc)
+
+    for tid in task_map:
+        if tid not in orden:
+            orden.append(tid)
+    return orden
+
+
+def _pasada_adelante(task_map: dict, orden: list, predecesores: dict) -> tuple[dict, dict]:
+    """Inicio y fin más tempranos de cada tarea."""
+    ES: dict = {tid: 0.0 for tid in task_map}
+    EF: dict = {}
+    for tid in orden:
+        if predecesores[tid]:
+            ES[tid] = max(EF[pid] + desfase
+                          for pid, desfase in predecesores[tid] if pid in EF)
+        EF[tid] = ES[tid] + _duracion_en_dias(task_map[tid])
+    return ES, EF
+
+
+def _pasada_atras(task_map: dict, orden: list, sucesores: dict,
+                  duracion_proyecto: float) -> tuple[dict, dict]:
+    """Inicio y fin más tardíos, recorriendo el orden al revés."""
+    LF: dict = {tid: duracion_proyecto for tid in task_map}
+    LS: dict = {}
+    for tid in reversed(orden):
+        if sucesores[tid]:
+            LF[tid] = min(LS[sid] - desfase
+                          for sid, desfase in sucesores[tid] if sid in LS)
+        LS[tid] = LF[tid] - _duracion_en_dias(task_map[tid])
+    return LS, LF
+
+
 def critical_path_payload(db: Session, project_id: str) -> dict:
 
     tasks = db.query(Task).filter(
@@ -622,49 +705,12 @@ def critical_path_payload(db: Session, project_id: str) -> dict:
         TaskDependency.successor_id.in_(task_map.keys()),
     ).all()
 
-    successors: dict = {tid: [] for tid in task_map}
-    predecessors: dict = {tid: [] for tid in task_map}
-    for d in deps:
-        successors[d.predecessor_id].append((d.successor_id, d.lag_days or 0))
-        predecessors[d.successor_id].append((d.predecessor_id, d.lag_days or 0))
-
-    def dur(t: Task) -> float:
-        if t.estimated_hours:
-            return max(1, t.estimated_hours / 8)
-        if t.start_date and t.due_date:
-            return max(1, (t.due_date - t.start_date).days + 1)
-        return 1.0
-
-    in_degree = {tid: len(predecessors[tid]) for tid in task_map}
-    queue = [tid for tid, d in in_degree.items() if d == 0]
-    topo_order = []
-    while queue:
-        n = queue.pop(0)
-        topo_order.append(n)
-        for (succ, _) in successors[n]:
-            in_degree[succ] -= 1
-            if in_degree[succ] == 0:
-                queue.append(succ)
-
-    for tid in task_map:
-        if tid not in topo_order:
-            topo_order.append(tid)
-
-    ES: dict = {tid: 0.0 for tid in task_map}
-    EF: dict = {}
-    for tid in topo_order:
-        if predecessors[tid]:
-            ES[tid] = max(EF[pid] + lag for pid, lag in predecessors[tid] if pid in EF)
-        EF[tid] = ES[tid] + dur(task_map[tid])
-
+    successors, predecessors = _grafo_de_dependencias(task_map, deps)
+    dur = _duracion_en_dias
+    topo_order = _orden_topologico(task_map, successors, predecessors)
+    ES, EF = _pasada_adelante(task_map, topo_order, predecessors)
     project_duration = max(EF.values()) if EF else 0
-
-    LF: dict = {tid: project_duration for tid in task_map}
-    LS: dict = {}
-    for tid in reversed(topo_order):
-        if successors[tid]:
-            LF[tid] = min(LS[sid] - lag for sid, lag in successors[tid] if sid in LS)
-        LS[tid] = LF[tid] - dur(task_map[tid])
+    LS, LF = _pasada_atras(task_map, topo_order, successors, project_duration)
 
     nodes = []
     for tid in topo_order:

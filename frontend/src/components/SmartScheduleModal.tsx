@@ -141,10 +141,10 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
     const newVal = !allSelected
     setSuggestions(prev => prev.map(s => ({ ...s, _selected: newVal })))
   }
-  function _toggle(idx) {
+  function _toggle(idx: number) {
     setSuggestions(prev => prev.map((s, i) => i === idx ? { ...s, _selected: !s._selected } : s))
   }
-  function _updateDate(idx, field, value) {
+  function _updateDate(idx: number, field: string, value: string) {
     setSuggestions(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s))
   }
 

@@ -1,5 +1,7 @@
-# Secrets — never commit
-.env
+# Entorno
+# El .env va versionado a proposito: el repositorio es privado y asi una
+# maquina nueva clona y arranca con la misma configuracion. Lo de cada
+# maquina y lo de cada despliegue (.env.local, .env.produccion) sigue fuera.
 .env.*
 !.env.example
 .claude/settings.local.json

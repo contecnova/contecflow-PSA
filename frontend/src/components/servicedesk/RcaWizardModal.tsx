@@ -234,7 +234,7 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWiz
     onClose()
   }
 
-  const hasActiveWizard = wizardState && wizardState.status !== 'completed' && wizardState.steps?.length > 0
+  const hasActiveWizard = wizardState && wizardState.status !== 'completed' && wizardState.steps !== undefined && wizardState.steps.length > 0
 
   return (
     <Modal open title={`🔍 Wizard RCA — ${problem.number}: ${problem.title}`} onClose={onClose} size="lg">

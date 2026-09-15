@@ -31,7 +31,7 @@ const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var
 const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, string> = {
   todo:        'var(--text-2)',
   in_progress: 'var(--accent)',
   in_review:   'var(--warning)',

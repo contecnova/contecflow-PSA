@@ -67,7 +67,8 @@ describe('TimerWidget', () => {
   })
 
   it('no bloquea iniciar por falta de hourly_rate en el contexto auth', async () => {
-    authState.user = { id: 'u1' }
+    // Sin `hourly_rate` a proposito: es exactamente el caso que prueba.
+    authState.user = { id: 'u1' } as typeof authState.user
     imputationsApi.timerCurrent.mockResolvedValue({ data: null })
     projectsApi.list.mockResolvedValue({ data: [{ id: 'proj-1', name: 'Proyecto demo' }] })
     imputationsApi.timerStart.mockResolvedValue({ data: runningTimer })

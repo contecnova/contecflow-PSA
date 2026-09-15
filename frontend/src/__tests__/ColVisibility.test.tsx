@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { useColVisibility } from '../components/ui/ColVisibility';
+import { useColVisibility, type ColumnDef } from '../components/ui/ColVisibility';
 
-function TestColVisibility({ cols, storageKey }) {
+function TestColVisibility({ cols, storageKey }: { cols: ColumnDef[]; storageKey: string }) {
   const { visibleCols } = useColVisibility(cols, storageKey);
   return <div>{visibleCols.map(c => <span key={c.id}>{c.label}</span>)}</div>;
 }

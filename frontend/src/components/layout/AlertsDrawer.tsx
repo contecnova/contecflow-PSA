@@ -188,7 +188,7 @@ export default function AlertsDrawer({ onClose }: Props) {
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.dot, marginTop: 5, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                        <span style={{ fontSize: "var(--text-md)" }}>{TYPE_ICONS[alert.alert_type] || '🔔'}</span>
+                        <span style={{ fontSize: "var(--text-md)" }}>{(alert.alert_type && TYPE_ICONS[alert.alert_type]) || '🔔'}</span>
                         <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>{alert.title}</span>
                       </div>
                       {alert.description && (

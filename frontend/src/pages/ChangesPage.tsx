@@ -79,13 +79,13 @@ const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid 
 const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
-const IMPACT_CFG = {
+const IMPACT_CFG: Record<string, { label: string; color: string }> = {
   low:      { label: 'Bajo',    color: 'var(--success)' },
   medium:   { label: 'Medio',   color: 'var(--accent)' },
   high:     { label: 'Alto',    color: 'var(--warning)' },
   critical: { label: 'Crítico', color: 'var(--danger)' },
 }
-const STATUS_CFG = {
+const STATUS_CFG: Record<string, { label: string; color: string }> = {
   draft:        { label: 'Borrador',     color: 'var(--text-2)' },
   submitted:    { label: 'Enviado',      color: 'var(--accent)' },
   under_review: { label: 'En revisión',  color: 'var(--warning)' },
@@ -124,7 +124,7 @@ const reviewSchema = z.object({
 })
 
 function StatusBadge({ status }: { status?: ChangeStatus }) {
-  const cfg = STATUS_CFG[status] || STATUS_CFG.draft
+  const cfg = (status && STATUS_CFG[status]) || STATUS_CFG.draft
   return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{cfg.label}</span>
 }
 
@@ -228,7 +228,7 @@ function ReviewCRModal({ cr, projectId, onClose }: { cr: ChangeRequest; projectI
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['changes', projectId] }); qc.invalidateQueries({ queryKey: ['all-pending-crs'] }); onClose() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-  const impact = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
+  const impact = (cr.impact && IMPACT_CFG[cr.impact]) || IMPACT_CFG.medium
 
   const submitReview = (approved: boolean) => {
     const result = validation.validateForm({ approved, resolution_notes: notes })
@@ -294,12 +294,6 @@ function CABBoard() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const IMPACT_CFG = {
-    low:{ label:'Bajo', color:'var(--success)' },
-    medium:{ label:'Medio', color:'var(--accent)' },
-    high:{ label:'Alto', color:'var(--warning)' },
-    critical:{ label:'Crítico', color:'var(--danger)' },
-  }
   const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
   return (
@@ -311,7 +305,7 @@ function CABBoard() {
             pendingCRs.length === 0 ? (
               <div style={{ ...card, padding:32, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>Sin CRs pendientes de votación</div>
             ) : pendingCRs.map((cr) => {
-              const ic = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
+              const ic = (cr.impact && IMPACT_CFG[cr.impact]) || IMPACT_CFG.medium
               return (
                 <div key={cr.id} style={{ ...card, padding:'16px 20px', marginBottom:12 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
@@ -337,7 +331,7 @@ function CABBoard() {
                       <button onClick={() => vote({ id:cr.id, vote:'reject' })} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 14px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>✗ Rechazar</button>
                       <button onClick={() => vote({ id:cr.id, vote:'abstain' })} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'4px 14px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>Abstener</button>
                     </>}
-                    {cr.votes?.total >= 3 && !['approved','rejected'].includes(cr.status) && (
+                    {(cr.votes?.total ?? 0) >= 3 && !['approved','rejected'].includes(cr.status ?? '') && (
                       <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
                         <button onClick={() => close({ id:cr.id, decision:'approved' })} style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--success)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', fontWeight:500 }}>Cerrar: Aprobada</button>
                         <button onClick={() => close({ id:cr.id, decision:'rejected' })} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', fontWeight:500 }}>Cerrar: Rechazada</button>
@@ -456,7 +450,7 @@ export default function ChangesPage(): JSX.Element {
             {selectedProject && <Button onClick={() => setShowCreate(true)} icon="＋">Nueva CR</Button>}
           </div>
 
-          {selectedProject && summary.total > 0 && (
+          {selectedProject && (summary.total ?? 0) > 0 && (
             <div style={{ display: 'flex', gap: 14, marginBottom: 20 }}>
               {[
                 { label: 'Total CRs', value: summary.total, color: 'var(--text-2)' },
@@ -480,9 +474,9 @@ export default function ChangesPage(): JSX.Element {
           ) : (
             <div data-export-table="changes-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {crs.map((cr) => {
-                const impact = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
+                const impact = (cr.impact && IMPACT_CFG[cr.impact]) || IMPACT_CFG.medium
                 return (
-                  <div key={cr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${STATUS_CFG[cr.status]?.color + '30' || 'var(--surface-4)'}`, borderRadius: 12 }}>
+                  <div key={cr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${(STATUS_CFG[cr.status ?? '']?.color ?? 'var(--surface-4)')}30`, borderRadius: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
@@ -505,7 +499,7 @@ export default function ChangesPage(): JSX.Element {
                             <button onClick={() => setEditing(cr)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
                             <Button size="sm" onClick={() => submit(cr)} loading={saving}>Enviar</Button>
                           </>}
-                          {['submitted', 'under_review'].includes(cr.status) && hasRole('admin', 'pm') && (
+                          {['submitted', 'under_review'].includes(cr.status ?? '') && hasRole('admin', 'pm') && (
                             <Button size="sm" onClick={() => setReviewing(cr)}>Revisar</Button>
                           )}
                           {cr.status === 'approved' && (
@@ -529,7 +523,7 @@ export default function ChangesPage(): JSX.Element {
         ) : (
           <div data-export-table="changes-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {allPending.map((cr) => {
-              const impact = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
+              const impact = (cr.impact && IMPACT_CFG[cr.impact]) || IMPACT_CFG.medium
               return (
                 <div key={cr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>

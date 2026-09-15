@@ -12,6 +12,7 @@ import io
 # por número de versión con seis dominios dentro. La analítica ad-hoc tiene ahora
 # su propio módulo.
 from app.services import adhoc_analytics_service, analytics_service
+from app.services.exportador_tabular import respuesta_tabular
 from app.core.deps import get_db, get_current_user, require_any_manager
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -382,29 +383,36 @@ def get_advanced_forecast(
 
 # ── Export Endpoints ───────────────────────────────────────────────────────
 
-@router.get("/exports/imputations-csv", summary="Export imputations to CSV")
+@router.get("/exports/imputations-csv", summary="Export imputations (CSV o XLSX)")
 def export_imputations_csv(
     user_id: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    formato: str = "csv",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Export imputations to CSV."""
+    """Exporta imputaciones en CSV o XLSX.
+
+    Auditoria 2026-09: la pantalla de exportaciones tenia un selector CSV/XLSX
+    desde siempre y el servidor **solo servia CSV**. La auditoria de agosto lo
+    dejo anotado y, mientras tanto, hizo que la extension del fichero saliera
+    del formato real y no del boton pulsado. Esta es la contrapartida.
+
+    La ruta conserva el sufijo `-csv` a proposito: renombrarla romperia al
+    cliente otra vez, y el formato lo decide el parametro, no el nombre.
+    """
     query_user_id = user_id if user_id and current_user.role in ["admin"] else current_user.id
 
     imputations = analytics_service.get_imputations_for_export(db, query_user_id, date_from, date_to)
 
-    # Create CSV
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
+    cabecera = [
         "Date", "Project", "Task", "Hours", "Billable", "Approved",
-        "Hourly Rate", "Cost", "Description"
-    ])
-
+        "Hourly Rate", "Cost", "Description",
+    ]
+    filas = []
     for imp in imputations:
-        writer.writerow([
+        filas.append([
             imp.date,
             imp.project.name if imp.project else "",
             # Auditoria 2026-08: aqui habia `imp.task.name`, y `Task` no tiene
@@ -425,17 +433,14 @@ def export_imputations_csv(
             imp.description or "",
         ])
 
-    output.seek(0)
-    return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=imputations.csv"},
-    )
+    return respuesta_tabular(
+        formato, nombre="imputations", cabecera=cabecera, filas=filas)
 
 
 @router.get("/exports/projects-csv", summary="Export projects to CSV")
 def export_projects_csv(
     include_costs: bool = False,
+    formato: str = "csv",
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
@@ -466,10 +471,7 @@ def export_projects_csv(
     if include_costs:
         cabecera += ["Budget", "Contract Amount", "Currency"]
 
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(cabecera)
-
+    filas = []
     for p in proyectos:
         fila = [
             p.code,
@@ -487,14 +489,10 @@ def export_projects_csv(
                 p.contract_amount if p.contract_amount is not None else "",
                 p.currency or "",
             ]
-        writer.writerow(fila)
+        filas.append(fila)
 
-    output.seek(0)
-    return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=projects.csv"},
-    )
+    return respuesta_tabular(
+        formato, nombre="projects", cabecera=cabecera, filas=filas)
 
 
 @router.get("/exports/resources-csv", summary="Export resource data to CSV")

@@ -65,12 +65,23 @@ cd "contecflow PSA"
 # Linter del backend: tiene que salir "All checks passed!"
 ./.venv/Scripts/python.exe -m ruff check app/
 
+# Duplicacion: parejas de funciones casi identicas, para mirarlas. NO falla
+# nunca; la duplicacion no tiene un numero que deba ser cero. Es el barrido que
+# destapo la copia del dominio de tareas sin ABAC y los dos generadores de
+# factura con NIF distinto.
+./.venv/Scripts/python.exe scripts/audit_funciones_duplicadas.py
+
 # Complejidad: informe legible de las funciones por encima de 10. NO falla nunca
 # —el que bloquea es `tests/test_complejidad_no_empeora.py`, dentro de la suite—;
 # esto es para elegir la siguiente sin ir a buscarla.
 ./.venv/Scripts/python.exe scripts/audit_complejidad.py
 # Y para regenerar la lista del trinquete despues de una mejora:
 ./.venv/Scripts/python.exe scripts/audit_complejidad.py --lista
+
+# La suite completa. Aviso de entorno (2026-09-15): con `-n auto` los
+# trabajadores de xdist se quedaban colgados —arrancan y no consumen CPU—, y en
+# un solo proceso no termina en ninguna ventana razonable. Con `-n 4` va.
+./.venv/Scripts/python.exe -m pytest -q --no-header -p no:randomly -n 4 > /tmp/suite.txt 2>&1
 
 # Frontend
 cd frontend
@@ -82,15 +93,23 @@ node scripts/check_i18n_coverage.mjs   # gate de cobertura de traducción
 bash scripts/ci_local.sh
 ```
 
-**Estado en la última verificación completa (2026-09-09):**
-**3746 passed, 19 skipped, 1 xfailed, 0 fallos** en 18 min 34 s con `-n auto`;
-`ruff check app tests` limpio; `tsc` limpio; 89/89 vitest; los cinco gates de
-frontend en verde.
+**Estado en la última verificación completa (2026-09-15):**
+**3765 passed, 19 skipped, 1 xfailed, 0 fallos** con `-n 4`;
+`ruff check app tests` limpio; `tsc` limpio; **92/92 vitest**; `npm audit` en
+**cero**; `typecheck:strict` **0 errores en 338 de 338 ficheros, tests
+incluidos** — la migración gradual a modo estricto ha terminado (§3.sexvicies).
 
 > Y es la primera vez que ese «0 fallos» se mide **con la semántica de tenant de
 > producción puesta** (§3.sexdecies). La primera pasada con los escuchadores
 > registrados dio **23 en rojo**: catorce del propio banco de pruebas, dos
 > regresiones de la jornada y **siete defectos de producción** (§3.vicies).
+>
+> **Y una advertencia de entorno que costó una jornada:** `pytest-xdist` con
+> `-n auto` se quedaba colgado en la máquina de desarrollo —los trabajadores
+> arrancan y no consumen CPU, tanto con `-n auto` como con `-n 2` sobre un solo
+> fichero—, y en un proceso la suite no cabe en ninguna ventana razonable. Con
+> **`-n 4` arranca y termina** (50 min). Si vuelve a pasar, ése es el camino: no
+> es el código.
 
 > **Aviso sobre la verificación anterior.** El commit `b4ba85d` se hizo con la
 > suite corriendo y su resultado nunca se reportó, porque en serie no terminaba
@@ -505,6 +524,573 @@ formato real y no del botón pulsado — un fichero llamado `.xlsx` con CSV dent
 es peor que uno llamado `.csv`. El selector sigue en pantalla y no tiene
 contrapartida: **queda anotado, no arreglado**, porque generar XLSX es trabajo
 de producto.
+
+## 3.quinvicies El bearer de Teams, el XLSX que no existía, y cuatro funciones más
+
+Tres cosas que la auditoría llevaba anotadas y una cuarta que salió al hacerlas.
+
+### El bearer de Teams no verificaba la firma
+
+El receptor de comandos decodificaba el cuerpo del JWT **sin verificar nada** y
+comparaba `aud`/`appid` con `TEAMS_BOT_APP_ID`. La propia auditoría lo dejó
+escrito con todas las letras —«es una comprobación de destinatario, no de
+emisor: frena un token de otro bot, no uno fabricado»— y esa nota describía un
+agujero real:
+
+> el id de aplicación de un bot **no es un secreto**, así que cualquiera que lo
+> supiera podía escribir un JWT a mano, sin firmar, y el receptor lo aceptaba y
+> ejecutaba el comando.
+
+Ahora se verifica la firma contra las claves públicas de Bot Framework, más el
+emisor, la audiencia y la caducidad — y las cuatro las hace `jwt.decode`, no se
+comprueba ninguna a mano, que es donde se cuelan los fallos. El cliente de
+claves se cachea por URL: sin eso habría una llamada a Microsoft en **cada**
+comando entrante.
+
+**Dos ajustes nuevos, y no constantes:** `TEAMS_BOT_OPENID_METADATA_URL` y
+`TEAMS_BOT_ISSUER`. Las nubes soberanas de Microsoft —government, China—
+publican sus claves en otro dominio, y con la URL a fuego el bot no se podría
+desplegar ahí. Documentados en `.env.example`.
+
+Y el mensaje de error es **el mismo para todos los modos de fallo**. Distinguir
+«firma inválida» de «audiencia equivocada» en la respuesta le dice a quien lo
+intenta qué parte ya tiene bien; el detalle va al registro, que es donde sirve.
+Un test existente exigía que el mensaje dijera «audience» y se alineó **con su
+razón escrita**, que es distinto de relajarlo.
+
+Lo que **no** cubre, dicho para que no haya que adivinarlo: no se compara el
+`serviceUrl` del cuerpo con el del token. Bot Framework lo documenta como paso
+adicional y sirve para que un bot no reenvíe respuestas a un servicio ajeno;
+aquí no se reenvía nada, se responde en el mismo ciclo HTTP.
+
+### El selector CSV/XLSX que no tenía contrapartida
+
+La pantalla de exportaciones ofrecía XLSX desde siempre y el servidor **sólo
+servía CSV**. En agosto se hizo lo honesto mientras tanto —que la extensión
+saliera del formato real y no del botón pulsado, porque *un fichero llamado
+`.xlsx` con CSV dentro es peor que uno llamado `.csv`*— y quedó anotado.
+
+Y había una segunda mentira más silenciosa: el botón de proyectos decía
+literalmente **«Descargar Excel de proyectos»** y devolvía un CSV.
+
+`app/services/exportador_tabular.py` sirve los dos formatos. `openpyxl` ya era
+dependencia, así que el trabajo no era generar la hoja: era **no escribir dos
+veces cada export**. Decisiones que merecen quedar dichas:
+
+* **la extensión la pone el exportador, no quien llama** — es medio motivo de
+  que el módulo exista: mientras el nombre lo escribiera cada sitio, podía decir
+  una cosa y el contenido otra, que es exactamente el defecto que cierra;
+* **el CSV lleva BOM**, o Excel destroza los acentos y eso se reporta como «el
+  export está roto»;
+* **los números van como números y las fechas como fechas** en la hoja: quien
+  pide un Excel lo pide para sumar;
+* **un formato desconocido es 400**, no un CSV por defecto. Devolver otra cosa
+  de la que se pide es el defecto que esto viene a cerrar.
+
+### Y cuatro funciones más del hallazgo 18
+
+**74 funciones** sobre el umbral, exceso **173**. No se han partido por el
+número: las seis tenían costura con nombre.
+
+* **`send_message`** (16 → bajo el umbral): autorizar según quién escribe
+  —cliente de portal, bot o usuario, y cada uno por una vía distinta—, enganchar
+  al hilo, y crear las menciones. Tres conceptos, tres funciones.
+* **`_project_internal_cost`** (16 → bajo el umbral): la cascada de fuentes del
+  coste y la búsqueda del coste/hora vigente en una fecha. Esa última tiene una
+  regla de desempate que ahora está escrita donde se puede leer: si ninguna
+  vigencia contiene la fecha, se usa el perfil abierto más reciente, y el
+  `coverage_pct` que devuelve la función dice cuánto del número se calculó así.
+* **`stop_timer_session`** (15 → bajo el umbral): validar la parada —que se
+  revalida **al parar y no al arrancar**, porque entre una cosa y otra pueden
+  pasar horas y al usuario le pueden haber sacado del proyecto—, calcular las
+  horas con sus tres sutilezas (pausas, cambio de medianoche y mínimo de cuarto
+  de hora) y las dos guardas que comparte con el alta manual.
+* **`GuardrailEngine.evaluate`** (15 → bajo el umbral): tres guardarraíles
+  —palabras vetadas, tope de tokens, datos personales— y, sobre todo, **el
+  bloque de «construir el resultado bloqueado, auditar y devolver» escrito tres
+  veces**. Tres copias del camino de denegación en una función de seguridad es
+  justo donde no se quieren tres copias; ahora cada revisor devuelve el motivo y
+  el resultado se construye una vez.
+* **`check_document_access`** (14 → bajo el umbral): «qué nivel tiene esta
+  persona sobre este documento» es una pregunta con nombre. Al separarla quedó
+  escrito lo que estaba implícito: un permiso que no declara ni usuario ni rol
+  ni departamento está **mal formado y se descarta**, que es la diferencia entre
+  un fallo de datos y un agujero.
+* **`critical_path_payload`** (16 → bajo el umbral): las cinco fases del CPM
+  **tienen nombre de libro** —grafo, orden topológico, pasada adelante, pasada
+  atrás—, así que el cuerpo principal se lee ahora como el algoritmo que es. Y
+  al separarlo quedó escrito un detalle que estaba implícito: las tareas que
+  forman un ciclo **se añaden al final en vez de descartarse**, porque un
+  diagrama al que le faltan filas sin decir por qué es peor que uno con un ciclo
+  visible.
+
+## 3.quatervicies ABAC por recurso concreto, que no existía
+
+Toda la API paseaba el `resource_id` hasta el motor de políticas —233 endpoints
+llaman a `enforce_abac(db, user, "task", task.id, action="update")`— y **el motor
+no lo miraba**. `ABACService.evaluate_access` lo recibía, lo guardaba en el
+detalle de auditoría y decidía sólo con el rol, el `resource_type` y los
+atributos del usuario; `is_policy_applicable` ni siquiera lo aceptaba. Con
+`action` pasaba lo mismo.
+
+Consecuencia: una política sólo podía decir «los de este rol no tocan tareas».
+Nunca «no tocan las tareas del proyecto X», ni «pueden leer pero no borrar».
+
+### Cómo salió, que es la mejor parte
+
+De un test que iba a demostrar otra cosa. Al de-duplicar el dominio de tareas
+(§3.novodecies) escribí que `POST /tasks/bulk-update` se saltaba ABAC, y monté
+el test que lo demostraba. **Demostró lo contrario**: la ruta devolvía 403 antes
+de entrar al manejador, porque la comprobación «por tarea» y la del router daban
+el mismo veredicto. Y sólo podía ser por una razón — que el `resource_id` no
+entraba en la decisión.
+
+Quedó anotado como «diseño de producto, no se toca en una tanda de otra cosa».
+Esta es esa tanda.
+
+### Qué se ha hecho
+
+`app/services/abac_recursos.py` resuelve los atributos de la fila concreta y los
+mete en el espacio de nombres de evaluación con el prefijo `recurso.`; `accion`
+entra como una clave más. Una regla puede ahora escribirse así:
+
+```json
+{"attribute": "recurso.project_id", "operator": "equals", "value": "p-123"}
+{"attribute": "accion",             "operator": "equals", "value": "delete"}
+```
+
+**Tres decisiones que merecen quedar escritas:**
+
+* **La superficie está declarada.** `TIPOS` es un mapa explícito de tipo de
+  recurso a modelo; no se descubre recorriendo el registro de SQLAlchemy, aunque
+  se podría. Esto es una función de seguridad, y en seguridad la superficie se
+  declara: añadir un tipo es una línea, y esa línea **es** la decisión de
+  exponerlo.
+* **Las columnas que huelen a secreto no se exponen** —`password`, `token`,
+  `secret`, `key`, `hash`, `salt`, `credential`—. El valor de una regla acaba en
+  el registro de auditoría y las políticas las edita un administrador de cliente
+  desde la interfaz: filtrar aquí es más barato que confiar en que nadie escriba
+  esa regla.
+* **Un recurso que no se resuelve no encaja**, ni para permitir ni para denegar,
+  y se registra. Es coherente con que `enforce_abac` sea fail-open por diseño
+  —lo dice su propia cabecera— y con no convertir un id inexistente en una
+  denegación silenciosa de todo.
+
+### Compatible hacia atrás por construcción, y probado
+
+Lo único que hace el cambio es **añadir** claves al diccionario de evaluación, y
+están prefijadas para que no puedan chocar con un atributo de usuario. Una
+política que sólo mira atributos de usuario ve exactamente lo que veía.
+
+Eso importa tanto como lo nuevo: un cambio en un motor de autorización que
+altere en silencio lo que ya estaba decidido es peor que el hueco que venía a
+cerrar. Hay un test que lo fija —mismo veredicto con y sin `resource_id` cuando
+la regla no lo nombra— y los **103 tests ABAC existentes pasan sin tocar uno**.
+
+### Y dos notas que decían lo contrario, corregidas
+
+`abac_dependency.py` decía que `action` era «informativo, como antes:
+`enforce_abac()` no lo pasa a `evaluate_access()`». Era cierto y ya no lo es. Lo
+que sigue siendo cierto es que esa dependencia **no conoce el `resource_id`**
+—sabe el prefijo de la ruta, no qué fila se toca—, así que ahora sí es verdad
+que las llamadas explícitas de los endpoints aportan grano más fino: es lo que
+esa nota afirmaba antes sin que lo fuera.
+
+## 3.tervicies Las tres decisiones de producto que quedaban anotadas
+
+La auditoría dejó tres columnas en «anotado y no inventado», y era la postura
+correcta en su momento: las tres salieron del detector `audit_model_attrs.py`
+—código que nombraba atributos que el esquema no tenía— y **las tres reventaban
+con `TypeError` en la primera línea útil**. Se arregló el síntoma y se dejó
+escrito que añadir la columna era decisión de producto, no de aquel arreglo.
+
+La revisión **096** toma las tres decisiones. Cada una con su criterio escrito,
+porque un criterio escrito se puede discutir y uno implícito no.
+
+### `sd_tickets.requester_phone`
+
+El servicio de SMS entrantes construía el ticket con `requester_phone=...`
+detrás de un `hasattr` que protegía el valor y no la palabra clave, así que
+**abrir un ticket desde un SMS fallaba siempre**. El teléfono acababa de rebote
+en `requester_name` y en la descripción.
+
+**Criterio:** en un ticket abierto por SMS el teléfono **es** la identidad de
+quien lo abre — sin él no hay a quién responder. Eso es un campo, no una nota.
+Nullable, porque los tickets de otros canales no lo tienen.
+
+### `imputations.work_type`
+
+La importación de imputaciones desde CSV lo pasaba al constructor y **fallaba
+fila por fila**.
+
+**Criterio:** no se está inventando un concepto, se está creando el sitio donde
+guardar uno que ya se usa — el catálogo de informes lo ofrece como campo y
+`billing_reports_service` lo lee con un respaldo a «development». Y **el
+respaldo no baja a la fila**: quien no informe el tipo se queda sin él. Escribir
+«development» en la fila convierte un dato ausente en un dato afirmado, y eso no
+se deshace.
+
+### `sd_tickets.major_incident_id`
+
+La única de las tres con una decisión de forma detrás, y por eso la que más
+merecía esperar.
+
+**Criterio: un ticket pertenece como mucho a UNA incidencia mayor**, y una
+incidencia mayor agrupa muchos tickets. Es el modelo de ITIL y es el
+conservador: una tabla de unión permitiría que dos incidencias mayores
+compartieran tickets, y eso hay que **quererlo explícitamente**, no heredarlo de
+haber elegido por costumbre la estructura más flexible. Si mañana hace falta,
+pasar de una clave foránea a una tabla de unión es una migración; al revés se
+pierden datos.
+
+`ON DELETE SET NULL` y no `CASCADE`: borrar la declaración de una incidencia
+mayor **no** puede llevarse por delante los tickets, que son el trabajo real.
+
+**Y la comprobación de cumplimiento vuelve a funcionar sin tocar una línea de
+ella.** `governance_compliance_service` ya estaba escrito contra
+`MajorIncident.tickets`; como la relación no existía, «P1 sin incidencia mayor
+declarada» estaba declarada **no evaluable** — mejor eso que un falso positivo
+por cada P1. Ahora se puede evaluar.
+
+### El guardián pidió que le quitaran su propia excepción
+
+`tests/test_atributos_de_modelo_existen.py` tenía un segundo test que comprueba
+que **cada excepción declarada siga siendo necesaria**. Al añadir la relación se
+puso en rojo: «estas excepciones ya no hacen falta, el atributo existe». Es
+exactamente para lo que estaba, y es la diferencia entre una lista de
+excepciones y un cajón de sastre.
+
+**`CONOCIDOS` queda vacía por primera vez.**
+
+### Verificación
+
+La migración se verificó **ejecutándola**: partiendo de un esquema sin las tres
+columnas, comprueba que se añaden, que son nullable, que el índice está, que se
+puede escribir y leer en las tres, que una segunda pasada no revienta y que el
+`downgrade` las quita. Más 22 tests en verde entre los nuevos y los guardianes.
+
+---
+
+## 3.sexvicies El modo estricto llega a 338 de 338, y lo que había debajo
+
+La lista blanca de `tsconfig.strict.json` iba por 284 de 338 ficheros y 311
+errores. Hoy cubre **todo `src/`, tests incluidos, con cero errores**, y el
+fichero de migración gradual ha dejado de existir como tal.
+
+Lo que importa de esta pasada no es el número: es **lo que apareció al tipar**.
+Un modo estricto no «arregla» nada por sí solo; lo que hace es obligar a
+escribir suposiciones que hasta entonces vivían en la cabeza de quien escribió
+el código. Ahí es donde salieron los defectos.
+
+### Lo que el gate escondía
+
+Dos cosas, y las dos importan más que los 311 errores:
+
+**1. La lista blanca nombraba 27 ficheros de test que nunca se comprobaron.**
+El `exclude` del `tsconfig.json` base descarta `**/*.test.ts(x)`, y en
+TypeScript `exclude` gana sobre `include`. Así que el gate decía «284 ficheros»
+y comprobaba 257. Al meterlos de verdad salieron **36 errores** más, uno de
+ellos un test que pasaba `entityType` / `entityId` a `DocumentsPanel` —props que
+ese componente **no tiene**— y por tanto renderizaba el panel sin ninguna
+entidad; pasaba igual, porque lo único que comprobaba es que hubiera un primer
+hijo.
+
+**2. El filtro de `check_strict.mjs` se habría vuelto ciego.** El script leía la
+lista `include` y sólo contaba errores de esos ficheros. Al pasar `include` a
+globs (`src/**/*.ts`), la comparación por nombre de fichero no habría encajado
+con **ninguno**, y el gate habría dado por bueno un proyecto con cualquier
+número de errores. Se ha quitado el filtro entero: ahora `tsc` manda sobre todo
+el proyecto y el script sólo traduce su salida. **Validado rompiéndolo**: un
+fichero *nuevo* con un `any` implícito lo tumba (salida 1), y limpio da 0 — que
+es justo el agujero que tenía la lista, donde un fichero nuevo no contaba hasta
+que alguien lo añadiera a mano.
+
+### Los defectos que destapó tipar el kit de UI
+
+`src/components/ui/index.tsx` es el kit que usa toda la aplicación y **no
+declaraba ni una sola prop**: la mitad de los componentes llevaban `: any` en la
+desestructuración y la otra mitad ni eso. Declararlas bajó ese fichero de 37
+errores a 7 **sin romper una sola llamada**, y sacó cuatro fallos reales que
+llevaban tiempo ahí, todos de la misma familia — *props que se pasaban y nadie
+leía*, que React descarta en silencio:
+
+| Lo que se pasaba | Dónde | Qué pasaba de verdad |
+|---|---|---|
+| `Modal size="lg"` | 8 llamadas | `Modal` no tenía `size`. Ocho modales que pedían ser anchos salían con los 520 px por defecto. |
+| `EmptyState subtitle=` | 2 llamadas | El componente lee `description`. Ese texto no se ha visto nunca. |
+| `EmptyState message=` | 3 llamadas | Lo mismo. |
+| `Card className=` | 1 llamada | `Card` no reenviaba la clase al `div`: no llegaba al DOM. |
+
+`size` se ha **implementado** (lo que pedían era legítimo y estaba escrito);
+`subtitle` y `message` se han corregido en las llamadas, porque dos nombres para
+lo mismo es como empieza este tipo de fallo.
+
+Y uno más, de otra clase: `Button` escribía `gap: s.gap` y tres líneas después
+`...s`, que vuelve a poner `gap`. Código muerto, destapado por `TS2783`.
+
+### El fallo más serio: un hook que leía haciendo POST
+
+`useTaskComments` llamaba a `tasksApi.comment(id, null)` —un **POST** a
+`/tasks/{id}/comments`, que es el endpoint de *crear* un comentario— para
+*leerlos*. No existe endpoint GET de comentarios de tarea. El hook **no ha
+funcionado nunca**: el `.catch(() => [])` se tragaba el error y devolvía una
+lista vacía, indistinguible de «no hay comentarios».
+
+Se ha **borrado**, no arreglado: está exportado y no lo llama ni un sitio. Crear
+un endpoint de backend para un hook que nadie usa sería escribir más código
+muerto, esta vez con bendición.
+
+### Dos decisiones de comportamiento, escritas a propósito
+
+Tipar obliga a contestar preguntas que el código esquivaba. Dos respuestas
+cambian lo que se ve en pantalla, y van dichas aquí para que no se lean como un
+efecto colateral:
+
+- **`ProfitabilityPage`: un margen que falta ya no se pinta verde.** Los 20
+  errores de ese fichero eran la misma pregunta —«¿de qué color pinto un margen
+  que puede no venir?»— y la respuesta que daba el código era, sin querer,
+  *verde*: en JavaScript `undefined < 0` es `false`, así que un dato ausente
+  caía en la rama buena de cada ternaria. Ahora es **neutro**. Un dato que falta
+  no es un dato bueno, y en una pantalla de rentabilidad esa diferencia se lee
+  como una afirmación sobre el negocio.
+- **`ValidationResult<T>` es una unión discriminada.** Declaraba `success` y
+  `data` como campos independientes, así que la invariante «si validó, hay
+  datos» vivía en la cabeza de quien lo escribió. Escribirla arregló cuatro
+  sitios a la vez.
+
+### Duplicación que apareció de paso
+
+- `PortalUsersTab` tenía la lista de permisos del portal **escrita dos veces**:
+  la constante tipada `PORTAL_PERMISSIONS` en el formulario de edición y una
+  copia a mano, sin tipo, en el de alta. Añadir un permiso en una y no en la
+  otra era cuestión de tiempo.
+- `ChangesPage` tenía una copia local de `IMPACT_CFG`, palabra por palabra, que
+  sombreaba la del módulo.
+- `ResourceForecastPage` repetía la cadena de umbrales de carga —100 / 85 / 50 /
+  10— **tres veces** en el mismo fichero. Ahora es `estadoDeCarga()`.
+
+Las tres eran reglas de negocio que se podían cambiar en un sitio y quedarse mal
+en otro sin que nada avisara.
+
+### El guardián de plotly, reescrito por un motivo de tipos
+
+Leía el disco con `node:fs` y `__dirname`, lo que obligaba a meter `@types/node`
+en la compilación. Y una `/// <reference types="node" />` **no es local al
+fichero**: vale para el programa entero. Con ella cargada, `window.setTimeout`
+se resuelve contra la declaración de Node y devuelve `NodeJS.Timeout` en vez de
+`number`, y `PortalClientePage` —que guarda el identificador con el idioma
+correcto— dejaba de compilar. Un fichero de test no puede cambiarle los tipos al
+navegador.
+
+Ahora usa `import.meta.glob` con `?raw`: nativo de Vite, el contenido lo inlinea
+el bundler, no hay E/S en ejecución y no necesita un solo tipo de Node. Se le ha
+añadido **un tercer test que vigila al guardián**: comprueba que el barrido
+encuentra el árbol. Hizo falta de inmediato — la primera versión buscaba la
+clave `../../charts/PlotlyCustom.ts` y Vite la devuelve como
+`../PlotlyCustom.ts`, normalizada a la ruta relativa más corta. Sin ese tercer
+test, los otros dos habrían pasado sin mirar nada.
+
+**Validado rompiéndolo**: un componente nuevo con `import Plot from
+'react-plotly.js'` lo tumba y aparece por nombre en el mensaje.
+
+### Cómo queda el gate
+
+`tsconfig.strict.json` ya no es una lista: cubre `src/**` con `exclude`
+reducido a `node_modules` y `dist`, para que los tests entren. El objetivo
+siguiente, ya sin migración de por medio, es mover esos flags a
+`tsconfig.json` y borrar el fichero; mientras el base siga en `strict: false`
+—lo usa `npm run typecheck`, y ahí conviven aún ficheros `.mjs` sin tipar— el
+estricto es el que manda para el gate.
+
+**Verificado:** `npm run typecheck:strict` 0 errores · `npx vitest run` 27
+ficheros, **92/92** · `npm run build` correcto.
+
+## 3.duovicies El barrido de duplicación: 31 parejas, cero defectos
+
+La duplicación ha sido **el detector más productivo de toda esta auditoría**, y
+hasta ahora se encontraba siempre de casualidad, mirando otra cosa: la copia del
+dominio de tareas a la que le faltaba ABAC, los dos marketplaces, los dos
+generadores de factura —y el que usaba la interfaz no llevaba el NIF—,
+`execute_report` contra su gemela paginada, el `PUT` y el `PATCH` de SCIM
+cubriendo campos distintos, las dos copias del sondeo SNMP.
+
+Seis hallazgos por el mismo camino y **nadie había barrido el repositorio
+entero buscándolo**. Ahora hay `scripts/audit_funciones_duplicadas.py`.
+
+### Cómo mide, y por qué así
+
+Normaliza cada función a su **esqueleto de AST**: desaparecen los nombres de
+variables locales, las constantes y los comentarios; quedan la forma de las
+sentencias, los atributos, las llamadas y **los nombres que la función
+importa**. Dos copias con las variables renombradas siguen saliendo iguales, que
+es justo el caso que un `diff` de texto no ve.
+
+Sólo compara funciones de doce sentencias o más y de tamaño parecido. Por debajo
+de eso el parecido no significa nada: cinco líneas de `getattr` con respaldo se
+repiten en todas partes y no son una copia, son un idioma.
+
+### Lo que el propio detector me enseñó
+
+**Los nombres importados tienen que contar.** La primera versión los descartaba
+y dio como **idénticas** a `metric_tasks_by_status` y `metric_epics_by_status`,
+que son correctas: una consulta `Task` y la otra `Epic`. Como este repositorio
+importa los modelos **dentro** de la función para evitar ciclos, ambos eran un
+`ast.Name` cualquiera y la única diferencia real se perdía en la normalización.
+Conservarlos arregla el falso positivo sin romper lo que el detector busca, y
+bajó el recuento de **35 parejas a 31**.
+
+### El resultado, que es un negativo y conviene decirlo
+
+**Las 31 parejas se miraron una a una, y ninguna es un defecto.** Cada una
+difiere exactamente en lo que debe: los umbrales de `users_at_capacity` contra
+`users_underutilized`, el `grant_type` de un intercambio de código OAuth contra
+un refresco, `int()` contra `float()`, `Expense` contra `GitPullRequest`.
+
+Dos merecen mención por lo cerca que estuvieron de ser algo:
+
+* **`_tenant_filter_for_model` y `_tenant_where_for_model`** —las dos capas del
+  aislamiento— son **idénticas en política**. Sólo cambian el docstring, un
+  ajuste de línea y un mensaje de error. Es el sitio donde una divergencia
+  costaría más cara, y ya divergió dos veces en esta auditoría (§3.bis,
+  §3.vicies), así que comprobarlo tenía valor aunque saliera limpio.
+* **`_serie_users_at_capacity` y `_serie_users_underutilized`** llevan a mirar si
+  el motor de alertas BI filtra por organización. Filtra: se llama desde
+  endpoints con la sesión de la petición, que ya trae contexto, y no hay
+  evaluación programada en el `worker` que lo haga sin él. Comprobado, no
+  supuesto.
+
+### Y una consolidación que sí hacía falta
+
+`_ticket_category` estaba escrita dos veces —en `alert_correlation_service` y en
+`incident_intelligence_service`—, idénticas salvo el nombre, y **las dos llevaban
+la misma nota de `FIX:`** explicando el mismo defecto: alguien asumió que
+`Ticket` tiene una columna `category` y no la tiene, así que el clustering
+reventaba con `AttributeError`.
+
+Que el mismo arreglo esté escrito dos veces es el aviso. Cuando la fuente de la
+categoría cambie habrá que acordarse de los dos sitios, y **el que se olvide no
+fallará a gritos**: devolverá un discriminador distinto y los grupos saldrán mal.
+Ahora vive en `service_desk/ticket_category.py` y los dos servicios la
+reexportan con su nombre local, así que ningún sitio de llamada cambia.
+Comprobado que los tres nombres son **el mismo objeto**.
+
+Vive en módulo propio y no en uno de los dos servicios a propósito: correlación
+de alertas e inteligencia de incidentes son dominios hermanos, y hacer que uno
+dependa del otro por un accesor de doce líneas sería peor que la copia.
+
+### Cómo se verificó, y qué NO se pudo verificar
+
+**26 tests en verde** —los dos ficheros que ejercitan los servicios tocados más
+los cuatro guardianes estructurales (complejidad, acceso a base en la capa API,
+rutas tapadas)—, `ruff` limpio, y comprobado por identidad que los tres nombres
+apuntan al **mismo objeto**.
+
+**La suite completa no se pudo ejecutar en esta sesión**, y conviene decirlo en
+lugar de omitirlo: `pytest-xdist` se quedaba colgado —los trabajadores arrancan
+y no consumen CPU—, tanto con `-n auto` como con `-n 2` sobre un solo fichero, y
+en un solo proceso la suite no cabe en ninguna ventana razonable. El cambio de
+backend de esta tanda es un módulo nuevo y dos alias en su sitio, así que lo
+verificado cubre lo tocado; la próxima tanda debe empezar por una pasada
+completa.
+
+### Lo que este barrido no cubre, dicho antes de que se olvide
+
+El umbral de doce sentencias deja fuera a los ayudantes cortos, y ahí hay
+**dieciocho** definiciones del par `_get_json`/`_set_json` sobre `AppSetting`
+repartidas por los servicios de BI y de Service Desk. Cinco de ellas **no
+reciben `organization_id`**, lo que tenía toda la pinta de ser §3.novies otra vez
+—las credenciales de e-firma de un cliente guardadas como valor global—.
+
+**No lo es, y se comprobó una por una**: las cinco meten el `org_id` dentro de la
+clave (`bi.embed.config.{org_id}`, `sd.capacity.config.{org_id}`,
+`sd.reports.presets.{org_id}`…), así que el aislamiento existe; lo consigue el
+nombre de la clave en vez de la columna. Funciona, y **depende de que cada sitio
+de llamada se acuerde**, que es una garantía más débil que una columna. Queda
+anotado como lo que es: deuda de diseño con el comportamiento correcto hoy.
+
+## 3.unvicies Dos críticas por una librería de mapas que nadie usa
+
+El 15 de septiembre, **sin un solo commit de código desde el 9**, el gate
+bloqueante `npm audit --audit-level=high` estaba en rojo: 9 avisos, **2 críticos
+y 1 alto**. Es exactamente lo que este documento avisaba dos párrafos más
+arriba: «`npm audit` cambia sin que nadie toque el código; una frase como "está
+a 0" caduca sola». Conviene que quede escrito que la advertencia se cumplió, y
+en menos de una semana.
+
+### Qué había
+
+| Severidad | Paquete | Por dónde entra | Arreglo que ofrecía npm |
+|---|---|---|---|
+| crítico ×2 | `maplibre-gl` ≤ 6.4.0 (bypass del sanitizador, XSS) | `plotly.js` 2.35.3 | `plotly.js@4` — **mayor** |
+| alto | `js-yaml` 4.0.0–4.3.1 (CPU sin límite en claves de mezcla) | `eslint` → `@eslint/eslintrc` | sin romper |
+| moderado ×3 | `@humanfs/node`, `@vitest/mocker`, `vitest` | herramientas | sin romper |
+| moderado ×3 | `echarts` < 6.1.0, `react-router(-dom)` | directas | **mayor** (deuda ya declarada) |
+
+### La medición que cambió la respuesta
+
+La ruta que proponía npm era subir `plotly.js` de 2 a 4: una migración mayor
+sobre seis componentes de gráficos. Antes de aceptarla se hizo la pregunta
+barata: **¿esta aplicación dibuja algún mapa?**
+
+Un barrido de tipos de traza sobre `src/` devuelve `box`, `violin`, `scatter3d` y
+`surface` en plotly — y **ninguna de mapa**. Los otros cuatro tipos que aparecen
+en el código (`candlestick`, `funnel`, `gauge`, `heatmap`) los dibuja
+`echarts-for-react`, no plotly; se comprobó fichero a fichero, que es la
+diferencia entre recortar y romper.
+
+Es decir: `maplibre-gl` viajaba dentro del bundle completo de `plotly.js` sin que
+nadie lo llamara. **La vulnerabilidad estaba en código que se servía al
+navegador y no se ejecutaba nunca.**
+
+### El arreglo: recortar, no subir de versión
+
+`src/charts/PlotlyCustom.ts` parte de `plotly.js/lib/core` —que no trae ninguna
+traza— registra las cuatro que se usan, y exporta el componente con
+`createPlotlyComponent`. Los cinco componentes que importaban
+`react-plotly.js` pasan a importar ése. Con eso el grafo de módulos deja de
+alcanzar `maplibre`, `mapbox` y `geo`.
+
+Dos resultados medidos sobre el build:
+
+* **`vendor-plotly`: 4.633 kB → 1.563 kB** (gzip 510 kB), un **−66 %**. La cifra
+  vieja no es una estimación: estaba escrita en el comentario de `CMDBPage.tsx`,
+  que por eso ya cargaba la topología en diferido. Ese `lazy` sigue mereciendo la
+  pena; simplemente ya no esconde tanto.
+* Los **dos críticos desaparecen**.
+
+### Por qué además hace falta un `override`, y por qué es seguro aquí
+
+Un bundle a medida quita el código vulnerable de lo que se sirve, **pero no pone
+el gate en verde**: `npm audit` lee el árbol de dependencias, no lo que se
+importa. Así que `package.json` fija `overrides: { "maplibre-gl": "^6.9.1" }`,
+por encima del rango afectado.
+
+Un `override` así sería temerario con el bundle completo —`plotly.js` 2.x está
+escrito contra la API de `maplibre` 4.x—, y es sano **precisamente porque** el
+bundle a medida no incluye ninguna traza de mapa: ese código ya no entra en la
+compilación. Las dos piezas se sostienen la una a la otra, y por eso van juntas.
+
+### El guardián
+
+`src/charts/__tests__/plotlyCustom.test.ts` falla si cualquier fichero vuelve a
+escribir `import ... from 'react-plotly.js'`, y comprueba que el módulo a medida
+registra las cuatro trazas y **ninguna de mapa**.
+
+Hace falta porque el arreglo se deshace con una sola línea y **el fallo sería
+silencioso en lo que se mira**: el gráfico se vería perfectamente. Lo que
+volvería —el peso y la dependencia vulnerable— no se nota en pantalla. Validado
+rompiéndolo: se añadió un componente con el import prohibido, el test falló
+nombrando el fichero, y se borró.
+
+### Y lo no-rompedor, de paso
+
+`npm audit fix` sin `--force` resolvió el alto (`js-yaml`) y las tres moderadas
+de herramientas tocando **sólo el lockfile**: `package.json` no cambia más que
+por el `override`. De 9 avisos a 3, y los 3 que quedan son las dos migraciones
+mayores que ya estaban declaradas como deuda deliberada.
+
+Verificado: `npm audit --audit-level=high` **en verde**, build `exit 0`, `tsc`
+limpio y **91/91** en vitest (27 ficheros, con los dos guardianes nuevos).
 
 ## 3.vicies Tres capas de aislamiento y una bandera que sólo respetaba una
 
@@ -4062,12 +4648,13 @@ dos imports relativos pasados a absolutos, para poder cargarla suelta.
 
 Queda **1 de 38** hallazgo en «parcial»: **#18 complejidad** — y lo que queda
 de él ya no es «no se ha hecho», es **deuda medida con suelo puesto**: 94
-funciones por encima de 10 → **80**, exceso 253 → **205**, máximo 17 → **16**,
+funciones por encima de 10 → **74**, exceso 253 → **173**, máximo 17 → **16**,
 con `scripts/audit_complejidad.py` y un trinquete que bloquea
-(`tests/test_complejidad_no_empeora.py`). Catorce funciones salieron de la lista y
-**ninguna por trocearla**: las catorce escondían un defecto, incluido el dominio
-de tareas implementado dos veces (§3.novodecies). Y un barrido por AST sobre las
-80 que quedan confirma que **no esconden ninguna tabla de despacho**: son largas
+(`tests/test_complejidad_no_empeora.py`). Veinte funciones salieron de la lista y **ninguna
+por trocearla**: catorce escondían un defecto —incluido el dominio de tareas
+implementado dos veces (§3.novodecies)— y las seis últimas tenían costura con
+nombre propio (§3.quinvicies). Y un barrido por AST sobre las que quedan
+confirma que **no esconden ninguna tabla de despacho**: son largas
 y lineales, que es una razón distinta de «nadie las ha mirado».
 
 **Lo que salió por debajo al registrar el filtro de tenant en la suite** —la
@@ -4075,6 +4662,18 @@ decisión que llevaba abierta toda la auditoría— está en **§3.vicies**, y n
 menor: el panel de sesiones activas llevaba tiempo vacío para todo el mundo, y
 la bandera `bypass_tenant_filter` que documenta la salida de emergencia **sólo
 la respetaba una de las tres capas de aislamiento**.
+
+**Y el barrido de duplicación, que faltaba, ya está hecho** (§3.duovicies).
+`scripts/audit_funciones_duplicadas.py` recorre `app/` por esqueleto de AST y
+saca 31 parejas de funciones casi idénticas. **Se miraron una a una y ninguna es
+un defecto**: cada una difiere exactamente en lo que debe. Es un resultado
+negativo y por eso merece estar escrito — la duplicación había producido seis
+hallazgos reales encontrados de casualidad, y ahora se sabe que no quedan más
+por ese camino, al menos por encima de doce sentencias. Lo que sí salió fue una
+consolidación (`_ticket_category`, escrita dos veces con la misma nota de
+`FIX:`) y una deuda de diseño anotada: dieciocho copias del par
+`_get_json`/`_set_json` sobre `AppSetting`, cinco sin `organization_id`, que se
+aíslan por el nombre de la clave en vez de por la columna.
 
 El **#22**
 (acceso a base en la capa API) esta **cerrado**: de 257 puntos a 0, con guardian
@@ -4185,8 +4784,26 @@ Lo demás yo lo dejaría donde está, y digo por qué:
 - **Consolidar las cuatro librerías de gráficos en una.** El coste de carga ya
   está resuelto (#19: −68 % al abrir las páginas afectadas), así que migrar 25
   usos de echarts y 18 de recharts es riesgo alto por beneficio hoy marginal.
-- **`echarts` 5→6 y `react-router-dom` 6→7** — los 3 avisos `moderate` de
-  `npm audit`. Cada uno es una migración con riesgo sobre 119 rutas lazy.
+- **`echarts` 5→6 y `react-router-dom` 6→7: HECHAS** (2026-09-15), y resultaron
+  mucho más baratas de lo que este documento suponía. Aquí decía «cada uno es
+  una migración con riesgo sobre 119 rutas lazy», **sin haberlas intentado**.
+  Costaron media hora entre las dos y `npm audit` quedó en **cero**.
+
+  De `react-router` 6 a 7 **no hubo que cambiar ni una ruta**, y la razón merece
+  quedar escrita: el proyecto ya declaraba `future={{ v7_startTransition,
+  v7_relativeSplatPath }}` en el `BrowserRouter`, es decir, **ya corría con la
+  semántica de la 7**. Lo único que cambió es que esas banderas son ahora el
+  comportamiento por defecto y la prop desapareció. Y la aplicación sólo usa la
+  API declarativa —`BrowserRouter`, `Routes`, `Route`, los hooks, `Link`,
+  `NavLink`, `Navigate`—, ninguna de las de datos (`createBrowserRouter`,
+  `loader`, `json`), que es donde estaban los cambios de verdad.
+
+  `echarts` 5→6 tampoco pidió nada: `echarts-for-react` subió solo a 3.0.6 y el
+  build salió en verde a la primera.
+
+  **La lección, que es la reutilizable:** estimar el riesgo de una migración
+  leyendo el número de versión es como contar `db.query` con `grep` — sale un
+  número, y no es el que importa.
 
   **Corrección del 2 de septiembre:** el gate bloqueante está en nivel `high`, y
   cuando se escribió esto estaba a 0 — pero para entonces **ya había aparecido un
@@ -4198,5 +4815,15 @@ Lo demás yo lo dejaría donde está, y digo por qué:
   Lo que hay que retener: **`npm audit` cambia sin que nadie toque el código.**
   Una frase como «está a 0» caduca sola. Conviene ejecutarlo antes de cada tanda,
   no confiar en lo que diga este documento.
+
+  **Y volvió a pasar, el 15 de septiembre.** Sin un solo commit de código entre
+  medias, el gate bloqueante estaba en rojo: **2 críticas y 1 alta**. La historia
+  completa está en §3.unvicies; el resumen es que las críticas entraban por una
+  librería de mapas que esta aplicación no usa, y que se fueron recortando el
+  bundle en vez de subiendo de versión mayor.
+
+  Ese mismo día se hicieron también las dos migraciones mayores que quedaban, y
+  **`npm audit` está en cero**: 0 críticas, 0 altas, 0 moderadas, 0 bajas. Es la
+  primera vez en toda la auditoría.
 - **`strictNullChecks` (226) y `noImplicitAny` (387).** El camino es la whitelist
   de `tsconfig.strict.json`: añadir ficheros y dejar el gate verde.

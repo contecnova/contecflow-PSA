@@ -191,7 +191,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
           const inEdges  = edges.filter(e => e.to_task_id   === node.id)
           const isBlocking = outEdges.length > 0
           const isBlocked  = inEdges.filter(e => e.dep_type === 'blocks').length > 0
-          const sc = STATUS_COLOR[node.status] || 'var(--text-2)'
+          const sc = STATUS_COLOR[node.status ?? ''] || 'var(--text-2)'
           return (
             <div key={node.id} style={{display:'grid', gridTemplateColumns:'200px 60px 1fr 80px',
               padding:'10px 12px', borderBottom:'1px solid var(--surface-4)',
@@ -213,7 +213,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
                       <span style={{color:'var(--text-1)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:180}}>
                         {target?.title}
                       </span>
-                      {e.lag_days > 0 && <span style={{color:'var(--text-3)'}}>+{e.lag_days}d</span>}
+                      {(e.lag_days ?? 0) > 0 && <span style={{color:'var(--text-3)'}}>+{e.lag_days}d</span>}
                     </div>
                   )
                 })}
@@ -384,7 +384,7 @@ export default function DependenciesPage(): JSX.Element {
                             <div style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
                               {e.from_task_title}
                             </div>
-                            <div style={{fontSize: "var(--text-xs)", color:STATUS_COLOR[e.from_task_status]||'var(--text-2)'}}>
+                            <div style={{fontSize: "var(--text-xs)", color:STATUS_COLOR[e.from_task_status ?? '']||'var(--text-2)'}}>
                               {e.from_task_status}
                             </div>
                           </td>
@@ -398,12 +398,12 @@ export default function DependenciesPage(): JSX.Element {
                             <div style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
                               {e.to_task_title}
                             </div>
-                            <div style={{fontSize: "var(--text-xs)", color:STATUS_COLOR[e.to_task_status]||'var(--text-2)'}}>
+                            <div style={{fontSize: "var(--text-xs)", color:STATUS_COLOR[e.to_task_status ?? '']||'var(--text-2)'}}>
                               {e.to_task_status}
                             </div>
                           </td>
                           <td style={{padding:'10px 12px', color:'var(--text-2)', fontSize: "var(--text-sm)"}}>
-                            {e.lag_days > 0 ? `+${e.lag_days}d` : '—'}
+                            {(e.lag_days ?? 0) > 0 ? `+${e.lag_days}d` : '—'}
                           </td>
                           <td style={{padding:'10px 12px', color:'var(--text-2)', fontSize: "var(--text-sm)", maxWidth:160}}>
                             <div style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>

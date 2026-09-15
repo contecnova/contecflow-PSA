@@ -105,20 +105,20 @@ def audit_incident_management(db: Session, days: int = 30) -> dict:
 
     # ── Finding 1: P1 without MajorIncident ───────────────────────────────────
     p1_tickets = [t for t in incidents if t.priority == TicketPriority.p1_critical]
-    # Auditoria 2026-08 (hallazgo 22). Esto preguntaba por
-    # `MajorIncident.tickets` detras de un `hasattr`, y esa relacion **no
-    # existe**: entre `MajorIncident` y `Ticket` no hay ni columna ni tabla de
-    # union, comprobado sobre `Base.metadata`. El `hasattr` es correcto, asi
-    # que `mi` era **siempre** `None` y **todo** ticket P1 se reportaba como
-    # «P1 sin incidencia mayor declarada»: un hallazgo de cumplimiento que
-    # siempre salta no informa de nada.
+    # Auditoria 2026-08/09. Esto preguntaba por `MajorIncident.tickets` detras
+    # de un `hasattr`, y esa relacion **no existia**: entre las dos entidades no
+    # habia ni columna ni tabla de union. El `hasattr` era correcto, asi que la
+    # comprobacion quedo declarada **no evaluable** — mejor eso que un falso
+    # positivo por cada P1.
     #
-    # **No se inventa el enlace.** Relacionar las dos entidades es un cambio de
-    # esquema con decision de diseno detras —¿un ticket pertenece a una sola
-    # incidencia mayor, o varias comparten tickets?— y no se cuela en una tanda
-    # de otra cosa. Lo que se hace es **decir la verdad**: mientras no exista
-    # el enlace, esta comprobacion no se puede hacer, y se declara como no
-    # evaluable en vez de dar un falso positivo por cada P1.
+    # Desde la revision 096 el enlace existe: `Ticket.major_incident_id`, con la
+    # decision de cardinalidad dicha en voz alta —un ticket pertenece como mucho
+    # a UNA incidencia mayor, que es el modelo de ITIL y el conservador—. Asi
+    # que esta comprobacion vuelve a hacer su trabajo, y **sin tocar una linea
+    # de ella**: estaba escrita contra la relacion que ahora existe.
+    #
+    # El `hasattr` se queda como esta: un despliegue con la revision 096 sin
+    # aplicar no debe reventar el informe de cumplimiento entero.
     p1_without_mi: list[str] = []
     enlace_disponible = hasattr(MajorIncident, "tickets")
     if enlace_disponible:

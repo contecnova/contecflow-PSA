@@ -68,7 +68,7 @@ const _ls: CSSProperties = {
 }
 
 // ── sub-components ────────────────────────────────────────────────────────────
-function StatusBadge({ ok, t }) {
+function StatusBadge({ ok, t }: { ok?: boolean; t: (clave: string) => string }) {
   if (ok === null) return null
   return ok
     ? (
@@ -82,7 +82,7 @@ function StatusBadge({ ok, t }) {
     )
 }
 
-function SectionTitle({ children }) {
+function SectionTitle({ children }: { children?: React.ReactNode }) {
   return (
     <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
       {children}
@@ -129,7 +129,12 @@ export default function JiraIntegrationPage(): JSX.Element {
 
   // ── mutations ──────────────────────────────────────────────────────────────
   const saveConfig = useMutation({
-    mutationFn: (payload: JiraFormState) => jiraApi.saveConfig(payload).then(r => r.data),
+    // El token es opcional **al guardar**: si no se escribe uno nuevo la clave
+    // no viaja, para no pisar el que ya hay guardado. La firma decia
+    // `JiraFormState` entero, que es la forma del formulario y no la del
+    // payload, y por eso el `delete` de mas abajo tuvo que existir.
+    mutationFn: (payload: Omit<JiraFormState, 'jira_api_token'> & { jira_api_token?: string }) =>
+      jiraApi.saveConfig(payload).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['jira-config'] }); toast.success(t('jira_integration.config_saved')) },
     onError: (e) => toast.error(extractErr(e, t('jira_integration.save_error'))),
   })
@@ -169,9 +174,10 @@ export default function JiraIntegrationPage(): JSX.Element {
       toast.error(t('jira_integration.required_fields_error'))
       return
     }
-    const payload = { ...form }
-    if (!payload.jira_api_token) delete payload.jira_api_token
-    saveConfig.mutate(payload)
+    // Sin token nuevo no se manda la clave: mandar cadena vacia borraria el
+    // token guardado, que es justo lo contrario de «dejalo como esta».
+    const { jira_api_token, ...resto } = form
+    saveConfig.mutate({ ...resto, ...(jira_api_token ? { jira_api_token } : {}) })
   }
 
   // Normaliza ambas formas: array crudo vs {issues, total} / {tasks, count}
@@ -187,7 +193,7 @@ export default function JiraIntegrationPage(): JSX.Element {
         icon={<Link2 size={18} />}
         title={t('jira_integration.title')}
         subtitle={t('jira_integration.subtitle')}
-        actions={<StatusBadge ok={connStatus} t={t} />}
+        actions={<StatusBadge ok={connStatus ?? undefined} t={t} />}
       showListExport={false}
       />
 
@@ -336,11 +342,11 @@ export default function JiraIntegrationPage(): JSX.Element {
           <Card>
             <SectionTitle>{t('jira_integration.issues_section_title')} {issueCount > 0 && `(${issueCount})`}</SectionTitle>
             {!connStatus ? (
-              <EmptyState icon="search" title={t('jira_integration.no_connection_title')} message={t('jira_integration.no_connection_message')} />
+              <EmptyState icon="search" title={t('jira_integration.no_connection_title')} description={t('jira_integration.no_connection_message')} />
             ) : loadingIssues ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner /></div>
             ) : issueList.length === 0 ? (
-              <EmptyState icon="tasks" title={t('jira_integration.no_issues_title')} message={t('jira_integration.no_issues_message')} />
+              <EmptyState icon="tasks" title={t('jira_integration.no_issues_title')} description={t('jira_integration.no_issues_message')} />
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
@@ -381,7 +387,7 @@ export default function JiraIntegrationPage(): JSX.Element {
             {loadingLinked ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner /></div>
             ) : linkedList.length === 0 ? (
-              <EmptyState icon="tasks" title={t('jira_integration.no_linked_title')} message={t('jira_integration.no_linked_message')} />
+              <EmptyState icon="tasks" title={t('jira_integration.no_linked_title')} description={t('jira_integration.no_linked_message')} />
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>

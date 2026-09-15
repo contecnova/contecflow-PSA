@@ -200,7 +200,7 @@ export default function OfflineIndicator() {
                 {totalConflicts}
               </strong>
             </div>
-            {syncStats?.resolvedConflictsCount > 0 && (
+            {syncStats && (syncStats.resolvedConflictsCount ?? 0) > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>{t('offline_indicator.resolved_conflicts')}</span>
                 <strong style={{ color: 'var(--success)' }}>{syncStats.resolvedConflictsCount}</strong>

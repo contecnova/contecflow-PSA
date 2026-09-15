@@ -44,7 +44,10 @@ export function useAllUsers(): UseQueryResult<unknown> {
 export function useUser(id: string | undefined): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['user', id],
-    queryFn: () => usersApi.get(id).then((r: { data: unknown }) => r.data),
+    // `id!` va respaldado por el `enabled` de la linea siguiente: react-query
+    // no ejecuta `queryFn` mientras `enabled` sea falso, asi que aqui `id`
+    // nunca es undefined. Sin esa garantia habria que cambiar la firma.
+    queryFn: () => usersApi.get(id!).then((r: { data: unknown }) => r.data),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
   })

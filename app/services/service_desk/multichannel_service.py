@@ -132,19 +132,18 @@ def process_inbound_sms(db: Session, from_phone: str, body: str) -> dict:
         impact=TicketImpact.user,
         source="sms",
         requester_name=from_phone,
-        # Auditoria 2026-08: aqui habia
+        # Auditoria 2026-08/09. Aqui habia
         #     requester_phone=from_phone if hasattr(Ticket, "requester_phone") else None
-        # y `Ticket` **no tiene** esa columna. El `hasattr` protege el VALOR,
-        # no la palabra clave: SQLAlchemy recibe igual `requester_phone=None` y
-        # responde `TypeError: 'requester_phone' is an invalid keyword argument
-        # for Ticket`. Es la forma mas daniña del `hasattr` defensivo — parece
-        # que hace el campo opcional y lo que hace es reventar siempre.
+        # y `Ticket` **no tenia** esa columna. El `hasattr` protegia el VALOR y
+        # no la palabra clave: SQLAlchemy recibia igual `requester_phone=None` y
+        # respondia `TypeError`. Es la forma mas daniña del `hasattr` defensivo
+        # —parece que hace el campo opcional y lo que hace es reventar siempre—
+        # y por eso crear un ticket desde un SMS fallaba en todos los casos.
         #
-        # El telefono del remitente queda en `requester_name` y en la
-        # descripcion, que es donde estaba de verdad. **Anotado y no
-        # inventado:** el modelo no tiene donde guardar un telefono de
-        # solicitante como campo propio; anadir la columna es decision de
-        # producto, no de este arreglo.
+        # La columna existe desde la revision 096: en un ticket abierto por SMS
+        # el telefono **es** la identidad de quien lo abre, asi que tiene campo
+        # propio y no se queda de rebote en `requester_name`.
+        requester_phone=from_phone,
         assigned_to_user_id=assigned_to,
         sla_policy_id=sla.id if sla else None,
         sla_response_due=respuesta_due,
