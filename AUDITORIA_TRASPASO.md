@@ -78,6 +78,11 @@ cd "contecflow PSA"
 # Y para regenerar la lista del trinquete despues de una mejora:
 ./.venv/Scripts/python.exe scripts/audit_complejidad.py --lista
 
+# La suite completa. Aviso de entorno (2026-09-15): con `-n auto` los
+# trabajadores de xdist se quedaban colgados —arrancan y no consumen CPU—, y en
+# un solo proceso no termina en ninguna ventana razonable. Con `-n 4` va.
+./.venv/Scripts/python.exe -m pytest -q --no-header -p no:randomly -n 4 > /tmp/suite.txt 2>&1
+
 # Frontend
 cd frontend
 npx tsc --noEmit          # tiene que salir limpio
@@ -88,15 +93,22 @@ node scripts/check_i18n_coverage.mjs   # gate de cobertura de traducción
 bash scripts/ci_local.sh
 ```
 
-**Estado en la última verificación completa (2026-09-09):**
-**3746 passed, 19 skipped, 1 xfailed, 0 fallos** en 18 min 34 s con `-n auto`;
-`ruff check app tests` limpio; `tsc` limpio; 89/89 vitest; los cinco gates de
-frontend en verde.
+**Estado en la última verificación completa (2026-09-15):**
+**3765 passed, 19 skipped, 1 xfailed, 0 fallos** con `-n 4`;
+`ruff check app tests` limpio; `tsc` limpio; 91/91 vitest; `npm audit` en
+**cero**; `typecheck:strict` 0 errores en 284 de 338 ficheros.
 
 > Y es la primera vez que ese «0 fallos» se mide **con la semántica de tenant de
 > producción puesta** (§3.sexdecies). La primera pasada con los escuchadores
 > registrados dio **23 en rojo**: catorce del propio banco de pruebas, dos
 > regresiones de la jornada y **siete defectos de producción** (§3.vicies).
+>
+> **Y una advertencia de entorno que costó una jornada:** `pytest-xdist` con
+> `-n auto` se quedaba colgado en la máquina de desarrollo —los trabajadores
+> arrancan y no consumen CPU, tanto con `-n auto` como con `-n 2` sobre un solo
+> fichero—, y en un proceso la suite no cabe en ninguna ventana razonable. Con
+> **`-n 4` arranca y termina** (50 min). Si vuelve a pasar, ése es el camino: no
+> es el código.
 
 > **Aviso sobre la verificación anterior.** El commit `b4ba85d` se hizo con la
 > suite corriendo y su resultado nunca se reportó, porque en serie no terminaba
