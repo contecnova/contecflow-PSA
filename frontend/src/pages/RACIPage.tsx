@@ -63,7 +63,7 @@ const ITEM_TYPES = [
 ]
 
 function RoleCell({ role, onClick, editable }: { role?: string; onClick?: () => void; editable: boolean }) {
-  const meta = ROLES_META[role] || null
+  const meta = (role && ROLES_META[role]) || null
   const sharedStyle: CSSProperties = {
     width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontWeight: 800, fontSize: "var(--text-base)", cursor: editable ? 'pointer' : 'default',

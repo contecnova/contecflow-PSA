@@ -372,7 +372,7 @@ export default function TimesheetsPage() {
                     <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                       <span>Total: <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{fmtHours(ts.total_hours)}</span></span>
                       <span>Facturables: <span style={{ color: 'var(--accent)' }}>{fmtHours(ts.billable_hours)}</span></span>
-                      {ts.total_cost > 0 && <span>Coste: <span style={{ color: 'var(--warning)' }}>{fmtCurrency(ts.total_cost)}</span></span>}
+                      {(ts.total_cost ?? 0) > 0 && <span>Coste: <span style={{ color: 'var(--warning)' }}>{fmtCurrency(ts.total_cost)}</span></span>}
                     </div>
                     {ts.review_notes && ts.status === 'rejected' && (
                       <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 6, padding: '4px 10px' }}>
@@ -383,7 +383,7 @@ export default function TimesheetsPage() {
                   <StatusBadge status={ts.status} />
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => setViewLines(ts.week_start)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Ver líneas</button>
-                    {(ts.status === 'draft' || ts.status === 'rejected') && ts.total_hours > 0 && (
+                    {(ts.status === 'draft' || ts.status === 'rejected') && (ts.total_hours ?? 0) > 0 && (
                       <Button size="sm" onClick={() => submit(ts.week_start)} loading={submitting}>Enviar</Button>
                     )}
                   </div>

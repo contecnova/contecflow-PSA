@@ -147,7 +147,7 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
   }
   const setSigner = <K extends keyof CreateSigner>(i: number, k: K, v: CreateSigner[K]) => setSigners(s => s.map((x, idx) => idx === i ? { ...x, [k]: v } : x))
   const addSigner = () => setSigners(s => [...s, { name: '', email: '', routing_order: s.length + 1 }])
-  const removeSigner = (i) => setSigners(s => s.filter((_, idx) => idx !== i))
+  const removeSigner = (i: number) => setSigners(s => s.filter((_, idx) => idx !== i))
 
   const { data: documents = [] } = useQuery<DocumentItem[]>({
     queryKey: ['documents-list'],
@@ -434,7 +434,7 @@ export default function ESignPage(): JSX.Element {
   )
 }
 
-function ProviderBadge({ label, ok }) {
+function ProviderBadge({ label, ok }: { label: string; ok: boolean }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,

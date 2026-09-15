@@ -290,7 +290,7 @@ export default function IssueTypesPage(): JSX.Element {
                       </span>
                     </td>
                     <td style={{padding:'10px 12px', fontSize: "var(--text-sm)", color:'var(--text-2)'}}>
-                      {typeItem.field_keys?.length > 0 ? typeItem.field_keys.join(', ') : '—'}
+                      {typeItem.field_keys && typeItem.field_keys.length > 0 ? typeItem.field_keys.join(', ') : '—'}
                     </td>
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex', gap:8}}>

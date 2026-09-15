@@ -264,7 +264,7 @@ export default function CustomFieldsPage(): JSX.Element {
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span>{type?.icon}</span>
                         <span style={{ color: 'var(--text-2)' }}>{type?.label}</span>
-                        {f.field_type === 'select' && f.options?.length > 0 && (
+                        {f.field_type === 'select' && f.options && f.options.length > 0 && (
                           <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>({f.options.length} opciones)</span>
                         )}
                       </span>

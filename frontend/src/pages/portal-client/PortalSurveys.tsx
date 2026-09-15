@@ -2,7 +2,7 @@
  * PortalSurveys — encuestas de satisfacción del portal cliente.
  * El backoffice las crea con POST /portal/surveys; aquí se listan y responden.
  */
-import { ReactNode, useState } from 'react'
+import { ChangeEvent, ReactNode, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Sparkles, Star, ArrowLeft, ThumbsUp, ThumbsDown,
@@ -185,7 +185,7 @@ export function PortalSurveys() {
           <PortalSection title="Comentarios" hint="Lo que más te gusta, lo que mejorarías... (opcional)" action={undefined}>
             <PortalField label="" hint={undefined} required={false}>
               <PortalTextarea rows={4} value={form.comments}
-                onChange={e => setForm(f => ({ ...f, comments: e.target.value }))}
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setForm(f => ({ ...f, comments: e.target.value }))}
                 placeholder="Cuéntanos tu experiencia..." maxLength={2000} />
             </PortalField>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 6, textAlign: 'right' }}>

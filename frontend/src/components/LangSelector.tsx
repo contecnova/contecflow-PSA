@@ -4,6 +4,19 @@ import { useAppLang } from '../i18n/AppLangContext';
 /**
  * LangSelector — Language picker for login and other screens
  * Props: optional dark (bool), style (object)
+ *
+ * Auditoría 2026-09. Este componente leía `l.partial` en tres sitios —el
+ * `title`, el `aria-label` y una insignia «β» sobre la bandera— y **ese campo
+ * no existe**: las entradas de `APP_LANGUAGES` sólo tienen `code`, `label` y
+ * `flag`. Así que la insignia no se pintaba nunca y los dos textos accesibles
+ * decían siempre la variante «completa».
+ *
+ * No era un fallo, era interfaz muerta: viene de cuando se anunciaban ocho
+ * idiomas y algunos iban a medias. Hoy se declaran tres —`es`, `en`, `zh`— y
+ * los tres están al 100 % con dos gates bloqueantes (hallazgo 16), así que el
+ * concepto de «traducción parcial» ya no existe. Se quitan las tres ramas en
+ * vez de añadir `partial?: boolean` al tipo: mantener viva la rama de una
+ * funcionalidad retirada es lo que hace que estas cosas sobrevivan años.
  */
 export default function LangSelector({ dark = false, style = {} }) {
   const { lang, setLang } = useAppLang();
@@ -13,8 +26,8 @@ export default function LangSelector({ dark = false, style = {} }) {
         <button
           key={l.code}
           onClick={() => setLang(l.code)}
-          title={l.partial ? `${l.label} (traducción parcial — algunas claves en inglés)` : l.label}
-          aria-label={l.partial ? `${l.label} — traducción parcial` : l.label}
+          title={l.label}
+          aria-label={l.label}
           style={{
             position: 'relative',
             background: lang === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent',
@@ -30,23 +43,6 @@ export default function LangSelector({ dark = false, style = {} }) {
           }}
         >
           {l.flag}
-          {l.partial && (
-            <span style={{
-              position: 'absolute',
-              top: -4,
-              right: -4,
-              background: 'var(--accent-glow, #0af)',
-              color: '#000',
-              fontSize: "var(--text-8)",
-              fontWeight: 700,
-              lineHeight: 1,
-              borderRadius: 4,
-              padding: '1px 3px',
-              pointerEvents: 'none',
-            }}>
-              β
-            </span>
-          )}
         </button>
       ))}
     </div>

@@ -132,7 +132,7 @@ const TimerWidget = () => {
   const isPaused = !!timer?.paused_at
   const stateColor = timer && !isPaused ? 'var(--success)' : isPaused ? 'var(--warning)' : 'var(--text-3)'
 
-  const btnStyle = (bg) => ({
+  const btnStyle = (bg: string) => ({
     padding: '7px 14px', background: bg, border: 'none', borderRadius: 7,
     color: '#fff', fontSize: "var(--text-sm)", fontWeight: 700,
     cursor: loading ? 'not-allowed' : 'pointer',

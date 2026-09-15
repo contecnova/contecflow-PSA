@@ -99,7 +99,7 @@ const generateSchema = z.object({
 function EntryCard({ entry, onDelete }: { entry: ChangelogEntry; onDelete: (id: string | number) => void }) {
   const t = useAppT()
   const typeMeta = getTypeMeta(t)
-  const meta = typeMeta[entry.entry_type] || typeMeta.feature
+  const meta = (entry.entry_type && typeMeta[entry.entry_type]) || typeMeta.feature
   return (
     <div style={{
       background: 'var(--surface-2)', border: '1px solid var(--surface-4)',

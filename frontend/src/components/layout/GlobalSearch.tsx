@@ -201,7 +201,7 @@ export default function GlobalSearch({ onClose }: Props) {
                       onClick={() => { if (item.url) navigate(item.url); onClose() }}
                       type="button"
                     >
-                      <span style={{ fontSize: "var(--text-lg)", flexShrink:0 }}>{ICON_MAP[item.type] || '•'}</span>
+                      <span style={{ fontSize: "var(--text-lg)", flexShrink:0 }}>{(item.type && ICON_MAP[item.type]) || '•'}</span>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize: "var(--text-base)", fontWeight: isSelected ? 600 : 500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color: isSelected ? 'var(--accent)' : 'var(--text-1)' }}>{item.title}</div>
                         {item.subtitle && <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:1 }}>{item.subtitle}</div>}

@@ -31,6 +31,14 @@ function ficherosDeCodigo(dir: string): string[] {
   })
 }
 
+// Presupuesto propio: esto no es un test unitario, es un barrido de E/S sobre
+// los ~340 ficheros de `src/`. Aislado tarda dos segundos; con la suite entera
+// compitiendo por disco se pasaba de los 5 s por defecto y fallaba por
+// *timeout*, que se lee como si el guardián hubiera encontrado algo. Treinta
+// segundos es holgado para lo que hace y sigue siendo un tope: si un día tarda
+// más, es que el barrido creció y hay que mirarlo.
+const TOPE_MS = 30_000
+
 describe('bundle de plotly a medida', () => {
   it('ningún componente importa `react-plotly.js` directamente', () => {
     const culpables = ficherosDeCodigo(RAIZ).filter((ruta) => {
@@ -47,7 +55,7 @@ describe('bundle de plotly a medida', () => {
         '(2 críticos de npm audit) y los 4,6 MB de `vendor-plotly`. ' +
         'Usa `src/charts/PlotlyCustom.ts`; si te falta una traza, añádela allí.',
     ).toEqual([])
-  })
+  }, TOPE_MS)
 
   it('el módulo a medida registra exactamente las trazas que se usan', () => {
     const código = readFileSync(join(RAIZ, MODULO_A_MEDIDA), 'utf-8')

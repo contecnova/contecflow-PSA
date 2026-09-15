@@ -57,7 +57,7 @@ const STATUS_DEPLOY = {
 
 function PRStatusPill({ status }: { status?: PrStatus }) {
   const t = useAppT()
-  const s = STATUS_PR[status] || STATUS_PR.open
+  const s = (status && STATUS_PR[status]) || STATUS_PR.open
   return (
     <span style={{
       background: s.bg, color: s.color,
@@ -69,7 +69,7 @@ function PRStatusPill({ status }: { status?: PrStatus }) {
 
 function DeployPill({ status }: { status?: DeployStatus }) {
   const t = useAppT()
-  const s = STATUS_DEPLOY[status] || STATUS_DEPLOY.pending
+  const s = (status && STATUS_DEPLOY[status]) || STATUS_DEPLOY.pending
   return (
     <span style={{
       background: s.bg, color: s.color,

@@ -59,7 +59,7 @@ export default function ExportsPage(): JSX.Element {
   })
 
   const setLoad = (k: keyof LoadingState, v: boolean) => setLoading((l) => ({ ...l, [k]: v }))
-  const showMsg = (msg) => { setMessage(msg); setTimeout(() => setMessage(''), 3000) }
+  const showMsg = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), 3000) }
 
   const exportImputations = async () => {
     setLoad('imput', true)

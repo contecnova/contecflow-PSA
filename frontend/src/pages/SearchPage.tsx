@@ -232,7 +232,7 @@ function NQLMode() {
           <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 16 }}>
             Entidad: {results.entity} · {results.execution_time_ms}ms
           </div>
-          {results.results?.length > 0 ? (
+          {results.results && results.results.length > 0 ? (
             <DataTable
               columns={Object.keys(results.results[0]).slice(0, 6).map(k => ({
                 key: k, label: k.replace(/_/g, ' ').toUpperCase(),
