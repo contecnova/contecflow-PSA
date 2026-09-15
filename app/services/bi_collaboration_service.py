@@ -321,6 +321,64 @@ def create_comment(
         return payload
 
 
+def _resolver_en_json_heredado(db: Session, *, organization_id: Optional[str],
+                               comment_id: str, current_user: User) -> dict[str, Any]:
+    """Marca un comentario como resuelto en el respaldo JSON.
+
+    Auditoría 2026-09 (hallazgo 18): este bloque estaba **escrito dos veces,
+    palabra por palabra** dentro de `resolve_comment` —una para «la tabla no
+    existe» y otra para «la consulta falló porque la tabla no existe»—, y era la
+    mitad de sus 109 líneas. Son el mismo caso visto desde dos sitios, así que
+    es una sola función.
+
+    Levanta `comment_not_found` si no está: el respaldo no es una excusa para
+    devolver éxito sobre algo que no se ha tocado.
+    """
+    filas = _get_json(db, COMMENTS_KEY, organization_id, default=[])
+    if not isinstance(filas, list):
+        filas = []
+
+    for fila in filas:
+        if not isinstance(fila, dict) or fila.get("id") != comment_id:
+            continue
+        fila["resolved"] = True
+        fila["resolved_at"] = _iso_now()
+        fila["resolved_by"] = current_user.full_name
+        _set_json(
+            db, COMMENTS_KEY, organization_id, filas,
+            description="BI Collaboration comments (legacy JSON fallback)",
+        )
+        return {
+            "id": fila.get("id"),
+            "dashboard_key": fila.get("dashboard_key"),
+            "widget_id": fila.get("widget_id"),
+            "message": fila.get("message") or "",
+            "author_id": fila.get("author_id"),
+            "author_name": fila.get("author_name"),
+            "resolved": True,
+            "resolved_at": fila.get("resolved_at"),
+            "resolved_by": fila.get("resolved_by"),
+            "created_at": fila.get("created_at"),
+        }
+    raise ValueError("comment_not_found")
+
+
+def _comentario_como_dict(row) -> dict[str, Any]:
+    """La forma que devuelve la API para un comentario de la tabla."""
+    return {
+        "id": row.id,
+        "dashboard_key": row.dashboard_key,
+        "widget_id": row.widget_id,
+        "message": row.message,
+        "author_id": row.author_id,
+        "author_name": row.author_name,
+        "resolved": bool(row.resolved),
+        "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None,
+        "resolved_by": row.resolved_by,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
 def resolve_comment(
     db: Session,
     *,
@@ -328,49 +386,30 @@ def resolve_comment(
     comment_id: str,
     current_user: User,
 ) -> dict[str, Any]:
+    """Marca un comentario de panel como resuelto.
+
+    Con el respaldo a JSON en instalaciones donde la tabla todavía no existe:
+    se comprueba antes, y también se captura después, porque entre la
+    comprobación y la consulta puede haber una migración a medias.
+    """
     if not _table_exists(db, "dashboard_comments"):
-        legacy_rows = _get_json(db, COMMENTS_KEY, organization_id, default=[])
-        if not isinstance(legacy_rows, list):
-            legacy_rows = []
-        now = _iso_now()
-        for row in legacy_rows:
-            if not isinstance(row, dict):
-                continue
-            if row.get("id") != comment_id:
-                continue
-            row["resolved"] = True
-            row["resolved_at"] = now
-            row["resolved_by"] = current_user.full_name
-            _set_json(
-                db,
-                COMMENTS_KEY,
-                organization_id,
-                legacy_rows,
-                description="BI Collaboration comments (legacy JSON fallback)",
-            )
-            return {
-                "id": row.get("id"),
-                "dashboard_key": row.get("dashboard_key"),
-                "widget_id": row.get("widget_id"),
-                "message": row.get("message") or "",
-                "author_id": row.get("author_id"),
-                "author_name": row.get("author_name"),
-                "resolved": True,
-                "resolved_at": row.get("resolved_at"),
-                "resolved_by": row.get("resolved_by"),
-                "created_at": row.get("created_at"),
-            }
-        raise ValueError("comment_not_found")
+        return _resolver_en_json_heredado(
+            db, organization_id=organization_id, comment_id=comment_id, current_user=current_user,
+        )
 
     try:
         q = db.query(DashboardComment).filter(DashboardComment.id == comment_id)
+        # `organization_id` nulo es el ámbito global, y hay que preguntarlo con
+        # `IS NULL`: en SQL `columna = NULL` no encaja con nada.
         if organization_id:
             q = q.filter(DashboardComment.organization_id == organization_id)
         else:
             q = q.filter(DashboardComment.organization_id.is_(None))
+
         row = q.first()
         if row is None:
             raise ValueError("comment_not_found")
+
         row.resolved = True
         row.resolved_at = datetime.now(timezone.utc)
         row.resolved_by = current_user.full_name
@@ -382,54 +421,14 @@ def resolve_comment(
             payload={"comment_id": row.id, "resolved_by": current_user.id},
         )
         db.commit()
-        return {
-            "id": row.id,
-            "dashboard_key": row.dashboard_key,
-            "widget_id": row.widget_id,
-            "message": row.message,
-            "author_id": row.author_id,
-            "author_name": row.author_name,
-            "resolved": bool(row.resolved),
-            "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None,
-            "resolved_by": row.resolved_by,
-            "created_at": row.created_at.isoformat() if row.created_at else None,
-        }
+        return _comentario_como_dict(row)
     except (OperationalError, ProgrammingError) as exc:
         if not _is_missing_table_error(exc, "dashboard_comments"):
             raise
         db.rollback()
-        legacy_rows = _get_json(db, COMMENTS_KEY, organization_id, default=[])
-        if not isinstance(legacy_rows, list):
-            legacy_rows = []
-        now = _iso_now()
-        for row in legacy_rows:
-            if not isinstance(row, dict):
-                continue
-            if row.get("id") != comment_id:
-                continue
-            row["resolved"] = True
-            row["resolved_at"] = now
-            row["resolved_by"] = current_user.full_name
-            _set_json(
-                db,
-                COMMENTS_KEY,
-                organization_id,
-                legacy_rows,
-                description="BI Collaboration comments (legacy JSON fallback)",
-            )
-            return {
-                "id": row.get("id"),
-                "dashboard_key": row.get("dashboard_key"),
-                "widget_id": row.get("widget_id"),
-                "message": row.get("message") or "",
-                "author_id": row.get("author_id"),
-                "author_name": row.get("author_name"),
-                "resolved": True,
-                "resolved_at": row.get("resolved_at"),
-                "resolved_by": row.get("resolved_by"),
-                "created_at": row.get("created_at"),
-            }
-        raise ValueError("comment_not_found")
+        return _resolver_en_json_heredado(
+            db, organization_id=organization_id, comment_id=comment_id, current_user=current_user,
+        )
 
 
 def default_governance_rules() -> dict[str, Any]:

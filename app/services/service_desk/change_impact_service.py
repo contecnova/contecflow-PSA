@@ -735,201 +735,204 @@ def generate_rollback_plan(
 # Testing Plan — structured, executable test steps by phase
 # ══════════════════════════════════════════════════════════════════════════════
 
+#: El plan de pruebas, declarado. Cada fila es un paso:
+#:
+#:    (fase, tipo, descripción, resultado esperado, minutos, responsable,
+#:     automatizado, comando, condición)
+#:
+#: `condición` recibe el contexto del cambio y decide si el paso aplica;
+#: `None` significa «siempre». Descripción, resultado y minutos se formatean o
+#: calculan con ese mismo contexto.
+#:
+#: Auditoría 2026-09 (hallazgo 18): esto eran 197 líneas de llamadas a un
+#: ayudante anidado, con las condiciones repartidas entre ellas — complejidad
+#: 14. Un plan de pruebas **es** una tabla: verlo entero es lo que hace falta
+#: para revisarlo con quien lo va a ejecutar, y añadir un paso es añadir una
+#: fila en el sitio que le toca, no una rama en medio de un bloque.
+_PASOS_DEL_PLAN: tuple[tuple, ...] = (
+    # ── Antes del cambio ─────────────────────────────────────────────────────
+    ("pre_change", "sanity",
+     "Verificar estado actual de los CIs en CMDB: {cis}",
+     "Todos los CIs en estado 'active' con configuración baseline registrada",
+     10, "CMDB Admin", False, "", None),
+    ("pre_change", "backup",
+     "Confirmar snapshots/backups de configuración de CIs críticos",
+     "Backups completados y verificados (restore point disponible)",
+     15, "Equipo técnico", False, "", None),
+    ("pre_change", "readiness",
+     "Confirmar disponibilidad del plan de rollback y equipo de soporte",
+     "Equipo de rollback en standby, procedimiento revisado y firmado",
+     10, "Change Manager", False, "", "riesgo_medio"),
+    ("pre_change", "noc_alert",
+     "Notificar a NOC y colocar CIs en modo observación anticipada",
+     "NOC confirma monitorización activa de alertas sobre CIs afectados",
+     5, "NOC / Operaciones", False, "", "riesgo_alto"),
+    ("pre_change", "maintenance_mode",
+     "Activar modo mantenimiento en sistemas afectados ({cis})",
+     "Sistemas en estado maintenance, sin tickets de incidente generados automáticamente",
+     10, "Ingeniero de operaciones", True,
+     "cmdb update-status --ci-ids <affected_ids> --status maintenance", "hay_parada"),
+
+    # ── Durante el cambio ────────────────────────────────────────────────────
+    ("execution", "milestone",
+     "Confirmar inicio del cambio y registrar hora real de arranque",
+     "Hora de inicio registrada en el Change Request (actual_start actualizado)",
+     5, "Change Manager", False, "", None),
+    ("execution", "monitoring",
+     "Monitorizar métricas de salud de CIs durante el cambio: {cis}",
+     "CPU/memoria/latencia dentro de umbrales normales; sin alertas críticas",
+     "minutos_de_monitorizacion", "NOC / Operaciones", True,
+     "monitoring check --ci-ids <affected_ids> --interval 5m", None),
+    ("execution", "checkpoint",
+     "Verificar hito intermedio: primeros CIs afectados han completado el cambio",
+     "Al menos {mitad_de_cis} CIs en estado post-change sin errores",
+     10, "Equipo técnico", False, "", "muchos_cis"),
+    ("execution", "go_nogo",
+     "Go/No-Go decision point a mitad del cambio",
+     "Equipo técnico confirma continuación; si hay anomalías iniciar rollback",
+     10, "Change Manager", False, "", "riesgo_alto"),
+
+    # ── Después del cambio ───────────────────────────────────────────────────
+    ("post_change", "smoke",
+     "Smoke tests de conectividad y disponibilidad de CIs: {cis}",
+     "Todos los CIs responden; endpoints críticos retornan HTTP 200 / ping exitoso",
+     15, "QA / DevOps", True,
+     "smoke-test --suite post_change --ci-ids <affected_ids>", None),
+    ("post_change", "functional",
+     "Tests funcionales de los servicios afectados por el cambio",
+     "Todos los casos de prueba funcionales pasan sin regresiones",
+     20, "QA / Dev", True,
+     "pytest tests/functional/ --marker change_validation -v", None),
+    ("post_change", "performance",
+     "Comparación de baseline de rendimiento (antes vs después)",
+     "Métricas de rendimiento dentro del ±10% respecto al baseline pre-cambio",
+     15, "QA / DevOps", True,
+     "perf-test --baseline pre_change --ci-ids <affected_ids>", "riesgo_alto"),
+    ("post_change", "cmdb_update",
+     "Verificar y actualizar CMDB con el nuevo estado de configuración",
+     "CIs actualizados en CMDB; relaciones y atributos reflejan la nueva configuración",
+     10, "CMDB Admin", False, "", None),
+    ("post_change", "monitoring_30min",
+     "Observar métricas de producción durante 30 minutos post-cambio",
+     "Sin alertas inesperadas; incidentalidad normal para la ventana horaria",
+     30, "NOC / Operaciones", True,
+     "monitoring watch --duration 30m --alert-on-anomaly --ci-ids <affected_ids>", None),
+    ("post_change", "maintenance_off",
+     "Desactivar modo mantenimiento en todos los CIs afectados",
+     "CIs vuelven a estado 'active'; monitorización de alertas reactiva",
+     5, "Ingeniero de operaciones", True,
+     "cmdb update-status --ci-ids <affected_ids> --status active", "hay_parada"),
+
+    # ── Si hay que volver atrás ──────────────────────────────────────────────
+    ("rollback_validation", "config_restore",
+     "Verificar que la configuración anterior ha sido restaurada correctamente",
+     "CIs con versión de configuración idéntica a la del snapshot pre-cambio",
+     15, "Equipo técnico", False, "", None),
+    ("rollback_validation", "smoke",
+     "Smoke tests post-rollback sobre CIs afectados",
+     "Todos los CIs responden y funcionan igual que antes del cambio",
+     15, "QA / DevOps", True,
+     "smoke-test --suite post_rollback --ci-ids <affected_ids>", None),
+    ("rollback_validation", "cmdb_revert",
+     "Confirmar que el CMDB refleja el estado pre-cambio",
+     "Registro de CMDB coincide con el baseline capturado en pre_change",
+     10, "CMDB Admin", False, "", None),
+    ("rollback_validation", "incident_check",
+     "Verificar ausencia de incidentes activos generados por el rollback",
+     "Sin tickets de incidente abiertos atribuibles al cambio o su rollback",
+     10, "NOC / Operaciones", True,
+     "monitoring check --duration 15m --ci-ids <affected_ids>", None),
+)
+
+#: Las cuatro fases, en el orden en que se ejecutan. La tabla ya va ordenada,
+#: pero el informe agrupa por fase y ese orden tiene que estar declarado.
+_FASES_DEL_PLAN = ("pre_change", "execution", "post_change", "rollback_validation")
+
+
+def _contexto_del_plan(change, riesgo: str, ci_details: list[dict]) -> dict:
+    """Los datos con los que se deciden y se rellenan los pasos."""
+    parada = change.downtime_minutes or 0
+    n_cis = len(ci_details)
+    return {
+        "cis": ", ".join(c["name"] for c in ci_details[:3]) or "N/A",
+        "mitad_de_cis": min(n_cis // 2, 5),
+        # La monitorización dura lo que dure la parada, con un tope: sin parada
+        # declarada, o con una muy larga, media hora es lo razonable.
+        "minutos_de_monitorizacion": parada if 0 < parada <= 60 else 30,
+        "riesgo_alto": riesgo in ("high", "critical"),
+        "riesgo_medio": riesgo in ("medium", "high", "critical"),
+        "hay_parada": parada > 0,
+        "muchos_cis": n_cis > 3,
+    }
+
+
+def _pasos_aplicables(ctx: dict) -> list[dict]:
+    """Los pasos de la tabla que aplican a este cambio, ya numerados."""
+    pasos: list[dict] = []
+    for fase, tipo, desc, esperado, minutos, responsable, automatico, comando, condicion in _PASOS_DEL_PLAN:
+        if condicion and not ctx[condicion]:
+            continue
+        entrada = {
+            "step": len(pasos) + 1,
+            "phase": fase,
+            "test_type": tipo,
+            "description": desc.format(**ctx),
+            "expected_result": esperado.format(**ctx),
+            "estimated_minutes": ctx[minutos] if isinstance(minutos, str) else minutos,
+            "responsible": responsable,
+            "automated": automatico,
+        }
+        if comando:
+            entrada["command"] = comando
+        pasos.append(entrada)
+    return pasos
+
+
 def generate_testing_plan(
     db: Session,
     change_id: str,
     current_user_id: Optional[str] = None,
 ) -> dict:
-    """Generate a structured testing plan with executable steps for each phase.
+    """Plan de pruebas con pasos ejecutables, adaptado al riesgo y al nº de CIs.
 
-    Steps are organised into four phases:
-      - pre_change        : validation before starting the change
-      - execution         : checkpoints during the change window
-      - post_change       : smoke / functional / performance tests after
-      - rollback_validation: confirmation tests if rollback is triggered
+    Cuatro fases: validación previa, hitos durante la ventana, pruebas de humo
+    y funcionales al terminar, y confirmación si hay que volver atrás.
 
-    Adapted to risk level and CI count. Cached in AppSetting for later retrieval.
+    Se guarda en `AppSetting` para poder consultarlo después.
     """
     change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
     if not change:
         from fastapi import HTTPException
         raise HTTPException(404, f"Change {change_id} not found")
 
-    risk_data = score_change_risk(db, change)
-    risk_label = risk_data["risk_label"]
-    ci_details = _get_ci_details(db, risk_data["ci_ids_expanded"])
-    ci_count = len(ci_details)
-    top_ci_names = ", ".join(c["name"] for c in ci_details[:3]) or "N/A"
-    downtime = change.downtime_minutes or 0
+    riesgo = score_change_risk(db, change)
+    etiqueta = riesgo["risk_label"]
+    ci_details = _get_ci_details(db, riesgo["ci_ids_expanded"])
 
-    HIGH_RISK = risk_label in ("high", "critical")
-    MED_RISK = risk_label in ("medium", "high", "critical")
-
-    steps: list[dict] = []
-    step = 1
-
-    # ── PRE-CHANGE ────────────────────────────────────────────────────────────
-    def _add(phase: str, test_type: str, description: str, expected_result: str,
-             minutes: int, responsible: str, automated: bool = False, command: str = "") -> None:
-        nonlocal step
-        entry: dict = {
-            "step": step,
-            "phase": phase,
-            "test_type": test_type,
-            "description": description,
-            "expected_result": expected_result,
-            "estimated_minutes": minutes,
-            "responsible": responsible,
-            "automated": automated,
-        }
-        if command:
-            entry["command"] = command
-        steps.append(entry)
-        step += 1
-
-    _add("pre_change", "sanity",
-         f"Verificar estado actual de los CIs en CMDB: {top_ci_names}",
-         "Todos los CIs en estado 'active' con configuración baseline registrada",
-         10, "CMDB Admin", automated=False)
-
-    _add("pre_change", "backup",
-         "Confirmar snapshots/backups de configuración de CIs críticos",
-         "Backups completados y verificados (restore point disponible)",
-         15, "Equipo técnico", automated=False)
-
-    if MED_RISK:
-        _add("pre_change", "readiness",
-             "Confirmar disponibilidad del plan de rollback y equipo de soporte",
-             "Equipo de rollback en standby, procedimiento revisado y firmado",
-             10, "Change Manager", automated=False)
-
-    if HIGH_RISK:
-        _add("pre_change", "noc_alert",
-             "Notificar a NOC y colocar CIs en modo observación anticipada",
-             "NOC confirma monitorización activa de alertas sobre CIs afectados",
-             5, "NOC / Operaciones", automated=False)
-
-    if downtime > 0:
-        _add("pre_change", "maintenance_mode",
-             f"Activar modo mantenimiento en sistemas afectados ({top_ci_names})",
-             "Sistemas en estado maintenance, sin tickets de incidente generados automáticamente",
-             10, "Ingeniero de operaciones", automated=True,
-             command="cmdb update-status --ci-ids <affected_ids> --status maintenance")
-
-    # ── EXECUTION ─────────────────────────────────────────────────────────────
-    _add("execution", "milestone",
-         "Confirmar inicio del cambio y registrar hora real de arranque",
-         "Hora de inicio registrada en el Change Request (actual_start actualizado)",
-         5, "Change Manager", automated=False)
-
-    _add("execution", "monitoring",
-         f"Monitorizar métricas de salud de CIs durante el cambio: {top_ci_names}",
-         "CPU/memoria/latencia dentro de umbrales normales; sin alertas críticas",
-         downtime if 0 < downtime <= 60 else 30, "NOC / Operaciones", automated=True,
-         command="monitoring check --ci-ids <affected_ids> --interval 5m")
-
-    if ci_count > 3:
-        _add("execution", "checkpoint",
-             "Verificar hito intermedio: primeros CIs afectados han completado el cambio",
-             f"Al menos {min(ci_count // 2, 5)} CIs en estado post-change sin errores",
-             10, "Equipo técnico", automated=False)
-
-    if HIGH_RISK:
-        _add("execution", "go_nogo",
-             "Go/No-Go decision point a mitad del cambio",
-             "Equipo técnico confirma continuación; si hay anomalías iniciar rollback",
-             10, "Change Manager", automated=False)
-
-    # ── POST-CHANGE ───────────────────────────────────────────────────────────
-    _add("post_change", "smoke",
-         f"Smoke tests de conectividad y disponibilidad de CIs: {top_ci_names}",
-         "Todos los CIs responden; endpoints críticos retornan HTTP 200 / ping exitoso",
-         15, "QA / DevOps", automated=True,
-         command="smoke-test --suite post_change --ci-ids <affected_ids>")
-
-    _add("post_change", "functional",
-         "Tests funcionales de los servicios afectados por el cambio",
-         "Todos los casos de prueba funcionales pasan sin regresiones",
-         20, "QA / Dev", automated=True,
-         command="pytest tests/functional/ --marker change_validation -v")
-
-    if HIGH_RISK:
-        _add("post_change", "performance",
-             "Comparación de baseline de rendimiento (antes vs después)",
-             "Métricas de rendimiento dentro del ±10% respecto al baseline pre-cambio",
-             15, "QA / DevOps", automated=True,
-             command="perf-test --baseline pre_change --ci-ids <affected_ids>")
-
-    _add("post_change", "cmdb_update",
-         "Verificar y actualizar CMDB con el nuevo estado de configuración",
-         "CIs actualizados en CMDB; relaciones y atributos reflejan la nueva configuración",
-         10, "CMDB Admin", automated=False)
-
-    _add("post_change", "monitoring_30min",
-         "Observar métricas de producción durante 30 minutos post-cambio",
-         "Sin alertas inesperadas; incidentalidad normal para la ventana horaria",
-         30, "NOC / Operaciones", automated=True,
-         command="monitoring watch --duration 30m --alert-on-anomaly --ci-ids <affected_ids>")
-
-    if downtime > 0:
-        _add("post_change", "maintenance_off",
-             "Desactivar modo mantenimiento en todos los CIs afectados",
-             "CIs vuelven a estado 'active'; monitorización de alertas reactiva",
-             5, "Ingeniero de operaciones", automated=True,
-             command="cmdb update-status --ci-ids <affected_ids> --status active")
-
-    # ── ROLLBACK VALIDATION ───────────────────────────────────────────────────
-    _add("rollback_validation", "config_restore",
-         "Verificar que la configuración anterior ha sido restaurada correctamente",
-         "CIs con versión de configuración idéntica a la del snapshot pre-cambio",
-         15, "Equipo técnico", automated=False)
-
-    _add("rollback_validation", "smoke",
-         "Smoke tests post-rollback sobre CIs afectados",
-         "Todos los CIs responden y funcionan igual que antes del cambio",
-         15, "QA / DevOps", automated=True,
-         command="smoke-test --suite post_rollback --ci-ids <affected_ids>")
-
-    _add("rollback_validation", "cmdb_revert",
-         "Confirmar que el CMDB refleja el estado pre-cambio",
-         "Registro de CMDB coincide con el baseline capturado en pre_change",
-         10, "CMDB Admin", automated=False)
-
-    _add("rollback_validation", "incident_check",
-         "Verificar ausencia de incidentes activos generados por el rollback",
-         "Sin tickets de incidente abiertos atribuibles al cambio o su rollback",
-         10, "NOC / Operaciones", automated=True,
-         command="monitoring check --duration 15m --ci-ids <affected_ids>")
-
-    # ── Assemble plan ─────────────────────────────────────────────────────────
-    def _phase_steps(phase: str) -> list[dict]:
-        return [s for s in steps if s["phase"] == phase]
+    pasos = _pasos_aplicables(_contexto_del_plan(change, etiqueta, ci_details))
 
     plan = {
         "change_id": change_id,
         "change_number": change.number,
         "change_title": change.title,
-        "risk_label": risk_label,
-        "total_steps": len(steps),
-        "estimated_total_minutes": sum(s["estimated_minutes"] for s in steps),
+        "risk_label": etiqueta,
+        "total_steps": len(pasos),
+        "estimated_total_minutes": sum(p["estimated_minutes"] for p in pasos),
         "phases": {
-            "pre_change": _phase_steps("pre_change"),
-            "execution": _phase_steps("execution"),
-            "post_change": _phase_steps("post_change"),
-            "rollback_validation": _phase_steps("rollback_validation"),
+            fase: [p for p in pasos if p["phase"] == fase] for fase in _FASES_DEL_PLAN
         },
-        "steps": steps,
+        "steps": pasos,
         "generated_at": datetime.now(tz=timezone.utc).isoformat(),
         "generated_by": current_user_id,
     }
 
-    # Persist in AppSetting cache and optionally update the test_plan text column
     _set_json_setting(db, f"sd.change.testing.{change_id}", plan)
+    # El resumen en texto sólo se escribe si el campo está vacío: si alguien
+    # redactó un plan a mano, generar otro no lo borra.
     if hasattr(change, "test_plan") and not change.test_plan:
-        summary_lines = [f"[Auto-generated — {risk_label.upper()} risk — {len(steps)} steps]"]
-        for s in steps:
-            summary_lines.append(f"{s['step']}. [{s['phase']}] {s['description']}")
-        change.test_plan = "\n".join(summary_lines)
+        lineas = [f"[Auto-generated — {etiqueta.upper()} risk — {len(pasos)} steps]"]
+        lineas += [f"{p['step']}. [{p['phase']}] {p['description']}" for p in pasos]
+        change.test_plan = "\n".join(lineas)
     db.commit()
     return plan
 
@@ -1238,162 +1241,181 @@ def generate_comms_plan(
 # What-If Simulation — pure computation, no DB writes
 # ══════════════════════════════════════════════════════════════════════════════
 
+#: Orden de los niveles de riesgo. Es una escala, y compararla por posición es
+#: lo que distingue «subió» de «bajó»; alfabéticamente `critical < low`.
+_ORDEN_DE_RIESGO = {"low": 1, "medium": 2, "high": 3, "critical": 4}
+
+
+def _cis_directos(change) -> list[str]:
+    """Los CI declarados en el cambio. Un JSON roto se lee como «ninguno».
+
+    Tragarse el error es deliberado: `affected_cis` es texto libre guardado por
+    versiones anteriores, y un cambio con ese campo corrupto sigue siendo un
+    cambio que se puede simular — con menos información, no con un 500.
+    """
+    try:
+        if not change.affected_cis:
+            return []
+        crudo = json.loads(change.affected_cis)
+        return crudo if isinstance(crudo, list) else []
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
+def _cambio_simulado(change, overrides: dict):
+    """Un cambio **de mentira** con los overrides aplicados.
+
+    Es un `SimpleNamespace` y no una entidad a propósito: esta función no
+    persiste nada, y crear una entidad de SQLAlchemy —aunque no se guarde— la
+    mete en la sesión y acaba escribiéndose en el siguiente `flush`.
+    """
+    from types import SimpleNamespace
+
+    ids = _cis_directos(change)
+    for cid in overrides.get("extra_ci_ids", []):
+        if cid not in ids:
+            ids.append(cid)
+    a_quitar = set(overrides.get("remove_ci_ids", []))
+    ids = [cid for cid in ids if cid not in a_quitar]
+
+    tipo = change.change_type
+    if "change_type" in overrides:
+        try:
+            tipo = ChangeType(overrides["change_type"])
+        except ValueError:
+            # Un tipo inválido no invalida la simulación entera: se ignora y se
+            # conserva el original, que es lo que el usuario vería de todas
+            # formas si no hubiera pedido cambiarlo.
+            pass
+
+    minutos = (
+        int(overrides["downtime_minutes"]) if "downtime_minutes" in overrides
+        else (change.downtime_minutes or 0)
+    )
+    return SimpleNamespace(
+        change_type=tipo,
+        risk=change.risk,
+        affected_cis=json.dumps(ids),
+        downtime_minutes=minutos,
+    )
+
+
+def _matriz_de_incidencias(db: Session, ci_ids: list[str]) -> list[list[int]]:
+    """Incidencias de las últimas cuatro semanas por día de la semana y hora."""
+    corte = datetime.now(tz=timezone.utc) - timedelta(days=28)
+    q = db.query(Ticket.created_at).filter(
+        Ticket.created_at >= corte,
+        Ticket.ticket_type == "incident",
+    )
+    if ci_ids:
+        q = q.filter(Ticket.ci_id.in_(ci_ids))
+
+    freq: list[list[int]] = [[0] * 24 for _ in range(7)]
+    for (ts,) in q.all():
+        if ts:
+            # Las filas guardadas antes de que las fechas llevaran zona se leen
+            # como UTC; sin esto, `weekday()` de una naive mezcla husos.
+            ts_utc = ts.replace(tzinfo=timezone.utc) if ts.tzinfo is None else ts
+            freq[ts_utc.weekday()][ts_utc.hour] += 1
+    return freq
+
+
+def _evaluar_ventana_propuesta(db: Session, overrides: dict, ci_ids: list[str],
+                               ventana_optima: dict) -> dict:
+    """Cuántas incidencias caen en la franja que pide quien llama, y si es peor.
+
+    Se compara contra la óptima con un margen de 0,1 incidencias: sin margen,
+    una diferencia de redondeo marcaría como «no óptima» una franja que lo es.
+    """
+    hora = max(0, min(23, int(overrides.get("scheduled_hour_utc", ventana_optima["hour_utc"]))))
+    dia = max(0, min(6, int(overrides.get("scheduled_dow", ventana_optima["day_of_week"]))))
+
+    freq = _matriz_de_incidencias(db, ci_ids)
+    # La ventana de mantenimiento son cuatro horas; el `% 24` la deja cruzar la
+    # medianoche sin salirse de la fila del día.
+    total = sum(freq[dia][(hora + i) % 24] for i in range(4))
+    media = total / 4
+
+    dias = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    return {
+        "day_of_week": dia,
+        "hour_utc": hora,
+        "window_label": f"{dias[dia]} {hora:02d}:00–{(hora + 4) % 24:02d}:00 UTC",
+        "avg_incidents_in_window": round(media, 2),
+        "vs_optimal_diff": round(media - ventana_optima["avg_incidents_in_window"], 2),
+        "is_optimal": media <= ventana_optima["avg_incidents_in_window"] + 0.1,
+    }
+
+
+def _lado_del_informe(riesgo: dict, ci_ids: list[str], ventana: dict) -> dict:
+    """Un lado de la comparación. Los dos tienen exactamente la misma forma."""
+    return {
+        "score": riesgo["score"],
+        "risk_label": riesgo["risk_label"],
+        "components": riesgo["components"],
+        "ci_count_expanded": len(ci_ids),
+        "window": ventana,
+    }
+
+
 def simulate_change_whatif(
     db: Session,
     change_id: str,
     overrides: dict,
 ) -> dict:
-    """Simulate the risk impact of hypothetical changes to a Change Request.
+    """Simula el impacto de cambios hipotéticos sobre una petición de cambio.
 
-    *Does not persist anything.* Returns a side-by-side comparison of the
-    original vs simulated scenario including risk score, label, components,
-    and maintenance window.
+    **No persiste nada.** Devuelve la comparación lado a lado del escenario
+    original y el simulado: puntuación de riesgo, etiqueta, componentes y
+    ventana de mantenimiento.
 
-    Supported overrides (all optional):
-        downtime_minutes  (int)   : simulate a different planned downtime
-        change_type       (str)   : standard | normal | emergency
-        extra_ci_ids      (list)  : add CIs to the affected set
-        remove_ci_ids     (list)  : remove CIs from the affected set
-        scheduled_hour_utc (int)  : evaluate a specific hour (0-23) for the window
-        scheduled_dow      (int)  : evaluate a specific day-of-week (0=Mon) for the window
+    Overrides admitidos (todos opcionales):
+        downtime_minutes   (int)  : otra parada planificada
+        change_type        (str)  : standard | normal | emergency
+        extra_ci_ids       (list) : CI que se añaden al conjunto afectado
+        remove_ci_ids      (list) : CI que se quitan
+        scheduled_hour_utc (int)  : evalúa una hora concreta (0-23) para la ventana
+        scheduled_dow      (int)  : evalúa un día de la semana (0=lunes)
 
-    Returns:
-        {
-          "change_id": ...,
-          "original": {score, risk_label, components, window},
-          "simulated": {score, risk_label, components, window},
-          "delta": {score_diff, risk_change, window_changed},
-          "overrides_applied": {...},
-        }
+    Auditoría 2026-09 (hallazgo 18): eran 159 líneas y complejidad 15, con la
+    construcción del cambio falso, la matriz de incidencias y el montaje del
+    informe mezclados. Cada pieza tiene ahora su nombre y se puede probar sola.
     """
-    from types import SimpleNamespace
-
     change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
     if not change:
         from fastapi import HTTPException
         raise HTTPException(404, f"Change {change_id} not found")
 
-    # ── ORIGINAL ──────────────────────────────────────────────────────────────
-    orig_risk = score_change_risk(db, change)
-    orig_ci_ids = orig_risk["ci_ids_expanded"]
-    orig_window = suggest_maintenance_window(db, change, orig_ci_ids)
+    riesgo_orig = score_change_risk(db, change)
+    cis_orig = riesgo_orig["ci_ids_expanded"]
+    ventana_orig = suggest_maintenance_window(db, change, cis_orig)
 
-    # ── BUILD SIMULATED CHANGE OBJECT (SimpleNamespace — no DB touch) ─────────
-    orig_direct_ids: list[str] = []
-    try:
-        if change.affected_cis:
-            raw = json.loads(change.affected_cis)
-            orig_direct_ids = raw if isinstance(raw, list) else []
-    except (json.JSONDecodeError, TypeError):
-        orig_direct_ids = []
+    simulado = _cambio_simulado(change, overrides)
+    riesgo_sim = score_change_risk(db, simulado)  # type: ignore[arg-type]
+    cis_sim = riesgo_sim["ci_ids_expanded"]
+    ventana_sim = suggest_maintenance_window(db, change, cis_sim)
 
-    sim_direct_ids = list(orig_direct_ids)
-    for cid in overrides.get("extra_ci_ids", []):
-        if cid not in sim_direct_ids:
-            sim_direct_ids.append(cid)
-    remove_set = set(overrides.get("remove_ci_ids", []))
-    sim_direct_ids = [cid for cid in sim_direct_ids if cid not in remove_set]
-
-    # Map string change_type to enum
-    sim_change_type = change.change_type
-    if "change_type" in overrides:
-        try:
-            sim_change_type = ChangeType(overrides["change_type"])
-        # intentional: best-effort fallback, log noise outweighs diagnostic value
-        except ValueError:
-            pass  # ignore invalid enum, keep original
-
-    sim_downtime = int(overrides["downtime_minutes"]) if "downtime_minutes" in overrides else (change.downtime_minutes or 0)
-
-    sim_obj = SimpleNamespace(
-        change_type=sim_change_type,
-        risk=change.risk,
-        affected_cis=json.dumps(sim_direct_ids),
-        downtime_minutes=sim_downtime,
-    )
-
-    sim_risk = score_change_risk(db, sim_obj)  # type: ignore[arg-type]
-    sim_ci_ids = sim_risk["ci_ids_expanded"]
-    sim_window = suggest_maintenance_window(db, change, sim_ci_ids)
-
-    # If caller requested evaluation of a specific window slot
-    proposed_window: Optional[dict] = None
-    if "scheduled_hour_utc" in overrides or "scheduled_dow" in overrides:
-        prop_hour = int(overrides.get("scheduled_hour_utc", sim_window["hour_utc"]))
-        prop_dow = int(overrides.get("scheduled_dow", sim_window["day_of_week"]))
-        prop_hour = max(0, min(23, prop_hour))
-        prop_dow = max(0, min(6, prop_dow))
-
-        # Count incidents in proposed slot using same freq matrix logic
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(days=28)
-        q = db.query(Ticket.created_at).filter(
-            Ticket.created_at >= cutoff,
-            Ticket.ticket_type == "incident",
-        )
-        if sim_ci_ids:
-            q = q.filter(Ticket.ci_id.in_(sim_ci_ids))
-        incidents = q.all()
-
-        freq: list[list[int]] = [[0] * 24 for _ in range(7)]
-        for (ts,) in incidents:
-            if ts:
-                ts_utc = ts.replace(tzinfo=timezone.utc) if ts.tzinfo is None else ts
-                freq[ts_utc.weekday()][ts_utc.hour] += 1
-
-        proposed_window_sum = sum(freq[prop_dow][(prop_hour + i) % 24] for i in range(4))
-        _days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        proposed_window = {
-            "day_of_week": prop_dow,
-            "hour_utc": prop_hour,
-            "window_label": f"{_days[prop_dow]} {prop_hour:02d}:00–{(prop_hour+4)%24:02d}:00 UTC",
-            "avg_incidents_in_window": round(proposed_window_sum / 4, 2),
-            "vs_optimal_diff": round((proposed_window_sum / 4) - sim_window["avg_incidents_in_window"], 2),
-            "is_optimal": proposed_window_sum / 4 <= sim_window["avg_incidents_in_window"] + 0.1,
-        }
-
-    # ── DELTA ─────────────────────────────────────────────────────────────────
-    _risk_rank = {"low": 1, "medium": 2, "high": 3, "critical": 4}
-    orig_rank = _risk_rank.get(orig_risk["risk_label"], 2)
-    sim_rank = _risk_rank.get(sim_risk["risk_label"], 2)
-    delta_rank = sim_rank - orig_rank
-    risk_change = (
-        "escalated" if delta_rank > 0
-        else "reduced" if delta_rank < 0
-        else "unchanged"
-    )
+    salto = (_ORDEN_DE_RIESGO.get(riesgo_sim["risk_label"], 2)
+             - _ORDEN_DE_RIESGO.get(riesgo_orig["risk_label"], 2))
 
     result: dict = {
         "change_id": change_id,
         "change_number": change.number,
-        "original": {
-            "score": orig_risk["score"],
-            "risk_label": orig_risk["risk_label"],
-            "components": orig_risk["components"],
-            "ci_count_expanded": len(orig_ci_ids),
-            "window": orig_window,
-        },
-        "simulated": {
-            "score": sim_risk["score"],
-            "risk_label": sim_risk["risk_label"],
-            "components": sim_risk["components"],
-            "ci_count_expanded": len(sim_ci_ids),
-            "window": sim_window,
-        },
+        "original": _lado_del_informe(riesgo_orig, cis_orig, ventana_orig),
+        "simulated": _lado_del_informe(riesgo_sim, cis_sim, ventana_sim),
         "delta": {
-            "score_diff": sim_risk["score"] - orig_risk["score"],
-            "risk_change": risk_change,
-            "ci_count_diff": len(sim_ci_ids) - len(orig_ci_ids),
-            "window_changed": sim_window["window_label"] != orig_window["window_label"],
+            "score_diff": riesgo_sim["score"] - riesgo_orig["score"],
+            "risk_change": "escalated" if salto > 0 else "reduced" if salto < 0 else "unchanged",
+            "ci_count_diff": len(cis_sim) - len(cis_orig),
+            "window_changed": ventana_sim["window_label"] != ventana_orig["window_label"],
         },
-        "overrides_applied": {
-            k: v for k, v in overrides.items() if k not in ("extra_ci_ids", "remove_ci_ids")
-        },
+        # Las listas de CI se devuelven tal cual y no filtradas: quien pidió la
+        # simulación necesita ver qué pidió, no una versión resumida.
+        "overrides_applied": dict(overrides),
     }
-    if "extra_ci_ids" in overrides:
-        result["overrides_applied"]["extra_ci_ids"] = overrides["extra_ci_ids"]
-    if "remove_ci_ids" in overrides:
-        result["overrides_applied"]["remove_ci_ids"] = overrides["remove_ci_ids"]
-    if proposed_window is not None:
-        result["proposed_window_evaluation"] = proposed_window
 
+    if "scheduled_hour_utc" in overrides or "scheduled_dow" in overrides:
+        result["proposed_window_evaluation"] = _evaluar_ventana_propuesta(
+            db, overrides, cis_sim, ventana_sim,
+        )
     return result

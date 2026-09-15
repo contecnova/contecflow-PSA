@@ -1,4 +1,5 @@
 import os
+import secrets
 from contextlib import contextmanager
 # Forzar modo 'plain' para claves JWT en tests (no KMS)
 os.environ["KMS_PROVIDER"] = ""
@@ -8,7 +9,6 @@ os.environ["AWS_KMS_KEY_ID"] = ""
 conftest.py — Fixtures compartidos para toda la suite de tests de Contecflow.
 Usa SQLite en memoria para aislamiento total.
 """
-import secrets
 import pytest
 from fastapi.testclient import TestClient
 
@@ -18,22 +18,19 @@ from sqlalchemy import create_engine
 from sqlalchemy import event as _sa_event
 from sqlalchemy.orm import sessionmaker
 
-from app.db.session import TenantSession
-
-# Los dos escuchadores de aislamiento. Estan detras de sus perillas
-# (`TENANT_AUTO_FILTER_GLOBAL` y `TENANT_AUTO_STAMP_ON_INSERT`), asi que pueden
-# no existir: si estan apagados en el entorno, la suite corre sin ellos, igual
-# que produccion.
-try:
-    from app.db.session import _enforce_tenant_isolation
-except ImportError:  # pragma: no cover — la perilla esta apagada
-    _enforce_tenant_isolation = None
-try:
-    from app.db.session import _sellar_organizacion
-except ImportError:  # pragma: no cover
-    _sellar_organizacion = None
-
-# Variables de entorno necesarias para pydantic-settings en tests
+# Variables de entorno necesarias para pydantic-settings en tests.
+#
+# Auditoría 2026-09: este bloque estaba **después** de
+# `from app.db.session import TenantSession`, que arrastra `app.core.config` y
+# por tanto construye `settings` con los valores que hubiera **antes** de que
+# estas líneas se ejecutaran. Consecuencia real:
+# `test_scim_user_provisioning` fallaba —`settings.SCIM_BEARER_TOKEN` vacío—
+# salvo que algo anterior en la suite hubiera dejado el valor puesto, así que
+# pasaba o no según el orden de los tests. Un test que depende del orden no
+# prueba lo que dice probar.
+#
+# Va aquí, antes del primer import de `app`, y es el sitio: `pydantic-settings`
+# lee el entorno una sola vez, al construir el objeto.
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-tests-only-not-production-use")
 os.environ.setdefault("CLIENT_PORTAL_SECRET", "test-client-portal-secret-unit-tests-only")
 os.environ.setdefault("SCIM_BEARER_TOKEN", "test-scim-token-unit-tests-only")
@@ -64,6 +61,22 @@ _TEST_PASSWORD = secrets.token_urlsafe(20)
 os.environ.setdefault("SUPERADMIN_PASSWORD", _TEST_PASSWORD)
 os.environ.setdefault("DEFAULT_USER_PASSWORD", _TEST_PASSWORD)
 os.environ.setdefault("DATABASE_URL", "sqlite://")
+
+from app.db.session import TenantSession
+
+# Los dos escuchadores de aislamiento. Estan detras de sus perillas
+# (`TENANT_AUTO_FILTER_GLOBAL` y `TENANT_AUTO_STAMP_ON_INSERT`), asi que pueden
+# no existir: si estan apagados en el entorno, la suite corre sin ellos, igual
+# que produccion.
+try:
+    from app.db.session import _enforce_tenant_isolation
+except ImportError:  # pragma: no cover — la perilla esta apagada
+    _enforce_tenant_isolation = None
+try:
+    from app.db.session import _sellar_organizacion
+except ImportError:  # pragma: no cover
+    _sellar_organizacion = None
+
 
 from app.main import app
 from app.db.base import Base

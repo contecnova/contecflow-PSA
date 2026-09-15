@@ -117,31 +117,55 @@ def _split_csv(s: str) -> list[str]:
     return out
 
 
+#: Los operadores que entiende una expresión de decisión. Auditoría 2026-09
+#: (hallazgo 18): eran nueve `if` con `return`, que es **una tabla escrita como
+#: código**. Como tabla, añadir un operador es añadir una fila y se ve de un
+#: vistazo cuáles toleran un lado izquierdo nulo y cuáles no.
+#:
+#: Las comparaciones de orden comprueban `lhs is not None` porque en Python 3
+#: `None < 5` levanta `TypeError`, y una expresión de decisión que revienta
+#: para un campo vacío detendría el flujo entero.
+_OPERADORES = {
+    "==":         lambda lhs, rhs: lhs == rhs,
+    "!=":         lambda lhs, rhs: lhs != rhs,
+    "<":          lambda lhs, rhs: lhs is not None and lhs < rhs,
+    "<=":         lambda lhs, rhs: lhs is not None and lhs <= rhs,
+    ">":          lambda lhs, rhs: lhs is not None and lhs > rhs,
+    ">=":         lambda lhs, rhs: lhs is not None and lhs >= rhs,
+    "in":         lambda lhs, rhs: lhs in (rhs or []),
+    "contains":   lambda lhs, rhs: lhs is not None and rhs in lhs,
+    "startswith": lambda lhs, rhs: isinstance(lhs, str) and lhs.startswith(str(rhs)),
+}
+
+
 def evaluate_expression(expr: str, context: dict) -> bool:
-    """Evaluación segura de la expresión de un nodo decisión."""
+    """Evaluación segura de la expresión de un nodo de decisión.
+
+    Segura significa que **no hay `eval`**: sólo estos nueve operadores sobre
+    campos del contexto. Una expresión de flujo la escribe un administrador de
+    cliente desde la interfaz, así que evaluar código sería ejecución remota.
+
+    Una expresión vacía es `True` —un nodo sin condición siempre pasa— y una que
+    no encaja con la forma `campo op valor` se trata como «¿tiene valor este
+    campo?».
+    """
     if not expr or not expr.strip():
         return True
+
     m = _EXPR_RE.match(expr)
     if not m:
-        # fallback: si la expresión es "campo" sin operador, comprueba truthy
-        val = _resolve(context, expr.strip())
-        return bool(val)
-    lhs = _resolve(context, m.group("lhs"))
-    op = m.group("op").lower()
-    rhs = _parse_literal(m.group("rhs"))
-    try:
-        if op == "==":         return lhs == rhs
-        if op == "!=":         return lhs != rhs
-        if op == "<":          return lhs is not None and lhs < rhs
-        if op == "<=":         return lhs is not None and lhs <= rhs
-        if op == ">":          return lhs is not None and lhs > rhs
-        if op == ">=":         return lhs is not None and lhs >= rhs
-        if op == "in":         return lhs in (rhs or [])
-        if op == "contains":   return lhs is not None and rhs in lhs
-        if op == "startswith": return isinstance(lhs, str) and lhs.startswith(str(rhs))
-    except Exception:
+        return bool(_resolve(context, expr.strip()))
+
+    operador = _OPERADORES.get(m.group("op").lower())
+    if operador is None:
         return False
-    return False
+
+    try:
+        return operador(_resolve(context, m.group("lhs")), _parse_literal(m.group("rhs")))
+    except Exception:
+        # Comparar tipos incompatibles es un fallo de la expresión, no del
+        # flujo: la rama no se toma y el flujo sigue por la otra.
+        return False
 
 
 # ── Helpers de versión / nodos ───────────────────────────────────────────────

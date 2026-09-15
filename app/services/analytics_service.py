@@ -199,104 +199,135 @@ def get_hours_by_week(weeks: int, current_user, db) -> dict:
 
 # ── Advanced utilization ──────────────────────────────────────────────────────
 
-def get_advanced_utilization(weeks_ahead: int, project_id, project_type, client_id, current_user, db) -> dict:
-    today = timeutil.today()
-    period_start = today - timedelta(days=today.weekday())
-    period_end   = period_start + timedelta(days=6)
-    project_ids  = get_filtered_project_ids(db, current_user,
-                                             project_id=project_id, project_type=project_type, client_id=client_id)
+def _horas_reservadas(db: Session, user_id, desde, hasta, project_ids) -> float:
+    """Horas de reserva **firme** de una persona que caen dentro de una ventana.
+
+    Auditoría 2026-09 (hallazgo 18): este bucle estaba escrito **dos veces**
+    dentro de `get_advanced_utilization` —una para la semana en curso y otra
+    para cada semana proyectada— con la misma aritmética de solapamiento.
+
+    Sólo cuentan las reservas `hard`: las blandas son intenciones, no compromiso
+    de capacidad. El `+1` del solapamiento es porque los dos extremos del rango
+    están incluidos: una reserva de lunes a lunes es un día, no cero.
+    """
+    q = db.query(ResourceBooking).filter(
+        ResourceBooking.user_id == user_id,
+        ResourceBooking.booking_type == BookingType.hard,
+        ResourceBooking.start_date <= hasta,
+        ResourceBooking.end_date >= desde,
+    )
+    if project_ids:
+        q = q.filter(ResourceBooking.project_id.in_(project_ids))
+
+    horas = 0.0
+    for reserva in q.all():
+        dias = (min(hasta, reserva.end_date) - max(desde, reserva.start_date)).days + 1
+        if dias > 0:
+            horas += dias * float(reserva.hours_per_day or 0)
+    return horas
+
+
+def _porcentaje(parte: float, total: float) -> float:
+    """Porcentaje redondeado, y 0 cuando no hay base sobre la que calcularlo."""
+    return round(parte / total * 100, 1) if total > 0 else 0
+
+
+def _fila_de_utilizacion(db: Session, usuario, *, period_start, period_end,
+                         weeks_ahead: int, project_ids) -> dict:
+    """La utilización de una persona: la semana en curso y las proyectadas."""
+    capacidad = float(usuario.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
+
+    horas_q = db.query(func.sum(Imputation.hours)).filter(
+        Imputation.user_id == usuario.id,
+        Imputation.date >= period_start,
+        Imputation.date <= period_end,
+    )
+    if project_ids:
+        horas_q = horas_q.filter(Imputation.project_id.in_(project_ids))
+    horas_reales = float(horas_q.scalar() or 0.0)
+
+    reservadas = _horas_reservadas(db, usuario.id, period_start, period_end, project_ids)
+
+    proyectadas = []
+    for i in range(1, weeks_ahead + 1):
+        inicio = period_start + timedelta(days=7 * i)
+        fin = inicio + timedelta(days=6)
+        semana = _horas_reservadas(db, usuario.id, inicio, fin, project_ids)
+        proyectadas.append({
+            "week_start": str(inicio),
+            "booked_hours": round(semana, 1),
+            "capacity_hours": round(capacidad, 1),
+            "utilization_pct": _porcentaje(semana, capacidad),
+        })
+
+    return {
+        "user_id": usuario.id,
+        "full_name": usuario.full_name,
+        "department": usuario.department,
+        "capacity_hours": round(capacidad, 1),
+        "actual_hours": round(horas_reales, 1),
+        "booked_hours": round(reservadas, 1),
+        "actual_utilization_pct": _porcentaje(horas_reales, capacidad),
+        "booked_utilization_pct": _porcentaje(reservadas, capacidad),
+        "projected": proyectadas,
+    }
+
+
+def get_advanced_utilization(weeks_ahead: int, project_id, project_type, client_id,
+                             current_user, db) -> dict:
+    """Utilización del equipo: horas reales frente a reservadas, con proyección."""
+    hoy = timeutil.today()
+    period_start = hoy - timedelta(days=hoy.weekday())
+    period_end = period_start + timedelta(days=6)
+
+    project_ids = get_filtered_project_ids(
+        db, current_user,
+        project_id=project_id, project_type=project_type, client_id=client_id,
+    )
     if project_id and project_ids == []:
         raise HTTPException(403, "No tienes acceso a este proyecto")
+
+    ventana = {"week_start": str(period_start), "week_end": str(period_end),
+               "weeks_ahead": weeks_ahead}
+    filtros = {"project_id": project_id, "project_type": project_type, "client_id": client_id}
+
     if project_ids == []:
         return {
-            "window":  {"week_start": str(period_start), "week_end": str(period_end), "weeks_ahead": weeks_ahead},
-            "filters": {"project_id": project_id, "project_type": project_type, "client_id": client_id},
+            "window": ventana,
+            "filters": filtros,
             "summary": {"capacity_hours": 0, "actual_hours": 0, "booked_hours": 0,
                         "actual_utilization_pct": 0, "booked_utilization_pct": 0},
             "team": [],
         }
-    users_q = db.query(User).filter(User.is_active == True)
+
+    usuarios_q = db.query(User).filter(User.is_active == True)  # noqa: E712
     if current_user.organization_id:
-        users_q = users_q.filter(User.organization_id == current_user.organization_id)
-    users = users_q.all()
-    team_rows = []
-    total_capacity = total_actual = total_booked = 0.0
-    for u in users:
-        weekly_capacity = float(u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
-        current_hours_q = db.query(func.sum(Imputation.hours)).filter(
-            Imputation.user_id == u.id,
-            Imputation.date >= period_start,
-            Imputation.date <= period_end,
+        usuarios_q = usuarios_q.filter(User.organization_id == current_user.organization_id)
+
+    filas = [
+        _fila_de_utilizacion(
+            db, u, period_start=period_start, period_end=period_end,
+            weeks_ahead=weeks_ahead, project_ids=project_ids,
         )
-        if project_ids:
-            current_hours_q = current_hours_q.filter(Imputation.project_id.in_(project_ids))
-        current_hours = float(current_hours_q.scalar() or 0.0)
-        booking_q = db.query(ResourceBooking).filter(
-            ResourceBooking.user_id == u.id,
-            ResourceBooking.booking_type == BookingType.hard,
-            ResourceBooking.start_date <= period_end,
-            ResourceBooking.end_date >= period_start,
-        )
-        if project_ids:
-            booking_q = booking_q.filter(ResourceBooking.project_id.in_(project_ids))
-        booked_hours = 0.0
-        for b in booking_q.all():
-            overlap_start = max(period_start, b.start_date)
-            overlap_end   = min(period_end,   b.end_date)
-            days = (overlap_end - overlap_start).days + 1
-            if days > 0:
-                booked_hours += days * float(b.hours_per_day or 0)
-        projected_weeks = []
-        for i in range(1, weeks_ahead + 1):
-            ws = period_start + timedelta(days=7 * i)
-            we = ws + timedelta(days=6)
-            q_w = db.query(ResourceBooking).filter(
-                ResourceBooking.user_id == u.id,
-                ResourceBooking.booking_type == BookingType.hard,
-                ResourceBooking.start_date <= we,
-                ResourceBooking.end_date >= ws,
-            )
-            if project_ids:
-                q_w = q_w.filter(ResourceBooking.project_id.in_(project_ids))
-            week_booked = 0.0
-            for b in q_w.all():
-                ov_s = max(ws, b.start_date)
-                ov_e = min(we, b.end_date)
-                d    = (ov_e - ov_s).days + 1
-                if d > 0:
-                    week_booked += d * float(b.hours_per_day or 0)
-            projected_weeks.append({
-                "week_start": str(ws),
-                "booked_hours": round(week_booked, 1),
-                "capacity_hours": round(weekly_capacity, 1),
-                "utilization_pct": round((week_booked / weekly_capacity) * 100, 1) if weekly_capacity > 0 else 0,
-            })
-        total_capacity += weekly_capacity
-        total_actual   += current_hours
-        total_booked   += booked_hours
-        team_rows.append({
-            "user_id": u.id,
-            "full_name": u.full_name,
-            "department": u.department,
-            "capacity_hours": round(weekly_capacity, 1),
-            "actual_hours": round(current_hours, 1),
-            "booked_hours": round(booked_hours, 1),
-            "actual_utilization_pct": round((current_hours / weekly_capacity) * 100, 1) if weekly_capacity > 0 else 0,
-            "booked_utilization_pct": round((booked_hours / weekly_capacity) * 100, 1) if weekly_capacity > 0 else 0,
-            "projected": projected_weeks,
-        })
-    team_rows.sort(key=lambda x: x["actual_utilization_pct"], reverse=True)
+        for u in usuarios_q.all()
+    ]
+    filas.sort(key=lambda f: f["actual_utilization_pct"], reverse=True)
+
+    capacidad = sum(f["capacity_hours"] for f in filas)
+    reales = sum(f["actual_hours"] for f in filas)
+    reservadas = sum(f["booked_hours"] for f in filas)
+
     return {
-        "window":  {"week_start": str(period_start), "week_end": str(period_end), "weeks_ahead": weeks_ahead},
-        "filters": {"project_id": project_id, "project_type": project_type, "client_id": client_id},
+        "window": ventana,
+        "filters": filtros,
         "summary": {
-            "capacity_hours": round(total_capacity, 1),
-            "actual_hours":   round(total_actual, 1),
-            "booked_hours":   round(total_booked, 1),
-            "actual_utilization_pct": round((total_actual / total_capacity) * 100, 1) if total_capacity > 0 else 0,
-            "booked_utilization_pct": round((total_booked / total_capacity) * 100, 1) if total_capacity > 0 else 0,
+            "capacity_hours": round(capacidad, 1),
+            "actual_hours": round(reales, 1),
+            "booked_hours": round(reservadas, 1),
+            "actual_utilization_pct": _porcentaje(reales, capacidad),
+            "booked_utilization_pct": _porcentaje(reservadas, capacidad),
         },
-        "team": team_rows,
+        "team": filas,
     }
 
 

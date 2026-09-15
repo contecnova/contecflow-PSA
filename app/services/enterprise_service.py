@@ -923,36 +923,77 @@ def get_workers_for_subcontractor(sub_id: str, db: Session) -> list:
     return [serialize_worker(w) for w in workers]
 
 
+#: Campo del trabajador → campo del usuario enlazado. Auditoría 2026-09
+#: (hallazgo 18): eran seis `if` idénticos en línea, que es una tabla escrita
+#: como código. `name` y `email` no están aquí porque no son copias directas:
+#: uno se parte en nombre y apellidos y el otro necesita comprobar duplicados.
+_ESPEJO_TRABAJADOR_USUARIO: tuple[tuple[str, str], ...] = (
+    ("role", "job_title"),
+    ("phone", "phone"),
+    ("cost_rate", "hourly_rate"),
+    ("currency", "currency"),
+    ("is_active", "is_active"),
+)
+
+
+def _sincronizar_usuario_enlazado(db: Session, worker, cambios: dict) -> None:
+    """Refleja en el usuario enlazado los campos que comparte con el trabajador.
+
+    Sólo se tocan los campos **presentes** en el payload: `exclude_unset` deja
+    fuera los que nadie envió, y no es lo mismo «ponlo a nulo» que «no lo toques».
+    """
+    if not worker.user_id:
+        return
+    usuario = db.query(User).filter(User.id == worker.user_id).first()
+    if not usuario:
+        return
+
+    for campo_trabajador, campo_usuario in _ESPEJO_TRABAJADOR_USUARIO:
+        if campo_trabajador in cambios:
+            setattr(usuario, campo_usuario, cambios[campo_trabajador])
+
+    # La capacidad semanal sí distingue: un nulo explícito no la borra, porque
+    # un usuario sin capacidad declarada no es lo mismo que uno con cero.
+    if cambios.get("weekly_capacity_hours") is not None:
+        usuario.weekly_capacity_hours = cambios["weekly_capacity_hours"]
+
+    if "name" in cambios:
+        usuario.full_name = cambios["name"]
+        partes = cambios["name"].strip().split(" ", 1)
+        usuario.first_name = partes[0]
+        usuario.last_name = partes[1] if len(partes) > 1 else None
+
+    # El correo es identidad: si ya lo tiene otro, **no se cambia y no se
+    # levanta error** — el resto de la actualización es válida y el trabajador
+    # se queda con el correo que tenía, que es lo que hacía esta función.
+    nuevo_correo = cambios.get("email")
+    if nuevo_correo:
+        ocupado = db.query(User).filter(
+            User.email == nuevo_correo, User.id != usuario.id,
+        ).first()
+        if not ocupado:
+            usuario.email = nuevo_correo
+
+
 def update_worker(worker_id: str, payload, db: Session) -> dict:
+    """Actualiza un trabajador subcontratado y su usuario enlazado, si lo tiene."""
     worker = db.query(SubcontractorWorker).options(
         joinedload(SubcontractorWorker.skills).joinedload(SubcontractorWorkerSkill.skill),
         joinedload(SubcontractorWorker.assignments),
         joinedload(SubcontractorWorker.user),
-    ).filter(SubcontractorWorker.id == worker_id, SubcontractorWorker.is_active == True).first()
+    ).filter(
+        SubcontractorWorker.id == worker_id,
+        SubcontractorWorker.is_active == True,  # noqa: E712
+    ).first()
     if not worker:
         raise ValueError("not_found")
-    update_data = payload.model_dump(exclude_unset=True)
-    for k, v in update_data.items():
-        setattr(worker, k, v)
-    if worker.user_id:
-        linked_user = db.query(User).filter(User.id == worker.user_id).first()
-        if linked_user:
-            if "name" in update_data:
-                linked_user.full_name = update_data["name"]
-                parts = update_data["name"].strip().split(" ", 1)
-                linked_user.first_name = parts[0]
-                linked_user.last_name = parts[1] if len(parts) > 1 else None
-            if "role" in update_data: linked_user.job_title = update_data["role"]
-            if "phone" in update_data: linked_user.phone = update_data["phone"]
-            if "cost_rate" in update_data: linked_user.hourly_rate = update_data["cost_rate"]
-            if "currency" in update_data: linked_user.currency = update_data["currency"]
-            if "weekly_capacity_hours" in update_data and update_data["weekly_capacity_hours"] is not None:
-                linked_user.weekly_capacity_hours = update_data["weekly_capacity_hours"]
-            if "is_active" in update_data: linked_user.is_active = update_data["is_active"]
-            if "email" in update_data and update_data["email"]:
-                conflict = db.query(User).filter(User.email == update_data["email"], User.id != linked_user.id).first()
-                if not conflict:
-                    linked_user.email = update_data["email"]
+
+    cambios = payload.model_dump(exclude_unset=True)
+    for clave, valor in cambios.items():
+        setattr(worker, clave, valor)
+
+    _sincronizar_usuario_enlazado(db, worker, cambios)
+
     db.commit()
     db.refresh(worker)
     return serialize_worker(worker)

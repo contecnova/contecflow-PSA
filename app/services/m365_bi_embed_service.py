@@ -441,6 +441,48 @@ def create_sharepoint_page_with_bi(
 
 # ── Excel export ──────────────────────────────────────────────────────────────
 
+def _openpyxl():
+    """Los tres nombres de openpyxl que hacen falta, o un 500 con motivo."""
+    try:
+        from openpyxl import Workbook  # type: ignore
+        from openpyxl.styles import Font, PatternFill, Alignment  # type: ignore
+        from openpyxl.utils import get_column_letter  # type: ignore
+    except ImportError as exc:
+        raise HTTPException(500, "openpyxl no instalado") from exc
+    return Workbook, Font, PatternFill, Alignment, get_column_letter
+
+
+def _escribir_hoja(ws, cabecera: list[str], filas, *, si_vacia: Optional[list] = None) -> None:
+    """Escribe una hoja: cabecera con estilo, filas, y anchos calculados.
+
+    Auditoría 2026-09 (hallazgo 18): las cuatro hojas de este libro repetían
+    exactamente esto —cabecera, bucle de filas, autoajuste— y eso era la mitad
+    de la complejidad de `export_dashboard_excel`. Una hoja es una hoja; lo que
+    cambia entre ellas son los datos, no la forma de escribirlos.
+
+    `si_vacia` es la fila que se pone cuando no hay ninguna. Sin ella una hoja
+    vacía se lee como un fallo del informe, y no lo es.
+    """
+    _, Font, PatternFill, Alignment, get_column_letter = _openpyxl()
+
+    ws.append(cabecera)
+    for celda in ws[ws.max_row]:
+        celda.font = Font(bold=True, color="FFFFFF")
+        celda.fill = PatternFill("solid", fgColor="0078D4")
+        celda.alignment = Alignment(horizontal="center")
+
+    escritas = 0
+    for fila in filas:
+        ws.append(fila)
+        escritas += 1
+    if escritas == 0 and si_vacia is not None:
+        ws.append(si_vacia)
+
+    for columna in ws.columns:
+        ancho = max((len(str(c.value or "")) for c in columna), default=8)
+        ws.column_dimensions[get_column_letter(columna[0].column)].width = min(ancho + 4, 40)
+
+
 def export_dashboard_excel(
     db: Session,
     *,
@@ -450,103 +492,58 @@ def export_dashboard_excel(
     include_anomalies: bool = True,
     include_overrun: bool = True,
 ) -> io.BytesIO:
-    """Generate an Excel workbook (.xlsx) with BI data for the given dashboard.
+    """Libro .xlsx con los datos de BI del dashboard indicado.
 
-    Sheets generated:
-      - Summary      — latest KPIs
-      - Forecast     — monthly revenue forecast
-      - Anomalies    — detected anomaly months
-      - Overrun      — project overrun predictions (if available)
-
-    Returns an in-memory BytesIO — caller sends as StreamingResponse.
+    Hojas: Resumen (KPIs recientes), Forecast, Anomalías y Overrun. Devuelve un
+    `BytesIO` en memoria; quien llama lo manda como `StreamingResponse`.
     """
-    try:
-        from openpyxl import Workbook  # type: ignore
-        from openpyxl.styles import Font, PatternFill, Alignment  # type: ignore
-        from openpyxl.utils import get_column_letter  # type: ignore
-    except ImportError as exc:
-        raise HTTPException(500, "openpyxl no instalado") from exc
+    Workbook, Font, _PatternFill, _Alignment, _get_column_letter = _openpyxl()
 
     wb = Workbook()
-    now_str = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    ahora = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-    # ── Header style helpers ──────────────────────────────────────────────────
-    HEADER_FONT = Font(bold=True, color="FFFFFF")
-    HEADER_FILL = PatternFill("solid", fgColor="0078D4")
-    CENTER = Alignment(horizontal="center")
-
-    def _header_row(ws, cols: list[str]) -> None:
-        ws.append(cols)
-        for cell in ws[ws.max_row]:
-            cell.font = HEADER_FONT
-            cell.fill = HEADER_FILL
-            cell.alignment = CENTER
-
-    def _autofit(ws) -> None:
-        for col_cells in ws.columns:
-            length = max((len(str(c.value or "")) for c in col_cells), default=8)
-            ws.column_dimensions[get_column_letter(col_cells[0].column)].width = min(length + 4, 40)
-
-    # ── Summary sheet ─────────────────────────────────────────────────────────
     ws_sum = wb.active
     ws_sum.title = "Resumen"
     ws_sum.append(["Contecflow BI – Dashboard Export"])
     ws_sum["A1"].font = Font(bold=True, size=14)
     ws_sum.append([f"Dashboard: {dashboard_id}"])
     ws_sum.append([f"Organización: {org_id or 'global'}"])
-    ws_sum.append([f"Generado: {now_str}"])
+    ws_sum.append([f"Generado: {ahora}"])
     ws_sum.append([])
 
     forecast_data = bi_svc.ml_forecast_revenue(db, organization_id=org_id, months_ahead=6)
-    history = forecast_data.get("history") or []
+    _escribir_hoja(
+        ws_sum, ["Mes", "Revenue", "Coste", "Horas"],
+        ([r.get("month"), r.get("revenue"), r.get("cost"), r.get("hours")]
+         for r in forecast_data.get("history") or []),
+    )
 
-    _header_row(ws_sum, ["Mes", "Revenue", "Coste", "Horas"])
-    for row in history:
-        ws_sum.append([row.get("month"), row.get("revenue"), row.get("cost"), row.get("hours")])
-    _autofit(ws_sum)
-
-    # ── Forecast sheet ────────────────────────────────────────────────────────
     if include_forecast:
-        ws_fc = wb.create_sheet("Forecast")
-        _header_row(ws_fc, ["Mes", "Revenue Previsto", "Banda Inferior", "Banda Superior"])
-        for row in forecast_data.get("forecast") or []:
-            ws_fc.append([
-                row.get("month"),
-                row.get("predicted_revenue"),
-                row.get("lower_bound"),
-                row.get("upper_bound"),
-            ])
-        _autofit(ws_fc)
+        _escribir_hoja(
+            wb.create_sheet("Forecast"),
+            ["Mes", "Revenue Previsto", "Banda Inferior", "Banda Superior"],
+            ([r.get("month"), r.get("predicted_revenue"), r.get("lower_bound"), r.get("upper_bound")]
+             for r in forecast_data.get("forecast") or []),
+        )
 
-    # ── Anomalies sheet ───────────────────────────────────────────────────────
     if include_anomalies:
-        ws_an = wb.create_sheet("Anomalías")
-        anomaly_data = bi_svc.ml_detect_revenue_anomalies(db, organization_id=org_id, z_threshold=2.0)
-        _header_row(ws_an, ["Mes", "Revenue", "Z-Score", "Dirección", "Severidad"])
-        for item in anomaly_data.get("items") or []:
-            ws_an.append([
-                item.get("month"),
-                item.get("revenue"),
-                item.get("z_score"),
-                item.get("direction"),
-                item.get("severity"),
-            ])
-        _autofit(ws_an)
+        anomalias = bi_svc.ml_detect_revenue_anomalies(db, organization_id=org_id, z_threshold=2.0)
+        _escribir_hoja(
+            wb.create_sheet("Anomalías"),
+            ["Mes", "Revenue", "Z-Score", "Dirección", "Severidad"],
+            ([a.get("month"), a.get("revenue"), a.get("z_score"), a.get("direction"), a.get("severity")]
+             for a in anomalias.get("items") or []),
+        )
 
-    # ── Overrun sheet ─────────────────────────────────────────────────────────
     if include_overrun:
-        ws_ov = wb.create_sheet("Overrun Predicciones")
-        overrun_data = bi_svc.ml_predict_project_overrun_lgbm(db, organization_id=org_id)
-        _header_row(ws_ov, ["Proyecto", "Probabilidad Overrun", "Nivel Riesgo"])
-        for pred in (overrun_data.get("predictions") or []):
-            ws_ov.append([
-                pred.get("project_name") or pred.get("project_id"),
-                pred.get("overrun_probability"),
-                pred.get("risk_level"),
-            ])
-        if not (overrun_data.get("predictions") or []):
-            ws_ov.append(["(sin datos de proyectos suficientes)", None, None])
-        _autofit(ws_ov)
+        overrun = bi_svc.ml_predict_project_overrun_lgbm(db, organization_id=org_id)
+        _escribir_hoja(
+            wb.create_sheet("Overrun Predicciones"),
+            ["Proyecto", "Probabilidad Overrun", "Nivel Riesgo"],
+            ([p.get("project_name") or p.get("project_id"), p.get("overrun_probability"), p.get("risk_level")]
+             for p in overrun.get("predictions") or []),
+            si_vacia=["(sin datos de proyectos suficientes)", None, None],
+        )
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -554,14 +551,96 @@ def export_dashboard_excel(
     return buf
 
 
-# ── Word (RTF) export ─────────────────────────────────────────────────────────
-
 def _rtf_escape(text: str) -> str:
+    """Escapa lo que RTF trata como sintaxis: la barra y las dos llaves.
+
+    La barra va **primero**: si se hiciera al final, escaparia tambien las
+    barras que acaban de introducir los escapes de las llaves.
+    """
     return (
         text.replace("\\", "\\\\")
             .replace("{", "\\{")
             .replace("}", "\\}")
     )
+
+
+class _Rtf:
+    """Un documento RTF que se construye a párrafos.
+
+    RTF y no `.docx` a propósito: no necesita dependencias y Word, LibreOffice
+    y Google Docs lo abren los tres de forma nativa.
+    """
+
+    def __init__(self) -> None:
+        self._lineas: list[str] = []
+
+    def h1(self, texto: str) -> None:
+        self._lineas.append(rf"{{\pard\sb360\sa120\b\fs32 {_rtf_escape(texto)}\par}}")
+
+    def h2(self, texto: str) -> None:
+        self._lineas.append(rf"{{\pard\sb240\sa80\b\fs28 {_rtf_escape(texto)}\par}}")
+
+    def p(self, texto: str) -> None:
+        self._lineas.append(rf"{{\pard\sb80\sa80\fs24 {_rtf_escape(texto)}\par}}")
+
+    def kv(self, clave: str, valor: str) -> None:
+        self._lineas.append(
+            rf"{{\pard\sb40\sa40\fs24 {{\b {_rtf_escape(clave)}:}} {_rtf_escape(valor)}\par}}"
+        )
+
+    def bytes(self) -> io.BytesIO:
+        contenido = (
+            r"{\rtf1\ansi\deff0"
+            r"{\fonttbl{\f0\froman\fcharset0 Times New Roman;}{\f1\fswiss\fcharset0 Calibri;}}"
+            r"{\colortbl;\red0\green0\blue0;\red0\green120\blue212;}"
+            r"\f1\widowctrl\hyphauto"
+            "\n"
+            + "\n".join(self._lineas)
+            + "\n}"
+        )
+        buf = io.BytesIO(contenido.encode("latin-1", errors="replace"))
+        buf.seek(0)
+        return buf
+
+
+def _seccion_kpis(doc: _Rtf, snapshot: dict) -> None:
+    """Los KPIs que haya. Un KPI ausente **no se escribe**: poner un cero sería
+    afirmar que vale cero."""
+    doc.h2("KPIs Actuales")
+    if snapshot.get("latest_month"):
+        doc.kv("Mes", snapshot["latest_month"])
+    if snapshot.get("latest_revenue") is not None:
+        doc.kv("Revenue", f"{snapshot['latest_revenue']:,.2f}")
+    if snapshot.get("latest_cost") is not None:
+        doc.kv("Coste", f"{snapshot['latest_cost']:,.2f}")
+    if snapshot.get("latest_hours") is not None:
+        doc.kv("Horas", f"{snapshot['latest_hours']:,.0f}")
+
+
+def _seccion_anomalias(doc: _Rtf, snapshot: dict) -> None:
+    doc.h2("Anomalías Detectadas")
+    anomalias = snapshot.get("anomalies") or []
+    if not anomalias:
+        doc.p("No se detectaron anomalías en el período analizado.")
+        return
+    for an in anomalias:
+        doc.p(
+            f"{an.get('month')} – Revenue: {an.get('revenue', 0):,.0f} "
+            f"(Z={an.get('z_score', 0):.2f}, {an.get('direction', '')}, {an.get('severity', '')})"
+        )
+
+
+def _seccion_overrun(doc: _Rtf, snapshot: dict) -> None:
+    doc.h2("Proyectos en Riesgo de Overrun")
+    overruns = snapshot.get("overrun_predictions") or []
+    if not overruns:
+        doc.p("Sin predicciones de overrun disponibles.")
+        return
+    for ov in overruns:
+        nombre = ov.get("project_name") or ov.get("project_id") or "–"
+        prob = ov.get("overrun_probability") or 0
+        riesgo = ov.get("risk_level") or "–"
+        doc.p(f"{nombre}: {prob:.0%} probabilidad de overrun ({riesgo})")
 
 
 def export_dashboard_word(
@@ -570,83 +649,31 @@ def export_dashboard_word(
     dashboard_id: str,
     org_id: Optional[str],
 ) -> io.BytesIO:
-    """Generate a Word-compatible RTF document with a BI dashboard narrative summary.
+    """Documento RTF con el resumen narrativo de un dashboard de BI.
 
-    Uses RTF format (no external deps required). Word, LibreOffice and
-    Google Docs can all open .rtf natively.
+    Auditoría 2026-09 (hallazgo 18): eran 83 líneas con cuatro ayudantes
+    anidados y cuatro secciones seguidas, complejidad 15. Los ayudantes son
+    ahora `_Rtf` —construir un RTF es una responsabilidad, no un detalle de este
+    informe— y cada sección tiene su función.
     """
-    now_str = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    ahora = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     snapshot = get_dashboard_snapshot(db, organization_id=org_id, dashboard_id=dashboard_id)
 
-    lines: list[str] = []
-
-    def h1(text: str) -> None:
-        lines.append(rf"{{\pard\sb360\sa120\b\fs32 {_rtf_escape(text)}\par}}")
-
-    def h2(text: str) -> None:
-        lines.append(rf"{{\pard\sb240\sa80\b\fs28 {_rtf_escape(text)}\par}}")
-
-    def p(text: str) -> None:
-        lines.append(rf"{{\pard\sb80\sa80\fs24 {_rtf_escape(text)}\par}}")
-
-    def kv(key: str, value: str) -> None:
-        lines.append(rf"{{\pard\sb40\sa40\fs24 {{\b {_rtf_escape(key)}:}} {_rtf_escape(value)}\par}}")
-
-    h1(f"Contecflow BI – {dashboard_id.replace('-', ' ').title()}")
-    p(f"Generado: {now_str}")
+    doc = _Rtf()
+    doc.h1(f"Contecflow BI – {dashboard_id.replace('-', ' ').title()}")
+    doc.p(f"Generado: {ahora}")
     if org_id:
-        p(f"Organización: {org_id}")
+        doc.p(f"Organización: {org_id}")
 
-    h2("KPIs Actuales")
-    if snapshot.get("latest_month"):
-        kv("Mes", snapshot["latest_month"])
-    if snapshot.get("latest_revenue") is not None:
-        kv("Revenue", f"{snapshot['latest_revenue']:,.2f}")
-    if snapshot.get("latest_cost") is not None:
-        kv("Coste", f"{snapshot['latest_cost']:,.2f}")
-    if snapshot.get("latest_hours") is not None:
-        kv("Horas", f"{snapshot['latest_hours']:,.0f}")
+    _seccion_kpis(doc, snapshot)
 
-    h2("Forecast Revenue (próximos 3 meses)")
-    for row in snapshot.get("forecast_3m") or []:
-        kv(row.get("month", ""), f"{row.get('predicted', 0):,.2f}")
+    doc.h2("Forecast Revenue (próximos 3 meses)")
+    for fila in snapshot.get("forecast_3m") or []:
+        doc.kv(fila.get("month", ""), f"{fila.get('predicted', 0):,.2f}")
 
-    h2("Anomalías Detectadas")
-    anomalies = snapshot.get("anomalies") or []
-    if anomalies:
-        for an in anomalies:
-            p(
-                f"{an.get('month')} – Revenue: {an.get('revenue', 0):,.0f} "
-                f"(Z={an.get('z_score', 0):.2f}, {an.get('direction', '')}, {an.get('severity', '')})"
-            )
-    else:
-        p("No se detectaron anomalías en el período analizado.")
-
-    h2("Proyectos en Riesgo de Overrun")
-    overruns = snapshot.get("overrun_predictions") or []
-    if overruns:
-        for ov in overruns:
-            name = ov.get("project_name") or ov.get("project_id") or "–"
-            prob = ov.get("overrun_probability") or 0
-            risk = ov.get("risk_level") or "–"
-            p(f"{name}: {prob:.0%} probabilidad de overrun ({risk})")
-    else:
-        p("Sin predicciones de overrun disponibles.")
-
-    rtf_body = "\n".join(lines)
-    rtf_content = (
-        r"{\rtf1\ansi\deff0"
-        r"{\fonttbl{\f0\froman\fcharset0 Times New Roman;}{\f1\fswiss\fcharset0 Calibri;}}"
-        r"{\colortbl;\red0\green0\blue0;\red0\green120\blue212;}"
-        r"\f1\widowctrl\hyphauto"
-        "\n"
-        + rtf_body
-        + "\n}"
-    )
-
-    buf = io.BytesIO(rtf_content.encode("latin-1", errors="replace"))
-    buf.seek(0)
-    return buf
+    _seccion_anomalias(doc, snapshot)
+    _seccion_overrun(doc, snapshot)
+    return doc.bytes()
 
 
 # ── OneDrive upload helper ────────────────────────────────────────────────────

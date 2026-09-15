@@ -471,17 +471,73 @@ def audit_access_reviews(db: Session, days: int = 90) -> dict:
 
 # ── Full compliance report ────────────────────────────────────────────────────
 
+def _puntuacion_de_sla(auditoria_incidentes: dict) -> int:
+    """La puntuación de SLA sale de los hallazgos de incidentes que lo mencionan.
+
+    Tres puntos por incumplimiento, con suelo en cero: no es una fórmula fina,
+    y por eso se reutiliza el hallazgo en vez de recontar — una sola fuente para
+    el mismo dato.
+    """
+    puntuacion = 100
+    for hallazgo in auditoria_incidentes["findings"]:
+        if "SLA" in hallazgo["title"]:
+            puntuacion = max(0, 100 - hallazgo["count"] * 3)
+    return puntuacion
+
+
+def _puntuacion_de_cmdb(db: Session) -> int:
+    """El porcentaje de CIs descubiertos automáticamente.
+
+    Sin CMDB, o si el módulo no está, se devuelve 50: ni bien ni mal. Poner 0
+    penalizaría a quien no usa CMDB y 100 premiaría no tener datos.
+    """
+    try:
+        from app.models.cmdb import CMDBItem
+
+        total = db.query(func.count(CMDBItem.id)).scalar() or 0
+        descubiertos = db.query(func.count(CMDBItem.id)).filter(
+            CMDBItem.is_discovered.is_(True)
+        ).scalar() or 0
+        return round(descubiertos / total * 100) if total else 50
+    except Exception:
+        return 50
+
+
+#: (dimensión, umbral, recomendación). Se emite la recomendación cuando la
+#: puntuación de esa dimensión queda por debajo del umbral. Auditoría 2026-09
+#: (hallazgo 18): eran seis `if` seguidos con el texto en línea.
+_RECOMENDACIONES: tuple[tuple[str, int, str], ...] = (
+    ("change_management", 70,
+     "Implementar registro formal de aprobación CAB para todos los cambios normales."),
+    ("incident_management", 70,
+     "Enlazar incidentes P1 con Major Incident automáticamente al crear el ticket."),
+    ("problem_management", 70,
+     "Establecer SLA interno de 30 días para documentar RCA en problemas abiertos."),
+    ("sla_compliance", 80,
+     "Revisar políticas SLA — breach rate supera el umbral aceptable del 10%."),
+    ("asset_cmdb", 60,
+     "Aumentar cobertura de auto-discovery CMDB — menos del 60% de CIs están descubiertos."),
+    ("access_reviews", 70,
+     "Revisar cuentas de usuario inactivas y tickets de acceso sin resolver — implementar "
+     "revisión periódica de accesos (Access Review Campaign)."),
+)
+
+#: Orden de gravedad para ordenar los hallazgos. Alfabéticamente `high` iría
+#: después de `low`, que es justo al revés de lo que hace falta.
+_ORDEN_DE_GRAVEDAD = {"high": 0, "medium": 1, "low": 2}
+
+
 def generate_compliance_report(
     db: Session,
     days: int = 30,
     persist: bool = True,
 ) -> dict:
-    """Generate a full ITIL/ISO 20000-aligned compliance report.
+    """Informe de cumplimiento alineado con ITIL / ISO 20000.
 
-    Runs all sub-audits, computes weighted maturity score, and optionally
-    persists the report in ``sd_compliance_reports``.
+    Corre todas las sub-auditorías, calcula la madurez ponderada y —si se pide—
+    guarda el informe en ``sd_compliance_reports``.
 
-    Returns::
+    Devuelve::
 
         {
           "generated_at": str,
@@ -489,83 +545,53 @@ def generate_compliance_report(
           "overall_score": int,
           "cmm_level": int,
           "cmm_label": str,
-          "dimensions": {name: {score, cmm_level, findings}},
-          "top_findings": [worst findings across all dims],
+          "dimensions": {nombre: {score, cmm_level, findings}},
+          "top_findings": [los peores de todas las dimensiones],
           "recommendations": [str],
         }
     """
-    incident_audit = audit_incident_management(db, days)
-    change_audit = audit_change_management(db, days)
-    problem_audit = audit_problem_management(db, days=max(days, 90))
-    access_audit = audit_access_reviews(db, days=max(days, 90))
+    # Problemas y accesos se miran en 90 días como mínimo: en una ventana de 30
+    # apenas hay muestra y el resultado sería ruido.
+    incidentes = audit_incident_management(db, days)
+    cambios = audit_change_management(db, days)
+    problemas = audit_problem_management(db, days=max(days, 90))
+    accesos = audit_access_reviews(db, days=max(days, 90))
 
-    # SLA score from incident audit (reuse breach findings)
-    sla_score = 100
-    for f in incident_audit["findings"]:
-        if "SLA" in f["title"]:
-            sla_score = max(0, 100 - f["count"] * 3)
-
-    # Asset/CMDB score — basic: check % CIs with is_discovered
-    try:
-        from app.models.cmdb import CMDBItem
-        total_cis = db.query(func.count(CMDBItem.id)).scalar() or 0
-        discovered_cis = db.query(func.count(CMDBItem.id)).filter(
-            CMDBItem.is_discovered.is_(True)
-        ).scalar() or 0
-        cmdb_score = round(discovered_cis / total_cis * 100) if total_cis else 50
-    except Exception:
-        cmdb_score = 50
-
-    dimensions = {
-        "incident_management": {"score": incident_audit["score"], "findings": incident_audit["findings"]},
-        "change_management":   {"score": change_audit["score"],   "findings": change_audit["findings"]},
-        "problem_management":  {"score": problem_audit["score"],  "findings": problem_audit["findings"]},
-        "sla_compliance":      {"score": sla_score,               "findings": []},
-        "access_reviews":      {"score": access_audit["score"],   "findings": access_audit["findings"]},
-        "asset_cmdb":          {"score": cmdb_score,              "findings": []},
+    dimensiones = {
+        "incident_management": {"score": incidentes["score"], "findings": incidentes["findings"]},
+        "change_management":   {"score": cambios["score"],    "findings": cambios["findings"]},
+        "problem_management":  {"score": problemas["score"],  "findings": problemas["findings"]},
+        "sla_compliance":      {"score": _puntuacion_de_sla(incidentes), "findings": []},
+        "access_reviews":      {"score": accesos["score"],    "findings": accesos["findings"]},
+        "asset_cmdb":          {"score": _puntuacion_de_cmdb(db), "findings": []},
     }
-
-    for dim in dimensions.values():
+    for dim in dimensiones.values():
         dim["cmm_level"] = _cmm_level(dim["score"])
         dim["cmm_label"] = _CMM_LABELS[dim["cmm_level"]]
 
-    # Weighted overall score
-    overall = round(sum(
-        dimensions[k]["score"] * w
-        for k, w in _MATURITY_DIMENSIONS.items()
+    global_ = round(sum(
+        dimensiones[clave]["score"] * peso for clave, peso in _MATURITY_DIMENSIONS.items()
     ))
 
-    # Top findings (worst severity first)
-    all_findings = []
-    for dim_name, dim_data in dimensions.items():
-        for f in dim_data.get("findings", []):
-            all_findings.append({**f, "dimension": dim_name})
-    all_findings.sort(key=lambda x: {"high": 0, "medium": 1, "low": 2}.get(x.get("severity", "low"), 2))
-
-    # Auto-recommendations
-    recommendations = []
-    if change_audit["score"] < 70:
-        recommendations.append("Implementar registro formal de aprobación CAB para todos los cambios normales.")
-    if incident_audit["score"] < 70:
-        recommendations.append("Enlazar incidentes P1 con Major Incident automáticamente al crear el ticket.")
-    if problem_audit["score"] < 70:
-        recommendations.append("Establecer SLA interno de 30 días para documentar RCA en problemas abiertos.")
-    if sla_score < 80:
-        recommendations.append("Revisar políticas SLA — breach rate supera el umbral aceptable del 10%.")
-    if cmdb_score < 60:
-        recommendations.append("Aumentar cobertura de auto-discovery CMDB — menos del 60% de CIs están descubiertos.")
-    if access_audit["score"] < 70:
-        recommendations.append("Revisar cuentas de usuario inactivas y tickets de acceso sin resolver — implementar revisión periódica de accesos (Access Review Campaign).")
+    hallazgos = [
+        {**h, "dimension": nombre}
+        for nombre, datos in dimensiones.items()
+        for h in datos.get("findings", [])
+    ]
+    hallazgos.sort(key=lambda h: _ORDEN_DE_GRAVEDAD.get(h.get("severity", "low"), 2))
 
     report = {
         "generated_at": datetime.now(tz=timezone.utc).isoformat(),
         "period_days": days,
-        "overall_score": overall,
-        "cmm_level": _cmm_level(overall),
-        "cmm_label": _CMM_LABELS[_cmm_level(overall)],
-        "dimensions": dimensions,
-        "top_findings": all_findings[:10],
-        "recommendations": recommendations,
+        "overall_score": global_,
+        "cmm_level": _cmm_level(global_),
+        "cmm_label": _CMM_LABELS[_cmm_level(global_)],
+        "dimensions": dimensiones,
+        "top_findings": hallazgos[:10],
+        "recommendations": [
+            texto for dimension, umbral, texto in _RECOMENDACIONES
+            if dimensiones[dimension]["score"] < umbral
+        ],
     }
 
     if persist:

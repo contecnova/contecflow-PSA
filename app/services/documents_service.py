@@ -508,58 +508,84 @@ def _ocr_image_bytes(raw: bytes) -> str:
     finally:
         image.close()
 
+def _texto_de_pdf(raw: bytes, file_name: str) -> Optional[str]:
+    """Texto de un PDF, por tres caminos en orden de fiabilidad.
+
+    Primero la capa de texto; si sale demasiado corta —60 caracteres— casi
+    seguro que es un escaneo, y se pasa a OCR. Si el OCR tampoco da nada, se
+    describe visualmente la primera página: peor que el texto, pero mejor que
+    nada para un resumen.
+    """
+    try:
+        texto = _normalize_extracted_text(_extract_text_from_pdf(raw, max_pages=10))
+        if len(texto) >= 60:
+            return texto
+
+        ocr = _normalize_extracted_text(_ocr_pdf_bytes(raw, max_pages=5))
+        if ocr:
+            logger.info("PDF OCR fallback used for document file=%s", file_name)
+            return ocr
+
+        visual = _visual_summary_from_pdf_first_page(raw, file_name=file_name)
+        if visual:
+            logger.info("PDF visual-analysis fallback used for document file=%s", file_name)
+            return visual
+    except Exception:
+        logger.warning("Failed to extract text from PDF for AI summary", exc_info=True)
+    return None
+
+
+def _texto_de_imagen(raw: bytes, file_name: str) -> Optional[str]:
+    """Texto de una imagen: OCR y, si no basta, descripción visual."""
+    try:
+        ocr = _normalize_extracted_text(_ocr_image_bytes(raw))
+        if len(ocr) >= 40:
+            logger.info("Image OCR used for document file=%s", file_name)
+            return ocr
+
+        visual = _visual_summary_from_image_bytes(raw, file_name=file_name)
+        if not visual:
+            return None
+        logger.info("Image visual-analysis fallback used for document file=%s", file_name)
+        if ocr:
+            # El OCR corto se conserva como pista: puede llevar el número de
+            # factura o el nombre del cliente aunque no sea texto completo.
+            return f"{visual}\nTexto detectado parcialmente (OCR): {ocr[:400]}"
+        return visual
+    except Exception:
+        logger.warning("Failed to OCR image for AI summary", exc_info=True)
+    return None
+
+
+#: Extensiones que se tratan como imagen aunque el MIME no lo diga.
+_EXTENSIONES_DE_IMAGEN = (".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp")
+
+#: Extensiones que se tratan como texto plano aunque el MIME no lo diga.
+_EXTENSIONES_DE_TEXTO = (".md", ".txt", ".csv")
+
+
 def extract_document_text(file_key: str, file_name: str, file_mime_type: str) -> Optional[str]:
-    """Try to extract text from a stored file for AI summarization."""
+    """Intenta sacar texto de un fichero guardado, para resumirlo con IA.
+
+    Devuelve `None` cuando no hay nada aprovechable, y **nunca levanta**: un
+    fichero del que no se puede extraer texto no es un error del documento, es
+    un documento sin resumen.
+    """
     try:
         raw = file_storage.get_file_bytes(file_key)
-        mime = file_mime_type or ""
-        file_name_lower = (file_name or "").lower()
-
-        if "text" in mime or file_name_lower.endswith((".md", ".txt", ".csv")):
-            return _normalize_extracted_text(raw.decode("utf-8", errors="ignore")) or None
-
-        if "pdf" in mime:
-            try:
-                extracted = _extract_text_from_pdf(raw, max_pages=10)
-                normalized = _normalize_extracted_text(extracted)
-                if len(normalized) >= 60:
-                    return normalized
-
-                ocr_text = _ocr_pdf_bytes(raw, max_pages=5)
-                normalized_ocr = _normalize_extracted_text(ocr_text)
-                if normalized_ocr:
-                    logger.info("PDF OCR fallback used for document file=%s", file_name)
-                    return normalized_ocr
-
-                visual_summary = _visual_summary_from_pdf_first_page(raw, file_name=file_name)
-                if visual_summary:
-                    logger.info("PDF visual-analysis fallback used for document file=%s", file_name)
-                    return visual_summary
-            except Exception:
-                logger.warning("Failed to extract text from PDF for AI summary", exc_info=True)
-
-        if mime.startswith("image/") or file_name_lower.endswith((".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp")):
-            try:
-                ocr_text = _ocr_image_bytes(raw)
-                normalized_ocr = _normalize_extracted_text(ocr_text)
-                if len(normalized_ocr) >= 40:
-                    logger.info("Image OCR used for document file=%s", file_name)
-                    return normalized_ocr
-
-                visual_summary = _visual_summary_from_image_bytes(raw, file_name=file_name)
-                if visual_summary:
-                    logger.info("Image visual-analysis fallback used for document file=%s", file_name)
-                    if normalized_ocr:
-                        # Keep short OCR hints if available, without requiring full text extraction.
-                        ocr_hint = _normalize_extracted_text(normalized_ocr)[:400]
-                        return f"{visual_summary}\nTexto detectado parcialmente (OCR): {ocr_hint}"
-                    return visual_summary
-            except Exception:
-                logger.warning("Failed to OCR image for AI summary", exc_info=True)
-
     except Exception:
         logger.warning("Failed to read document file content for AI summary", exc_info=True)
+        return None
 
+    mime = file_mime_type or ""
+    nombre = (file_name or "").lower()
+
+    if "text" in mime or nombre.endswith(_EXTENSIONES_DE_TEXTO):
+        return _normalize_extracted_text(raw.decode("utf-8", errors="ignore")) or None
+    if "pdf" in mime:
+        return _texto_de_pdf(raw, file_name)
+    if mime.startswith("image/") or nombre.endswith(_EXTENSIONES_DE_IMAGEN):
+        return _texto_de_imagen(raw, file_name)
     return None
 
 

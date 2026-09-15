@@ -555,6 +555,195 @@ def agent_status(
         raise HTTPException(404, str(e))
 
 
+def _evento_sse(data: dict) -> str:
+    """Un evento SSE. El formato es `data: <json>` y **dos** saltos de línea."""
+    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _emitir_modo_degradado(_db, instruccion: str, system: str, usuario):
+    """Lo que se emite cuando no hay proveedor con tool-use real.
+
+    El agente no puede ejecutar nada, así que se avisa **en el primer evento**
+    —para que la interfaz lo diga y no parezca que el agente decidió no actuar—
+    y se devuelve un análisis de texto.
+    """
+    yield _evento_sse({
+        "type": "warning",
+        "message": (
+            "El agente está en modo degradado: el proveedor IA "
+            "configurado no soporta tool-use real. Solo se generará "
+            "un análisis textual sin ejecutar acciones. "
+            "Configura Anthropic Claude para habilitar el agente completo."
+        ),
+    })
+    try:
+        texto = call_ai(
+            _db,
+            messages=[{"role": "user", "content": instruccion}],
+            system=system + (
+                "\n\nUsando el contexto del sistema proporcionado, analiza la instrucción "
+                "del usuario y proporciona una respuesta completa y detallada con los datos reales."
+            ),
+            module="nexusagent", user_id=usuario.id, max_tokens=1500,
+            is_superadmin=bool(getattr(usuario, "is_superadmin", False)),
+            organization_id=getattr(usuario, "organization_id", None),
+        )
+    except Exception:
+        _logger.exception("Error ejecutando call_ai para instrucción de agente NexusAgent")
+        texto = (
+            f"⚠ No hay proveedor IA configurado. "
+            f"Configura Google Gemini, OpenAI u otro proveedor en **IA & Conectores** "
+            f"para ejecutar instrucciones del agente.\n\nInstrucción recibida: *{instruccion}*"
+        )
+    # Auditoría #C6: aquí el texto ya está generado entero, así que se manda de
+    # una vez. La versión anterior lo troceaba palabra a palabra con un
+    # `sleep(0.015)` por token para aparentar streaming, y eso sólo gastaba
+    # trabajadores del threadpool.
+    yield _evento_sse({"type": "token", "text": texto})
+    yield _evento_sse({"type": "done", "result": texto, "steps": []})
+
+
+def _resolver_una_herramienta(bloque, auto_approve: bool, _db, usuario):
+    """Ejecuta una llamada a herramienta, o la deja pendiente de aprobación.
+
+    Item #55: las acciones de escritura necesitan confirmación humana. Sin
+    `auto_approve` **no se ejecutan** y se devuelve el motivo, que el agente ve
+    como resultado de la herramienta y puede explicar.
+    """
+    from app.services.ai_chat.tool_execution_service import WRITE_ACTION_TOOLS
+
+    nombre = bloque["name"]
+    entrada = bloque.get("input", {})
+    if nombre in WRITE_ACTION_TOOLS and not auto_approve:
+        return {
+            "status": "pending_approval",
+            "tool": nombre,
+            "input": entrada,
+            "message": (
+                f"Acción '{nombre}' requiere confirmación humana. "
+                "No se ha ejecutado."
+            ),
+        }
+    return _execute_tool(nombre, entrada, _db, usuario)
+
+
+def _emitir_pasos_de_herramientas(contenido, paso: int, auto_approve: bool, _db, usuario,
+                                  pasos_hechos: list):
+    """Emite un evento por cada herramienta del turno y acumula sus resultados.
+
+    Devuelve `(nuevo_numero_de_paso, bloques_de_resultado)` por el `return` de
+    un generador — el emisor de arriba lo recoge con `yield from`.
+
+    El evento de paso se emite **antes** de ejecutar la herramienta a propósito:
+    es lo único que el cliente ve mientras una llamada larga está en curso.
+    """
+    resultados = []
+    for bloque in contenido:
+        if bloque.get("type") != "tool_use":
+            continue
+        paso += 1
+        yield _evento_sse({
+            "type": "step",
+            "step": paso,
+            "tool": bloque["name"],
+            "input": bloque.get("input", {}),
+            "thinking": f"Ejecutando {bloque['name']}…",
+        })
+
+        resultado = _resolver_una_herramienta(bloque, auto_approve, _db, usuario)
+        pasos_hechos.append({
+            "step": paso, "tool": bloque["name"],
+            "input": bloque.get("input", {}), "output": resultado,
+        })
+        resultados.append({
+            "type": "tool_result",
+            "tool_use_id": bloque["id"],
+            "content": json.dumps(resultado),
+        })
+    return paso, resultados
+
+
+def _emitir_bucle_del_agente(_db, instruccion: str, system: str, auto_approve: bool,
+                             usuario, api_key, modelo):
+    """El bucle del agente: pedir, ejecutar herramientas, repetir.
+
+    NOTA: el bucle está aquí y no en `app.services.ai_chat.agent_loop` porque
+    necesita `yield` **a mitad de iteración** para emitir los eventos SSE en
+    tiempo real. El ayudante centralizado se usa en `worker.py`, donde no hay
+    streaming, y actúa como referencia canónica: cualquier cambio de semántica
+    del bucle hay que replicarlo en los dos sitios.
+    """
+    mensajes = [{"role": "user", "content": instruccion}]
+    pasos_hechos: list = []
+    paso = 0
+    MAX_PASOS = 20
+
+    while paso < MAX_PASOS:
+        resp = _call_claude(
+            mensajes, system=system, tools=AGENT_TOOLS,
+            model=modelo, max_tokens=4096, api_key=api_key,
+        )
+        contenido = resp.get("content", [])
+        mensajes.append({"role": "assistant", "content": contenido})
+
+        if resp.get("stop_reason") != "tool_use":
+            # `end_turn` y cualquier otro motivo acaban igual: el agente ya no
+            # quiere más herramientas y lo que haya dicho es el resultado.
+            yield _evento_sse({
+                "type": "done", "result": _extract_text(resp), "steps": pasos_hechos,
+            })
+            return
+
+        paso, resultados = yield from _emitir_pasos_de_herramientas(
+            contenido, paso, auto_approve, _db, usuario, pasos_hechos,
+        )
+        mensajes.append({"role": "user", "content": resultados})
+
+    yield _evento_sse({
+        "type": "done", "result": f"Agente completó {paso} pasos.", "steps": pasos_hechos,
+    })
+
+
+def _emitir_eventos_de_agente(*, instruccion: str, auto_approve: bool, usuario, system: str,
+                              hay_herramientas: bool, api_key, modelo):
+    """El flujo SSE completo, con su sesión propia y su manejo de errores.
+
+    Auditoría 2026-09 (hallazgo 18): esto vivía anidado dentro del endpoint, y
+    ruff contaba su complejidad **dos veces** —una en el generador y otra en la
+    función que lo contenía—, que era la razón de que `run_agent_stream` fuera
+    la función más compleja de `app/` con 16. Sacarlo no es mover el problema:
+    un generador de eventos con su propia sesión de base de datos y su propio
+    ciclo de vida no es un detalle del endpoint, y aquí se puede probar solo.
+    """
+    from app.db.session import SessionLocal, publicar_contexto_de_tenant
+
+    _db = SessionLocal()
+    # Esta sesión se crea a mano, así que hay que publicarle el contexto de
+    # organización: sin él `TenantSession` la trata como no inicializada y no
+    # filtra. Importa especialmente aquí, que ejecuta herramientas que leen
+    # datos de negocio.
+    publicar_contexto_de_tenant(_db, usuario)
+    try:
+        if not hay_herramientas:
+            yield from _emitir_modo_degradado(_db, instruccion, system, usuario)
+            return
+        yield from _emitir_bucle_del_agente(
+            _db, instruccion, system, auto_approve, usuario, api_key, modelo,
+        )
+    except ValueError as e:
+        yield _evento_sse({"type": "error", "message": f"Error de datos: {str(e)[:300]}"})
+    except ConnectionError as e:
+        yield _evento_sse({
+            "type": "error",
+            "message": f"No se pudo conectar con el recurso externo: {str(e)[:300]}",
+        })
+    except Exception as e:
+        _logger.error(f"Error inesperado en agente IA: {e}", exc_info=True)
+        yield _evento_sse({"type": "error", "message": f"Error inesperado: {str(e)[:300]}"})
+    finally:
+        _db.close()
+
+
 @router.post("/ai/agent/stream", summary="NexusAgent — streaming SSE de pasos")
 def run_agent_stream(
     payload: AgentPayload,
@@ -582,7 +771,6 @@ def run_agent_stream(
     # Item #55: default conservador (False). Antes era True (override del
     # schema default) → todas las acciones write se ejecutaban sin gate humano.
     auto_approve  = bool(getattr(payload, "auto_approve", False))
-    user_id       = current_user.id
 
     active_prov = get_default_provider(
         db,
@@ -608,152 +796,19 @@ Tu misión: ejecutar la instrucción del usuario usando las herramientas disponi
 Responde siempre en español. Hoy es {datetime.now(timezone.utc).strftime('%Y-%m-%d')}.
 Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
 
-    def _event(data: dict) -> str:
-        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-
-    def generate():
-        from app.db.session import SessionLocal, publicar_contexto_de_tenant
-        _db = SessionLocal()
-        # Ver la nota del otro generador. Aqui importa mas: este ejecuta
-        # herramientas que leen datos de negocio.
-        publicar_contexto_de_tenant(_db, current_user)
-        steps_done = []
-        step_num   = 0
-        try:
-            if not has_anthropic_tools:
-                # No Anthropic configured → NO podemos usar tool-use real.
-                # Avisamos al cliente desde el primer evento SSE para que la
-                # UI muestre que está en modo degradado (analysis-only).
-                yield _event({
-                    "type": "warning",
-                    "message": (
-                        "El agente está en modo degradado: el proveedor IA "
-                        "configurado no soporta tool-use real. Solo se generará "
-                        "un análisis textual sin ejecutar acciones. "
-                        "Configura Anthropic Claude para habilitar el agente completo."
-                    ),
-                })
-                try:
-                    fallback_text = call_ai(
-                        _db,
-                        messages=[{"role": "user", "content": instruction}],
-                        system=SYSTEM + (
-                            "\n\nUsando el contexto del sistema proporcionado, analiza la instrucción "
-                            "del usuario y proporciona una respuesta completa y detallada con los datos reales."
-                        ),
-                        module="nexusagent", user_id=user_id, max_tokens=1500,
-                        is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
-                        organization_id=getattr(current_user, "organization_id", None),
-                    )
-                except Exception:
-                    _logger.exception("Error ejecutando call_ai para instrucción de agente NexusAgent")
-                    fallback_text = (
-                        f"⚠ No hay proveedor IA configurado. "
-                        f"Configura Google Gemini, OpenAI u otro proveedor en **IA & Conectores** "
-                        f"para ejecutar instrucciones del agente.\n\nInstrucción recibida: *{instruction}*"
-                    )
-                # Audit #C6: emitting tokens word-by-word for the fallback path
-                # (no AI provider configured). The previous _time.sleep(0.015) per
-                # token was a synthetic "streaming feel" delay that wasted threadpool
-                # workers without benefit — the text is already fully generated here,
-                # so we just flush it as one event.
-                yield _event({"type": "token", "text": fallback_text})
-                yield _event({"type": "done", "result": fallback_text, "steps": []})
-                return
-
-            messages = [{"role": "user", "content": instruction}]
-            max_steps = 20
-
-            # NOTA: el loop está inline aquí (no usa app.services.ai_chat.agent_loop)
-            # porque necesita `yield` mid-iteration para emitir eventos SSE en
-            # tiempo real (step start ANTES de ejecutar la tool, step done
-            # DESPUÉS). El helper centralizado se usa en worker.py donde no hay
-            # streaming. Cualquier cambio de semántica del loop debe replicarse
-            # en ambos sitios — el helper actúa como referencia canónica.
-            while step_num < max_steps:
-                resp = _call_claude(
-                    messages, system=SYSTEM, tools=AGENT_TOOLS,
-                    model=agent_model, max_tokens=4096, api_key=agent_api_key,
-                )
-                stop_reason = resp.get("stop_reason")
-                content = resp.get("content", [])
-                messages.append({"role": "assistant", "content": content})
-
-                if stop_reason == "end_turn":
-                    result_text = _extract_text(resp)
-                    yield _event({"type": "done", "result": result_text, "steps": steps_done})
-                    return
-
-                if stop_reason == "tool_use":
-                    tool_results_content = []
-                    for block in content:
-                        if block.get("type") != "tool_use":
-                            continue
-                        tool_name   = block["name"]
-                        tool_input  = block.get("input", {})
-                        tool_use_id = block["id"]
-                        step_num   += 1
-
-                        # Emit step event before executing so client sees it immediately
-                        yield _event({
-                            "type":    "step",
-                            "step":    step_num,
-                            "tool":    tool_name,
-                            "input":   tool_input,
-                            "thinking": f"Ejecutando {tool_name}…",
-                        })
-
-                        # Item #55: gate humano en acciones write.
-                        from app.services.ai_chat.tool_execution_service import WRITE_ACTION_TOOLS
-                        if tool_name in WRITE_ACTION_TOOLS and not auto_approve:
-                            tool_result = {
-                                "status": "pending_approval",
-                                "tool": tool_name,
-                                "input": tool_input,
-                                "message": (
-                                    f"Acción '{tool_name}' requiere confirmación humana. "
-                                    "No se ha ejecutado."
-                                ),
-                            }
-                        else:
-                            tool_result = _execute_tool(tool_name, tool_input, _db, current_user)
-
-                        # Update step event with result
-                        step_data = {
-                            "step": step_num, "tool": tool_name,
-                            "input": tool_input, "output": tool_result,
-                        }
-                        steps_done.append(step_data)
-
-                        tool_results_content.append({
-                            "type":        "tool_result",
-                            "tool_use_id": tool_use_id,
-                            "content":     json.dumps(tool_result),
-                        })
-
-                    messages.append({"role": "user", "content": tool_results_content})
-                else:
-                    result_text = _extract_text(resp)
-                    yield _event({"type": "done", "result": result_text, "steps": steps_done})
-                    return
-
-            yield _event({"type": "done", "result": f"Agente completó {step_num} pasos.", "steps": steps_done})
-
-        except ValueError as e:
-            yield _event({"type": "error", "message": f"Error de datos: {str(e)[:300]}"})
-        except ConnectionError as e:
-            yield _event({"type": "error", "message": f"No se pudo conectar con el recurso externo: {str(e)[:300]}"})
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Error inesperado en agente IA: {e}", exc_info=True)
-            yield _event({"type": "error", "message": f"Error inesperado: {str(e)[:300]}"})
-        finally:
-            _db.close()
-
-    return StreamingResponse(generate(), media_type="text/event-stream", headers={
-        "Cache-Control": "no-cache",
-        "X-Accel-Buffering": "no",
-    })
+    return StreamingResponse(
+        _emitir_eventos_de_agente(
+            instruccion=instruction,
+            auto_approve=auto_approve,
+            usuario=current_user,
+            system=SYSTEM,
+            hay_herramientas=has_anthropic_tools,
+            api_key=agent_api_key,
+            modelo=agent_model,
+        ),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/ai/agent/history", summary="Historial de ejecuciones del agente")

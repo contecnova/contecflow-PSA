@@ -103,91 +103,124 @@ def serialize_uat_case(c: UATCase) -> dict:
 
 # ── Sprint retrospective ──────────────────────────────────────────────────────
 
-def compute_retro_insights(sprint: Sprint, db: Session) -> dict:
-    """
-    Algorithmic retrospective insights from sprint data.
-    No LLM required — derives meaningful conclusions from metrics.
-    """
-    sprint_tasks = (
+def _metricas_de_sprint(sprint: Sprint, db: Session) -> dict:
+    """Los números del sprint. Sin juicio: sólo cuentas."""
+    tareas = (
         db.query(Task)
         .join(SprintTask, SprintTask.task_id == Task.id)
         .filter(SprintTask.sprint_id == sprint.id)
         .all()
     )
+    total = len(tareas)
+    hechas = [t for t in tareas if t.status == TaskStatus.done]
+    bloqueadas = [t for t in tareas if t.status == TaskStatus.blocked]
+    en_curso = [t for t in tareas if t.status == TaskStatus.in_progress]
 
-    total       = len(sprint_tasks)
-    completed   = [t for t in sprint_tasks if t.status == TaskStatus.done]
-    blocked     = [t for t in sprint_tasks if t.status == TaskStatus.blocked]
-    in_progress = [t for t in sprint_tasks if t.status == TaskStatus.in_progress]
+    horas_planificadas = sum(t.estimated_hours or 0 for t in tareas)
+    # Para las hechas se usan las horas reales, y las estimadas sólo si no hay
+    # reales: lo contrario mediría la planificación, no la entrega.
+    horas_hechas = sum(t.actual_hours or t.estimated_hours or 0 for t in hechas)
 
-    planned_hours   = sum(t.estimated_hours or 0 for t in sprint_tasks)
-    completed_hours = sum(t.actual_hours or t.estimated_hours or 0 for t in completed)
-    completion_rate = round(len(completed) / total * 100, 1) if total > 0 else 0
-    velocity_ratio  = round(completed_hours / planned_hours * 100, 1) if planned_hours > 0 else 0
-
-    # Count tasks added after sprint start (scope creep indicator)
-    added_mid = 0
-    if sprint.start_date:
-        start_dt = datetime.combine(sprint.start_date, datetime.min.time())
-        added_mid = sum(
+    # Tareas metidas con el sprint ya empezado: el indicador de scope creep.
+    metidas_a_media = 0
+    if sprint.start_date and hasattr(SprintTask, "added_at"):
+        inicio = datetime.combine(sprint.start_date, datetime.min.time())
+        metidas_a_media = sum(
             1 for st in db.query(SprintTask).filter(SprintTask.sprint_id == sprint.id).all()
-            if st.added_at and st.added_at > start_dt
-        ) if hasattr(SprintTask, "added_at") else 0
+            if st.added_at and st.added_at > inicio
+        )
 
-    carryover = len(in_progress) + len([
-        t for t in sprint_tasks
-        if t.status not in (TaskStatus.done, TaskStatus.cancelled)
+    arrastre = len(en_curso) + len([
+        t for t in tareas if t.status not in (TaskStatus.done, TaskStatus.cancelled)
     ])
 
-    went_well = []
-    improve   = []
-    actions   = []
-    risks     = []
+    return {
+        "total_tasks": total,
+        "completed": len(hechas),
+        "blocked": len(bloqueadas),
+        "carryover": arrastre,
+        "added_mid_sprint": metidas_a_media,
+        "completion_rate_pct": round(len(hechas) / total * 100, 1) if total > 0 else 0,
+        "planned_hours": horas_planificadas,
+        "completed_hours": horas_hechas,
+        "velocity_ratio_pct": (
+            round(horas_hechas / horas_planificadas * 100, 1) if horas_planificadas > 0 else 0
+        ),
+    }
 
-    if completion_rate >= 85:
-        went_well.append(f"Alta tasa de completitud: {completion_rate}% de tareas entregadas")
-    if completion_rate >= 95:
-        went_well.append("Excelente predictibilidad — casi sin carryover")
-    if not blocked:
-        went_well.append("Ninguna tarea bloqueada durante el sprint")
-    if velocity_ratio >= 90:
-        went_well.append(f"Velocity muy ajustada a la planificación ({velocity_ratio}%)")
 
-    if completion_rate < 70:
-        improve.append(f"Tasa de completitud baja ({completion_rate}%) — revisar estimaciones o scope")
-        actions.append({"text": "Revisar criterios de aceptación antes del siguiente sprint planning", "owner_id": None})
-    if blocked:
-        improve.append(f"{len(blocked)} tarea(s) bloqueadas — identificar patrones de impedimentos")
-        actions.append({"text": "Daily standup: escalar bloqueos en máximo 24h", "owner_id": None})
-    if added_mid > 2:
-        improve.append(f"Scope creep detectado: {added_mid} tareas añadidas a mitad de sprint")
-        actions.append({"text": "Reforzar la política de no añadir al sprint en curso salvo urgencias", "owner_id": None})
-    if carryover > 0:
-        improve.append(f"{carryover} tarea(s) con carryover — afecta a la previsibilidad")
-    if velocity_ratio < 70:
-        improve.append(f"Velocity {velocity_ratio}% — sobreestimación habitual, calibrar story points")
-        risks.append("Estimaciones sistemáticamente optimistas → riesgo de promesas no cumplidas")
+#: Las conclusiones, como tabla: (condición, apartado, texto, acción, riesgo).
+#:
+#: Auditoría 2026-09 (hallazgo 18): eran once `if` encadenados con los textos en
+#: línea, y de ahí salía la complejidad 14. Como tabla se puede leer entera de
+#: una vez —que es lo que hace falta para discutir los umbrales con quien lleva
+#: el equipo— y añadir una regla es añadir una fila.
+#:
+#: La condición recibe el diccionario de métricas y devuelve un booleano. El
+#: texto se formatea con esas mismas métricas.
+_REGLAS_DE_RETRO: tuple[tuple, ...] = (
+    (lambda m: m["completion_rate_pct"] >= 85, "went_well",
+     "Alta tasa de completitud: {completion_rate_pct}% de tareas entregadas", None, None),
+    (lambda m: m["completion_rate_pct"] >= 95, "went_well",
+     "Excelente predictibilidad — casi sin carryover", None, None),
+    (lambda m: m["blocked"] == 0, "went_well",
+     "Ninguna tarea bloqueada durante el sprint", None, None),
+    (lambda m: m["velocity_ratio_pct"] >= 90, "went_well",
+     "Velocity muy ajustada a la planificación ({velocity_ratio_pct}%)", None, None),
 
-    if completion_rate >= 80 and not blocked:
-        actions.append({"text": "Continuar con el ritmo actual; documentar las prácticas que funcionan", "owner_id": None})
+    (lambda m: m["completion_rate_pct"] < 70, "improve",
+     "Tasa de completitud baja ({completion_rate_pct}%) — revisar estimaciones o scope",
+     "Revisar criterios de aceptación antes del siguiente sprint planning", None),
+    (lambda m: m["blocked"] > 0, "improve",
+     "{blocked} tarea(s) bloqueadas — identificar patrones de impedimentos",
+     "Daily standup: escalar bloqueos en máximo 24h", None),
+    (lambda m: m["added_mid_sprint"] > 2, "improve",
+     "Scope creep detectado: {added_mid_sprint} tareas añadidas a mitad de sprint",
+     "Reforzar la política de no añadir al sprint en curso salvo urgencias", None),
+    (lambda m: m["carryover"] > 0, "improve",
+     "{carryover} tarea(s) con carryover — afecta a la previsibilidad", None, None),
+    (lambda m: m["velocity_ratio_pct"] < 70, "improve",
+     "Velocity {velocity_ratio_pct}% — sobreestimación habitual, calibrar story points", None,
+     "Estimaciones sistemáticamente optimistas → riesgo de promesas no cumplidas"),
 
+    (lambda m: m["completion_rate_pct"] >= 80 and m["blocked"] == 0, None, None,
+     "Continuar con el ritmo actual; documentar las prácticas que funcionan", None),
+)
+
+
+def compute_retro_insights(sprint: Sprint, db: Session) -> dict:
+    """Conclusiones de retrospectiva a partir de los datos del sprint.
+
+    No necesita modelo de lenguaje: son reglas sobre métricas, y por eso el
+    resultado es el mismo dos veces seguidas, que es lo que una retrospectiva
+    necesita para poder discutirse.
+    """
+    m = _metricas_de_sprint(sprint, db)
+    went_well: list[str] = []
+    improve: list[str] = []
+    actions: list[dict] = []
+    risks: list[str] = []
+    cajones = {"went_well": went_well, "improve": improve}
+
+    for condicion, apartado, texto, accion, riesgo in _REGLAS_DE_RETRO:
+        if not condicion(m):
+            continue
+        if apartado and texto:
+            cajones[apartado].append(texto.format(**m))
+        if accion:
+            actions.append({"text": accion, "owner_id": None})
+        if riesgo:
+            risks.append(riesgo)
+
+    # Una retrospectiva sin nada que decir no ayuda a nadie: si ninguna regla
+    # encajó, se dice eso explícitamente en vez de dejar la lista vacía.
     if not went_well:
         went_well.append("Sprint completado — analiza métricas para detectar áreas de mejora")
     if not improve:
         improve.append("No se detectaron problemas estructurales significativos")
 
     return {
-        "metrics": {
-            "total_tasks": total,
-            "completed": len(completed),
-            "blocked": len(blocked),
-            "carryover": carryover,
-            "added_mid_sprint": added_mid,
-            "completion_rate_pct": completion_rate,
-            "planned_hours": planned_hours,
-            "completed_hours": completed_hours,
-            "velocity_ratio_pct": velocity_ratio,
-        },
+        "metrics": m,
         "went_well": went_well,
         "improve": improve,
         "actions": actions,

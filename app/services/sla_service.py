@@ -134,6 +134,31 @@ def advisory_lock_key(name: str) -> int:
     return int(hashlib.md5(name.encode(), usedforsecurity=False).hexdigest()[:15], 16) % (2 ** 63)
 
 
+def _es_laborable(d: date, holidays: set) -> bool:
+    """Lunes a viernes que no sea festivo. Sábado es 5 y domingo 6."""
+    return d.weekday() < 5 and d not in holidays
+
+
+def _siguiente_momento_laborable(current: datetime, work_start: dt_time, work_end: dt_time,
+                                 holidays: set) -> datetime:
+    """Adelanta hasta el primer instante laborable a partir de `current`.
+
+    Tres casos y ninguno más: el día no se trabaja, la jornada ya acabó, o
+    todavía no ha empezado. El bucle es necesario porque saltar un viernes por
+    la tarde cae en sábado, que tampoco vale.
+    """
+    while True:
+        dia = current.date()
+        if not _es_laborable(dia, holidays) or current.time() >= work_end:
+            current = datetime.combine(dia + timedelta(days=1), work_start).replace(
+                tzinfo=current.tzinfo,
+            )
+            continue
+        if current.time() < work_start:
+            current = datetime.combine(dia, work_start).replace(tzinfo=current.tzinfo)
+        return current
+
+
 def add_working_hours(
     start_dt: datetime,
     hours: float,
@@ -141,62 +166,44 @@ def add_working_hours(
     work_end: dt_time = dt_time(18, 0),
     holidays: Optional[set] = None,
 ) -> datetime:
-    """Advance *start_dt* by *hours* of working time.
+    """Adelanta *start_dt* en *hours* horas **de trabajo**.
 
-    Respects:
-    - Business-hour window (work_start..work_end)
-    - Weekends (Saturday=5, Sunday=6)
-    - Holiday dates passed as a set of :class:`datetime.date` objects
+    Respeta:
+    - la jornada (work_start..work_end),
+    - fines de semana (sábado=5, domingo=6),
+    - los festivos que se pasen como conjunto de :class:`datetime.date`.
+
+    Auditoría 2026-09 (hallazgo 18): eran dos bucles `while` con tres ayudantes
+    anidados, complejidad 13. El primer bucle —«ponte en horario laborable»— es
+    una pregunta con nombre propio y ahora lo tiene.
     """
-    if holidays is None:
-        holidays = set()
+    holidays = holidays or set()
 
-    day_seconds = (
+    jornada = (
         datetime.combine(timeutil.today(), work_end)
         - datetime.combine(timeutil.today(), work_start)
     ).total_seconds()
-    if day_seconds <= 0:
+    if jornada <= 0:
         raise ValueError("work_end must be after work_start")
 
-    current = start_dt
-    _tz = current.tzinfo
+    current = _siguiente_momento_laborable(start_dt, work_start, work_end, holidays)
+    restantes = hours
 
-    def _is_workday(d: date) -> bool:
-        return d.weekday() < 5 and d not in holidays
-
-    def _day_start(d: date) -> datetime:
-        return datetime.combine(d, work_start).replace(tzinfo=_tz)
-
-    def _day_end(d: date) -> datetime:
-        return datetime.combine(d, work_end).replace(tzinfo=_tz)
-
-    # Advance to next working day start if current is outside window
-    while True:
-        cur_date = current.date()
-        if not _is_workday(cur_date):
-            current = _day_start(cur_date + timedelta(days=1))
-            continue
-        if current.time() >= work_end:
-            current = _day_start(cur_date + timedelta(days=1))
-            continue
-        if current.time() < work_start:
-            current = _day_start(cur_date)
-        break
-
-    remaining_hours = hours
-    while remaining_hours > 0:
-        cur_date = current.date()
-        if not _is_workday(cur_date):
-            current = _day_start(cur_date + timedelta(days=1))
-            continue
-        day_end_dt = _day_end(cur_date)
-        available_h = (day_end_dt - current).total_seconds() / 3600.0
-        if remaining_hours <= available_h:
-            current = current + timedelta(hours=remaining_hours)
-            remaining_hours = 0
-        else:
-            remaining_hours -= available_h
-            current = _day_start(cur_date + timedelta(days=1))
+    while restantes > 0:
+        fin_de_jornada = datetime.combine(current.date(), work_end).replace(
+            tzinfo=current.tzinfo,
+        )
+        disponibles = (fin_de_jornada - current).total_seconds() / 3600.0
+        if restantes <= disponibles:
+            return current + timedelta(hours=restantes)
+        restantes -= disponibles
+        # Al día siguiente, saltando lo que no se trabaje.
+        current = _siguiente_momento_laborable(
+            datetime.combine(current.date() + timedelta(days=1), work_start).replace(
+                tzinfo=current.tzinfo,
+            ),
+            work_start, work_end, holidays,
+        )
 
     return current
 

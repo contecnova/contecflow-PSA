@@ -174,64 +174,98 @@ def _accion_send_email(db: Session, atype, action: dict, params: dict, context: 
         results.append({"action": atype, "ok": False, "error": "Missing 'to' parameter"})
 
 
-def _accion_call_webhook(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
-    """Accion `call_webhook`."""
-    url    = params.get("url")
-    method = params.get("method", "POST").upper()
-    headers = params.get("headers", {})
+def _motivo_de_rechazo_ssrf(url: str) -> Optional[str]:
+    """Por qué esta URL no puede salir a la red, o `None` si puede.
+
+    Auditoría 2026-09 (hallazgo 18): esto vivía dentro de `_accion_call_webhook`
+    en un `try` de veinte líneas con dos `raise ValueError` que se atrapaban a sí
+    mismos y se distinguían **comparando el texto del mensaje**. Devolver el
+    motivo en vez de lanzarlo quita esa comparación por cadena, que era el
+    verdadero problema: cambiar una palabra del mensaje rompía el control.
+
+    Tres barreras, y cada una tapa un agujero distinto:
+
+      · **Sólo HTTPS.** Un webhook en claro deja el contenido y las cabeceras
+        —incluida cualquier credencial— a la vista de la red.
+      · **Ni una IP privada escrita a mano.** `http://10.0.0.1/` sería una
+        puerta directa a la red interna desde una regla de automatización que
+        cualquier administrador de cliente puede crear.
+      · **Ni un nombre que resuelva a una IP privada.** Es la misma puerta con
+        un DNS por medio, y sin esto la barrera anterior no sirve de nada.
+
+    Si la resolución de nombres falla, se deja pasar y se registra: un DNS
+    caído no debe bloquear todos los webhooks de la instalación, y la propia
+    petición fallará después.
+    """
+    import ipaddress
+    import socket
+    from urllib.parse import urlparse
+
+    partes = urlparse(url)
+    if partes.scheme != "https":
+        return "Solo se permiten URLs HTTPS para webhooks"
+
+    host = partes.hostname or ""
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        ip = None
+
+    if ip is not None:
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            return "El webhook apunta a una dirección IP privada/interna"
+        return None
+
+    try:
+        resueltas = socket.getaddrinfo(host, None)
+    except Exception:
+        logger.warning(
+            "Fallo resolviendo getaddrinfo para webhook host=%s en SSRF check", host,
+        )
+        return None
+
+    for entrada in resueltas:
+        resuelta = ipaddress.ip_address(entrada[4][0])
+        if resuelta.is_private or resuelta.is_loopback or resuelta.is_link_local:
+            return "El webhook resuelve a una dirección IP interna"
+    return None
+
+
+def _accion_call_webhook(db: Session, atype, action: dict, params: dict,
+                         context: dict, results: list) -> None:
+    """Acción `call_webhook`."""
+    import json as _json
+    import urllib.request as _ur
+
+    url = params.get("url")
+    if not url:
+        results.append({"action": atype, "ok": False, "error": "Missing 'url' parameter"})
+        return
+
+    rechazo = _motivo_de_rechazo_ssrf(url)
+    if rechazo:
+        results.append({"action": atype, "ok": False, "error": rechazo})
+        return
+
     payload = params.get("payload") or {
         "event": context.get("event_type", "automation"),
         "rule_id": context.get("rule_id"),
         "project_id": context.get("project_id"),
         "task_id": context.get("task_id"),
     }
-    if url:
-        # SSRF protection: only allow HTTPS to public hosts
-        import ipaddress
-        from urllib.parse import urlparse
-        import socket as _socket
-        _ssrf_err = None
-        try:
-            _parsed = urlparse(url)
-            if _parsed.scheme != "https":
-                raise ValueError("Solo se permiten URLs HTTPS para webhooks")
-            _host = _parsed.hostname or ""
-            try:
-                _ip = ipaddress.ip_address(_host)
-                if _ip.is_private or _ip.is_loopback or _ip.is_link_local or _ip.is_reserved:
-                    raise ValueError("El webhook apunta a una dirección IP privada/interna")
-            except ValueError as _ve:
-                if "Solo se permiten" in str(_ve) or "dirección IP" in str(_ve):
-                    raise
-                try:
-                    _resolved = _socket.getaddrinfo(_host, None)
-                    for _r in _resolved:
-                        _rip = ipaddress.ip_address(_r[4][0])
-                        if _rip.is_private or _rip.is_loopback or _rip.is_link_local:
-                            raise ValueError("El webhook resuelve a una dirección IP interna")
-                except ValueError:
-                    raise
-                except Exception:
-                    logger.warning("Fallo resolviendo getaddrinfo para webhook host=%s en SSRF check", _host)
-        except ValueError as ssrf_e:
-            _ssrf_err = str(ssrf_e)
-        if _ssrf_err:
-            results.append({"action": atype, "ok": False, "error": _ssrf_err})
-        else:
-            import urllib.request as _ur
-            import json as _json
-            _data = _json.dumps(payload).encode()
-            _req  = _ur.Request(validate_outbound_url(url, field="URL de webhook"), data=_data, method=method,  # noqa: S310
-                                headers={"Content-Type": "application/json", **headers})
-            try:
-                with _ur.urlopen(_req, timeout=10):  # noqa: S310
-                    pass
-                results.append({"action": atype, "ok": True, "url": url})
-            except Exception as wh_err:
-                logger.exception("Automation webhook POST failed url=%s", url)
-                results.append({"action": atype, "ok": False, "error": str(wh_err)})
-    else:
-        results.append({"action": atype, "ok": False, "error": "Missing 'url' parameter"})
+    peticion = _ur.Request(  # noqa: S310
+        validate_outbound_url(url, field="URL de webhook"),
+        data=_json.dumps(payload).encode(),
+        method=params.get("method", "POST").upper(),
+        headers={"Content-Type": "application/json", **params.get("headers", {})},
+    )
+    try:
+        with _ur.urlopen(peticion, timeout=10):  # noqa: S310
+            pass
+        results.append({"action": atype, "ok": True, "url": url})
+    except Exception as err:
+        logger.exception("Automation webhook POST failed url=%s", url)
+        results.append({"action": atype, "ok": False, "error": str(err)})
 
 
 def _accion_send_slack_message(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:

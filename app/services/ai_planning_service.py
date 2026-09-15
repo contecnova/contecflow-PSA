@@ -186,51 +186,52 @@ def accept_task_estimate(task_id: str, accepted: bool, db: Session) -> dict:
     return {"ok": True, "accepted": accepted}
 
 
-def triage_ticket(ticket_id: str, db: Session) -> dict:
-    """AI triage: suggest category, priority, agent for a ticket."""
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise ValueError("ticket_not_found")
+#: Palabras que marcan prioridad, de más grave a menos. El orden **es** la
+#: precedencia: gana la primera lista que encaje, así que un ticket que dice
+#: «lento» y «producción caída» sale crítico.
+#:
+#: Auditoría 2026-09 (hallazgo 18): esto eran dos cascadas de `if/elif` con las
+#: listas escritas en línea. Como tabla se ve de un vistazo que ninguna palabra
+#: está repetida entre grupos, que era imposible de comprobar antes.
+_PALABRAS_DE_PRIORIDAD: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("critical", ("caído", "down", "producción", "bloqueado", "urgente", "crítico",
+                  "no funciona", "error 500")),
+    ("high",     ("lento", "fallo", "problema", "no puedo", "imposible", "impide")),
+    ("low",      ("consulta", "pregunta", "cómo", "información", "mejora", "sugerencia")),
+)
 
-    title_lower = (ticket.title or "").lower()
-    desc_lower = (ticket.description or "").lower()
-    full_text = f"{title_lower} {desc_lower}"
+#: Palabras que marcan categoría. Igual: gana la primera que encaje.
+_PALABRAS_DE_CATEGORIA: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Acceso y seguridad",          ("contraseña", "acceso", "login", "usuario", "permisos")),
+    ("Instalación y configuración", ("instalar", "instalación", "configurar", "setup")),
+    ("Red y conectividad",          ("red", "internet", "conexión", "wifi", "vpn")),
+    ("Hardware y periféricos",      ("impres", "escaner", "periférico", "hardware")),
+    ("Software de oficina",         ("excel", "word", "office", "correo", "email", "outlook")),
+    ("Rendimiento",                 ("lento", "rendimiento", "cuelga", "memoria")),
+)
 
-    suggested_priority = "medium"
-    suggested_category = "General"
-    reasoning = "Clasificación por reglas heurísticas."
 
-    critical_kw = ["caído", "down", "producción", "bloqueado", "urgente", "crítico", "no funciona", "error 500"]
-    high_kw = ["lento", "fallo", "problema", "no puedo", "imposible", "impide"]
-    low_kw = ["consulta", "pregunta", "cómo", "información", "mejora", "sugerencia"]
+def _primera_que_encaje(texto: str, tabla, por_defecto: str) -> str:
+    """La primera etiqueta de la tabla cuya lista de palabras aparezca en el texto."""
+    for etiqueta, palabras in tabla:
+        if any(palabra in texto for palabra in palabras):
+            return etiqueta
+    return por_defecto
 
-    if any(kw in full_text for kw in critical_kw): suggested_priority = "critical"
-    elif any(kw in full_text for kw in high_kw): suggested_priority = "high"
-    elif any(kw in full_text for kw in low_kw): suggested_priority = "low"
 
-    if any(kw in full_text for kw in ["contraseña", "acceso", "login", "usuario", "permisos"]):
-        suggested_category = "Acceso y seguridad"
-    elif any(kw in full_text for kw in ["instalar", "instalación", "configurar", "setup"]):
-        suggested_category = "Instalación y configuración"
-    elif any(kw in full_text for kw in ["red", "internet", "conexión", "wifi", "vpn"]):
-        suggested_category = "Red y conectividad"
-    elif any(kw in full_text for kw in ["impres", "escaner", "periférico", "hardware"]):
-        suggested_category = "Hardware y periféricos"
-    elif any(kw in full_text for kw in ["excel", "word", "office", "correo", "email", "outlook"]):
-        suggested_category = "Software de oficina"
-    elif any(kw in full_text for kw in ["lento", "rendimiento", "cuelga", "memoria"]):
-        suggested_category = "Rendimiento"
+def _agente_menos_cargado(db: Session):
+    """El agente con menos tickets abiertos, o `None` si no hay ninguno asignado.
 
-    # Auditoria 2026-08. Dos defectos en esta consulta:
-    #
-    #   · `Ticket.assignee_id` **no existe**: la columna se llama
-    #     `assigned_to_user_id`. `assignee_id` es el nombre que usa `Task`, y de
-    #     ahi viene la confusion. Reventaba con `AttributeError`.
-    #   · `Ticket.status.in_(["open", "in_progress"])`: **`open` no es un valor
-    #     de `TicketStatus`**. Los abiertos son todos los que no estan en
-    #     `resolved`, `closed` ni `cancelled`, que es como lo expresa el resto
-    #     del modulo.
-    agent_loads = db.query(
+    Auditoría 2026-08. Dos defectos en esta consulta:
+
+      · `Ticket.assignee_id` **no existe**: la columna se llama
+        `assigned_to_user_id`. `assignee_id` es el nombre que usa `Task`, y de
+        ahí venía la confusión. Reventaba con `AttributeError`.
+      · `Ticket.status.in_(["open", "in_progress"])`: **`open` no es un valor de
+        `TicketStatus`**. Los abiertos son todos los que no están en `resolved`,
+        `closed` ni `cancelled`, que es como lo expresa el resto del módulo.
+    """
+    cargas = db.query(
         Ticket.assigned_to_user_id, func.count(Ticket.id).label("open_count")
     ).filter(
         Ticket.status.notin_([
@@ -238,16 +239,25 @@ def triage_ticket(ticket_id: str, db: Session) -> dict:
         ]),
         Ticket.assigned_to_user_id.isnot(None),
     ).group_by(Ticket.assigned_to_user_id).order_by("open_count").limit(5).all()
+    return cargas[0].assigned_to_user_id if cargas else None
 
-    suggested_agent_id = (
-        agent_loads[0].assigned_to_user_id if agent_loads else None)
-    confidence = 60
 
+def _afinar_con_claude(ticket, categoria: str, prioridad: str, razonamiento: str):
+    """Pide a Claude una segunda opinión. Devuelve la heurística si algo falla.
+
+    El fallo es silencioso a propósito —se registra pero no se propaga—: el
+    triaje heurístico ya dio un resultado utilizable, y dejar un ticket sin
+    clasificar porque la API de un tercero no responde es peor que clasificarlo
+    con reglas.
+    """
     api_key = settings.ANTHROPIC_API_KEY or None
-    if api_key:
-        try:
-            import urllib.request
-            prompt = f"""Analiza este ticket de soporte y clasifícalo.
+    if not api_key:
+        return categoria, prioridad, 60, razonamiento
+
+    try:
+        import urllib.request
+
+        prompt = f"""Analiza este ticket de soporte y clasifícalo.
 
 Título: {ticket.title}
 Descripción: {(ticket.description or "Sin descripción")[:300]}
@@ -255,58 +265,89 @@ Descripción: {(ticket.description or "Sin descripción")[:300]}
 Responde SOLO con JSON:
 {{"category": "<categoría>", "priority": "critical|high|medium|low", "confidence": <0-100>, "reasoning": "<explicación breve en español>"}}"""
 
-            data = json.dumps({
-                "model": settings.CONTECFLOW_AI_MODEL,
-                "max_tokens": 300,
-                "messages": [{"role": "user", "content": prompt}]
-            }).encode()
-            req = urllib.request.Request(  # noqa: S310
-                validate_outbound_url(settings.ANTHROPIC_API_URL, field="ANTHROPIC_API_URL"),
-                data=data,
-                headers={
-                    "Content-Type": "application/json",
-                    "x-api-key": api_key,
-                    "anthropic-version": "2023-06-01",
-                }
-            )
-            with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
-                result = json.loads(resp.read())
-                parsed = json.loads(result["content"][0]["text"])
-                suggested_category = parsed.get("category", suggested_category)
-                suggested_priority = parsed.get("priority", suggested_priority)
-                confidence = parsed.get("confidence", 75)
-                reasoning = parsed.get("reasoning", reasoning) + " [Claude API]"
-        except Exception:
-            _logger.warning("Fallo llamando a Claude API para triage de ticket; usando fallback", exc_info=True)
+        data = json.dumps({
+            "model": settings.CONTECFLOW_AI_MODEL,
+            "max_tokens": 300,
+            "messages": [{"role": "user", "content": prompt}],
+        }).encode()
+        req = urllib.request.Request(  # noqa: S310
+            validate_outbound_url(settings.ANTHROPIC_API_URL, field="ANTHROPIC_API_URL"),
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+            respuesta = json.loads(resp.read())
+            parsed = json.loads(respuesta["content"][0]["text"])
+        return (
+            parsed.get("category", categoria),
+            parsed.get("priority", prioridad),
+            parsed.get("confidence", 75),
+            parsed.get("reasoning", razonamiento) + " [Claude API]",
+        )
+    except Exception:
+        _logger.warning(
+            "Fallo llamando a Claude API para triage de ticket; usando fallback", exc_info=True,
+        )
+        return categoria, prioridad, 60, razonamiento
 
-    existing = db.query(AITicketTriage).filter(AITicketTriage.ticket_id == ticket_id).first()
-    if existing:
-        existing.suggested_category = suggested_category
-        existing.suggested_priority = suggested_priority
-        existing.suggested_agent_id = suggested_agent_id
-        existing.confidence_pct = confidence
-        existing.reasoning = reasoning
+
+def _guardar_triaje(db: Session, ticket_id: str, *, categoria: str, prioridad: str,
+                    agente_id, confianza: int, razonamiento: str) -> None:
+    """Escribe o actualiza el triaje. Un ticket tiene uno, no un historial."""
+    existente = db.query(AITicketTriage).filter(AITicketTriage.ticket_id == ticket_id).first()
+    if existente:
+        existente.suggested_category = categoria
+        existente.suggested_priority = prioridad
+        existente.suggested_agent_id = agente_id
+        existente.confidence_pct = confianza
+        existente.reasoning = razonamiento
     else:
         db.add(AITicketTriage(
             ticket_id=ticket_id,
-            suggested_category=suggested_category,
-            suggested_priority=suggested_priority,
-            suggested_agent_id=suggested_agent_id,
-            confidence_pct=confidence,
-            reasoning=reasoning,
+            suggested_category=categoria,
+            suggested_priority=prioridad,
+            suggested_agent_id=agente_id,
+            confidence_pct=confianza,
+            reasoning=razonamiento,
         ))
     db.commit()
 
-    agent = db.query(User).filter(User.id == suggested_agent_id).first() if suggested_agent_id else None
+
+def triage_ticket(ticket_id: str, db: Session) -> dict:
+    """Triaje asistido: propone categoría, prioridad y agente para un ticket."""
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        raise ValueError("ticket_not_found")
+
+    texto = f"{(ticket.title or '').lower()} {(ticket.description or '').lower()}"
+    prioridad = _primera_que_encaje(texto, _PALABRAS_DE_PRIORIDAD, "medium")
+    categoria = _primera_que_encaje(texto, _PALABRAS_DE_CATEGORIA, "General")
+    razonamiento = "Clasificación por reglas heurísticas."
+
+    agente_id = _agente_menos_cargado(db)
+    categoria, prioridad, confianza, razonamiento = _afinar_con_claude(
+        ticket, categoria, prioridad, razonamiento,
+    )
+
+    _guardar_triaje(
+        db, ticket_id, categoria=categoria, prioridad=prioridad,
+        agente_id=agente_id, confianza=confianza, razonamiento=razonamiento,
+    )
+
+    agente = db.query(User).filter(User.id == agente_id).first() if agente_id else None
     return {
         "ticket_id": ticket_id,
         "ticket_title": ticket.title,
-        "suggested_category": suggested_category,
-        "suggested_priority": suggested_priority,
-        "suggested_agent": agent.full_name if agent else None,
-        "suggested_agent_id": suggested_agent_id,
-        "confidence_pct": confidence,
-        "reasoning": reasoning,
+        "suggested_category": categoria,
+        "suggested_priority": prioridad,
+        "suggested_agent": agente.full_name if agente else None,
+        "suggested_agent_id": agente_id,
+        "confidence_pct": confianza,
+        "reasoning": razonamiento,
     }
 
 

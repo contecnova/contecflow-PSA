@@ -46,64 +46,104 @@ def _get_users_list(tool_input, db, user, now, is_financial_role):
     } for u in users]}
 
 
-def _get_imputations(tool_input, db, user, now, is_financial_role):
+def _filtrar_imputaciones(tool_input, db):
+    """Aplica los filtros que traiga la herramienta y devuelve las imputaciones.
+
+    El proyecto y el usuario se buscan por **texto aproximado** a propósito: la
+    herramienta la invoca un modelo de lenguaje, que pasa lo que el usuario
+    escribió («el proyecto de Acme»), no un identificador. Si la búsqueda no
+    encaja con nada, el filtro **no se aplica** — y eso es deliberado: es lo
+    que hacía, y devolver todo es más útil que devolver vacío sin explicación.
+    """
+    from datetime import date as _date
+
     q = db.query(Imputation)
-    if tool_input.get("project_id"):
-        pid = tool_input["project_id"]
-        p = db.query(Project).filter(
-            or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
-        ).first()
-        if p: q = q.filter(Imputation.project_id == p.id)
-    if tool_input.get("user_name"):
-        u = db.query(User).filter(User.full_name.ilike(f"%{tool_input['user_name']}%")).first()
-        if u: q = q.filter(Imputation.user_id == u.id)
+
+    pid = tool_input.get("project_id")
+    if pid:
+        proyecto = db.query(Project).filter(or_(
+            Project.id == pid,
+            Project.name.ilike(f"%{pid}%"),
+            Project.code.ilike(f"%{pid}%"),
+        )).first()
+        if proyecto:
+            q = q.filter(Imputation.project_id == proyecto.id)
+
+    nombre = tool_input.get("user_name")
+    if nombre:
+        usuario = db.query(User).filter(User.full_name.ilike(f"%{nombre}%")).first()
+        if usuario:
+            q = q.filter(Imputation.user_id == usuario.id)
+
     if tool_input.get("date_from"):
-        from datetime import date as _date
         q = q.filter(Imputation.date >= _date.fromisoformat(tool_input["date_from"]))
     if tool_input.get("date_to"):
-        from datetime import date as _date
         q = q.filter(Imputation.date <= _date.fromisoformat(tool_input["date_to"]))
-    imps = q.order_by(Imputation.date.desc()).limit(tool_input.get("limit", 50)).all()
-    group_by = tool_input.get("group_by")
-    if group_by == "user":
-        agg = {}
-        for i in imps:
-            agg.setdefault(i.user_id, {"user_id": i.user_id, "hours": 0, "cost": 0, "entries": 0})
-            agg[i.user_id]["hours"] = round(agg[i.user_id]["hours"] + (i.hours or 0), 2)
-            agg[i.user_id]["cost"] = round(agg[i.user_id]["cost"] + (i.cost_amount or 0), 2)
-            agg[i.user_id]["entries"] += 1
-        user_ids = list(agg.keys())
-        umap = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(user_ids)).all()}
-        for v in agg.values(): v["user_name"] = umap.get(v["user_id"], "?")
-        return {"grouped_by": "user", "data": sorted(agg.values(), key=lambda x: -x["hours"])}
-    elif group_by == "project":
-        agg = {}
-        for i in imps:
-            agg.setdefault(i.project_id, {"project_id": i.project_id, "hours": 0, "cost": 0})
-            agg[i.project_id]["hours"] = round(agg[i.project_id]["hours"] + (i.hours or 0), 2)
-            agg[i.project_id]["cost"] = round(agg[i.project_id]["cost"] + (i.cost_amount or 0), 2)
-        proj_ids = list(agg.keys())
-        pmap = {p.id: f"{p.code} {p.name}" for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
-        for v in agg.values(): v["project_name"] = pmap.get(v["project_id"], "?")
-        return {"grouped_by": "project", "data": sorted(agg.values(), key=lambda x: -x["hours"])}
+
+    return q.order_by(Imputation.date.desc()).limit(tool_input.get("limit", 50)).all()
+
+
+def _agrupar_imputaciones(imps, db, por: str) -> dict:
+    """Suma horas y coste por usuario o por proyecto.
+
+    Los nombres se resuelven en **una** consulta por lote y no una por fila: con
+    cincuenta imputaciones eso es la diferencia entre dos consultas y cien.
+    """
+    campo = "user_id" if por == "user" else "project_id"
+    agregado: dict = {}
+    for i in imps:
+        clave = getattr(i, campo)
+        fila = agregado.setdefault(clave, {campo: clave, "hours": 0, "cost": 0, "entries": 0})
+        fila["hours"] = round(fila["hours"] + (i.hours or 0), 2)
+        fila["cost"] = round(fila["cost"] + (i.cost_amount or 0), 2)
+        fila["entries"] += 1
+
+    ids = list(agregado.keys())
+    if por == "user":
+        nombres = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(ids)).all()}
+        etiqueta = "user_name"
     else:
-        user_ids = {i.user_id for i in imps}
-        proj_ids = {i.project_id for i in imps}
-        umap = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(user_ids)).all()}
-        pmap = {p.id: p.name for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
-        total_hours = sum(i.hours or 0 for i in imps)
-        total_cost = sum(i.cost_amount or 0 for i in imps)
-        return {
-            "total_hours": round(total_hours, 2),
-            "total_cost": round(total_cost, 2),
-            "entries": [{
-                "date": str(i.date), "hours": i.hours,
-                "cost": i.cost_amount, "billable": i.is_billable,
-                "user": umap.get(i.user_id, "?"),
-                "project": pmap.get(i.project_id, "?"),
-                "description": (i.description or "")[:80],
-            } for i in imps]
+        nombres = {
+            p.id: f"{p.code} {p.name}"
+            for p in db.query(Project).filter(Project.id.in_(ids)).all()
         }
+        etiqueta = "project_name"
+    for fila in agregado.values():
+        fila[etiqueta] = nombres.get(fila[campo], "?")
+
+    return {
+        "grouped_by": por,
+        "data": sorted(agregado.values(), key=lambda x: -x["hours"]),
+    }
+
+
+def _get_imputations(tool_input, db, user, now, is_financial_role):
+    """Imputaciones de horas, en detalle o agrupadas por usuario o proyecto."""
+    imps = _filtrar_imputaciones(tool_input, db)
+
+    agrupar = tool_input.get("group_by")
+    if agrupar in ("user", "project"):
+        return _agrupar_imputaciones(imps, db, agrupar)
+
+    nombres_usuario = {
+        u.id: u.full_name
+        for u in db.query(User).filter(User.id.in_({i.user_id for i in imps})).all()
+    }
+    nombres_proyecto = {
+        p.id: p.name
+        for p in db.query(Project).filter(Project.id.in_({i.project_id for i in imps})).all()
+    }
+    return {
+        "total_hours": round(sum(i.hours or 0 for i in imps), 2),
+        "total_cost": round(sum(i.cost_amount or 0 for i in imps), 2),
+        "entries": [{
+            "date": str(i.date), "hours": i.hours,
+            "cost": i.cost_amount, "billable": i.is_billable,
+            "user": nombres_usuario.get(i.user_id, "?"),
+            "project": nombres_proyecto.get(i.project_id, "?"),
+            "description": (i.description or "")[:80],
+        } for i in imps],
+    }
 
 
 def _get_absences(tool_input, db, user, now, is_financial_role):
