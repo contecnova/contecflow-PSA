@@ -260,23 +260,74 @@ async def _verificar_firma_de_slack(request: Request) -> bytes:
     return body_bytes
 
 
-def _verificar_token_de_teams(request: Request) -> None:
-    """Comprueba que el bearer de Teams va dirigido a este bot.
+#: Cliente de claves públicas de Bot Framework, cacheado entre peticiones.
+#:
+#: `PyJWKClient` guarda las claves que descarga, así que crear uno por petición
+#: haría una llamada HTTP a Microsoft en **cada** comando entrante. Se guarda
+#: por URL y no en una global suelta porque la URL es configurable: si alguien
+#: cambia el ajuste en caliente, el cliente viejo no debe seguir sirviendo.
+_JWKS_DE_TEAMS: dict[str, object] = {}
 
-    Auditoría 2026-08 (hallazgo 18): igual que la de Slack, estaba dentro del
-    manejador. Y merece una nota honesta sobre su alcance: esto **no valida la
-    firma del JWT**, sólo decodifica el cuerpo y compara `aud`/`appid` con
-    `TEAMS_BOT_APP_ID`. Es una comprobación de destinatario, no de emisor:
-    frena un token de otro bot, no uno fabricado. La validación completa exige
-    las claves públicas de Bot Framework y queda anotada como pendiente, no
-    disimulada aquí.
 
-    El `except HTTPException: raise` de dentro es a propósito: sin él, el 403 de
-    audiencia lo capturaría el `except Exception` de al lado y saldría como
-    «token malformado», que es un mensaje distinto y falso.
+def _claves_de_bot_framework(metadata_url: str):
+    """El `PyJWKClient` del emisor, creado una vez por URL.
+
+    Los metadatos OpenID traen el `jwks_uri`; de ahí salen las claves públicas.
+    Se valida que ambas URLs sean HTTPS y no apunten a una red interna, con el
+    mismo verificador que usa el flujo de SSO: son URLs que vienen de
+    configuración, y la configuración de un despliegue también puede estar mal.
     """
-    import base64 as _b64
     import json as _json
+    import urllib.request
+
+    import jwt as _jwt
+
+    from app.services.auth_service import validate_https_discovery_url
+
+    cliente = _JWKS_DE_TEAMS.get(metadata_url)
+    if cliente is not None:
+        return cliente
+
+    validate_https_discovery_url(metadata_url)
+    with urllib.request.urlopen(metadata_url, timeout=5) as resp:  # noqa: S310
+        metadatos = _json.loads(resp.read())
+    jwks_uri = metadatos.get("jwks_uri")
+    if not jwks_uri:
+        raise HTTPException(
+            502, "Los metadatos de Bot Framework no declaran `jwks_uri`")
+    validate_https_discovery_url(jwks_uri)
+
+    cliente = _jwt.PyJWKClient(jwks_uri)
+    _JWKS_DE_TEAMS[metadata_url] = cliente
+    return cliente
+
+
+def _verificar_token_de_teams(request: Request) -> None:
+    """Verifica el bearer de Teams: **firma**, emisor y audiencia.
+
+    Auditoría 2026-08/09. Esto empezó dentro del manejador y sólo comprobaba la
+    audiencia: decodificaba el cuerpo del JWT sin verificar nada y comparaba
+    `aud`/`appid` con `TEAMS_BOT_APP_ID`. Quedó anotado con todas las letras —
+    «es una comprobación de destinatario, no de emisor: frena un token de otro
+    bot, no uno fabricado»—, y esa nota describía un agujero real: **cualquiera
+    que supiera el id de aplicación del bot podía escribir un JWT a mano, sin
+    firmar, y el receptor lo aceptaba**. El id de aplicación no es un secreto.
+
+    Ahora se verifica la firma contra las claves públicas de Bot Framework, más
+    el emisor, la audiencia y la caducidad. `jwt.decode` hace las cuatro cosas:
+    no se comprueba ninguna a mano, que es donde se cuelan los fallos.
+
+    Lo que **no** cubre, dicho para que no haya que adivinarlo: no se comprueba
+    el `serviceUrl` del cuerpo de la actividad contra el `serviceurl` del token.
+    Bot Framework lo documenta como paso adicional y sirve para que un bot no
+    reenvíe respuestas a un servicio que no es el suyo; aquí no se reenvía nada,
+    sólo se responde en el mismo ciclo HTTP.
+
+    El `except HTTPException: raise` es a propósito: sin él, el 403 de audiencia
+    lo capturaría el `except Exception` de al lado y saldría como «token
+    inválido», que es un mensaje distinto y menos cierto.
+    """
+    import jwt as _jwt
 
     bot_app_id = settings.TEAMS_BOT_APP_ID
     if not bot_app_id:
@@ -288,17 +339,29 @@ def _verificar_token_de_teams(request: Request) -> None:
     if not auth_header.startswith("Bearer "):
         raise HTTPException(401, "Missing Teams bearer token")
     raw_token = auth_header.removeprefix("Bearer ").strip()
+
     try:
-        parts = raw_token.split(".")
-        padded = parts[1] + "=" * (4 - len(parts[1]) % 4)
-        claims = _json.loads(_b64.urlsafe_b64decode(padded))
-        if claims.get("aud") != bot_app_id and claims.get("appid") != bot_app_id:
-            raise HTTPException(403, "Teams token audience mismatch")
+        cliente = _claves_de_bot_framework(settings.TEAMS_BOT_OPENID_METADATA_URL)
+        clave = cliente.get_signing_key_from_jwt(raw_token)
+        _jwt.decode(
+            raw_token,
+            clave.key,
+            algorithms=["RS256"],
+            audience=bot_app_id,
+            issuer=settings.TEAMS_BOT_ISSUER,
+            options={"verify_exp": True, "verify_signature": True},
+        )
     # intentional: chained re-raise preserves context
     except HTTPException:
         raise
     except Exception:
-        logger.warning("Token bearer de Teams inválido o malformado")
+        # Un solo mensaje para todos los modos de fallo —firma mala, emisor
+        # equivocado, audiencia equivocada, caducado— porque distinguirlos en la
+        # respuesta le dice a quien lo intenta por dónde va. El detalle va al
+        # registro, que es donde sirve.
+        logger.warning(
+            "Bearer de Teams rechazado (firma, emisor, audiencia o caducidad)",
+            exc_info=True)
         raise HTTPException(403, "Invalid Teams bearer token")
 
 

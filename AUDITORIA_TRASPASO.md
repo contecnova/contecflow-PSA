@@ -512,6 +512,89 @@ es peor que uno llamado `.csv`. El selector sigue en pantalla y no tiene
 contrapartida: **queda anotado, no arreglado**, porque generar XLSX es trabajo
 de producto.
 
+## 3.quinvicies El bearer de Teams, el XLSX que no existía, y cuatro funciones más
+
+Tres cosas que la auditoría llevaba anotadas y una cuarta que salió al hacerlas.
+
+### El bearer de Teams no verificaba la firma
+
+El receptor de comandos decodificaba el cuerpo del JWT **sin verificar nada** y
+comparaba `aud`/`appid` con `TEAMS_BOT_APP_ID`. La propia auditoría lo dejó
+escrito con todas las letras —«es una comprobación de destinatario, no de
+emisor: frena un token de otro bot, no uno fabricado»— y esa nota describía un
+agujero real:
+
+> el id de aplicación de un bot **no es un secreto**, así que cualquiera que lo
+> supiera podía escribir un JWT a mano, sin firmar, y el receptor lo aceptaba y
+> ejecutaba el comando.
+
+Ahora se verifica la firma contra las claves públicas de Bot Framework, más el
+emisor, la audiencia y la caducidad — y las cuatro las hace `jwt.decode`, no se
+comprueba ninguna a mano, que es donde se cuelan los fallos. El cliente de
+claves se cachea por URL: sin eso habría una llamada a Microsoft en **cada**
+comando entrante.
+
+**Dos ajustes nuevos, y no constantes:** `TEAMS_BOT_OPENID_METADATA_URL` y
+`TEAMS_BOT_ISSUER`. Las nubes soberanas de Microsoft —government, China—
+publican sus claves en otro dominio, y con la URL a fuego el bot no se podría
+desplegar ahí. Documentados en `.env.example`.
+
+Y el mensaje de error es **el mismo para todos los modos de fallo**. Distinguir
+«firma inválida» de «audiencia equivocada» en la respuesta le dice a quien lo
+intenta qué parte ya tiene bien; el detalle va al registro, que es donde sirve.
+Un test existente exigía que el mensaje dijera «audience» y se alineó **con su
+razón escrita**, que es distinto de relajarlo.
+
+Lo que **no** cubre, dicho para que no haya que adivinarlo: no se compara el
+`serviceUrl` del cuerpo con el del token. Bot Framework lo documenta como paso
+adicional y sirve para que un bot no reenvíe respuestas a un servicio ajeno;
+aquí no se reenvía nada, se responde en el mismo ciclo HTTP.
+
+### El selector CSV/XLSX que no tenía contrapartida
+
+La pantalla de exportaciones ofrecía XLSX desde siempre y el servidor **sólo
+servía CSV**. En agosto se hizo lo honesto mientras tanto —que la extensión
+saliera del formato real y no del botón pulsado, porque *un fichero llamado
+`.xlsx` con CSV dentro es peor que uno llamado `.csv`*— y quedó anotado.
+
+Y había una segunda mentira más silenciosa: el botón de proyectos decía
+literalmente **«Descargar Excel de proyectos»** y devolvía un CSV.
+
+`app/services/exportador_tabular.py` sirve los dos formatos. `openpyxl` ya era
+dependencia, así que el trabajo no era generar la hoja: era **no escribir dos
+veces cada export**. Decisiones que merecen quedar dichas:
+
+* **la extensión la pone el exportador, no quien llama** — es medio motivo de
+  que el módulo exista: mientras el nombre lo escribiera cada sitio, podía decir
+  una cosa y el contenido otra, que es exactamente el defecto que cierra;
+* **el CSV lleva BOM**, o Excel destroza los acentos y eso se reporta como «el
+  export está roto»;
+* **los números van como números y las fechas como fechas** en la hoja: quien
+  pide un Excel lo pide para sumar;
+* **un formato desconocido es 400**, no un CSV por defecto. Devolver otra cosa
+  de la que se pide es el defecto que esto viene a cerrar.
+
+### Y cuatro funciones más del hallazgo 18
+
+**77 funciones** sobre el umbral, exceso **187**. No se han partido por el
+número: las tres tenían costura con nombre.
+
+* **`send_message`** (16 → bajo el umbral): autorizar según quién escribe
+  —cliente de portal, bot o usuario, y cada uno por una vía distinta—, enganchar
+  al hilo, y crear las menciones. Tres conceptos, tres funciones.
+* **`_project_internal_cost`** (16 → bajo el umbral): la cascada de fuentes del
+  coste y la búsqueda del coste/hora vigente en una fecha. Esa última tiene una
+  regla de desempate que ahora está escrita donde se puede leer: si ninguna
+  vigencia contiene la fecha, se usa el perfil abierto más reciente, y el
+  `coverage_pct` que devuelve la función dice cuánto del número se calculó así.
+* **`critical_path_payload`** (16 → bajo el umbral): las cinco fases del CPM
+  **tienen nombre de libro** —grafo, orden topológico, pasada adelante, pasada
+  atrás—, así que el cuerpo principal se lee ahora como el algoritmo que es. Y
+  al separarlo quedó escrito un detalle que estaba implícito: las tareas que
+  forman un ciclo **se añaden al final en vez de descartarse**, porque un
+  diagrama al que le faltan filas sin decir por qué es peor que uno con un ciclo
+  visible.
+
 ## 3.quatervicies ABAC por recurso concreto, que no existía
 
 Toda la API paseaba el `resource_id` hasta el motor de políticas —233 endpoints
@@ -4400,12 +4483,13 @@ dos imports relativos pasados a absolutos, para poder cargarla suelta.
 
 Queda **1 de 38** hallazgo en «parcial»: **#18 complejidad** — y lo que queda
 de él ya no es «no se ha hecho», es **deuda medida con suelo puesto**: 94
-funciones por encima de 10 → **80**, exceso 253 → **205**, máximo 17 → **16**,
+funciones por encima de 10 → **77**, exceso 253 → **187**, máximo 17 → **16**,
 con `scripts/audit_complejidad.py` y un trinquete que bloquea
-(`tests/test_complejidad_no_empeora.py`). Catorce funciones salieron de la lista y
-**ninguna por trocearla**: las catorce escondían un defecto, incluido el dominio
-de tareas implementado dos veces (§3.novodecies). Y un barrido por AST sobre las
-80 que quedan confirma que **no esconden ninguna tabla de despacho**: son largas
+(`tests/test_complejidad_no_empeora.py`). Diecisiete funciones salieron de la lista y
+**ninguna por trocearla**: catorce escondían un defecto —incluido el dominio de
+tareas implementado dos veces (§3.novodecies)— y las tres últimas tenían costura
+con nombre propio (§3.quinvicies). Y un barrido por AST sobre las que quedan
+confirma que **no esconden ninguna tabla de despacho**: son largas
 y lineales, que es una razón distinta de «nadie las ha mirado».
 
 **Lo que salió por debajo al registrar el filtro de tenant en la suite** —la

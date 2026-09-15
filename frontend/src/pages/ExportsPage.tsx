@@ -25,6 +25,7 @@ interface ImputExportForm {
 
 interface ProjectsExportForm {
   include_costs: boolean
+  format: 'xlsx' | 'csv'
 }
 
 type LoadingState = Record<'imput' | 'proj', boolean>
@@ -47,7 +48,7 @@ export default function ExportsPage(): JSX.Element {
   const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
 
   const [imputForm, setImputForm] = useState<ImputExportForm>({ date_from: firstDay, date_to: today, include_costs: false, format: 'xlsx' })
-  const [projForm,  setProjForm]  = useState<ProjectsExportForm>({ include_costs: false })
+  const [projForm,  setProjForm]  = useState<ProjectsExportForm>({ include_costs: false, format: 'xlsx' })
   const [jiraProject, setJiraProject] = useState('')
   const [loading, setLoading] = useState<LoadingState>({ imput: false, proj: false })
   const [jiraSyncing, setJiraSyncing] = useState(false)
@@ -64,15 +65,19 @@ export default function ExportsPage(): JSX.Element {
   const exportImputations = async () => {
     setLoad('imput', true)
     try {
-      // Auditoria 2026-08: el backend sirve CSV, no XLSX. El selector de
-      // formato de esta pantalla no tiene contrapartida en el servidor, asi que
-      // la extension sale del formato real y no del boton pulsado — un fichero
-      // llamado `.xlsx` con CSV dentro es peor que uno llamado `.csv`.
+      // Auditoría 2026-08/09. Este selector llevaba desde siempre ofreciendo
+      // XLSX y el servidor sólo servía CSV, así que en agosto se hizo lo
+      // honesto —la extensión salía del formato real y no del botón pulsado,
+      // porque un fichero llamado `.xlsx` con CSV dentro es peor que uno
+      // llamado `.csv`— y quedó anotado. Ya hay contrapartida: el formato va al
+      // servidor y la extensión vuelve a salir del botón, esta vez porque
+      // coinciden.
       const { data } = await integrationsApi.exportImputations({
         date_from: imputForm.date_from,
         date_to: imputForm.date_to,
+        formato: imputForm.format,
       })
-      downloadBlob(data, `imputaciones_${imputForm.date_from}_${imputForm.date_to}.csv`)
+      downloadBlob(data, `imputaciones_${imputForm.date_from}_${imputForm.date_to}.${imputForm.format}`)
       showMsg('✅ Archivo descargado correctamente')
     } catch { showMsg('❌ Error al exportar') }
     finally { setLoad('imput', false) }
@@ -83,8 +88,9 @@ export default function ExportsPage(): JSX.Element {
     try {
       const { data } = await integrationsApi.exportProjects({
         include_costs: projForm.include_costs,
+        formato: projForm.format,
       })
-      downloadBlob(data, `proyectos_${today}.csv`)
+      downloadBlob(data, `proyectos_${today}.${projForm.format}`)
       showMsg('✅ Archivo descargado correctamente')
     } catch { showMsg('❌ Error al exportar') }
     finally { setLoad('proj', false) }
@@ -164,15 +170,29 @@ export default function ExportsPage(): JSX.Element {
         <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 20 }}>
           Informe completo de todos los proyectos con métricas de avance y presupuesto.
         </p>
-        {hasRole('admin') && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", cursor: 'pointer', marginBottom: 16 }}>
-            <input type="checkbox" checked={projForm.include_costs}
-              onChange={e => setProjForm(f => ({ ...f, include_costs: e.target.checked }))} />
-            Incluir costes y márgenes € (confidencial)
-          </label>
-        )}
+        {/* Auditoría 2026-09: este botón decía «Descargar Excel de proyectos» y
+            el servidor devolvía un CSV. Ahora hay selector, como en el de
+            imputaciones, y la etiqueta dice el formato que de verdad se va a
+            descargar. */}
+        <div style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'center' }}>
+          <div style={{ display: 'flex', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
+            {(['xlsx', 'csv'] as const).map((fmt) => (
+              <button key={fmt} onClick={() => setProjForm(f => ({ ...f, format: fmt }))}
+                style={{ padding: '8px 16px', background: projForm.format === fmt ? 'var(--accent-muted)' : 'transparent', border: 'none', color: projForm.format === fmt ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {fmt.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          {hasRole('admin') && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", cursor: 'pointer' }}>
+              <input type="checkbox" checked={projForm.include_costs}
+                onChange={e => setProjForm(f => ({ ...f, include_costs: e.target.checked }))} />
+              Incluir costes y márgenes € (confidencial)
+            </label>
+          )}
+        </div>
         <Button onClick={exportProjects} disabled={loading.proj} icon="↓">
-          {loading.proj ? 'Generando...' : 'Descargar Excel de proyectos'}
+          {loading.proj ? 'Generando...' : `Descargar ${projForm.format.toUpperCase()} de proyectos`}
         </Button>
       </Card>
 
