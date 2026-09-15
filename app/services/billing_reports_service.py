@@ -1488,15 +1488,18 @@ def _crear_imputacion(db: Session, row: dict, i: int, current_user: User, ctx: d
         hours=float(row["hours"]),
         description=row.get("description", ""),
         is_billable=row.get("is_billable", "true").lower() == "true",
+        # Auditoria 2026-08/09. Aqui habia
+        # `work_type=row.get("work_type", "development")` y **`Imputation` no
+        # tenia esa columna**, asi que la importacion de imputaciones desde CSV
+        # **fallaba fila por fila** con `TypeError`.
+        #
+        # La columna existe desde la revision 096. Y no se repone el respaldo a
+        # «development»: si el CSV no trae el campo, la fila se queda sin tipo
+        # de trabajo. El respaldo vive donde de verdad hace falta —en el
+        # informe que lo lee— y ponerlo aqui seria inventar un dato que nadie
+        # ha dicho.
+        work_type=row.get("work_type") or None,
     )
-    # Auditoria 2026-08: aqui habia `work_type=row.get("work_type",
-    # "development")` y **`Imputation` no tiene esa columna**. SQLAlchemy
-    # responde `TypeError` a una palabra clave que no es columna, asi que la
-    # importacion de imputaciones desde CSV **fallaba siempre**, fila por fila.
-    #
-    # Anotado y no inventado: el modelo no tiene donde guardar un tipo de
-    # trabajo. Anadir la columna es decision de producto; si la columna del CSV
-    # llega, hoy se descarta, y eso es preferible a no poder importar nada.
 
 
 # Que se construye por cada tipo importable. Los tres bloques del original eran

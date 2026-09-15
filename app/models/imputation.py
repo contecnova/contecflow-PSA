@@ -43,6 +43,17 @@ class Imputation(Base):
 
     # Billable flag
     is_billable = Column(Boolean, default=False)
+    # Auditoria 2026-09. No existia, y la importacion de imputaciones desde CSV
+    # la pasaba al constructor, asi que **fallaba fila por fila** con
+    # `TypeError`. El catalogo de informes ya la ofrece como campo
+    # (`report_catalog_service`) y `billing_reports_service` la lee con un
+    # respaldo a «development», de modo que media aplicacion ya cuenta con
+    # ella: lo que faltaba era la columna.
+    #
+    # Nullable y sin valor por defecto en la base: quien no lo informe no tiene
+    # tipo de trabajo, y el respaldo a «development» se queda donde estaba —en
+    # el informe que lo necesita— en vez de inventar un dato en la fila.
+    work_type = Column(String(50), nullable=True)
 
     # Invoicing: set to True once this imputation is included in a persisted Invoice
     is_invoiced = Column(Boolean, default=False, nullable=False)

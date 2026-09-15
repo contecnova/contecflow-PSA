@@ -512,6 +512,79 @@ es peor que uno llamado `.csv`. El selector sigue en pantalla y no tiene
 contrapartida: **queda anotado, no arreglado**, porque generar XLSX es trabajo
 de producto.
 
+## 3.tervicies Las tres decisiones de producto que quedaban anotadas
+
+La auditoría dejó tres columnas en «anotado y no inventado», y era la postura
+correcta en su momento: las tres salieron del detector `audit_model_attrs.py`
+—código que nombraba atributos que el esquema no tenía— y **las tres reventaban
+con `TypeError` en la primera línea útil**. Se arregló el síntoma y se dejó
+escrito que añadir la columna era decisión de producto, no de aquel arreglo.
+
+La revisión **096** toma las tres decisiones. Cada una con su criterio escrito,
+porque un criterio escrito se puede discutir y uno implícito no.
+
+### `sd_tickets.requester_phone`
+
+El servicio de SMS entrantes construía el ticket con `requester_phone=...`
+detrás de un `hasattr` que protegía el valor y no la palabra clave, así que
+**abrir un ticket desde un SMS fallaba siempre**. El teléfono acababa de rebote
+en `requester_name` y en la descripción.
+
+**Criterio:** en un ticket abierto por SMS el teléfono **es** la identidad de
+quien lo abre — sin él no hay a quién responder. Eso es un campo, no una nota.
+Nullable, porque los tickets de otros canales no lo tienen.
+
+### `imputations.work_type`
+
+La importación de imputaciones desde CSV lo pasaba al constructor y **fallaba
+fila por fila**.
+
+**Criterio:** no se está inventando un concepto, se está creando el sitio donde
+guardar uno que ya se usa — el catálogo de informes lo ofrece como campo y
+`billing_reports_service` lo lee con un respaldo a «development». Y **el
+respaldo no baja a la fila**: quien no informe el tipo se queda sin él. Escribir
+«development» en la fila convierte un dato ausente en un dato afirmado, y eso no
+se deshace.
+
+### `sd_tickets.major_incident_id`
+
+La única de las tres con una decisión de forma detrás, y por eso la que más
+merecía esperar.
+
+**Criterio: un ticket pertenece como mucho a UNA incidencia mayor**, y una
+incidencia mayor agrupa muchos tickets. Es el modelo de ITIL y es el
+conservador: una tabla de unión permitiría que dos incidencias mayores
+compartieran tickets, y eso hay que **quererlo explícitamente**, no heredarlo de
+haber elegido por costumbre la estructura más flexible. Si mañana hace falta,
+pasar de una clave foránea a una tabla de unión es una migración; al revés se
+pierden datos.
+
+`ON DELETE SET NULL` y no `CASCADE`: borrar la declaración de una incidencia
+mayor **no** puede llevarse por delante los tickets, que son el trabajo real.
+
+**Y la comprobación de cumplimiento vuelve a funcionar sin tocar una línea de
+ella.** `governance_compliance_service` ya estaba escrito contra
+`MajorIncident.tickets`; como la relación no existía, «P1 sin incidencia mayor
+declarada» estaba declarada **no evaluable** — mejor eso que un falso positivo
+por cada P1. Ahora se puede evaluar.
+
+### El guardián pidió que le quitaran su propia excepción
+
+`tests/test_atributos_de_modelo_existen.py` tenía un segundo test que comprueba
+que **cada excepción declarada siga siendo necesaria**. Al añadir la relación se
+puso en rojo: «estas excepciones ya no hacen falta, el atributo existe». Es
+exactamente para lo que estaba, y es la diferencia entre una lista de
+excepciones y un cajón de sastre.
+
+**`CONOCIDOS` queda vacía por primera vez.**
+
+### Verificación
+
+La migración se verificó **ejecutándola**: partiendo de un esquema sin las tres
+columnas, comprueba que se añaden, que son nullable, que el índice está, que se
+puede escribir y leer en las tres, que una segunda pasada no revienta y que el
+`downgrade` las quita. Más 22 tests en verde entre los nuevos y los guardianes.
+
 ## 3.duovicies El barrido de duplicación: 31 parejas, cero defectos
 
 La duplicación ha sido **el detector más productivo de toda esta auditoría**, y

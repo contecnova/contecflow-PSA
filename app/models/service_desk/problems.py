@@ -200,3 +200,12 @@ class MajorIncident(Base):
 
     commander  = relationship("User", foreign_keys=[incident_commander_id])
     comm_lead  = relationship("User", foreign_keys=[communication_lead_id])
+    # Auditoria 2026-09. Los tickets que agrupa esta incidencia mayor.
+    #
+    # `governance_compliance_service` ya estaba escrito contra esta relacion
+    # —`MajorIncident.tickets.any(id=t.id)`, detras de un `hasattr`— y como no
+    # existia, la comprobacion «P1 sin incidencia mayor» quedaba declarada no
+    # evaluable. Con el `major_incident_id` de `Ticket` la relacion existe y
+    # esa comprobacion pasa a hacer su trabajo sin tocar una linea de ella.
+    tickets = relationship(
+        "Ticket", back_populates="major_incident", lazy="selectin")
