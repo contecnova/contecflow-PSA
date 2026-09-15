@@ -53,12 +53,16 @@ from __future__ import annotations
 # faltaba aquí no podía denegar nada que el router hubiese dejado pasar.
 #
 # Así que el hueco era **latente, no explotable**: código de autorización que no
-# corría, tapado por otra capa que decide lo mismo. Se arregla igual —una
-# comprobación que debería estar y no estaba es un defecto aunque hoy no se
-# alcance—, pero no se vende como una brecha cerrada. Y deja a la vista el
-# defecto de verdad, que es más grande y no se toca desde aquí: **ABAC por
-# recurso concreto no está implementado**, aunque la API pasee `resource_id` por
-# seis capas hasta el motor. Queda anotado en la auditoría, no disimulado.
+# corría, tapado por otra capa que decide lo mismo. Se arregló igual —una
+# comprobación que debería estar y no estaba es un defecto aunque no se
+# alcance—, y no se vendió como una brecha cerrada.
+#
+# **Y el defecto de verdad que dejaba a la vista ya está arreglado** (auditoría
+# 2026-09): ABAC por recurso concreto no existía, porque `evaluate_access`
+# recibía el `resource_id` y no lo miraba. Ahora una regla puede nombrar
+# `recurso.<columna>` y `accion`, así que esta llamada por tarea **sí** puede
+# denegar algo que la del router deje pasar — la del router no sabe qué fila se
+# está tocando. Ver `app/services/abac_recursos.py`.
 #
 # `bulk_update_dates_record`, en este mismo módulo, sí llamaba a `enforce_abac`:
 # la copia había perdido la comprobación en una sola de las dos rutas masivas.

@@ -11,6 +11,7 @@ from typing import Dict, List, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from app.models.abac import ABACPolicy, UserAttribute, AttributeDefinition, PolicyAudit
 from app.models.user import User
+from app.services.abac_recursos import atributos_del_recurso
 import uuid
 from fastapi import HTTPException
 from sqlalchemy import func
@@ -422,8 +423,42 @@ class ABACService:
         # Get user's attributes
         user_attributes = self.get_user_attributes(user_id)
 
+        # ── Atributos del recurso concreto (auditoria 2026-09) ───────────────
+        #
+        # Hasta aqui `resource_id` y `action` se recibian, se guardaban en el
+        # detalle de auditoria y **no se usaban para decidir**. Es decir: toda
+        # la API paseaba el id del recurso por seis capas hasta este punto y
+        # aqui se tiraba, asi que **ABAC por recurso concreto no existia**. Una
+        # politica solo podia decir «este rol no toca tareas», nunca «no toca
+        # las tareas del proyecto X».
+        #
+        # Ahora una regla puede nombrar `recurso.<columna>` y `accion`. El
+        # espacio de nombres esta prefijado a proposito para que no pueda
+        # chocar con un atributo de usuario.
+        #
+        # **Compatible hacia atras por construccion:** una politica que solo
+        # nombra atributos de usuario ve exactamente el mismo diccionario que
+        # antes, porque lo unico que se hace es anadir claves nuevas. Ninguna
+        # politica existente cambia de veredicto.
+        atributos_recurso = atributos_del_recurso(self.db, resource_type, resource_id)
+
+        if resource_id and resource_type and not atributos_recurso:
+            # Se registra en vez de callar: una regla que nombre `recurso.*`
+            # con el recurso sin resolver no encajara, y eso es indistinguible
+            # de «la condicion no se cumple» si no queda rastro. Pasa cuando el
+            # tipo no esta declarado en `abac_recursos.TIPOS` o la fila no
+            # existe.
+            logger.debug(
+                "ABAC: sin atributos para %s/%s; las reglas que nombren "
+                "`recurso.*` no encajaran", resource_type, resource_id)
+
         # Merge context attributes
-        evaluation_attrs = {**user_attributes, **context}
+        evaluation_attrs = {
+            **user_attributes,
+            **atributos_recurso,
+            "accion": action,
+            **context,
+        }
 
         # Get active policies sorted by priority
         policies = self.list_policies(active_only=True)

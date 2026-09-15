@@ -102,11 +102,18 @@ def enforce_abac(
         user_role = user.role.value if hasattr(user.role, "value") else str(user.role or "employee")
         user_roles = [user_role]
 
+        # Auditoria 2026-09: `resource_id` y `action` **no se pasaban**, asi que
+        # el motor decidia sin ellos aunque toda la API los paseara hasta aqui.
+        # Con los dos puestos, una politica puede nombrar `recurso.<columna>` y
+        # `accion` en sus reglas. Las politicas que solo miran atributos de
+        # usuario no cambian de veredicto: lo unico que ocurre es que el
+        # diccionario de evaluacion trae claves nuevas.
         allowed, matched_policies, details = svc.evaluate_access(
             user_id       = str(user.id),
             user_roles    = user_roles,
             resource_type = resource_type,
             resource_id   = resource_id,
+            action        = action,
         )
 
         # Auditar solo cuando alguna política ha aplicado de verdad. Un

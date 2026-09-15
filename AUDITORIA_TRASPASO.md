@@ -512,6 +512,78 @@ es peor que uno llamado `.csv`. El selector sigue en pantalla y no tiene
 contrapartida: **queda anotado, no arreglado**, porque generar XLSX es trabajo
 de producto.
 
+## 3.quatervicies ABAC por recurso concreto, que no existía
+
+Toda la API paseaba el `resource_id` hasta el motor de políticas —233 endpoints
+llaman a `enforce_abac(db, user, "task", task.id, action="update")`— y **el motor
+no lo miraba**. `ABACService.evaluate_access` lo recibía, lo guardaba en el
+detalle de auditoría y decidía sólo con el rol, el `resource_type` y los
+atributos del usuario; `is_policy_applicable` ni siquiera lo aceptaba. Con
+`action` pasaba lo mismo.
+
+Consecuencia: una política sólo podía decir «los de este rol no tocan tareas».
+Nunca «no tocan las tareas del proyecto X», ni «pueden leer pero no borrar».
+
+### Cómo salió, que es la mejor parte
+
+De un test que iba a demostrar otra cosa. Al de-duplicar el dominio de tareas
+(§3.novodecies) escribí que `POST /tasks/bulk-update` se saltaba ABAC, y monté
+el test que lo demostraba. **Demostró lo contrario**: la ruta devolvía 403 antes
+de entrar al manejador, porque la comprobación «por tarea» y la del router daban
+el mismo veredicto. Y sólo podía ser por una razón — que el `resource_id` no
+entraba en la decisión.
+
+Quedó anotado como «diseño de producto, no se toca en una tanda de otra cosa».
+Esta es esa tanda.
+
+### Qué se ha hecho
+
+`app/services/abac_recursos.py` resuelve los atributos de la fila concreta y los
+mete en el espacio de nombres de evaluación con el prefijo `recurso.`; `accion`
+entra como una clave más. Una regla puede ahora escribirse así:
+
+```json
+{"attribute": "recurso.project_id", "operator": "equals", "value": "p-123"}
+{"attribute": "accion",             "operator": "equals", "value": "delete"}
+```
+
+**Tres decisiones que merecen quedar escritas:**
+
+* **La superficie está declarada.** `TIPOS` es un mapa explícito de tipo de
+  recurso a modelo; no se descubre recorriendo el registro de SQLAlchemy, aunque
+  se podría. Esto es una función de seguridad, y en seguridad la superficie se
+  declara: añadir un tipo es una línea, y esa línea **es** la decisión de
+  exponerlo.
+* **Las columnas que huelen a secreto no se exponen** —`password`, `token`,
+  `secret`, `key`, `hash`, `salt`, `credential`—. El valor de una regla acaba en
+  el registro de auditoría y las políticas las edita un administrador de cliente
+  desde la interfaz: filtrar aquí es más barato que confiar en que nadie escriba
+  esa regla.
+* **Un recurso que no se resuelve no encaja**, ni para permitir ni para denegar,
+  y se registra. Es coherente con que `enforce_abac` sea fail-open por diseño
+  —lo dice su propia cabecera— y con no convertir un id inexistente en una
+  denegación silenciosa de todo.
+
+### Compatible hacia atrás por construcción, y probado
+
+Lo único que hace el cambio es **añadir** claves al diccionario de evaluación, y
+están prefijadas para que no puedan chocar con un atributo de usuario. Una
+política que sólo mira atributos de usuario ve exactamente lo que veía.
+
+Eso importa tanto como lo nuevo: un cambio en un motor de autorización que
+altere en silencio lo que ya estaba decidido es peor que el hueco que venía a
+cerrar. Hay un test que lo fija —mismo veredicto con y sin `resource_id` cuando
+la regla no lo nombra— y los **103 tests ABAC existentes pasan sin tocar uno**.
+
+### Y dos notas que decían lo contrario, corregidas
+
+`abac_dependency.py` decía que `action` era «informativo, como antes:
+`enforce_abac()` no lo pasa a `evaluate_access()`». Era cierto y ya no lo es. Lo
+que sigue siendo cierto es que esa dependencia **no conoce el `resource_id`**
+—sabe el prefijo de la ruta, no qué fila se toca—, así que ahora sí es verdad
+que las llamadas explícitas de los endpoints aportan grano más fino: es lo que
+esa nota afirmaba antes sin que lo fuera.
+
 ## 3.tervicies Las tres decisiones de producto que quedaban anotadas
 
 La auditoría dejó tres columnas en «anotado y no inventado», y era la postura
