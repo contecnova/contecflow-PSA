@@ -137,10 +137,24 @@ services:
   # que los documentos caían siempre al sistema de ficheros local
   # (`uploads/`) y el backend S3 nunca se ejercitaba fuera de AWS.
   minio:
+    # ── Registro: quay.io, NO Docker Hub (2026-09-17) ──────────────────
+    #
+    # `docker compose up` fallaba aquí con:
+    #
+    #     pull access denied, repository does not exist or may require
+    #     authorization: insufficient_scope: authorization failed
+    #
+    # No era el digest ni la autenticación: el repositorio `minio/minio` de
+    # Docker Hub dejó de ser público — también `minio/minio:latest` por
+    # etiqueta devuelve `denied`. `quay.io/minio/*` sigue siendo público.
+    #
+    # Mismo fallo y mismo arreglo que en `contecmind`; `contecweb` ya usaba
+    # quay.io desde el principio.
+    #
     # Pineado por digest, no por `:latest`: con un tag móvil dos despliegues del
     # mismo commit pueden levantar imágenes distintas y un fallo deja de ser
-    # reproducible. Para subir versión: `docker pull` y copiar el RepoDigest.
-    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    # reproducible. Para subir versión: `docker buildx imagetools inspect <img>:<tag>`.
+    image: quay.io/minio/minio@sha256:1dce27c494a16bae114774f1cec295493f3613142713130c2d22dd5696be6ad3  # RELEASE.2024-12-18T13-15-44Z
     container_name: contecflow-minio
     restart: unless-stopped
     environment:
@@ -162,7 +176,7 @@ services:
 
   # One-shot: crea el bucket para que la primera subida no falle.
   minio-init:
-    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    image: quay.io/minio/mc@sha256:993e8c454a7ec632923f7e3e61adf1d473261da6354cefd641aedd33a2cfe112  # RELEASE.2024-11-21T17-21-54Z
     container_name: contecflow-minio-init
     restart: "no"
     depends_on:
