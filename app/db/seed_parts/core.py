@@ -149,14 +149,46 @@ def _sembrar_usuarios(db, org):
     print("     Set DEFAULT_USER_PASSWORD env var to override.\n")
     for ud in users_data:
         u = db.query(User).filter(User.username==ud["username"]).first()
+        # ── El `.env` MANDA sobre el superadmin (2026-09-17) ──────────────
+        #
+        # `SUPERADMIN_PASSWORD` estaba declarada en `.env`, VALIDADA en
+        # `app/core/config.py` —que se niega a arrancar si es débil— y no se
+        # usaba para poner ninguna contraseña. El superadmin recibía
+        # `DEFAULT_USER_PASSWORD` como cualquier otro usuario semilla, y solo
+        # en el momento de CREARLO: si la cuenta ya existía, ninguna de las dos
+        # se aplicaba nunca.
+        #
+        # O sea que el fichero de configuración anunciaba una credencial que no
+        # dejaba entrar, y encima bloqueaba el arranque si la ponías débil. El
+        # mismo fallo se reportó en `contecmind` el mismo día.
+        #
+        # La contraseña del `.env` se re-afirma en CADA seed: es la vía de
+        # recuperación de un superadmin bloqueado, y una vía que solo funciona
+        # la primera vez no es una vía.
+        #
+        # El precio, dicho claro: cambiar la contraseña del superadmin desde la
+        # interfaz no sobrevive a un `seed`. Cámbiala también en el `.env`.
+        es_superadmin = bool(ud.get("is_superadmin"))
+        pwd_usuario = settings.SUPERADMIN_PASSWORD if es_superadmin else seed_pwd
         if not u:
             # Assign all users (including superadmin) to the default org.
             # is_superadmin=True already grants platform-wide elevated access;
             # organization_id NOT NULL is enforced by PostgreSQL.
-            u = User(**ud, hashed_password=get_password_hash(seed_pwd),
+            u = User(**ud, hashed_password=get_password_hash(pwd_usuario),
                      organization_id=org.id)
             db.add(u); db.flush()
             print(f"  User: {ud['full_name']}")
+        elif es_superadmin:
+            # Re-afirmar credenciales y acceso del superadmin. Sin esto, una
+            # cuenta desactivada o con otra contraseña deja al dueño de la
+            # instalación fuera y sin nada que lo arregle salvo tocar la base.
+            u.hashed_password = get_password_hash(pwd_usuario)
+            if hasattr(u, "is_active"):
+                u.is_active = True
+            if not u.organization_id:
+                u.organization_id = org.id
+            db.flush()
+            print(f"  User: {ud['full_name']} (credenciales resincronizadas desde .env)")
         elif not u.organization_id and not u.is_superadmin:
             # Back-fill existing users that missed the org assignment.
             u.organization_id = org.id
