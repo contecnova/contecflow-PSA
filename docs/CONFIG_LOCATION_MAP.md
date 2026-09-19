@@ -319,9 +319,24 @@ Cambios requieren redeploy. Movilos a BD **no** tendría efecto sin reinicio o f
 ### Seed / bootstrap creds
 | Key | Por qué |
 |---|---|
-| `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` | Solo first-boot |
+| `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` | **El `.env` manda, en cada arranque** — no solo el primero. Ver abajo. |
 | `DEFAULT_USER_PASSWORD` | Solo seed demo |
 | `CLIENT_PORTAL_SECRET` | HMAC key para magic-links |
+
+**El `.env` manda sobre el superadmin (2026-09-17).** La siembra sólo creaba la
+cuenta si no existía, así que cambiar `SUPERADMIN_PASSWORD` en el fichero no
+cambiaba nada en cuanto existía. Ahora `_sembrar_usuarios` (en
+`app/db/seed_parts/core.py`) reaplica esa contraseña en cada siembra, reactiva la
+cuenta y le asegura su organización.
+
+Es la vía de recuperación de un administrador bloqueado, y una vía que sólo
+funciona el primer día no es una vía. **El precio:** cambiar esa contraseña desde
+la aplicación no sobrevive a un reinicio; sólo afecta a esta cuenta. Lo fija
+`tests/test_superadmin_env_manda.py`, que inspecciona la función por nombre —no
+por posición— para que reordenar el fichero no lo rompa en falso.
+
+El mismo criterio se aplica en contecmind, contecweb, contecintelligence y
+contecpos.
 
 ### Observabilidad — módulo load
 | Key | Por qué |
