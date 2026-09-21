@@ -1385,6 +1385,72 @@ envuelve al literal lo dejaría **dentro del callback** — ilegal, y de las que
 funcionan hasta que la lista se queda vacía. Por eso la herramienta busca la
 función de **primer nivel del módulo**, que es el componente, y ahí lo pone.
 
+### Cerrado: 1.852 → 0
+
+Ciento treinta y cuatro ficheros, en catorce tandas, cada una con su typecheck
+estricto y sus 92 tests de frontend antes de pasar a la siguiente.
+
+**Los dos últimos no eran una pantalla más.** `ErrorBoundary` y `RouteBoundary`
+son componentes de **clase** —lo exige React para capturar errores de render—,
+así que no pueden llamar a `useAppLang()`. Y aunque pudieran, no deberían: un
+boundary se pinta precisamente cuando el árbol de arriba ha fallado, y si lo que
+falló fue el proveedor de idioma, la pantalla de último recurso fallaría
+también. `traducirSinHook` lee el idioma de `localStorage`: sin contexto de
+React, y por tanto sin poder arrastrar al boundary consigo.
+
+### El tercer hallazgo: 174 claves que nadie declaró
+
+Salió al terminar, contando qué claves pedía el código y cuáles existían.
+
+`t('tasks.add_comment')` no deja la pantalla en blanco, que sería evidente.
+`resolveTranslation` tiene un último recurso que **humaniza la clave**:
+
+```
+t('tasks.add_comment')               ->  "Add comment"
+t('tasks.tab_details')               ->  "Tab details"
+t('settings.empty_templates_title')  ->  "Empty templates title"
+```
+
+Un usuario español lee texto inventado en inglés, con aspecto de estar bien.
+**Nadie lo reporta como «falta la traducción» porque no parece que falte nada.**
+
+> **Y ninguno de los cuatro gates podía verlo, por construcción.** No está en
+> `es`, así que a `en` y a `zh` no les falta —cobertura 100 %—; y el JSX sí pasa
+> por `t()`, así que tampoco es un literal. Es el hueco exacto entre los dos
+> tipos de medida que había.
+
+Las 174 son **todas anteriores** a este trabajo. Una de ellas lo explica bien:
+`bi_project_detail` estaba declarada **dentro de `alm`** en los tres idiomas, y
+como `t()` parte por el primer punto, su ruta real era
+`alm.bi_project_detail.subtitle`: inalcanzable. El valor estaba escrito y era
+correcto; lo único mal era el sitio.
+
+`check_i18n_claves_sin_definir.mjs` lo vigila, por AST y no por texto —el
+docstring de `AppLangContext` documenta la API con `t('module.key')`, y un grep
+ingenuo lo denuncia como clave rota—. Validado rompiéndolo.
+
+### Cuatro defectos de la herramienta, cada uno cazado por un guardián distinto
+
+Vale la pena la lista, porque ninguno se encontró leyendo el código:
+
+| qué | lo cazó |
+|---|---|
+| Hook insertado donde `t` ya significaba otra cosa (`.map(t => …)`) | typecheck estricto |
+| `useAppT` insertado en `renderBlocks`, que **no** es un componente | ESLint, regla de hooks |
+| Segundo `gantt:` al final de `en.mjs`, que lo declara anidado a 14 espacios | el gate de duplicados, en el mismo minuto: 81 traducciones descartadas |
+| `Pagination` y `TimerWidget` renderizados sin proveedor de idioma | los 92 tests de frontend |
+
+El de `renderBlocks` es el que más enseña: la herramienta trataba como
+componente toda función de primer nivel. React usa la **mayúscula inicial** para
+distinguirlos, y esa es ahora la regla; las funciones que devuelven JSX sin ser
+componentes se dejan sin tocar y se listan, porque el arreglo correcto —pasarles
+`t` por parámetro— lo decide quien lee el código.
+
+Y el de los tests merece decirse: se arregló montando el contexto **en el
+test**, no relajando la guarda de `useAppLang`. Esa guarda existe para impedir
+que alguien use la traducción fuera del árbol donde vive; debilitarla para poner
+un test en verde habría sido cambiar el producto para no cambiar la prueba.
+
 ### Primera pantalla, y lo que costó
 
 `PortalUsersTab.tsx`: 31 literales, 28 claves —los textos repetidos comparten
@@ -4992,15 +5058,17 @@ día divergen, y aquí ya lo habían hecho.
   los `POST` tampoco. El detector no lo veía porque sólo mira rutas que llaman
   a `enforce_abac`, y eso es casi todo `DELETE`. **Esto es ahora lo primero de
   la lista**, y es bastante más ancho que lo que decía este punto.
-- **1.852 cadenas visibles que no pasan por `t()`** (§3.untrigies). Ojo con
-  este punto, porque decía otra cosa y era falso: decía «traducción al 62,2 %,
-  faltan 1.419 claves en inglés y chino». **Eso se cerró en `d5295e6`** y los
-  tres idiomas llevan desde entonces al 100 %; el traspaso no se actualizó. Lo
-  que sí queda abierto es distinto y ningún gate lo veía: texto escrito
-  directamente en el JSX, que al no tener clave no le falta a ningún idioma.
-  Medido por AST: **1.721 cadenas en 130 ficheros** tras las cinco primeras
-  pantallas.
-  Ya está bajo trinquete (`check_i18n_literales.mjs`), así que no puede crecer.
+> **Cerrado en §3.untrigies: 0 de 1.852.** Este punto decía «traducción al
+> 62,2 %, faltan 1.419 claves», y ya era falso cuando se escribió —eso se cerró
+> en `d5295e6`—. Lo que sí quedaba era otra cosa: **1.852 cadenas escritas a
+> pelo en el JSX**, que al no tener clave no le faltaban a ningún idioma y por
+> eso ningún gate las veía. Hoy son **cero**, en los tres idiomas, y hay dos
+> gates nuevos que lo sostienen.
+>
+> Y de camino salió una tercera cara del mismo hallazgo: **174 claves que el
+> código pedía y que nadie había declarado nunca**, todas anteriores a este
+> trabajo. No salían en blanco —el runtime humaniza la clave—, así que un
+> usuario español leía «Add comment» y nadie lo reportaba.
 > **Y el tercer punto de esta lista tampoco estaba abierto.** Decía «204
 > `db.query()` / `db.commit()` en la capa API». La medición oficial —
 > `python scripts/audit_db_access_in_api.py`, que cuenta por árbol de sintaxis
