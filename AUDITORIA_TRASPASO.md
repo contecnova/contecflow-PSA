@@ -101,6 +101,10 @@ incluidos** (§3.sexvicies); y **ninguna función de `app/` por encima de
 complejidad 10** (§3.septvicies) — los dos hallazgos que llevaban toda la
 auditoría abiertos, cerrados.
 
+**Y la suite tarda ahora 8 minutos en vez de 40** (§3.novovicies): tardaba
+preparándose —392 tablas creadas y destruidas y cuatro hashes bcrypt por test—,
+no ejecutando.
+
 > Y es la primera vez que ese «0 fallos» se mide **con la semántica de tenant de
 > producción puesta** (§3.sexdecies). La primera pasada con los escuchadores
 > registrados dio **23 en rojo**: catorce del propio banco de pruebas, dos
@@ -1124,6 +1128,76 @@ con la versión anterior sobre 16 casos; esa comparación queda ahora escrita.
 Cubre lo que de verdad importa: que el filtro por organización se **inyecta** y
 no se confía en el que el modelo haya podido escribir, y que va antes del
 `GROUP BY` en las consultas agregadas.
+
+---
+
+## 3.novovicies La suite tardaba preparándose, no ejecutando
+
+**De ~40 minutos a 8.** Y el diagnóstico es más útil que el número.
+
+### Lo que costaba cada test antes de empezar el test
+
+| | por test | × 3818 tests |
+|---|---|---|
+| Crear y destruir **392 tablas** | 0,836 s | **53 min** |
+| **Cuatro** hashes bcrypt de la misma contraseña | 1,190 s | **75 min** |
+
+Ciento veintiocho minutos de CPU montando el escenario. Los tests en sí eran la
+parte pequeña, y ninguna optimización de paralelismo iba a arreglar eso.
+
+La fixture `db` es `autouse` y de ámbito de función, así que **todos** los tests
+pagaban las dos cosas, tocaran la base o no.
+
+### Los dos arreglos, y lo que deliberadamente NO se hizo
+
+- **El esquema se crea una vez** y entre tests se vacían las filas. Vaciar las
+  392 tablas cuesta 0,042 s frente a 0,836 s — veinte veces menos— y deja la
+  base igual de limpia. Se vacía **al principio y no al final**: si un test se
+  interrumpe a medias, el siguiente sigue empezando limpio.
+- **El hash se calcula una vez.** Los cuatro sitios cifraban la *misma* cadena.
+  Que los usuarios de prueba compartan hash no cambia nada —sigue siendo un
+  bcrypt válido de esa contraseña— y ningún test depende de lo contrario.
+- De paso, fuera tres `print` que sacaban la contraseña de prueba y los hashes
+  por pantalla en cada test.
+
+**Lo que NO se hizo, y es lo que más se tienta:** bajar las rondas de bcrypt en
+tests. Eso habría sido más rápido todavía y habría cambiado el comportamiento de
+lo que se está probando. El coste del hashing es parte del sistema; lo que
+sobraba era repetirlo cuatro veces por test.
+
+### Y rompió 1857 tests antes de funcionar
+
+Dos tests hacen `DROP TABLE IF EXISTS dashboard_comments` **a propósito**, para
+ejercitar el respaldo a JSON de `bi_collaboration_service`. Con `create_all` por
+test la tabla se recreaba sola; vaciando, no. Todo lo que iba detrás moría en el
+`setup` con «no such table»: **679 errores en un cuarto de la suite y 1178 en
+otro**.
+
+> **Lo cazó la suite completa, y sólo podía cazarlo ella.** Los 52 tests
+> dirigidos que se corrieron antes pasaron sin un rasguño: el fallo únicamente
+> aparece cuando un test se ejecuta **después** de otro concreto. Es el caso
+> exacto donde la verificación dirigida no sirve — un cambio en `conftest.py`
+> cambia el suelo que pisan los 3818— y donde ahorrarse la pasada completa
+> habría metido la rotura entera en `main`.
+
+El arreglo es preciso y barato: antes de vaciar se mira qué tablas existen —1,1
+ms, 0,1 minutos sobre toda la suite— y se recrean sólo las que falten, que el
+99,9 % de las veces son cero.
+
+### Cómo se corre ahora
+
+Cuatro procesos `pytest` **independientes**, un cuarto de los ficheros cada uno,
+repartidos alternos. No `xdist`: sus trabajadores se cuelgan de forma
+intermitente en esta máquina (ver la advertencia de entorno de la cabecera), y
+cuatro procesos que no se hablan entre sí no tienen ese modo de fallo. El
+aislamiento no se pierde — `conftest.py` ya monta una SQLite en memoria por
+proceso, que es lo que hace `xdist` por dentro.
+
+Cada proceso escribe su propio registro, así que el avance se ve mientras
+ocurre y un cuelgue se localiza en el cuarto que sea.
+
+**Medido:** 3802 passed, 19 skipped, 1 xfailed, **0 fallos**, en 8 minutos de
+reloj (6:07 el cuarto más rápido, 7:52 el más lento).
 
 ---
 
