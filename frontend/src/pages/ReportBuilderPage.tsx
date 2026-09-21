@@ -84,6 +84,7 @@ function EntityPicker({ entities, groups, value, onChange }: { entities: Record<
 
 // ── Column panel with search + select-all + drag-to-reorder ──────────────────
 function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll, onReorder }: { entityDef: EntityDef | null; selected: string[]; onToggle: (key: string) => void; onSelectAll: () => void; onDeselectAll: () => void; onReorder: (order: string[]) => void }) {
+  const traducir = useAppT()
   const [search, setSearch] = useState('')
   const cols: Record<string, ColumnDef> = useMemo(() => entityDef?.columns || {}, [entityDef])
   const dragItem = useRef<number | null>(null)
@@ -141,7 +142,7 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
       <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
         <button onClick={onSelectAll}
           style={{ background: 'none', border: 'none', color: 'var(--info)', fontSize: "var(--text-xs)", cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
-          Seleccionar todos
+          {traducir('reportbuilder.seleccionar_todos')}
         </button>
         <span style={{ color: 'var(--surface-5)', fontSize: "var(--text-xs)" }}>·</span>
         <button onClick={onDeselectAll}
@@ -156,7 +157,7 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
       {/* Column list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 220, overflowY: 'auto', paddingRight: 2 }}>
         {filtered.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 12, color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>Sin resultados</div>
+          <div style={{ textAlign: 'center', padding: 12, color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{traducir('reportbuilder.sin_resultados')}</div>
         )}
         {filtered.map(([key, col]) => (
           <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '3px 4px', borderRadius: 4, background: selected.includes(key) ? 'var(--accent-muted)' : 'transparent' }}>
@@ -176,7 +177,7 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
       {selected.length > 1 && (
         <div style={{ marginTop: 12 }}>
           <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--surface-5)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
-            Orden de columnas (arrastra para reordenar)
+            {traducir('reportbuilder.orden_de_columnas_arrastra_para_reordenar')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {selected.map((key, idx) => (
@@ -224,6 +225,7 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
 
 // ── Filter row ─────────────────────────────────────────────────────────────
 function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }: { filter: ReportFilter; index: number; entityDef: EntityDef | null; operators: Record<string, OperatorDef>; onChange: (index: number, val: ReportFilter) => void; onRemove: (index: number) => void }) {
+  const traducir = useAppT()
   const cols: Record<string, ColumnDef> = entityDef?.columns || {}
   const set = (k: string) => (e: ChangeEvent<HTMLSelectElement | HTMLInputElement>) => onChange(index, { ...filter, [k]: e.target.value })
   const needsValue = !NULL_OPS.has(filter.operator)
@@ -240,7 +242,7 @@ function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }: 
         <input
           value={filter.value}
           onChange={set('value')}
-          placeholder="Valor del filtro..."
+          placeholder={traducir('reportbuilder.valor_del_filtro')}
           style={{ ...fs, flex: 1, fontSize: "var(--text-xs)" }}
         />
       ) : (
@@ -254,11 +256,12 @@ function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }: 
 
 // ── Preview table ──────────────────────────────────────────────────────────
 function PreviewTable({ rows, columns, entityDef }: { rows?: Record<string, unknown>[]; columns: string[]; entityDef: EntityDef | null }) {
+  const traducir = useAppT()
   const colDef: Record<string, ColumnDef> = entityDef?.columns || {}
   if (!rows || rows.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: 48, color: 'var(--surface-5)', fontSize: "var(--text-base)" }}>
-        Configura la consulta y pulsa <strong style={{ color: 'var(--info)' }}>Previsualizar</strong>
+        {traducir('reportbuilder.configura_la_consulta_y_pulsa')} <strong style={{ color: 'var(--info)' }}>Previsualizar</strong>
       </div>
     )
   }
@@ -298,6 +301,7 @@ type BiPreset = { id: string; name: string }
 type BiPreviewData = { columns?: string[]; rows?: Record<string, unknown>[] }
 
 function BiPresetsTab() {
+  const traducir = useAppT()
   const [selected, setSelected] = useState('finance_revenue_by_client')
   const [previewData, setPreview] = useState<BiPreviewData | null>(null)
   const { data: presets } = useQuery<{ items: BiPreset[] }>({
@@ -343,7 +347,7 @@ function BiPresetsTab() {
               {p.name}
             </button>
           ))}
-          {items.length > 16 && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', alignSelf: 'center' }}>+{items.length - 16} más</span>}
+          {items.length > 16 && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', alignSelf: 'center' }}>+{items.length - 16} {traducir('reportbuilder.mas')}</span>}
         </div>
         <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
           <button onClick={runPreview}
@@ -372,7 +376,7 @@ function BiPresetsTab() {
                   </tr>
                 ))}
                 {!(previewData.rows || []).length && (
-                  <tr><td colSpan={(previewData.columns || []).length || 1} style={{ padding: 16, textAlign: 'center', color: 'var(--text-3)' }}>Sin datos para este preset</td></tr>
+                  <tr><td colSpan={(previewData.columns || []).length || 1} style={{ padding: 16, textAlign: 'center', color: 'var(--text-3)' }}>{traducir('reportbuilder.sin_datos_para_este_preset')}</td></tr>
                 )}
               </tbody>
             </table>
@@ -385,6 +389,7 @@ function BiPresetsTab() {
 
 // ── Main page ──────────────────────────────────────────────────────────────
 export default function ReportBuilderPage() {
+  const traducir = useAppT()
   const t = useAppT()
   const { data: schema } = useSchema()
   const qc = useQueryClient()
@@ -527,7 +532,7 @@ export default function ReportBuilderPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {templates.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 48, color: 'var(--surface-5)', fontSize: "var(--text-md)" }}>
-              No hay plantillas guardadas. Crea un informe y guárdalo.
+              {traducir('reportbuilder.no_hay_plantillas_guardadas_crea_un_informe')}
             </div>
           ) : templates.map(t => (
             <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px' }}>
@@ -557,7 +562,7 @@ export default function ReportBuilderPage() {
 
             {/* Entity selector */}
             <div>
-              <label style={ls}>Entidad de datos</label>
+              <label style={ls}>{traducir('reportbuilder.entidad_de_datos')}</label>
               <EntityPicker entities={entities} groups={groups} value={entity} onChange={changeEntity} />
               {entityDef && (
                 <div style={{ marginTop: 6, fontSize: "var(--text-xs)", color: 'var(--surface-5)' }}>
@@ -587,11 +592,11 @@ export default function ReportBuilderPage() {
                     <label style={{ ...ls, marginBottom: 0 }}>Filtros</label>
                     <button onClick={addFilter}
                       style={{ background: 'none', border: 'none', color: 'var(--info)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
-                      + Añadir
+                      {traducir('reportbuilder.anadir')}
                     </button>
                   </div>
                   {filters.length === 0 && (
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--surface-5)', textAlign: 'center', padding: '6px 0' }}>Sin filtros</div>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--surface-5)', textAlign: 'center', padding: '6px 0' }}>{traducir('reportbuilder.sin_filtros')}</div>
                   )}
                   {filters.map((f, i) => (
                     <FilterRow key={i} filter={f} index={i} entityDef={entityDef}
@@ -601,13 +606,13 @@ export default function ReportBuilderPage() {
 
                 {/* Sort */}
                 <div>
-                  <label style={ls}>Ordenar por</label>
+                  <label style={ls}>{traducir('reportbuilder.ordenar_por')}</label>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <select
                       value={sort.column}
                       onChange={e => setSort(s => ({ ...s, column: e.target.value }))}
                       style={{ ...fs, flex: 1, fontSize: "var(--text-sm)" }}>
-                      <option value="">Sin orden</option>
+                      <option value="">{traducir('reportbuilder.sin_orden')}</option>
                       {Object.entries(entityDef.columns).map(([k, c]) =>
                         <option key={k} value={k}>{c.label}</option>
                       )}
@@ -665,7 +670,7 @@ export default function ReportBuilderPage() {
               <input
                 value={tplName}
                 onChange={e => setTplName(e.target.value)}
-                placeholder="Nombre de la plantilla..."
+                placeholder={traducir('reportbuilder.nombre_de_la_plantilla')}
                 style={{ ...fs, width: 190 }}
               />
               <button

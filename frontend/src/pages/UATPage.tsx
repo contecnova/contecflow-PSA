@@ -96,6 +96,7 @@ const ls: CSSProperties = {
 }
 
 function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: boolean; onClose: () => void; onSave: (data: UATFormData) => void; initial?: UATCase | null; tasks?: TaskItem[] }) {
+  const traducir = useAppT()
   const idPrefix = useId()
   const [form, setForm] = useState<UATFormData>({
     title: initial?.title || '',
@@ -114,8 +115,8 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
     <Modal open={open} onClose={onClose} title={isEdit ? 'Editar caso UAT' : 'Nuevo caso UAT'} width={640}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
-          <label htmlFor={`${idPrefix}-title`} style={ls}>Título *</label>
-          <input id={`${idPrefix}-title`} value={form.title} onChange={s('title')} style={fs} placeholder="Título del caso UAT" />
+          <label htmlFor={`${idPrefix}-title`} style={ls}>{traducir('uat.titulo')}</label>
+          <input id={`${idPrefix}-title`} value={form.title} onChange={s('title')} style={fs} placeholder={traducir('uat.titulo_del_caso_uat')} />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
@@ -138,7 +139,7 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
           <div>
             <label htmlFor={`${idPrefix}-task-id`} style={ls}>Tarea vinculada</label>
             <select id={`${idPrefix}-task-id`} value={form.task_id} onChange={s('task_id')} style={fs}>
-              <option value="">— Sin tarea —</option>
+              <option value="">{traducir('uat.sin_tarea')}</option>
               {tasks.map(t => (
                 <option key={t.id} value={String(t.id)}>{t.title}</option>
               ))}
@@ -147,10 +148,10 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
         </div>
 
         <div>
-          <label htmlFor={`${idPrefix}-description`} style={ls}>Pasos para ejecutar el test</label>
+          <label htmlFor={`${idPrefix}-description`} style={ls}>{traducir('uat.pasos_para_ejecutar_el_test')}</label>
           <textarea id={`${idPrefix}-description`} value={form.description} onChange={s('description')} rows={3}
             style={{ ...fs, resize: 'vertical' }}
-            placeholder="Pasos para ejecutar el test" />
+            placeholder={traducir('uat.pasos_para_ejecutar_el_test')} />
         </div>
 
         <div>
@@ -161,7 +162,7 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
         </div>
 
         <div>
-          <label htmlFor={`${idPrefix}-actual-result`} style={ls}>Resultado obtenido (rellenar al ejecutar)</label>
+          <label htmlFor={`${idPrefix}-actual-result`} style={ls}>{traducir('uat.resultado_obtenido_rellenar_al_ejecutar')}</label>
           <textarea id={`${idPrefix}-actual-result`} value={form.actual_result} onChange={s('actual_result')} rows={2}
             style={{ ...fs, resize: 'vertical' }}
             placeholder="Resultado obtenido" />
@@ -186,6 +187,7 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
 }
 
 function ExportModal({ open, onClose, report }: { open: boolean; onClose: () => void; report: ExportReport }) {
+  const traducir = useAppT()
   const [copied, setCopied] = useState(false)
   const handleCopy = () => {
     navigator.clipboard.writeText(report?.text || '').then(() => {
@@ -208,13 +210,14 @@ function ExportModal({ open, onClose, report }: { open: boolean; onClose: () => 
         {report?.text || ''}
       </pre>
       <div style={{ marginTop: 12, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-        {report?.cases_count} casos UAT · Copia este texto para enviar al cliente o pégalo en un documento.
+        {report?.cases_count} {traducir('uat.casos_uat_copia_este_texto_para_enviar')}
       </div>
     </Modal>
   )
 }
 
 export default function UATPage() {
+  const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -293,8 +296,8 @@ export default function UATPage() {
         actions={
           selectedProject ? (
             <div style={{ display: 'flex', gap: 8 }}>
-              <Button variant="secondary" onClick={handleExport}>📤 Exportar para cliente</Button>
-              <Button onClick={() => setShowCreate(true)}>＋ Nuevo caso</Button>
+              <Button variant="secondary" onClick={handleExport}>{traducir('uat.exportar_para_cliente')}</Button>
+              <Button onClick={() => setShowCreate(true)}>{traducir('uat.nuevo_caso')}</Button>
             </div>
           ) : null
         }
@@ -310,13 +313,13 @@ export default function UATPage() {
           onChange={e => { setSelectedProject(e.target.value); setStatusFilter('') }}
           style={{ ...fs, width: 280 }}
         >
-          <option value="">— Selecciona un proyecto —</option>
+          <option value="">{traducir('uat.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
         </select>
 
         {selectedProject && (
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...fs, width: 180 }}>
-            <option value="">Todos los estados</option>
+            <option value="">{traducir('uat.todos_los_estados')}</option>
             {Object.entries(STATUS_META).map(([v, m]) => (
               <option key={v} value={v}>{m.icon} {m.label}</option>
             ))}
@@ -351,7 +354,7 @@ export default function UATPage() {
       {!selectedProject ? (
         <EmptyState
           icon={<ClipboardCheck size={40} />}
-          title="Selecciona un proyecto"
+          title={traducir('uat.selecciona_un_proyecto_2')}
           description="Selecciona un proyecto para ver y gestionar casos UAT."
         />
       ) : isLoading ? (
@@ -359,7 +362,7 @@ export default function UATPage() {
       ) : cases.length === 0 ? (
         <EmptyState
           icon={<ClipboardCheck size={40} />}
-          title="Sin casos UAT"
+          title={traducir('uat.sin_casos_uat')}
           description="Crea el primer caso UAT para este proyecto."
           action={<Button onClick={() => setShowCreate(true)} style={{ marginTop: 12 }}>＋ Crear primer caso UAT</Button>}
         />
@@ -451,7 +454,7 @@ export default function UATPage() {
       {deleteTarget && (
         <Modal open onClose={() => setDeleteTarget(null)} title="Eliminar caso UAT" width={420}>
           <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>
-            ¿Eliminar el caso <strong style={{ color: 'var(--text-1)' }}>&quot;{deleteTarget.title}&quot;</strong>? Esta acción no se puede deshacer.
+            {traducir('uat.eliminar_el_caso')} <strong style={{ color: 'var(--text-1)' }}>&quot;{deleteTarget.title}&quot;</strong>{traducir('uat.esta_accion_no_se_puede_deshacer')}
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             <Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancelar</Button>

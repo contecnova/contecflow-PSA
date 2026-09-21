@@ -57,6 +57,7 @@ const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)
 const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 function PermissionForm({ projectId, users, perm, onClose }: { projectId: string; users: UserItem[]; perm: PermissionItem | null; onClose: () => void }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!perm?.id
@@ -85,7 +86,7 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
           <div>
             <label style={labelStyle}>Usuario</label>
             <select style={inputStyle} value={form.user_id} onChange={e => set('user_id')(e.target.value)}>
-              <option value="">Selecciona un usuario...</option>
+              <option value="">{t('projectpermissions.selecciona_un_usuario')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name} — {u.role}</option>)}
             </select>
           </div>
@@ -101,7 +102,7 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
         )}
 
         <div>
-          <label style={labelStyle}>Nivel de acceso</label>
+          <label style={labelStyle}>{t('projectpermissions.nivel_de_acceso')}</label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {LEVELS.map(l => (
               <button key={l.value} onClick={() => set('level')(l.value)}
@@ -123,15 +124,15 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
                 <input type="checkbox" checked={form.can_see_financials} onChange={e => set('can_see_financials')(e.target.checked)} />
-                <span>Ver datos financieros (costes, presupuesto, facturación)</span>
+                <span>{t('projectpermissions.ver_datos_financieros_costes_presupuesto_facturacion')}</span>
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
                 <input type="checkbox" checked={form.can_see_rates} onChange={e => set('can_see_rates')(e.target.checked)} />
-                <span>Ver tarifas €/hora de los compañeros</span>
+                <span>{t('projectpermissions.ver_tarifas_hora_de_los_companeros')}</span>
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
                 <input type="checkbox" checked={form.can_export} onChange={e => set('can_export')(e.target.checked)} />
-                <span>Exportar datos del proyecto</span>
+                <span>{t('projectpermissions.exportar_datos_del_proyecto')}</span>
               </label>
             </div>
           </div>
@@ -149,6 +150,7 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
 }
 
 export default function ProjectPermissionsPage() {
+  const t = useAppT()
   const _t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -191,10 +193,10 @@ export default function ProjectPermissionsPage() {
     <PageShell>
       <PageHeader
         icon={<ShieldCheck size={18} />}
-        title="Permisos de proyecto"
+        title={t('projectpermissions.permisos_de_proyecto')}
         subtitle={_t('project_permissions.subtitle')}
         actions={selectedProject && (
-          <Button onClick={() => { setEditingPerm(null); setShowForm(true) }}>+ Añadir acceso</Button>
+          <Button onClick={() => { setEditingPerm(null); setShowForm(true) }}>{t('projectpermissions.anadir_acceso')}</Button>
         )}
       />
 
@@ -203,18 +205,18 @@ export default function ProjectPermissionsPage() {
         <label style={labelStyle}>Proyecto</label>
         <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
           style={{ ...inputStyle, width: 360 }}>
-          <option value="">Selecciona un proyecto...</option>
+          <option value="">{t('projectpermissions.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         {selectedProject && (
           <div style={{ marginTop: 10, fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
-            Los permisos de proyecto sobrescriben el rol global del usuario. Un admin siempre tiene acceso completo independientemente de los permisos.
+            {t('projectpermissions.los_permisos_de_proyecto_sobrescriben_el_rol')}
           </div>
         )}
       </div>
 
       {!selectedProject && (
-        <EmptyState icon="🔐" title="Selecciona un proyecto" description="Elige un proyecto para ver y gestionar sus permisos de acceso" />
+        <EmptyState icon="🔐" title={t('projectpermissions.selecciona_un_proyecto_2')} description="Elige un proyecto para ver y gestionar sus permisos de acceso" />
       )}
 
       {selectedProject && isLoading && <Spinner />}
@@ -222,12 +224,12 @@ export default function ProjectPermissionsPage() {
       {selectedProject && !isLoading && perms.length === 0 && (
         <div style={{ ...panelStyle, textAlign: 'center', padding: '48px 24px' }}>
           <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🔓</div>
-          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8 }}>Sin permisos específicos</div>
+          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8 }}>{t('projectpermissions.sin_permisos_especificos')}</div>
           <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>
-            Todos los usuarios con rol PM o Admin pueden ver este proyecto.<br />
-            Añade permisos específicos para restringir o ampliar el acceso individualmente.
+            {t('projectpermissions.todos_los_usuarios_con_rol_pm_o')}<br />
+            {t('projectpermissions.anade_permisos_especificos_para_restringir_o_ampliar')}
           </div>
-          <Button onClick={() => { setEditingPerm(null); setShowForm(true) }}>+ Añadir primer permiso</Button>
+          <Button onClick={() => { setEditingPerm(null); setShowForm(true) }}>{t('projectpermissions.anadir_primer_permiso')}</Button>
         </div>
       )}
 
@@ -301,7 +303,7 @@ export default function ProjectPermissionsPage() {
 
           {/* Leyenda de niveles */}
           <div style={{ ...panelStyle, marginTop: 16 }}>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Niveles de acceso</div>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>{t('projectpermissions.niveles_de_acceso')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
               {LEVELS.map(l => (
                 <div key={l.value}>
