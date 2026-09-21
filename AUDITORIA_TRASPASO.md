@@ -3765,7 +3765,14 @@ Hecho:
   exacto de claves que faltan.
 - **Al traducir, subir `COBERTURA_MINIMA` en `check_i18n_coverage.mjs`.**
 
-### #18 complejidad — parcial, con dos defectos reales encontrados de paso
+### #18 complejidad — **cerrado**: ninguna función de `app/` por encima de 10
+
+> **Estado hoy:** `python scripts/audit_complejidad.py` responde «Ninguna
+> función de `app/` por encima de 10». Se llegó desde 94 / 253 / 17 (funciones
+> por encima del umbral / exceso acumulado / máximo). El **cómo** está en
+> §3.septvicies, y es la parte que importa: casi todas eran una tabla escrita
+> como cascada de `if`, o el mismo bloque copiado dos, tres y hasta cuatro
+> veces. Lo que sigue debajo es el registro de la primera mitad del trabajo.
 
 **La métrica honesta.** El *recuento* de funciones sobre el umbral se mueve
 poco (138 → 94), porque partir una función grande produce varias medianas. La
@@ -4770,11 +4777,26 @@ día divergen, y aquí ya lo habían hecho.
 
 ### Otros pendientes con riesgo propio
 
-- `strictNullChecks` (226 errores) y `noImplicitAny` (387).
-- `echarts` 5→6 y `react-router-dom` 6→7: son los **3 moderate** que quedan en
-  `npm audit`. Cada uno es una migración con riesgo real sobre las 119 rutas
-  lazy, así que están medidos y no forzados. El gate bloqueante está en nivel
-  `high`, que está a 0.
+> **Esta lista estaba desfasada y se corrige midiendo.** Decía
+> `strictNullChecks` (226 errores) y `noImplicitAny` (387), y las dos están hoy
+> en **cero**: `npm run typecheck:strict` cubre los 338 ficheros de `src/`,
+> tests incluidos (§3.sexvicies). Decía también **3 moderate** en `npm audit`
+> por `echarts` y `react-router-dom`; `npm audit` responde hoy **cero
+> vulnerabilidades**, esas dos migraciones incluidas.
+
+**Lo que queda abierto de verdad, medido hoy:**
+
+- **24 rutas `DELETE` cuyo único control es `enforce_abac`, que es fail-open**
+  (§3.octovicies). Borrados de clientes, planes de capacidad, activos, cambios,
+  plantillas y claves de API. El filtrado de `TenantSession` impide el acceso
+  entre clientes; falta decidir quién, **dentro** de la misma organización,
+  puede borrarlos. Registradas con trinquete para que no crezcan. **Es lo
+  primero que hay que mirar**, y cada una es una decisión de producto.
+- **Traducción al 62,2 %** en inglés y chino: 1.419 claves en cada uno, más
+  ~1.100 literales castellanos en el JSX. Es contenido, no código (#16).
+- **204 `db.query()` / `db.commit()` en la capa API**, dos tercios de ellos en
+  `collaboration` y `service_desk` (#22). Trabajo grande y de riesgo real: por
+  dominios, cada tanda con su suite.
 
 ---
 
