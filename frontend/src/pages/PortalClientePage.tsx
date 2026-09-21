@@ -248,6 +248,7 @@ function PortalApp({ changeLang }: { changeLang: ChangeLangFn }) {
 
 // ── Mi perfil rediseñado ─────────────────────────────────────────────────────
 function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
+  const traducir = useAppT()
   const { client } = (useClientAuth() ?? { client: null }) as ClientAuthValue
   const _t = useLang()
   const toast = useToast()
@@ -409,7 +410,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       {/* Tab content */}
       {tab === 'profile' && (
         <PortalCard>
-          <PortalSection title="Información personal">
+          <PortalSection title={traducir('portalcliente.informacion_personal')}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
               <PortalField label="Nombre visible">
                 <PortalInput value={form.full_name} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, full_name: e.target.value }))} />
@@ -417,12 +418,12 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
               <PortalField label="Cargo / Rol">
                 <PortalInput value={form.job_title} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, job_title: e.target.value }))} />
               </PortalField>
-              <PortalField label="Teléfono">
+              <PortalField label={traducir('portalcliente.telefono')}>
                 <PortalInput value={form.phone} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, phone: e.target.value }))} />
               </PortalField>
             </div>
             <PortalBanner tone="info" icon={<KeyRound size={16} />}
-              title="Email no editable"
+              title={traducir('portalcliente.email_no_editable')}
               body={`Tu email (${client?.email}) es tu identificador. Si necesitas cambiarlo, contacta con el equipo.`} />
             {savedProfile && (
               <PortalBanner tone="success" title="Perfil actualizado correctamente" />
@@ -456,7 +457,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
 
       {tab === 'appearance' && (
         <PortalCard>
-          <PortalSection title="Tema del portal">
+          <PortalSection title={traducir('portalcliente.tema_del_portal')}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, marginBottom: 14 }}>
               {THEMES.map(th => {
                 const active = themeMode === th.id
@@ -486,7 +487,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
 
       {tab === 'language' && (
         <PortalCard>
-          <PortalSection title="Idioma del portal">
+          <PortalSection title={traducir('portalcliente.idioma_del_portal')}>
             <PortalField label="Selecciona idioma">
               <PortalSelect value={pendingLang} onChange={(e: ChangeEvent<HTMLSelectElement>) => setPendingLang(e.target.value)}>
                 {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
@@ -507,15 +508,15 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
 
       {tab === 'security' && (
         <PortalCard>
-          <PortalSection title="Cambiar contraseña" hint="Mínimo 6 caracteres">
+          <PortalSection title={traducir('portalcliente.cambiar_contrasena')} hint="Mínimo 6 caracteres">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <PortalField label="Nueva contraseña">
+              <PortalField label={traducir('portalcliente.nueva_contrasena')}>
                 <PortalInput type="password" value={pwdForm.new_pwd}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPwdForm(f => ({ ...f, new_pwd: e.target.value }))} placeholder="Nueva contraseña" />
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPwdForm(f => ({ ...f, new_pwd: e.target.value }))} placeholder={traducir('portalcliente.nueva_contrasena')} />
               </PortalField>
-              <PortalField label="Confirmar nueva contraseña">
+              <PortalField label={traducir('portalcliente.confirmar_nueva_contrasena')}>
                 <PortalInput type="password" value={pwdForm.confirm}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPwdForm(f => ({ ...f, confirm: e.target.value }))} placeholder="Repite la contraseña" />
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPwdForm(f => ({ ...f, confirm: e.target.value }))} placeholder={traducir('portalcliente.repite_la_contrasena')} />
               </PortalField>
             </div>
             {pwdError && (
@@ -526,10 +527,10 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
               <PortalButton icon={<KeyRound size={13} />} loading={changingPwd}
                 disabled={!pwdForm.new_pwd || !pwdForm.confirm}
-                onClick={handlePwdChange}>Cambiar contraseña</PortalButton>
+                onClick={handlePwdChange}>{traducir('portalcliente.cambiar_contrasena')}</PortalButton>
             </div>
             <div style={{ marginTop: 14, fontSize: 'var(--text-xs)', color: 'var(--text-3)', lineHeight: 1.6 }}>
-              Elige una contraseña segura que no uses en otros servicios. Si la olvidas, contacta con el equipo para que te la restablezcan.
+              {traducir('portalcliente.elige_una_contrasena_segura_que_no_uses')}
             </div>
           </PortalSection>
         </PortalCard>

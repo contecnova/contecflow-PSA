@@ -18,6 +18,7 @@ import PageHeader from '../components/layout/PageHeader'
 import { Button, Card, Spinner, EmptyState } from '../components/ui'
 import { FileText, Upload } from 'lucide-react'
 import { extractErr } from '../utils/helpers'
+import { useAppLang } from '../i18n/AppLangContext'
 
 type RiskLevel = 'high' | 'medium' | 'low' | string
 
@@ -92,6 +93,7 @@ const RISK_COLOR: Record<string, string> = {
 
 
 function ContractDetailPanel({ contractId, onClose }: { contractId: string | number | null; onClose: () => void }) {
+  const { t } = useAppLang()
   const { data, isLoading } = useQuery<ContractDetail | null>({
     queryKey: ['contracts-ai', contractId],
     queryFn:  () => contractsAIApi.get(contractId).then(r => r.data as ContractDetail),
@@ -123,7 +125,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
           background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)',
           overflowY: 'auto', padding: '24px 28px',
         }}>
-        {isLoading ? <Spinner /> : !data ? <EmptyState title="No encontrado" /> : (
+        {isLoading ? <Spinner /> : !data ? <EmptyState title={t('contractsai.no_encontrado')} /> : (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div>
@@ -150,7 +152,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
             {data.scope_summary && (
               <Card style={{ marginBottom: 16 }}>
                 <h4 style={{ margin: '0 0 8px 0', fontSize: 'var(--text-sm)', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-3)' }}>
-                  Resumen del alcance
+                  {t('contractsai.resumen_del_alcance')}
                 </h4>
                 <div style={{ fontSize: 'var(--text-base)', lineHeight: 1.5, color: 'var(--text-1)' }}>
                   {data.scope_summary}
@@ -176,7 +178,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
             )}
 
             <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 700, marginBottom: 12 }}>
-              Cláusulas extraídas ({data.clauses?.length || 0})
+              {t('contractsai.clausulas_extraidas')}{data.clauses?.length || 0})
             </h3>
             {Object.entries(groups).map(([type, list]) => (
               <div key={type} style={{ marginBottom: 18 }}>
@@ -241,6 +243,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
 
 
 export default function ContractsAIPage(): JSX.Element {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [params] = useSearchParams()
@@ -346,7 +349,7 @@ export default function ContractsAIPage(): JSX.Element {
                 borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)',
               }}
             >
-              <option value="">— Sin proyecto (ad-hoc) —</option>
+              <option value="">{t('contractsai.sin_proyecto_ad_hoc')}</option>
               {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
             </select>
           </div>
@@ -358,7 +361,7 @@ export default function ContractsAIPage(): JSX.Element {
               type="text"
               value={clientName}
               onChange={e => setClientName(e.target.value)}
-              placeholder="Nombre del cliente"
+              placeholder={t('contractsai.nombre_del_cliente')}
               style={{
                 width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
                 borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)',
@@ -373,7 +376,7 @@ export default function ContractsAIPage(): JSX.Element {
             <textarea
               value={text}
               onChange={e => setText(e.target.value)}
-              placeholder="Pega aquí el texto del contrato. Mínimo 100 caracteres. El análisis tomará 10-30 segundos según la longitud."
+              placeholder={t('contractsai.pega_aqui_el_texto_del_contrato_minimo')}
               rows={12}
               style={{
                 width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -402,7 +405,7 @@ export default function ContractsAIPage(): JSX.Element {
               </div>
             )}
             <div style={{ marginTop: 12, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-              Máx. 10 MB. Solo PDFs con texto (no escaneados — no hay OCR).
+              {t('contractsai.max_10_mb_solo_pdfs_con_texto')}
             </div>
           </div>
         )}
@@ -420,12 +423,12 @@ export default function ContractsAIPage(): JSX.Element {
 
       {/* Historial */}
       <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 700, marginBottom: 12 }}>
-        Análisis recientes{initialProjectId ? ' (este proyecto)' : ''}
+        {t('contractsai.analisis_recientes')}{initialProjectId ? ' (este proyecto)' : ''}
       </h3>
       {isLoading ? (
         <Spinner />
       ) : contracts.length === 0 ? (
-        <EmptyState icon="📄" title="Aún no hay contratos analizados" description="Pega texto o sube un PDF arriba para empezar." />
+        <EmptyState icon="📄" title={t('contractsai.aun_no_hay_contratos_analizados')} description="Pega texto o sube un PDF arriba para empezar." />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {contracts.map((c) => (
@@ -438,7 +441,7 @@ export default function ContractsAIPage(): JSX.Element {
                 <div style={{ fontWeight: 700 }}>{c.filename || 'Sin nombre'}</div>
                 <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
                   {c.client_name || '—'} · {c.created_at}
-                  {' · '}{c.clauses_count} cláusulas
+                  {' · '}{c.clauses_count} {t('contractsai.clausulas')}
                   {(c.at_risk_clauses ?? 0) > 0 && (
                     <span style={{ color: 'var(--danger)', fontWeight: 600 }}>
                       {' · '}{c.at_risk_clauses} en riesgo
@@ -459,7 +462,7 @@ export default function ContractsAIPage(): JSX.Element {
                 <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)' }}>⏳ procesando</span>
               )}
               {c.status === 'failed' && (
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>✗ falló</span>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>{t('contractsai.fallo')}</span>
               )}
             </Card>
           ))}

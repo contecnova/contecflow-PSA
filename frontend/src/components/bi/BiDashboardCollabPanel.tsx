@@ -293,7 +293,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <input
               type="text"
-              placeholder="Escribe un comentario para este dashboard…"
+              placeholder={t('bidashboardcollab.escribe_un_comentario_para_este_dashboard')}
               value={newComment}
               onChange={e => setNewComment(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && submitComment()}
@@ -357,7 +357,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <input
               type="text"
-              placeholder="Nombre de la vista compartida…"
+              placeholder={t('bidashboardcollab.nombre_de_la_vista_compartida')}
               value={viewName}
               onChange={e => setViewName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && viewName.trim() && saveViewMutation.mutate({ name: viewName.trim(), dashboard_key: dashboardKey, filters: {} })}
@@ -412,7 +412,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       {/* Shares */}
       {tab === 'shares' && (
         <div>
-          <div style={fieldLabel}>Compartir con un usuario</div>
+          <div style={fieldLabel}>{t('bidashboardcollab.compartir_con_un_usuario')}</div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
             <input
               type="text"
@@ -450,7 +450,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           {sharesLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
           ) : shares.length === 0 ? (
-            <EmptyState icon="🔗" title="Sin accesos compartidos" />
+            <EmptyState icon="🔗" title={t('bidashboardcollab.sin_accesos_compartidos')} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {shares.map(s => (
@@ -502,11 +502,11 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       {/* Versions */}
       {tab === 'versions' && (
         <div>
-          <div style={fieldLabel}>Historial de versiones del dashboard</div>
+          <div style={fieldLabel}>{t('bidashboardcollab.historial_de_versiones_del_dashboard')}</div>
           {versionsLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
           ) : versions.length === 0 ? (
-            <EmptyState icon="📜" title="Sin versiones guardadas" description="Las ediciones del dashboard se guardan automáticamente como versiones." />
+            <EmptyState icon="📜" title={t('bidashboardcollab.sin_versiones_guardadas')} description="Las ediciones del dashboard se guardan automáticamente como versiones." />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
               {versions.map(v => (
@@ -520,7 +520,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>
                       <History size={12} style={{ display: 'inline', marginRight: 6, color: 'var(--text-3)' }} />
-                      Versión {v.version}
+                      {t('bidashboardcollab.version')} {v.version}
                     </div>
                     {v.change_log && (
                       <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginTop: 4 }}>
@@ -554,13 +554,13 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       {tab === 'notifications' && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
-            <div style={fieldLabel}>Notificaciones de colaboración (no leídas)</div>
+            <div style={fieldLabel}>{t('bidashboardcollab.notificaciones_de_colaboracion_no_leidas')}</div>
             <span style={chip('var(--accent)')}>{notifications.length}</span>
           </div>
           {notificationsLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
           ) : notifications.length === 0 ? (
-            <EmptyState icon="🔔" title="Sin notificaciones pendientes" />
+            <EmptyState icon="🔔" title={t('bidashboardcollab.sin_notificaciones_pendientes')} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
               {notifications.map(n => (
@@ -589,7 +589,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                     onClick={() => markNotificationReadMutation.mutate(n.id)}
                     loading={markNotificationReadMutation.isPending && markNotificationReadMutation.variables === n.id}
                     icon={<CheckCircle size={12} />}
-                  >Marcar leída</Button>
+                  >{t('bidashboardcollab.marcar_leida')}</Button>
                 </div>
               ))}
             </div>

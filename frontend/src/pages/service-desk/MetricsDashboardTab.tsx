@@ -5,6 +5,7 @@ import { sdMetricsApi } from '../../services/api'
 import { Spinner, useSort, SortableTH } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
 import PageShell from '../../components/layout/PageShell'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 function fmtMinutes(m: number | null | undefined) {
@@ -277,6 +278,7 @@ function StarRating({ value }: { value: number | null }) {
 
 /* ── Empty state ──────────────────────────────────────────────────────────── */
 function EmptyState() {
+  const { t } = useAppLang()
   return (
     <div style={{
       textAlign: 'center',
@@ -285,10 +287,10 @@ function EmptyState() {
     }}>
       <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16, opacity: 0.4 }}>📊</div>
       <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8, color: 'var(--text-2)' }}>
-        Sin datos de métricas
+        {t('metricsdashboard.sin_datos_de_metricas')}
       </div>
       <div style={{ fontSize: "var(--text-base)", maxWidth: 280, margin: '0 auto', lineHeight: 1.6 }}>
-        Crea y gestiona tickets para ver las métricas ITIL aquí
+        {t('metricsdashboard.crea_y_gestiona_tickets_para_ver_las')}
       </div>
     </div>
   )
@@ -317,6 +319,7 @@ type AgentPerf = {
 }
 
 export default function MetricsDashboardTab() {
+  const { t } = useAppLang()
   const [days, setDays] = useState(30)
 
   const { data: metrics, isLoading } = useQuery<ItilMetrics>({
@@ -380,10 +383,10 @@ export default function MetricsDashboardTab() {
       }}>
         <div>
           <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontWeight: 700, color: 'var(--text-1)' }}>
-            Métricas ITIL
+            {t('metricsdashboard.metricas_itil')}
           </h2>
           <p style={{ margin: '4px 0 0', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
-            Service Desk · últimos {days} días
+            {t('metricsdashboard.service_desk_ultimos')} {days} {t('metricsdashboard.dias')}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
@@ -481,12 +484,12 @@ export default function MetricsDashboardTab() {
         {/* By type */}
         <div style={S.card}>
           <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}>
-            <div style={S.sectionTitle}>Volumen por tipo</div>
+            <div style={S.sectionTitle}>{t('metricsdashboard.volumen_por_tipo')}</div>
           </div>
           <div style={{ ...S.cardPad }}>
             {typeEntries.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-sm)", padding: '16px 0' }}>
-                Sin datos
+                {t('metricsdashboard.sin_datos')}
               </div>
             ) : (
               typeEntries.map(([type, count], i) => (
@@ -505,12 +508,12 @@ export default function MetricsDashboardTab() {
         {/* By priority */}
         <div style={S.card}>
           <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}>
-            <div style={S.sectionTitle}>Distribución por prioridad</div>
+            <div style={S.sectionTitle}>{t('metricsdashboard.distribucion_por_prioridad')}</div>
           </div>
           <div style={S.cardPad}>
             {priorityEntries.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-sm)", padding: '16px 0' }}>
-                Sin datos
+                {t('metricsdashboard.sin_datos')}
               </div>
             ) : (
               priorityEntries.map(([prio, count]) => {
@@ -533,7 +536,7 @@ export default function MetricsDashboardTab() {
       {/* ── Agent performance ── */}
       <div style={S.card}>
         <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={S.sectionTitle}>Rendimiento de agentes</div>
+          <div style={S.sectionTitle}>{t('metricsdashboard.rendimiento_de_agentes')}</div>
           {sortedAgents.length > 0 && (
             <span style={{
               fontSize: "var(--text-2xs)",
@@ -552,7 +555,7 @@ export default function MetricsDashboardTab() {
 
         {sortedAgents.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-sm)", padding: '32px 0' }}>
-            Sin datos de agentes en este período
+            {t('metricsdashboard.sin_datos_de_agentes_en_este_periodo')}
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
