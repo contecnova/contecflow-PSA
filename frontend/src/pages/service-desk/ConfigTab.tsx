@@ -435,7 +435,7 @@ function GroupsConfig() {
                   {available.length > 0 && (
                     <select defaultValue="" onChange={e => { if(e.target.value) addMember({gid:g.id, uid:e.target.value}); e.target.value='' }}
                       style={{ ...IS, width:'auto', fontSize: "var(--text-sm)" }}>
-                      <option value="" disabled>+ Añadir miembro</option>
+                      <option value="" disabled>{t('config.anadir_miembro')}</option>
                       {available.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
                     </select>
                   )}
@@ -640,7 +640,7 @@ function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: 
       <div>
         <label style={LS}>{t('service_desk.templates_hint')}</label>
         <textarea value={form.description_template} onChange={set('description_template')} rows={4}
-          style={{...IS, resize:'vertical'}} placeholder="Texto de la plantilla de descripcion..." />
+          style={{...IS, resize:'vertical'}} placeholder={t('config.texto_de_la_plantilla_de_descripcion')} />
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -688,7 +688,7 @@ function CannedResponsesManager() {
   return (
     <div>
       <div style={{ fontSize: "var(--text-base)", color:'var(--text-2)', marginBottom:16 }}>
-        Respuestas predefinidas reutilizables por los agentes al responder tickets.
+        {t('config.respuestas_predefinidas_reutilizables_por_los_agentes_al')}
       </div>
 
       {isLoading ? <div style={{textAlign:'center',padding:20}}><Spinner /></div> : (
@@ -752,7 +752,7 @@ function CannedResponsesManager() {
           <input value={form.shortcut} onChange={e=>setForm(f=>({...f,shortcut:e.target.value}))} style={IS} placeholder={t('service_desk.canned_shortcut')} /></div>
         <div style={{marginBottom:12}}><label style={LS}>{t('service_desk.canned_body_lbl')} *</label>
           <textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4}
-            style={{...IS, resize:'vertical'}} placeholder="Texto de la respuesta enlatada..." /></div>
+            style={{...IS, resize:'vertical'}} placeholder={t('config.texto_de_la_respuesta_enlatada')} /></div>
         <button onClick={() => create(form)} disabled={!form.title || !form.body}
           style={{background:'var(--accent)',border:'none',borderRadius:8,padding:'8px 18px',color:'#fff',cursor:'pointer',fontSize: "var(--text-base)",fontFamily:'inherit',fontWeight:600}}>
           + {t('service_desk.canned_add_btn')}
@@ -823,7 +823,7 @@ export function AnnouncementsConfig() {
           )
       }
       {showCreate && (
-        <Modal open title="Nuevo comunicado" onClose={() => setShowCreate(false)} width={500}>
+        <Modal open title={t('config.nuevo_comunicado')} onClose={() => setShowCreate(false)} width={500}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
             <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('service_desk.ticket_title')} *</label><input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
             <div><label style={LS}>{t('common.status')}</label>

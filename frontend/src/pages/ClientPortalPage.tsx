@@ -713,10 +713,11 @@ function FeatureRequestsTab({ projectId }: { projectId: any }) {
 
 // ── Messages Tab ──────────────────────────────────────────────────────────────
 function MessagesTab({ projectId }: { projectId: any }) {
+  const traducir = useAppT()
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <TeamGovernedConversationInbox
-        title="Conversaciones del portal"
+        title={traducir('clientportal.conversaciones_del_portal')}
         emptyTitle="Sin conversaciones"
         emptyDescription="No hay conversaciones para este proyecto. Crea una conversación gobernada para empezar."
         projectOptions={projectId ? [{ id: projectId, name: projectId, code: '' }] : []}
@@ -924,6 +925,7 @@ function StatsPanel({ projectId }: { projectId: any }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function ClientPortalPage(): JSX.Element {
+  const traducir = useAppT()
   const t = useAppT()
   const [tab, setTab] = useState('clients')
   const [selectedProject, setSelectedProject] = useState('')
@@ -958,7 +960,7 @@ export default function ClientPortalPage(): JSX.Element {
     >
       {selectedProject && <StatsPanel projectId={selectedProject} />}
 
-      <div className="ds-segmented" role="tablist" aria-label="Secciones del portal cliente"
+      <div className="ds-segmented" role="tablist" aria-label={traducir('clientportal.secciones_del_portal_cliente')}
         style={{ alignSelf: 'flex-start' }}>
         {TABS.map(t => (
           <button key={t.id} type="button" role="tab"

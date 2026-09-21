@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
+import { traducirSinHook } from '../i18n/traducirSinHook'
 
 interface ErrorBoundaryProps {
   children?: ReactNode
@@ -34,9 +35,9 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
           background: 'var(--surface-0)', gap: 16, padding: 32,
         }}>
           <div style={{ fontSize: 40 }}>⚠️</div>
-          <h2 style={{ color: 'var(--text-1)', margin: 0 }}>Algo fue mal</h2>
+          <h2 style={{ color: 'var(--text-1)', margin: 0 }}>{traducirSinHook('errorboundary.algo_fue_mal')}</h2>
           <p style={{ color: 'var(--text-3)', margin: 0, textAlign: 'center' }}>
-            Se produjo un error inesperado. Recarga la página para continuar.
+            {traducirSinHook('errorboundary.se_produjo_un_error_inesperado')}
           </p>
           <button
             onClick={() => window.location.reload()}
@@ -46,7 +47,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
               fontSize: 14, fontFamily: 'inherit',
             }}
           >
-            Recargar página
+            {traducirSinHook('errorboundary.recargar_pagina')}
           </button>
           {import.meta.env.DEV && this.state.error && (
             <pre style={{

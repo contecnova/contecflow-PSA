@@ -183,8 +183,11 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
   )
 }
 
-function renderBlocks(blocks: Block[]) {
-  const traducir = useAppT()
+// `traducir` entra por parametro y no por hook: `renderBlocks` NO es un
+// componente —se llama como funcion corriente desde el JSX de dos de ellos—, y
+// un hook ahi es una violacion de las reglas de React que ESLint marca y que en
+// tiempo de ejecucion rompe el orden de los hooks del componente que la invoca.
+function renderBlocks(blocks: Block[], traducir: (clave: string) => string) {
   return (blocks||[]).map((b,i)=>{
     const text = b.content||''
     const st = {margin:'4px 0',lineHeight:1.7}
@@ -630,7 +633,7 @@ export default function WikiPage() {
                   <div style={{maxWidth:760}}>
                     {(page.content||[]).length===0
                       ?<p style={{color:'var(--text-3)',fontStyle:'italic'}}>{traducir('wiki.pagina_vacia_pulsa_editar_para_anadir_contenido')}</p>
-                      :renderBlocks(Array.isArray(page.content)?page.content:[])
+                      :renderBlocks(Array.isArray(page.content)?page.content:[], traducir)
                     }
                   </div>
                   <div style={{marginTop:32,paddingTop:12,borderTop:'1px solid var(--surface-4)',fontSize: "var(--text-xs)",color:'var(--text-3)'}}>
@@ -732,7 +735,7 @@ export default function WikiPage() {
               {page.title}
             </h1>
             <div style={{ fontSize: "var(--text-17)", lineHeight:1.9, color:'var(--text-1)' }}>
-              {renderBlocks(Array.isArray(page.content) ? page.content : [])}
+              {renderBlocks(Array.isArray(page.content) ? page.content : [], traducir)}
             </div>
           </div>
         </div>

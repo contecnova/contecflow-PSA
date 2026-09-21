@@ -47,6 +47,7 @@ function getFirstDayOfMonth(year: number, month: number) {
 }
 
 export default function CalendarPage(): JSX.Element {
+  const traducir = useAppT()
   const t = useAppT()
   const _toast = useToast()
   const _nav = useNavigate()
@@ -159,7 +160,7 @@ export default function CalendarPage(): JSX.Element {
           </span>
         ))}
         <span style={{ marginLeft: 'auto', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-          {allEvents.length} evento(s) este mes
+          {allEvents.length} {traducir('calendar.evento_s_este_mes')}
         </span>
       </div>
 
@@ -205,7 +206,7 @@ export default function CalendarPage(): JSX.Element {
                   )
                 })}
                 {dayEvents.length > 3 && (
-                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', padding: '1px 4px' }}>+{dayEvents.length - 3} más</div>
+                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', padding: '1px 4px' }}>+{dayEvents.length - 3} {traducir('calendar.mas')}</div>
                 )}
               </div>
             </div>

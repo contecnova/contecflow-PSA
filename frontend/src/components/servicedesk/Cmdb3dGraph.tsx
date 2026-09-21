@@ -207,7 +207,7 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
           {t('sd.cmdb3d.title', 'Mapa 3D de Dependencias CMDB')}
         </h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Máx. nodos</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('cmdb3dgraph.max_nodos')}</span>
           <select
             value={maxNodes}
             onChange={e => setMaxNodes(Number(e.target.value))}
@@ -290,7 +290,7 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
               </div>
               {list.length === 0 ? (
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-                  Ningún CI depende de este — fallo aislado.
+                  {t('cmdb3dgraph.ningun_ci_depende_de_este_fallo_aislado')}
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -310,7 +310,7 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
                   })}
                   {list.length > 20 && (
                     <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', alignSelf: 'center' }}>
-                      +{list.length - 20} más
+                      +{list.length - 20} {t('cmdb3dgraph.mas')}
                     </span>
                   )}
                 </div>

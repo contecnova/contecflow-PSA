@@ -20,6 +20,7 @@ import { useMutation } from '@tanstack/react-query'
 import { voiceApi } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
 import { Mic, Square, X } from 'lucide-react'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 
 // TODO type: voice pending_action payload — needs shared type from voiceApi
@@ -61,6 +62,7 @@ interface VoiceCommandModalProps {
 }
 
 export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalProps) {
+  const { t: traducir } = useAppLang()
   const toast = useToast()
   const [recording, setRecording] = useState<boolean>(false)
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
@@ -226,7 +228,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 700 }}>
-            🎙 Comando de voz
+            {traducir('voicecommandmodal.comando_de_voz')}
           </h3>
           <button onClick={onClose}
             style={{ background: 'transparent', border: 'none', color: 'var(--text-2)', fontSize: 20, cursor: 'pointer' }}>
@@ -339,7 +341,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
                 fontSize: 'var(--text-xs)', color: 'var(--text-3)',
                 textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4,
               }}>
-                Interpretación
+                {traducir('voicecommandmodal.interpretacion')}
               </div>
               <div style={{
                 background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
@@ -358,7 +360,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
                   padding: '10px 14px', borderRadius: 8, marginBottom: 14,
                   fontSize: 'var(--text-sm)',
                 }}>
-                  <strong>⏳ Confirmación requerida:</strong>
+                  <strong>{traducir('voicecommandmodal.confirmacion_requerida')}</strong>
                   <div style={{ marginTop: 4 }}>{pendingLabel}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

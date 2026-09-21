@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 /**
  * Pagination — simple prev/next + page number controls.
@@ -11,6 +12,7 @@ export interface PaginationProps {
 }
 
 export default function Pagination({ page, totalPages, onChange, maxVisible = 7 }: PaginationProps) {
+  const { t } = useAppLang()
   if (totalPages <= 1) return null
 
   const btnBase: CSSProperties = {
@@ -59,7 +61,7 @@ export default function Pagination({ page, totalPages, onChange, maxVisible = 7 
         style={page === 1 ? disabledBtnStyle : btnBase}
         disabled={page === 1}
         onClick={() => onChange(1)}
-        title="Primera página"
+        title={t('pagination.primera_pagina')}
       >
         «
       </button>
@@ -108,7 +110,7 @@ export default function Pagination({ page, totalPages, onChange, maxVisible = 7 
         style={page === totalPages ? disabledBtnStyle : btnBase}
         disabled={page === totalPages}
         onClick={() => onChange(totalPages)}
-        title="Última página"
+        title={t('pagination.ultima_pagina')}
       >
         »
       </button>

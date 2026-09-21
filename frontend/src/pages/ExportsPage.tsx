@@ -126,7 +126,7 @@ export default function ExportsPage(): JSX.Element {
       <Card style={{ marginBottom: 20 }}>
         <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 4 }}>📊 Exportar Imputaciones</h3>
         <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 20 }}>
-          Descarga el registro de horas en Excel o CSV, listo para facturación o análisis.
+          {t('exports.descarga_el_registro_de_horas_en_excel')}
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
           <div>
@@ -168,7 +168,7 @@ export default function ExportsPage(): JSX.Element {
       <Card style={{ marginBottom: 20 }}>
         <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 4 }}>📁 Exportar Proyectos</h3>
         <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 20 }}>
-          Informe completo de todos los proyectos con métricas de avance y presupuesto.
+          {t('exports.informe_completo_de_todos_los_proyectos_con')}
         </p>
         {/* Auditoría 2026-09: este botón decía «Descargar Excel de proyectos» y
             el servidor devolvía un CSV. Ahora hay selector, como en el de
@@ -187,7 +187,7 @@ export default function ExportsPage(): JSX.Element {
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", cursor: 'pointer' }}>
               <input type="checkbox" checked={projForm.include_costs}
                 onChange={e => setProjForm(f => ({ ...f, include_costs: e.target.checked }))} />
-              Incluir costes y márgenes € (confidencial)
+              {t('exports.incluir_costes_y_margenes_confidencial')}
             </label>
           )}
         </div>
@@ -199,9 +199,9 @@ export default function ExportsPage(): JSX.Element {
       {/* Jira sync */}
       {hasRole('admin', 'pm') && (
         <Card>
-          <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 4 }}>🔗 Sincronizar con Jira</h3>
+          <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 4 }}>{t('exports.sincronizar_con_jira')}</h3>
           <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 20 }}>
-            Importa issues de Jira como tareas en Contecflow. Se sincroniza en segundo plano.
+            {t('exports.importa_issues_de_jira_como_tareas_en')}
           </p>
           <div style={{ display: 'flex', gap: 12 }}>
             <select value={jiraProject} onChange={e => setJiraProject(e.target.value)}

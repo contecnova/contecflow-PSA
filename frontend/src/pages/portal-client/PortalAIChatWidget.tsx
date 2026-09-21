@@ -13,6 +13,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { CLIENT_API } from './portalClientContext'
 import { MessageCircle, X, Send, Sparkles } from 'lucide-react'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 const SESSION_KEY = 'portal_ai_session_id'
 
@@ -37,6 +38,7 @@ const SUGGESTIONS = [
 
 
 export default function PortalAIChatWidget() {
+  const { t } = useAppLang()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -167,13 +169,13 @@ export default function PortalAIChatWidget() {
         <div style={{ display: 'flex', gap: 6 }}>
           {messages.length > 0 && (
             <button onClick={handleClearSession}
-              aria-label="Nueva conversación" title="Empezar de nuevo"
+              aria-label={t('portalaichatwidget.nueva_conversacion')} title={t('portalaichatwidget.empezar_de_nuevo')}
               style={{
                 background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none',
                 borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
                 fontSize: 11, fontWeight: 600,
               }}>
-              Nueva
+              {t('portalaichatwidget.nueva')}
             </button>
           )}
           <button onClick={() => setOpen(false)}
@@ -196,8 +198,7 @@ export default function PortalAIChatWidget() {
         {messages.length === 0 && !sending ? (
           <div style={{ color: 'var(--text-2)', fontSize: 13, padding: '10px 0' }}>
             <div style={{ marginBottom: 12, lineHeight: 1.5 }}>
-              👋 Hola, soy el asistente IA del portal. Puedo responderte sobre el
-              estado de tus proyectos, tareas pendientes, hitos próximos y más.
+              {t('portalaichatwidget.hola_soy_el_asistente_ia_del_portal')}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
               Ejemplos

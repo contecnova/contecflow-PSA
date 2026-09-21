@@ -8,6 +8,7 @@ import axios, { type AxiosResponse } from 'axios'
 import { PORTAL_TRANSLATIONS as T, PORTAL_LANGUAGES as LANGUAGES } from '../../i18n/portalTranslations'
 import { STATUS_CFG } from '../../constants/sharedStatus'
 import { useIdleTimeout } from '../../hooks/useIdleTimeout'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 type ApiListBody = {
   items: unknown[]
@@ -147,6 +148,7 @@ function _pickClientUiFields(client: ClienteDelPortal | null) {
 }
 
 export function ClientAuthProvider({ children }: { children?: React.ReactNode }) {
+  const { t: traducir } = useAppLang()
   const [client, setClient] = useState<ClienteDelPortal | null>(() => {
     try { return JSON.parse(localStorage.getItem('client_user') || 'null') } catch { return null }
   })
@@ -233,10 +235,10 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
           }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>⏱️</div>
             <h3 style={{ margin: '0 0 8px', color: 'var(--text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
-              Sesión a punto de expirar
+              {traducir('portalclientcontext.sesion_a_punto_de_expirar')}
             </h3>
             <p style={{ color: 'var(--text-2)', margin: '0 0 22px', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
-              Tu sesión del portal se cerrará por inactividad en{' '}
+              {traducir('portalclientcontext.tu_sesion_del_portal_se_cerrara_por')}{' '}
               <strong style={{ color: secondsLeft <= 15 ? '#ff4757' : 'var(--accent)' }}>
                 {secondsLeft}s
               </strong>.
@@ -250,7 +252,7 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
                   cursor: 'pointer', fontSize: 'var(--text-sm)',
                 }}
               >
-                Continuar sesión
+                {traducir('portalclientcontext.continuar_sesion')}
               </button>
               <button
                 onClick={logout}
@@ -260,7 +262,7 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
                   padding: '10px 20px', cursor: 'pointer', fontSize: 'var(--text-sm)',
                 }}
               >
-                Cerrar sesión
+                {traducir('portalclientcontext.cerrar_sesion')}
               </button>
             </div>
           </div>
@@ -315,6 +317,7 @@ export function LangSelector({ onChange, current, dark = false }: LangSelectorPr
 }
 
 export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code: string) => void; _currentLang?: string }) {
+  const { t: traducir } = useAppLang()
   // Sin proveedor no hay sesion. Pasa solo si alguien monta esta pantalla
   // fuera del portal, y con el `?.` falla en el sitio y no cinco lineas mas
   // abajo con un «login is not a function».
@@ -407,9 +410,9 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
         padding: '32px 36px',
       }}>
         <div style={{ width: '100%', maxWidth: 360 }}>
-          <h2 style={{ fontSize: 'var(--text-xl-em)', fontWeight: 800, margin: '0 0 6px' }}>Acceder al portal</h2>
+          <h2 style={{ fontSize: 'var(--text-xl-em)', fontWeight: 800, margin: '0 0 6px' }}>{traducir('portalclientcontext.acceder_al_portal')}</h2>
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 24px' }}>
-            Usa tu correo corporativo para acceder.
+            {traducir('portalclientcontext.usa_tu_correo_corporativo_para_acceder')}
           </p>
           <form onSubmit={e => { e.preventDefault(); handleLogin() }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>

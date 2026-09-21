@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 /**
  * TopProgressBar — Thin top loading bar that fires on every route change.
@@ -9,6 +10,7 @@ import { useLocation } from 'react-router-dom'
 type ProgressState = 'idle' | 'loading' | 'done'
 
 export default function TopProgressBar() {
+  const { t: traducir } = useAppLang()
   const location = useLocation()
   const [state, setState] = useState<ProgressState>('idle')
 
@@ -24,7 +26,7 @@ export default function TopProgressBar() {
   return (
     <div
       role="progressbar"
-      aria-label="Cargando página"
+      aria-label={traducir('topprogressbar.cargando_pagina')}
       aria-valuemin={0}
       aria-valuemax={100}
       className={state === 'done' ? 'top-progress-done' : 'top-progress-bar'}

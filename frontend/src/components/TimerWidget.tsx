@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { imputationsApi, projectsApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import { useAppLang } from '../i18n/AppLangContext'
 
 interface TimerState {
   paused_at?: string | null
@@ -69,6 +70,7 @@ function calcElapsed(timer: TimerState | null) {
 }
 
 const TimerWidget = () => {
+  const { t } = useAppLang()
   useAuth()
   const queryClient = useQueryClient()
   const [elapsed,   setElapsed]  = useState(0)
@@ -152,7 +154,7 @@ const TimerWidget = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: stateColor }} />
         <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)' }}>
-          {'\u23f1'} Cronómetro
+          {'\u23f1'} {t('timerwidget.cronometro')}
         </span>
       </div>
 

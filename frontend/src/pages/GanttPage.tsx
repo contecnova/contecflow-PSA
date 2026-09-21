@@ -52,6 +52,7 @@ interface DependencyItem {
 }
 
 export default function GanttPage(): JSX.Element {
+  const traducir = useAppT()
   const t            = useAppT()
   const toast         = useToast()
   const _qc           = useQueryClient()
@@ -209,7 +210,7 @@ export default function GanttPage(): JSX.Element {
                 size="sm"
                 variant="subtle"
                 onClick={() => setSmartScheduleOpen(true)}
-                title="Sugerir fechas para tareas sin planificar usando IA"
+                title={traducir('gantt.sugerir_fechas_para_tareas_sin_planificar_usando')}
               >
                 <Sparkles size={13} style={{ marginRight: 4 }} /> Auto-planificar
               </Button>

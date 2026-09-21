@@ -70,7 +70,7 @@ export default function BiForecastingPanel() {
           <h3 style={{ margin: 0, fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>
             {t('bi.forecasting.title', 'Forecasting BI')}
           </h3>
-          <p style={{ margin: 0, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>Predicciones de series temporales</p>
+          <p style={{ margin: 0, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('biforecasting.predicciones_de_series_temporales')}</p>
         </div>
       </div>
 

@@ -86,6 +86,7 @@ interface ConnectorCardProps {
 }
 
 function ConnectorCard({ connector, onSync, syncing, expanded, onToggleLog, log, logLoading }: ConnectorCardProps) {
+  const t = useAppT()
   const statusKey = connector.status ?? 'disconnected'
   const meta = STATUS_META[statusKey] || STATUS_META.disconnected
   const Icon = meta.Icon
@@ -126,7 +127,7 @@ function ConnectorCard({ connector, onSync, syncing, expanded, onToggleLog, log,
 
       <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
         <span>
-          <span style={{ color: 'var(--text-3)' }}>Último sync:</span>{' '}
+          <span style={{ color: 'var(--text-3)' }}>{t('bietl.ultimo_sync')}</span>{' '}
           <span style={{ color: 'var(--text-2)' }}>
             {connector.last_sync_at ? new Date(connector.last_sync_at).toLocaleString() : 'Nunca'}
           </span>
@@ -166,7 +167,7 @@ function ConnectorCard({ connector, onSync, syncing, expanded, onToggleLog, log,
             <div style={{ display: 'flex', justifyContent: 'center', padding: 12 }}><Spinner /></div>
           ) : !log || log.length === 0 ? (
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textAlign: 'center', padding: 8 }}>
-              Sin entradas en el log.
+              {t('bietl.sin_entradas_en_el_log')}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -252,7 +253,7 @@ export default function BiEtlPanel() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={chip('var(--success)')}>{enabledCount} activos</span>
-          {errorCount > 0 && <span style={chip('var(--danger)')}>{errorCount} con error</span>}
+          {errorCount > 0 && <span style={chip('var(--danger)')}>{errorCount} {t('bietl.con_error')}</span>}
           <Button
             size="sm"
             variant="ghost"
@@ -274,7 +275,7 @@ export default function BiEtlPanel() {
       ) : connectors.length === 0 ? (
         <EmptyState
           icon="🔌"
-          title="Sin conectores configurados"
+          title={t('bietl.sin_conectores_configurados')}
           description="Configura los conectores ETL desde Settings → AI Hub / Connectors."
         />
       ) : (

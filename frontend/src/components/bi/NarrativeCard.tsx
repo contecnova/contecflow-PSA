@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { analyticsApi } from '../../services/api'
 import { Sparkles, RefreshCw, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 import { COLOR } from '../../constants/theme'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 function MarkdownText({ text, style }: { text: string; style?: React.CSSProperties }) {
   const paragraphs = text.split(/\n\n+/)
@@ -42,6 +43,7 @@ interface NarrativeCardProps {
 }
 
 export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCardProps) {
+  const { t } = useAppLang()
   const [expanded, setExpanded] = useState<boolean>(true)
   const [forceRefresh, setForceRefresh] = useState<boolean>(false)
 
@@ -97,7 +99,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
               Resumen ejecutivo IA
             </div>
             {data?.cached && (
-              <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>desde caché · 1h TTL</div>
+              <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{t('narrativecard.desde_cache_1h_ttl')}</div>
             )}
           </div>
         </div>
@@ -134,7 +136,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
           ) : isError ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: COLOR.danger, fontSize: "var(--text-sm)" }}>
               <AlertCircle size={14} />
-              Error al generar la narrativa. Verifica la conexión con el proveedor IA.
+              {t('narrativecard.error_al_generar_la_narrativa_verifica_la')}
             </div>
           ) : data?.narrative ? (
             <>
@@ -156,14 +158,14 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
                 )}
                 {data.kpis?.hours_mtd != null && (
                   <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>
-                    {data.kpis.hours_mtd}h imputadas este mes
+                    {data.kpis.hours_mtd}{t('narrativecard.h_imputadas_este_mes')}
                   </span>
                 )}
               </div>
             </>
           ) : (
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
-              Sin datos suficientes para generar narrativa. Ejecuta el ETL OLAP primero.
+              {t('narrativecard.sin_datos_suficientes_para_generar_narrativa_ejecuta')}
             </div>
           )}
         </div>

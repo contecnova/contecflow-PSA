@@ -187,6 +187,7 @@ export default function GanttChart({
   dependencies = [],
   aiSuggestions = {},
 }: GanttChartProps) {
+  const traducir = useAppT()
     const t = useAppT()
   const [zoom, setZoom]           = useState<Zoom>('month')
   const [dragState, setDragState] = useState<DragState | null>(null)
@@ -541,7 +542,7 @@ export default function GanttChart({
                       style={{ cursor: 'default', opacity: 0.7 }} />
                     <text x={x1 + 10} y={svgY + h / 2 + 3} fontSize={11} fill="var(--text-3)" fontFamily="inherit" fontWeight={500}
                       style={{ pointerEvents: 'none', fontStyle: 'italic' }}>
-                      📅 Sin fechas definidas
+                      {traducir('ganttchart.sin_fechas_definidas')}
                     </text>
                   </g>
                 )

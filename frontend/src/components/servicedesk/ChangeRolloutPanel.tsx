@@ -269,7 +269,7 @@ export default function ChangeRolloutPanel() {
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <div style={fieldLabel}>Filtrar por Change Request</div>
+        <div style={fieldLabel}>{t('changerollout.filtrar_por_change_request')}</div>
         <input
           type="text"
           placeholder="Change Request ID (uuid)"
@@ -298,7 +298,7 @@ export default function ChangeRolloutPanel() {
             />
             <input
               type="text"
-              placeholder="Nombre del plan (opcional)"
+              placeholder={t('changerollout.nombre_del_plan_opcional')}
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               style={inputBase}
@@ -343,7 +343,7 @@ export default function ChangeRolloutPanel() {
         <div>
           <div style={fieldLabel}>Planes</div>
           {!changeRequestFilter.trim() ? (
-            <EmptyState icon="🔎" title="Filtra por Change Request ID" description="Indica el ID del Change Request para listar sus planes de rollout." />
+            <EmptyState icon="🔎" title={t('changerollout.filtra_por_change_request_id')} description="Indica el ID del Change Request para listar sus planes de rollout." />
           ) : isLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
           ) : !plans.length ? (
@@ -412,7 +412,7 @@ export default function ChangeRolloutPanel() {
             <div style={{ marginBottom: 14 }}>
               <div style={fieldLabel}>{t('sd.rollout.phases', 'Progreso de fases')}</div>
               {(selectedPlan.rollout_phases || []).length === 0 ? (
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Sin fases definidas</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('changerollout.sin_fases_definidas')}</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {(selectedPlan.rollout_phases || []).map((phase, i) => {
@@ -515,7 +515,7 @@ export default function ChangeRolloutPanel() {
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginBottom: 8 }}>
                   {simulate.estimated_duration_minutes != null && (
-                    <span><span style={{ color: 'var(--text-3)' }}>Duración estimada:</span> <strong>{simulate.estimated_duration_minutes}min</strong></span>
+                    <span><span style={{ color: 'var(--text-3)' }}>{t('changerollout.duracion_estimada')}</span> <strong>{simulate.estimated_duration_minutes}min</strong></span>
                   )}
                   {simulate.recommended_window && (
                     <span><span style={{ color: 'var(--text-3)' }}>Ventana:</span> <strong>{simulate.recommended_window}</strong></span>

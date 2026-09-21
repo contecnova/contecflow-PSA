@@ -122,7 +122,7 @@ export default function WebhookLogPage() {
       </div>
 
       {isLoading ? <Spinner /> : allLogs.length === 0 ? (
-        <EmptyState icon="📡" title="Sin actividad webhook"
+        <EmptyState icon="📡" title={t('webhooklog.sin_actividad_webhook')}
           description={webhooks.length === 0
             ? "Configura webhooks salientes en Empresa → Integraciones"
             : "Los webhooks configurados aún no han disparado llamadas"} />

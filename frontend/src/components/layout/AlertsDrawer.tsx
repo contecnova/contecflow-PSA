@@ -5,6 +5,7 @@ import { alertsApi } from '../../services/api'
 import { X, Bell, ExternalLink } from 'lucide-react'
 import { fmtRelative } from '../../utils/helpers'
 import { useAuth } from '../../context/AuthContext'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 interface SeverityCfg {
   dot: string
@@ -40,6 +41,7 @@ interface Props {
 }
 
 export default function AlertsDrawer({ onClose }: Props) {
+  const { t } = useAppLang()
   const { hasRole } = useAuth()
   const qc = useQueryClient()
   const drawerRef = useRef<HTMLDivElement | null>(null)
@@ -168,8 +170,8 @@ export default function AlertsDrawer({ onClose }: Props) {
           ) : alerts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-3)' }}>
               <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>✅</div>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)' }}>Sin alertas activas</div>
-              <div style={{ fontSize: "var(--text-sm)", marginTop: 4 }}>Todo está en orden</div>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)' }}>{t('alertsdrawer.sin_alertas_activas')}</div>
+              <div style={{ fontSize: "var(--text-sm)", marginTop: 4 }}>{t('alertsdrawer.todo_esta_en_orden')}</div>
             </div>
           ) : (
             alerts.slice(0, 20).map(alert => {
@@ -207,7 +209,7 @@ export default function AlertsDrawer({ onClose }: Props) {
                               borderRadius: 5, padding: '3px 8px', color: 'var(--text-2)',
                               cursor: 'pointer', fontSize: "var(--text-2xs)", fontFamily: 'inherit',
                             }}>
-                              Leída
+                              {t('alertsdrawer.leida')}
                             </button>
                           )}
                           {hasRole('admin', 'pm', 'hr') && (
@@ -249,7 +251,7 @@ export default function AlertsDrawer({ onClose }: Props) {
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-2)' }}
           >
             <ExternalLink size={13} />
-            Ver todas las alertas
+            {t('alertsdrawer.ver_todas_las_alertas')}
           </NavLink>
         </div>
       </div>

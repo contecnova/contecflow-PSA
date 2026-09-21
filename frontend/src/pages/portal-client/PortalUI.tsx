@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { CLIENT_API, useClientAuth, useLang } from './portalClientContext'
 import PortalQuickCreateMenu from './PortalQuickCreateMenu'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 // ── Section configuration (grouped like the backoffice) ──────────────────────
 export const PORTAL_NAV_GROUPS = [
@@ -76,6 +77,7 @@ const SECTION_INDEX: Record<string, any> = (() => {
 
 // ── Shell ────────────────────────────────────────────────────────────────────
 export function PortalShell({ section, onSection, branding, badges, children }: any) {
+  const { t: traducir } = useAppLang()
   const { client, logout } = useClientAuth() as any
   const t = useLang()
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('portal_sidebar_collapsed') === '1')
@@ -172,7 +174,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
                 value={filter}
                 onChange={e => setFilter(e.target.value)}
                 placeholder="Buscar..."
-                aria-label="Filtrar menú"
+                aria-label={traducir('portalui.filtrar_menu')}
                 style={{
                   width: '100%', boxSizing: 'border-box',
                   background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
@@ -292,7 +294,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
             </>
           ) : (
             <button onClick={() => setCollapsed(false)}
-              aria-label="Expandir menú"
+              aria-label={traducir('portalui.expandir_menu')}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: 'transparent', border: '1px solid var(--surface-4)',
@@ -316,7 +318,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
         }}>
           <button onClick={() => setMobileOpen(true)}
             className="portal-mobile-toggle"
-            aria-label="Abrir menú"
+            aria-label={traducir('portalui.abrir_menu')}
             style={{
               display: 'none',
               background: 'transparent', border: 'none', cursor: 'pointer',
@@ -335,8 +337,8 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
               onClick={() => setQuickOpen(true)}
-              title="Crear nuevo (⌘+)"
-              aria-label="Crear nuevo"
+              title={traducir('portalui.crear_nuevo')}
+              aria-label={traducir('portalui.crear_nuevo_2')}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 width: 30, height: 30,
@@ -848,13 +850,14 @@ export function PortalBanner({ tone = 'info', icon, title, body, action }: any) 
 
 // ── Donut chart (lightweight SVG) ────────────────────────────────────────────
 export function PortalDonut({ size = 110, stroke = 12, segments = [], centerTop, centerBottom }: any) {
+  const { t: traducir } = useAppLang()
   const radius = size / 2 - stroke / 2
   const circ = 2 * Math.PI * radius
   const total = segments.reduce((s: number, x: any) => s + Math.max(0, x.value || 0), 0)
   let offset = 0
   return (
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} role="img" aria-label="distribución">
+      <svg width={size} height={size} role="img" aria-label={traducir('portalui.distribucion')}>
         <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--surface-4)" strokeWidth={stroke} />
         {total > 0 && segments.map((seg: any, i: number) => {
           const len = (Math.max(0, seg.value || 0) / total) * circ

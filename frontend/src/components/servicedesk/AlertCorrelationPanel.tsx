@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { alertClustersApi } from '../../services/api'
 import { Card, Button, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 // TODO type: alertClustersApi payload — needs shared type
 interface AlertCluster {
@@ -84,6 +85,7 @@ interface ClusterCardProps {
 }
 
 function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterCardProps) {
+  const { t } = useAppLang()
   const sizeColor = cluster.size >= 10 ? 'var(--danger)' : cluster.size >= 5 ? 'var(--warning)' : 'var(--success)'
   const score = Math.round((cluster.correlation_score ?? 0) * 100)
   const suggestedAction = cluster.suggested_action ?? 'monitor'
@@ -154,7 +156,7 @@ function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterC
                 color: 'var(--accent)', fontSize: 'var(--text-xs)', fontFamily: 'inherit',
                 padding: '2px 8px',
               }}
-            >+{ticketNums.length - 8} más</button>
+            >+{ticketNums.length - 8} {t('alertcorrelation.mas')}</button>
           )}
           {expanded && ticketNums.length > 8 && (
             <button
@@ -174,6 +176,7 @@ function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterC
 }
 
 export default function AlertCorrelationPanel() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
@@ -232,10 +235,10 @@ export default function AlertCorrelationPanel() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)' }}>
-              📊 Estadísticas de correlación
+              {t('alertcorrelation.estadisticas_de_correlacion')}
             </span>
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-              ventana últimas {windowHours}h
+              {t('alertcorrelation.ventana_ultimas')} {windowHours}h
             </span>
           </div>
           <Button onClick={() => runScan()} loading={scanning} variant="secondary" size="sm">
@@ -255,7 +258,7 @@ export default function AlertCorrelationPanel() {
 
       <Card style={{ padding: '20px 22px' }}>
         <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>
-          🧩 Clusters de alertas
+          {t('alertcorrelation.clusters_de_alertas')}
         </div>
 
         {clustersLoading ? (
@@ -263,7 +266,7 @@ export default function AlertCorrelationPanel() {
         ) : clusters.length === 0 ? (
           <EmptyState
             icon="🔎"
-            title="Sin clusters detectados"
+            title={t('alertcorrelation.sin_clusters_detectados')}
             description="No hay grupos de alertas correladas en la ventana actual. Ejecuta el escáner para revisar."
           />
         ) : (

@@ -281,7 +281,7 @@ export default function ESignPage(): JSX.Element {
         icon={<PenLine size={18} />}
         title={t('esign.title')}
         subtitle={t('esign.subtitle')}
-        actions={<Button onClick={() => setCreating(true)}>✍ Nueva solicitud</Button>}
+        actions={<Button onClick={() => setCreating(true)}>{t('esign.nueva_solicitud')}</Button>}
       />
 
       {/* Provider status */}
@@ -294,7 +294,7 @@ export default function ESignPage(): JSX.Element {
             onClick={e => { e.preventDefault(); window.location.href = '/settings#esign' }}
             style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', alignSelf: 'center', textDecoration: 'underline' }}
           >
-            Configura las credenciales en Settings → E-firma
+            {t('esign.configura_las_credenciales_en_settings_e_firma')}
           </a>
         )}
       </div>
@@ -424,7 +424,7 @@ export default function ESignPage(): JSX.Element {
             {detail.signing_url && (
               <a href={detail.signing_url} target="_blank" rel="noreferrer"
                 style={{ display: 'block', background: 'var(--accent-muted)', color: 'var(--accent)', padding: '10px 14px', borderRadius: 8, fontSize: "var(--text-base)", textAlign: 'center', textDecoration: 'none' }}>
-                🔗 Abrir portal de firma
+                {t('esign.abrir_portal_de_firma')}
               </a>
             )}
           </div>

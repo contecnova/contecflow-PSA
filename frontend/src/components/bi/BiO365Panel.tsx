@@ -104,7 +104,7 @@ export default function BiO365Panel() {
             <h3 style={{ margin: 0, fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>
               {t('bi.o365.title', 'Office 365 Analytics')}
             </h3>
-            <p style={{ margin: 0, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>Productividad y adopción de Microsoft 365</p>
+            <p style={{ margin: 0, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('bio365.productividad_y_adopcion_de_microsoft_365')}</p>
           </div>
         </div>
         <button
@@ -210,7 +210,7 @@ export default function BiO365Panel() {
               <label style={S.label}>
                 Client Secret{' '}
                 <span style={{ color: 'var(--warning)', fontWeight: 400, textTransform: 'none', fontSize: "var(--text-2xs)" }}>
-                  (no se guarda — solo se usa durante la sincronización)
+                  {t('bio365.no_se_guarda_solo_se_usa_durante')}
                 </span>
               </label>
               <input type="password" value={configForm.client_secret} onChange={e => setConfigForm(f => ({ ...f, client_secret: e.target.value }))} placeholder="••••••••" style={S.input} />
@@ -219,7 +219,7 @@ export default function BiO365Panel() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", cursor: 'pointer', color: 'var(--text-1)' }}>
               <input type="checkbox" checked={configForm.enabled} onChange={e => setConfigForm(f => ({ ...f, enabled: e.target.checked }))} />
-              Sincronización habilitada
+              {t('bio365.sincronizacion_habilitada')}
             </label>
             <button
               onClick={() => saveConfigMutation.mutate(configForm)}
@@ -231,7 +231,7 @@ export default function BiO365Panel() {
           </div>
           {config?.last_sync_at && (
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
-              Último sync: {new Date(config.last_sync_at).toLocaleString()}
+              {t('bio365.ultimo_sync')} {new Date(config.last_sync_at).toLocaleString()}
             </div>
           )}
         </div>

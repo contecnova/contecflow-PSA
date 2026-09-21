@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { nexusAgentApi } from '../../services/api'
 import { useConfirm } from '../../context/ConfirmContext'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 const LAST_CONV_KEY = 'nexusassist_last_conversation_id'
 
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export default function ContecflowAssistPanel({ open, onClose, context }: Props) {
+  const { t } = useAppLang()
   // Derive human-readable page label from path
   const PAGE_LABELS: Record<string, string> = {
     '/': 'Dashboard', '/projects': 'Proyectos', '/tasks': 'Tareas',
@@ -184,7 +186,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
           <button onClick={() => { localStorage.removeItem(LAST_CONV_KEY); setConvId(null); setMessages([]) }}
             style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6,
               padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
-            + Nueva
+            {t('nexusassist.nueva')}
           </button>
           <button
             type="button"
@@ -220,7 +222,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
       <div style={{ flex:1, overflowY:'auto', padding:'16px 18px', display:'flex', flexDirection:'column', gap:12 }}>
         {messages.length === 0 && (
           <div>
-            <div style={{ fontSize: "var(--text-base)", color:'var(--text-2)', marginBottom:16, textAlign:'center', paddingTop:20 }}>¿En qué puedo ayudarte hoy?</div>
+            <div style={{ fontSize: "var(--text-base)", color:'var(--text-2)', marginBottom:16, textAlign:'center', paddingTop:20 }}>{t('nexusassist.en_que_puedo_ayudarte_hoy')}</div>
             {SUGGESTIONS.map((s, i) => (
               <button key={i} onClick={() => sendMessage(s)}
                 type="button"
@@ -259,7 +261,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
         <div style={{ display:'flex', gap:10, alignItems:'flex-end' }}>
           <textarea value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
-            placeholder="Escribe aquí..." rows={2}
+            placeholder={t('nexusassist.escribe_aqui')} rows={2}
             style={{ flex:1, background:'var(--surface-1)', border:'.5px solid var(--surface-4)',
               borderRadius:10, padding:'10px 14px', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', resize:'none', lineHeight:1.4 }} />
           <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading}
@@ -267,7 +269,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
               border:'none', color:'white', cursor:'pointer', fontSize: "var(--text-lg-em)",
               opacity: !input.trim() || loading ? 0.5 : 1 }}>↑</button>
         </div>
-        <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginTop:5, textAlign:'center' }}>Enter enviar · Shift+Enter nueva línea</div>
+        <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginTop:5, textAlign:'center' }}>{t('nexusassist.enter_enviar_shift_enter_nueva_linea')}</div>
       </div>
       <style>{`@keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}`}</style>
     </div>

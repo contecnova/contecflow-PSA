@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import type { ComponentType, ErrorInfo, ReactNode } from 'react'
+import { traducirSinHook } from '../i18n/traducirSinHook'
 
 /**
  * RouteBoundary — per-section error boundary.
@@ -99,12 +100,11 @@ export default class RouteBoundary extends Component<RouteBoundaryProps, RouteBo
       >
         <div style={{ fontSize: 40 }}>⚠️</div>
         <h3 style={{ color: 'var(--text-1)', margin: 0 }}>
-          Esta sección tuvo un error
+          {traducirSinHook('routeboundary.esta_seccion_tuvo_un_error')}
           {section ? ` (${section})` : ''}
         </h3>
         <p style={{ color: 'var(--text-3)', margin: 0, maxWidth: 480 }}>
-          Algo salió mal al cargar este apartado. Puedes intentarlo de nuevo
-          o recargar la página.
+          {traducirSinHook('routeboundary.algo_salio_mal_al_cargar')}
         </p>
         <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
           <button
@@ -137,7 +137,7 @@ export default class RouteBoundary extends Component<RouteBoundaryProps, RouteBo
               fontWeight: 600,
             }}
           >
-            Recargar página
+            {traducirSinHook('routeboundary.recargar_pagina')}
           </button>
         </div>
         {isDev && (

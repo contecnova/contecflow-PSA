@@ -73,18 +73,38 @@ function espacioDeNombres(ruta) {
   return aClave(base)
 }
 
-/** Las funciones de primer nivel del modulo, con su rango. */
+/** Un componente de React: función de primer nivel con nombre en Mayúscula. */
+function esNombreDeComponente(nombre) {
+  return /^[A-Z]/.test(nombre)
+}
+
+/** Las funciones de primer nivel del modulo que SON componentes, con su rango.
+ *
+ * La mayúscula inicial no es cosmética: es la regla con la que React distingue
+ * un componente de una función corriente, y por tanto dónde puede vivir un
+ * hook. `WikiPage` tiene una `renderBlocks(blocks)` de primer nivel que
+ * devuelve JSX pero que se llama como función normal desde el render de dos
+ * componentes; meterle `useAppT()` es una violación de las reglas de los hooks
+ * —ESLint la marcó— y en ejecución descoloca el orden de los hooks del
+ * componente que la invoca, que es de los fallos que aparecen tarde y mal.
+ *
+ * En esas funciones los literales se dejan sin tocar y se listan al final: el
+ * arreglo correcto es pasarles `t` por parámetro, y eso lo decide quien lee el
+ * código, no un barrido.
+ */
 function componentesDePrimerNivel(fuente) {
   const salida = []
   for (const sentencia of fuente.statements) {
     if (ts.isFunctionDeclaration(sentencia) && sentencia.body) {
-      salida.push({ nombre: sentencia.name?.getText(fuente) ?? '?', cuerpo: sentencia.body })
+      const nombre = sentencia.name?.getText(fuente) ?? '?'
+      if (esNombreDeComponente(nombre)) salida.push({ nombre, cuerpo: sentencia.body })
     } else if (ts.isVariableStatement(sentencia)) {
       for (const d of sentencia.declarationList.declarations) {
         const ini = d.initializer
+        const nombre = d.name.getText(fuente)
         if (ini && (ts.isArrowFunction(ini) || ts.isFunctionExpression(ini)) && ini.body
-            && ts.isBlock(ini.body)) {
-          salida.push({ nombre: d.name.getText(fuente), cuerpo: ini.body })
+            && ts.isBlock(ini.body) && esNombreDeComponente(nombre)) {
+          salida.push({ nombre, cuerpo: ini.body })
         }
       }
     }

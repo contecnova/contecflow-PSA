@@ -149,6 +149,14 @@ if [[ "$MODE" != "--info" ]]; then
   # ficheros. Trinquete de dos direcciones, como los demas.
   run_gate bloqueante "texto visible fuera de t() (no puede crecer)"     bash -c 'cd frontend && node scripts/check_i18n_literales.mjs'
 
+  # Claves que el codigo pide a t() y que NO existen en ningun diccionario
+  # (hallazgo 16, tercera cara). No las ve ninguno de los otros gates: no estan
+  # en `es`, asi que a `en` y `zh` no les falta nada; y el JSX si pasa por t(),
+  # asi que tampoco son literales. Y no salen en blanco —`resolveTranslation`
+  # HUMANIZA la clave—, de modo que un usuario espanol lee «Add comment» o
+  # «Tab details» con aspecto de estar bien y nadie lo reporta. Habia 174.
+  run_gate bloqueante "sin claves i18n usadas y no definidas"     bash -c 'cd frontend && node scripts/check_i18n_claves_sin_definir.mjs'
+
   # Claves duplicadas en los ficheros de idioma (hallazgo 16). Encontrado al
   # intentar cerrar la traducción: `en.mjs` tenía el namespace `client_portal`
   # declarado DOS VECES, y en JavaScript gana la última — así que 73 traducciones
