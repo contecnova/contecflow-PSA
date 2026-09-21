@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -446,8 +446,19 @@ def delete_rca_template(
     template_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
-    """Soft-delete (deactivate) a non-system custom RCA template."""
+    """Desactiva una plantilla RCA propia. Las del sistema no se borran.
+
+    Auditoría 2026-09: el resumen de esta ruta dice «(admin)» **desde que se
+    escribió**, y no había ninguna guarda que lo exigiera. El único control era
+    `enforce_abac`, que es fail-open: sin políticas activas —el caso por
+    defecto— cualquier usuario autenticado podía desactivar las plantillas de
+    análisis de causa raíz de su organización.
+
+    Esto no es una decisión de producto nueva: es la que ya estaba escrita en
+    la propia ruta, aplicada.
+    """
     enforce_abac(db, current_user, "sd_rca_template", template_id, action="delete")
     tpl = svc.get_rca_template(db, template_id=template_id)
     if not tpl:

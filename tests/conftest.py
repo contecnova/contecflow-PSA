@@ -16,6 +16,8 @@ from fastapi.testclient import TestClient
 os.environ["TESTING"] = "1"
 from sqlalchemy import create_engine
 from sqlalchemy import event as _sa_event
+from sqlalchemy import inspect as _sa_inspect
+from sqlalchemy import text as _sa_text
 from sqlalchemy.orm import sessionmaker
 
 # Variables de entorno necesarias para pydantic-settings en tests.
@@ -186,19 +188,79 @@ def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 
 
+
+#: El hash de `_TEST_PASSWORD`, calculado UNA vez para toda la sesión.
+#:
+#: Auditoría 2026-09: la fixture `db` —que es `autouse` y de ámbito de función—
+#: llamaba a `get_password_hash` **cuatro veces por test**. Con bcrypt a 12
+#: rondas eso son 0,297 s por hash: **1,19 s de cada test** dedicados a cifrar
+#: cuatro veces la misma contraseña. Sobre 3818 tests son **75 minutos** de
+#: reloj de CPU, más que todo lo demás junto.
+#:
+#: Calcularlo una vez es equivalente: los cuatro sitios cifraban la MISMA
+#: cadena. Que los cuatro usuarios de prueba compartan el hash no cambia nada
+#: —sigue siendo un bcrypt válido de esa contraseña— y ningún test depende de
+#: que sean distintos.
+#:
+#: Lo que NO se hace es bajar las rondas de bcrypt en tests: eso cambiaría el
+#: comportamiento de lo que se está probando.
+HASH_DE_PRUEBA = get_password_hash(_TEST_PASSWORD)
+
+
+#: Se crea el esquema una sola vez y entre tests se vacían las filas.
+#:
+#: La fixture hacía `create_all` + `drop_all` en **cada test**, y este proyecto
+#: tiene **392 tablas**: 0,735 s en crear y 0,101 s en destruir, otros 53
+#: minutos sobre la suite entera. Vaciar las mismas 392 tablas cuesta 0,042 s
+#: —veinte veces menos— y deja la base igual de limpia para el test siguiente.
+#:
+#: Se vacía al PRINCIPIO y no al final: si un test se interrumpe a medias, el
+#: siguiente sigue empezando con la base limpia.
+_esquema_creado = False
+
+
+def _preparar_base_limpia() -> None:
+    """Esquema listo y sin datos, al coste más bajo posible."""
+    global _esquema_creado
+    from app import models as _models  # noqa: F401 — registra los modelos en Base.metadata
+
+    if not _esquema_creado:
+        Base.metadata.create_all(bind=engine)
+        _esquema_creado = True
+        return
+
+    # Hay tests que BORRAN una tabla a propósito —`DROP TABLE IF EXISTS
+    # dashboard_comments`, para ejercitar el respaldo a JSON de
+    # `bi_collaboration_service`—. Con `create_all` por test eso se recreaba
+    # solo; vaciando, no. Comprobar qué existe cuesta 1,1 ms y recrear sólo lo
+    # que falta cuesta cero el 99,9 % de las veces.
+    #
+    # Sin esta comprobación, los 679 tests que van detrás de uno de esos dos
+    # revientan en el `setup` con «no such table». Lo cazó la suite completa.
+    existentes = set(_sa_inspect(engine).get_table_names())
+    faltan = [t for t in Base.metadata.sorted_tables if t.name not in existentes]
+    if faltan:
+        Base.metadata.create_all(bind=engine, tables=faltan, checkfirst=True)
+
+    with engine.begin() as conexion:
+        # Sin esto el borrado tendría que respetar el orden de dependencias
+        # entre 392 tablas; apagarlas un instante es más simple y más rápido.
+        conexion.execute(_sa_text("PRAGMA foreign_keys=OFF"))
+        for tabla in reversed(Base.metadata.sorted_tables):
+            conexion.execute(tabla.delete())
+        conexion.execute(_sa_text("PRAGMA foreign_keys=ON"))
+
+
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 @pytest.fixture(scope="function", autouse=True)
 
 def db():
-    """Crea tablas y datos base antes de cada test; las borra al final."""
-    from app import models as _models  # noqa: F401 — registra todos los modelos en Base.metadata
-    Base.metadata.create_all(bind=engine)
+    """Deja la base vacía y con los datos base antes de cada test."""
+    _preparar_base_limpia()
     session = TestSession()
 
     # Admin
-    admin_hashed = get_password_hash(_TEST_PASSWORD)
-    print(f"[DEBUG] TEST_PASSWORD: {_TEST_PASSWORD}")
-    print(f"[DEBUG] ADMIN HASHED PASSWORD: {admin_hashed}")
+    admin_hashed = HASH_DE_PRUEBA
     admin = User(
         id="admin-test-id",
         username="admin",
@@ -220,7 +282,7 @@ def db():
         role=UserRole.pm,
         status=UserStatus.active,
         is_active=True,
-        hashed_password=get_password_hash(_TEST_PASSWORD),
+        hashed_password=HASH_DE_PRUEBA,
         weekly_capacity_hours=40.0,
         currency="EUR"
     )
@@ -234,7 +296,7 @@ def db():
         status=UserStatus.active,
         is_active=True,
         hourly_rate=50.0,
-        hashed_password=get_password_hash(_TEST_PASSWORD),
+        hashed_password=HASH_DE_PRUEBA,
         weekly_capacity_hours=40.0,
         currency="EUR"
     )
@@ -247,7 +309,7 @@ def db():
         role=UserRole.hr,
         status=UserStatus.active,
         is_active=True,
-        hashed_password=get_password_hash(_TEST_PASSWORD),
+        hashed_password=HASH_DE_PRUEBA,
         weekly_capacity_hours=40.0,
         currency="EUR"
     )
@@ -311,15 +373,10 @@ def db():
     db_session.info["is_superadmin"] = True
 
     refresh_caches(db_session)
-    # Debug print the JWT keyring value after initialization
-    from sqlalchemy import text as _text
-    row = db_session.execute(_text("SELECT value FROM app_settings WHERE key='security.jwt_keyring'")).first()
-    print(f"[DEBUG] JWT keyring value after refresh_caches: {row}")
-
     yield db_session
     db_session.close()
-
-    Base.metadata.drop_all(bind=engine)
+    # Ya no se destruye el esquema: lo vacía `_preparar_base_limpia` al empezar
+    # el siguiente test, que es veinte veces más barato.
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -397,7 +454,7 @@ def superadmin_token(client, db):
             # users.organization_id es NOT NULL. Pertenecer a la org de test no
             # limita nada: is_superadmin=True desactiva los filtros de tenant.
             organization_id="1",
-            hashed_password=get_password_hash(_TEST_PASSWORD),
+            hashed_password=HASH_DE_PRUEBA,
             weekly_capacity_hours=40.0,
             currency="EUR",
         ))

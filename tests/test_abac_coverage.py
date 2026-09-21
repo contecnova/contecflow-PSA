@@ -60,7 +60,18 @@ SERVICE_AUTHZ_SIGNALS = re.compile(
     # exactamente el control que hace falta ahi.
     r"for_user\(|owner_id|"
     r"user_id\s*==\s*current_user\.id|user_id\s*=\s*current_user\.id|"
-    r"\.id\s*==\s*current_user\.id|,\s*current_user\.id\s*\)",
+    r"\.id\s*==\s*current_user\.id|,\s*current_user\.id\s*\)|"
+    # La misma comprobacion cuando el servicio llama `user` a su parametro, que
+    # es como esta escrito medio `app/services/collaboration/`:
+    #   `CollaborationSavedMessage.user_id == user.id`
+    #   `if msg.user_id != user.id and not ...: raise HTTPException(403, ...)`
+    r"\.user_id\s*[=!]=\s*\w+\.id|\w+\.id\s*[=!]=\s*\w+\.user_id|"
+    # Y el acotado por ORGANIZACION del usuario autenticado, que el docstring
+    # de este test ya nombraba como control valido y la expresion no reconocia.
+    # El valor sale del sujeto autenticado, no de un parametro de la peticion:
+    # por eso se exige que aparezca junto a `current_user`.
+    r'getattr\(\s*current_user\s*,\s*["\']organization_id["\']|'
+    r"current_user\.organization_id",
     re.IGNORECASE,
 )
 
@@ -208,6 +219,53 @@ def test_exemptions_document_a_reason():
 NO_CUENTAN_COMO_CONTROL = {"enforce_abac"}
 
 
+#: Cuántos saltos de llamada se siguen desde el endpoint. Dos alcanza el patrón
+#: de este proyecto —endpoint → servicio → ayudante—, que es donde vive la
+#: comprobación en la mitad de los casos.
+PROFUNDIDAD = 2
+
+
+def _caminos_llamados(src: str) -> set[tuple[str, ...]]:
+    """Los caminos de las llamadas del código: `('msg_svc', 'delete_message')`.
+
+    Auditoría 2026-09: antes se guardaba **sólo el último nombre**
+    (`delete_message`) y luego se buscaba ese nombre suelto por todo el módulo,
+    quedándose con el primer objeto que lo tuviera. Con eso se resolvía a una
+    función **distinta** de la que el endpoint llama —hay muchos
+    `delete_message` en un proyecto— y la comprobación real no se veía: así se
+    colaban 29 rutas en la lista de «sin control» teniéndolo.
+
+    Guardar el camino y seguirlo entero resuelve la función correcta.
+    """
+    try:
+        arbol = ast.parse(src.lstrip())
+    except Exception:
+        return set()
+
+    caminos: set[tuple[str, ...]] = set()
+    for nodo in ast.walk(arbol):
+        if not isinstance(nodo, ast.Call):
+            continue
+        fn = nodo.func
+        if isinstance(fn, ast.Name):
+            caminos.add((fn.id,))
+        elif isinstance(fn, ast.Attribute) and isinstance(fn.value, ast.Name):
+            caminos.add((fn.value.id, fn.attr))
+        elif isinstance(fn, ast.Attribute):
+            caminos.add((fn.attr,))
+    return {c for c in caminos if c[-1] not in NO_CUENTAN_COMO_CONTROL}
+
+
+def _resolver_camino(camino: tuple[str, ...], modulo):
+    """Sigue el camino desde el módulo del endpoint. `None` si no lleva a nada."""
+    objetivo = modulo
+    for paso in camino:
+        objetivo = getattr(objetivo, paso, None)
+        if objetivo is None:
+            return None
+    return objetivo if callable(objetivo) else None
+
+
 def _called_service_sources(endpoint) -> str:
     """Código del endpoint más el de las funciones que invoca en su módulo.
 
@@ -216,33 +274,24 @@ def _called_service_sources(endpoint) -> str:
 
     `enforce_abac` se excluye a propósito: ver `NO_CUENTAN_COMO_CONTROL`.
     """
-    src = _source(endpoint)
-    blobs = [src]
-    module = inspect.getmodule(endpoint)
-    try:
-        tree = ast.parse(src.lstrip())
-    except Exception:
-        return "\n".join(blobs)
+    blobs = [_source(endpoint)]
+    frontera = [(endpoint, blobs[0])]
 
-    names: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call):
-            fn = node.func
-            name = getattr(fn, "attr", None) or getattr(fn, "id", None)
-            if name:
-                names.add(name)
-
-    for name in names - NO_CUENTAN_COMO_CONTROL:
-        target = getattr(module, name, None)
-        if target is None and module is not None:
-            for attr in dir(module):
-                holder = getattr(module, attr, None)
-                candidate = getattr(holder, name, None)
-                if callable(candidate):
-                    target = candidate
-                    break
-        if callable(target):
-            blobs.append(_source(target))
+    # Dos niveles: el endpoint llama al servicio, y el servicio suele delegar
+    # en un ayudante que es donde de verdad está la comprobación.
+    for _ in range(PROFUNDIDAD):
+        siguiente = []
+        for fn, src in frontera:
+            modulo = inspect.getmodule(fn)
+            for camino in _caminos_llamados(src):
+                destino = _resolver_camino(camino, modulo)
+                if destino is None:
+                    continue
+                fuente = _source(destino)
+                if fuente:
+                    blobs.append(fuente)
+                    siguiente.append((destino, fuente))
+        frontera = siguiente
     return "\n".join(blobs)
 
 
@@ -265,9 +314,31 @@ def _called_service_sources(endpoint) -> str:
 #: `..._for_user(db, id, current_user.id)`, que es un control legítimo y no
 #: estaba en la lista de señales—, así que se añadió. Quedan éstas.
 #:
-#: **49 de las 54 son DELETE.** Es lo que hay que mirar primero: un borrado
-#: cuyo único guardia no comprueba nada mientras la organización no tenga
-#: políticas ABAC activas —que es el caso por defecto—.
+#: Empezaron siendo 54. **Veintinueve eran falsos positivos del detector**, no
+#: rutas sin control, y arreglarlo fue la mitad del trabajo:
+#:
+#:  · Resolvía los nombres llamados **sueltos** —`delete_message`— y se quedaba
+#:    con el primer objeto del módulo que tuviera uno igual. En un proyecto con
+#:    varios `delete_message` eso resuelve a **otra** función, y la comprobación
+#:    real no se ve. Ahora sigue el camino entero (`msg_svc.delete_message`).
+#:  · Miraba **un solo salto**. El patrón de aquí es endpoint → servicio →
+#:    ayudante, y la comprobación vive en el tercero la mitad de las veces.
+#:  · No reconocía dos idiomas de control que este proyecto usa a diario: la
+#:    propiedad escrita como `fila.user_id == user.id` —cuando el servicio
+#:    llama `user` a su parámetro— y el acotado por organización
+#:    `organization_id=getattr(current_user, "organization_id", None)`, que el
+#:    propio docstring de este test ya nombraba como control válido.
+#:
+#: Cada ampliación se añadió **después de leer el código** que la justifica, no
+#: para poner el test en verde. Las 25 que quedan se comprobaron a mano: no
+#: tienen guarda de rol, ni comprobación de propiedad, ni acotado explícito por
+#: organización en ninguno de los dos saltos.
+#:
+#: **Las 25 son DELETE salvo ninguna**: borrados de objetos de negocio de la
+#: organización —clientes, planes de capacidad, activos, cambios, plantillas,
+#: claves de API—. El filtrado automático de `TenantSession` impide que un
+#: cliente toque los de otro; lo que NO hay es control de quién, dentro de la
+#: misma organización, puede borrarlos. Hoy puede cualquier empleado.
 #:
 #: Cada una necesita una decisión propia: guarda de rol en la ruta, o
 #: comprobación de propiedad o de organización en el servicio. No se arreglan
@@ -280,59 +351,30 @@ def _called_service_sources(endpoint) -> str:
 ABAC_UNICO_CONTROL_CONOCIDAS = {
     "DELETE /api/v1/alm/assets/{aid}/installs/{iid}",
     "DELETE /api/v1/alm/licenses/{lid}/assignments/{aid}",
-    "DELETE /api/v1/bi/alerts/custom-metrics/{key}",
-    "DELETE /api/v1/bi/alerts/rules/{rule_id}",
-    "DELETE /api/v1/bi/bookmarks/{bookmark_id}",
-    "DELETE /api/v1/bi/collaboration/dashboards/{dashboard_key}/shares/{share_id}",
-    "DELETE /api/v1/bi/delivery/rules/{rule_id}",
-    "DELETE /api/v1/bi/delivery/schedules/{schedule_id}",
-    "DELETE /api/v1/bi/embed/token/{jti}",
-    "DELETE /api/v1/bi/intelligence/query-builder/templates/{template_id}",
-    "DELETE /api/v1/bi/platform/connectors/custom/{connector_id}",
-    "DELETE /api/v1/bi/platform/governance/field-sensitivity/{sensitivity_id}",
-    "DELETE /api/v1/bi/query-builder/queries/{query_id}",
-    "DELETE /api/v1/bi/reports/v2/presets/{preset_id}/customize",
-    "DELETE /api/v1/bi/reports/v2/templates/{template_id}",
     "DELETE /api/v1/bookings/api-keys/{key_id}",
     "DELETE /api/v1/capacity/plans/{plan_id}",
-    "DELETE /api/v1/clients/{cid}",
     "DELETE /api/v1/clients/{cid}/contacts/{contact_id}",
     "DELETE /api/v1/clients/{cid}/contracts/{link_id}",
     "DELETE /api/v1/clients/{cid}/licenses/{link_id}",
     "DELETE /api/v1/clients/{cid}/projects/{project_id}/link",
     "DELETE /api/v1/cmdb/wiki-pages/{page_id}/tags/{tag_id}",
-    "DELETE /api/v1/collaboration/conversations/{conversation_id}/members/{user_id}",
-    "DELETE /api/v1/collaboration/conversations/{conversation_id}/pins/{message_id}",
-    "DELETE /api/v1/collaboration/integrations/{integration_id}",
-    "DELETE /api/v1/collaboration/messages/{message_id}",
-    "DELETE /api/v1/collaboration/push/unsubscribe",
-    "DELETE /api/v1/collaboration/saved/{message_id}",
-    "DELETE /api/v1/collaboration/search/saved/{saved_id}",
-    "DELETE /api/v1/collaboration/teams/{team_id}/members/{user_id}",
     "DELETE /api/v1/collaboration/tus/{uid}",
     "DELETE /api/v1/dashboard-widgets/reset",
-    "DELETE /api/v1/enterprise/notifications/clear-old",
     "DELETE /api/v1/epics/comments/{comment_id}",
     "DELETE /api/v1/epics/filters/{filter_id}",
     "DELETE /api/v1/epics/{epic_id}/tasks/{task_id}",
     "DELETE /api/v1/esign/{envelope_id}",
     "DELETE /api/v1/marketplace/uninstall",
-    "DELETE /api/v1/mfa/disable",
     "DELETE /api/v1/reports/templates/{template_id}",
     "DELETE /api/v1/sd/assets/{asset_id}",
     "DELETE /api/v1/sd/autonomous/playbooks/{playbook_id}",
     "DELETE /api/v1/sd/changes/{change_id}",
-    "DELETE /api/v1/sd/rca/templates/{template_id}",
     "DELETE /api/v1/sd/tickets/{ticket_id}/internal-comments/{comment_id}",
     "DELETE /api/v1/sd/tickets/{ticket_id}/links/{link_id}",
     "DELETE /api/v1/task-dependencies/{dep_id}",
     "DELETE /api/v1/tasks/dependencies/{dep_id}",
-    "GET /api/v1/users/org-chart",
-    "PATCH /api/v1/alerts/{alert_id}/read",
-    "PATCH /api/v1/users/{user_id}",
-    "POST /api/v1/documents",
-    "POST /api/v1/documents/upload",
 }
+
 
 
 def test_enforce_abac_is_never_the_only_authorization_control():

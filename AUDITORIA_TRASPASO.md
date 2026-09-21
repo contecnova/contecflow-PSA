@@ -1019,20 +1019,62 @@ y el 403 a dos ayudantes, las señales desaparecieron de su cuerpo y el test se
 puso rojo de golpe sobre **65 rutas**. No era una regresión — era la primera vez
 que medía.
 
-Once de esas 65 eran ruido de la heurística: usaban la comprobación de
-propiedad `..._for_user(db, id, current_user.id)`, que es un control legítimo y
-no estaba en la lista de señales. Se añadió.
+### Y de las 65, cuarenta y una eran fallo del propio detector
 
-**Quedan 54, y 49 de ellas son `DELETE`.** Están registradas en
-`ABAC_UNICO_CONTROL_CONOCIDAS` con trinquete de dos direcciones: una ruta nueva
-en esa situación rompe el test, y una que se arregle y no se quite de la lista,
-también. Validado rompiéndolo por los dos lados.
+Aquí está la parte que importa, y es la misma lección otra vez: **antes de
+actuar sobre un número, comprobar que el instrumento mide**.
 
-> **Esto es deuda medida, no una exención.** Cada una necesita una decisión
-> propia —guarda de rol en la ruta, o comprobación de propiedad u organización
-> en el servicio— y no se arreglan en un barrido. Forzar uno sería justo lo
-> contrario de lo que ese test existe para evitar. Es lo primero que hay que
-> mirar de lo que queda abierto.
+Las 65 se quedaron en 54 al reconocer la comprobación de propiedad
+`..._for_user(db, id, current_user.id)`. Al empezar a arreglar las 54 una por
+una, leyendo el código, resultó que **la mayoría ya tenían control** y el
+detector no lo veía. Tres defectos suyos, los tres reales:
+
+1. **Resolvía los nombres sueltos.** Del código `msg_svc.delete_message(...)`
+   guardaba sólo `delete_message` y luego buscaba *ese nombre* por el módulo,
+   quedándose con el primer objeto que tuviera uno igual. En un proyecto con
+   varios `delete_message`, eso resuelve a **otra función** y la comprobación
+   real nunca se mira. Ahora sigue el camino entero.
+2. **Miraba un solo salto.** El patrón de aquí es endpoint → servicio →
+   ayudante, y la comprobación vive en el tercero la mitad de las veces.
+3. **No conocía dos idiomas que este proyecto usa a diario.** La propiedad
+   escrita como `fila.user_id == user.id` —cuando el servicio llama `user` a su
+   parámetro, como medio `app/services/collaboration/`— y el acotado por
+   organización `organization_id=getattr(current_user, "organization_id", None)`,
+   que el propio docstring del test **ya nombraba como control válido**.
+
+Ejemplo concreto de lo que se estaba contando mal: `delete_message` comprueba
+organización, propiedad del mensaje y rol, y responde 403. Estaba en la lista de
+«sin control».
+
+Cada ampliación se añadió **después de leer el código que la justifica**, nunca
+para poner el test en verde — que es exactamente el vicio que este test tenía.
+
+### Lo que queda de verdad: 24 rutas
+
+Las 24 se comprobaron a mano: no tienen guarda de rol, ni comprobación de
+propiedad, ni acotado explícito por organización en ninguno de los dos saltos.
+Todas son `DELETE` de objetos de negocio de la organización —clientes, planes de
+capacidad, activos, cambios, plantillas, claves de API, dependencias de tarea—.
+
+El filtrado automático de `TenantSession` impide que un cliente toque los de
+otro. Lo que **no** hay es control de quién, dentro de la misma organización,
+puede borrarlos: hoy puede cualquier empleado.
+
+Están registradas en `ABAC_UNICO_CONTROL_CONOCIDAS` con trinquete de dos
+direcciones —una ruta nueva en esa situación rompe el test, y una que se arregle
+y no se quite de la lista, también—, validado rompiéndolo por los dos lados.
+
+**La 25.ª ya está arreglada, y era la única que no necesitaba decisión de
+nadie:** `DELETE /sd/rca/templates/{id}` dice «(admin)» en su propio resumen
+desde que se escribió, y no tenía guarda. Ahora la tiene. No es una política
+nueva: es la que ya estaba escrita, aplicada.
+
+> **Las 24 restantes son deuda medida, no una exención.** Cada una necesita una
+> decisión de producto —¿quién puede borrar un cliente, un plan de capacidad, un
+> activo?— y no se arreglan en un barrido. Aplicar `require_any_manager` a las
+> veinticuatro de golpe sería rápido y sería una ñapa: restringiría flujos
+> legítimos sin que nadie lo haya decidido. Es lo primero que hay que mirar de
+> lo que queda abierto, y la decisión no es del que refactoriza.
 
 ### Un test que sólo pasaba según el orden
 
