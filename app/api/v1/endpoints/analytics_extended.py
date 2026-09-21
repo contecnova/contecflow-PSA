@@ -13,7 +13,7 @@ import io
 # su propio módulo.
 from app.services import adhoc_analytics_service, analytics_service
 from app.services.exportador_tabular import respuesta_tabular
-from app.core.deps import get_db, get_current_user, require_any_manager
+from app.core.deps import get_current_user, get_db, require_any_manager, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from pydantic import BaseModel
@@ -31,6 +31,7 @@ def adhoc_analytics(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: consultas analiticas
 ):
     # Auditoría 2026-08 (P1-9). Aquí había un
     # `if hasattr(v238_service, "run_analytics_adhoc")` — y esa función NO
@@ -101,6 +102,7 @@ def analytics_cross_filter(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: consultas analiticas
 ):
     # Mismo caso que el drilldown: fuera el `hasattr`, llamada directa.
     try:

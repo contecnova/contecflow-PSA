@@ -30,7 +30,7 @@ from app.schemas.m365 import CalendarEventCreate, TeamsNotification, MilestoneSy
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user, get_db, require_admin
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -82,6 +82,7 @@ async def sync_calendar_events(
     user_upn: str,
     days: int = 14,
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Pull upcoming calendar events for the given user via Microsoft Graph."""
     _require_m365()
@@ -103,6 +104,7 @@ async def sync_calendar_events(
 async def create_calendar_event(
     body: CalendarEventCreate,
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Create a calendar event in the specified user's Microsoft 365 calendar."""
     _require_m365()
@@ -131,6 +133,7 @@ async def delete_calendar_event(
     user_upn: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     # Audit #C7: ABAC enforcement reads from DB; offload to threadpool so the
     # sync ORM call does not block the event loop. The Graph API call is
@@ -151,6 +154,7 @@ def sync_milestones_to_calendar(
     req: MilestoneSyncRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Push upcoming project milestones as Microsoft 365 calendar events."""
     _require_m365()
@@ -186,6 +190,7 @@ def sync_milestones_to_calendar(
 async def send_teams_notification(
     body: TeamsNotification,
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Send an Adaptive Card-style message to a Microsoft Teams channel via incoming webhook."""
     webhook_url = body.webhook_url or settings.TEAMS_WEBHOOK_URL
@@ -218,6 +223,7 @@ async def notify_project_milestone(
     milestone_name: str,
     due_date: str,
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Send a formatted Teams notification about an upcoming milestone."""
     webhook_url = settings.TEAMS_WEBHOOK_URL
@@ -248,6 +254,7 @@ async def notify_project_milestone(
 def receive_teams_webhook(
     payload: dict,
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     # Audit #C7: converted async→def — no awaits inside, was unnecessarily on
     # the event loop. Now runs in FastAPI's threadpool.
@@ -369,6 +376,7 @@ def sync_to_planner(
     plan_id: Optional[str] = None,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Sube las tareas activas de un proyecto a un plan de Microsoft Planner.
 

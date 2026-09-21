@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
 from app.core.responses import APIListResponse, APIResponse
 from app.core.security import create_access_token
 from app.db.session import get_db
@@ -98,6 +98,7 @@ def phase3_patch_embed_settings(
     payload: EmbedSettingsPatchIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     org_id = getattr(current_user, "organization_id", None)
     data = {k: v for k, v in payload.model_dump().items() if v is not None}
@@ -109,6 +110,7 @@ def phase3_embed_token(
     payload: EmbedTokenIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     org_id = getattr(current_user, "organization_id", None)
     settings = svc.get_embed_settings(db, organization_id=org_id)
@@ -146,6 +148,7 @@ def phase3_patch_connector_catalog(
     payload: ConnectorPatchIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     org_id = getattr(current_user, "organization_id", None)
     data = {k: v for k, v in payload.model_dump().items() if v is not None}
@@ -175,6 +178,7 @@ def phase3_create_custom_connector(
     payload: CustomConnectorIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -194,6 +198,7 @@ def phase3_delete_custom_connector(
     connector_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     enforce_abac(db, current_user, "bi_custom_connector", connector_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
@@ -208,6 +213,7 @@ def phase3_test_custom_connector(
     connector_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -230,6 +236,7 @@ def phase3_upsert_lineage_edge(
     payload: LineageEdgeIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.upsert_lineage_edge(
@@ -247,6 +254,7 @@ def phase3_log_access(
     payload: AccessAuditIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.log_access_event(
@@ -266,6 +274,7 @@ def phase3_create_dataset_snapshot(
     payload: DatasetSnapshotIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.create_dataset_snapshot(
@@ -328,6 +337,7 @@ def phase3_upsert_field_sensitivity(
     payload: FieldSensitivityIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -351,6 +361,7 @@ def phase3_delete_field_sensitivity(
     sensitivity_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     enforce_abac(db, current_user, "bi_field_sensitivity", sensitivity_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)

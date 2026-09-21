@@ -26,7 +26,7 @@ import json
 import asyncio
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -112,6 +112,7 @@ def parse_mentions(
     payload: ParseMentionIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: analiza un texto, no escribe
 ):
     """
     Llamar después de guardar comentarios/descripciones con @mentions. Idempotente por entity_id.
@@ -138,6 +139,7 @@ def mark_mention_read(
     mention_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=mark_mention_read_record(db, mention_id, current_user))
 
@@ -443,6 +445,7 @@ def simulate_project(
     payload: SimulationIn,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     """
     Pure read-only simulation — nothing is persisted.

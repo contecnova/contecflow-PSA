@@ -5,7 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -39,7 +39,9 @@ def my_workspace(current_user: User = Depends(get_current_user), db: Session = D
 
 
 @router.patch("/workspace", response_model=APIResponse[WorkspaceOut], summary="Actualizar workspace")
-def update_workspace(payload: WorkspaceUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def update_workspace(payload: WorkspaceUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     ws = ws_svc.update_workspace(db, current_user, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=WorkspaceOut(
         id=ws.id, organization_id=ws.organization_id, name=ws.name,
@@ -65,7 +67,9 @@ def list_teams(current_user: User = Depends(get_current_user), db: Session = Dep
 
 
 @router.post("/teams", response_model=APIResponse[TeamOut], summary="Crear equipo")
-def create_team(payload: TeamCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_team(payload: TeamCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     t = ws_svc.create_team(
         db, current_user,
         name=payload.name, slug=payload.slug, description=payload.description,
@@ -79,7 +83,9 @@ def create_team(payload: TeamCreate, current_user: User = Depends(get_current_us
 
 
 @router.patch("/teams/{team_id}", response_model=APIResponse[TeamOut], summary="Actualizar equipo")
-def update_team(team_id: str, payload: TeamUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def update_team(team_id: str, payload: TeamUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     t = ws_svc.update_team(db, current_user, team_id, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=TeamOut(
         id=t.id, name=t.name, slug=t.slug, description=t.description,
@@ -95,13 +101,17 @@ def list_team_members(team_id: str, current_user: User = Depends(get_current_use
 
 
 @router.post("/teams/{team_id}/members", summary="Añadir miembros al equipo")
-def add_team_members(team_id: str, payload: TeamMemberUpsert, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def add_team_members(team_id: str, payload: TeamMemberUpsert, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     n = ws_svc.add_team_members(db, current_user, team_id, payload.user_ids, role=payload.role)
     return APIResponse.ok(data={"added": n})
 
 
 @router.delete("/teams/{team_id}/members/{user_id}", summary="Quitar miembro del equipo")
-def remove_team_member(team_id: str, user_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def remove_team_member(team_id: str, user_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     enforce_abac(db, current_user, "collaboration_team", team_id, action="delete")
     ws_svc.remove_team_member(db, current_user, team_id, user_id)
     return APIResponse.ok(data={"removed": True})
@@ -158,7 +168,9 @@ def update_channel(channel_id: str, payload: ChannelUpdate, current_user: User =
 
 
 @router.post("/channels/{channel_id}/members", summary="Añadir miembros al canal")
-def add_channel_members(channel_id: str, payload: TeamMemberUpsert, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def add_channel_members(channel_id: str, payload: TeamMemberUpsert, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     n = ws_svc.add_channel_members(db, current_user, channel_id, payload.user_ids)
     return APIResponse.ok(data={"added": n})
 
@@ -174,7 +186,9 @@ def list_channel_members(channel_id: str, current_user: User = Depends(get_curre
 
 # ── Direct + Group ───────────────────────────────────────────────────────────
 @router.post("/direct/open", summary="Abrir o reusar conversación 1:1")
-def open_direct(payload: DirectOpenIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def open_direct(payload: DirectOpenIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     d = ws_svc.open_direct(
         db, current_user,
         target_user_id=payload.user_id,
@@ -184,7 +198,9 @@ def open_direct(payload: DirectOpenIn, current_user: User = Depends(get_current_
 
 
 @router.post("/groups", summary="Crear grupo ad-hoc")
-def create_group(payload: GroupCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_group(payload: GroupCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     g = ws_svc.create_group(
         db, current_user,
         title=payload.title,
@@ -210,6 +226,7 @@ def add_conversation_members(
     payload: dict,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
 ):
     n = ws_svc.add_conversation_members(
         db, current_user, conversation_id,
@@ -256,7 +273,9 @@ def update_presence(payload: PresenceIn, current_user: User = Depends(get_curren
 
 # ── Drafts ──────────────────────────────────────────────────────────────────
 @router.put("/conversations/{conversation_id}/draft", summary="Guardar borrador")
-def upsert_draft(conversation_id: str, payload: DraftIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def upsert_draft(conversation_id: str, payload: DraftIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+):
     from app.services.collaboration.messages import upsert_draft as _upsert
     _upsert(db, current_user, conversation_id, payload.body, payload.metadata_json, payload.parent_message_id)
     return APIResponse.ok(data={"ok": True})
@@ -310,7 +329,9 @@ def list_saved_searches(current_user: User = Depends(get_current_user), db: Sess
 
 
 @router.post("/search/saved", summary="Guardar búsqueda")
-def save_search(payload: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def save_search(payload: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+):
     return APIResponse.ok(data=ws_svc.save_search(
         db, current_user,
         name=payload.get("name") or "", query=payload.get("query") or "",

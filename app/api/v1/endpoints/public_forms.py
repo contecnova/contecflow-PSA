@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user, get_db, require_admin_or_pm
 from app.core.abac_enforce import enforce_abac
 from app.core.ratelimit import limiter
 from app.models.user import User, UserRole
@@ -88,6 +88,7 @@ def create_form(
     payload: FormCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: excepcion revisada: un formulario publico abre una puerta sin autenticar, pero la audiencia prevista es PM segun test_public_forms
 ):
     form = public_forms_service.create_form(
         db,
@@ -120,6 +121,7 @@ def update_form(
     payload: FormUpdateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: excepcion revisada: idem que crear el formulario
 ):
     form = public_forms_service.get_form_by_id(db, form_id)
     if not form:
@@ -131,7 +133,9 @@ def update_form(
 
 
 @router.delete("/{form_id}", summary="Eliminar formulario")
-def delete_form(form_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_form(form_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: excepcion revisada: idem que crear el formulario
+):
     form = public_forms_service.get_form_by_id(db, form_id)
     if not form:
         raise HTTPException(404, "Formulario no encontrado")

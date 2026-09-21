@@ -241,6 +241,7 @@ def update_capacity_plan(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     plan = capacity_service.get_capacity_plan_by_id(db, plan_id)
     if not plan:

@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.core.ratelimit import limiter
@@ -72,6 +72,7 @@ def detect_anomalies(
     body: AnomalyDetectIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     try:
         values = [float(v) for v in (body.values or [])]
@@ -113,6 +114,7 @@ def predict_churn(
     request: Request,
     body: ChurnPredictIn,
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     clients_data: list[dict[str, Any]] = [c.model_dump() for c in (body.clients or [])]
 

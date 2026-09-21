@@ -7,7 +7,12 @@ from typing import Optional
 from datetime import date
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_admin_or_pm
+from app.core.deps import (
+    get_current_user,
+    require_admin_or_pm,
+    require_any_manager,
+    require_internal_user,
+)
 from app.core.abac_enforce import enforce_abac
 from app.core.uploads import UploadProfile, read_and_validate_upload
 from app.core.responses import APIListResponse, APIResponse
@@ -125,6 +130,7 @@ def create_expense(
     payload: ExpenseCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: presentar un gasto propio
 ):
     expense = svc_create_expense(db, payload, current_user.id, _next_code(db))
     return APIResponse.ok(data=_expense_out(expense))
@@ -215,6 +221,7 @@ def export_expenses(
 async def ocr_receipt(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: escanear el recibo del gasto propio
 ):
     # Auditoría 2026-08 (P1-8): aquí sólo se comprobaba `file.content_type`, que
     # es un valor que elige el cliente — renombrar la cabecera bastaba para

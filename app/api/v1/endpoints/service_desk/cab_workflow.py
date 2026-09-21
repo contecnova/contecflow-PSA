@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -97,6 +97,7 @@ def cast_vote(
     payload: CABVoteIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: vota el miembro del CAB designado, y el endpoint comprueba que lo eres
 ):
     try:
         state = svc.cast_cab_vote(

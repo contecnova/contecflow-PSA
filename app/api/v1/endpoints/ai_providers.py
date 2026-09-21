@@ -5,7 +5,7 @@ import time
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user, require_admin, require_internal_user
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -295,6 +295,7 @@ def get_stats(db: Session = Depends(get_db), _=Depends(get_current_user)):
 # ── Endpoint de chat unificado ────────────────────────────────────────────────
 @router.post("/chat")
 def unified_chat(data: dict = Body(...), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                  cu=Depends(get_current_user)):
     """Chat unificado que usa el proveedor configurado."""
     messages = data.get("messages", [])

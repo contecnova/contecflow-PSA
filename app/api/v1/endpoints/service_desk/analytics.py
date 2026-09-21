@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.service_desk.stats_service import get_service_desk_stats
@@ -51,6 +51,7 @@ def put_dashboard_layout(
     role: str = Query("operation", pattern="^(operation|manager|executive)$"),
     layout: dict = Body(...),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data={"role": role, "layout": save_layout(db, org_id, role, layout)})

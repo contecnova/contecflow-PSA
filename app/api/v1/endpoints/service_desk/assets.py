@@ -140,6 +140,7 @@ def create_asset(
     payload: AssetCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     asset = create_asset_record(db, payload)
     db.commit()
@@ -209,6 +210,7 @@ def update_asset(
     payload: AssetUpdateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     asset = update_asset_record(db, asset_id, payload, changed_by=current_user.id)
     db.commit()
@@ -238,6 +240,7 @@ def assign_asset(
     payload: AssetAssignIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     user_name = assign_asset_record(
         db, asset_id, payload.user_id, changed_by=current_user.id, notes=payload.notes
@@ -270,6 +273,7 @@ def create_asset_refresh_ticket(
     asset_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     result = create_refresh_ticket(db, asset_id, acting_user_id=current_user.id)
     db.commit()

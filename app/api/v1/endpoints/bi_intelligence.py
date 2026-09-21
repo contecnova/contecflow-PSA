@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
 from app.core.config import settings
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.core.security import create_access_token, decode_token
 from app.services.ws_service import (
@@ -100,6 +100,7 @@ def phase2_patch_connector(
     payload: ConnectorPatchIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -119,6 +120,7 @@ def phase2_sync_connector(
     connector: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -135,6 +137,7 @@ def enqueue_connector_sync(
     connector: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     """Encola `sync_connector_data` en Celery y devuelve el task_id.
 
@@ -182,6 +185,7 @@ def phase2_report_preview(
     payload: AdvancedPreviewIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -213,6 +217,7 @@ def phase2_visual_query_builder_preview(
     payload: VisualQueryPreviewIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=svc.preview_visual_query(
@@ -256,6 +261,7 @@ def phase2_save_visual_query_builder_template(
     payload: VisualQueryTemplateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -281,6 +287,7 @@ def phase2_delete_visual_query_builder_template(
     template_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     enforce_abac(db, current_user, "bi_visual_query_template", template_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
@@ -312,6 +319,7 @@ def phase2_delivery_run_now(
     report_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     _ = current_user
     return APIResponse.ok(data=svc.run_scheduled_delivery_now(db, report_id=report_id))
@@ -380,6 +388,7 @@ def phase2_save_connector_config(
     payload: ConnectorConfigIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     saved = svc.save_connector_config(
@@ -397,6 +406,7 @@ def phase2_etl_sync(
     payload: ConnectorConfigIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -647,6 +657,7 @@ def create_delivery_schedule(
     body: DeliveryScheduleCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -675,6 +686,7 @@ def update_delivery_schedule(
     body: DeliveryScheduleUpdateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -694,6 +706,7 @@ def delete_delivery_schedule(
     schedule_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     enforce_abac(db, current_user, "bi_delivery_schedule", schedule_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
@@ -709,6 +722,7 @@ def send_delivery_now(
     schedule_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:

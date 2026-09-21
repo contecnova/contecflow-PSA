@@ -3,7 +3,12 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_any_manager
+from app.core.deps import (
+    get_current_user,
+    require_admin,
+    require_any_manager,
+    require_internal_user,
+)
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -51,6 +56,7 @@ def mark_read(
     alert_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     enforce_abac(db, current_user, "alert", alert_id, action="update")
     mark_alert_read(db, alert_id, current_user)

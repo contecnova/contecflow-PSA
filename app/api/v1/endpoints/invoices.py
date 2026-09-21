@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, HTTPException, Query, Response, status, Dep
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.deps import get_db, get_current_user
+from app.core.deps import get_current_user, get_db, require_any_manager
 from app.models.billing_reports import InvoiceStatus
 from app.models.user import User, UserRole
 from app.schemas.billing_reports import InvoiceCreate, InvoiceOut, InvoiceSummaryOut
@@ -20,6 +20,7 @@ def invoice_from_timesheets(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: facturacion
 ):
     return APIResponse.ok(data=build_invoice_preview_from_timesheets_flow(
         db=db,
@@ -35,6 +36,7 @@ def create_invoice(
     payload: InvoiceCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: facturacion
 ):
     return APIResponse.ok(data=billing_reports_service.create_invoice(payload, current_user, db))
 
@@ -67,6 +69,7 @@ def create_payment_link(
     invoice_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: facturacion
 ):
     invoice = billing_reports_service.get_invoice_by_id(db, invoice_id)
     if not invoice:

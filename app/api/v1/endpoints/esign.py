@@ -148,6 +148,7 @@ def create_envelope(
     body:         EnvelopeCreate,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     if not body.signers:
         raise HTTPException(400, "Al menos un firmante es obligatorio")
@@ -294,6 +295,7 @@ def update_status(
     status:      str,
     db:          Session = Depends(get_db),
     _:           User    = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     try:
         new_status = ESignStatus(status)
@@ -314,6 +316,7 @@ def mark_signer_signed(
     signer_id:   int,
     db:          Session = Depends(get_db),
     _:           User    = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     signer = esign_service.get_signer(db, signer_id, envelope_id)
     if not signer:
@@ -359,6 +362,7 @@ def void_envelope(
     envelope_id: int,
     db:          Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     enforce_abac(db, current_user, "esign_envelope", str(envelope_id), action="delete")
     env = esign_service.get_envelope(db, envelope_id)

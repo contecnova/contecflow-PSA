@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.core.responses import APIResponse
 from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
@@ -122,6 +122,7 @@ def merge_cluster_to_problem(
     payload: MergeClusterIn,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """
     Create a Problem record from a correlation cluster and link all tickets.
@@ -152,6 +153,7 @@ def run_correlation_scan(
     organization_id: Optional[str] = Query(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """
     Admin-only: trigger a full alert correlation scan.
@@ -179,6 +181,7 @@ def deduplicate_ticket(
     ticket_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """
     Check whether *ticket_id* is a duplicate of an existing open ticket

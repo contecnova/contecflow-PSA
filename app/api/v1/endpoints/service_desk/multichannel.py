@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -55,6 +55,7 @@ def put_config(
     payload: MultichannelConfigIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     current = get_multichannel_config(db, org_id)
@@ -159,5 +160,6 @@ def notify_ticket_requester(
     payload: NotifyIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: dominio: canales de entrada
 ):
     return APIResponse.ok(data=notify_requester(db, ticket_id=ticket_id, message=payload.message, channels=payload.channels))

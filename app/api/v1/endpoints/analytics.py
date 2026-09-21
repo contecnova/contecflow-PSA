@@ -9,7 +9,7 @@ import logging
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 # Legacy metrics fully migrated to MODULAR_METRICS_REGISTRY — see #109/#104.
@@ -1020,6 +1020,7 @@ def ask_the_data(
     payload: AskRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: consultas analiticas
 ):
     from app.services.ask_the_data import ask
     org_id = getattr(current_user, "organization_id", None)

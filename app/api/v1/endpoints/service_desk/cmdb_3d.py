@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.core.ratelimit import limiter
 from app.core.responses import APIResponse
 from app.db.session import get_db
@@ -71,6 +71,7 @@ def create_asset_link(
     body: AssetLinkIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=link_asset_to_ci(

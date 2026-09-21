@@ -4,7 +4,7 @@ ABAC (Attribute-Based Access Control) API endpoints for policy and attribute man
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from app.core.deps import get_db, get_current_user
+from app.core.deps import get_current_user, get_db, require_admin, require_internal_user
 from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -47,6 +47,7 @@ def create_attribute_definition(
     schema: AttributeDefinitionSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Create new attribute definition (admin only)."""
     verify_admin_or_governance_role(current_user)
@@ -70,6 +71,7 @@ def create_attribute_definition(
 def initialize_default_attributes(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Initialize common PSA attributes. Safe to call multiple times (idempotent)."""
     verify_admin_or_governance_role(current_user)
@@ -126,6 +128,7 @@ def assign_user_attribute(
     schema: UserAttributeAssignSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Assign an attribute to a user (admin/governance only)."""
     verify_admin_or_governance_role(current_user)
@@ -151,6 +154,7 @@ def revoke_user_attribute(
     attribute_key: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Revoke an attribute from a user (admin/governance only)."""
     verify_admin_or_governance_role(current_user)
@@ -189,6 +193,7 @@ def create_policy(
     schema: ABACPolicyCreateSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Create new ABAC policy (admin/governance only)."""
     verify_admin_or_governance_role(current_user)
@@ -236,6 +241,7 @@ def update_policy(
     schema: ABACPolicyCreateSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Update an ABAC policy (admin/governance only)."""
     verify_admin_or_governance_role(current_user)
@@ -265,6 +271,7 @@ def delete_policy(
     policy_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Delete (soft) an ABAC policy (admin/governance only)."""
     verify_admin_or_governance_role(current_user)
@@ -287,6 +294,7 @@ def evaluate_access(
     schema: AccessEvaluationRequestSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: pregunta si YO tengo acceso; no cambia ninguna politica
 ):
     """
     Evaluate if current user can access a resource based on ABAC policies.
@@ -332,6 +340,7 @@ def evaluate_access_for_user(
     schema: AccessEvaluationRequestSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """
     Evaluate access for a specific user (admin/governance only).

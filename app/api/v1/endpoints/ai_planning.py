@@ -16,7 +16,7 @@ tocarlos alteraria los permisos en silencio.
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.models.user import User
 from app.core.responses import APIResponse
 # Auditoría 2026-08 (hallazgo 22). Antes esto era un único
@@ -36,6 +36,7 @@ def estimate_task_hours(
     task_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_ai_plan.estimate_task_hours(task_id, db))
@@ -49,6 +50,7 @@ def accept_estimate(
     payload: AcceptFlagIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_ai_plan.accept_task_estimate(task_id, payload.accepted, db))
@@ -61,6 +63,7 @@ def ai_triage_ticket(
     ticket_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_ai_plan.triage_ticket(ticket_id, db))

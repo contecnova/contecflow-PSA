@@ -39,7 +39,7 @@ from uuid import uuid4
 
 from app.db.session import SessionLocal
 from app.db.session import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin, require_internal_user
 from app.core.responses import APIResponse
 from app.core.tenancy import org_scoped_or_404
 from app.models.user import User
@@ -101,6 +101,7 @@ def analyze_ticket_for_ai_resolution(
     ticket_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     """
     Analyze a ticket and get AI-powered resolution suggestions.
@@ -144,6 +145,7 @@ def apply_ai_auto_resolution(
     force: bool = Query(False, description="Force apply even if low confidence"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     """
     Apply AI-recommended resolution to a ticket.
@@ -254,6 +256,7 @@ def run_auto_resolution_job(
     run_async: bool = Query(True, description="Run in background and return immediately"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: dominio: automatismos que resuelven solos
 ):
     """
     Run the daily auto-resolution job.
@@ -465,6 +468,7 @@ def validate_ticket_auto_resolution(
     ticket_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """
     Check whether an auto-resolved ticket was subsequently reopened and record
@@ -496,6 +500,7 @@ def submit_auto_resolution_feedback(
     body: FeedbackBody,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """
     Record whether the auto-resolution was successful or not.
@@ -565,6 +570,7 @@ def update_auto_resolution_config_endpoint(
     body: AutoResolutionConfigPatch,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
@@ -586,6 +592,7 @@ def update_auto_resolution_config_endpoint(
 def run_auto_close_job_endpoint(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: dominio: automatismos que resuelven solos
 ):
     """
     Close tickets that have been in *resolved* status for more than

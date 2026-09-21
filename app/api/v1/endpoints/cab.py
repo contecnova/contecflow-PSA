@@ -23,7 +23,7 @@ from app.core import timeutil
 logger = logging.getLogger("contecflow.v14")
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -467,6 +467,7 @@ def complete_onboarding_step(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     try:
         return APIResponse.ok(data=_svc.complete_onboarding_step(payload.get("step_id"), current_user, db))

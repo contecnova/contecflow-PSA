@@ -62,6 +62,7 @@ def post_playbook(
     payload: PlaybookCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     result = create_playbook(db, payload.model_dump())
     db.commit()
@@ -74,6 +75,7 @@ def put_playbook(
     payload: PlaybookUpdateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     result = update_playbook(db, playbook_id, payload.model_dump(exclude_unset=True))
     db.commit()
@@ -103,6 +105,7 @@ def evaluate_ticket(
     ticket_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     from app.models.service_desk import Ticket
 
@@ -116,6 +119,7 @@ def resolve_ticket(
     ticket_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=run_autonomous_resolution(db, ticket_id, acting_user_id=current_user.id))
 

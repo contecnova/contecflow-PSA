@@ -1465,6 +1465,124 @@ clave hay un único texto y deja de poder divergir.
 
 ---
 
+## 3.duotrigies Casi la mitad de la API escribía sin preguntar quién eras
+
+Esto salió de cerrar las 24 rutas `DELETE` de §3.trigies. El detector de ABAC
+sólo mira rutas que llaman a `enforce_abac`, y eso es casi todo `DELETE`; al
+contar **todas** las de escritura apareció el tamaño real:
+
+| | antes | ahora |
+|---|---|---|
+| Rutas de escritura **con** guarda de rol | 603 | **929** |
+| Rutas de escritura **sin** ninguna | **563** | 0 |
+| Exentas, con motivo comprobado | — | 115 |
+
+`TenantSession` seguía impidiendo el acceso entre organizaciones. Lo que
+faltaba era quién, **dentro** de la misma empresa, puede hacer cada cosa.
+
+### Lo que NO se hizo, que es la mitad del trabajo
+
+Poner `require_any_manager` a las 563 habría tardado diez minutos y habría
+dejado el producto inservible: imputar horas, abrir un ticket, comentar una
+tarea o editar el perfil propio habrían pasado a exigir rol de gestión.
+
+La decisión se tomó con **cinco reglas en orden**, y el orden es el argumento:
+
+1. **Otra superficie de autenticación** → fuera. El portal de cliente
+   (`get_current_client`), las API key y los webhooks de proveedor no tienen
+   usuario interno: un cliente no tiene rol de empleado y Twilio no tiene rol.
+2. **Dominios sensibles** → `require_admin` siempre. Aquí hay un detalle que
+   importa: `DELETE /abac/policies/{id}` salía como «acotada al usuario» porque
+   el servicio comprueba `created_by`. Para una **política de permisos** eso
+   significa «quien la creó puede borrarla», que es demasiado laxo para el
+   motor que gobierna los accesos de todos.
+3. **Acotada al propio usuario** → exenta. Reutiliza `_acota_por_propiedad`, el
+   comprobador ya validado de `test_abac_coverage`.
+4. **La guarda que usan sus hermanas** en el mismo fichero. Evidencia del
+   repositorio, no gusto de quien refactoriza.
+5. **Tabla por dominio** para los ficheros sin ninguna hermana guardada.
+
+Con dos anulaciones que van **antes** de la regla 4, porque la forma de la ruta
+dice lo que hace mejor que el fichero donde vive: lo que huele a configuración
+(`/config`, `/credentials`, `/providers`) sube a `require_admin`, y lo que huele
+a trabajo diario (`/comments`, `/values/`, `/suggest/`, `/analyze`) baja a
+`require_internal_user`.
+
+**Y una tabla de excepciones revisadas a mano**, que salió de leer las 109
+decisiones restrictivas una por una. El caso que la retrata: `POST /sd/tickets`
+salía `any_manager` porque `tickets.py` tiene `merge`, `split` y `auto-assign`
+con esa guarda. Abrir un ticket es la acción central de un service desk; pedir
+rol de gestión para eso no es endurecer nada.
+
+El reparto final no se parece a un barrido:
+
+| guarda | rutas |
+|---|---|
+| `require_internal_user` (sólo excluye al subcontratado) | 172 |
+| `require_admin` (configuración, credenciales, gobierno) | 127 |
+| `require_any_manager` | 53 |
+| `require_admin_or_pm` | 19 |
+| `require_admin_or_hr` | 8 |
+
+### Las 32 pruebas que corrigieron la primera pasada
+
+La primera aplicación puso 372 guardas y dejó **32 tests en rojo**. Todos
+señalaban lo mismo, y con sus propios nombres:
+
+```
+test_un_empleado_puede_editar_sus_propios_datos_de_perfil
+test_user_can_create_own_plan
+test_manager_can_create_plan_for_direct_report
+```
+
+Rutas de **autoservicio** restringidas de más: editar el perfil propio, crear
+el plan de desarrollo propio, presentar algo a aprobación, decidir como
+aprobador designado. En todas ellas el control existe y vive **dentro** del
+endpoint —«¿es tu perfil?», «¿eres el aprobador?»—, que es justo lo que un
+barrido no puede ver.
+
+> **Ahí el test tiene razón y la guarda no**, y conviene decirlo tal cual: la
+> suite no fue un trámite al final, fue el instrumento que corrigió la
+> decisión. De esos 32 fallos salió `EXENTAS_REVISADAS`, con las 21 rutas y el
+> motivo de cada una.
+
+Dos las decidió el test por otra vía: `POST /developer/apps` y `POST /forms`
+llevaban `require_admin` por ser credenciales OAuth y una puerta pública, pero
+sus tests usan `pm_token`. La audiencia prevista estaba escrita; la guarda baja
+a `require_admin_or_pm`.
+
+### Cuatro defectos del aplicador, cada uno con su síntoma
+
+Editar 360 firmas a máquina tiene su propia lista:
+
+| qué | cómo se vio |
+|---|---|
+| Firma de una sola línea partida sin coma | 105 errores de sintaxis de ruff |
+| `_` como nombre, donde el endpoint ya tenía un `_` | «Duplicate parameter» |
+| La misma función registrada en v1 **y** v2, parcheada dos veces | «Duplicate parameter», 17 de ellas |
+| El import nuevo dentro de un `from … import (` multilínea | el fichero dejaba de parsear |
+
+El último es el mismo fallo que ya costó un `en.mjs` roto en la tanda de
+traducción, con otra sintaxis: «la última línea que empieza por `import`» es la
+**apertura** de un import multilínea. Se arregla igual, preguntando al AST por
+el final del último import y no al texto por su principio.
+
+### El guardián
+
+`tests/test_guardas_de_rol.py`, cuatro reglas:
+
+1. Ninguna ruta de escritura sin guarda **y sin motivo**.
+2. Las exenciones escritas a mano siguen correspondiendo a una ruta real — una
+   entrada que sobra convierte la lista en historia en vez de descripción.
+3. El reparto de exenciones automáticas, en su número medido, con trinquete de
+   dos direcciones.
+4. Las 929 guardas no retroceden.
+
+Validado rompiéndolo: quitar **una** guarda de `clients.py` pone dos de las
+cuatro en rojo.
+
+---
+
 ## 3.duovicies El barrido de duplicación: 31 parejas, cero defectos
 
 La duplicación ha sido **el detector más productivo de toda esta auditoría**, y
@@ -5050,14 +5168,12 @@ día divergen, y aquí ya lo habían hecho.
 
 **Lo que queda abierto de verdad, medido hoy:**
 
-- **El control de rol está a parches en toda la capa API** (§3.trigies). Las
-  24 rutas `DELETE` que estaban sin control quedan en **1**, y esa una no se
-  puede guardar porque no hace nada. Pero al mirarlas salió lo de fondo:
-  **crear está tan sin guarda como borrar**. De las 15 rutas de escritura de
-  `clients.py` ninguna tenía control de rol, y en `service_desk` la mayoría de
-  los `POST` tampoco. El detector no lo veía porque sólo mira rutas que llaman
-  a `enforce_abac`, y eso es casi todo `DELETE`. **Esto es ahora lo primero de
-  la lista**, y es bastante más ancho que lo que decía este punto.
+> **Cerrado en §3.duotrigies.** Este punto decía que el control de rol estaba
+> a parches en toda la capa API, y era verdad: contando **todas** las rutas de
+> escritura —no sólo las que llaman a `enforce_abac`— había **563 sin ningún
+> control de rol** frente a 603 que sí lo tenían. Hoy son **929 con guarda** y
+> **115 exentas con motivo escrito y comprobado**, y un guardián de cuatro
+> reglas impide que el número vuelva.
 > **Cerrado en §3.untrigies: 0 de 1.852.** Este punto decía «traducción al
 > 62,2 %, faltan 1.419 claves», y ya era falso cuando se escribió —eso se cerró
 > en `d5295e6`—. Lo que sí quedaba era otra cosa: **1.852 cadenas escritas a

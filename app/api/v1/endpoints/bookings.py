@@ -7,7 +7,12 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.deps import (
+    get_current_user,
+    require_admin,
+    require_any_manager,
+    require_internal_user,
+)
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -131,6 +136,7 @@ def create_sla_schedule(payload: SLAScheduleCreate, db: Session = Depends(get_db
 
 @router.post("/sla-schedules/calculate-deadline")
 def calculate_sla_deadline(payload: dict = Body(...), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: calcula una fecha
                            current_user: User = Depends(get_current_user)):
     return APIResponse.ok(data=svc.calculate_sla_deadline_record(payload, db))
 
@@ -166,6 +172,7 @@ def list_api_keys(
 
 @router.post("/api-keys")
 def create_api_key(payload: ApiKeyCreate, db: Session = Depends(get_db),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                    current_user: User = Depends(get_current_user)):
     return APIResponse.ok(data=svc.create_api_key_record(payload, current_user.id, db))
 
@@ -271,6 +278,7 @@ def oidc_callback(payload: dict = Body(...), db: Session = Depends(get_db)):
 
 @router.post("/workflows/enqueue")
 def enqueue_workflow(payload: dict = Body(...), db: Session = Depends(get_db),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                      current_user: User = Depends(get_current_user)):
     return APIResponse.ok(data=svc.enqueue_workflow_record(payload, current_user.id, db))
 

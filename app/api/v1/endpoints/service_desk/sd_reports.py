@@ -23,6 +23,7 @@ from app.services.service_desk.sd_reporting_service import (
     save_report_preset,
     _REPORT_TYPES,
 )
+from app.core.deps import require_internal_user
 
 router = APIRouter(prefix="/sd/reports", tags=["sd-reports"])
 
@@ -37,6 +38,7 @@ def run_report(
     body: dict,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     return APIResponse.ok(data=build_drilldown_report(
         db=db,
@@ -64,6 +66,7 @@ def create_preset(
     body: dict,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     org_id = body.get("org_id", "default")
     return APIResponse.ok(data=save_report_preset(db, org_id, body))
@@ -74,6 +77,7 @@ def export_report(
     body: dict,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     data = export_report_excel(
         db=db,

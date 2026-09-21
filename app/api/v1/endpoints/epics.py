@@ -7,7 +7,7 @@ from app.schemas.epics import (
 )
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_pm
+from app.core.deps import get_current_user, require_admin_or_pm, require_internal_user
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
@@ -73,6 +73,7 @@ def list_pages(space_id: str, db: Session = Depends(get_db), cu: User = Depends(
 
 @router.post("/wiki/spaces/{space_id}/pages", summary="Crear página de wiki")
 def create_page(space_id: str, p: WikiPageIn,
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=create_wiki_page(space_id, p.title, p.slug, p.content,
                                                 p.parent_id, p.is_published, p.sort_order, cu.id, db))
@@ -140,12 +141,14 @@ def page_comments(page_id: str, db: Session = Depends(get_db), cu: User = Depend
 
 @router.post("/wiki/pages/{page_id}/comments")
 def add_wiki_comment(page_id: str, p: WikiCommentIn,
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                      db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=add_wiki_page_comment(page_id, p.content, p.parent_id, cu.id, db))
 
 
 @router.patch("/wiki/comments/{comment_id}/resolve")
 def resolve_wiki_comment(comment_id: str, db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                          cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=resolve_wiki_page_comment(comment_id, db))
 
@@ -177,7 +180,9 @@ def get_roadmap(project_id: str = Query(...),
 
 
 @router.post("/nql/search")
-def nql_search(p: NQLIn, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def nql_search(p: NQLIn, db: Session = Depends(get_db), cu: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+):
     return APIResponse.ok(data=execute_nql_search(p.entity_type, p.query, p.limit, db))
 
 
@@ -188,7 +193,9 @@ def list_filters(entity_type: Optional[str] = None,
 
 
 @router.post("/filters")
-def save_filter(p: SavedFilterIn, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def save_filter(p: SavedFilterIn, db: Session = Depends(get_db), cu: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     return APIResponse.ok(data=create_saved_filter(p.model_dump(), cu.id, db))
 
 
@@ -239,6 +246,7 @@ def get_comments(entity_type: str, entity_id: str,
 
 @router.post("/comments")
 def add_comment(entity_type: str, entity_id: str, p: ThreadedCommentIn,
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=add_threaded_comment(entity_type, entity_id, p.content, p.parent_id, cu.id, db))
 
@@ -251,6 +259,7 @@ def edit_comment(comment_id: str, p: ThreadedCommentIn,
 
 @router.patch("/comments/{comment_id}/resolve")
 def resolve_comment(comment_id: str, db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                     cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=resolve_threaded_comment(comment_id, db))
 
@@ -284,6 +293,7 @@ def delete_epic(epic_id: str, db: Session = Depends(get_db),
 
 @router.post("/{epic_id}/tasks/{task_id}")
 def add_task_to_epic(epic_id: str, task_id: str,
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                      db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=add_task_to_epic_record(epic_id, task_id, db))
 

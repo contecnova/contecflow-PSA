@@ -12,7 +12,7 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_pm
+from app.core.deps import get_current_user, require_admin, require_admin_or_pm
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
@@ -161,6 +161,7 @@ def create_task_dependency(
     p: TaskDepIn,
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     try:
         return APIResponse.ok(data=_svc.create_task_dependency(p.model_dump(), cu.id, db))
@@ -177,6 +178,7 @@ def update_task_dependency(
     p: TaskDepIn,
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     try:
         return APIResponse.ok(data=_svc.update_task_dependency(dep_id, p.model_dump(), db))
@@ -265,6 +267,7 @@ def index_entity(
     p: FTSIndexIn,
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: excepcion revisada: reindexar la busqueda es mantenimiento
 ):
     return APIResponse.ok(data=_svc.index_entity(p.model_dump(), db))
 

@@ -143,6 +143,7 @@ def list_certifications(user_id: Optional[str] = None, expiring_days: Optional[i
 
 @router.post("/certifications", summary="Crear certificación", status_code=201)
 def create_certification(payload: CertificationIn, db: Session = Depends(get_db),
+    _rol: User = Depends(require_admin_or_hr),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                          cu: User = Depends(get_current_user), response: Response = None):
     if response is not None:
         response.headers["x-api-version"] = "1"

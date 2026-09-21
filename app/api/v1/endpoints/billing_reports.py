@@ -10,7 +10,7 @@ from app.core.abac_enforce import enforce_abac
 from app.core.uploads import UploadProfile, read_and_validate_upload_sync
 from app.db.session import get_db
 from app.core.config import settings
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.models.user import User
 from app.services.billing_reports.history_service import (
     get_import_jobs,
@@ -419,6 +419,7 @@ def pause_resume_sla(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: gestion del SLA por el agente
 ):
     return APIResponse.ok(data=_svc.pause_resume_sla(ticket_id, payload, db))
 

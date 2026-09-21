@@ -111,7 +111,9 @@ def delete_license(lid: str, db: Session = Depends(get_db), cu=Depends(require_a
 
 # ── License Assignments ───────────────────────────────────────────────────────
 @router.post("/licenses/{lid}/assign")
-def assign_license(lid: str, data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(get_current_user)):
+def assign_license(lid: str, data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(get_current_user),
+    _rol = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     return APIResponse.ok(data=assign_license_record(lid, data, cu.id, db))
 
 @router.delete("/licenses/{lid}/assignments/{aid}")
@@ -155,7 +157,9 @@ def delete_asset(aid: str, db: Session = Depends(get_db), cu=Depends(require_any
     return APIResponse.ok(data=delete_asset_record(aid, db))
 
 @router.post("/assets/{aid}/assign")
-def assign_asset(aid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(get_current_user)):
+def assign_asset(aid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(get_current_user),
+    _rol = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     return APIResponse.ok(data=assign_asset_record(aid, data, db))
 
 

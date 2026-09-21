@@ -143,6 +143,7 @@ def save_sprint_retrospective(
     payload: RetroNotesIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     try:
         return APIResponse.ok(data=_svc.save_sprint_retrospective(project_id, sprint_id, payload, current_user.id, db))
@@ -285,6 +286,7 @@ def create_uat_case(
     payload: UATCaseIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=_svc.create_uat_case(project_id, payload, db))
 
@@ -298,6 +300,7 @@ def update_uat_case(
     payload: UATCaseIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     try:
         return APIResponse.ok(data=_svc.update_uat_case(project_id, case_id, payload, db))

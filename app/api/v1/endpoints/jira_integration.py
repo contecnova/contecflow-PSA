@@ -29,7 +29,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin_or_pm
+from app.core.deps import get_current_user, require_admin, require_admin_or_pm
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.jira_integration import (
@@ -259,6 +259,7 @@ def push_ticket(
     config_id: str = Query(..., description="Jira config ID to use"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de integracion
 ):
     """Manually push or re-push a Contecflow ticket to Jira."""
     # Las dos guardas son de la organizacion de quien llama. La de la

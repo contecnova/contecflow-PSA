@@ -8,7 +8,12 @@ from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.config import settings
-from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager, require_internal_user
+from app.core.deps import (
+    get_current_user,
+    require_admin_or_pm,
+    require_any_manager,
+    require_internal_user,
+)
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -56,6 +61,7 @@ def delete_tag(tag_id: str, db: Session = Depends(get_db),
 
 @router.post("/wiki-pages/{page_id}/tags/{tag_id}")
 def add_page_tag(page_id: str, tag_id: str,
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                  db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=svc.add_page_tag(page_id, tag_id, db))
 
@@ -108,6 +114,7 @@ def list_internal_comments_route(ticket_id: str, db: Session = Depends(get_db),
 
 @sd_router.post("/tickets/{ticket_id}/internal-comments")
 def add_internal_comment_route(ticket_id: str, p: InternalCommentIn,
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: nota interna del agente
                                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=svc.add_internal_comment(ticket_id, p.content, cu.id, db))
 
@@ -332,6 +339,7 @@ def create_agent_snapshot(agent_id: str, db: Session = Depends(get_db),
 
 @router.post("/wiki-export/{page_id}")
 def export_wiki_page(page_id: str, db: Session = Depends(get_db),
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                      cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=svc.create_wiki_export_job(page_id, cu.id, db))
 

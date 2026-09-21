@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.core.ratelimit import limiter
 from app.core.uploads import UploadProfile, read_and_validate_upload_sync
 from app.core.responses import APIListResponse, APIResponse
@@ -102,6 +102,7 @@ def acknowledge_prediction(
     pred_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_svc.acknowledge_prediction(db, pred_id, current_user.id))
@@ -130,6 +131,7 @@ def process_meeting(
     payload: MeetingProcessPayload,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_svc.process_meeting(db, payload, current_user))
@@ -145,6 +147,7 @@ def create_tasks_from_meeting(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_svc.create_tasks_from_meeting(db, meeting_id, payload, current_user))
@@ -258,6 +261,7 @@ def generate_kb_from_ticket(
     ticket_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_svc.generate_kb_from_ticket(db, ticket_id, current_user))
@@ -270,6 +274,7 @@ def search_kb(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     query = payload.get("query", "")
     if not query: raise HTTPException(400, "query required")
@@ -350,6 +355,7 @@ def transcribe_voice_audio(
     audio: UploadFile = File(..., description="Archivo de audio (.mp3, .wav, .m4a, .webm, .ogg)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     """Transcribe audio y lo procesa como un comando de voz.
 
@@ -401,6 +407,7 @@ def process_voice_command(
     payload: VoiceCommandPayload,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=_process_voice_core(
         payload.transcript.strip(), db, current_user,
@@ -463,6 +470,7 @@ def revenue_forecast(
     months_ahead: int = 3,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=_svc.revenue_forecast(db, months_ahead=months_ahead))
 
@@ -477,6 +485,7 @@ def smart_schedule(
     payload: SmartScheduleRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=_svc.smart_schedule(db, payload, current_user))
 

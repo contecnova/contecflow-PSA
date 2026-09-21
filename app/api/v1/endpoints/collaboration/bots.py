@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -109,7 +109,9 @@ def list_integrations(current_user: User = Depends(get_current_user), db: Sessio
 
 
 @router.post("/integrations", response_model=APIResponse[IntegrationOut], summary="Crear integración")
-def create_integration(payload: IntegrationCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_integration(payload: IntegrationCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     row = svc.create_integration(
         db, current_user,
         kind=payload.kind, name=payload.name, config=payload.config,
@@ -118,7 +120,9 @@ def create_integration(payload: IntegrationCreate, current_user: User = Depends(
 
 
 @router.delete("/integrations/{integration_id}", summary="Eliminar integración")
-def delete_integration(integration_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_integration(integration_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     enforce_abac(db, current_user, "collaboration_integration", integration_id, action="delete")
     svc.delete_integration(db, current_user, integration_id)
     return APIResponse.ok(data={"ok": True})
@@ -140,7 +144,9 @@ def list_webhooks(current_user: User = Depends(get_current_user), db: Session = 
 
 
 @router.post("/webhooks", response_model=APIResponse[WebhookOut], summary="Crear webhook")
-def create_webhook(payload: WebhookCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_webhook(payload: WebhookCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
+):
     row = svc.create_webhook(
         db, current_user,
         direction=payload.direction, name=payload.name, url=payload.url,

@@ -11,7 +11,7 @@ import logging
 
 from app.core.abac_enforce import enforce_abac
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.models.user import User, UserRole
 from app.services.approval_engine import (
     create_approval_request,
@@ -167,6 +167,7 @@ def simulate_workflow_endpoint(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     entity_type = payload.get("entity_type")
     context = payload.get("context") or {}

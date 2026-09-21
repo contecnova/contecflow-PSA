@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.core.security import decode_token
 from app.services.ws_service import (
@@ -93,6 +93,7 @@ def create_bi_comment(
     payload: CommentCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     comment = svc.create_comment(
@@ -111,6 +112,7 @@ def resolve_bi_comment(
     comment_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -148,6 +150,7 @@ def patch_governance_rules(
     payload: GovernanceRulesPatchIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: gobierno del dato
 ):
     org_id = getattr(current_user, "organization_id", None)
     data = {k: v for k, v in payload.model_dump().items() if v is not None}
@@ -158,6 +161,7 @@ def patch_governance_rules(
 def run_governance_checks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: gobierno del dato
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.run_governance_checks(db, organization_id=org_id))
@@ -188,6 +192,7 @@ def create_shared_view(
     payload: SharedViewCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     item = svc.create_shared_view(
@@ -207,6 +212,7 @@ def patch_shared_view(
     payload: SharedViewPatchIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -240,6 +246,7 @@ def create_dashboard_version(
     payload: DashboardVersionCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     item = svc.create_dashboard_version(
@@ -262,6 +269,7 @@ def restore_dashboard_version(
     version_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -303,6 +311,7 @@ def mark_notification_read(
     payload: Optional[dict] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -338,6 +347,7 @@ def share_dashboard(
     payload: DashboardShareIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -364,6 +374,7 @@ def revoke_dashboard_share(
     share_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     enforce_abac(db, current_user, "bi_dashboard_share", share_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
@@ -389,6 +400,7 @@ def patch_cache_policy(
     payload: CachePolicyIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, 'organization_id', None)
     return APIResponse.ok(data=svc.update_cache_policy(

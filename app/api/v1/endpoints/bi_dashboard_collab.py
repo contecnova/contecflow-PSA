@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
@@ -60,6 +60,7 @@ def add_comment(
     body: CommentIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.add_comment(
@@ -95,6 +96,7 @@ def resolve_comment(
     comment_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -110,6 +112,7 @@ def save_shared_view(
     body: SharedViewIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.save_shared_view(
@@ -144,6 +147,7 @@ def toggle_reaction(
     body: ReactionIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.toggle_reaction(
@@ -164,6 +168,7 @@ def toggle_comment_reaction(
     body: CommentReactionIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.toggle_reaction(

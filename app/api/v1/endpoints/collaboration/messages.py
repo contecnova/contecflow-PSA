@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.collaboration import (
@@ -142,13 +142,17 @@ def mark_read(conversation_id: str, payload: ReadUpdate, current_user: User = De
 
 # ── Pins ─────────────────────────────────────────────────────────────────────
 @router.post("/conversations/{conversation_id}/pins", summary="Pinear mensaje")
-def pin(conversation_id: str, payload: PinIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def pin(conversation_id: str, payload: PinIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     msg_svc.pin_message(db, current_user, payload.message_id)
     return APIResponse.ok(data={"ok": True})
 
 
 @router.delete("/conversations/{conversation_id}/pins/{message_id}", summary="Quitar pin")
-def unpin(conversation_id: str, message_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def unpin(conversation_id: str, message_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     enforce_abac(db, current_user, "collaboration_message", message_id, action="delete")
     msg_svc.unpin_message(db, current_user, message_id)
     return APIResponse.ok(data={"ok": True})
@@ -186,6 +190,7 @@ def link_message(
     payload: dict,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
 ):
     return APIResponse.ok(data=msg_svc.link_message(
         db, current_user, message_id,

@@ -47,7 +47,9 @@ def list_clients(
 
 
 @router.post("")
-def create_client(data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+def create_client(data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None,
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     if response is not None:
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"
@@ -67,7 +69,9 @@ def get_client(cid: str, db: Session = Depends(get_db), _=Depends(get_current_us
 
 
 @router.patch("/{cid}")
-def update_client(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+def update_client(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None,
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     if response is not None:
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"
@@ -76,7 +80,9 @@ def update_client(cid: str, data: dict = Body(...), db: Session = Depends(get_db
 
 
 @router.delete("/{cid}")
-def delete_client(cid: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+def delete_client(cid: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None,
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     if response is not None:
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"
@@ -93,12 +99,15 @@ def list_contacts(cid: str, db: Session = Depends(get_db), _=Depends(get_current
 
 
 @router.post("/{cid}/contacts")
-def add_contact(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def add_contact(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     return APIResponse.ok(data=_svc.add_contact(cid, data, db))
 
 
 @router.patch("/{cid}/contacts/{contact_id}")
 def update_contact(cid: str, contact_id: str, data: dict = Body(...),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                    db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=_svc.update_contact(cid, contact_id, data, db))
 
@@ -131,7 +140,9 @@ def list_client_licenses(cid: str, db: Session = Depends(get_db), _=Depends(get_
 
 
 @router.post("/{cid}/licenses")
-def link_license(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def link_license(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     return APIResponse.ok(data=_svc.link_license(cid, data, db))
 
 
@@ -163,7 +174,9 @@ def list_client_contracts(cid: str, db: Session = Depends(get_db), _=Depends(get
 
 
 @router.post("/{cid}/contracts")
-def link_contract(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def link_contract(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     return APIResponse.ok(data=_svc.link_contract(cid, data, db))
 
 
@@ -204,7 +217,9 @@ def get_portal_config(cid: str, db: Session = Depends(get_db), _=Depends(get_cur
 
 
 @router.patch("/{cid}/portal-config")
-def update_portal_config(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+def update_portal_config(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None,
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     if response is not None:
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"
@@ -291,7 +306,9 @@ def list_available_projects(cid: str, db: Session = Depends(get_db), _=Depends(g
 
 
 @router.post("/{cid}/projects/{project_id}/link")
-def link_project(cid: str, project_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+def link_project(cid: str, project_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None,
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     if response is not None:
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"

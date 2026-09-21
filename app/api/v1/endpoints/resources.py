@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional, Dict
 import logging
 
-from app.core.deps import get_db, get_current_user, require_any_manager
+from app.core.deps import get_current_user, get_db, require_any_manager, require_internal_user
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.models.resources import ResourceAlertType
@@ -300,6 +300,7 @@ def acknowledge_alert(
     alert_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: acusar recibo de un aviso
 ):
     """Acknowledge/dismiss an alert."""
     return APIResponse.ok(data=_svc_acknowledge_alert(db, alert_id, current_user))

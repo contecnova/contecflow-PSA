@@ -63,6 +63,7 @@ def create_deliverable(
     payload: DeliverableIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
@@ -77,6 +78,7 @@ def update_deliverable(
     payload: DeliverableUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Solo administradores y PMs pueden actualizar entreables")
@@ -95,6 +97,7 @@ def deliver(
     document_url: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
