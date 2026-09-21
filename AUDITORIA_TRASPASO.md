@@ -97,13 +97,39 @@ bash scripts/ci_local.sh
 **3765 passed, 19 skipped, 1 xfailed, 0 fallos** con `-n 4`;
 `ruff check app tests` limpio; `tsc` limpio; **92/92 vitest**; `npm audit` en
 **cero**; `typecheck:strict` **0 errores en 338 de 338 ficheros, tests
-incluidos** — la migración gradual a modo estricto ha terminado (§3.sexvicies).
+incluidos** (§3.sexvicies); y **ninguna función de `app/` por encima de
+complejidad 10** (§3.septvicies) — los dos hallazgos que llevaban toda la
+auditoría abiertos, cerrados.
 
 > Y es la primera vez que ese «0 fallos» se mide **con la semántica de tenant de
 > producción puesta** (§3.sexdecies). La primera pasada con los escuchadores
 > registrados dio **23 en rojo**: catorce del propio banco de pruebas, dos
 > regresiones de la jornada y **siete defectos de producción** (§3.vicies).
 >
+> **Advertencia de entorno, segunda parte: cómo saber si la suite avanza.**
+> En esta máquina, `Get-Process python | Measure-Object CPU -Sum` de PowerShell
+> **no sirve para eso**. Da cifras absurdamente bajas: cuatro procesos `pytest`
+> ejecutando tests a buen ritmo —con sus registros creciendo 410 bytes en 40
+> segundos— reportaban **0,875 s de CPU acumulados entre los cuatro**. Dos
+> órdenes de magnitud por debajo de la realidad.
+>
+> Eso llevó a declarar colgada una pasada de 33 minutos que muy probablemente
+> estaba sana, y a matarla. Dos señales que **tampoco valen**:
+>
+> * **Que los procesos existan.** Un proceso colgado existe igual de bien que
+>   uno trabajando.
+> * **Que el fichero de salida esté vacío**, si el comando va canalizado
+>   (`| tail`, `| head`): esos filtros no escriben nada hasta el final, así que
+>   cero bytes a los treinta minutos es lo esperado y no dice nada.
+>
+> **La señal que sí funciona es cuánto CRECE el registro**, y para eso hay que
+> escribir a fichero con `>` y no canalizar. Con `pytest` sin `-q` el avance se
+> escribe según ocurre, con su porcentaje.
+>
+> Lo mismo dicho al revés, que es como conviene recordarlo: *antes de declarar
+> que algo está parado, comprobar que el instrumento mide*. Aquí el instrumento
+> no medía, y el diagnóstico fue una invención con aspecto de dato.
+
 > **Y una advertencia de entorno que costó una jornada:** `pytest-xdist` con
 > `-n auto` se quedaba colgado en la máquina de desarrollo —los trabajadores
 > arrancan y no consumen CPU, tanto con `-n auto` como con `-n 2` sobre un solo
@@ -904,6 +930,160 @@ estricto es el que manda para el gate.
 
 **Verificado:** `npm run typecheck:strict` 0 errores · `npx vitest run` 27
 ficheros, **92/92** · `npm run build` correcto.
+
+## 3.septvicies La complejidad llega a cero, y dos guardianes que no medían
+
+`scripts/audit_complejidad.py` dice hoy **«Ninguna función de `app/` por encima
+de 10.»** Se llegó ahí desde 94 / 253 / 17 (funciones / exceso / máximo),
+pasando por 74 / 173 / 16 al empezar esta pasada.
+
+**Y ninguna se arregló partiéndola para bajar un número.** Eso es lo único que
+hace interesante el cero: casi todas eran una de dos cosas.
+
+### Una tabla escrita como cascada de `if`
+
+Los bytes mágicos de un fichero. Las palabras clave de un triaje de tickets —dos
+tablas, y como tabla se ve que ninguna palabra se repite entre grupos, que era
+imposible de comprobar antes—. Las once reglas de una retrospectiva. Los nueve
+operadores de una expresión de flujo. Los **19 pasos** de un plan de pruebas
+(197 líneas) y los **15 avisos** de un plan de comunicación (260). Los cinco
+tipos de aprobador —y como tabla se ve que **no hay ninguna vía que dé paso a un
+administrador por serlo**, que es deliberado—. Los pesos de un cálculo de riesgo
+de sesión. Las seis recomendaciones de cumplimiento con su umbral. El espejo de
+campos trabajador→usuario. El catálogo de diez informes del sistema.
+
+Un plan de pruebas **es** una tabla. Verlo entero es lo que hace falta para
+revisarlo con quien lo va a ejecutar, y añadir un paso pasa a ser añadir una
+fila en su sitio en vez de una rama en medio de un bloque de 200 líneas.
+
+### El mismo bloque escrito dos o más veces
+
+| Dónde | Cuántas veces |
+|---|---|
+| El diccionario de respuesta de `analytics.run_query` | **tres** |
+| El `try/except` de registro de `ai_providers.test_provider` | **cuatro** |
+| El respaldo a JSON de `bi_collaboration.resolve_comment` | dos |
+| La aritmética de solapamiento de reservas en `get_advanced_utilization` | dos |
+| DocuSign y Adobe en `create_provider_envelope` (40 líneas cada uno) | dos |
+| La lista de permisos del portal en `PortalUsersTab` | dos |
+| La cabecera + filas + autoajuste de las hojas de Excel | cuatro |
+| La cadena de umbrales de carga de `ResourceForecastPage` | **tres, en el mismo fichero** |
+| La respuesta «ya está corriendo» del trabajo de auto-resolución | dos |
+
+### Defectos que nadie estaba buscando
+
+* **`useTaskComments` leía haciendo POST.** Llamaba al endpoint de *crear* un
+  comentario, con cuerpo nulo, para *leerlos*. No existe endpoint de lectura. El
+  `.catch(() => [])` se tragaba el error y devolvía lista vacía, indistinguible
+  de «no hay comentarios». Borrado: estaba exportado y no lo llamaba nadie.
+* **El refinamiento con Claude de `estimate_task_hours` nunca se ejecutó.**
+  Construía el contexto con `for t in similar_tasks[:5]` leyendo `t.title` y
+  `t.actual_hours`, pero `similar_tasks` son filas `(Task, horas_reales)`:
+  `AttributeError` sobre la fila, y `actual_hours` es la columna que el hallazgo
+  de 2026-08 ya documentó como inexistente. Las dos excepciones caían en un
+  `except Exception` que registraba un aviso y seguía. Resultado correcto por
+  accidente, rama muerta en la práctica.
+* **El chequeo SSRF de las automatizaciones se distinguía por el texto del
+  mensaje.** Dos `raise ValueError` que se atrapaban a sí mismos y se separaban
+  con `"Solo se permiten" in str(e)`. Cambiar una palabra del mensaje habría
+  roto el control sin que nada avisara.
+* **Código muerto en la predicción de sobrecoste**: dos expresiones
+  `x = ... if hasattr(start, "days") or True else 30`, cuyo `or True` hace la
+  condición siempre cierta y cuyo resultado se pisaba dos líneas después.
+* **`Modal size="lg"`, `EmptyState subtitle=`/`message=`, `Card className=`** —
+  props que se pasaban y nadie leía. Ver §3.sexvicies.
+
+---
+
+## 3.octovicies Los dos guardianes que no podían fallar
+
+Esto es lo más incómodo de la jornada y lo que más conviene leer.
+
+### El guardián de cobertura ABAC se satisfacía a sí mismo
+
+`tests/test_abac_coverage.py` comprueba que ninguna ruta tenga `enforce_abac()`
+como **único** control —porque `enforce_abac` es *fail-open*: sin políticas
+activas, que es el caso por defecto, no comprueba nada—. Pasaba en verde con
+cero rutas señaladas.
+
+Era mentira. `_called_service_sources` resuelve cada nombre que el endpoint
+llama, concatena su código fuente, y busca ahí señales de autorización
+(`user.role`, `is_superadmin`, `HTTPException(403)`...). **`enforce_abac` es uno
+de esos nombres**, y su cuerpo contenía `is_superadmin` y `user.role`. Así que
+toda ruta cuyo único control fuera `enforce_abac` quedaba tapada por el propio
+`enforce_abac`. El guardián no podía fallar por el motivo exacto que existe para
+detectar.
+
+Salió al bajar la complejidad de `enforce_abac`: al mover el corte de superadmin
+y el 403 a dos ayudantes, las señales desaparecieron de su cuerpo y el test se
+puso rojo de golpe sobre **65 rutas**. No era una regresión — era la primera vez
+que medía.
+
+Once de esas 65 eran ruido de la heurística: usaban la comprobación de
+propiedad `..._for_user(db, id, current_user.id)`, que es un control legítimo y
+no estaba en la lista de señales. Se añadió.
+
+**Quedan 54, y 49 de ellas son `DELETE`.** Están registradas en
+`ABAC_UNICO_CONTROL_CONOCIDAS` con trinquete de dos direcciones: una ruta nueva
+en esa situación rompe el test, y una que se arregle y no se quite de la lista,
+también. Validado rompiéndolo por los dos lados.
+
+> **Esto es deuda medida, no una exención.** Cada una necesita una decisión
+> propia —guarda de rol en la ruta, o comprobación de propiedad u organización
+> en el servicio— y no se arreglan en un barrido. Forzar uno sería justo lo
+> contrario de lo que ese test existe para evitar. Es lo primero que hay que
+> mirar de lo que queda abierto.
+
+### Un test que sólo pasaba según el orden
+
+`tests/conftest.py` ponía las variables de entorno **después** de
+`from app.db.session import TenantSession`, que arrastra `app.core.config` y
+construye `settings` con los valores que hubiera **antes**. Consecuencia:
+`test_scim_user_provisioning` fallaba —`SCIM_BEARER_TOKEN` vacío— salvo que algo
+anterior en la suite hubiera dejado el valor puesto. Un test que depende del
+orden no prueba lo que dice probar. El bloque va ahora antes del primer import
+de `app`, que es el único sitio donde sirve.
+
+### Y una regresión mía, cazada por un guardián que ya existía
+
+La suite completa acabó con **un fallo**, y era mío. Al sacar el registro de
+fallo del trabajo de auto-resolución a su propia función, el `db.rollback()` se
+fue con ella — y `tests/test_commit_rollback.py` lo busca **en el cuerpo del
+manejador de excepciones, por AST, sin seguir las llamadas**. Señaló el sitio
+con fichero y línea:
+
+```
+app/api/v1/endpoints/service_desk/ai_auto_resolution.py:429
+```
+
+Lo relevante no es el despiste, es **que el guardián tiene razón y su
+conservadurismo es el correcto**. El `rollback()` tiene que quedar a la vista en
+el manejador: es lo que impide que un fallo de base deje la sesión abortada y
+que el `commit()` siguiente reviente con `PendingRollbackError` tapando el error
+real —el defecto de 2026-08 que ese test existe para que no vuelva—. Esconderlo
+tras una llamada lo deja invisible para el guardián, que es exactamente como ese
+defecto volvió cinco veces antes de que el test existiera.
+
+Así que el `rollback()` vuelve al manejador, con el motivo escrito al lado, y el
+ayudante deja de deshacer: hay uno solo y está donde se lee.
+
+> Conviene decirlo tal cual: en esta jornada **dos guardianes fallaron por no
+> medir** (§3.octovicies) y **uno funcionó exactamente como debía** contra el
+> código que yo acababa de escribir. La diferencia entre unos y otro es que este
+> comprueba una propiedad sintáctica que no se puede satisfacer por accidente.
+
+### Tests nuevos donde no había ninguno
+
+`tests/test_ask_the_data_sql_policy.py` — **17 casos**. `validate_sql` es lo
+único que separa el SQL que escribe un modelo de lenguaje, a partir de texto
+libre del usuario, de la base de datos. **No tenía ni un test.** Al
+refactorizarla, la única forma de saber si algo cambiaba fue compararla a mano
+con la versión anterior sobre 16 casos; esa comparación queda ahora escrita.
+Cubre lo que de verdad importa: que el filtro por organización se **inyecta** y
+no se confía en el que el modelo haya podido escribir, y que va antes del
+`GROUP BY` en las consultas agregadas.
+
+---
 
 ## 3.duovicies El barrido de duplicación: 31 parejas, cero defectos
 

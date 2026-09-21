@@ -53,6 +53,41 @@ def _mover_sucesora(succ, current_task, dep) -> Optional[dict]:
     }
 
 
+def _propagar_a_sucesoras(db: Session, raiz_id: str) -> list[dict]:
+    """Recorre las sucesoras fin-a-inicio en anchura y las mueve.
+
+    El conjunto de visitadas no es una optimización: un grafo de dependencias
+    puede tener ciclos, y sin él esto giraría para siempre. Una tarea se visita
+    **una sola vez**, así que en un rombo manda el primer camino que llega.
+    """
+    movidas: list[dict] = []
+    vistas = {raiz_id}
+    cola: deque = deque([raiz_id])
+
+    while cola:
+        actual = db.query(Task).filter(Task.id == cola.popleft()).first()
+        if not actual or not actual.due_date:
+            continue
+
+        dependencias = db.query(TaskDependency).filter(
+            TaskDependency.predecessor_id == actual.id,
+            TaskDependency.dependency_type == DependencyType.finish_to_start,
+        ).all()
+
+        for dep in dependencias:
+            if dep.successor_id in vistas:
+                continue
+            vistas.add(dep.successor_id)
+            sucesora = db.query(Task).filter(Task.id == dep.successor_id).first()
+            if not sucesora:
+                continue
+            movida = _mover_sucesora(sucesora, actual, dep)
+            if movida:
+                movidas.append(movida)
+                cola.append(dep.successor_id)
+    return movidas
+
+
 def cascade_reschedule(task_id: str, new_end_date: date, db: Session) -> dict:
     """Propaga un cambio de fecha de fin a todas las sucesoras fin-a-inicio.
 
@@ -87,30 +122,6 @@ def cascade_reschedule(task_id: str, new_end_date: date, db: Session) -> dict:
         "shift_days": desplazamiento.days,
     }]
 
-    vistas = {task_id}
-    cola: deque = deque([task_id])
-    while cola:
-        actual_id = cola.popleft()
-        actual = db.query(Task).filter(Task.id == actual_id).first()
-        if not actual or not actual.due_date:
-            continue
-
-        dependencias = db.query(TaskDependency).filter(
-            TaskDependency.predecessor_id == actual_id,
-            TaskDependency.dependency_type == DependencyType.finish_to_start,
-        ).all()
-
-        for dep in dependencias:
-            if dep.successor_id in vistas:
-                continue
-            vistas.add(dep.successor_id)
-            succ = db.query(Task).filter(Task.id == dep.successor_id).first()
-            if not succ:
-                continue
-            movida = _mover_sucesora(succ, actual, dep)
-            if movida:
-                replanificadas.append(movida)
-                cola.append(dep.successor_id)
-
+    replanificadas += _propagar_a_sucesoras(db, task_id)
     db.commit()
     return {"rescheduled": replanificadas, "total_shifted": len(replanificadas)}

@@ -265,6 +265,65 @@ def run_adhoc_query(
     }
 
 
+def _filtrar_por_mes(q, columna, valor: str):
+    """Acota una consulta a un mes escrito como `YYYY-MM`.
+
+    `strftime` es de SQLite. Aquí se conserva porque es lo que había y este
+    camino no se ejecuta sobre PostgreSQL; el de `run_adhoc_query`, que sí,
+    usa `extract`. Queda anotado: si este drilldown llega a producción sobre
+    Postgres, hay que cambiarlo igual que allí.
+    """
+    anio, mes = int(valor[:4]), int(valor[5:7])
+    return q.filter(
+        func.strftime("%Y", columna) == str(anio),
+        func.strftime("%m", columna) == f"{mes:02d}",
+    )
+
+
+#: Qué se puede desglosar y cómo. Por cada métrica: el modelo, un filtro base,
+#: por qué dimensiones se puede acotar, la columna de fecha del rango, y cómo
+#: se serializa cada fila.
+#:
+#: Auditoría 2026-09 (hallazgo 18): eran dos bloques con la misma forma
+#: —construir consulta, aplicar dimensión, paginar, serializar— y una cascada
+#: de `elif` por dimensión dentro de cada uno.
+_DRILLDOWNS: dict[str, dict] = {
+    "hours_logged": {
+        "modelo": lambda: Imputation,
+        "base": None,
+        "dimensiones": {
+            "project_id": lambda: Imputation.project_id,
+            "user_id": lambda: Imputation.user_id,
+        },
+        "mes": lambda: Imputation.date,
+        "rango": lambda: Imputation.date,
+        "fila": lambda i: {
+            "id": i.id, "date": str(i.date), "hours": i.hours,
+            "project_id": i.project_id, "user_id": i.user_id,
+            "description": i.description,
+        },
+    },
+    "revenue": {
+        "modelo": lambda: Invoice,
+        "base": lambda: Invoice.status != "cancelled",
+        "dimensiones": {
+            "project_id": lambda: Invoice.project_id,
+            "status": lambda: Invoice.status,
+        },
+        "mes": lambda: Invoice.issue_date,
+        # El rango de fechas no se aplicaba a facturas, y se conserva así: el
+        # desglose de ingresos se acota por la dimensión, no por el periodo.
+        "rango": None,
+        "fila": lambda i: {
+            "id": i.id, "number": i.number, "total": i.total,
+            "currency": i.currency,
+            "status": str(i.status.value) if hasattr(i.status, "value") else str(i.status),
+            "issue_date": str(i.issue_date), "client_name": i.client_name,
+        },
+    },
+}
+
+
 def run_analytics_drilldown(
     metric: str,
     dimension: str,
@@ -275,65 +334,37 @@ def run_analytics_drilldown(
     page_size: int,
     db: Session,
 ) -> dict:
+    """Las filas que hay detrás de una celda de un informe analítico."""
+    spec = _DRILLDOWNS.get(metric)
+    if spec is None:
+        raise HTTPException(
+            status_code=400, detail=f"Metric '{metric}' not supported for drilldown",
+        )
 
-    offset = (page - 1) * page_size
-    rows = []
+    q = db.query(spec["modelo"]())
+    if spec["base"]:
+        q = q.filter(spec["base"]())
 
-    if metric == "hours_logged":
-        q = db.query(Imputation)
-        if dimension == "project_id":
-            q = q.filter(Imputation.project_id == value)
-        elif dimension == "user_id":
-            q = q.filter(Imputation.user_id == value)
-        elif dimension == "month" and len(value) == 7:
-            yr, mo = int(value[:4]), int(value[5:7])
-            q = q.filter(
-                func.strftime('%Y', Imputation.date) == str(yr),
-                func.strftime('%m', Imputation.date) == f"{mo:02d}",
-            )
+    columna = spec["dimensiones"].get(dimension)
+    if columna:
+        q = q.filter(columna() == value)
+    elif dimension == "month" and len(value) == 7:
+        q = _filtrar_por_mes(q, spec["mes"](), value)
+
+    if spec["rango"]:
         if date_from:
-            q = q.filter(Imputation.date >= date_from)
+            q = q.filter(spec["rango"]() >= date_from)
         if date_to:
-            q = q.filter(Imputation.date <= date_to)
-        q.count()
-        items = q.offset(offset).limit(page_size).all()
-        rows = [
-            {"id": i.id, "date": str(i.date), "hours": i.hours,
-             "project_id": i.project_id, "user_id": i.user_id,
-             "description": i.description}
-            for i in items
-        ]
-    elif metric == "revenue":
-        q = db.query(Invoice).filter(Invoice.status != "cancelled")
-        if dimension == "project_id":
-            q = q.filter(Invoice.project_id == value)
-        elif dimension == "month" and len(value) == 7:
-            yr, mo = int(value[:4]), int(value[5:7])
-            q = q.filter(
-                func.strftime('%Y', Invoice.issue_date) == str(yr),
-                func.strftime('%m', Invoice.issue_date) == f"{mo:02d}",
-            )
-        elif dimension == "status":
-            q = q.filter(Invoice.status == value)
-        q.count()
-        items = q.offset(offset).limit(page_size).all()
-        rows = [
-            {"id": i.id, "number": i.number, "total": i.total,
-             "currency": i.currency,
-             "status": str(i.status.value) if hasattr(i.status, 'value') else str(i.status),
-             "issue_date": str(i.issue_date), "client_name": i.client_name}
-            for i in items
-        ]
-    else:
-        raise HTTPException(status_code=400, detail=f"Metric '{metric}' not supported for drilldown")
+            q = q.filter(spec["rango"]() <= date_to)
 
+    filas = q.offset((page - 1) * page_size).limit(page_size).all()
     return {
         "metric": metric,
         "dimension": dimension,
         "value": value,
         "page": page,
         "page_size": page_size,
-        "rows": rows,
+        "rows": [spec["fila"](f) for f in filas],
     }
 
 

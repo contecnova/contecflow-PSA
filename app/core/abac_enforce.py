@@ -50,6 +50,92 @@ from app.services.abac import ABACService
 logger = logging.getLogger("contecflow.abac.enforce")
 
 
+def _abac_no_aplica(user: User, resource_type: str) -> bool:
+    """Los casos en los que ABAC no tiene nada que decir.
+
+    - **Superadmin**: no pertenece a ninguna organización cuyas políticas
+      aplicarle.
+    - **Colaboración**: el chat tiene su propio modelo de pertenencia por canal
+      y conversación, que es la fuente de verdad. Añadir ABAC encima produce
+      403 falsos cuando el tipo de recurso no está registrado en las políticas
+      activas.
+    - **Sin organización**: desarrollo local y datos de arranque.
+    """
+    if getattr(user, "is_superadmin", False):
+        return True
+    if resource_type and resource_type.startswith("collaboration_"):
+        return True
+    return not getattr(user, "organization_id", None)
+
+
+def _denegar(user: User, resource_type: str, resource_id, action: str,
+             matched_policies: list) -> None:
+    """Registra la denegación, cuenta la métrica y levanta el 403."""
+    logger.info(
+        "ABAC denied %s user=%s resource=%s/%s policies=%s",
+        action, user.id, resource_type, resource_id, matched_policies,
+    )
+    try:
+        from app.core.metrics import abac_denials_total
+
+        abac_denials_total.labels(
+            resource_type=resource_type or "unknown",
+            action=action or "unknown",
+        ).inc()
+    except Exception:
+        logger.debug("enforce_abac: fallo best-effort ignorado", exc_info=True)
+    raise HTTPException(status_code=403, detail="Access denied")
+
+
+def _evaluar_politicas(db: Session, user: User, org_id, resource_type: str,
+                       resource_id, action: str) -> None:
+    """Evalúa las políticas activas y levanta 403 si deniegan."""
+    svc = ABACService(db=db, org_id=str(org_id))
+
+    # Corte temprano: sin ninguna política activa el resultado sería fail-open
+    # de todas formas. Salir aquí evita cargar los atributos del usuario y,
+    # sobre todo, evita el INSERT+COMMIT de auditoría. Importa desde que la
+    # cobertura ABAC abarca toda la API (auditoría 2026-07 §1.5): sin este
+    # corte, CADA petición autenticada escribiría una fila en PolicyAudit.
+    if not svc.list_policies(active_only=True):
+        return
+
+    rol = user.role.value if hasattr(user.role, "value") else str(user.role or "employee")
+
+    # Auditoria 2026-09: `resource_id` y `action` **no se pasaban**, asi que el
+    # motor decidia sin ellos aunque toda la API los paseara hasta aqui. Con los
+    # dos puestos, una politica puede nombrar `recurso.<columna>` y `accion` en
+    # sus reglas. Las politicas que solo miran atributos de usuario no cambian
+    # de veredicto: lo unico que ocurre es que el diccionario de evaluacion trae
+    # claves nuevas.
+    permitido, aplicadas, detalle = svc.evaluate_access(
+        user_id=str(user.id),
+        user_roles=[rol],
+        resource_type=resource_type,
+        resource_id=resource_id,
+        action=action,
+    )
+
+    # Se audita sólo cuando alguna política ha aplicado de verdad. Un
+    # «permitido» con cero políticas aplicadas es el camino fail-open: no aporta
+    # señal de seguridad y, con cobertura total, generaría una fila por
+    # petición. Las denegaciones siempre se auditan, porque una denegación
+    # implica que hubo política que encajó.
+    if aplicadas:
+        svc.audit_access_decision(
+            user_id=str(user.id),
+            decision=permitido,
+            matched_policies=aplicadas,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            details=detalle,
+        )
+
+    # Fail-open: sin políticas que encajen, el RBAC del endpoint ya es el guardia.
+    if not permitido and aplicadas:
+        _denegar(user, resource_type, resource_id, action, aplicadas)
+
+
 def enforce_abac(
     db: Session,
     user: User,
@@ -62,97 +148,19 @@ def enforce_abac(
     FAIL-OPEN: sin políticas activas no comprueba nada y deja pasar. No sirve
     como control de autorización por sí solo — ver la cabecera del módulo.
 
-    Es un no-op cuando:
-    - la organización no tiene políticas ABAC activas  ← EL CASO POR DEFECTO
-    - el usuario no tiene organización (dev local / datos de seed)
-    - el usuario es superadmin
-    - el recurso es del dominio de colaboración (chat tiene su propio modelo de
-      membresía por canal/conversación, que es la fuente de verdad)
-
-    Cuando SÍ hay políticas y alguna matchea, se aplica la evaluación
-    allow/deny normal y una denegación lanza 403. Si la evaluación de políticas
-    revienta, se deniega (fail-closed): un motor de políticas roto no debe
+    Cuando SÍ hay políticas y alguna encaja, se aplica la evaluación
+    permitir/denegar normal y una denegación lanza 403. Si la evaluación
+    revienta, se **deniega** (fail-closed): un motor de políticas roto no debe
     conceder acceso.
     """
-    if getattr(user, "is_superadmin", False):
-        return
-
-    # Collaboration: la membresía por canal/conversación ya es la autoridad.
-    # ABAC adicional aquí no aplica porque introduce 403 falsos cuando el
-    # resource_type no está registrado en las políticas activas.
-    if resource_type and resource_type.startswith("collaboration_"):
-        return
-
-    org_id = getattr(user, "organization_id", None)
-    if not org_id:
+    if _abac_no_aplica(user, resource_type):
         return
 
     try:
-        svc = ABACService(db=db, org_id=str(org_id))
-
-        # Early-out: si la organización no tiene ninguna política activa, el
-        # resultado sería fail-open de todas formas. Salir aquí evita cargar los
-        # atributos del usuario y, sobre todo, evita el INSERT+COMMIT de auditoría.
-        # Importa desde que la cobertura ABAC abarca toda la API (auditoría
-        # 2026-07 §1.5): sin este corte, CADA request autenticada escribiría una
-        # fila en PolicyAudit.
-        if not svc.list_policies(active_only=True):
-            return
-
-        user_role = user.role.value if hasattr(user.role, "value") else str(user.role or "employee")
-        user_roles = [user_role]
-
-        # Auditoria 2026-09: `resource_id` y `action` **no se pasaban**, asi que
-        # el motor decidia sin ellos aunque toda la API los paseara hasta aqui.
-        # Con los dos puestos, una politica puede nombrar `recurso.<columna>` y
-        # `accion` en sus reglas. Las politicas que solo miran atributos de
-        # usuario no cambian de veredicto: lo unico que ocurre es que el
-        # diccionario de evaluacion trae claves nuevas.
-        allowed, matched_policies, details = svc.evaluate_access(
-            user_id       = str(user.id),
-            user_roles    = user_roles,
-            resource_type = resource_type,
-            resource_id   = resource_id,
-            action        = action,
+        _evaluar_politicas(
+            db, user, getattr(user, "organization_id", None),
+            resource_type, resource_id, action,
         )
-
-        # Auditar solo cuando alguna política ha aplicado de verdad. Un
-        # "access_allowed" con matched_policies=[] es el camino fail-open: no
-        # aporta señal de seguridad y, con cobertura total del registro, generaría
-        # una fila de auditoría por request. Las denegaciones siempre se auditan,
-        # porque una denegación implica que hubo política que matcheó.
-        if matched_policies:
-            svc.audit_access_decision(
-                user_id         = str(user.id),
-                decision        = allowed,
-                matched_policies= matched_policies,
-                resource_type   = resource_type,
-                resource_id     = resource_id,
-                details         = details,
-            )
-
-        if not allowed:
-            # Fail-open: if no policies matched at all, RBAC already guards the endpoint
-            if not matched_policies:
-                return
-            logger.info(
-                "ABAC denied %s user=%s resource=%s/%s policies=%s",
-                action, user.id, resource_type, resource_id, matched_policies,
-            )
-            try:
-                from app.core.metrics import abac_denials_total
-                abac_denials_total.labels(
-                    resource_type=resource_type or "unknown",
-                    action=action or "unknown",
-                ).inc()
-            except Exception:
-                logger.debug("enforce_abac: fallo best-effort ignorado", exc_info=True)
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied",
-            )
-
-    # intentional: chained re-raise preserves context
     except HTTPException:
         raise
     except Exception as exc:

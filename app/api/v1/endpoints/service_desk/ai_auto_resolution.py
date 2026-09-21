@@ -194,6 +194,52 @@ def apply_ai_auto_resolution(
     })
 
 
+def _ya_esta_corriendo(db, org) -> APIResponse:
+    """La respuesta cuando el cerrojo está tomado.
+
+    Auditoría 2026-09 (hallazgo 18): estaba escrita dos veces, una por camino.
+    Es la misma respuesta y tiene que seguir siéndolo: dos versiones que
+    divergieran darían una señal distinta según por dónde se preguntara.
+    """
+    return APIResponse.ok(data={
+        "status": "already_running",
+        "message": "Auto-resolution job is already running",
+        "runtime": estado_del_trabajo(db, org),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
+
+def _registrar_fallo_del_trabajo(db, org, comenzado, exc) -> None:
+    """Anota que la pasada falló, dejando la sesión utilizable.
+
+    **Quien llama tiene que haber deshecho la transacción antes.** No se hace
+    aquí a propósito: `tests/test_commit_rollback.py` busca el `rollback()` en
+    el cuerpo del manejador de excepciones por AST y no sigue las llamadas, así
+    que esconderlo aquí lo dejaría invisible para el guardián.
+
+    Si ni el registro se puede escribir, se deja la sesión limpia y se calla:
+    quien llama propaga el error ORIGINAL, que es el que hay que leer.
+    """
+    terminado = datetime.now(timezone.utc)
+    registro = {
+        "status": "failed",
+        "started_at": comenzado.isoformat(),
+        "completed_at": terminado.isoformat(),
+        "duration_ms": int((terminado - comenzado).total_seconds() * 1000),
+        "stats": None,
+        "error": str(exc)[:240],
+    }
+    try:
+        guardar_estado_del_trabajo(
+            db, {"running": False, "last_job_id": None, **registro}, org,
+        )
+        anotar_en_el_historial(db, registro, org)
+        db.commit()
+    except Exception:
+        db.rollback()
+        _logger.exception("no se pudo registrar el fallo del job de auto-resolucion")
+
+
 @router.post(
     "/auto-resolution/run-job",
     summary="Run daily auto-resolution job",
@@ -231,21 +277,14 @@ def run_auto_resolution_job(
 
     if run_async:
         if not cerrojo.acquire(blocking=False):
-            return APIResponse.ok(data={
-                "status": "already_running",
-                "message": "Auto-resolution job is already running",
-                "runtime": estado_del_trabajo(db, org),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+            return _ya_esta_corriendo(db, org)
 
         job_id = str(uuid4())
-        started_at = datetime.now(timezone.utc)
-
         guardar_estado_del_trabajo(db, {
                 "running": True,
                 "status": "running",
                 "last_job_id": job_id,
-                "started_at": started_at.isoformat(),
+                "started_at": datetime.now(timezone.utc).isoformat(),
                 "completed_at": None,
                 "duration_ms": None,
                 "stats": None,
@@ -354,12 +393,7 @@ def run_auto_resolution_job(
     #    panel se quedaba diciendo «running» para siempre, y el error real
     #    quedaba tapado por un `PendingRollbackError`.
     if not cerrojo.acquire(blocking=False):
-        return APIResponse.ok(data={
-            "status": "already_running",
-            "message": "Auto-resolution job is already running",
-            "runtime": estado_del_trabajo(db, org),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
+        return _ya_esta_corriendo(db, org)
 
     try:
         sync_started = datetime.now(timezone.utc)
@@ -393,33 +427,20 @@ def run_auto_resolution_job(
             anotar_en_el_historial(db, sync_record, org)
             db.commit()
         except Exception as exc:
-            # Deshacer ANTES de intentar escribir el registro de fallo: si el
-            # fallo era de base, la sesion esta abortada y sin este rollback el
-            # `commit()` de abajo revienta con `PendingRollbackError` y tapa el
-            # error real.
+            # El `rollback()` se queda AQUI, a la vista, y no dentro del
+            # ayudante. Dos motivos, y el segundo es el que manda:
+            #
+            #  · Deshacer antes de intentar escribir el registro de fallo es lo
+            #    que impide que un fallo de base deje la sesion abortada y el
+            #    `commit()` de abajo reviente con `PendingRollbackError`,
+            #    tapando el error real. Ese era el defecto de 2026-08.
+            #  · `tests/test_commit_rollback.py` lo busca **en el cuerpo del
+            #    manejador**, por AST, y no sigue las llamadas. Esconderlo tras
+            #    una funcion lo deja invisible para el guardian — que es justo
+            #    como este defecto volvio cinco veces antes de que existiera.
+            #    La conservadurismo del guardian es correcta aqui.
             db.rollback()
-            sync_finished = datetime.now(timezone.utc)
-            duration_ms = int((sync_finished - sync_started).total_seconds() * 1000)
-            fail_record = {
-                "status": "failed",
-                "started_at": sync_started.isoformat(),
-                "completed_at": sync_finished.isoformat(),
-                "duration_ms": duration_ms,
-                "stats": None,
-                "error": str(exc)[:240],
-            }
-            try:
-                guardar_estado_del_trabajo(db, {"running": False, "last_job_id": None, **fail_record}, org)
-                anotar_en_el_historial(db, fail_record, org)
-                db.commit()
-            except Exception:
-                # Si ni el registro del fallo se puede escribir, se deja la
-                # sesion limpia y se propaga el error ORIGINAL, que es el que
-                # tiene que ver quien lee el log.
-                db.rollback()
-                _logger.exception(
-                    "no se pudo registrar el fallo del job de auto-resolucion"
-                )
+            _registrar_fallo_del_trabajo(db, org, sync_started, exc)
             raise
 
         return APIResponse.ok(data={

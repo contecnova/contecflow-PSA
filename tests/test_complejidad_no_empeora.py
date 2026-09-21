@@ -10,36 +10,49 @@ Este fichero es el trinquete. La medida la hace `scripts/audit_complejidad.py`,
 que **llama a ruff** en vez de reimplementar McCabe: la definición de
 complejidad ya existe y tener dos sería peor que tener una.
 
-## Qué se registró, y por qué no es cero
+## La lista está vacía, y esa es la noticia
 
-`CONOCIDAS` es la foto de hoy: 74 funciones por encima de 10, con 173 de
-exceso acumulado y 16 de máximo. Se llegó ahí desde 94 / 253 / 17,
-quitando diecinueve funciones de la lista — y **ninguna se quitó
-por partirla en trozos para bajar un número**. Las catorce escondían un defecto:
+`CONOCIDAS` está **vacía**: hoy no queda ni una función de `app/` por encima de
+10. Se llegó ahí desde 94 / 253 / 17 (funciones / exceso / máximo), pasando por
+74 / 173 / 16 cuando se escribió este fichero.
 
-* cuatro eran copias literales del mismo dominio de tareas en dos módulos, y a
-  una le faltaba la comprobación ABAC que la otra sí tenía;
-* una era `TaskService`, 387 líneas de dominio duplicado sin un solo sitio de
-  llamada y con las búsquedas por id sin acotar por organización;
-* tres eran el mismo preámbulo de autenticación copiado en tres WebSocket;
-* dos eran la tabla de comandos del bot escrita una vez para Slack y otra para
-  Teams — y las dos copias no aceptaban los mismos verbos;
-* y cuatro eran cascadas de `elif` que son, literalmente, una tabla: los
-  operadores de búsqueda, las frecuencias de las tareas recurrentes, el
-  reconocimiento del `User-Agent` y los contadores de la instantánea de
-  seguridad. Un barrido por AST buscando esa firma sobre las que quedan
-  devuelve **cero**: no queda ninguna escondida.
+**Y ninguna se quitó partiéndola para bajar un número.** Casi todas eran una de
+estas dos cosas:
 
-Las 81 que quedan son, en su mayoría, funciones largas pero lineales: reglas de
-negocio encadenadas donde partir por partir mueve el problema de sitio y añade
-indirección. Bajarlas es trabajo legítimo y hay que hacerlo; lo que **no** se va
-a hacer es maquillar el número. Por eso el trinquete registra cada función con
-su valor en vez de guardar sólo un total: un total baja partiendo cualquier cosa.
+* **Una tabla escrita como cascada de `if`.** Los bytes mágicos de un fichero,
+  las palabras clave de un triaje, las once reglas de una retrospectiva, los
+  nueve operadores de una expresión de flujo, los 19 pasos de un plan de
+  pruebas, los 15 avisos de un plan de comunicación, los cinco tipos de
+  aprobador, los pesos de un cálculo de riesgo de sesión. Escritas como tabla se
+  leen enteras de un vistazo —que es lo que hace falta para revisarlas con quien
+  las usa— y añadir una fila deja de ser añadir una rama.
+
+* **El mismo bloque escrito dos o más veces.** El diccionario de respuesta de
+  `run_query`, escrito **tres** veces. El respaldo a JSON de `resolve_comment`,
+  dos. La aritmética de solapamiento de reservas, dos. El `try/except` de
+  registro de `test_provider`, **cuatro**. DocuSign y Adobe, dos bloques
+  idénticos de cuarenta líneas. La lista de permisos del portal, dos. Una tabla
+  de impacto, dos. Una cadena de umbrales de carga, **tres veces en el mismo
+  fichero**.
+
+Y de paso salieron defectos que nadie estaba buscando:
+
+* `useTaskComments` leía comentarios haciendo **POST** al endpoint de crearlos.
+* El refinamiento con Claude de `estimate_task_hours` **nunca se ejecutó**:
+  iteraba filas `(Task, horas)` como si fueran tareas.
+* El chequeo SSRF de las automatizaciones distinguía sus propios errores
+  **comparando el texto del mensaje**.
+* `ml_predict_project_overrun_lgbm` tenía dos expresiones `... if x or True else`
+  cuyo resultado se pisaba dos líneas después.
+* Y el más incómodo: al partir `enforce_abac`, el guardián de cobertura ABAC se
+  puso rojo sobre 65 rutas — porque **se satisfacía a sí mismo** escaneando el
+  código de `enforce_abac` como si fuera otro control. Ver
+  `tests/test_abac_coverage.py`.
 
 ## Las tres reglas
 
-1. Una función que **no está en la lista** no puede superar 10. Es la regla que
-   importa: el código nuevo nace por debajo del umbral.
+1. Una función que **no está** en la lista no puede superar 10. Con la lista
+   vacía, eso es *todas*: el código nuevo nace por debajo del umbral.
 2. Una función que **sí está** no puede subir de su valor registrado.
 3. Si una **mejora** —baja o desaparece—, el test también falla, y pide que
    actualices la lista. Es a propósito: mantiene la foto honesta y convierte
@@ -48,88 +61,15 @@ su valor en vez de guardar sólo un total: un total baja partiendo cualquier cos
 Para regenerar la lista después de una mejora:
 
     python scripts/audit_complejidad.py --lista
+
 """
 import pytest
 
 from scripts.audit_complejidad import UMBRAL, medir
 
 
-CONOCIDAS = {
-    ("app/api/v1/endpoints/ai_chat.py", "generate"): 12,
-    ("app/api/v1/endpoints/ai_chat.py", "run_agent_stream"): 16,
-    ("app/api/v1/endpoints/ai_modules.py", "transcribe_voice_audio"): 12,
-    ("app/api/v1/endpoints/ai_providers.py", "test_provider"): 12,
-    ("app/api/v1/endpoints/analytics.py", "run_query"): 13,
-    ("app/api/v1/endpoints/bi_intelligence.py", "phase2_realtime_stream"): 15,
-    ("app/api/v1/endpoints/capacity.py", "get_resource_leveling"): 11,
-    ("app/api/v1/endpoints/m365.py", "sync_to_planner"): 12,
-    ("app/api/v1/endpoints/service_desk/ai_auto_resolution.py", "run_auto_resolution_job"): 11,
-    ("app/core/abac_enforce.py", "enforce_abac"): 11,
-    ("app/core/csrf.py", "dispatch"): 11,
-    ("app/core/settings_pubsub.py", "_subscriber_loop"): 12,
-    ("app/core/uploads.py", "detect_mime_from_magic"): 14,
-    ("app/core/uploads.py", "validate_upload"): 11,
-    ("app/services/adhoc_analytics_service.py", "run_adhoc_query"): 14,
-    ("app/services/adhoc_analytics_service.py", "run_analytics_drilldown"): 11,
-    ("app/services/ai_chat/tool_execution/resources.py", "_get_imputations"): 13,
-    ("app/services/ai_copilot_service.py", "get_ai_timesheet_anomalies"): 13,
-    ("app/services/ai_modules/meetings.py", "process_meeting"): 11,
-    ("app/services/ai_planning_service.py", "estimate_task_hours"): 12,
-    ("app/services/ai_planning_service.py", "triage_ticket"): 14,
-    ("app/services/alm_service.py", "clean_input"): 11,
-    ("app/services/analytics_service.py", "get_advanced_utilization"): 13,
-    ("app/services/approval_engine/_base.py", "_is_authorized"): 12,
-    ("app/services/ask_the_data.py", "validate_sql"): 11,
-    ("app/services/automations_service.py", "_accion_call_webhook"): 13,
-    ("app/services/bi_collaboration_service.py", "resolve_comment"): 14,
-    ("app/services/bi_export_service.py", "export_dashboard_excel"): 11,
-    ("app/services/bi_intelligence_service.py", "ml_predict_project_overrun_lgbm"): 11,
-    ("app/services/billing_reports_service.py", "run_system_report"): 11,
-    ("app/services/billing_reports_service.py", "smartmatch"): 11,
-    ("app/services/bpmn_process_service.py", "build_bpmn_xml"): 12,
-    ("app/services/campaign_pdf.py", "generate_campaign_pdf"): 13,
-    ("app/services/capacity_planning_service.py", "get_gantt_leveling"): 12,
-    ("app/services/client_portal_service.py", "respond_to_fr"): 12,
-    ("app/services/client_service.py", "get_client_360"): 11,
-    ("app/services/cmdb/discovery.py", "discover_kubernetes"): 11,
-    ("app/services/documents_service.py", "extract_document_text"): 13,
-    ("app/services/enterprise_service.py", "_validate_webhook_url"): 11,
-    ("app/services/enterprise_service.py", "update_worker"): 14,
-    ("app/services/epics_service.py", "execute_nql_search"): 13,
-    ("app/services/esign_service.py", "create_provider_envelope"): 13,
-    ("app/services/key_management.py", "get_integration_rotation_status"): 11,
-    ("app/services/key_management.py", "rotate_due_materials"): 11,
-    ("app/services/m365_bi_embed_service.py", "export_dashboard_excel"): 14,
-    ("app/services/m365_bi_embed_service.py", "export_dashboard_word"): 15,
-    ("app/services/metrics/advanced.py", "metric_forecast_revenue"): 12,
-    ("app/services/predictive_retraining_service.py", "evaluate_itsm_model_health"): 12,
-    ("app/services/raci_service.py", "compute_retro_insights"): 14,
-    ("app/services/raci_service.py", "compute_user_burnout_risk"): 12,
-    ("app/services/rate_card_service.py", "get_effective_rate"): 11,
-    ("app/services/scheduled_reports.py", "_execute_report"): 11,
-    ("app/services/scheduled_reports_compat.py", "summarize_scheduled_reports"): 11,
-    ("app/services/service_desk/ai_auto_resolution_service.py", "_search_kb"): 13,
-    ("app/services/service_desk/change_impact_service.py", "generate_comms_plan"): 12,
-    ("app/services/service_desk/change_impact_service.py", "generate_testing_plan"): 14,
-    ("app/services/service_desk/change_impact_service.py", "simulate_change_whatif"): 15,
-    ("app/services/service_desk/change_management_service.py", "advance_rollout_phase"): 11,
-    ("app/services/service_desk/dynamic_forms_service.py", "_context_options_payload"): 11,
-    ("app/services/service_desk/dynamic_forms_service.py", "_normalize_mapping_rule"): 13,
-    ("app/services/service_desk/governance_compliance_service.py", "audit_incident_management"): 13,
-    ("app/services/service_desk/governance_compliance_service.py", "generate_compliance_report"): 14,
-    ("app/services/service_desk/predictive_analytics_service.py", "predict_sla_breach"): 11,
-    ("app/services/service_desk/ticket_query_service.py", "build_ticket_list_query"): 13,
-    ("app/services/service_desk/workflow_engine.py", "advance"): 11,
-    ("app/services/service_desk/workflow_engine.py", "evaluate_expression"): 13,
-    ("app/services/session_security.py", "_compute_risk"): 12,
-    ("app/services/sla_service.py", "add_working_hours"): 13,
-    ("app/services/task_service.py", "bulk_update_dates_record"): 13,
-    ("app/services/task_service.py", "update_task_record"): 14,
-    ("app/services/tasks/queries.py", "build_task_list_query"): 13,
-    ("app/services/tasks/scheduling.py", "cascade_reschedule"): 12,
-    ("app/services/user_service.py", "create_user_record"): 13,
-    ("app/worker.py", "deliver_webhook_task"): 11,
-}
+CONOCIDAS: dict[tuple[str, str], int] = {}
+
 
 
 @pytest.fixture(scope="module")
@@ -187,8 +127,10 @@ def test_los_totales_registrados_cuadran(medicion):
     """Que los números de la cabecera no se queden viejos."""
     assert len(medicion) == len(CONOCIDAS)
     assert sum(v - UMBRAL for v in medicion.values()) == EXCESO_REGISTRADO
-    assert max(medicion.values()) == MAXIMO_REGISTRADO
+    # `max()` de un diccionario vacío levanta, y con la lista en cero el
+    # máximo registrado es cero.
+    assert max(medicion.values(), default=0) == MAXIMO_REGISTRADO
 
 
-EXCESO_REGISTRADO = 173
-MAXIMO_REGISTRADO = 16
+EXCESO_REGISTRADO = 0
+MAXIMO_REGISTRADO = 0

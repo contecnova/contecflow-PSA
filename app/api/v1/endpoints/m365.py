@@ -315,6 +315,54 @@ async def get_users_presence(
 
 # ── Microsoft Planner sync ─────────────────────────────────────────────────────
 
+def _titulos_en_el_plan(plan_id: str) -> set[str]:
+    """Títulos que ya existen en el plan, en minúsculas, para no duplicar.
+
+    Un fallo al consultarlos devuelve el conjunto vacío y no detiene la
+    sincronización: el peor caso es crear un duplicado, y eso es preferible a
+    no sincronizar nada porque Graph tuvo un mal momento.
+    """
+    try:
+        respuesta = _graph_get_sync(f"/planner/plans/{plan_id}/tasks")
+        return {t.get("title", "").lower() for t in respuesta.get("value", [])}
+    except Exception:
+        logger.warning(
+            "Error obteniendo tareas existentes del plan Planner %s", plan_id, exc_info=True,
+        )
+        return set()
+
+
+def _crear_tarea_en_planner(plan_id: str, task) -> bool:
+    """Crea una tarea en Planner. Devuelve si lo consiguió.
+
+    La fecha de vencimiento es opcional: si no se puede formatear, la tarea se
+    crea igualmente sin ella. Perder la fecha es peor que no crear la tarea,
+    pero mucho menos peor.
+    """
+    titulo = (task.title or "").strip()
+    payload = {"planId": plan_id, "title": titulo}
+
+    if task.due_date:
+        try:
+            payload["dueDateTime"] = (
+                datetime.combine(task.due_date, datetime.min.time()).isoformat() + "Z"
+            )
+        except Exception:
+            logger.warning(
+                "Error formateando due_date para tarea %s",
+                getattr(task, "id", None), exc_info=True,
+            )
+
+    try:
+        _graph_post_sync("/planner/tasks", payload)
+        return True
+    except Exception:
+        logger.warning(
+            "Error creando tarea Planner '%s' en plan %s", titulo, plan_id, exc_info=True,
+        )
+        return False
+
+
 @router.post("/planner/tasks/sync", summary="Sincronizar tareas NexusPM a Microsoft Planner")
 def sync_to_planner(
     project_id: str,
@@ -322,76 +370,51 @@ def sync_to_planner(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """
-    Pushes active NexusPM tasks for a project to a Microsoft Planner plan.
-    - If plan_id is provided, uses that plan.
-    - If not, looks for an existing plan named after the project or creates one.
-    - Upserts tasks: creates new ones, skips if already exists by title match.
-    Returns a summary: { plan_id, created, skipped, errors }.
+    """Sube las tareas activas de un proyecto a un plan de Microsoft Planner.
+
+    Sólo crea lo que no está: las tareas que ya existen en el plan **por
+    título** se saltan. Devuelve `{plan_id, created, skipped, errors}`.
     """
     _require_m365()
 
-    tasks = m365_service.get_active_tasks_for_project(db, project_id, limit=200)
-    if not tasks:
-        return APIResponse.ok(data={"plan_id": plan_id, "created": 0, "skipped": 0, "errors": 0, "message": "No active tasks"})
+    tareas = m365_service.get_active_tasks_for_project(db, project_id, limit=200)
+    if not tareas:
+        return APIResponse.ok(data={
+            "plan_id": plan_id, "created": 0, "skipped": 0, "errors": 0,
+            "message": "No active tasks",
+        })
 
-    # Resolve plan_id
-    active_plan_id = plan_id
-    if not active_plan_id:
-        # Try to find existing plan for this project or create one
-        try:
-            # We need a group_id to create a Planner plan — use the first bucket owner group if configured
-            # For now, return informative error
-            raise HTTPException(400, detail={
-                "error": "PLAN_ID_REQUIRED",
-                "message": "Provide plan_id. To find your plan ID: https://graph.microsoft.com/v1.0/me/planner/plans",
-            })
-        # intentional: chained re-raise preserves context
-        except HTTPException:
-            raise
+    # Crear un plan requiere un `group_id` de Microsoft 365 que esta aplicación
+    # no tiene configurado, así que el plan lo da quien llama. Se dice cómo
+    # encontrarlo en vez de fallar a secas.
+    if not plan_id:
+        raise HTTPException(400, detail={
+            "error": "PLAN_ID_REQUIRED",
+            "message": (
+                "Provide plan_id. To find your plan ID: "
+                "https://graph.microsoft.com/v1.0/me/planner/plans"
+            ),
+        })
 
-    # Fetch existing Planner tasks for conflict detection
-    try:
-        existing_response = _graph_get_sync(f"/planner/plans/{active_plan_id}/tasks")
-        existing_titles = {t.get("title", "").lower() for t in existing_response.get("value", [])}
-    except Exception:
-        logger.warning("Error obteniendo tareas existentes del plan Planner %s", active_plan_id, exc_info=True)
-        existing_titles = set()
+    existentes = _titulos_en_el_plan(plan_id)
+    creadas = saltadas = fallidas = 0
 
-    created = 0
-    skipped = 0
-    errors  = 0
-
-    for task in tasks:
-        title = (task.title or "").strip()
-        if not title:
+    for tarea in tareas:
+        titulo = (tarea.title or "").strip()
+        if not titulo:
             continue
-        if title.lower() in existing_titles:
-            skipped += 1
+        if titulo.lower() in existentes:
+            saltadas += 1
             continue
-        due_str = None
-        if task.due_date:
-            try:
-                due_str = datetime.combine(task.due_date, datetime.min.time()).isoformat() + "Z"
-            except Exception:
-                logger.warning("Error formateando due_date para tarea %s", getattr(task, "id", None), exc_info=True)
-        payload = {
-            "planId": active_plan_id,
-            "title":  title,
-        }
-        if due_str:
-            payload["dueDateTime"] = due_str
-        try:
-            _graph_post_sync("/planner/tasks", payload)
-            created += 1
-        except Exception:
-            logger.warning("Error creando tarea Planner '%s' en plan %s", title, active_plan_id, exc_info=True)
-            errors += 1
+        if _crear_tarea_en_planner(plan_id, tarea):
+            creadas += 1
+        else:
+            fallidas += 1
 
     return APIResponse.ok(data={
-        "plan_id": active_plan_id,
-        "created": created,
-        "skipped": skipped,
-        "errors":  errors,
+        "plan_id": plan_id,
+        "created": creadas,
+        "skipped": saltadas,
+        "errors": fallidas,
     })
 

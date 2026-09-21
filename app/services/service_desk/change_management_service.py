@@ -466,6 +466,72 @@ def start_rollout_execution(
     return state
 
 
+#: Estados válidos de una fase de despliegue.
+_ESTADOS_DE_FASE = {"in_progress", "completed", "failed", "skipped"}
+
+#: Estados que dan una fase por terminada, del modo que sea.
+_FASES_TERMINADAS = {"completed", "skipped"}
+
+
+def _disparar_rollback(db: Session, change_id: str, state: dict, fase: dict,
+                       phase_number: int, notes: str, _log) -> None:
+    """Marca el despliegue como revertido y avisa a los interesados.
+
+    Las fases que quedaban por delante pasan a `skipped`, no a `failed`: no
+    llegaron a ejecutarse, y decir que fallaron sería falso en el informe.
+    """
+    motivo = f"Fase {phase_number} ({fase['name']}) falló: {notes}"
+    state["overall_status"] = "rolled_back"
+    state["rollback_triggered"] = True
+    state["rollback_reason"] = motivo
+
+    _log.warning(
+        "Rollback triggered automatically: change=%s phase=%d reason=%s",
+        change_id, phase_number, notes,
+    )
+    for p in state["phases"]:
+        if p["phase"] > phase_number and p["status"] == "pending":
+            p["status"] = "skipped"
+
+    _update_change_status_on_rollback(db, change_id)
+    _notify_change_stakeholders(
+        db, change_id,
+        subject=f"[ContecFlow] Automatic rollback triggered for change {change_id}",
+        body_html=(
+            f"<p>An <strong>automatic rollback</strong> has been triggered for change "
+            f"<strong>{change_id}</strong>.</p>"
+            f"<p><strong>Reason:</strong> {motivo}</p>"
+            f"<p><strong>Failed phase:</strong> {fase['name']} (phase {phase_number})</p>"
+            f"<p><strong>Time:</strong> {datetime.now(timezone.utc).isoformat()}</p>"
+        ),
+    )
+
+
+def _avanzar_puntero_y_cerrar(db: Session, change_id: str, state: dict,
+                              phase_number: int, phase_status: str) -> None:
+    """Mueve el puntero de fase y cierra el despliegue si ya no queda nada."""
+    if phase_status == "completed":
+        pendientes = [p for p in state["phases"] if p["status"] == "pending"]
+        state["current_phase"] = pendientes[0]["phase"] if pendientes else phase_number
+
+    todo_hecho = all(p["status"] in _FASES_TERMINADAS for p in state["phases"])
+    if not (todo_hecho and state["overall_status"] == "in_progress"):
+        return
+
+    state["overall_status"] = "completed"
+    _update_change_status_on_complete(db, change_id)
+    _notify_change_stakeholders(
+        db, change_id,
+        subject=f"[ContecFlow] Change {change_id} implemented successfully",
+        body_html=(
+            f"<p>Change <strong>{change_id}</strong> has been "
+            f"<strong>successfully implemented</strong>.</p>"
+            f"<p>All rollout phases completed at "
+            f"{datetime.now(timezone.utc).isoformat()}.</p>"
+        ),
+    )
+
+
 def advance_rollout_phase(
     db: Session,
     change_id: str,
@@ -474,85 +540,47 @@ def advance_rollout_phase(
     notes: str,
     current_user,
 ) -> dict:
-    """Advance a rollout phase to a new status.
+    """Mueve una fase de despliegue a un estado nuevo.
 
-    phase_status: 'in_progress' | 'completed' | 'failed' | 'skipped'
-    If any phase fails and rollback_if_fails is True, triggers rollback automatically.
-    Does NOT commit — caller must commit.
+    `phase_status`: 'in_progress' | 'completed' | 'failed' | 'skipped'.
+    Si una fase falla y tiene `rollback_if_fails`, dispara la reversión.
+
+    **No confirma la transacción** — quien llama tiene que hacerlo.
     """
     import logging
+
     _log = logging.getLogger(__name__)
 
-    VALID_STATUSES = {"in_progress", "completed", "failed", "skipped"}
-    if phase_status not in VALID_STATUSES:
+    if phase_status not in _ESTADOS_DE_FASE:
         raise ValueError(f"Estado de fase inválido: {phase_status}")
 
     state = _get_rollout_state(db, change_id)
     if not state:
         raise ValueError(f"No hay ejecución de rollout para el cambio {change_id}")
 
-    phase = next((p for p in state["phases"] if p["phase"] == phase_number), None)
-    if not phase:
+    fase = next((p for p in state["phases"] if p["phase"] == phase_number), None)
+    if not fase:
         raise ValueError(f"Fase {phase_number} no encontrada en el plan de rollout")
 
-    now_iso = datetime.now(timezone.utc).isoformat()
-    phase["status"] = phase_status
-    phase["notes"] = notes
-    if phase_status == "in_progress" and not phase.get("started_at"):
-        phase["started_at"] = now_iso
-    if phase_status in {"completed", "failed", "skipped"}:
-        phase["completed_at"] = now_iso
+    ahora = datetime.now(timezone.utc).isoformat()
+    fase["status"] = phase_status
+    fase["notes"] = notes
+    # `started_at` sólo la primera vez: volver a marcar «en curso» no reinicia
+    # el reloj de una fase que ya empezó.
+    if phase_status == "in_progress" and not fase.get("started_at"):
+        fase["started_at"] = ahora
+    if phase_status in _FASES_TERMINADAS or phase_status == "failed":
+        fase["completed_at"] = ahora
 
-    # Auto-trigger rollback on failure when rollback_if_fails=True
-    if phase_status == "failed" and phase.get("rollback_if_fails"):
-        state["overall_status"] = "rolled_back"
-        state["rollback_triggered"] = True
-        rollback_reason = f"Fase {phase_number} ({phase['name']}) falló: {notes}"
-        state["rollback_reason"] = rollback_reason
-        _log.warning(
-            "Rollback triggered automatically: change=%s phase=%d reason=%s",
-            change_id, phase_number, notes,
-        )
-        # Mark remaining phases as skipped
-        for p in state["phases"]:
-            if p["phase"] > phase_number and p["status"] == "pending":
-                p["status"] = "skipped"
-        _update_change_status_on_rollback(db, change_id)
-        _notify_change_stakeholders(
-            db,
-            change_id,
-            subject=f"[ContecFlow] Automatic rollback triggered for change {change_id}",
-            body_html=(
-                f"<p>An <strong>automatic rollback</strong> has been triggered for change <strong>{change_id}</strong>.</p>"
-                f"<p><strong>Reason:</strong> {rollback_reason}</p>"
-                f"<p><strong>Failed phase:</strong> {phase['name']} (phase {phase_number})</p>"
-                f"<p><strong>Time:</strong> {datetime.now(timezone.utc).isoformat()}</p>"
-            ),
-        )
+    if phase_status == "failed" and fase.get("rollback_if_fails"):
+        _disparar_rollback(db, change_id, state, fase, phase_number, notes, _log)
     else:
-        # Advance current_phase pointer
-        if phase_status == "completed":
-            remaining = [p for p in state["phases"] if p["status"] == "pending"]
-            state["current_phase"] = remaining[0]["phase"] if remaining else phase_number
-        # Check if all phases are done
-        all_done = all(p["status"] in {"completed", "skipped"} for p in state["phases"])
-        if all_done and state["overall_status"] == "in_progress":
-            state["overall_status"] = "completed"
-            _update_change_status_on_complete(db, change_id)
-            _notify_change_stakeholders(
-                db,
-                change_id,
-                subject=f"[ContecFlow] Change {change_id} implemented successfully",
-                body_html=(
-                    f"<p>Change <strong>{change_id}</strong> has been <strong>successfully implemented</strong>.</p>"
-                    f"<p>All rollout phases completed at {datetime.now(timezone.utc).isoformat()}.</p>"
-                ),
-            )
+        _avanzar_puntero_y_cerrar(db, change_id, state, phase_number, phase_status)
 
     _save_rollout_state(db, change_id, state)
     _log.info(
         "Rollout phase %d/%s: change=%s status=%s",
-        phase_number, phase["name"], change_id, phase_status,
+        phase_number, fase["name"], change_id, phase_status,
     )
     return state
 

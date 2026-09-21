@@ -351,22 +351,57 @@ def run_capacity_report(db: Session, filters: dict, date_from, date_to, org_id=N
     }
 
 
-def run_system_report(db: Session, report_id: str, filters: dict, date_from, date_to) -> dict:
+#: Informe del catálogo → qué generador lo produce y con qué agrupación.
+#:
+#: Auditoría 2026-09 (hallazgo 18): eran diez `if` con `return`, que es una
+#: tabla de despacho escrita como código. Como tabla se ve de un vistazo qué
+#: informes existen y cuáles comparten generador —tres van a
+#: `run_projects_report` con agrupaciones distintas—, que es justo lo que hay
+#: que saber para añadir uno.
+#:
+#: `fechas` a `False` marca los dos generadores que no admiten rango: el de
+#: habilidades y el de pipeline son fotos del momento, no series.
+_INFORMES_DEL_SISTEMA: dict[str, tuple] = {
+    "utilization_by_person": ("imputations", "user", True),
+    "margin_by_project":     ("projects", "project", True),
+    "wip_report":            ("projects", None, True),
+    "timesheet_hours_trend": ("imputations", "month", True),
+    "sla_compliance":        ("tickets", None, True),
+    "ticket_volume_trend":   ("tickets", "week", True),
+    "expense_by_project":    ("expenses", "project", True),
+    "capacity_forecast_12w": ("capacity", None, True),
+    "resource_skills_matrix": ("skills", None, False),
+    "pipeline_health":       ("pipeline", None, False),
+}
 
-    today = timeutil.today()
-    df = date_from or str(today - timedelta(days=90))
-    dt = date_to or str(today)
-    if report_id == "utilization_by_person":  return run_imputations_report(db, filters, "user", df, dt, None)
-    if report_id == "margin_by_project":      return run_projects_report(db, filters, "project", df, dt)
-    if report_id == "wip_report":             return run_projects_report(db, filters, None, df, dt)
-    if report_id == "timesheet_hours_trend":  return run_imputations_report(db, filters, "month", df, dt, None)
-    if report_id == "sla_compliance":         return run_tickets_report(db, filters, None, df, dt)
-    if report_id == "ticket_volume_trend":    return run_tickets_report(db, filters, "week", df, dt)
-    if report_id == "expense_by_project":     return run_expenses_report(db, filters, "project", df, dt, None)
-    if report_id == "capacity_forecast_12w":  return run_capacity_report(db, filters, df, dt)
-    if report_id == "resource_skills_matrix": return run_skills_report(db, filters)
-    if report_id == "pipeline_health":        return run_pipeline_report(db, filters)
-    return run_projects_report(db, filters, None, df, dt)
+
+def run_system_report(db: Session, report_id: str, filters: dict, date_from, date_to) -> dict:
+    """Ejecuta uno de los informes del catálogo del sistema.
+
+    Un `report_id` desconocido cae al informe de proyectos sin agrupar, que es
+    lo que hacía: es la vista más general y no deja al usuario sin respuesta.
+    """
+    hoy = timeutil.today()
+    desde = date_from or str(hoy - timedelta(days=90))
+    hasta = date_to or str(hoy)
+
+    generador, agrupacion, con_fechas = _INFORMES_DEL_SISTEMA.get(
+        report_id, ("projects", None, True),
+    )
+
+    if generador == "imputations":
+        return run_imputations_report(db, filters, agrupacion, desde, hasta, None)
+    if generador == "tickets":
+        return run_tickets_report(db, filters, agrupacion, desde, hasta)
+    if generador == "expenses":
+        return run_expenses_report(db, filters, agrupacion, desde, hasta, None)
+    if generador == "capacity":
+        return run_capacity_report(db, filters, desde, hasta)
+    if generador == "skills":
+        return run_skills_report(db, filters)
+    if generador == "pipeline":
+        return run_pipeline_report(db, filters)
+    return run_projects_report(db, filters, agrupacion, desde, hasta)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1044,113 +1079,179 @@ def serialize_scheduled_report(r) -> dict:
 # SMARTMATCH
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def smartmatch(payload: dict, db: Session) -> dict:
-    """Recommend top resources based on skills, availability, cost, workload."""
-    required_skills = payload.get("skills", [])
-    required_role = payload.get("role")
-    start_date = payload.get("start_date")
-    end_date = payload.get("end_date")
-    hours_needed = payload.get("hours_needed", 40)
-    max_rate = payload.get("max_hourly_rate")
+#: Nivel de habilidad a número, para poder promediarlos.
+_NIVEL_A_NUMERO = {"basic": 1, "intermediate": 2, "advanced": 3, "expert": 4}
 
-    users = db.query(User).options(
-        joinedload(User.task_assignments),
-    ).filter(User.is_active == True)
-    if required_role:
-        users = users.filter(User.role == required_role)
-    users = users.all()
+#: Peso de cada factor en la puntuación final. Suman 1, y el orden dice la
+#: prioridad del negocio: la habilidad manda, el coste desempata.
+#:
+#: Auditoría 2026-09 (hallazgo 18): estos cuatro números estaban en línea, en
+#: una sola expresión. Aquí se pueden discutir sin leer el algoritmo.
+_PESOS_DE_SMARTMATCH = {
+    "skills": 0.4, "availability": 0.3, "workload": 0.2, "cost": 0.1,
+}
 
-    user_skills = db.query(UserSkill).options(joinedload(UserSkill.skill)).all()
-    skill_map: dict = {}
-    skill_level_map: dict = {}
-    for us in user_skills:
-        if us.skill:
-            skill_map.setdefault(us.user_id, []).append(us.skill.name.lower())
-            skill_level_map[(us.user_id, us.skill.name.lower())] = us.level
+#: Corte de puntuación → recomendación, de mejor a peor. Gana el primero que
+#: alcance.
+_RECOMENDACIONES_SMARTMATCH = (
+    (0.75, "🟢 Excelente"),
+    (0.50, "🟡 Buena opción"),
+    (0.25, "🟠 Posible"),
+    (0.00, "🔴 No recomendado"),
+)
 
-    active_tasks = db.query(
-        Task.assignee_id,
-        func.count(Task.id).label("count")
-    ).filter(Task.status.notin_(["done", "cancelled"])).group_by(Task.assignee_id).all()
-    task_count_map = {r.assignee_id: r.count for r in active_tasks}
 
-    _LEVEL_NUM = {"basic": 1, "intermediate": 2, "advanced": 3, "expert": 4}
+def _nivel_numerico(valor) -> int:
+    """El nivel de una habilidad como número, venga como entero, enum o texto."""
+    if isinstance(valor, int):
+        return valor
+    if hasattr(valor, "value"):
+        return _NIVEL_A_NUMERO.get(valor.value, 1)
+    return _NIVEL_A_NUMERO.get(str(valor), 1)
 
-    def _lvl(v):
-        if isinstance(v, int): return v
-        if hasattr(v, "value"): return _LEVEL_NUM.get(v.value, 1)
-        return _LEVEL_NUM.get(str(v), 1)
 
-    results = []
-    for user in users:
-        user_skill_names = skill_map.get(user.id, [])
-        required_lower = [s.lower() for s in required_skills]
-        matched_skills = [s for s in required_lower if s in user_skill_names]
-        skill_score = len(matched_skills) / max(len(required_lower), 1) if required_lower else 1.0
-        avg_skill_level = (
-            sum(_lvl(skill_level_map.get((user.id, s), 1)) for s in matched_skills) /
-            max(len(matched_skills), 1)
-        ) if matched_skills else 1.0
+def _semanas_del_periodo(start_date, end_date) -> float:
+    """Cuántas semanas cubre el periodo pedido. Dos por defecto.
 
-        capacity = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
-        active_task_load = task_count_map.get(user.id, 0)
-        weeks = max((timedelta(weeks=2)).days / 7, 1)
-        if start_date and end_date:
-            try:
-                d1 = date.fromisoformat(start_date)
-                d2 = date.fromisoformat(end_date)
-                weeks = max((d2 - d1).days / 7, 0.5)
-            except ValueError:
-                raise HTTPException(400, "Formato de fecha inválido en start_date/end_date, se espera YYYY-MM-DD")
-        total_available = capacity * weeks
-        availability_score = min(total_available / max(hours_needed, 1), 1.0)
+    El suelo de media semana evita que un periodo de un día dé una
+    disponibilidad casi nula y descarte a todo el mundo.
+    """
+    if not (start_date and end_date):
+        return 2.0
+    try:
+        d1 = date.fromisoformat(start_date)
+        d2 = date.fromisoformat(end_date)
+    except ValueError:
+        raise HTTPException(
+            400, "Formato de fecha inválido en start_date/end_date, se espera YYYY-MM-DD",
+        )
+    return max((d2 - d1).days / 7, 0.5)
 
-        rate = user.hourly_rate or 0
-        if max_rate and rate > max_rate:
+
+def _mapas_de_habilidades(db: Session) -> tuple[dict, dict]:
+    """Habilidades por usuario y nivel de cada par (usuario, habilidad).
+
+    Se cargan de una vez para todos los usuarios: preguntando por usuario, una
+    plantilla de cien personas son cien consultas para puntuar una búsqueda.
+    """
+    por_usuario: dict = {}
+    niveles: dict = {}
+    for us in db.query(UserSkill).options(joinedload(UserSkill.skill)).all():
+        if not us.skill:
             continue
-        cost_score = 1.0 if rate == 0 else min(1.0, 1 - (rate / 200))
-        workload_score = max(0, 1 - active_task_load / 20)
+        nombre = us.skill.name.lower()
+        por_usuario.setdefault(us.user_id, []).append(nombre)
+        niveles[(us.user_id, nombre)] = us.level
+    return por_usuario, niveles
 
-        score = skill_score * 0.4 + availability_score * 0.3 + workload_score * 0.2 + cost_score * 0.1
 
-        results.append({
-            "user_id": user.id,
-            "user_name": user.full_name,
-            "role": user.role,
-            "department": user.department,
-            "job_title": user.job_title,
-            "hourly_rate": rate,
-            "weekly_capacity": capacity,
-            "active_tasks": active_task_load,
-            "matched_skills": matched_skills,
-            "missing_skills": [s for s in required_lower if s not in user_skill_names],
-            "avg_skill_level": round(avg_skill_level, 1),
-            "availability_hours": round(total_available, 1),
-            "scores": {
-                "overall": round(score * 100, 1),
-                "skills": round(skill_score * 100, 1),
-                "availability": round(availability_score * 100, 1),
-                "workload": round(workload_score * 100, 1),
-                "cost": round(cost_score * 100, 1),
-            },
-            "recommendation": (
-                "🟢 Excelente" if score > 0.75
-                else "🟡 Buena opción" if score > 0.5
-                else "🟠 Posible" if score > 0.25
-                else "🔴 No recomendado"
-            ),
-        })
+def _puntuar_candidato(user, *, habilidades_pedidas: list, sus_habilidades: list,
+                       niveles: dict, tareas_activas: int, semanas: float,
+                       horas_necesarias: float) -> dict:
+    """Puntúa a una persona para un encargo, con los cuatro factores."""
+    coincidentes = [h for h in habilidades_pedidas if h in sus_habilidades]
+    p_habilidad = (
+        len(coincidentes) / max(len(habilidades_pedidas), 1) if habilidades_pedidas else 1.0
+    )
+    nivel_medio = (
+        sum(_nivel_numerico(niveles.get((user.id, h), 1)) for h in coincidentes)
+        / max(len(coincidentes), 1)
+    ) if coincidentes else 1.0
 
-    results.sort(key=lambda x: -x["scores"]["overall"])
-    top = results[:5]
+    capacidad = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    disponibles = capacidad * semanas
+    p_disponibilidad = min(disponibles / max(horas_necesarias, 1), 1.0)
+
+    tarifa = user.hourly_rate or 0
+    # Sin tarifa declarada se puntúa como la mejor: es un recurso interno sin
+    # coste imputable, no uno gratis.
+    p_coste = 1.0 if tarifa == 0 else min(1.0, 1 - (tarifa / 200))
+    # Veinte tareas activas es la saturación: a partir de ahí no suma nada.
+    p_carga = max(0, 1 - tareas_activas / 20)
+
+    total = (
+        p_habilidad * _PESOS_DE_SMARTMATCH["skills"]
+        + p_disponibilidad * _PESOS_DE_SMARTMATCH["availability"]
+        + p_carga * _PESOS_DE_SMARTMATCH["workload"]
+        + p_coste * _PESOS_DE_SMARTMATCH["cost"]
+    )
+
     return {
-        "query": {"skills": required_skills, "role": required_role, "hours_needed": hours_needed,
-                  "start_date": start_date, "end_date": end_date},
+        "user_id": user.id,
+        "user_name": user.full_name,
+        "role": user.role,
+        "department": user.department,
+        "job_title": user.job_title,
+        "hourly_rate": tarifa,
+        "weekly_capacity": capacidad,
+        "active_tasks": tareas_activas,
+        "matched_skills": coincidentes,
+        "missing_skills": [h for h in habilidades_pedidas if h not in sus_habilidades],
+        "avg_skill_level": round(nivel_medio, 1),
+        "availability_hours": round(disponibles, 1),
+        "scores": {
+            "overall": round(total * 100, 1),
+            "skills": round(p_habilidad * 100, 1),
+            "availability": round(p_disponibilidad * 100, 1),
+            "workload": round(p_carga * 100, 1),
+            "cost": round(p_coste * 100, 1),
+        },
+        "recommendation": next(
+            texto for corte, texto in _RECOMENDACIONES_SMARTMATCH if total > corte or corte == 0.0
+        ),
+    }
+
+
+def smartmatch(payload: dict, db: Session) -> dict:
+    """Recomienda personas para un encargo: habilidad, disponibilidad, coste y carga."""
+    habilidades_pedidas = [h.lower() for h in payload.get("skills", [])]
+    rol = payload.get("role")
+    horas_necesarias = payload.get("hours_needed", 40)
+    tarifa_maxima = payload.get("max_hourly_rate")
+    semanas = _semanas_del_periodo(payload.get("start_date"), payload.get("end_date"))
+
+    usuarios_q = db.query(User).options(
+        joinedload(User.task_assignments),
+    ).filter(User.is_active == True)  # noqa: E712
+    if rol:
+        usuarios_q = usuarios_q.filter(User.role == rol)
+
+    por_usuario, niveles = _mapas_de_habilidades(db)
+    tareas_por_usuario = {
+        fila.assignee_id: fila.count
+        for fila in db.query(Task.assignee_id, func.count(Task.id).label("count"))
+        .filter(Task.status.notin_(["done", "cancelled"]))
+        .group_by(Task.assignee_id).all()
+    }
+
+    resultados = [
+        _puntuar_candidato(
+            user,
+            habilidades_pedidas=habilidades_pedidas,
+            sus_habilidades=por_usuario.get(user.id, []),
+            niveles=niveles,
+            tareas_activas=tareas_por_usuario.get(user.id, 0),
+            semanas=semanas,
+            horas_necesarias=horas_necesarias,
+        )
+        for user in usuarios_q.all()
+        # La tarifa máxima descarta, no penaliza: es un límite de presupuesto.
+        if not (tarifa_maxima and (user.hourly_rate or 0) > tarifa_maxima)
+    ]
+    resultados.sort(key=lambda r: -r["scores"]["overall"])
+    top = resultados[:5]
+
+    return {
+        "query": {
+            "skills": payload.get("skills", []), "role": rol,
+            "hours_needed": horas_necesarias,
+            "start_date": payload.get("start_date"), "end_date": payload.get("end_date"),
+        },
         "candidates": top,
-        "total_evaluated": len(results),
+        "total_evaluated": len(resultados),
         "message": (
-            f"Se evaluaron {len(results)} recursos. Top {len(top)} recomendados."
-            if results else "No se encontraron recursos con los criterios indicados."
+            f"Se evaluaron {len(resultados)} recursos. Top {len(top)} recomendados."
+            if resultados else "No se encontraron recursos con los criterios indicados."
         ),
     }
 

@@ -79,73 +79,101 @@ def get_booking_conflicts(
     }
 
 
+def _dias_de(reserva) -> set:
+    """Los días que ocupa una reserva, los dos extremos incluidos."""
+    dias = set()
+    d = reserva.start_date
+    while d <= reserva.end_date:
+        dias.add(d)
+        d += timedelta(days=1)
+    return dias
+
+
+def _dias_sobrecargados(reservas, capacidad: float) -> set:
+    """Días en los que la suma de horas reservadas supera la capacidad diaria.
+
+    Se suma **por día y por persona**: dos reservas de media jornada no
+    sobrecargan, dos de jornada completa sí.
+    """
+    por_dia: dict = defaultdict(float)
+    for reserva in reservas:
+        horas = reserva.hours_per_day or settings.DEFAULT_WORKING_HOURS_PER_DAY
+        for dia in _dias_de(reserva):
+            por_dia[dia] += horas
+    return {dia for dia, horas in por_dia.items() if horas > capacidad}
+
+
+def _propuestas_para(reservas, sobrecargados: set, uid, nombre: str) -> list[dict]:
+    """Mover cada reserva en conflicto justo después del último día sobrecargado.
+
+    Se conserva la duración: la reserva se desplaza, no se estira. Y se toma el
+    último día de conflicto y no el primero, porque mover hasta el primero
+    dejaría la reserva pisando los demás.
+    """
+    propuestas = []
+    for reserva in reservas:
+        conflictos = _dias_de(reserva) & sobrecargados
+        if not conflictos:
+            continue
+        nuevo_inicio = max(conflictos) + timedelta(days=1)
+        duracion = (reserva.end_date - reserva.start_date).days
+        propuestas.append({
+            "booking_id": reserva.id,
+            "user_id": uid,
+            "user_name": nombre,
+            "project_id": reserva.project_id,
+            "current_start": str(reserva.start_date),
+            "current_end": str(reserva.end_date),
+            "suggested_start": str(nuevo_inicio),
+            "suggested_end": str(nuevo_inicio + timedelta(days=duracion)),
+            "conflict_days_count": len(conflictos),
+            "reason": f"Resource overloaded on {len(conflictos)} day(s)",
+        })
+    return propuestas
+
+
 def get_gantt_leveling(
     project_id: Optional[str],
     start_date: Optional[date],
     end_date: Optional[date],
     db: Session,
 ) -> dict:
+    """Propuestas de nivelación: qué reservas mover para quitar sobrecargas.
 
+    **No cambia nada**: devuelve propuestas para que alguien decida.
+    """
     q = db.query(Booking)
     if project_id:
         q = q.filter(Booking.project_id == project_id)
+    # Solape con el periodo, no contención: una reserva que empieza antes y
+    # acaba dentro también carga días del periodo.
     if start_date:
         q = q.filter(Booking.end_date >= start_date)
     if end_date:
         q = q.filter(Booking.start_date <= end_date)
 
-    bookings = q.order_by(Booking.start_date).all()
-    capacity = settings.DEFAULT_WORKING_HOURS_PER_DAY
-    user_bookings: dict = defaultdict(list)
-    for b in bookings:
-        user_bookings[b.user_id].append(b)
+    por_usuario: dict = defaultdict(list)
+    for reserva in q.order_by(Booking.start_date).all():
+        por_usuario[reserva.user_id].append(reserva)
 
-    proposals = []
-    for uid, user_bks in user_bookings.items():
-        sorted_bks = sorted(user_bks, key=lambda x: x.start_date)
-        user_obj = db.query(User).filter(User.id == uid).first()
-        daily: dict = defaultdict(float)
-        for b in sorted_bks:
-            d = b.start_date
-            while d <= b.end_date:
-                daily[d] += (b.hours_per_day or settings.DEFAULT_WORKING_HOURS_PER_DAY)
-                d += timedelta(days=1)
-
-        overloaded = {d for d, h in daily.items() if h / capacity * 100 > 100}
-        if not overloaded:
+    capacidad = settings.DEFAULT_WORKING_HOURS_PER_DAY
+    propuestas: list[dict] = []
+    for uid, reservas in por_usuario.items():
+        reservas = sorted(reservas, key=lambda r: r.start_date)
+        sobrecargados = _dias_sobrecargados(reservas, capacidad)
+        if not sobrecargados:
             continue
-
-        for b in sorted_bks:
-            bk_days = set()
-            d = b.start_date
-            while d <= b.end_date:
-                bk_days.add(d)
-                d += timedelta(days=1)
-            conflict_days = bk_days & overloaded
-            if conflict_days:
-                latest_conflict = max(conflict_days)
-                suggested_start = latest_conflict + timedelta(days=1)
-                duration_days = (b.end_date - b.start_date).days
-                suggested_end = suggested_start + timedelta(days=duration_days)
-                proposals.append({
-                    "booking_id": b.id,
-                    "user_id": uid,
-                    "user_name": user_obj.full_name if user_obj else uid,
-                    "project_id": b.project_id,
-                    "current_start": str(b.start_date),
-                    "current_end": str(b.end_date),
-                    "suggested_start": str(suggested_start),
-                    "suggested_end": str(suggested_end),
-                    "conflict_days_count": len(conflict_days),
-                    "reason": f"Resource overloaded on {len(conflict_days)} day(s)",
-                })
+        usuario = db.query(User).filter(User.id == uid).first()
+        propuestas += _propuestas_para(
+            reservas, sobrecargados, uid, usuario.full_name if usuario else uid,
+        )
 
     return {
         "analysis_period": {
             "start": str(start_date or "all"),
             "end": str(end_date or "all"),
         },
-        "overloaded_users": len(set(p["user_id"] for p in proposals)),
-        "proposals_count": len(proposals),
-        "proposals": proposals,
+        "overloaded_users": len({p["user_id"] for p in propuestas}),
+        "proposals_count": len(propuestas),
+        "proposals": propuestas,
     }

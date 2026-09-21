@@ -323,91 +323,121 @@ def create_portal_user(
 
 # ── 360 view ───────────────────────────────────────────────────────────────────
 
-def get_client_360(client_id: str, db: Session) -> dict:
-    """Executive 360 summary: KPIs, health score, recent alerts."""
+def _con_zona(dt):
+    """Una fecha con zona. Las guardadas sin ella se leen como UTC."""
+    return dt.replace(tzinfo=timezone.utc) if dt and dt.tzinfo is None else dt
 
-    c = db.query(Client).filter(Client.id == client_id, Client.is_active == True).first()
+
+def _valor_de_contratos(db: Session, enlaces) -> float:
+    """Importe total de los contratos enlazados que tengan importe."""
+    total = 0.0
+    for enlace in enlaces:
+        contrato = db.query(Contract).filter(Contract.id == enlace.contract_id).first()
+        if contrato and contrato.total_amount:
+            total += contrato.total_amount
+    return total
+
+
+def _licencias_por_vencer(db: Session, enlaces, ahora) -> int:
+    """Licencias que vencen dentro de los próximos 60 días.
+
+    El rango es abierto por abajo —`0 < dias`— a propósito: una licencia ya
+    vencida no «vence pronto», es otro problema y otra alerta.
+    """
+    cuantas = 0
+    for enlace in enlaces:
+        licencia = db.query(ALMLicense).filter(ALMLicense.id == enlace.license_id).first()
+        if not (licencia and licencia.expiry_date):
+            continue
+        vence = datetime.combine(licencia.expiry_date, time(0, 0)).replace(tzinfo=timezone.utc)
+        if 0 < (vence - ahora).days <= 60:
+            cuantas += 1
+    return cuantas
+
+
+#: Penalizaciones de salud del cliente: (condición sobre el resumen, puntos).
+#: Auditoría 2026-09 (hallazgo 18): eran tres `if` con un `-=` cada uno. Como
+#: tabla se ve la escala relativa, que es lo que hay que poder discutir.
+_PENALIZACIONES_DE_SALUD: tuple[tuple, ...] = (
+    (lambda r: r["abiertos"] > 5, 20),
+    (lambda r: r["por_vencer"] > 0, 10),
+    (lambda r: r["proyectos_activos"] == 0, 15),
+)
+
+
+def get_client_360(client_id: str, db: Session) -> dict:
+    """Resumen ejecutivo de un cliente: KPIs, salud y alertas recientes."""
+    c = db.query(Client).filter(
+        Client.id == client_id, Client.is_active == True,  # noqa: E712
+    ).first()
     if not c:
         raise HTTPException(404)
 
-    now = datetime.now(timezone.utc)
-    thirty_days_ago = now - timedelta(days=30)
+    ahora = datetime.now(timezone.utc)
+    hace_30_dias = ahora - timedelta(days=30)
 
-    all_projects = db.query(Project).filter(Project.client_id == client_id).all()
-    active_projects = [p for p in all_projects if p.status == "active"]
+    proyectos = db.query(Project).filter(Project.client_id == client_id).all()
+    activos = [p for p in proyectos if p.status == "active"]
 
-    all_tickets = db.query(Ticket).filter(Ticket.client_id == client_id).all()
-    open_tickets = [t for t in all_tickets if t.status not in ("resolved", "closed")]
-
-    def _to_aware(dt):
-        return dt.replace(tzinfo=timezone.utc) if dt and dt.tzinfo is None else dt
-
-    recent_tickets = [
-        t for t in all_tickets
-        if t.created_at and _to_aware(t.created_at) > thirty_days_ago
+    tickets = db.query(Ticket).filter(Ticket.client_id == client_id).all()
+    abiertos = [t for t in tickets if t.status not in ("resolved", "closed")]
+    recientes = [
+        t for t in tickets
+        if t.created_at and _con_zona(t.created_at) > hace_30_dias
     ]
 
-    con_links = db.query(ClientContractLink).filter(
+    enlaces_contrato = db.query(ClientContractLink).filter(
         ClientContractLink.client_id == client_id,
-        ClientContractLink.is_active == True,
+        ClientContractLink.is_active == True,  # noqa: E712
     ).all()
-    contract_value = 0
-    for cl in con_links:
-        con = db.query(Contract).filter(Contract.id == cl.contract_id).first()
-        if con and con.total_amount:
-            contract_value += con.total_amount
-
-    lic_links = db.query(ClientLicenseLink).filter(
+    enlaces_licencia = db.query(ClientLicenseLink).filter(
         ClientLicenseLink.client_id == client_id,
-        ClientLicenseLink.is_active == True,
+        ClientLicenseLink.is_active == True,  # noqa: E712
     ).all()
-    expiring_soon = 0
-    for ll in lic_links:
-        lic = db.query(ALMLicense).filter(ALMLicense.id == ll.license_id).first()
-        if lic and lic.expiry_date:
-            exp = datetime.combine(lic.expiry_date, time(0, 0)).replace(tzinfo=timezone.utc)
-            if 0 < (exp - now).days <= 60:
-                expiring_soon += 1
 
-    portal_users_count = db.query(func.count(ClientUser.id)).filter(
-        ClientUser.client_org_id == client_id, ClientUser.is_active == True
+    por_vencer = _licencias_por_vencer(db, enlaces_licencia, ahora)
+    usuarios_portal = db.query(func.count(ClientUser.id)).filter(
+        ClientUser.client_org_id == client_id,
+        ClientUser.is_active == True,  # noqa: E712
     ).scalar() or 0
 
-    health = 100
-    if len(open_tickets) > 5:
-        health -= 20
-    if expiring_soon > 0:
-        health -= 10
-    if not active_projects:
-        health -= 15
-    health = max(0, health)
+    resumen = {
+        "abiertos": len(abiertos),
+        "por_vencer": por_vencer,
+        "proyectos_activos": len(activos),
+    }
+    salud = max(0, 100 - sum(
+        puntos for condicion, puntos in _PENALIZACIONES_DE_SALUD if condicion(resumen)
+    ))
 
     return {
         "client_id": client_id,
         "client_name": c.name,
-        "health_score": health,
+        "health_score": salud,
         "kpis": {
-            "total_projects": len(all_projects),
-            "active_projects": len(active_projects),
-            "total_tickets": len(all_tickets),
-            "open_tickets": len(open_tickets),
-            "tickets_last_30d": len(recent_tickets),
-            "linked_contracts": len(con_links),
-            "contract_value_eur": contract_value,
-            "linked_licenses": len(lic_links),
-            "licenses_expiring_soon": expiring_soon,
-            "portal_users": portal_users_count,
+            "total_projects": len(proyectos),
+            "active_projects": len(activos),
+            "total_tickets": len(tickets),
+            "open_tickets": len(abiertos),
+            "tickets_last_30d": len(recientes),
+            "linked_contracts": len(enlaces_contrato),
+            "contract_value_eur": _valor_de_contratos(db, enlaces_contrato),
+            "linked_licenses": len(enlaces_licencia),
+            "licenses_expiring_soon": por_vencer,
+            "portal_users": usuarios_portal,
         },
+        # El umbral de la alerta de tickets (3) es más bajo que el de la
+        # penalización de salud (5): avisar antes de que puntúe.
         "alerts": [
-            *([f"{expiring_soon} licencia(s) vencen en menos de 60 días"] if expiring_soon > 0 else []),
-            *([f"{len(open_tickets)} ticket(s) abiertos sin resolver"] if len(open_tickets) > 3 else []),
+            *([f"{por_vencer} licencia(s) vencen en menos de 60 días"] if por_vencer > 0 else []),
+            *([f"{len(abiertos)} ticket(s) abiertos sin resolver"] if len(abiertos) > 3 else []),
         ],
         "recent_tickets": [
             {
                 "id": t.id, "title": t.title, "status": t.status,
                 "priority": t.priority, "created_at": str(t.created_at),
             }
-            for t in sorted(all_tickets, key=lambda x: x.created_at or now, reverse=True)[:5]
+            for t in sorted(tickets, key=lambda x: x.created_at or ahora, reverse=True)[:5]
         ],
     }
 

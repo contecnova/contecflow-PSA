@@ -47,10 +47,20 @@ ROUTE_ROLE_GUARDS = {
 # amplio: el objetivo es detectar la AUSENCIA TOTAL de control, no auditar que
 # cada comprobación concreta sea la correcta (eso no es decidible estáticamente).
 SERVICE_AUTHZ_SIGNALS = re.compile(
+    # Guardas de rol y de organizacion.
     r"current_user\.role|cu\.role|user\.role|is_superadmin|"
     r"_scoped_\w*or_404|org_scoped_or_404|assert_same_org|assert_org_id_is_own|"
     r"verify_admin_or_governance_role|require_|"
-    r"HTTPException\(\s*403|status\.HTTP_403",
+    r"HTTPException\(\s*403|status\.HTTP_403|"
+    # Comprobacion de PROPIEDAD, que en este proyecto es tan control como las
+    # anteriores: una busqueda acotada al usuario que pregunta, que devuelve
+    # 404 si la fila no es suya. Auditoria 2026-09: faltaba, y por eso el
+    # listado de rutas "sin control" incluia sitios como
+    # `get_absence_for_user(db, absence_id, current_user.id)`, que es
+    # exactamente el control que hace falta ahi.
+    r"for_user\(|owner_id|"
+    r"user_id\s*==\s*current_user\.id|user_id\s*=\s*current_user\.id|"
+    r"\.id\s*==\s*current_user\.id|,\s*current_user\.id\s*\)",
     re.IGNORECASE,
 )
 
@@ -178,11 +188,33 @@ def test_exemptions_document_a_reason():
 
 # ── 2. enforce_abac nunca es el único control ─────────────────────────────────
 
+#: Nombres cuyo código NO cuenta como «otro control».
+#:
+#: Auditoría 2026-09. Esto faltaba, y sin ello **este test no podía fallar
+#: nunca por el motivo que existe para detectar**. El barrido resolvía cada
+#: nombre llamado por el endpoint —incluido `enforce_abac`— y concatenaba su
+#: código fuente al blob donde busca señales de autorización. Y el cuerpo de
+#: `enforce_abac` contiene `is_superadmin` y `user.role`, que son dos de esas
+#: señales.
+#:
+#: Es decir: una ruta cuyo único control fuera `enforce_abac` pasaba el test
+#: porque el propio `enforce_abac` «tenía señales de control». El guardián se
+#: satisfacía a sí mismo con la función que está investigando.
+#:
+#: Salió al bajar la complejidad de `enforce_abac` (hallazgo 18): al mover el
+#: corte de superadmin y el 403 a dos ayudantes, las señales desaparecieron de
+#: su cuerpo y el test se puso rojo de golpe. No era una regresión — era la
+#: primera vez que medía.
+NO_CUENTAN_COMO_CONTROL = {"enforce_abac"}
+
+
 def _called_service_sources(endpoint) -> str:
     """Código del endpoint más el de las funciones que invoca en su módulo.
 
     Un nivel de profundidad: alcanza para ver el `_svc.delete_client(...)` típico
     de este proyecto, donde la comprobación de rol vive en el servicio.
+
+    `enforce_abac` se excluye a propósito: ver `NO_CUENTAN_COMO_CONTROL`.
     """
     src = _source(endpoint)
     blobs = [src]
@@ -200,7 +232,7 @@ def _called_service_sources(endpoint) -> str:
             if name:
                 names.add(name)
 
-    for name in names:
+    for name in names - NO_CUENTAN_COMO_CONTROL:
         target = getattr(module, name, None)
         if target is None and module is not None:
             for attr in dir(module):
@@ -214,31 +246,136 @@ def _called_service_sources(endpoint) -> str:
     return "\n".join(blobs)
 
 
+#: Rutas cuyo ÚNICO control aparente es `enforce_abac()`, que es fail-open.
+#:
+#: ══ Esto es deuda medida, no una lista de exenciones ══
+#:
+#: Auditoría 2026-09. Hasta hoy este test pasaba **en verde con cero rutas**, y
+#: era mentira: `_called_service_sources` resolvía cada nombre llamado por el
+#: endpoint —incluido `enforce_abac`— y concatenaba su código al blob donde
+#: busca señales de autorización. Como el cuerpo de `enforce_abac` contiene
+#: `is_superadmin` y `user.role`, **toda** ruta cuyo único control fuera
+#: `enforce_abac` quedaba tapada por el propio `enforce_abac`. El guardián se
+#: satisfacía a sí mismo con la función que investiga.
+#:
+#: Salió al bajar la complejidad de `enforce_abac` (hallazgo 18): al mover el
+#: corte de superadmin y el 403 a dos ayudantes, las señales desaparecieron de
+#: su cuerpo y el test se puso rojo de golpe sobre 65 rutas. Once de ellas eran
+#: ruido de la heurística —usaban la comprobación de propiedad
+#: `..._for_user(db, id, current_user.id)`, que es un control legítimo y no
+#: estaba en la lista de señales—, así que se añadió. Quedan éstas.
+#:
+#: **49 de las 54 son DELETE.** Es lo que hay que mirar primero: un borrado
+#: cuyo único guardia no comprueba nada mientras la organización no tenga
+#: políticas ABAC activas —que es el caso por defecto—.
+#:
+#: Cada una necesita una decisión propia: guarda de rol en la ruta, o
+#: comprobación de propiedad o de organización en el servicio. No se arreglan
+#: en un barrido, y forzar uno sería justo lo contrario de lo que este test
+#: existe para evitar.
+#:
+#: La regla del trinquete es la de siempre en este repo: **la lista sólo puede
+#: encoger**. Una ruta nueva en esta situación rompe el test; una que se arregle
+#: y no se quite de aquí, también.
+ABAC_UNICO_CONTROL_CONOCIDAS = {
+    "DELETE /api/v1/alm/assets/{aid}/installs/{iid}",
+    "DELETE /api/v1/alm/licenses/{lid}/assignments/{aid}",
+    "DELETE /api/v1/bi/alerts/custom-metrics/{key}",
+    "DELETE /api/v1/bi/alerts/rules/{rule_id}",
+    "DELETE /api/v1/bi/bookmarks/{bookmark_id}",
+    "DELETE /api/v1/bi/collaboration/dashboards/{dashboard_key}/shares/{share_id}",
+    "DELETE /api/v1/bi/delivery/rules/{rule_id}",
+    "DELETE /api/v1/bi/delivery/schedules/{schedule_id}",
+    "DELETE /api/v1/bi/embed/token/{jti}",
+    "DELETE /api/v1/bi/intelligence/query-builder/templates/{template_id}",
+    "DELETE /api/v1/bi/platform/connectors/custom/{connector_id}",
+    "DELETE /api/v1/bi/platform/governance/field-sensitivity/{sensitivity_id}",
+    "DELETE /api/v1/bi/query-builder/queries/{query_id}",
+    "DELETE /api/v1/bi/reports/v2/presets/{preset_id}/customize",
+    "DELETE /api/v1/bi/reports/v2/templates/{template_id}",
+    "DELETE /api/v1/bookings/api-keys/{key_id}",
+    "DELETE /api/v1/capacity/plans/{plan_id}",
+    "DELETE /api/v1/clients/{cid}",
+    "DELETE /api/v1/clients/{cid}/contacts/{contact_id}",
+    "DELETE /api/v1/clients/{cid}/contracts/{link_id}",
+    "DELETE /api/v1/clients/{cid}/licenses/{link_id}",
+    "DELETE /api/v1/clients/{cid}/projects/{project_id}/link",
+    "DELETE /api/v1/cmdb/wiki-pages/{page_id}/tags/{tag_id}",
+    "DELETE /api/v1/collaboration/conversations/{conversation_id}/members/{user_id}",
+    "DELETE /api/v1/collaboration/conversations/{conversation_id}/pins/{message_id}",
+    "DELETE /api/v1/collaboration/integrations/{integration_id}",
+    "DELETE /api/v1/collaboration/messages/{message_id}",
+    "DELETE /api/v1/collaboration/push/unsubscribe",
+    "DELETE /api/v1/collaboration/saved/{message_id}",
+    "DELETE /api/v1/collaboration/search/saved/{saved_id}",
+    "DELETE /api/v1/collaboration/teams/{team_id}/members/{user_id}",
+    "DELETE /api/v1/collaboration/tus/{uid}",
+    "DELETE /api/v1/dashboard-widgets/reset",
+    "DELETE /api/v1/enterprise/notifications/clear-old",
+    "DELETE /api/v1/epics/comments/{comment_id}",
+    "DELETE /api/v1/epics/filters/{filter_id}",
+    "DELETE /api/v1/epics/{epic_id}/tasks/{task_id}",
+    "DELETE /api/v1/esign/{envelope_id}",
+    "DELETE /api/v1/marketplace/uninstall",
+    "DELETE /api/v1/mfa/disable",
+    "DELETE /api/v1/reports/templates/{template_id}",
+    "DELETE /api/v1/sd/assets/{asset_id}",
+    "DELETE /api/v1/sd/autonomous/playbooks/{playbook_id}",
+    "DELETE /api/v1/sd/changes/{change_id}",
+    "DELETE /api/v1/sd/rca/templates/{template_id}",
+    "DELETE /api/v1/sd/tickets/{ticket_id}/internal-comments/{comment_id}",
+    "DELETE /api/v1/sd/tickets/{ticket_id}/links/{link_id}",
+    "DELETE /api/v1/task-dependencies/{dep_id}",
+    "DELETE /api/v1/tasks/dependencies/{dep_id}",
+    "GET /api/v1/users/org-chart",
+    "PATCH /api/v1/alerts/{alert_id}/read",
+    "PATCH /api/v1/users/{user_id}",
+    "POST /api/v1/documents",
+    "POST /api/v1/documents/upload",
+}
+
+
 def test_enforce_abac_is_never_the_only_authorization_control():
     """`enforce_abac()` es fail-open: sin políticas activas no comprueba nada.
 
     Toda ruta que lo llame necesita ADEMÁS un control real: una guarda de rol en
-    la firma del endpoint, o una comprobación en la capa de servicio.
+    la firma del endpoint, o una comprobación de rol, propiedad u organización
+    en la capa de servicio.
 
     Heurística por diseño: detecta la ausencia total de control, no valida que
     cada comprobación concreta sea la adecuada. Descarta el fallo catastrófico
     («no hay nada»), no sustituye a una revisión de autorización por endpoint.
+
+    Dos reglas, no una:
+
+    1. Una ruta que **no esté** en `ABAC_UNICO_CONTROL_CONOCIDAS` no puede
+       quedarse sin control. Es la que importa: el código nuevo nace guardado.
+    2. Una ruta que **sí esté** y se haya arreglado tiene que salir de la lista.
+       Si no, el test falla y pide que se quite. Es a propósito: mantiene la
+       foto honesta y hace visible cada mejora.
     """
-    sin_control: list[str] = []
+    sin_control: set[str] = set()
     for _route, path, methods, dependant, endpoint in _api_routes():
-        src = _source(endpoint)
-        if not _calls_enforce_abac(src):
+        if not _calls_enforce_abac(_source(endpoint)):
             continue
         if {d.call for d in dependant.dependencies} & ROUTE_ROLE_GUARDS:
             continue  # guarda de rol en la ruta
         if SERVICE_AUTHZ_SIGNALS.search(_called_service_sources(endpoint)):
             continue  # control en la capa de servicio
-        sin_control.append(f"{','.join(sorted(methods)) or '?'} {path}")
+        sin_control.add(f"{','.join(sorted(methods)) or '?'} {path}")
 
-    assert not sin_control, (
-        "Rutas cuyo ÚNICO control aparente es enforce_abac(), que es fail-open. "
-        "Añade una guarda de rol en la ruta o una comprobación en el servicio:\n  - "
-        + "\n  - ".join(sorted(sin_control))
+    nuevas = sin_control - ABAC_UNICO_CONTROL_CONOCIDAS
+    assert not nuevas, (
+        "Rutas NUEVAS cuyo único control aparente es enforce_abac(), que es "
+        "fail-open. Añade una guarda de rol en la ruta o una comprobación en el "
+        "servicio:\n  - " + "\n  - ".join(sorted(nuevas))
+    )
+
+    arregladas = ABAC_UNICO_CONTROL_CONOCIDAS - sin_control
+    assert not arregladas, (
+        "Estas rutas YA tienen control y siguen en ABAC_UNICO_CONTROL_CONOCIDAS. "
+        "Quítalas de la lista — el trinquete sólo sirve si la foto es honesta:"
+        "\n  - " + "\n  - ".join(sorted(arregladas))
     )
 
 

@@ -5,6 +5,7 @@ import json
 import time
 import logging
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -36,49 +37,110 @@ def list_meetings(db: Session, project_id=None):
         "created_at": str(m.created_at)[:16],
     } for m in meetings]
 
-def process_meeting(db: Session, payload, current_user) -> dict:
+#: Tope de transcripción que se guarda en base de datos. El análisis puede
+#: usar más —va por map-reduce—, pero guardar reuniones enteras infla la tabla
+#: sin que nadie las lea completas.
+_TOPE_DE_TRANSCRIPCION = 50000
+
+
+def _json_del_modelo(texto: str) -> Optional[dict]:
+    """El JSON que venga dentro de la respuesta del modelo, o `None`.
+
+    Endurecido a propósito: un modelo devuelve JSON casi-bien —una coma
+    arrastrada, texto alrededor— y antes **una sola coma** rompía toda la
+    persistencia de la reunión, que caía al `except` y se guardaba como
+    «Error procesando con IA». El análisis estaba bien; lo que fallaba era el
+    lector.
+    """
     import re
 
-    t0 = time.time()
-    # Item #68: registramos el tamaño original para trazabilidad de citas.
-    # El campo ``transcript`` truncamos a 50K para no inflar la DB, pero el
-    # análisis LLM (map-reduce) puede usar más; guardamos ``original_length``
-    # y un flag ``truncated`` para que ``original_text`` en respuestas LLM se
-    # pueda re-referenciar al transcript completo si el caller lo necesita.
-    _full_transcript = payload.transcript or ""
-    _was_truncated = len(_full_transcript) > 50000
+    encontrado = re.search(r"\{.*\}", texto, re.DOTALL)
+    if not encontrado:
+        return None
+    try:
+        return json.loads(encontrado.group())
+    except json.JSONDecodeError:
+        try:
+            return json.loads(re.sub(r",\s*([}\]])", r"\1", encontrado.group()))
+        except json.JSONDecodeError:
+            return None
+
+
+def _resolver_responsable(db: Session, nombre: str, current_user):
+    """Busca por nombre al responsable de una acción, **dentro de su organización**.
+
+    Corrección multi-tenant: sin el filtro de organización, un «Juan» en la
+    transcripción podía resolverse a un Juan de cualquier otro cliente.
+    """
+    q = db.query(User).filter(User.full_name.ilike(f"%{nombre}%"))
+    org = getattr(current_user, "organization_id", None)
+    if org and not bool(getattr(current_user, "is_superadmin", False)):
+        q = q.filter(User.organization_id == org)
+    return q.first()
+
+
+def _guardar_analisis(db: Session, meeting, data: dict, current_user) -> None:
+    """Vuelca el análisis del modelo sobre la reunión y crea sus acciones."""
+    meeting.title = data.get("title", meeting.title)
+    meeting.summary = data.get("summary")
+    meeting.decisions = json.dumps(data.get("decisions", []))
+    meeting.risks_mentioned = json.dumps(data.get("risks", []))
+
+    for accion_data in data.get("actions", []):
+        accion = AIMeetingAction(
+            meeting_id=meeting.id,
+            description=accion_data.get("description", ""),
+            assignee_name=accion_data.get("assignee_name"),
+            due_date_text=accion_data.get("due_date_text"),
+        )
+        nombre = accion_data.get("assignee_name")
+        if nombre:
+            usuario = _resolver_responsable(db, nombre, current_user)
+            if usuario:
+                accion.assignee_id = usuario.id
+        db.add(accion)
+
+
+def _crear_reunion(db: Session, payload, current_user) -> AIMeeting:
+    """Crea la reunión en estado `processing`, con la transcripción recortada."""
+    completa = payload.transcript or ""
     meeting = AIMeeting(
         project_id=payload.project_id,
         title=payload.title or "Reunión procesada por IA",
         platform=payload.platform,
         duration_min=payload.duration_min,
         participants=json.dumps(payload.participants or []),
-        transcript=_full_transcript[:50000],
+        transcript=completa[:_TOPE_DE_TRANSCRIPCION],
         status="processing",
         created_by=current_user.id,
     )
-    # Anotamos en summary la truncación si aplica (se sobreescribe luego con el
-    # resumen del LLM, pero queda en el log/audit que hubo truncación).
-    if _was_truncated:
+    # La truncación queda anotada aunque luego se sobrescriba con el resumen:
+    # deja rastro en el registro de que la transcripción guardada no es entera.
+    if len(completa) > _TOPE_DE_TRANSCRIPCION:
         meeting.summary = (
-            f"[TRUNCADO: transcripción original {len(_full_transcript)} chars, "
-            f"guardados primeros 50000. Para audit completo consulta el original.]"
+            f"[TRUNCADO: transcripción original {len(completa)} chars, "
+            f"guardados primeros {_TOPE_DE_TRANSCRIPCION}. "
+            "Para audit completo consulta el original.]"
         )
     if payload.meeting_date:
         try:
             meeting.meeting_date = datetime.fromisoformat(payload.meeting_date)
         except ValueError:
             raise ValueError("invalid_meeting_date")
-    db.add(meeting); db.commit(); db.refresh(meeting)
 
-    try:
-        MAP_SYSTEM = (
-            "Eres un asistente experto en análisis de reuniones de trabajo. "
-            "Analiza el texto dado y extrae puntos clave: decisiones, acciones, riesgos."
-        )
-        REDUCE_SYSTEM = MAP_SYSTEM
-        MAP_PREFIX = "Analiza este fragmento de transcripción de reunión:"
-        REDUCE_SUFFIX = """Basándote en el análisis anterior, genera el informe final completo.
+    db.add(meeting)
+    db.commit()
+    db.refresh(meeting)
+    return meeting
+
+
+#: El sistema y las instrucciones del análisis map-reduce.
+_SISTEMA_DE_REUNION = (
+    "Eres un asistente experto en análisis de reuniones de trabajo. "
+    "Analiza el texto dado y extrae puntos clave: decisiones, acciones, riesgos."
+)
+_PREFIJO_DE_MAPEO = "Analiza este fragmento de transcripción de reunión:"
+_SUFIJO_DE_REDUCCION = """Basándote en el análisis anterior, genera el informe final completo.
 
 Responde SOLO con JSON:
 {
@@ -88,68 +150,53 @@ Responde SOLO con JSON:
   "actions": [{"description": "...", "assignee_name": "...", "due_date_text": "..."}],
   "risks": ["...", "..."]
 }"""
-        text = map_reduce_analysis(
+
+
+def process_meeting(db: Session, payload, current_user) -> dict:
+    """Analiza la transcripción de una reunión y extrae decisiones y acciones."""
+    t0 = time.time()
+    meeting = _crear_reunion(db, payload, current_user)
+
+    try:
+        texto = map_reduce_analysis(
             payload.transcript,
-            map_system=MAP_SYSTEM, map_user_prefix=MAP_PREFIX,
-            reduce_system=REDUCE_SYSTEM, reduce_user_suffix=REDUCE_SUFFIX,
+            map_system=_SISTEMA_DE_REUNION, map_user_prefix=_PREFIJO_DE_MAPEO,
+            reduce_system=_SISTEMA_DE_REUNION, reduce_user_suffix=_SUFIJO_DE_REDUCCION,
             db=db, module="meeting_assistant", user_id=current_user.id,
             map_tokens=1500, reduce_tokens=2000,
         )
-        match = re.search(r'\{.*\}', text, re.DOTALL)
-        if match:
-            # Hardening: el LLM puede devolver JSON casi-bien (trailing comma,
-            # comilla simple, texto adicional). Antes una sola coma arrastrada
-            # rompía toda la persistencia del meeting → caía al except y se
-            # guardaba "Error procesando con IA".
-            try:
-                data = json.loads(match.group())
-            except json.JSONDecodeError:
-                _cleaned = re.sub(r",\s*([}\]])", r"\1", match.group())  # trailing commas
-                data = json.loads(_cleaned)
-            meeting.title   = data.get("title", meeting.title)
-            meeting.summary = data.get("summary")
-            meeting.decisions = json.dumps(data.get("decisions", []))
-            meeting.risks_mentioned = json.dumps(data.get("risks", []))
-            for action_data in data.get("actions", []):
-                action = AIMeetingAction(
-                    meeting_id=meeting.id,
-                    description=action_data.get("description", ""),
-                    assignee_name=action_data.get("assignee_name"),
-                    due_date_text=action_data.get("due_date_text"),
-                )
-                if action_data.get("assignee_name"):
-                    # Multi-tenant fix: limitar matching a usuarios de la
-                    # organización del current_user. Sin este filtro un
-                    # "Juan" en el transcript podía resolverse a Juan
-                    # cualquiera de cualquier organización.
-                    user_q = db.query(User).filter(
-                        User.full_name.ilike(f"%{action_data['assignee_name']}%")
-                    )
-                    cu_org = getattr(current_user, "organization_id", None)
-                    if cu_org and not bool(getattr(current_user, "is_superadmin", False)):
-                        user_q = user_q.filter(User.organization_id == cu_org)
-                    user = user_q.first()
-                    if user: action.assignee_id = user.id
-                db.add(action)
+        data = _json_del_modelo(texto)
+        if data:
+            _guardar_analisis(db, meeting, data, current_user)
         meeting.status = "done"
     except Exception as e:
-        _log.exception("Meeting assistant processing failed for meeting=%s", getattr(meeting, "id", None))
+        _log.exception(
+            "Meeting assistant processing failed for meeting=%s",
+            getattr(meeting, "id", None),
+        )
         meeting.summary = f"Error procesando con IA: {str(e)[:100]}"
         meeting.status = "failed"
 
-    latency = int((time.time() - t0) * 1000)
-    log_action(db, current_user.id, "meeting_assistant", "process",
-               f"transcript_len={len(payload.transcript)}", meeting.summary, latency=latency)
-    db.commit(); db.refresh(meeting)
+    latencia = int((time.time() - t0) * 1000)
+    log_action(
+        db, current_user.id, "meeting_assistant", "process",
+        f"transcript_len={len(payload.transcript)}", meeting.summary, latency=latencia,
+    )
+    db.commit()
+    db.refresh(meeting)
 
     return {
         "meeting_id": meeting.id, "title": meeting.title, "summary": meeting.summary,
         "decisions": json.loads(meeting.decisions or "[]"),
         "risks": json.loads(meeting.risks_mentioned or "[]"),
-        "actions": [{"id": a.id, "description": a.description,
-                     "assignee_name": a.assignee_name,
-                     "due_date_text": a.due_date_text} for a in meeting.actions],
-        "status": meeting.status, "latency_ms": latency,
+        "actions": [
+            {
+                "id": a.id, "description": a.description,
+                "assignee_name": a.assignee_name, "due_date_text": a.due_date_text,
+            }
+            for a in meeting.actions
+        ],
+        "status": meeting.status, "latency_ms": latencia,
     }
 
 def create_tasks_from_meeting(db: Session, meeting_id: str, payload: dict, current_user) -> dict:
