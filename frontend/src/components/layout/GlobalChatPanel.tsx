@@ -5,6 +5,7 @@ import { collabApi } from '../../services/collaborationApi'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { useChatRealtime } from '../../context/ChatRealtimeContext'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 const LS_MIN_KEY = 'chat_global_minimized'
 const LS_LAST_CONV_KEY = 'chat_global_last_conversation'
@@ -111,6 +112,7 @@ interface Props {
 }
 
 export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull }: Props) {
+  const { t } = useAppLang()
   const { user } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
@@ -568,13 +570,13 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Buscar conversación"
+              placeholder={t('globalchat.buscar_conversacion')}
               style={{ ...fieldStyle, paddingLeft: 30 }}
             />
           </div>
           <button
             onClick={() => setNewDirectOpen(v => !v)}
-            title="Nuevo chat directo"
+            title={t('globalchat.nuevo_chat_directo')}
             style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, width: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}
           >
             <Plus size={14} />
@@ -588,13 +590,13 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
             onChange={(e) => updateNotifyMode(e.target.value)}
             style={{ ...fieldStyle, width: 'auto', maxWidth: 140, padding: '4px 8px', fontSize: 'var(--text-xs)' }}
           >
-            <option value="all">Todas</option>
+            <option value="all">{t('globalchat.todas')}</option>
             <option value="mentions">Solo menciones</option>
             <option value="none">Silencio</option>
           </select>
           <label style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
             <input type="checkbox" checked={dndEnabled} onChange={(e) => updateDnd(e.target.checked)} />
-            No molestar (22:00-08:00)
+            {t('globalchat.no_molestar_22_00_08_00')}
           </label>
         </div>
 
@@ -632,7 +634,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                 </button>
               ))}
               {(suggestions.users || []).length === 0 && (
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', padding: '3px 2px' }}>Sin resultados</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', padding: '3px 2px' }}>{t('globalchat.sin_resultados')}</div>
               )}
             </div>
           </div>
@@ -689,7 +691,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
               )
             })}
             {visibleConversations.length === 0 && (
-              <div style={{ padding: 12, color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>No hay conversaciones</div>
+              <div style={{ padding: 12, color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>{t('globalchat.no_hay_conversaciones')}</div>
             )}
           </div>
 
@@ -714,10 +716,10 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                 )
               })}
               {activeConvId && messages.length === 0 && (
-                <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>Sin mensajes todavía</div>
+                <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>{t('globalchat.sin_mensajes_todavia')}</div>
               )}
               {!activeConvId && (
-                <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>Selecciona una conversación</div>
+                <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>{t('globalchat.selecciona_una_conversacion')}</div>
               )}
             </div>
 

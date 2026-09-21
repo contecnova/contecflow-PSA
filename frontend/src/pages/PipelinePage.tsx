@@ -145,6 +145,7 @@ function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }: { label
 type ConvertResult = { project_code?: string; message?: string; rev_contract_id?: string }
 
 function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: Opp; onClose: () => void; stageLabels: Record<string, string>; onUpdate: () => void }) {
+  const t = useAppT()
   const toast = useToast()
   const [convertResult, setConvertResult] = useState<ConvertResult | null>(null)
   const [showProposal, setShowProposal] = useState(false)
@@ -284,7 +285,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
                   loading={markProposalSent.isPending}
                   icon={<Send size={13} />}
                 >
-                  Marcar como enviada al cliente
+                  {t('pipeline.marcar_como_enviada_al_cliente')}
                 </Button>
               )}
             </div>
@@ -294,26 +295,26 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
           <div style={{ border: '1px solid var(--surface-4)', borderRadius: 12, padding: 16, display: 'grid', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Briefcase size={16} style={{ color: 'var(--success)' }} />
-              <span style={{ fontWeight: 700, fontSize: "var(--text-md)" }}>Conversión a proyecto</span>
+              <span style={{ fontWeight: 700, fontSize: "var(--text-md)" }}>{t('pipeline.conversion_a_proyecto')}</span>
             </div>
 
             {alreadyConverted ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", color: 'var(--success)', background: 'var(--success-bg)', borderRadius: 8, padding: '8px 12px' }}>
                 <Briefcase size={14} />
-                Vinculada al proyecto <strong style={{ marginLeft: 4 }}>{opp.project_id}</strong>
+                {t('pipeline.vinculada_al_proyecto')} <strong style={{ marginLeft: 4 }}>{opp.project_id}</strong>
               </div>
             ) : convertResult ? (
               <div style={{ fontSize: "var(--text-base)", color: 'var(--success)', background: 'var(--success-bg)', borderRadius: 8, padding: '10px 14px' }}>
                 <div style={{ fontWeight: 700, marginBottom: 4 }}>Proyecto creado: {convertResult.project_code}</div>
                 <div style={{ color: 'var(--text-2)' }}>{convertResult.message}</div>
                 {convertResult.rev_contract_id && (
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', marginTop: 4 }}>Contrato ASC 606 creado automáticamente</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', marginTop: 4 }}>{t('pipeline.contrato_asc_606_creado_automaticamente')}</div>
                 )}
               </div>
             ) : (
               <>
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>
-                  Convierte esta oportunidad en un proyecto activo. Se creará automáticamente un contrato ASC 606 con el método de reconocimiento correspondiente al tipo de contrato.
+                  {t('pipeline.convierte_esta_oportunidad_en_un_proyecto_activo')}
                 </div>
                 <div>
                   <Button
@@ -503,7 +504,7 @@ export default function PipelinePage() {
           label="Buscar"
           value={search}
           onChange={(event: { target: { value: string } }) => setSearch(event.target.value)}
-          placeholder="Nombre, cliente, código o responsable"
+          placeholder={t('pipeline.nombre_cliente_codigo_o_responsable')}
           style={{ flex: '1 1 260px' }}
           required={undefined}
           hint={undefined}
@@ -531,7 +532,7 @@ export default function PipelinePage() {
 
       {isError ? (
         <div style={{ ...panelStyle, padding: 20, color: 'var(--danger)' }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>No se pudo cargar el pipeline</div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>{t('pipeline.no_se_pudo_cargar_el_pipeline')}</div>
           <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 14 }}>{extractErr(error, 'Error inesperado')}</div>
           <Button onClick={() => refetch()} loading={isFetching}>Reintentar</Button>
         </div>
@@ -541,7 +542,7 @@ export default function PipelinePage() {
         <div style={{ ...panelStyle, padding: 28 }}>
           <EmptyState
             icon="chart"
-            title="No hay oportunidades visibles"
+            title={t('pipeline.no_hay_oportunidades_visibles')}
             description={data.length === 0 ? 'Crea la primera oportunidad para empezar a usar el pipeline comercial.' : 'Ajusta los filtros o crea una nueva oportunidad.'}
             ctaLabel={t('pipeline.new_opportunity')}
             onCta={() => setShowCreate(true)}
@@ -571,7 +572,7 @@ export default function PipelinePage() {
                 <div style={{ display: 'grid', gap: 10 }}>
                   {opportunities.length === 0 ? (
                     <div style={{ border: '1px dashed var(--surface-4)', borderRadius: 12, padding: 16, fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center' }}>
-                      Sin oportunidades en esta etapa
+                      {t('pipeline.sin_oportunidades_en_esta_etapa')}
                     </div>
                   ) : opportunities.map((opportunity) => {
                     const allowedStages = [opportunity.stage, ...(STAGE_TRANSITIONS[opportunity.stage || ''] || [])]
@@ -724,7 +725,7 @@ export default function PipelinePage() {
           </div>
 
           <div>
-            <label style={fieldLabelStyle}>Descripción</label>
+            <label style={fieldLabelStyle}>{t('pipeline.descripcion')}</label>
             <textarea
               value={form.description}
               onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}

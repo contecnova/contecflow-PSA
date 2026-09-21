@@ -56,6 +56,7 @@ interface VelocityPayload {
 const sf = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20 }
 
 export default function SprintChartsPage() {
+  const t = useAppT()
   const _t = useAppT()
   const [projectId, setProjectId] = useState('')
   const [sprintId,  setSprintId]  = useState('')
@@ -99,7 +100,7 @@ export default function SprintChartsPage() {
     <PageShell style={{ maxWidth: 1050, margin: '0 auto' }}>
       <PageHeader
         icon={<BarChart2 size={18} />}
-        title="Graficas de sprint"
+        title={t('sprintcharts.graficas_de_sprint')}
         subtitle={_t('sprint_charts.subtitle')}
       showListExport={false}
       />
@@ -111,7 +112,7 @@ export default function SprintChartsPage() {
             PROYECTO
           </label>
           <select value={projectId} onChange={e => { setProjectId(e.target.value); setSprintId('') }} style={{ ...sel, width: '100%' }}>
-            <option value="">Selecciona un proyecto...</option>
+            <option value="">{t('sprintcharts.selecciona_un_proyecto')}</option>
             {projects.map(p => (
               <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
             ))}
@@ -120,10 +121,10 @@ export default function SprintChartsPage() {
         {projectId && (
           <div style={{ flex: 1, minWidth: 180 }}>
             <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', display: 'block', marginBottom: 6 }}>
-              SPRINT (para burnup)
+              {t('sprintcharts.sprint_para_burnup')}
             </label>
             <select value={sprintId} onChange={e => setSprintId(e.target.value)} style={{ ...sel, width: '100%' }}>
-              <option value="">Selecciona un sprint...</option>
+              <option value="">{t('sprintcharts.selecciona_un_sprint')}</option>
               {sprints.map(s => (
                 <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
               ))}
@@ -133,14 +134,14 @@ export default function SprintChartsPage() {
       </div>
 
       {!projectId && (
-        <EmptyState icon="📈" title="Selecciona un proyecto" description="Elige un proyecto para ver las graficas de sprint" />
+        <EmptyState icon="📈" title={t('sprintcharts.selecciona_un_proyecto_2')} description="Elige un proyecto para ver las graficas de sprint" />
       )}
 
       {/* Velocity chart */}
       {projectId && (
         <div style={{ ...sf, marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ margin: 0, fontSize: "var(--text-lg)", color: 'var(--text-1)' }}>📊 Velocity — Últimos sprints</h3>
+            <h3 style={{ margin: 0, fontSize: "var(--text-lg)", color: 'var(--text-1)' }}>{t('sprintcharts.velocity_ultimos_sprints')}</h3>
             {avgVel > 0 && (
               <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
                 Velocidad media: <strong style={{ color: 'var(--info)' }}>{avgVel} pts</strong>
@@ -148,7 +149,7 @@ export default function SprintChartsPage() {
             )}
           </div>
           {loadVel ? <Spinner /> : velocity.length === 0 ? (
-            <EmptyState icon="📊" title="Sin datos de velocidad" description="Completa sprints para ver la grafica de velocidad" />
+            <EmptyState icon="📊" title={t('sprintcharts.sin_datos_de_velocidad')} description="Completa sprints para ver la grafica de velocidad" />
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <ComposedChart data={velocity} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
@@ -186,11 +187,11 @@ export default function SprintChartsPage() {
             )}
           </div>
           {loadBU ? <Spinner /> : burnup.length === 0 ? (
-            <EmptyState icon="📈" title="Sin datos de burnup" description="Inicia un sprint para ver el progreso del burnup" />
+            <EmptyState icon="📈" title={t('sprintcharts.sin_datos_de_burnup')} description="Inicia un sprint para ver el progreso del burnup" />
           ) : (
             <>
               <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16, marginTop: 0 }}>
-                El burnup muestra el progreso acumulado (completado) frente al alcance total. Si la línea azul sube, el scope ha aumentado (scope creep).
+                {t('sprintcharts.el_burnup_muestra_el_progreso_acumulado_completado')}
               </p>
               <ResponsiveContainer width="100%" height={280}>
                 <ComposedChart data={burnup} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
