@@ -289,8 +289,16 @@ def add_task_to_epic(epic_id: str, task_id: str,
 
 
 @router.delete("/{epic_id}/tasks/{task_id}")
-def remove_task_from_epic(epic_id: str, task_id: str,
-                          db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def remove_task_from_epic(
+    epic_id: str,
+    task_id: str,
+    db: Session = Depends(get_db),
+    cu: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada. Coherente con su hermana mas cercana,
+    # `POST /epics/{id}/dependencies/{id}`, que ya exige admin_or_pm.
+    _: User = Depends(require_admin_or_pm),
+):
     enforce_abac(db, cu, "epic", epic_id, action="delete")
     return APIResponse.ok(data=remove_task_from_epic_record(epic_id, task_id, db))
 

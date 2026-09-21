@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, get_db, require_admin
 from app.core.responses import APIListResponse, APIResponse
 from app.models.esign import ESignEnvelope, ESignProvider, ESignStatus
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.core.abac_enforce import enforce_abac
 from app.services import esign_service
 
@@ -324,6 +324,36 @@ def mark_signer_signed(
     return APIResponse.ok(data={"signer_id": signer_id, "signed": True})
 
 
+#: Roles que pueden anular una solicitud de firma que no han pedido ellos.
+_GESTORES_DE_FIRMA = frozenset(
+    {UserRole.admin, UserRole.pm, UserRole.team_lead, UserRole.hr}
+)
+
+
+def _exigir_creador_o_gestor(usuario: User, creador_id) -> None:
+    """Auditoria 2026-09: el unico control de `void_envelope` era `enforce_abac`.
+
+    `enforce_abac` es fail-open —sin politicas activas, el estado por defecto,
+    no comprueba nada—, asi que cualquier usuario autenticado podia anular la
+    solicitud de firma de cualquier otro de su organizacion.
+
+    Lo que NO se hace es colgarle un `require_any_manager`, que es lo comodo:
+    crear la solicitud (`POST /esign`) esta abierto a cualquier usuario, de modo
+    que exigir rol de gestion solo para anularla dejaria al propio solicitante
+    atrapado con una peticion enviada por error y sin forma de retirarla. El
+    control correcto es el de propiedad, con los gestores por encima.
+    """
+    if getattr(usuario, "is_superadmin", False):
+        return
+    if creador_id is not None and str(creador_id) == str(usuario.id):
+        return
+    if usuario.role in _GESTORES_DE_FIRMA:
+        return
+    raise HTTPException(
+        403, "Solo quien creo la solicitud de firma, o un gestor, puede anularla"
+    )
+
+
 @router.delete("/{envelope_id}", summary="Anular solicitud de firma")
 def void_envelope(
     envelope_id: int,
@@ -334,6 +364,9 @@ def void_envelope(
     env = esign_service.get_envelope(db, envelope_id)
     if not env:
         raise HTTPException(404)
+    # Despues del 404: quien no puede anularla tampoco debe poder averiguar
+    # por la respuesta si existe.
+    _exigir_creador_o_gestor(current_user, env.created_by_id)
     if env.status == ESignStatus.completed:
         raise HTTPException(400, "No se puede anular una solicitud ya completada")
     esign_service.void_envelope(db, env)

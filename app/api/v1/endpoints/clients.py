@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body, Query, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.db.session import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -104,7 +104,21 @@ def update_contact(cid: str, contact_id: str, data: dict = Body(...),
 
 
 @router.delete("/{cid}/contacts/{contact_id}")
-def delete_contact(cid: str, contact_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def delete_contact(
+    cid: str,
+    contact_id: str,
+    db: Session = Depends(get_db),
+    cu: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada.
+    #
+    # La ficha de un cliente —sus contactos, sus licencias, sus
+    # contratos, sus proyectos— es dato comercial: se consulta mucho y
+    # se destruye poco. Ninguna de las 15 rutas de escritura de este
+    # fichero tenia control de rol; queda anotado en el traspaso que el
+    # hallazgo real es mas ancho que estos cuatro borrados.
+    _: User = Depends(require_any_manager),
+):
     enforce_abac(db, cu, "client_contact", contact_id, action="delete")
     return APIResponse.ok(data=_svc.delete_contact(cid, contact_id, db))
 
@@ -122,7 +136,21 @@ def link_license(cid: str, data: dict = Body(...), db: Session = Depends(get_db)
 
 
 @router.delete("/{cid}/licenses/{link_id}")
-def unlink_license(cid: str, link_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def unlink_license(
+    cid: str,
+    link_id: str,
+    db: Session = Depends(get_db),
+    cu: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada.
+    #
+    # La ficha de un cliente —sus contactos, sus licencias, sus
+    # contratos, sus proyectos— es dato comercial: se consulta mucho y
+    # se destruye poco. Ninguna de las 15 rutas de escritura de este
+    # fichero tenia control de rol; queda anotado en el traspaso que el
+    # hallazgo real es mas ancho que estos cuatro borrados.
+    _: User = Depends(require_any_manager),
+):
     enforce_abac(db, cu, "client_license_link", link_id, action="delete")
     return APIResponse.ok(data=_svc.unlink_license(cid, link_id, db))
 
@@ -140,7 +168,22 @@ def link_contract(cid: str, data: dict = Body(...), db: Session = Depends(get_db
 
 
 @router.delete("/{cid}/contracts/{link_id}")
-def unlink_contract(cid: str, link_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+def unlink_contract(
+    cid: str,
+    link_id: str,
+    db: Session = Depends(get_db),
+    cu: User = Depends(get_current_user),
+    response: Response = None,
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada.
+    #
+    # La ficha de un cliente —sus contactos, sus licencias, sus
+    # contratos, sus proyectos— es dato comercial: se consulta mucho y
+    # se destruye poco. Ninguna de las 15 rutas de escritura de este
+    # fichero tenia control de rol; queda anotado en el traspaso que el
+    # hallazgo real es mas ancho que estos cuatro borrados.
+    _: User = Depends(require_any_manager),
+):
     if response is not None:
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"
@@ -257,7 +300,22 @@ def link_project(cid: str, project_id: str, db: Session = Depends(get_db), cu: U
 
 
 @router.delete("/{cid}/projects/{project_id}/link")
-def unlink_project(cid: str, project_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+def unlink_project(
+    cid: str,
+    project_id: str,
+    db: Session = Depends(get_db),
+    cu: User = Depends(get_current_user),
+    response: Response = None,
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada.
+    #
+    # La ficha de un cliente —sus contactos, sus licencias, sus
+    # contratos, sus proyectos— es dato comercial: se consulta mucho y
+    # se destruye poco. Ninguna de las 15 rutas de escritura de este
+    # fichero tenia control de rol; queda anotado en el traspaso que el
+    # hallazgo real es mas ancho que estos cuatro borrados.
+    _: User = Depends(require_any_manager),
+):
     if response is not None:
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"

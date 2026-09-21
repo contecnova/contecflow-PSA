@@ -292,7 +292,16 @@ def update_change(change_id: str, payload: dict = Body(...), db: Session = Depen
     return APIResponse.ok(data=serialize_change(cr))
 
 @router.delete("/changes/{change_id}", summary="Cancelar Change Request")
-def cancel_change(change_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def cancel_change(
+    change_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada. El resto del ciclo de vida del
+    # cambio —`rollout/start`, `rollback`, `cab/fast-track`— ya exige
+    # gestor; cancelarlo no puede ser mas facil que ejecutarlo.
+    _: User = Depends(require_any_manager),
+):
     """Auditoria 2026-08 (hallazgo 37): esta ruta **no existia**.
 
     El boton de borrar de un cambio **no hacia nada** — el otro borrado

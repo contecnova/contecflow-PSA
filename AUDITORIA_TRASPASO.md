@@ -1080,6 +1080,13 @@ nueva: es la que ya estaba escrita, aplicada.
 > legítimos sin que nadie lo haya decidido. Es lo primero que hay que mirar de
 > lo que queda abierto, y la decisión no es del que refactoriza.
 
+> **Cerrado en §3.trigies: quedan 1 de 24.** Se miraron las veinticuatro una a
+> una. **Siete no tenían el problema** —el control existía y el detector no
+> sabía leerlo—, **dieciséis llevan ya una guarda con el motivo escrito al
+> lado**, y **una no se puede guardar porque no hace nada**. El párrafo de
+> arriba sigue teniendo razón en lo que decía: la ñapa habría sido el barrido
+> uniforme, y por eso hay cuatro decisiones distintas y no una.
+
 ### Un test que sólo pasaba según el orden
 
 `tests/conftest.py` ponía las variables de entorno **después** de
@@ -1198,6 +1205,196 @@ ocurre y un cuelgue se localiza en el cuarto que sea.
 
 **Medido:** 3802 passed, 19 skipped, 1 xfailed, **0 fallos**, en 8 minutos de
 reloj (6:07 el cuarto más rápido, 7:52 el más lento).
+
+---
+
+## 3.trigies Las 24 rutas sin control, una a una
+
+**De 24 a 1.** Y el reparto importa más que el número, porque las tres suertes
+que corrieron son distintas.
+
+| | rutas | qué eran |
+|---|---|---|
+| Falsos positivos | **7** | el control estaba; el detector no sabía leerlo |
+| Guarda aplicada | **16** | no lo tenían; ahora sí, con el motivo al lado |
+| Sin arreglo posible | **1** | el endpoint no hace nada que proteger |
+
+### Los siete que ya estaban acotados, y los cuatro idiomas que faltaban
+
+Ninguno se «arregló»: se leyó el código y resultó que el control estaba escrito
+de una forma que la expresión regular no contemplaba. Cada hueco está tapado en
+el detector, con el ejemplo real que lo destapó:
+
+- **`SavedFilter.created_by == user_id`** — propiedad, con otro nombre de
+  columna. Ampliar la lista de nombres a secas habría sido demasiado laxo
+  (`Task.assignee_id == assignee_id` es un filtro de búsqueda, no una
+  autorización), así que `_acota_por_propiedad` exige **las dos mitades**: que
+  el endpoint entregue la identidad de quien llama y que aguas abajo se compare
+  contra una columna de propiedad. Aclara 5 rutas.
+- **`run_in_threadpool(svc.abortar, uid, current_user)`** — para el AST la
+  única llamada ahí es `run_in_threadpool`; `svc.abortar`, que es quien
+  comprueba `meta.get("user_id") == user.id`, es un *argumento* y nunca se
+  leía. `TRAMPOLINES` sigue las funciones que se pasan a los tres nombres que
+  de verdad las ejecutan. Aclara `DELETE /collaboration/tus/{uid}`.
+- **`AppSetting.key == f"{_TEMPLATE_KEY_PREFIX}{user_id}"`** — no hay columna
+  de propiedad que comparar: el id del usuario **es parte de la clave**, así
+  que nadie puede nombrar la fila de otro. Aclara `DELETE
+  /reports/templates/{id}`.
+- **`DashboardWidget.user_id == current_user_id`** — el parámetro se llama
+  `current_user_id` y la alternancia se quedaba en `user_id`. Aclara `DELETE
+  /dashboard-widgets/reset`.
+
+### Las dieciséis: cuatro decisiones, no un barrido
+
+El criterio, escrito para que se pueda discutir: **borrar no puede ser más
+fácil que crear**. Aplicado da cuatro respuestas distintas, y ninguna es
+`require_any_manager` por defecto:
+
+| decisión | rutas | por qué |
+|---|---|---|
+| La misma guarda que crear | 2 (ALM) | `POST /alm/licenses` y `POST .../installs` ya exigen gestor: revocar con el mismo rol no atrapa a nadie |
+| Gestor | 9 | capacidad, clientes, activos, cambios: operaciones de gestión por naturaleza |
+| PM o admin | 3 | dependencias y epics: estructura de proyecto, coherente con `POST /epics/{id}/dependencies` |
+| Sólo excluir subcontratista | 2 | vínculos de ticket y etiquetas de wiki |
+| Propiedad, no rol | 1 | `esign` |
+
+Las dos últimas filas son las que un barrido habría estropeado:
+
+- **Vínculos entre tickets y etiquetas de wiki.** Crear está abierto a
+  cualquiera y quitar es la operación inversa exacta, reversible en un clic.
+  Restringir sólo el quitar dejaría vínculos y etiquetas puestos por error que
+  nadie salvo un PM podría limpiar. Se excluye al subcontratista y ya.
+- **`DELETE /esign/{id}`, anular una solicitud de firma.** Aquí
+  `require_any_manager` es justo lo cómodo y lo equivocado: `POST /esign` está
+  abierto a cualquier usuario, así que exigir rol de gestión para anular
+  dejaría al propio solicitante atrapado con una petición enviada por error.
+  El control correcto es el de propiedad —`created_by_id`— con los gestores por
+  encima, y va **después del 404**, para que quien no puede anularla tampoco
+  pueda averiguar por la respuesta si existe.
+
+### La que no se arregla: `DELETE /marketplace/uninstall`
+
+No desinstala nada. Su cuerpo entero es `return APIResponse.ok(data={"result":
+"ok"})`. Y no es un caso aislado: `POST /install` tampoco instala y
+`GET /instances` devuelve siempre la lista vacía. **El módulo marketplace es
+una fachada.**
+
+Ponerle `require_admin` habría puesto el test en verde en diez segundos. Sería
+teatro: protege un no-op y deja a la siguiente auditoría leyendo una guarda
+donde no hay funcionalidad. Se queda en `ABAC_UNICO_CONTROL_CONOCIDAS` con el
+motivo escrito en el propio endpoint, y se guardará el día que haga algo.
+
+### El guardián volvió a satisfacerse solo — y esta vez con mi prosa
+
+Al documentar **por qué** `uninstall_integration` no lleva guarda, el docstring
+decía la frase «colgarle un `require_admin` haría pasar el test».
+
+Y la hizo pasar. `SERVICE_AUTHZ_SIGNALS` busca `require_` sobre el fuente en
+crudo, sin distinguir código de prosa.
+
+> Es la misma familia que el `enforce_abac` satisfaciéndose a sí mismo de
+> §3.octovicies, y era peor de lo que parece: valía para **cualquier**
+> endpoint. Bastaba un comentario que nombrase `is_superadmin`, `require_admin`
+> o un 403 para que el barrido lo diera por protegido. Cualquiera podía
+> silenciar este test escribiendo un comentario.
+
+Arreglado en la raíz, no reescribiendo el docstring: `_sin_prosa` blanquea
+comentarios y docstrings **en su sitio** —sin recomponer el fuente a partir de
+los tokens, que rompe la adyacencia y hace que `enforce_abac(` deje de
+encontrarse— y deja las cadenas normales, que sí son código y hacen falta para
+reconocer dos de los cuatro idiomas de arriba.
+
+**Lo cazó la segunda regla del trinquete**, la que obliga a sacar de la lista lo
+que ya no aparece. Sin esa regla el arreglo habría entrado en verde y el
+detector se habría quedado ciego para siempre.
+
+### Validado rompiéndolo, por los dos lados
+
+- Quitar la guarda de `delete_capacity_plan` → el test la señala como ruta
+  nueva sin control.
+- Poner un comentario que menciona `require_admin`, `is_superadmin` y un 403 en
+  un endpoint sin guarda → **sigue** señalándolo. La prosa ya no cuenta.
+
+### Tres hallazgos que salieron de paso, y son más anchos que las 24
+
+1. **Crear está tan sin guarda como borrar.** El detector sólo miraba rutas que
+   llaman a `enforce_abac`, y eso es casi todo `DELETE`. De las 15 rutas de
+   escritura de `clients.py`, **ninguna** tenía control de rol; en
+   `service_desk` la mayoría de los `POST` tampoco. El hallazgo real no son 24
+   borrados: es que el control de rol está puesto a parches en toda la capa API.
+2. **Dos rutas públicas para una sola operación.** `DELETE
+   /tasks/dependencies/{dep_id}` y `DELETE /task-dependencies/{dep_id}` hacen
+   lo mismo desde dos routers distintos. Llevan la misma guarda a propósito —lo
+   que no puede pasar es que una sea la puerta de atrás de la otra—, pero sobra
+   una.
+3. **Sólo 2 de las 16 rutas tenían algún test.** Las guardas nuevas se
+   verificaron con la suite completa y con las dos roturas deliberadas de
+   arriba; las catorce restantes siguen sin cobertura propia, que es
+   probablemente por lo que nadie notó que no tenían control.
+
+---
+
+## 3.untrigies Los tres idiomas al 100 % y pantallas sólo en castellano
+
+Las dos cosas son verdad a la vez, y por eso hacía falta un cuarto medidor.
+
+`check_i18n_coverage.mjs`, `check_i18n.mjs` y `check_i18n_no_new_debt.mjs`
+comparan los diccionarios entre sí: cuántas claves tiene `es` y cuántas de esas
+están en `en` y en `zh`. Los tres dan 100 %, y no mienten.
+
+**Pero miden el diccionario, no las pantallas.** Una cadena escrita directamente
+en el JSX —`<h2>Resumen del proyecto</h2>`— no tiene clave. Al no tener clave no
+le falta a ningún idioma, así que los tres gates la dan por buena y el 100 %
+convive con pantallas enteras que sólo existen en castellano.
+
+### Cuánto, medido de verdad
+
+**1.852 cadenas en 126 ficheros**, el 65 % de ellas en `src/pages`. Las peores:
+`SettingsPageSections.tsx` con 113, `PerformanceReviewsPage.tsx` con 57,
+`DocumentsPage.tsx` con 50.
+
+> La primera medición se hizo con expresiones regulares y dio **1.325**. La
+> buena es la del AST: la regex no veía el texto que ocupa varias líneas —que es
+> la mitad de los títulos y descripciones largas— ni distinguía un `>` de
+> comparación de una etiqueta que se cierra. Se deja dicho para que nadie lea
+> una mejora de 527 donde sólo hubo un instrumento mejor.
+
+### Tres piezas, no una
+
+- **`check_i18n_literales.mjs`** — el gate. Recorre el AST de TypeScript, no el
+  texto, y cuenta nodos `JsxText` y atributos visibles (`placeholder`, `title`,
+  `label`, `aria-label`, `alt`) con castellano dentro. Trinquete de dos
+  direcciones, como los demás de este repo. Validado rompiéndolo: un `<span>`
+  castellano nuevo lo pone en rojo.
+- **`i18n_extraer_literales.mjs`** — la herramienta para bajarlo. Edita por
+  posiciones exactas del AST, de atrás hacia delante para que los
+  desplazamientos no se muevan, y vuelca las claves castellanas. **No inventa
+  traducciones**: inglés y chino se escriben a mano, que es trabajo de idioma.
+- **`i18n_insertar_modulo.mjs`** — mete el módulo en los tres ficheros de golpe
+  y **falla si ya existe en alguno**. Insertar a mano en tres sitios de 4.000
+  líneas es exactamente como se llegó al defecto que encontró el gate de
+  duplicados: un módulo declarado dos veces, donde JavaScript se queda con el
+  último y descarta en silencio 204 traducciones ya escritas.
+
+### Dónde va el hook, que es la parte que se rompe sola
+
+`t` sale de `useAppLang()`, que es un hook de React: sólo puede llamarse en el
+cuerpo del componente. El literal, en cambio, casi siempre está dentro de un
+`.map(...)` o de un `renderX` anidado. Insertar el hook en la función que
+envuelve al literal lo dejaría **dentro del callback** — ilegal, y de las que
+funcionan hasta que la lista se queda vacía. Por eso la herramienta busca la
+función de **primer nivel del módulo**, que es el componente, y ahí lo pone.
+
+### Primera pantalla, y lo que costó
+
+`PortalUsersTab.tsx`: 31 literales, 28 claves —los textos repetidos comparten
+clave a propósito: «Permisos en el portal» salía dos veces, y traducirla dos
+veces es un sitio donde desincronizarse—. `1.852 → 1.821`, typecheck estricto en
+cero y ESLint sin errores.
+
+De paso sale un defecto pequeño: el `placeholder` decía «Nueva contrasena», sin
+eñe, mientras la etiqueta de al lado decía «Nueva contraseña». Al pasar por una
+clave hay un único texto y deja de poder divergir.
 
 ---
 
@@ -4786,14 +4983,22 @@ día divergen, y aquí ya lo habían hecho.
 
 **Lo que queda abierto de verdad, medido hoy:**
 
-- **24 rutas `DELETE` cuyo único control es `enforce_abac`, que es fail-open**
-  (§3.octovicies). Borrados de clientes, planes de capacidad, activos, cambios,
-  plantillas y claves de API. El filtrado de `TenantSession` impide el acceso
-  entre clientes; falta decidir quién, **dentro** de la misma organización,
-  puede borrarlos. Registradas con trinquete para que no crezcan. **Es lo
-  primero que hay que mirar**, y cada una es una decisión de producto.
-- **Traducción al 62,2 %** en inglés y chino: 1.419 claves en cada uno, más
-  ~1.100 literales castellanos en el JSX. Es contenido, no código (#16).
+- **El control de rol está a parches en toda la capa API** (§3.trigies). Las
+  24 rutas `DELETE` que estaban sin control quedan en **1**, y esa una no se
+  puede guardar porque no hace nada. Pero al mirarlas salió lo de fondo:
+  **crear está tan sin guarda como borrar**. De las 15 rutas de escritura de
+  `clients.py` ninguna tenía control de rol, y en `service_desk` la mayoría de
+  los `POST` tampoco. El detector no lo veía porque sólo mira rutas que llaman
+  a `enforce_abac`, y eso es casi todo `DELETE`. **Esto es ahora lo primero de
+  la lista**, y es bastante más ancho que lo que decía este punto.
+- **1.852 cadenas visibles que no pasan por `t()`** (§3.untrigies). Ojo con
+  este punto, porque decía otra cosa y era falso: decía «traducción al 62,2 %,
+  faltan 1.419 claves en inglés y chino». **Eso se cerró en `d5295e6`** y los
+  tres idiomas llevan desde entonces al 100 %; el traspaso no se actualizó. Lo
+  que sí queda abierto es distinto y ningún gate lo veía: texto escrito
+  directamente en el JSX, que al no tener clave no le falta a ningún idioma.
+  Medido por AST: **1.821 cadenas en 126 ficheros** tras traducir la primera.
+  Ya está bajo trinquete (`check_i18n_literales.mjs`), así que no puede crecer.
 - **204 `db.query()` / `db.commit()` en la capa API**, dos tercios de ellos en
   `collaboration` y `service_desk` (#22). Trabajo grande y de riesgo real: por
   dominios, cada tanda con su suite.

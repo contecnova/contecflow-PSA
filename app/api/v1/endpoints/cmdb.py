@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.config import settings
-from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager
+from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager, require_internal_user
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -61,8 +61,21 @@ def add_page_tag(page_id: str, tag_id: str,
 
 
 @router.delete("/wiki-pages/{page_id}/tags/{tag_id}")
-def remove_page_tag(page_id: str, tag_id: str,
-                    db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def remove_page_tag(
+    page_id: str,
+    tag_id: str,
+    db: Session = Depends(get_db),
+    cu: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada.
+    #
+    # Aqui NO se copia el `admin_or_pm` dominante del fichero: poner
+    # una etiqueta esta abierto a todos y quitarla es su inversa
+    # exacta, reversible en un clic. Restringir solo el quitar
+    # dejaria etiquetas puestas por error que nadie salvo un PM
+    # podria limpiar. Se excluye al subcontratista y ya.
+    _: User = Depends(require_internal_user),
+):
     enforce_abac(db, cu, "wiki_page_tag", tag_id, action="delete")
     return APIResponse.ok(data=svc.remove_page_tag(page_id, tag_id, db))
 

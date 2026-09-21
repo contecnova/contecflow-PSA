@@ -141,6 +141,14 @@ if [[ "$MODE" != "--info" ]]; then
   run_gate bloqueante "cobertura i18n (es/en/zh, no puede bajar)" \
     bash -c 'cd frontend && node scripts/check_i18n_coverage.mjs'
 
+  # Texto visible escrito a pelo en el JSX (hallazgo 16, segunda mitad). Los tres
+  # gates de arriba comparan los diccionarios entre si y los tres estan al 100 %,
+  # que es verdad y no es suficiente: miden el diccionario, no las pantallas. Una
+  # cadena escrita directamente en el JSX no tiene clave, asi que no le falta a
+  # ningun idioma y ninguno de los tres la ve. Medido por AST: 1852 en 126
+  # ficheros. Trinquete de dos direcciones, como los demas.
+  run_gate bloqueante "texto visible fuera de t() (no puede crecer)"     bash -c 'cd frontend && node scripts/check_i18n_literales.mjs'
+
   # Claves duplicadas en los ficheros de idioma (hallazgo 16). Encontrado al
   # intentar cerrar la traducción: `en.mjs` tenía el namespace `client_portal`
   # declarado DOS VECES, y en JavaScript gana la última — así que 73 traducciones

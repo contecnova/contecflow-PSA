@@ -196,6 +196,11 @@ def delete_dependency(
     dep_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada. Una dependencia entre tareas es
+    # estructura de proyecto: la decide quien planifica, igual que
+    # `POST /epics/{id}/dependencies/{id}`, que ya exige lo mismo.
+    _: User = Depends(require_admin_or_pm),
 ):
     enforce_abac(db, current_user, "task_dependency", dep_id, action="delete")
     return APIResponse.ok(data=svc_delete_task_dependency(db, dep_id))

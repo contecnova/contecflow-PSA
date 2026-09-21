@@ -254,6 +254,11 @@ def delete_capacity_plan(
     plan_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada. Planificar capacidad es funcion de
+    # gestion por definicion: quien no puede asignar carga tampoco
+    # deberia poder borrar el plan que la reparte.
+    _: User = Depends(require_any_manager),
 ):
     plan = capacity_service.get_capacity_plan_by_id(db, plan_id)
     if not plan:

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
 from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
@@ -85,6 +85,12 @@ def delete_playbook(
     playbook_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada. Un playbook es configuracion de
+    # automatizacion: desactivarlo apaga resoluciones automaticas
+    # para toda la organizacion, no para quien lo desactiva. Es el
+    # caso de `require_admin`, no de gestor.
+    _: User = Depends(require_admin),
 ):
     enforce_abac(db, current_user, "sd_playbook", playbook_id, action="delete")
     result = deactivate_playbook(db, playbook_id)

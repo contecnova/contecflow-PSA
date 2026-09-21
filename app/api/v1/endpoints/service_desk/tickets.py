@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
@@ -270,7 +270,23 @@ def link_tickets(ticket_id: str, payload: dict = Body(...), db: Session = Depend
 
 
 @router.delete("/tickets/{ticket_id}/links/{link_id}", summary="Eliminar vínculo")
-def delete_ticket_link(ticket_id: str, link_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_ticket_link(
+    ticket_id: str,
+    link_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada.
+    #
+    # No se exige gestor a proposito: crear el vinculo (`POST
+    # .../links`) esta abierto a cualquier agente y quitarlo es la
+    # operacion inversa exacta —se puede volver a crear—, asi que
+    # pedir rol de gestion para deshacer lo que uno mismo puede
+    # hacer romperia el trabajo diario del service desk. Lo que si
+    # hay que impedir es que un subcontratista toque la relacion
+    # entre tickets de la organizacion.
+    _: User = Depends(require_internal_user),
+):
     enforce_abac(db, current_user, "sd_ticket_link", link_id, action="delete")
     delete_ticket_link_svc(db, link_id)
     _commit_or_rollback(db)

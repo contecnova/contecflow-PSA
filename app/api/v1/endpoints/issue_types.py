@@ -192,6 +192,15 @@ def delete_task_dependency(
     dep_id: str,
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada.
+    #
+    # Misma decision que `DELETE /tasks/dependencies/{dep_id}`, que
+    # hace exactamente lo mismo desde otro router: son dos rutas
+    # publicas para una sola operacion. La duplicidad queda anotada
+    # en el traspaso; aqui lo que no puede pasar es que una de las
+    # dos sea la puerta de atras de la otra.
+    _: User = Depends(require_admin_or_pm),
 ):
     enforce_abac(db, cu, "task_dependency", dep_id, action="delete")
     try:
