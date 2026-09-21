@@ -6,6 +6,7 @@ import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { biSmartAlertsApi } from '../../services/api'
 import { COLOR } from '../../constants/theme'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 // TODO type: biSmartAlertsApi payloads — needs shared types
 interface AlertRule {
@@ -56,6 +57,7 @@ const S: Record<string, React.CSSProperties> = {
 }
 
 export default function SmartAlertsPanel() {
+  const { t } = useAppLang()
   const [tick, setTick] = useState<number>(0)
   const [name, setName] = useState<string>('')
   const [metric, setMetric] = useState<string>('revenue')
@@ -106,12 +108,12 @@ export default function SmartAlertsPanel() {
       {/* Reglas */}
       <div style={S.card}>
         <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Reglas de alerta</span>
+          <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('smartalerts.reglas_de_alerta')}</span>
           <button onClick={evaluateNow} style={{ ...S.btnPrimary, padding: '5px 14px', fontSize: 'var(--text-xs)' }}>Evaluar ahora</button>
         </div>
         <div style={S.cardPad}>
           <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre de la regla"
+            <input value={name} onChange={e => setName(e.target.value)} placeholder={t('smartalerts.nombre_de_la_regla')}
               style={{ ...S.input, flex: 1, minWidth: 120 }} />
             <select value={metric} onChange={e => setMetric(e.target.value)} style={{ ...S.input, width: 'auto' }}>
               {(supported?.metrics || [{ key: 'revenue', label: 'Revenue' }]).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
@@ -140,10 +142,10 @@ export default function SmartAlertsPanel() {
           ))}
           {!(rules?.items || []).length && (
             <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)', padding: '16px 0' }}>
-              Sin reglas.{' '}
+              {t('smartalerts.sin_reglas')}{' '}
               <button onClick={seedDefaults}
                 style={{ background: 'none', border: 'none', color: COLOR.accent, cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }}>
-                Cargar por defecto
+                {t('smartalerts.cargar_por_defecto')}
               </button>
             </div>
           )}
@@ -153,10 +155,10 @@ export default function SmartAlertsPanel() {
       {/* Historial */}
       <div style={S.card}>
         <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}>
-          <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Historial de alertas</span>
+          <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('smartalerts.historial_de_alertas')}</span>
         </div>
         <div style={{ ...S.cardPad, maxHeight: 320, overflowY: 'auto' }}>
-          {!(history?.items || []).length && <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)', padding: '16px 0' }}>Sin alertas disparadas</div>}
+          {!(history?.items || []).length && <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)', padding: '16px 0' }}>{t('smartalerts.sin_alertas_disparadas')}</div>}
           {[...(history?.items || [])].reverse().map(entry => (
             <div key={entry.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--surface-4)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', marginTop: 4, background: entry.severity === 'critical' ? COLOR.danger : entry.severity === 'warning' ? COLOR.warning : COLOR.success, flexShrink: 0 }} />
@@ -167,7 +169,7 @@ export default function SmartAlertsPanel() {
                 </div>
                 {entry.correlated && entry.correlated.length > 0 && (
                   <div style={{ fontSize: 'var(--text-2xs)', color: COLOR.warning, marginTop: 2 }}>
-                    ↔ Correlada con: {entry.correlated.map(c => c.metric_key).join(', ')}
+                    {t('smartalerts.correlada_con')} {entry.correlated.map(c => c.metric_key).join(', ')}
                   </div>
                 )}
               </div>

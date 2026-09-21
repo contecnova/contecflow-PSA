@@ -237,7 +237,7 @@ function VendorModal({ vendor, onClose }: { vendor: any; onClose: any }) {
             {Object.entries(VENDOR_CATS).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
           </select>
         </div>
-        <div><label htmlFor={`${idPrefix}-country`} style={ls}>{t('alm.vendor_label_country')}</label><input id={`${idPrefix}-country`} value={form.country} onChange={s('country')} style={fs} placeholder="Ej: España" /></div>
+        <div><label htmlFor={`${idPrefix}-country`} style={ls}>{t('alm.vendor_label_country')}</label><input id={`${idPrefix}-country`} value={form.country} onChange={s('country')} style={fs} placeholder={t('alm.ej_espana')} /></div>
         <div><label htmlFor={`${idPrefix}-website`} style={ls}>{t('alm.vendor_label_web')}</label><input id={`${idPrefix}-website`} value={form.website} onChange={s('website')} style={fs} placeholder={t('alm.vendor_placeholder_web')} /></div>
         <div><label htmlFor={`${idPrefix}-support-email`} style={ls}>{t('alm.vendor_label_support_email')}</label><input id={`${idPrefix}-support-email`} value={form.support_email} onChange={s('support_email')} style={fs} /></div>
         <div><label htmlFor={`${idPrefix}-support-phone`} style={ls}>{t('alm.vendor_label_support_phone')}</label><input id={`${idPrefix}-support-phone`} value={form.support_phone} onChange={s('support_phone')} style={fs} /></div>
@@ -644,7 +644,7 @@ function ContractsTab() {
                   </div>
                   <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)', flexWrap: 'wrap' }}>
                     {c.vendor_name && <span>🏢 {c.vendor_name}</span>}
-                    {c.annual_value && <span>💰 {fmtCurrency(c.annual_value)}/año</span>}
+                    {c.annual_value && <span>💰 {fmtCurrency(c.annual_value)}{t('alm.ano')}</span>}
                     {c.renewal_date && <span>🔄 Renovar: {fmtDate(c.renewal_date)}</span>}
                     {c.owner_name && <span>👤 {c.owner_name}</span>}
                     {c.linked_clients?.map((cl: any) => (
@@ -902,7 +902,7 @@ function LicensesTab() {
       {filtered.length > 0 && (
         <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-base)", color: 'var(--text-2)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           <span>{filtered.length} licencia(s)</span>
-          {totalAnnual > 0 && <span>💰 <strong style={{ color: 'var(--warning)' }}>{fmtCurrency(totalAnnual)}</strong>/año</span>}
+          {totalAnnual > 0 && <span>💰 <strong style={{ color: 'var(--warning)' }}>{fmtCurrency(totalAnnual)}</strong>{t('alm.ano')}</span>}
           {totalSeats > 0 && <span>🔑 {usedSeats}/{totalSeats} seats usados</span>}
         </div>
       )}
@@ -931,7 +931,7 @@ function LicensesTab() {
                     </div>
                     <div style={{ display: 'flex', gap: 14, fontSize: "var(--text-sm)", color: 'var(--text-2)', flexWrap: 'wrap', marginBottom: 8 }}>
                       {lic.vendor_name && <span>🏢 {lic.vendor_name}</span>}
-                      {lic.annual_cost && <span>💰 {fmtCurrency(lic.annual_cost)}/año</span>}
+                      {lic.annual_cost && <span>💰 {fmtCurrency(lic.annual_cost)}{t('alm.ano')}</span>}
                       {lic.expiry_date && <span>📅 Expira: {fmtDate(lic.expiry_date)}</span>}
                       <span>{lt.label}</span>
                       {lic.linked_clients?.map((cl: any) => (
@@ -1176,7 +1176,7 @@ function AssetsTab() {
                   {a.location         && <span>📍 {a.location}</span>}
                   {a.serial_number    && <span>🔢 S/N: {a.serial_number}</span>}
                   {a.asset_tag        && <span>🏷️ Tag: {a.asset_tag}</span>}
-                  {a.warranty_expiry  && <span style={{ color: a.warranty_expired ? 'var(--danger)' : 'var(--text-2)' }}>🛡️ Garantía: {fmtDate(a.warranty_expiry)} {a.warranty_expired ? '⚠️' : ''}</span>}
+                  {a.warranty_expiry  && <span style={{ color: a.warranty_expired ? 'var(--danger)' : 'var(--text-2)' }}>{t('alm.garantia')} {fmtDate(a.warranty_expiry)} {a.warranty_expired ? '⚠️' : ''}</span>}
                   {a.purchase_price   && <span>💰 {fmtCurrency(a.purchase_price)} → libros: {fmtCurrency(a.book_value || 0)}</span>}
                   {a.installed_licenses > 0 && <span>📦 {a.installed_licenses} licencia(s) instalada(s)</span>}
                 </div>
@@ -1259,7 +1259,7 @@ function CostCentersTab() {
                     style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
                 </div>
               </div>
-              {c.budget_annual && <div style={{ fontSize: "var(--text-base)", color: 'var(--warning)', fontWeight: 600 }}>{fmtCurrency(c.budget_annual)}/año</div>}
+              {c.budget_annual && <div style={{ fontSize: "var(--text-base)", color: 'var(--warning)', fontWeight: 600 }}>{fmtCurrency(c.budget_annual)}{t('alm.ano')}</div>}
               {c.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{c.description}</div>}
             </div>
           ))}

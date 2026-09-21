@@ -102,6 +102,7 @@ function getCreateTicketSchema(t: (key: string) => string) {
 }
 
 export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
+  const traducir = useAppT()
   const t = useAppT() as (key: string) => string
   const idPrefix = useId()
   const qc = useQueryClient()
@@ -372,7 +373,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
         {routingHint && (
           <div style={{ gridColumn: '1/-1', background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: 8, padding: '8px 10px', color: 'var(--info)' }}>
-            Hint de routing aplicado: {Object.entries(routingHint).map(([k, v]) => `${k}=${v}`).join(', ')}
+            {traducir('createticketmodal.hint_de_routing_aplicado')} {Object.entries(routingHint).map(([k, v]) => `${k}=${v}`).join(', ')}
           </div>
         )}
 
@@ -447,11 +448,11 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
         </div>
       </div>
 
-      <Modal open={wizardOpen} onClose={() => setWizardOpen(false)} title="Wizard de campos dinámicos" size="lg">
+      <Modal open={wizardOpen} onClose={() => setWizardOpen(false)} title={traducir('createticketmodal.wizard_de_campos_dinamicos')} size="lg">
         {wizardStep === 1 && (
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
-              Pega CSV con cabeceras para generar campos dinámicos.
+              {traducir('createticketmodal.pega_csv_con_cabeceras_para_generar_campos')}
             </div>
             <textarea
               value={csvText}
@@ -460,7 +461,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               style={{ ...IS, minHeight: 140, resize: 'vertical' }}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>También puedes restaurar snapshots previos</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('createticketmodal.tambien_puedes_restaurar_snapshots_previos')}</div>
               <Button onClick={() => previewImport.mutate()} disabled={!csvText.trim()} loading={previewImport.isPending}>Previsualizar</Button>
             </div>
             <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 10, display: 'grid', gap: 8 }}>
@@ -478,7 +479,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
         {wizardStep === 2 && (
           <div style={{ display: 'grid', gap: 10 }}>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>Previsualización de campos detectados</div>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{traducir('createticketmodal.previsualizacion_de_campos_detectados')}</div>
             <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
               {generatedFields.map((f, idx) => (
                 <div key={`${f.id}-${idx}`} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: 8, padding: '8px 10px', borderBottom: '1px solid var(--surface-4)' }}>
@@ -506,8 +507,8 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               ))}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-              <Button variant="secondary" onClick={() => setWizardStep(1)}>Atrás</Button>
-              <Button onClick={() => applyImport.mutate()} loading={applyImport.isPending}>Aplicar importación</Button>
+              <Button variant="secondary" onClick={() => setWizardStep(1)}>{traducir('createticketmodal.atras')}</Button>
+              <Button onClick={() => applyImport.mutate()} loading={applyImport.isPending}>{traducir('createticketmodal.aplicar_importacion')}</Button>
             </div>
           </div>
         )}

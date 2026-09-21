@@ -165,7 +165,7 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
         </div>
         <div><label style={ls}>Proyecto</label>
           <select value={form.project_id} onChange={setField('project_id')} style={fs}>
-            <option value="">Sin proyecto</option>
+            <option value="">{t('resourceheatmap.sin_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
@@ -176,7 +176,7 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
               <option value="soft">Soft — Tentativo</option>
             </select>
           </div>
-          <div><label style={ls}>H/día</label>
+          <div><label style={ls}>{t('resourceheatmap.h_dia')}</label>
             <input type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} style={validation.inputStyle(fs, 'hours_per_day')} />
             {validation.errors.hours_per_day && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{validation.errors.hours_per_day}</div>}
           </div>
@@ -190,7 +190,7 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
           </div>
         </div>
         <div><label style={ls}>Nota</label>
-          <input value={form.note} onChange={setField('note')} style={fs} placeholder="Motivo de la reserva..." />
+          <input value={form.note} onChange={setField('note')} style={fs} placeholder={t('resourceheatmap.motivo_de_la_reserva')} />
         </div>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -274,7 +274,7 @@ export default function ResourceHeatmap() {
 
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
           style={{ ...fs, width:'auto', marginLeft:8 }}>
-          <option value="">Todos</option>
+          <option value="">{t('resourceheatmap.todos')}</option>
           <option value="overloaded">Solo sobrecargados</option>
           <option value="high">Alta carga</option>
           <option value="free">Infrautilizados</option>
@@ -286,7 +286,7 @@ export default function ResourceHeatmap() {
             {showBookingsPanel ? '← Heatmap' : '📋 Ver reservas'}
           </button>
           <Button onClick={() => { setBookingPrefill(null); setShowBooking(true) }}>
-            + Nueva reserva
+            {t('resourceheatmap.nueva_reserva')}
           </Button>
         </div>
       </div>
@@ -321,7 +321,7 @@ export default function ResourceHeatmap() {
                   <span style={{ fontSize: "var(--text-xs)", fontWeight:700, color:(b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)', background:((b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)')+'20', padding:'2px 6px', borderRadius:4, textAlign:'center' }}>{b.booking_type}</span>
                   <span style={{ color:'var(--text-2)' }}>{b.project_name || t('resource_heatmap.no_project')}</span>
                   <span style={{ color:'var(--text-2)' }}>{b.start_date} → {b.end_date}</span>
-                  <span>{b.hours_per_day}h/día</span>
+                  <span>{b.hours_per_day}{t('resourceheatmap.h_dia_2')}</span>
                   <span style={{ fontWeight:700 }}>{b.total_hours}h total</span>
                   <button onClick={() => { openConfirmGlobal({message:t('resource_heatmap.delete_booking_confirm'),onConfirm:()=>deleteBooking(b.id),danger:true}) }}
                     style={{ background:'none', border:'1px solid var(--danger-border)', borderRadius:6, padding:'2px 8px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)" }}>🗑</button>

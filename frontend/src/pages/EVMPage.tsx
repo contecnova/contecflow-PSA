@@ -93,6 +93,7 @@ function ProgressBar({ pct, color = 'var(--accent)', label }: { pct?: number | n
 
 // ── Detail panel ─────────────────────────────────────────────────────────────
 function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: () => void }) {
+  const t = useAppT()
   const { data: dataRaw, isLoading, isError } = useQuery({
     queryKey: ['evm', projectId],
     queryFn: () => projectsApi.evm(String(projectId)).then(r => r.data),
@@ -112,8 +113,8 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
         width: 700, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto',
         boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
       }} onMouseDown={e => e.stopPropagation()}>
-        {isLoading && <div style={{ color: 'var(--text-3)' }}>Calculando métricas EVM…</div>}
-        {isError  && <div style={{ color: 'var(--danger)' }}>Error al cargar métricas</div>}
+        {isLoading && <div style={{ color: 'var(--text-3)' }}>{t('evm.calculando_metricas_evm')}</div>}
+        {isError  && <div style={{ color: 'var(--danger)' }}>{t('evm.error_al_cargar_metricas')}</div>}
         {data && <>
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
@@ -150,7 +151,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
 
           {/* Indices */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Índices de rendimiento</div>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{t('evm.indices_de_rendimiento')}</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <IndexBadge label="CPI" value={data.cpi} />
               <IndexBadge label="SPI" value={data.spi} />
@@ -169,7 +170,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
 
           {/* Forecast */}
           <div>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Previsión final</div>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{t('evm.prevision_final')}</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <IndexBadge label="EAC" value={data.eac} good={Infinity} format={fmtEur} />
               <IndexBadge label="ETC" value={data.etc} good={Infinity} format={fmtEur} />
@@ -179,7 +180,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
 
           {/* Legend */}
           <div style={{ marginTop: 24, padding: '12px 16px', background: 'var(--surface-2)', borderRadius: 10, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
-            <strong>Guía rápida:</strong> CPI &gt; 1 = bajo presupuesto · CPI &lt; 1 = sobre presupuesto · SPI &gt; 1 = adelantado · SPI &lt; 1 = retrasado · TCPI &gt; 1.1 = metas difíciles de alcanzar
+            <strong>{t('evm.guia_rapida')}</strong> {t('evm.cpi_1_bajo_presupuesto_cpi_1_sobre')}
           </div>
 
           <button onClick={onClose} style={{
@@ -246,9 +247,9 @@ export default function EVMPage(): JSX.Element {
 
       {/* Portfolio table */}
       {isLoading ? (
-        <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>Calculando métricas EVM…</div>
+        <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>{t('evm.calculando_metricas_evm')}</div>
       ) : portfolio.length === 0 ? (
-        <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>Sin proyectos activos con datos suficientes</div>
+        <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>{t('evm.sin_proyectos_activos_con_datos_suficientes')}</div>
       ) : (
         <div style={{ background: 'var(--surface-2)', borderRadius: 14, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>

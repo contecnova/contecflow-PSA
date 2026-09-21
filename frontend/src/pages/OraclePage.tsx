@@ -146,11 +146,11 @@ export default function OraclePage() {
         <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: 'rgba(52,211,153,0.25)', background: 'var(--success-bg)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--success)', marginBottom: 4 }}>✅ Análisis completado</div>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--success)', marginBottom: 4 }}>{t('oracle.analisis_completado')}</div>
               <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                 {/* Backend devuelve {alerts_generated, methodology, run_at} no {predictions_generated, projects_analyzed} */}
                 {analysis.alerts_generated || 0} alertas generadas
-                {analysis.methodology && <span> · Método: <em>{analysis.methodology}</em></span>}
+                {analysis.methodology && <span> {t('oracle.metodo')} <em>{analysis.methodology}</em></span>}
               </div>
             </div>
             <button onClick={() => setAnalysis(null)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-lg-em)" }}>×</button>
@@ -160,7 +160,7 @@ export default function OraclePage() {
               {(analysis.alerts ?? []).slice(0, 5).map((a, i) => (
                 <div key={i}>• {a.type}: {a.entity} ({Math.round((a.probability || 0) * 100)}%)</div>
               ))}
-              {(analysis.alerts?.length ?? 0) > 5 && <div style={{ color: 'var(--text-3)' }}>… {(analysis.alerts?.length ?? 0) - 5} más</div>}
+              {(analysis.alerts?.length ?? 0) > 5 && <div style={{ color: 'var(--text-3)' }}>… {(analysis.alerts?.length ?? 0) - 5} {t('oracle.mas')}</div>}
             </div>
           )}
         </div>
@@ -186,7 +186,7 @@ export default function OraclePage() {
       {preds.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16, marginBottom: 24 }}>
           <div style={{ ...card, padding: '16px 20px' }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>Predicciones por tipo</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>{t('oracle.predicciones_por_tipo')}</div>
             <ResponsiveContainer width="100%" height={160}>
               <BarChart data={typeData} layout="vertical" margin={{ left: 10 }}>
                 <XAxis type="number" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
@@ -197,7 +197,7 @@ export default function OraclePage() {
             </ResponsiveContainer>
           </div>
           <div style={{ ...card, padding: '16px 20px' }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>Por severidad</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>{t('oracle.por_severidad')}</div>
             <ResponsiveContainer width="100%" height={160}>
               <PieChart>
                 <Pie data={bySev} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label={false}>
@@ -223,7 +223,7 @@ export default function OraclePage() {
 
       {/* Predictions list */}
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
-        <EmptyState icon="🔮" title="Sin predicciones disponibles" description={preds.length ? "No hay predicciones con este filtro" : "Ejecuta el análisis para detectar riesgos con IA"} />
+        <EmptyState icon="🔮" title={t('oracle.sin_predicciones_disponibles')} description={preds.length ? "No hay predicciones con este filtro" : "Ejecuta el análisis para detectar riesgos con IA"} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(p => {
@@ -259,7 +259,7 @@ export default function OraclePage() {
                 </div>
                 {p.recommended_action && (
                   <div style={{ padding: '8px 12px', background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--accent)', lineHeight: 1.5 }}>
-                    💡 <strong>Acción recomendada:</strong> {p.recommended_action}
+                    💡 <strong>{t('oracle.accion_recomendada')}</strong> {p.recommended_action}
                   </div>
                 )}
               </div>

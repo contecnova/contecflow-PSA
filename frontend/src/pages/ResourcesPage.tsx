@@ -189,6 +189,7 @@ type Resource = {
 }
 
 function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Resource; onEdit: (r: Resource) => void; showRates: boolean; canEdit: boolean }) {
+  const t = useAppT()
   const load = resource.current_load_pct ?? 0
   const loadColor = load > 100 ? 'var(--danger)' : load > 85 ? 'var(--warning)' : load > 60 ? 'var(--accent)' : 'var(--success)'
   return (
@@ -240,7 +241,7 @@ function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Reso
       </div>
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>
-          <span>Utilización</span>
+          <span>{t('resources.utilizacion')}</span>
           <span style={{ color: loadColor, fontWeight: 700 }}>{load.toFixed(0)}%</span>
         </div>
         <LoadBar value={load} label={undefined} />
@@ -256,6 +257,7 @@ function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Reso
 }
 
 function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean; onClose: () => void }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [form, setForm] = useState<Record<string, string>>({
@@ -297,7 +299,7 @@ function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean;
           options={[{ value: '', label: '— Sin departamento —' }, ...departments.filter((d) => d.is_active !== false).map((d) => ({ value: d.name, label: d.name }))]} />
         <Select label="Rol" value={form.role} onChange={set('role')} options={ROLES} />
         <Input label="Capacidad semanal" type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} placeholder={undefined} required={undefined} hint={undefined} />
-        {hasRole('admin') && <Input label="Tarifa por hora" type="number" value={form.hourly_rate} onChange={set('hourly_rate')} placeholder={undefined} required={undefined} hint={undefined} />}
+        {hasRole('admin') && <Input label={t('resources.tarifa_por_hora')} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} placeholder={undefined} required={undefined} hint={undefined} />}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={handleSave} disabled={isPending} loading={isPending}>{isPending ? 'Guardando...' : 'Guardar cambios'}</Button>
@@ -336,6 +338,7 @@ interface SmartMatchResult {
 interface SkillItem { id?: string; name: string }
 
 function SmartMatchTab() {
+  const t = useAppT()
   const toast = useToast()
   const [form, setForm] = useState<SmartMatchForm>({ skills: [], role: '', hours_needed: 40, start_date: '', end_date: '', max_hourly_rate: '' })
   const [skillInput, setSkillInput] = useState('')
@@ -369,7 +372,7 @@ function SmartMatchTab() {
       <div>
         <div style={{ ...panelStyle, padding: '20px 24px' }}>
           <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 4 }}>🧠 SmartMatch</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 20 }}>Encuentra los mejores recursos para tu proyecto</div>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 20 }}>{t('resources.encuentra_los_mejores_recursos_para_tu_proyecto')}</div>
 
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>Skills requeridos</label>
@@ -407,7 +410,7 @@ function SmartMatchTab() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
             <div><label style={labelStyle}>Horas necesarias</label><input type="number" value={form.hours_needed} onChange={e => setForm(f => ({ ...f, hours_needed: +e.target.value }))} style={inputStyle} /></div>
-            <div><label style={labelStyle}>Tarifa máx. (€/h)</label><input type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} style={inputStyle} placeholder="Tarifa maxima" aria-label="Tarifa maxima" /></div>
+            <div><label style={labelStyle}>{t('resources.tarifa_max_h')}</label><input type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} style={inputStyle} placeholder="Tarifa maxima" aria-label="Tarifa maxima" /></div>
             <div><label style={labelStyle}>Inicio</label><input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} style={inputStyle} /></div>
             <div><label style={labelStyle}>Fin</label><input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} style={inputStyle} /></div>
           </div>
@@ -422,7 +425,7 @@ function SmartMatchTab() {
         {!results && !isPending && (
           <div style={{ ...panelStyle, padding: '48px', textAlign: 'center' }}>
             <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🎯</div>
-            <div style={{ fontSize: "var(--text-md)", color: 'var(--text-2)' }}>Configura los criterios y pulsa &quot;Buscar recursos&quot;</div>
+            <div style={{ fontSize: "var(--text-md)", color: 'var(--text-2)' }}>{t('resources.configura_los_criterios_y_pulsa_buscar_recursos')}</div>
           </div>
         )}
         {isPending && <Spinner />}
@@ -526,11 +529,11 @@ export default function ResourcesPage() {
       {resTab === 'heatmap' ? <ResourceHeatmap /> : resTab === 'smartmatch' ? <SmartMatchTab /> : resTab === 'burnout' ? <BurnoutMonitorTab /> : (
         <>
           <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, cargo o departamento"
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('resources.buscar_por_nombre_cargo_o_departamento')}
               style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }} />
             <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-              <option value="">Todos los departamentos</option>
+              <option value="">{t('resources.todos_los_departamentos')}</option>
               {departments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
             <select value={resSort.key} onChange={e => setResSort({ key: e.target.value, dir: 'asc' } as unknown as string)}
@@ -545,7 +548,7 @@ export default function ResourcesPage() {
           {isLoading ? (
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '40px 0' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>Cargando recursos...</span></div>
           ) : filtered.length === 0 ? (
-            <EmptyState icon="👥" title="Sin recursos" description="No hay personas que coincidan con el filtro actual" />
+            <EmptyState icon="👥" title={t('resources.sin_recursos')} description="No hay personas que coincidan con el filtro actual" />
           ) : view === 'grid' ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
               {sortedResources.map(r => <ResourceCard key={r.user?.id} resource={r} onEdit={setEditTarget} showRates={hasRole('admin', 'hr')} canEdit={hasRole('admin')} />)}

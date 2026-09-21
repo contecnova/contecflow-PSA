@@ -106,7 +106,7 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
           </div>
         </div>
         <div>
-          <label style={ls}>Días laborables</label>
+          <label style={ls}>{t('slacalendars.dias_laborables')}</label>
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
             {Object.entries(DAYS_MAP).map(([d,name]) => {
               const active = form.work_days.has(+d)
@@ -134,6 +134,7 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
 }
 
 function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [date, setDate] = useState('')
@@ -196,7 +197,7 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
         {/* Lista de festivos */}
         <div style={{maxHeight:200,overflowY:'auto',border:'1px solid var(--surface-4)',borderRadius:8}}>
           {holidays.length === 0 ? (
-            <div style={{padding:'16px',textAlign:'center',color:'var(--text-3)',fontSize: "var(--text-sm)"}}>Sin festivos registrados</div>
+            <div style={{padding:'16px',textAlign:'center',color:'var(--text-3)',fontSize: "var(--text-sm)"}}>{t('slacalendars.sin_festivos_registrados')}</div>
           ) : holidays.map((h,i) => (
             <div key={h.id} style={{borderBottom:'1px solid var(--surface-4)',background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
               {editingId === h.id ? (
@@ -207,7 +208,7 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
                       padding:'3px 7px',color:'var(--text-1)',fontSize: "var(--text-sm)",fontFamily:'inherit'}} />
                   <input value={editForm.name}
                     onChange={e => setEditForm(f => ({...f, name: e.target.value}))}
-                    placeholder="Nombre del festivo"
+                    placeholder={t('slacalendars.nombre_del_festivo')}
                     style={{flex:1,background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:5,
                       padding:'3px 7px',color:'var(--text-1)',fontSize: "var(--text-sm)",fontFamily:'inherit'}} />
                   <button onClick={() => updateH(h.id)}
@@ -245,7 +246,7 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
                 {checkResult.date} ({checkResult.day_of_week}) —
                 {checkResult.is_business_day ? ' ✅ Día laborable' : ' ❌ No laborable'}
               </strong>
-              {checkResult.is_weekend && <div style={{color:'var(--text-2)',fontSize: "var(--text-sm)"}}>Fin de semana</div>}
+              {checkResult.is_weekend && <div style={{color:'var(--text-2)',fontSize: "var(--text-sm)"}}>{t('slacalendars.fin_de_semana')}</div>}
               {checkResult.is_holiday  && <div style={{color:'var(--warning)',fontSize: "var(--text-sm)"}}>Festivo: {checkResult.holiday_name||'(sin nombre)'}</div>}
             </div>
           )}
@@ -284,15 +285,14 @@ export default function SLACalendarsPage() {
   return (
     <PageShell>
       <PageHeader icon={<CalendarClock size={18} />} title={t('sla_calendars.title')} subtitle={t('sla_calendars.subtitle')}
-        actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo calendario</Button>} />
+        actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('slacalendars.nuevo_calendario')}</Button>} />
 
       {isLoading ? <Spinner /> : calendars.length === 0 ? (
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
           <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>📅</div>
-          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>Sin calendarios SLA</div>
+          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{t('slacalendars.sin_calendarios_sla')}</div>
           <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>
-            Los calendarios definen cuándo se cuenta el tiempo de SLA.
-            Los festivos y fines de semana pueden excluirse del cómputo.
+            {t('slacalendars.los_calendarios_definen_cuando_se_cuenta_el')}
           </div>
           <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Crear primer calendario</Button>
         </div>

@@ -115,6 +115,7 @@ function StepBadge({ step }: { step: PasoDeAgente }) {
 }
 
 export default function ContecflowAgentPage() {
+  const traducir = useAppT()
   const t = useAppT()
   const _qc = useQueryClient()
   const toast = useToast()
@@ -248,19 +249,19 @@ export default function ContecflowAgentPage() {
         <div>
           {/* Input */}
           <div style={{ ...card, padding: 24, marginBottom: 20 }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Instrucción</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{traducir('nexusagent.instruccion')}</div>
             <textarea
               ref={textareaRef}
               value={instruction}
               onChange={e => setInstruction(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Ej: Resume el estado de todos los proyectos activos..."
+              placeholder={traducir('nexusagent.ej_resume_el_estado_de_todos_los')}
               rows={4}
               style={{ width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 14px', fontSize: "var(--text-md)", fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: 'var(--text-1)', boxSizing: 'border-box', lineHeight: 1.6 }}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>⌘+Enter para ejecutar</span>
+                <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{traducir('nexusagent.enter_para_ejecutar')}</span>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                   <button type="button" onClick={() => setStreaming(s => !s)}
                     style={{ width: 28, height: 16, borderRadius: 8, background: streaming ? 'var(--accent)' : 'var(--surface-4)', position: 'relative', transition: 'background 0.2s', cursor: 'pointer', border: 'none', padding: 0 }}>
@@ -283,7 +284,7 @@ export default function ContecflowAgentPage() {
                 <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)' }}>Agente ejecutando en tiempo real…</span>
               </div>
               {liveSteps.length === 0 && !liveText && (
-                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Analizando instrucción…</div>
+                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{traducir('nexusagent.analizando_instruccion')}</div>
               )}
               {liveText && (
                 <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: '14px 16px', fontSize: "var(--text-base)", lineHeight: 1.7, whiteSpace: 'pre-wrap', color: 'var(--text-1)' }}>
@@ -298,7 +299,7 @@ export default function ContecflowAgentPage() {
           {isPending && !isStreaming && (
             <div style={{ ...card, padding: 24, marginBottom: 20, textAlign: 'center' }}>
               <Spinner />
-              <div style={{ marginTop: 12, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>El agente está procesando tu instrucción...</div>
+              <div style={{ marginTop: 12, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{traducir('nexusagent.el_agente_esta_procesando_tu_instruccion')}</div>
             </div>
           )}
 
@@ -327,11 +328,11 @@ export default function ContecflowAgentPage() {
           {/* History */}
           <div style={card}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-md)", fontWeight: 700 }}>
-              Historial de ejecuciones
+              {traducir('nexusagent.historial_de_ejecuciones')}
             </div>
             {history.length === 0 ? (
               <div style={{ padding: 32 }}>
-                <EmptyState icon="⚡" title="Sin ejecuciones recientes" description="Ejecuta una instruccion para ver el historial" />
+                <EmptyState icon="⚡" title={traducir('nexusagent.sin_ejecuciones_recientes')} description="Ejecuta una instruccion para ver el historial" />
               </div>
             ) : history.map((e: EjecucionDeAgente) => {
               const sc = (e.status && STATUS_CFG[e.status]) || STATUS_CFG.pending
@@ -395,7 +396,7 @@ export default function ContecflowAgentPage() {
               </div>
             ))}
             {!showTools && TOOLS.length > 5 && (
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 6 }}>+{TOOLS.length - 5} más...</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 6 }}>+{TOOLS.length - 5} {traducir('nexusagent.mas')}</div>
             )}
           </div>
         </div>

@@ -98,6 +98,7 @@ function RoleCell({ role, onClick, editable }: { role?: string; onClick?: () => 
 }
 
 function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdType; users: UserSlim[]; onClose: () => void; onSaved: () => void }) {
+  const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const [form, setForm] = useState({ item_type: 'deliverable', item_label: '', user_id: '', role: 'R' })
@@ -130,8 +131,8 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
           </select>
         </div>
         <div>
-          <label style={lbStyle}>Nombre del elemento</label>
-          <input value={form.item_label} onChange={onField('item_label')} style={inputStyle} placeholder="Nombre del elemento" aria-label="Nombre del elemento" />
+          <label style={lbStyle}>{traducir('raci.nombre_del_elemento')}</label>
+          <input value={form.item_label} onChange={onField('item_label')} style={inputStyle} placeholder={traducir('raci.nombre_del_elemento')} aria-label={traducir('raci.nombre_del_elemento')} />
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
@@ -160,6 +161,7 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
 }
 
 export default function RACIPage() {
+  const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -218,20 +220,20 @@ export default function RACIPage() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>
         <select value={String(selectedProject)} onChange={e => setSelectedProject(e.target.value)}
           style={{ flex: 1, maxWidth: 380, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-          <option value="">Selecciona un proyecto...</option>
+          <option value="">{traducir('raci.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
         {selectedProject && (
-          <Button onClick={() => setShowAdd(true)}>+ Añadir entrada</Button>
+          <Button onClick={() => setShowAdd(true)}>{traducir('raci.anadir_entrada')}</Button>
         )}
       </div>
 
       {!selectedProject ? (
-        <EmptyState icon="📋" title="Selecciona un proyecto" description="Elige un proyecto para ver y gestionar su matriz RACI" />
+        <EmptyState icon="📋" title={traducir('raci.selecciona_un_proyecto_2')} description="Elige un proyecto para ver y gestionar su matriz RACI" />
       ) : isLoading ? (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>{t('common.loading')}</span></div>
       ) : items.length === 0 ? (
-        <EmptyState icon="📊" title="Matriz RACI vacia" description="Anade la primera entrada para empezar a asignar responsabilidades" action={<button className="btn-primary" onClick={() => setShowAdd(true)} style={{ fontSize: "var(--text-base)", padding: '8px 20px' }}>+ Añadir primera entrada</button>} />
+        <EmptyState icon="📊" title="Matriz RACI vacia" description="Anade la primera entrada para empezar a asignar responsabilidades" action={<button className="btn-primary" onClick={() => setShowAdd(true)} style={{ fontSize: "var(--text-base)", padding: '8px 20px' }}>{traducir('raci.anadir_primera_entrada')}</button>} />
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, minWidth: 600 }}>
