@@ -41,6 +41,21 @@ function sinAcentos(s) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '')
 }
 
+// Entidades HTML: en el JSX las decodifica el propio parser, asi que
+// `pulsa &quot;+ KR&quot;` se ve en pantalla con comillas de verdad. Metida tal
+// cual en el diccionario, `t()` devuelve la cadena SIN decodificar y React la
+// pinta escapada: el usuario leeria `&quot;`. Se decodifican al capturar.
+const ENTIDADES = {
+  '&quot;': '"', '&apos;': "'", '&amp;': '&', '&lt;': '<', '&gt;': '>',
+  '&nbsp;': ' ', '&hellip;': '…', '&mdash;': '—', '&ndash;': '–',
+}
+
+function decodificar(texto) {
+  return texto
+    .replace(/&(?:quot|apos|amp|lt|gt|nbsp|hellip|mdash|ndash);/g, (e) => ENTIDADES[e])
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+}
+
 function aClave(texto) {
   return sinAcentos(texto)
     .toLowerCase()
@@ -106,15 +121,19 @@ function analizar(ruta) {
 
   function visitar(nodo) {
     if (ts.isJsxText(nodo)) {
-      const texto = nodo.text.trim()
-      if (texto && CASTELLANO.test(texto)) {
+      const crudo = nodo.text.trim()
+      const texto = decodificar(crudo)
+      if (crudo && CASTELLANO.test(texto)) {
         const inicio = nodo.getStart(fuente)
         // Solo el tramo con texto: se respetan los espacios y saltos de
         // alrededor, que en JSX son significativos para el hueco entre nodos.
-        const desplazamiento = nodo.getFullText(fuente).indexOf(texto)
+        // El desplazamiento se busca con el texto CRUDO: la posicion es la del
+        // fichero, donde la entidad sigue escrita. Lo decodificado es el valor
+        // que va al diccionario, no lo que se recorta del fuente.
+        const desplazamiento = nodo.getFullText(fuente).indexOf(crudo)
         const desde = nodo.getFullStart() + desplazamiento
         hallazgos.push({
-          tipo: 'texto', texto, desde, hasta: desde + texto.length,
+          tipo: 'texto', texto, desde, hasta: desde + crudo.length,
           clave: clavePara(texto), componente: componenteDe(inicio)?.nombre,
           cuerpo: componenteDe(inicio)?.cuerpo,
         })
@@ -122,7 +141,7 @@ function analizar(ruta) {
     } else if (ts.isJsxAttribute(nodo) && nodo.initializer
                && ATRIBUTOS_VISIBLES.has(nodo.name.getText(fuente))
                && ts.isStringLiteral(nodo.initializer)) {
-      const texto = nodo.initializer.text.trim()
+      const texto = decodificar(nodo.initializer.text.trim())
       if (texto && CASTELLANO.test(texto)) {
         const comp = componenteDe(nodo.getStart(fuente))
         hallazgos.push({
@@ -144,6 +163,20 @@ function tieneHook(cuerpo, fuente) {
     .test(cuerpo.getText(fuente))
 }
 
+// Hay DOS formas de pedir `t` en este proyecto y las dos estan en uso:
+// `const { t } = useAppLang()` y el atajo `const t = useAppT()`. Se usa la que
+// el fichero ya importe.
+//
+// Comprobarlo por la RUTA del import no basta y costo un typecheck en rojo:
+// `OKRsPage` y `SprintsPage` ya importaban de `i18n/AppLangContext`, asi que la
+// comprobacion daba «import puesto» y no anadia nada — pero lo que importaban
+// era `useAppT`, y el hook insertado llamaba a `useAppLang`, que ahi no existe.
+// La comprobacion es por el NOMBRE, no por el modulo.
+function formaDelHook(texto) {
+  if (/\buseAppT\b/.test(texto)) return { llamada: 'const t = useAppT()', nombre: 'useAppT' }
+  return { llamada: 'const { t } = useAppLang()', nombre: 'useAppLang' }
+}
+
 function aplicar(ruta) {
   const { original, fuente, hallazgos } = analizar(ruta)
   if (!hallazgos.length) return { texto: original, claves: [] }
@@ -163,7 +196,9 @@ function aplicar(ruta) {
     con: h.tipo === 'texto' ? `{t('${h.clave}')}` : `{t('${h.clave}')}`,
   }))
 
-  // Y el hook, una vez por componente que lo necesite.
+  // Y el hook, una vez por componente que lo necesite, en la forma que el
+  // fichero ya usa.
+  const hook = formaDelHook(original)
   const cuerposVistos = new Set()
   for (const h of utiles) {
     if (cuerposVistos.has(h.cuerpo)) continue
@@ -171,7 +206,7 @@ function aplicar(ruta) {
     if (tieneHook(h.cuerpo, fuente)) continue
     ediciones.push({
       desde: h.cuerpo.getStart(fuente) + 1, hasta: h.cuerpo.getStart(fuente) + 1,
-      con: '\n  const { t } = useAppLang()',
+      con: `\n  ${hook.llamada}`,
     })
   }
 
@@ -181,12 +216,13 @@ function aplicar(ruta) {
     texto = texto.slice(0, e.desde) + e.con + texto.slice(e.hasta)
   }
 
-  if (!/from '[^']*i18n\/AppLangContext'/.test(texto)) {
+  // El import, sólo si el NOMBRE que se va a llamar no está ya traído.
+  if (!new RegExp(`\\b${hook.nombre}\\b`).test(original)) {
     const lineas = texto.split('\n')
     const ultimo = lineas.reduce((acc, l, i) => (l.startsWith('import ') ? i : acc), 0)
     const prof = ruta.split(/[\\/]/).filter((x) => x && x !== '.').length - 2
     lineas.splice(ultimo + 1, 0,
-      `import { useAppLang } from '${'../'.repeat(prof)}i18n/AppLangContext'`)
+      `import { ${hook.nombre} } from '${'../'.repeat(prof)}i18n/AppLangContext'`)
     texto = lineas.join('\n')
   }
 

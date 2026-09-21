@@ -30,12 +30,6 @@ for (const lang of ['es', 'en', 'zh']) {
   const ruta = join(LANGS, `${lang}.mjs`)
   const texto = readFileSync(ruta, 'utf8')
 
-  const yaEsta = new RegExp(`^\\s{2}${modulo}:\\s*\\{`, 'm').test(texto)
-  if (yaEsta) {
-    console.error(`✗ ${lang}.mjs ya declara el modulo '${modulo}'. Nada tocado.`)
-    process.exit(1)
-  }
-
   const entradas = plan[lang]
   const faltan = Object.keys(plan.es).filter((k) => !(k in entradas))
   if (faltan.length) {
@@ -43,23 +37,61 @@ for (const lang of ['es', 'en', 'zh']) {
     process.exit(1)
   }
 
+  const lineas = texto.split('\n')
   const cuerpo = Object.entries(entradas)
     .map(([k, v]) => `    ${/^[A-Za-z_$][\w$]*$/.test(k) ? k : `'${k}'`}: ${comoLiteral(v)},`)
-    .join('\n')
-  const bloque = `  ${modulo}: {\n${cuerpo}\n  },\n`
 
-  // Antes del cierre del objeto: la ultima linea que lo cierra al margen
-  // izquierdo. Los tres ficheros acaban en `};` y luego `export default`, asi
-  // que se aceptan las dos formas.
-  const lineas = texto.split('\n')
-  const cierre = lineas.reduce(
-    (acc, l, i) => (l.trimEnd() === '}' || l.trimEnd() === '};' ? i : acc), -1,
-  )
-  if (cierre < 0) {
-    console.error(`✗ no se encuentra el cierre del objeto en ${lang}.mjs`)
-    process.exit(1)
+  // El modulo casi siempre EXISTE ya: `subcontractors`, `okrs`, `changes` y
+  // `sprints` tenian su namespace desde antes, con las claves que alguien fue
+  // extrayendo a mano. Crear un segundo bloque con el mismo nombre es
+  // exactamente el defecto que encontro el gate de duplicados —JavaScript se
+  // queda con el ultimo y descarta el primero en silencio—, asi que si existe
+  // se FUSIONA dentro, y si no, se crea al final.
+  const apertura = lineas.findIndex((l) => new RegExp(`^  ${modulo}:\\s*\\{`).test(l))
+
+  if (apertura >= 0) {
+    // El cierre del modulo: la primera linea `  },` a su misma indentacion.
+    const cierreMod = lineas.findIndex((l, i) => i > apertura && /^  \},?$/.test(l.trimEnd()))
+    if (cierreMod < 0) {
+      console.error(`✗ no se encuentra el cierre del modulo '${modulo}' en ${lang}.mjs`)
+      process.exit(1)
+    }
+    const dentro = lineas.slice(apertura + 1, cierreMod).join('\n')
+    const repes = Object.keys(entradas)
+      .filter((k) => new RegExp(`^\\s{4}'?${k}'?:`, 'm').test(dentro))
+    if (repes.length) {
+      console.error(
+        `✗ ${lang}.mjs: '${modulo}' ya tiene ${repes.join(', ')}. Nada tocado.\n` +
+        '  Reutiliza la clave existente en vez de duplicar el texto.',
+      )
+      process.exit(1)
+    }
+    // La ultima entrada del modulo puede no llevar coma final —varios modulos
+    // de `en.mjs` acaban asi—, y sin ella lo insertado es un error de sintaxis
+    // que tumba el fichero entero: `Unexpected identifier`. Se pone antes de
+    // empalmar.
+    const previa = cierreMod - 1
+    if (previa > apertura && !/[,{]\s*$/.test(lineas[previa])) {
+      lineas[previa] = `${lineas[previa].trimEnd()},`
+    }
+    lineas.splice(cierreMod, 0, ...cuerpo)
+  } else {
+    // Antes del cierre del objeto: la ultima linea que lo cierra al margen
+    // izquierdo. Los tres ficheros acaban en `};` y luego `export default`,
+    // asi que se aceptan las dos formas.
+    const cierre = lineas.reduce(
+      (acc, l, i) => (l.trimEnd() === '}' || l.trimEnd() === '};' ? i : acc), -1,
+    )
+    if (cierre < 0) {
+      console.error(`✗ no se encuentra el cierre del objeto en ${lang}.mjs`)
+      process.exit(1)
+    }
+    lineas.splice(cierre, 0, `  ${modulo}: {`, ...cuerpo, '  },')
   }
-  lineas.splice(cierre, 0, bloque.trimEnd())
+
   writeFileSync(ruta, lineas.join('\n'), 'utf8')
-  console.log(`✓ ${lang}.mjs  +${Object.keys(entradas).length} claves en '${modulo}'`)
+  console.log(
+    `✓ ${lang}.mjs  +${Object.keys(entradas).length} claves ` +
+    `${apertura >= 0 ? 'fusionadas en' : 'en modulo nuevo'} '${modulo}'`,
+  )
 }

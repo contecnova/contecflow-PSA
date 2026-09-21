@@ -1349,7 +1349,7 @@ convive con pantallas enteras que sólo existen en castellano.
 
 ### Cuánto, medido de verdad
 
-**1.852 cadenas en 126 ficheros**, el 65 % de ellas en `src/pages`. Las peores:
+**1.852 cadenas en 134 ficheros**, el 65 % de ellas en `src/pages`. Las peores:
 `SettingsPageSections.tsx` con 113, `PerformanceReviewsPage.tsx` con 57,
 `DocumentsPage.tsx` con 50.
 
@@ -1390,7 +1390,8 @@ función de **primer nivel del módulo**, que es el componente, y ahí lo pone.
 `PortalUsersTab.tsx`: 31 literales, 28 claves —los textos repetidos comparten
 clave a propósito: «Permisos en el portal» salía dos veces, y traducirla dos
 veces es un sitio donde desincronizarse—. `1.852 → 1.821`, typecheck estricto en
-cero y ESLint sin errores.
+cero y ESLint sin errores. Con `SubcontractorsPage`, `OKRsPage`, `ChangesPage`
+y `SprintsPage` detrás, **1.721**.
 
 De paso sale un defecto pequeño: el `placeholder` decía «Nueva contrasena», sin
 eñe, mientras la etiqueta de al lado decía «Nueva contraseña». Al pasar por una
@@ -4997,11 +4998,33 @@ día divergen, y aquí ya lo habían hecho.
   tres idiomas llevan desde entonces al 100 %; el traspaso no se actualizó. Lo
   que sí queda abierto es distinto y ningún gate lo veía: texto escrito
   directamente en el JSX, que al no tener clave no le falta a ningún idioma.
-  Medido por AST: **1.821 cadenas en 126 ficheros** tras traducir la primera.
+  Medido por AST: **1.721 cadenas en 130 ficheros** tras las cinco primeras
+  pantallas.
   Ya está bajo trinquete (`check_i18n_literales.mjs`), así que no puede crecer.
-- **204 `db.query()` / `db.commit()` en la capa API**, dos tercios de ellos en
-  `collaboration` y `service_desk` (#22). Trabajo grande y de riesgo real: por
-  dominios, cada tanda con su suite.
+> **Y el tercer punto de esta lista tampoco estaba abierto.** Decía «204
+> `db.query()` / `db.commit()` en la capa API». La medición oficial —
+> `python scripts/audit_db_access_in_api.py`, que cuenta por árbol de sintaxis
+> sobre `app/api/` entera— responde hoy **0 puntos en 0 ficheros**, desde 257,
+> y tiene guardián propio en `tests/test_capa_api_sin_acceso_a_base.py`, que
+> importa el mismo script para que la regla no pueda divergir de la medida.
+>
+> Un `grep` ingenuo de `db.commit()` sigue devolviendo 48, y por ahí venía la
+> confusión: son parte de las **109 fronteras de transacción** que quedan a
+> propósito en el endpoint. Confirmar no es consultar, y moverlo al servicio
+> sería lo contrario de lo que hicieron esas tandas.
+
+> **Los tres puntos de esta sección estaban desfasados a la vez, y conviene
+> decirlo entero.** Los tres describían trabajo ya hecho: la traducción se
+> cerró en `d5295e6`, el acceso a datos llegó a cero en la tanda de
+> `collaboration`, y las 24 rutas se cerraron en §3.trigies. Ninguno se
+> actualizó aquí al cerrarse.
+>
+> La lección es la misma que recorre toda esta auditoría, aplicada al propio
+> documento: **un número que nadie vuelve a medir envejece hacia el lado
+> equivocado**. Los tres se detectaron al ir a trabajar en ellos y encontrarse
+> el trabajo hecho — es decir, midiendo antes de actuar, que es lo único que ha
+> funcionado aquí. Lo que queda abierto de verdad son las dos primeras entradas
+> de esta lista, y las dos tienen ya un gate que las mide sola.
 
 ---
 

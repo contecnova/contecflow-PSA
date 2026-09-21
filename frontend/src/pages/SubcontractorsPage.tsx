@@ -347,7 +347,7 @@ function WorkersPanel({ subId }: { subId: string }) {
       {deactivateTarget && (
         <Modal open title="Desactivar trabajador" onClose={() => setDeactivateTarget(null)} width={380}>
           <p style={{ fontSize: "var(--text-md)", color: 'var(--text-1)', marginBottom: 20 }}>
-            Se desactivará a <strong>{deactivateTarget.name}</strong> y no podrá iniciar sesión ni ser asignado a tareas.
+            {t('subcontractors.se_desactivara_a')} <strong>{deactivateTarget.name}</strong> {t('subcontractors.y_no_podra_iniciar_sesion_ni_ser')}
           </p>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <Button variant="ghost" onClick={() => setDeactivateTarget(null)}>{t('subcontractors.cancel')}</Button>
@@ -461,7 +461,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
       {tab === 'assignments' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-            <Button size="sm" onClick={() => setShowAssign(true)}>+ Nueva asignación</Button>
+            <Button size="sm" onClick={() => setShowAssign(true)}>{t('subcontractors.nueva_asignacion')}</Button>
           </div>
           {assignments.length === 0 ? (
             <EmptyState icon="📋" title={t('subcontractors.empty_assignments_title')} description={t('subcontractors.empty_assignments_desc')} />
@@ -583,9 +583,9 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
         <Modal open title="Registrar horas" onClose={() => setShowTimelog(false)} width={480}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
-              <label style={lbl}>Asignación</label>
+              <label style={lbl}>{t('subcontractors.asignacion')}</label>
               <select value={tlForm.assignment_id} onChange={e => setTlForm(f=>({...f,assignment_id:e.target.value}))} style={inp}>
-                <option value="">Sin asignación</option>
+                <option value="">{t('subcontractors.sin_asignacion')}</option>
                 {assignments.map(a => <option key={a.id} value={a.id}>{a.project_code} — {a.project_name}</option>)}
               </select>
             </div>
@@ -599,11 +599,11 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             </div>
             <div>
               <label style={lbl}>Referencia tarea</label>
-              <input value={tlForm.task_reference} onChange={e => setTlForm(f=>({...f,task_reference:e.target.value}))} style={inp} placeholder="Referencia de tarea" aria-label="Referencia de tarea" />
+              <input value={tlForm.task_reference} onChange={e => setTlForm(f=>({...f,task_reference:e.target.value}))} style={inp} placeholder={t('subcontractors.referencia_de_tarea')} aria-label={t('subcontractors.referencia_de_tarea')} />
             </div>
             <div style={{ gridColumn: '1/-1' }}>
-              <label style={lbl}>Descripción</label>
-              <input value={tlForm.description} onChange={e => setTlForm(f=>({...f,description:e.target.value}))} style={inp} placeholder="Descripcion del parte" aria-label="Descripcion del parte" />
+              <label style={lbl}>{t('subcontractors.descripcion')}</label>
+              <input value={tlForm.description} onChange={e => setTlForm(f=>({...f,description:e.target.value}))} style={inp} placeholder={t('subcontractors.descripcion_del_parte')} aria-label={t('subcontractors.descripcion_del_parte')} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -619,10 +619,10 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
               <label style={lbl}>Nº Factura *</label>
-              <input value={invForm.invoice_number} onChange={e => setInvForm(f=>({...f,invoice_number:e.target.value}))} style={inp} placeholder="Numero de factura" aria-label="Numero de factura" />
+              <input value={invForm.invoice_number} onChange={e => setInvForm(f=>({...f,invoice_number:e.target.value}))} style={inp} placeholder={t('subcontractors.numero_de_factura')} aria-label={t('subcontractors.numero_de_factura')} />
             </div>
             <div>
-              <label style={lbl}>Fecha emisión</label>
+              <label style={lbl}>{t('subcontractors.fecha_emision')}</label>
               <input type="date" value={invForm.issue_date} onChange={e => setInvForm(f=>({...f,issue_date:e.target.value}))} style={inp} />
             </div>
             <div>
@@ -635,11 +635,11 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             </div>
             {invForm.amount && (
               <div style={{ gridColumn: '1/-1', background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)', borderRadius: 8, padding: '8px 12px', fontSize: "var(--text-sm)", color: 'var(--accent)' }}>
-                Total con IVA: <strong>{(+invForm.amount * (1 + invForm.tax_pct/100)).toLocaleString('es-ES', {style:'currency',currency})}</strong>
+                {t('subcontractors.total_con_iva')} <strong>{(+invForm.amount * (1 + invForm.tax_pct/100)).toLocaleString('es-ES', {style:'currency',currency})}</strong>
               </div>
             )}
             <div style={{ gridColumn: '1/-1' }}>
-              <label style={lbl}>Descripción</label>
+              <label style={lbl}>{t('subcontractors.descripcion')}</label>
               <input value={invForm.description} onChange={e => setInvForm(f=>({...f,description:e.target.value}))} style={inp} />
             </div>
           </div>
@@ -652,7 +652,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
 
       {/* Modal nueva asignación */}
       {showAssign && (
-        <Modal open title="Nueva asignacion" onClose={() => setShowAssign(false)} width={500}>
+        <Modal open title={t('subcontractors.nueva_asignacion_2')} onClose={() => setShowAssign(false)} width={500}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div style={{ gridColumn: '1/-1' }}>
               <label style={lbl}>Proyecto *</label>
@@ -663,7 +663,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             </div>
             <div>
               <label style={lbl}>Nº Pedido (PO)</label>
-              <input value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} style={inp} placeholder="Numero de pedido" aria-label="Numero de pedido" />
+              <input value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} style={inp} placeholder={t('subcontractors.numero_de_pedido')} aria-label={t('subcontractors.numero_de_pedido')} />
             </div>
             <div>
               <label style={lbl}>Techo PO (€)</label>
@@ -680,7 +680,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowAssign(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
-            <Button onClick={() => createAssign(asgForm)} loading={assigning} disabled={!asgForm.project_id || assigning}>Crear asignación</Button>
+            <Button onClick={() => createAssign(asgForm)} loading={assigning} disabled={!asgForm.project_id || assigning}>{t('subcontractors.crear_asignacion')}</Button>
           </div>
         </Modal>
       )}
@@ -768,13 +768,13 @@ export default function SubcontractorsPage() {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 16, alignItems: 'center' }}>
         <ViewToggle view={view} onChange={setView} />
-        <Button onClick={() => setShowCreate(true)}>+ Nuevo subcontratista</Button>
+        <Button onClick={() => setShowCreate(true)}>{t('subcontractors.nuevo_subcontratista')}</Button>
       </div>
 
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>{t('common.loading')}</div>
       ) : subs.length === 0 ? (
-        <EmptyState icon="🤝" title="Sin subcontratistas" description="Crea el primer colaborador externo para empezar" />
+        <EmptyState icon="🤝" title={t('subcontractors.sin_subcontratistas')} description="Crea el primer colaborador externo para empezar" />
       ) : view === 'grid' ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
           {sortedSubs.map(s => (
@@ -797,7 +797,7 @@ export default function SubcontractorsPage() {
               </div>
               {s.email && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>📧 {s.email}</div>}
               <div style={{ marginTop: 8, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-                👥 {s.worker_count || 0} persona{(s.worker_count || 0) !== 1 ? 's' : ''} · {s.assignment_count} asignación{s.assignment_count !== 1 ? 'es' : ''}
+                👥 {s.worker_count || 0} persona{(s.worker_count || 0) !== 1 ? 's' : ''} · {s.assignment_count} {t('subcontractors.asignacion_2')}{s.assignment_count !== 1 ? 'es' : ''}
               </div>
               <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
                 <button onClick={e => { e.stopPropagation(); setEditTarget(s); setEditForm({ name: s.name||'', company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||currency, vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
@@ -816,7 +816,7 @@ export default function SubcontractorsPage() {
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 100px', gap: 12, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="name" sort={subSort} onSort={setSubSort}>Empresa / Nombre</SortableTH>
-            <SortableTH col="code" sort={subSort} onSort={setSubSort}>Código</SortableTH>
+            <SortableTH col="code" sort={subSort} onSort={setSubSort}>{t('subcontractors.codigo')}</SortableTH>
             <SortableTH col="email" sort={subSort} onSort={setSubSort}>Email</SortableTH>
             <SortableTH col="worker_count" sort={subSort} onSort={setSubSort}>Personas</SortableTH>
             <SortableTH col="assignment_count" sort={subSort} onSort={setSubSort}>Asignaciones</SortableTH>
@@ -854,14 +854,14 @@ export default function SubcontractorsPage() {
       )}
 
       {showCreate && (
-        <Modal open title="Nuevo subcontratista" onClose={() => setShowCreate(false)} width={520}>
+        <Modal open title={t('subcontractors.nuevo_subcontratista_2')} onClose={() => setShowCreate(false)} width={520}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
-              <label style={lbl}>Nombre / Razón social *</label>
+              <label style={lbl}>{t('subcontractors.nombre_razon_social')}</label>
               <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Nombre o razon social" aria-label="Nombre o razon social" />
             </div>
             <div>
-              <label style={lbl}>Empresa (si es persona física)</label>
+              <label style={lbl}>{t('subcontractors.empresa_si_es_persona_fisica')}</label>
               <input value={form.company} onChange={e => setForm(f=>({...f,company:e.target.value}))} style={inp} />
             </div>
             <div>
@@ -869,7 +869,7 @@ export default function SubcontractorsPage() {
               <input type="email" value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Teléfono</label>
+              <label style={lbl}>{t('subcontractors.telefono')}</label>
               <input value={form.phone} onChange={e => setForm(f=>({...f,phone:e.target.value}))} style={inp} />
             </div>
             <div>
@@ -898,7 +898,7 @@ export default function SubcontractorsPage() {
         <Modal open title="Editar subcontratista" onClose={() => { setShowEdit(false); setEditTarget(null) }} width={520}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
-              <label style={lbl}>Nombre / Razón social *</label>
+              <label style={lbl}>{t('subcontractors.nombre_razon_social')}</label>
               <input value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={inp} />
             </div>
             <div>
@@ -910,7 +910,7 @@ export default function SubcontractorsPage() {
               <input type="email" value={editForm.email} onChange={e => setEditForm(f=>({...f,email:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Teléfono</label>
+              <label style={lbl}>{t('subcontractors.telefono')}</label>
               <input value={editForm.phone} onChange={e => setEditForm(f=>({...f,phone:e.target.value}))} style={inp} />
             </div>
             <div>

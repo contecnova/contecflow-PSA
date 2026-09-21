@@ -169,18 +169,18 @@ function CRFormModal({ cr, projectId, onClose }: { cr?: ChangeRequest | null; pr
     <Modal open title={isEdit ? `Editar CR — ${cr.code}` : 'Nueva Solicitud de Cambio'} onClose={onClose} width={620}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
-          <label htmlFor={`${idPrefix}-title`} style={ls}>Título *</label>
-          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder="Titulo de la solicitud" aria-label="Titulo de la solicitud" />
+          <label htmlFor={`${idPrefix}-title`} style={ls}>{t('changes.titulo')}</label>
+          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder={t('changes.titulo_de_la_solicitud')} aria-label={t('changes.titulo_de_la_solicitud')} />
           {validation.errors.title && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.title}</p>}
         </div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label htmlFor={`${idPrefix}-description`} style={ls}>Descripción *</label>
-          <textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'description')} placeholder="Describe el cambio solicitado" aria-label="Descripcion del cambio" />
+          <label htmlFor={`${idPrefix}-description`} style={ls}>{t('changes.descripcion')}</label>
+          <textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'description')} placeholder={t('changes.describe_el_cambio_solicitado')} aria-label={t('changes.descripcion_del_cambio')} />
           {validation.errors.description && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.description}</p>}
         </div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label htmlFor={`${idPrefix}-justification`} style={ls}>Justificación</label>
-          <textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'justification')} placeholder="Justificacion del cambio" aria-label="Justificacion del cambio" />
+          <label htmlFor={`${idPrefix}-justification`} style={ls}>{t('changes.justificacion')}</label>
+          <textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'justification')} placeholder={t('changes.justificacion_del_cambio')} aria-label={t('changes.justificacion_del_cambio')} />
           {validation.errors.justification && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.justification}</p>}
         </div>
         <div>
@@ -196,13 +196,13 @@ function CRFormModal({ cr, projectId, onClose }: { cr?: ChangeRequest | null; pr
           {validation.errors.cost_impact && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.cost_impact}</p>}
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-schedule-impact`} style={ls}>Impacto en plazo (días)</label>
+          <label htmlFor={`${idPrefix}-schedule-impact`} style={ls}>{t('changes.impacto_en_plazo_dias')}</label>
           <input id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={validation.inputStyle(fs, 'schedule_impact_days')} placeholder="Dias adicionales" aria-label="Dias adicionales" />
           {validation.errors.schedule_impact_days && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.schedule_impact_days}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-scope-impact`} style={ls}>Impacto en alcance</label>
-          <input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} style={validation.inputStyle(fs, 'scope_impact')} placeholder="Impacto en el alcance" aria-label="Impacto en el alcance" />
+          <input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} style={validation.inputStyle(fs, 'scope_impact')} placeholder={t('changes.impacto_en_el_alcance')} aria-label={t('changes.impacto_en_el_alcance')} />
           {validation.errors.scope_impact && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.scope_impact}</p>}
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
@@ -256,7 +256,7 @@ function ReviewCRModal({ cr, projectId, onClose }: { cr: ChangeRequest; projectI
         {cr.scope_impact && <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 8, padding: '8px 12px' }}>📋 {cr.scope_impact}</p>}
       </div>
       <div style={{ marginBottom: 16 }}>
-        <label htmlFor={`${idPrefix}-resolution-notes`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas de resolución</label>
+        <label htmlFor={`${idPrefix}-resolution-notes`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>{t('changes.notas_de_resolucion')}</label>
         <textarea id={`${idPrefix}-resolution-notes`} value={notes} onChange={e => { setNotes(e.target.value); validation.clearFieldError('resolution_notes') }} rows={2}
           style={validation.inputStyle({ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }, 'resolution_notes')} />
         {validation.errors.resolution_notes && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.resolution_notes}</p>}
@@ -300,10 +300,10 @@ function CABBoard() {
     <div>
       <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:20 }}>
         <div>
-          <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:14 }}>CRs pendientes de votación CAB ({pendingCRs.length})</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:14 }}>{t('changes.crs_pendientes_de_votacion_cab')}{pendingCRs.length})</div>
           {isLoading ? <div style={{ color:'var(--text-2)', fontSize: "var(--text-base)" }}>{t('common.loading')}</div> :
             pendingCRs.length === 0 ? (
-              <div style={{ ...card, padding:32, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>Sin CRs pendientes de votación</div>
+              <div style={{ ...card, padding:32, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>{t('changes.sin_crs_pendientes_de_votacion')}</div>
             ) : pendingCRs.map((cr) => {
               const ic = (cr.impact && IMPACT_CFG[cr.impact]) || IMPACT_CFG.medium
               return (
@@ -345,9 +345,9 @@ function CABBoard() {
         </div>
 
         <div>
-          <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:14 }}>Ventanas de mantenimiento</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:14 }}>{t('changes.ventanas_de_mantenimiento')}</div>
           {windows.length === 0 ? (
-            <div style={{ ...card, padding:24, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>Sin ventanas programadas</div>
+            <div style={{ ...card, padding:24, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>{t('changes.sin_ventanas_programadas')}</div>
           ) : windows.slice(0,5).map((w) => (
             <div key={w.id} style={{ ...card, padding:'12px 14px', marginBottom:10 }}>
               <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:4 }}>{w.name}</div>
@@ -447,7 +447,7 @@ export default function ChangesPage(): JSX.Element {
               <option value="">Seleccionar proyecto...</option>
               {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
             </select>
-            {selectedProject && <Button onClick={() => setShowCreate(true)} icon="＋">Nueva CR</Button>}
+            {selectedProject && <Button onClick={() => setShowCreate(true)} icon="＋">{t('changes.nueva_cr')}</Button>}
           </div>
 
           {selectedProject && (summary.total ?? 0) > 0 && (
@@ -468,9 +468,9 @@ export default function ChangesPage(): JSX.Element {
           )}
 
           {!selectedProject ? (
-            <EmptyState icon="📋" title="Selecciona un proyecto" description="Elige un proyecto para ver y gestionar sus solicitudes de cambio" />
+            <EmptyState icon="📋" title={t('changes.selecciona_un_proyecto')} description="Elige un proyecto para ver y gestionar sus solicitudes de cambio" />
           ) : isLoading ? <Spinner /> : crs.length === 0 ? (
-            <EmptyState icon="✅" title="Sin solicitudes de cambio" description="Este proyecto no tiene CRs registradas" />
+            <EmptyState icon="✅" title={t('changes.sin_solicitudes_de_cambio')} description="Este proyecto no tiene CRs registradas" />
           ) : (
             <div data-export-table="changes-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {crs.map((cr) => {
@@ -519,7 +519,7 @@ export default function ChangesPage(): JSX.Element {
 
       {tab === 'pending' && (
         allPending.length === 0 ? (
-          <EmptyState icon="✅" title="Sin pendientes" description="No hay solicitudes de cambio pendientes de revision" />
+          <EmptyState icon="✅" title={t('changes.sin_pendientes')} description="No hay solicitudes de cambio pendientes de revision" />
         ) : (
           <div data-export-table="changes-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {allPending.map((cr) => {
