@@ -129,6 +129,7 @@ const workOrderSchema = z.object({
 })
 
 function ContractFormModal({ contract, onClose }: { contract?: Contract | null; onClose: () => void }) {
+  const traducir = useAppT()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -177,7 +178,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Nombre *</label>
-          <input value={form.name} onChange={set('name')} style={validation.inputStyle(fs, 'name')} placeholder="Nombre del contrato" aria-label="Nombre del contrato" />
+          <input value={form.name} onChange={set('name')} style={validation.inputStyle(fs, 'name')} placeholder={traducir('contracts.nombre_del_contrato')} aria-label={traducir('contracts.nombre_del_contrato')} />
           {validation.errors.name && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.name}</p>}
         </div>
         <div>
@@ -201,7 +202,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
           {validation.errors.client_id && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.client_id}</p>}
         </div>
         <div>
-          <label style={ls}>Tipo de contrato *</label>
+          <label style={ls}>{traducir('contracts.tipo_de_contrato')}</label>
           <select value={form.contract_type} onChange={set('contract_type')} style={validation.inputStyle(fs, 'contract_type')}>
             {CONTRACT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
@@ -223,20 +224,20 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
         {form.contract_type === 'time_material' && (
           <div>
             <label style={ls}>Tarifa €/hora</label>
-            <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder="Tarifa por hora" aria-label="Tarifa por hora" />
+            <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder={traducir('contracts.tarifa_por_hora')} aria-label={traducir('contracts.tarifa_por_hora')} />
             {validation.errors.hourly_rate && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.hourly_rate}</p>}
           </div>
         )}
         {form.contract_type === 'hourly_bag' && (
           <>
             <div>
-              <label style={ls}>Bolsa de horas</label>
+              <label style={ls}>{traducir('contracts.bolsa_de_horas')}</label>
               <input type="number" value={form.hours_bag} onChange={set('hours_bag')} style={validation.inputStyle(fs, 'hours_bag')} placeholder="Horas incluidas" aria-label="Horas incluidas" />
               {validation.errors.hours_bag && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.hours_bag}</p>}
             </div>
             <div>
               <label style={ls}>Tarifa €/hora</label>
-              <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder="Tarifa por hora" aria-label="Tarifa por hora" />
+              <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder={traducir('contracts.tarifa_por_hora')} aria-label={traducir('contracts.tarifa_por_hora')} />
               {validation.errors.hourly_rate && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.hourly_rate}</p>}
             </div>
           </>
@@ -262,8 +263,8 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
           <input type="date" value={form.signed_date} onChange={set('signed_date')} style={fs} />
         </div>
         <div>
-          <label style={ls}>Condiciones de pago</label>
-          <input value={form.payment_terms} onChange={set('payment_terms')} style={fs} placeholder="Ej. 30 dias fecha factura" aria-label="Condiciones de pago" />
+          <label style={ls}>{traducir('contracts.condiciones_de_pago')}</label>
+          <input value={form.payment_terms} onChange={set('payment_terms')} style={fs} placeholder="Ej. 30 dias fecha factura" aria-label={traducir('contracts.condiciones_de_pago')} />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Notas</label>
@@ -281,6 +282,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
 }
 
 function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onClose: () => void; onEdit: (c: Contract) => void }) {
+  const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -335,11 +337,11 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
       {/* Work Orders */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Órdenes de trabajo ({contract.work_orders?.length || 0})</h4>
-          <Button size="sm" onClick={() => setShowWO(true)} icon="＋">Nueva OT</Button>
+          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{traducir('contracts.ordenes_de_trabajo')}{contract.work_orders?.length || 0})</h4>
+          <Button size="sm" onClick={() => setShowWO(true)} icon="＋">{traducir('contracts.nueva_ot')}</Button>
         </div>
         {contract.work_orders?.length === 0 ? (
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '16px 0' }}>Sin órdenes de trabajo</div>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '16px 0' }}>{traducir('contracts.sin_ordenes_de_trabajo')}</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {contract.work_orders!.map(wo => {
@@ -367,7 +369,7 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
           <div style={{ marginTop: 12, padding: 14, background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
-                <input value={woForm.name} onChange={e => { setWoForm(f => ({ ...f, name: e.target.value })); woValidation.clearFieldError('name') }} style={woValidation.inputStyle(fs, 'name')} placeholder="Nombre de la orden" aria-label="Nombre de la orden" />
+                <input value={woForm.name} onChange={e => { setWoForm(f => ({ ...f, name: e.target.value })); woValidation.clearFieldError('name') }} style={woValidation.inputStyle(fs, 'name')} placeholder={traducir('contracts.nombre_de_la_orden')} aria-label={traducir('contracts.nombre_de_la_orden')} />
                 {woValidation.errors.name && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{woValidation.errors.name}</p>}
               </div>
               <div>
@@ -401,6 +403,7 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
 }
 
 export default function ContractsPage(): JSX.Element {
+  const traducir = useAppT()
   const t = useAppT()
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<Contract | null>(null)
@@ -443,11 +446,11 @@ export default function ContractsPage(): JSX.Element {
           <div style={{ display: 'flex', gap: 10 }}>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-              <option value="">Todos los estados</option>
+              <option value="">{traducir('contracts.todos_los_estados')}</option>
               {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
             <ViewToggle view={view} onChange={setView} />
-            <Button onClick={() => setShowCreate(true)} icon="＋">Nuevo contrato</Button>
+            <Button onClick={() => setShowCreate(true)} icon="＋">{traducir('contracts.nuevo_contrato')}</Button>
           </div>
         }
       />
@@ -499,7 +502,7 @@ export default function ContractsPage(): JSX.Element {
       </div>
 
       {isLoading ? <Spinner /> : contracts.length === 0 ? (
-        <EmptyState icon="📄" title="Sin contratos" description="Crea el primer contrato para este entorno" />
+        <EmptyState icon="📄" title={traducir('contracts.sin_contratos')} description="Crea el primer contrato para este entorno" />
       ) : view === 'list' ? (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>

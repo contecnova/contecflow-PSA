@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { autoResolutionApi, ticketsApi } from '../../services/api'
 import { Card, Button, Spinner, Modal} from '../ui'
 import { useToast } from '../../context/ToastContext'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 type AutoResolutionConfig = {
   threshold_auto?: number
@@ -110,6 +111,7 @@ function StatCard({ label, value, accent, sub }: StatCardProps) {
 }
 
 function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClose: () => void }) {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [success, setSuccess] = useState<boolean>(true)
@@ -128,7 +130,7 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
     <Modal open title={`Feedback auto-resolución — ${ticketId}`} onClose={onClose} width={460}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
-          <div style={fieldLabel}>¿La auto-resolución fue correcta?</div>
+          <div style={fieldLabel}>{t('autoresolution.la_auto_resolucion_fue_correcta')}</div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               type="button"
@@ -151,7 +153,7 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
                 color: !success ? 'var(--danger)' : 'var(--text-2)',
                 cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-base)', fontWeight: 600,
               }}
-            >👎 Falló</button>
+            >{t('autoresolution.fallo')}</button>
           </div>
         </div>
         <div style={{
@@ -159,8 +161,7 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
           background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
           borderRadius: 8, padding: '8px 12px',
         }}>
-          Tu feedback alimenta el bucket category/priority del ticket y ajusta el score de
-          confianza para futuras auto-resoluciones similares.
+          {t('autoresolution.tu_feedback_alimenta_el_bucket_category_priority')}
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -172,13 +173,14 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
 }
 
 function FeedbackLookup({ onOpen }: { onOpen: (id: string) => void }) {
+  const { t } = useAppLang()
   const [id, setId] = useState<string>('')
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
       <input
         value={id}
         onChange={e => setId(e.target.value)}
-        placeholder="ID o número del ticket (TSK-... / uuid)"
+        placeholder={t('autoresolution.id_o_numero_del_ticket_tsk_uuid')}
         style={{
           flex: '1 1 240px',
           background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -212,6 +214,7 @@ function formatDateTime(value: string | null | undefined): string {
 }
 
 export default function AutoResolutionPanel() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [feedbackTicketId, setFeedbackTicketId] = useState<string | number | null>(null)
@@ -312,7 +315,7 @@ export default function AutoResolutionPanel() {
       {/* Config */}
       <Card style={card}>
         <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>
-          ⚙️ Configuración del motor de auto-resolución
+          {t('autoresolution.configuracion_del_motor_de_auto_resolucion')}
         </div>
         {configLoading || !cfgDraft ? <Spinner /> : (
           <>
@@ -346,7 +349,7 @@ export default function AutoResolutionPanel() {
               </div>
 
               <div>
-                <div style={fieldLabel}>Horas para auto-cierre</div>
+                <div style={fieldLabel}>{t('autoresolution.horas_para_auto_cierre')}</div>
                 <input
                   type="number"
                   min="1"
@@ -358,7 +361,7 @@ export default function AutoResolutionPanel() {
               </div>
 
               <div>
-                <div style={fieldLabel}>Ventana validación (horas)</div>
+                <div style={fieldLabel}>{t('autoresolution.ventana_validacion_horas')}</div>
                 <input
                   type="number"
                   min="1"
@@ -370,7 +373,7 @@ export default function AutoResolutionPanel() {
               </div>
 
               <div>
-                <div style={fieldLabel}>Lote por ejecución manual</div>
+                <div style={fieldLabel}>{t('autoresolution.lote_por_ejecucion_manual')}</div>
                 <input
                   type="number"
                   min="1"
@@ -383,7 +386,7 @@ export default function AutoResolutionPanel() {
             </div>
 
             <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button onClick={() => saveConfig()} loading={savingConfig}>Guardar configuración</Button>
+              <Button onClick={() => saveConfig()} loading={savingConfig}>{t('autoresolution.guardar_configuracion')}</Button>
             </div>
           </>
         )}
@@ -392,7 +395,7 @@ export default function AutoResolutionPanel() {
       {/* Stats */}
       <Card style={card}>
         <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>
-          📊 Estadísticas de auto-resolución
+          {t('autoresolution.estadisticas_de_auto_resolucion')}
         </div>
         {statsLoading ? <Spinner /> : (
           <>
@@ -410,7 +413,7 @@ export default function AutoResolutionPanel() {
                 sub="Tickets con feedback registrado"
               />
               <StatCard
-                label="Tasa de éxito global"
+                label={t('autoresolution.tasa_de_exito_global')}
                 value={successRate != null ? `${successRate}%` : '—'}
                 accent={successColor}
                 sub={successRate == null ? 'Sin datos suficientes' : (
@@ -418,7 +421,7 @@ export default function AutoResolutionPanel() {
                 )}
               />
               <StatCard
-                label="Buckets con datos"
+                label={t('autoresolution.buckets_con_datos')}
                 value={buckets.length || 0}
                 accent="var(--purple)"
               />
@@ -426,7 +429,7 @@ export default function AutoResolutionPanel() {
 
             {topBuckets.length > 0 && (
               <div style={{ marginTop: 18 }}>
-                <div style={fieldLabel}>Top buckets (categoría · prioridad)</div>
+                <div style={fieldLabel}>{t('autoresolution.top_buckets_categoria_prioridad')}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {topBuckets.map((b) => {
                     const rate = b.success_rate
@@ -486,7 +489,7 @@ export default function AutoResolutionPanel() {
             <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{formatDateTime(runtime?.completed_at)}</div>
           </div>
           <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 12px' }}>
-            <div style={fieldLabel}>Duración</div>
+            <div style={fieldLabel}>{t('autoresolution.duracion')}</div>
             <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{formatDurationMs(runtime?.duration_ms)}</div>
           </div>
           <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 12px' }}>
@@ -509,7 +512,7 @@ export default function AutoResolutionPanel() {
       {jobHistory.length > 0 && (
         <Card style={card}>
           <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 }}>
-            📋 Historial de ejecuciones
+            {t('autoresolution.historial_de_ejecuciones')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {jobHistory.map((run, idx) => {
@@ -557,11 +560,11 @@ export default function AutoResolutionPanel() {
           ⚡ Acciones manuales
         </div>
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginBottom: 14 }}>
-          Los jobs también se ejecutan de forma programada en background.
+          {t('autoresolution.los_jobs_tambien_se_ejecutan_de_forma')}
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Button onClick={() => runJob()} loading={runningJob}>
-            ▶ Ejecutar auto-resolución
+            {t('autoresolution.ejecutar_auto_resolucion')}
           </Button>
           <Button onClick={() => runCloseJob()} loading={runningClose} variant="secondary">
             🔒 Ejecutar auto-cierre
@@ -572,10 +575,10 @@ export default function AutoResolutionPanel() {
       {/* Feedback */}
       <Card style={card}>
         <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
-          💬 Feedback por ticket
+          {t('autoresolution.feedback_por_ticket')}
         </div>
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginBottom: 14 }}>
-          Registra si la resolución automática fue correcta para un ticket — ajusta el bucket de confianza.
+          {t('autoresolution.registra_si_la_resolucion_automatica_fue_correcta')}
         </div>
         <FeedbackLookup onOpen={(id) => setFeedbackTicketId(id)} />
       </Card>

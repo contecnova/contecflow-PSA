@@ -41,7 +41,7 @@ const FUENTES = join(RAIZ, 'src')
 // los títulos y descripciones largas— ni distinguía un `>` de comparación de
 // una etiqueta que se cierra. La cifra buena es la del AST, y se deja dicho
 // para que nadie lea una mejora de 527 donde sólo hubo un instrumento mejor.
-const DEUDA_REGISTRADA = 722
+const DEUDA_REGISTRADA = 614
 
 // Atributos cuyo valor lee el usuario. `name`, `id`, `type` y compañía no.
 const ATRIBUTOS_VISIBLES = new Set([

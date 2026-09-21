@@ -152,6 +152,7 @@ interface ActiveSessionCardProps {
 }
 
 function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sending, closing, creatingTicket, openTicket }: ActiveSessionCardProps) {
+  const t = useAppT()
   const [turnText, setTurnText] = useState<string>('')
   const [resolution, setResolution] = useState<string>('resolved')
   const [showCloseConfirm, setShowCloseConfirm] = useState<boolean>(false)
@@ -202,7 +203,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
           <button
             type="button"
             onClick={() => setShowCloseConfirm(v => !v)}
-            title="Cerrar sesión"
+            title={t('voiceagent.cerrar_sesion')}
             style={{
               background: 'transparent', border: 'none', cursor: 'pointer',
               color: 'var(--text-3)', padding: 4, display: 'inline-flex',
@@ -221,7 +222,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
           borderRadius: 8, padding: '10px 12px', marginBottom: 12,
           display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
         }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>Cerrar como:</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{t('voiceagent.cerrar_como')}</span>
           <select value={resolution} onChange={e => setResolution(e.target.value)}
             style={{ ...inputBase, width: 'auto', padding: '4px 10px' }}>
             {Object.entries(RESOLUTION_LABEL).map(([id, label]) => (
@@ -267,7 +268,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
       }}>
         {transcript.length === 0 ? (
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>
-            Sin turnos registrados todavía.
+            {t('voiceagent.sin_turnos_registrados_todavia')}
           </div>
         ) : transcript.map((turn, i) => {
           const isUser = turn.speaker === 'user'
@@ -305,7 +306,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
         <div style={{ display: 'flex', gap: 8 }}>
           <input
             type="text"
-            placeholder="Añadir turno (texto del usuario)"
+            placeholder={t('voiceagent.anadir_turno_texto_del_usuario')}
             value={turnText}
             onChange={e => setTurnText(e.target.value)}
             onKeyDown={e => {
@@ -413,7 +414,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
         <div>
           <div style={fieldLabel}>Idioma (BCP-47)</div>
           <select value={draft.language} onChange={e => setField('language', e.target.value)} style={inputBase}>
-            <option value="es-ES">Español (es-ES)</option>
+            <option value="es-ES">{t('voiceagent.espanol_es_es')}</option>
             <option value="en-US">English (en-US)</option>
             <option value="ca-ES">Català (ca-ES)</option>
             <option value="fr-FR">Français (fr-FR)</option>
@@ -421,7 +422,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
           </select>
         </div>
         <div>
-          <div style={fieldLabel}>Silencio máximo (segundos)</div>
+          <div style={fieldLabel}>{t('voiceagent.silencio_maximo_segundos')}</div>
           <input
             type="number" min={1} max={120}
             value={draft.max_silence_seconds}
@@ -436,7 +437,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
         <div style={fieldLabel}>{t('sd.voice.dtmf_menu', 'Menú DTMF (tonos del teclado)')}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
           {Object.entries(draft.dtmf_menu || {}).length === 0 && (
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Sin opciones DTMF configuradas</div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('voiceagent.sin_opciones_dtmf_configuradas')}</div>
           )}
           {Object.entries(draft.dtmf_menu || {}).map(([key, val]) => (
             <div key={key} style={{
@@ -500,15 +501,15 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
           <Button size="sm" variant="secondary" icon={<Plus size={13} />}
             onClick={addDtmf}
             disabled={!newKey.trim() || !newLabel.trim()}
-          >Añadir tecla</Button>
+          >{t('voiceagent.anadir_tecla')}</Button>
         </div>
       </div>
 
       {/* Keywords por intent */}
       <div>
-        <div style={fieldLabel}>Keywords por intent</div>
+        <div style={fieldLabel}>{t('voiceagent.keywords_por_intent')}</div>
         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 8 }}>
-          Si la transcripción del usuario contiene alguna de estas palabras, se asigna ese intent automáticamente.
+          {t('voiceagent.si_la_transcripcion_del_usuario_contiene_alguna')}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {intentList.map(intent => {
@@ -556,12 +557,12 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
                 {isEditing && (
                   <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                     <input
-                      type="text" placeholder="Nueva keyword" value={newKw}
+                      type="text" placeholder={t('voiceagent.nueva_keyword')} value={newKw}
                       onChange={e => setNewKw(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && addKeyword(intent)}
                       style={{ ...inputBase, flex: 1 }}
                     />
-                    <Button size="sm" variant="secondary" onClick={() => addKeyword(intent)} disabled={!newKw.trim()}>Añadir</Button>
+                    <Button size="sm" variant="secondary" onClick={() => addKeyword(intent)} disabled={!newKw.trim()}>{t('voiceagent.anadir')}</Button>
                   </div>
                 )}
               </div>
@@ -572,7 +573,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
         <Button variant="secondary" onClick={() => setDraft(null)}>Descartar cambios</Button>
-        <Button onClick={() => onSave(draft)} loading={saving}>Guardar configuración</Button>
+        <Button onClick={() => onSave(draft)} loading={saving}>{t('voiceagent.guardar_configuracion')}</Button>
       </div>
     </div>
   )
@@ -581,6 +582,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
 // ── Modal de detalle de sesión cerrada ────────────────────────────────────────
 
 function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSession | null; onClose: () => void; openTicket: (id: string | number) => void }) {
+  const t = useAppT()
   if (!session) return null
   const transcript: VoiceTurn[] = session.transcript || []
   const entities: VoiceEntities = session.entities || {}
@@ -611,7 +613,7 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
 
         {(entities.email || entities.ticket_ref || entities.urgency_words?.length) && (
           <div>
-            <div style={fieldLabel}>Entidades extraídas</div>
+            <div style={fieldLabel}>{t('voiceagent.entidades_extraidas')}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {entities.email && <span style={chip('var(--accent)')}>✉ {entities.email}</span>}
               {entities.ticket_ref && <span style={chip('var(--purple)')}>🔗 {entities.ticket_ref}</span>}
@@ -621,7 +623,7 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
         )}
 
         <div>
-          <div style={fieldLabel}>Transcripción ({transcript.length} turnos)</div>
+          <div style={fieldLabel}>{t('voiceagent.transcripcion')}{transcript.length} turnos)</div>
           <div style={{
             maxHeight: 320, overflowY: 'auto',
             background: 'var(--surface-1)',
@@ -631,7 +633,7 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
           }}>
             {transcript.length === 0 ? (
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>
-                Sin turnos registrados.
+                {t('voiceagent.sin_turnos_registrados')}
               </div>
             ) : transcript.map((turn, i) => {
               const isUser = turn.speaker === 'user'
@@ -803,7 +805,7 @@ export default function VoiceAgentPanel() {
               >Iniciar</Button>
             </div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 6 }}>
-              Para llamadas reales: configura el webhook de Twilio en <span style={{ fontFamily: 'var(--font-mono)' }}>POST /sd/voice/webhook/twilio</span> con tu phone number.
+              {t('voiceagent.para_llamadas_reales_configura_el_webhook_de')} <span style={{ fontFamily: 'var(--font-mono)' }}>POST /sd/voice/webhook/twilio</span> {t('voiceagent.con_tu_phone_number')}
             </div>
           </div>
 
