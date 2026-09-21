@@ -133,6 +133,7 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
 
 // ── Create/Edit expense modal ─────────────────────────────────────────────────
 function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => void }) {
+  const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const { invalidate: _invalidate } = useInvalidate()
@@ -171,8 +172,8 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         <div style={{ marginBottom: 16, padding: '12px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-glow)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: "var(--text-xl)" }}>📷</span>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 2 }}>Escanear recibo con IA</div>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>Sube una foto o PDF y el sistema rellenará los campos automáticamente</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 2 }}>{traducir('expenses.escanear_recibo_con_ia')}</div>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{traducir('expenses.sube_una_foto_o_pdf_y_el')}</div>
           </div>
           <label style={{ cursor: 'pointer' }}>
             <input type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={async e => {
@@ -207,11 +208,11 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
       )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={ls}>Descripción *</label>
-          <input value={form.description} onChange={set('description')} style={fs} placeholder="Descripción del gasto" aria-label="Descripción del gasto" />
+          <label style={ls}>{traducir('expenses.descripcion')}</label>
+          <input value={form.description} onChange={set('description')} style={fs} placeholder={traducir('expenses.descripcion_del_gasto')} aria-label={traducir('expenses.descripcion_del_gasto')} />
         </div>
         <div>
-          <label style={ls}>Categoría</label>
+          <label style={ls}>{traducir('expenses.categoria')}</label>
           <select value={form.category} onChange={set('category')} style={fs}>
             {Object.entries(CATEGORIES).map(([v, c]) => <option key={v} value={v}>{c.icon} {c.label}</option>)}
           </select>
@@ -219,7 +220,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         <div>
           <label style={ls}>Proyecto</label>
           <select value={form.project_id} onChange={set('project_id')} style={fs}>
-            <option value="">Sin proyecto</option>
+            <option value="">{traducir('expenses.sin_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
@@ -234,25 +235,25 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
           </select>
         </div>
         <div>
-          <label style={ls}>Fecha del gasto *</label>
+          <label style={ls}>{traducir('expenses.fecha_del_gasto')}</label>
           <input type="date" value={form.expense_date} onChange={set('expense_date')} style={fs} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 24 }}>
           <input type="checkbox" id="billable" checked={form.is_billable} onChange={e => setForm(f => ({ ...f, is_billable: e.target.checked }))} />
-          <label htmlFor="billable" style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}>Gasto facturable al cliente</label>
+          <label htmlFor="billable" style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}>{traducir('expenses.gasto_facturable_al_cliente')}</label>
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Notas adicionales</label>
           <textarea value={form.notes} onChange={set('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Notas adicionales" aria-label="Notas adicionales" />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={ls}>URL del justificante / factura (opcional)</label>
+          <label style={ls}>{traducir('expenses.url_del_justificante_factura_opcional')}</label>
           <input
             value={form.receipt_url}
             onChange={set('receipt_url')}
             style={fs}
-            placeholder="URL del justificante"
-            aria-label="URL del justificante"
+            placeholder={traducir('expenses.url_del_justificante')}
+            aria-label={traducir('expenses.url_del_justificante')}
           />
           {form.receipt_url && (
             <a href={form.receipt_url} target="_blank" rel="noopener noreferrer"
@@ -274,6 +275,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
 
 // ── Review modal ──────────────────────────────────────────────────────────────
 function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => void }) {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [reason, setReason] = useState('')
@@ -300,8 +302,8 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
         )}
       </div>
       <div style={{ marginBottom: 16 }}>
-        <label style={ls}>Motivo de rechazo (si aplica)</label>
-        <input value={reason} onChange={e => setReason(e.target.value)} style={fs} placeholder="Motivo de rechazo" aria-label="Motivo de rechazo" />
+        <label style={ls}>{traducir('expenses.motivo_de_rechazo_si_aplica')}</label>
+        <input value={reason} onChange={e => setReason(e.target.value)} style={fs} placeholder={traducir('expenses.motivo_de_rechazo')} aria-label={traducir('expenses.motivo_de_rechazo')} />
       </div>
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -320,6 +322,7 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
 
 // ── Tab: Mis gastos ───────────────────────────────────────────────────────────
 function MyExpenses() {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
@@ -383,10 +386,10 @@ function MyExpenses() {
             </div>
           ))}
         </div>
-        <Button onClick={() => setShowCreate(true)} style={{ marginLeft: 'auto' }}>＋ Nuevo gasto</Button>
+        <Button onClick={() => setShowCreate(true)} style={{ marginLeft: 'auto' }}>{traducir('expenses.nuevo_gasto')}</Button>
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-        <SearchInput value={search} onChange={setSearch} placeholder="Buscar código o descripción..." style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 320 }} />
+        <SearchInput value={search} onChange={setSearch} placeholder={traducir('expenses.buscar_codigo_o_descripcion')} style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 320 }} />
         <FilterSelect value={statusFilter} onChange={setStatusFilter} placeholder="Estado" options={Object.entries(STATUSES).map(([v, c]) => ({ value: v, label: c.label }))} />
         <FilterSelect value={catFilter} onChange={setCatFilter} placeholder="Tipo" options={Object.entries(CATEGORIES).map(([v, c]) => ({ value: v, label: `${c.icon} ${c.label}` }))} />
         <input type="date" aria-label="Desde" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={dateInput(dateFrom)} />
@@ -400,15 +403,15 @@ function MyExpenses() {
       </div>
 
       {isLoading ? <Spinner /> : expenses.length === 0 ? (
-        <EmptyState icon="💸" title="Sin gastos" description="Crea tu primer gasto para empezar a registrarlos." />
+        <EmptyState icon="💸" title={traducir('expenses.sin_gastos')} description="Crea tu primer gasto para empezar a registrarlos." />
       ) : sortedExpenses.length === 0 ? (
-        <EmptyState icon="🔍" title="Sin resultados" description="Ningún gasto coincide con los filtros aplicados." />
+        <EmptyState icon="🔍" title={traducir('expenses.sin_resultados')} description="Ningún gasto coincide con los filtros aplicados." />
       ) : (
         <div style={{ ...card, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="code" sort={expSort} onSort={setExpSort}>#</SortableTH>
             <SortableTH col="category" sort={expSort} onSort={setExpSort}>Tipo</SortableTH>
-            <SortableTH col="description" sort={expSort} onSort={setExpSort}>Descripción</SortableTH>
+            <SortableTH col="description" sort={expSort} onSort={setExpSort}>{traducir('expenses.descripcion_2')}</SortableTH>
             <SortableTH col="amount" sort={expSort} onSort={setExpSort}>Importe</SortableTH>
             <SortableTH col="status" sort={expSort} onSort={setExpSort}>Estado</SortableTH>
             <SortableTH col="expense_date" sort={expSort} onSort={setExpSort}>Info</SortableTH>
@@ -446,6 +449,7 @@ function MyExpenses() {
 
 // ── Tab: Pendientes aprobación ────────────────────────────────────────────────
 function PendingApproval() {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [reviewing, setReviewing] = useState<Expense | null>(null)
@@ -487,7 +491,7 @@ function PendingApproval() {
         {expenses.length > 0 ? `${expenses.length} gasto(s) pendientes de revisión · ${fmt(expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0))} total` : 'No hay gastos pendientes'}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-        <SearchInput value={pendSearch} onChange={setPendSearch} placeholder="Buscar código, descripción o solicitante..." style={{ minWidth: 240, flex: '1 1 240px', maxWidth: 360 }} />
+        <SearchInput value={pendSearch} onChange={setPendSearch} placeholder={traducir('expenses.buscar_codigo_descripcion_o_solicitante')} style={{ minWidth: 240, flex: '1 1 240px', maxWidth: 360 }} />
         <FilterSelect value={pendCat} onChange={setPendCat} placeholder="Tipo" options={Object.entries(CATEGORIES).map(([v, c]) => ({ value: v, label: `${c.icon} ${c.label}` }))} />
         <input type="date" aria-label="Desde" value={pendFrom} onChange={e => setPendFrom(e.target.value)} style={dateInput(pendFrom)} />
         <span style={{ color: 'var(--text-3)' }}>—</span>
@@ -499,15 +503,15 @@ function PendingApproval() {
         <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{sortedPending.length} / {expenses.length}</span>
       </div>
       {isLoading ? <Spinner /> : expenses.length === 0 ? (
-        <EmptyState icon="✅" title="Sin pendientes" description="No hay gastos pendientes de revisión." />
+        <EmptyState icon="✅" title={traducir('expenses.sin_pendientes')} description="No hay gastos pendientes de revisión." />
       ) : sortedPending.length === 0 ? (
-        <EmptyState icon="🔍" title="Sin resultados" description="Ningún gasto pendiente coincide con los filtros aplicados." />
+        <EmptyState icon="🔍" title={traducir('expenses.sin_resultados')} description="Ningún gasto pendiente coincide con los filtros aplicados." />
       ) : (
         <div style={{ ...card, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="code" sort={pendSort} onSort={setPendSort}>#</SortableTH>
             <SortableTH col="category" sort={pendSort} onSort={setPendSort}>Tipo</SortableTH>
-            <SortableTH col="description" sort={pendSort} onSort={setPendSort}>Descripción</SortableTH>
+            <SortableTH col="description" sort={pendSort} onSort={setPendSort}>{traducir('expenses.descripcion_2')}</SortableTH>
             <SortableTH col="amount" sort={pendSort} onSort={setPendSort}>Importe</SortableTH>
             <SortableTH col="status" sort={pendSort} onSort={setPendSort}>Estado</SortableTH>
             <SortableTH col="expense_date" sort={pendSort} onSort={setPendSort}>Solicitante</SortableTH>
@@ -532,6 +536,7 @@ function PendingApproval() {
 
 // ── Tab: Equipo (resumen + todos) ─────────────────────────────────────────────
 function TeamExpenses() {
+  const traducir = useAppT()
   const toast = useToast()
   const [projectFilter, setProjectFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -569,11 +574,11 @@ function TeamExpenses() {
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
         <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} style={{ ...fs, width: 'auto' }}>
-          <option value="">Todos los proyectos</option>
+          <option value="">{traducir('expenses.todos_los_proyectos')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...fs, width: 'auto' }}>
-          <option value="">Todos los estados</option>
+          <option value="">{traducir('expenses.todos_los_estados')}</option>
           {Object.entries(STATUSES).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
         </select>
       </div>
@@ -598,7 +603,7 @@ function TeamExpenses() {
       {catChartData.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
           <div style={{ ...card, padding: '16px 20px' }}>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>Por categoría</div>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>{traducir('expenses.por_categoria')}</div>
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie data={catChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} paddingAngle={2}>
@@ -615,7 +620,7 @@ function TeamExpenses() {
             ))}
           </div>
           <div style={{ ...card, padding: '16px 20px' }}>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>Distribución</div>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>{traducir('expenses.distribucion')}</div>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={catChartData} margin={{ top: 0, right: 0, left: -10, bottom: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
@@ -633,16 +638,16 @@ function TeamExpenses() {
 
       {/* Table */}
       {isLoading ? <Spinner /> : expenses.length === 0 ? (
-        <EmptyState icon="💸" title="Sin gastos del equipo" description="No hay gastos para los filtros seleccionados." />
+        <EmptyState icon="💸" title={traducir('expenses.sin_gastos_del_equipo')} description="No hay gastos para los filtros seleccionados." />
       ) : (
         <div style={{ ...card, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="code" sort={teamSort} onSort={setTeamSort}>#</SortableTH>
             <SortableTH col="category" sort={teamSort} onSort={setTeamSort}>Tipo</SortableTH>
-            <SortableTH col="description" sort={teamSort} onSort={setTeamSort}>Descripción</SortableTH>
+            <SortableTH col="description" sort={teamSort} onSort={setTeamSort}>{traducir('expenses.descripcion_2')}</SortableTH>
             <SortableTH col="amount" sort={teamSort} onSort={setTeamSort}>Importe</SortableTH>
             <SortableTH col="status" sort={teamSort} onSort={setTeamSort}>Estado</SortableTH>
-            <SortableTH col="expense_date" sort={teamSort} onSort={setTeamSort}>Revisión</SortableTH>
+            <SortableTH col="expense_date" sort={teamSort} onSort={setTeamSort}>{traducir('expenses.revision')}</SortableTH>
             <span></span>
           </div>
           {sortedTeam.map(e => (

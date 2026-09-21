@@ -27,6 +27,7 @@ import {
   PortalSelect, PortalTextarea, PortalProgress, PortalBanner,
   formatMoney,
 } from './PortalUI'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 // ── Status helpers ───────────────────────────────────────────────────────────
 const STATUS_TONE: Record<string, string> = {
@@ -50,6 +51,7 @@ type ClientAuth = { client: PortalRow | null }
 // PortalUAT
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalUAT() {
+  const { t: traducir } = useAppLang()
   const t = useLang()
   const qc = useQueryClient()
   const toast = useToast()
@@ -114,7 +116,7 @@ export function PortalUAT() {
 
         {(selected.test_environment || selected.test_credentials) && (
           <PortalCard style={{ marginBottom: 16 }}>
-            <PortalSection title="Entorno de pruebas">
+            <PortalSection title={traducir('portaladvanced.entorno_de_pruebas')}>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 {selected.test_environment && (
                   <a href={selected.test_environment} target="_blank" rel="noopener noreferrer" style={{
@@ -142,7 +144,7 @@ export function PortalUAT() {
 
         {selected.test_cases?.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, marginBottom: 10 }}>Casos de prueba</div>
+            <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, marginBottom: 10 }}>{traducir('portaladvanced.casos_de_prueba')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {selected.test_cases.map((tc: PortalRow) => (
                 <PortalCard key={tc.id}>
@@ -193,8 +195,8 @@ export function PortalUAT() {
         )}
 
         <PortalCard style={{ marginBottom: 16 }}>
-          <PortalField label="Notas para el equipo">
-            <PortalTextarea rows={3} value={globalNotes} onChange={(e: any) => setGlobalNotes(e.target.value)} placeholder="Comentarios generales de la sesión..." />
+          <PortalField label={traducir('portaladvanced.notas_para_el_equipo')}>
+            <PortalTextarea rows={3} value={globalNotes} onChange={(e: any) => setGlobalNotes(e.target.value)} placeholder={traducir('portaladvanced.comentarios_generales_de_la_sesion')} />
           </PortalField>
         </PortalCard>
 
@@ -230,10 +232,10 @@ export function PortalUAT() {
           }
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <PortalField label="Título" required>
+            <PortalField label={traducir('portaladvanced.titulo')} required>
               <PortalInput id={`${issueIdPrefix}-title`} value={issueForm.title} onChange={(e: any) => setIssueForm(f => ({ ...f, title: e.target.value }))} />
             </PortalField>
-            <PortalField label="Descripción" required>
+            <PortalField label={traducir('portaladvanced.descripcion')} required>
               <PortalTextarea rows={3} value={issueForm.description} onChange={(e: any) => setIssueForm(f => ({ ...f, description: e.target.value }))} />
             </PortalField>
             <PortalField label="Severidad">
@@ -244,7 +246,7 @@ export function PortalUAT() {
                 <option value="blocker">Bloqueante</option>
               </PortalSelect>
             </PortalField>
-            <PortalField label="Pasos para reproducir">
+            <PortalField label={traducir('portaladvanced.pasos_para_reproducir')}>
               <PortalTextarea rows={2} value={issueForm.steps_to_reproduce} onChange={(e: any) => setIssueForm(f => ({ ...f, steps_to_reproduce: e.target.value }))} />
             </PortalField>
           </div>
@@ -271,7 +273,7 @@ export function PortalUAT() {
         <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>Cargando...</div>
       ) : sessions.length === 0 ? (
         <PortalEmpty icon={FlaskConical}
-          title="No hay sesiones UAT"
+          title={traducir('portaladvanced.no_hay_sesiones_uat')}
           description="Cuando el equipo prepare una entrega para que la valides, aparecerá aquí."
         />
       ) : (
@@ -313,6 +315,7 @@ export function PortalUAT() {
 // PortalFeatureRequests
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalFeatureRequests() {
+  const { t: traducir } = useAppLang()
   const _t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -377,7 +380,7 @@ export function PortalFeatureRequests() {
         actions={
           client?.can_request_changes ? (
             <PortalButton icon={<Plus size={14} />} onClick={() => { resetForm(); setEditingFr(null); setShowNew(true) }}>
-              Nueva solicitud
+              {traducir('portaladvanced.nueva_solicitud')}
             </PortalButton>
           ) : null
         }
@@ -385,10 +388,10 @@ export function PortalFeatureRequests() {
 
       {isLoading ? null : frs.length === 0 ? (
         <PortalEmpty icon={Lightbulb}
-          title="Sin solicitudes"
+          title={traducir('portaladvanced.sin_solicitudes')}
           description={client?.can_request_changes ? '¿Necesitas algo nuevo? Crea tu primera solicitud y el equipo te enviará una estimación.' : 'No tienes permiso para solicitar cambios. Contacta con tu PM para ello.'}
           action={client?.can_request_changes ? (
-            <PortalButton icon={<Plus size={14} />} onClick={() => setShowNew(true)}>Nueva solicitud</PortalButton>
+            <PortalButton icon={<Plus size={14} />} onClick={() => setShowNew(true)}>{traducir('portaladvanced.nueva_solicitud')}</PortalButton>
           ) : null}
         />
       ) : (
@@ -404,7 +407,7 @@ export function PortalFeatureRequests() {
                   <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 8 }}>
                     {fr.project_name && <span>📁 {fr.project_name}</span>}
                     {fr.submitted_at && <span>Creada: {fr.submitted_at}</span>}
-                    {fr.affected_area && <span>Área: {fr.affected_area}</span>}
+                    {fr.affected_area && <span>{traducir('portaladvanced.area')} {fr.affected_area}</span>}
                   </div>
                   <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 8px', lineHeight: 1.55 }}>{fr.description}</p>
                   {fr.pm_response && (
@@ -413,7 +416,7 @@ export function PortalFeatureRequests() {
                       borderRadius: 10, padding: '12px 14px', marginTop: 10,
                     }}>
                       <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-                        Respuesta del PM
+                        {traducir('portaladvanced.respuesta_del_pm')}
                       </div>
                       <p style={{ fontSize: 'var(--text-sm)', margin: '0 0 8px' }}>{fr.pm_response}</p>
                       <div style={{ display: 'flex', gap: 14, fontSize: 'var(--text-xs)', flexWrap: 'wrap' }}>
@@ -433,11 +436,11 @@ export function PortalFeatureRequests() {
                   )}
                   {fr.client_approved === true && (
                     <div style={{ marginTop: 8, fontSize: 'var(--text-xs)', color: 'var(--success)' }}>
-                      Aprobado por ti el {fr.client_approved_at}
+                      {traducir('portaladvanced.aprobado_por_ti_el')} {fr.client_approved_at}
                     </div>
                   )}
                   {fr.client_approved === false && (
-                    <div style={{ marginTop: 8, fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>Rechazado por ti</div>
+                    <div style={{ marginTop: 8, fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>{traducir('portaladvanced.rechazado_por_ti')}</div>
                   )}
                   {fr.can_edit_by_client && (
                     <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
@@ -458,7 +461,7 @@ export function PortalFeatureRequests() {
                     />
                   ) : (
                     <BadgeWithTooltip
-                      label="Sin CR"
+                      label={traducir('portaladvanced.sin_cr')}
                       color="var(--text-3)"
                       tooltip="Se generará Change Request al aprobar la FR."
                       icon={<IconCR />}
@@ -498,17 +501,17 @@ export function PortalFeatureRequests() {
               </PortalSelect>
             </PortalField>
           )}
-          <PortalField label="Título" required>
+          <PortalField label={traducir('portaladvanced.titulo')} required>
             <PortalInput value={form.title} onChange={(e: any) => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Resumen breve" />
           </PortalField>
-          <PortalField label="Descripción" required>
-            <PortalTextarea rows={3} value={form.description} onChange={(e: any) => setForm(f => ({ ...f, description: e.target.value }))} placeholder="¿Qué necesitas?" />
+          <PortalField label={traducir('portaladvanced.descripcion')} required>
+            <PortalTextarea rows={3} value={form.description} onChange={(e: any) => setForm(f => ({ ...f, description: e.target.value }))} placeholder={traducir('portaladvanced.que_necesitas')} />
           </PortalField>
-          <PortalField label="Justificación de negocio" hint="Por qué es importante para ti">
+          <PortalField label={traducir('portaladvanced.justificacion_de_negocio')} hint="Por qué es importante para ti">
             <PortalTextarea rows={2} value={form.business_justification} onChange={(e: any) => setForm(f => ({ ...f, business_justification: e.target.value }))} />
           </PortalField>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <PortalField label="Área afectada">
+            <PortalField label={traducir('portaladvanced.area_afectada')}>
               <PortalInput value={form.affected_area} onChange={(e: any) => setForm(f => ({ ...f, affected_area: e.target.value }))} placeholder="Ej. Reporting, Login..." />
             </PortalField>
             <PortalField label="Prioridad">
@@ -516,7 +519,7 @@ export function PortalFeatureRequests() {
                 <option value="low">Baja</option>
                 <option value="medium">Media</option>
                 <option value="high">Alta</option>
-                <option value="critical">Crítica</option>
+                <option value="critical">{traducir('portaladvanced.critica')}</option>
               </PortalSelect>
             </PortalField>
           </div>
@@ -532,6 +535,7 @@ export function PortalFeatureRequests() {
 // segunda pestaña para compatibilidad con conversaciones legacy).
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalMessages() {
+  const { t: traducir } = useAppLang()
   const t = useLang()
   const { client } = useClientAuth() as unknown as ClientAuth
   const qc = useQueryClient()
@@ -600,7 +604,7 @@ export function PortalMessages() {
       {tab === 'chat' && (
         isLoading ? <div style={{ padding: 30, color: 'var(--text-3)', textAlign: 'center' }}>Cargando...</div> :
         conversations.length === 0 ? (
-          <PortalEmpty icon={MessageSquare} title="Aún no tienes conversaciones"
+          <PortalEmpty icon={MessageSquare} title={traducir('portaladvanced.aun_no_tienes_conversaciones')}
             description="Cuando el equipo te invite a un canal o te envíe un mensaje directo, aparecerá aquí." />
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 14, height: '60vh', minHeight: 420 }}>
@@ -631,7 +635,7 @@ export function PortalMessages() {
               <div style={{ padding: 12, borderTop: '1px solid var(--surface-4)', display: 'flex', gap: 8 }}>
                 <textarea value={draft} onChange={e => setDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (draft.trim()) send.mutate() } }}
-                  placeholder="Escribe un mensaje..." rows={1}
+                  placeholder={traducir('portaladvanced.escribe_un_mensaje')} rows={1}
                   style={{
                     flex: 1, resize: 'none', minWidth: 0,
                     background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -663,6 +667,7 @@ export function PortalMessages() {
 // PortalInvoices
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalInvoices() {
+  const { t: traducir } = useAppLang()
   const _t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -711,7 +716,7 @@ export function PortalInvoices() {
       {isLoading ? (
         <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>Cargando...</div>
       ) : invoices.length === 0 ? (
-        <PortalEmpty icon={Receipt} title="Sin facturas" description="Cuando se emitan facturas en este proyecto, las verás aquí." />
+        <PortalEmpty icon={Receipt} title={traducir('portaladvanced.sin_facturas')} description="Cuando se emitan facturas en este proyecto, las verás aquí." />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {invoices.map((inv: PortalRow) => {
@@ -766,6 +771,7 @@ export function PortalInvoices() {
 // PortalRoadmap
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalRoadmap() {
+  const { t: traducir } = useAppLang()
   const _t = useLang()
   const { data, isLoading, error } = useQuery<PortalRow | null>({
     queryKey: ['portal-project'],
@@ -789,14 +795,14 @@ export function PortalRoadmap() {
   if (!data || error) return (
     <div>
       <PortalPageHeader title="Roadmap" icon={Map} />
-      <PortalEmpty icon={Map} title="Sin proyecto asignado" description="Cuando tengas un proyecto activo verás aquí su plan." />
+      <PortalEmpty icon={Map} title={traducir('portaladvanced.sin_proyecto_asignado')} description="Cuando tengas un proyecto activo verás aquí su plan." />
     </div>
   )
 
   return (
     <div>
       <PortalPageHeader
-        title="Roadmap del proyecto"
+        title={traducir('portaladvanced.roadmap_del_proyecto')}
         subtitle="Hitos planificados y entregables del proyecto."
         icon={Map}
         meta={[
@@ -806,14 +812,14 @@ export function PortalRoadmap() {
       />
 
       {milestones.length === 0 && deliverables.length === 0 ? (
-        <PortalEmpty icon={Map} title="Aún sin plan publicado"
+        <PortalEmpty icon={Map} title={traducir('portaladvanced.aun_sin_plan_publicado')}
           description="El equipo todavía no ha publicado hitos ni entregables." />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
           <PortalCard>
             <PortalSection title="Hitos" hint={`${completedMs} de ${milestones.length} completados`}>
               {milestones.length === 0 ? (
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Sin hitos planificados.</div>
+                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{traducir('portaladvanced.sin_hitos_planificados')}</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <PortalProgress value={milestones.length ? (completedMs / milestones.length) * 100 : 0} color="var(--success)" />
@@ -855,7 +861,7 @@ export function PortalRoadmap() {
           <PortalCard>
             <PortalSection title="Entregables" hint={`${completedDel} de ${deliverables.length} aceptados`}>
               {deliverables.length === 0 ? (
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Sin entregables planificados.</div>
+                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{traducir('portaladvanced.sin_entregables_planificados')}</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {deliverables.map((d: PortalRow) => (
@@ -889,6 +895,7 @@ export function PortalRoadmap() {
 // PortalDocuments
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalDocuments() {
+  const { t: traducir } = useAppLang()
   const _t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -945,7 +952,7 @@ export function PortalDocuments() {
       />
 
       {docs.length === 0 ? (
-        <PortalEmpty icon={FileText} title="Sin documentos" description="Aquí aparecerán contratos, informes y entregables compartidos por el equipo." />
+        <PortalEmpty icon={FileText} title={traducir('portaladvanced.sin_documentos')} description="Aquí aparecerán contratos, informes y entregables compartidos por el equipo." />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {docs.map((doc: PortalRow) => (
@@ -1008,10 +1015,10 @@ export function PortalDocuments() {
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <PortalField label="Cargo / Función" hint="Aparecerá en el certificado de firma">
-            <PortalInput value={signJobTitle} onChange={(e: any) => setSignJobTitle(e.target.value)} placeholder="Ej. Director de Operaciones" />
+          <PortalField label={traducir('portaladvanced.cargo_funcion')} hint="Aparecerá en el certificado de firma">
+            <PortalInput value={signJobTitle} onChange={(e: any) => setSignJobTitle(e.target.value)} placeholder={traducir('portaladvanced.ej_director_de_operaciones')} />
           </PortalField>
-          <PortalBanner tone="info" icon={<FileSignature size={16} />} title="Firma con certificado PDF" body="Se generará un PDF certificado con tus datos, fecha y hora. Se descargará automáticamente al firmar." />
+          <PortalBanner tone="info" icon={<FileSignature size={16} />} title={traducir('portaladvanced.firma_con_certificado_pdf')} body="Se generará un PDF certificado con tus datos, fecha y hora. Se descargará automáticamente al firmar." />
         </div>
       </PortalModal>
     </div>
@@ -1022,6 +1029,7 @@ export function PortalDocuments() {
 // PortalWiki
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalWiki() {
+  const { t: traducir } = useAppLang()
   const _t = useLang()
   const [selected, setSelected] = useState<string | null>(null)
   const [tab, setTab] = useState('docs')
@@ -1070,7 +1078,7 @@ export function PortalWiki() {
             })}
           </div>
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 20 }}>
-            Última actualización: {pageDetail.updated_at ? new Date(pageDetail.updated_at).toLocaleDateString() : '—'}
+            {traducir('portaladvanced.ultima_actualizacion')} {pageDetail.updated_at ? new Date(pageDetail.updated_at).toLocaleDateString() : '—'}
           </div>
         </PortalCard>
       </div>
@@ -1108,7 +1116,7 @@ export function PortalWiki() {
           {isLoading ? (
             <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>Cargando...</div>
           ) : pages.length === 0 ? (
-            <PortalEmpty icon={BookOpen} title="Sin páginas" description="Cuando el equipo publique documentación interna, la verás aquí." />
+            <PortalEmpty icon={BookOpen} title={traducir('portaladvanced.sin_paginas')} description="Cuando el equipo publique documentación interna, la verás aquí." />
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
               {pages.map((p: PortalRow) => (
@@ -1136,7 +1144,7 @@ export function PortalWiki() {
           <div style={{ marginBottom: 16, position: 'relative' }}>
             <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} />
             <PortalInput value={searchKB} onChange={(e: any) => setSearchKB(e.target.value)}
-              placeholder="Buscar en la base de conocimiento..."
+              placeholder={traducir('portaladvanced.buscar_en_la_base_de_conocimiento')}
               style={{ paddingLeft: 34, fontSize: 'var(--text-md)', padding: '11px 12px 11px 34px' }} />
           </div>
           {loadingKB ? (

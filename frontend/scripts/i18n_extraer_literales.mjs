@@ -270,13 +270,25 @@ function aplicar(ruta) {
   }
 
   // El import, sólo si el NOMBRE que se va a llamar no está ya traído.
+  //
+  // La línea va después del ÚLTIMO import según el AST, no según el texto.
+  // Buscar «la última línea que empieza por import » mete la línea nueva en
+  // medio de un import multilínea: en `PortalAdvancedSections` la última línea
+  // así es `import {`, que abre una lista de doce nombres, y el fichero dejó de
+  // parsear entero.
   if (!new RegExp(`\\b${hook.nombre}\\b`).test(original)) {
-    const lineas = texto.split('\n')
-    const ultimo = lineas.reduce((acc, l, i) => (l.startsWith('import ') ? i : acc), 0)
+    const imports = fuente.statements.filter(ts.isImportDeclaration)
     const prof = ruta.split(/[\\/]/).filter((x) => x && x !== '.').length - 2
-    lineas.splice(ultimo + 1, 0,
-      `import { ${hook.nombre} } from '${'../'.repeat(prof)}i18n/AppLangContext'`)
-    texto = lineas.join('\n')
+    const linea = `\nimport { ${hook.nombre} } from '${'../'.repeat(prof)}i18n/AppLangContext'`
+    if (imports.length) {
+      // El corte se calcula sobre el ORIGINAL y se traslada al texto ya
+      // editado: todas las ediciones anteriores caen dentro del JSX, que va
+      // después de los imports, así que el desplazamiento hasta aquí es cero.
+      const corte = imports[imports.length - 1].getEnd()
+      texto = texto.slice(0, corte) + linea + texto.slice(corte)
+    } else {
+      texto = `${linea.trimStart()}\n${texto}`
+    }
   }
 
   return { texto, claves: utiles.map((h) => [h.clave, h.texto]), sinComponente }

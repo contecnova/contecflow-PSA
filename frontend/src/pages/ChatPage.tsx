@@ -22,6 +22,7 @@ import { useAuth } from '../context/AuthContext'
 import { useChatRealtime } from '../context/ChatRealtimeContext'
 import { collabApi } from '../services/collaborationApi'
 import { registerCollabPush } from '../utils/collabPush'
+import { useAppLang } from '../i18n/AppLangContext'
 
 // ── Loose row/entity types ──────────────────────────────────────────────────
 // The collaboration API client returns `any`/`unknown[]`, so we describe the
@@ -502,6 +503,7 @@ function ConvRow({ c, active, onClick, presence, indent }: {
 }
 
 function NewConversationButton({ onCreated }: { onCreated?: (c: Conv) => void }) {
+  const { t: traducir } = useAppLang()
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -513,7 +515,7 @@ function NewConversationButton({ onCreated }: { onCreated?: (c: Conv) => void })
         fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 700,
         cursor: 'pointer',
       }}>
-        <Plus size={14} /> Nuevo
+        <Plus size={14} /> {traducir('chat.nuevo')}
       </button>
       {open && <NewConversationModal onClose={() => setOpen(false)} onCreated={(c) => { setOpen(false); onCreated?.(c) }} />}
     </>
@@ -521,6 +523,7 @@ function NewConversationButton({ onCreated }: { onCreated?: (c: Conv) => void })
 }
 
 function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (c: Conv) => void }) {
+  const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   // Estado del formulario agrupado: todos los campos cambian juntos al
@@ -607,7 +610,7 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
         style={styles.modalDialog}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>Nueva conversación</div>
+          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>{traducir('chat.nueva_conversacion')}</div>
           <button onClick={onClose} style={styles.iconCloseBtn}><X size={14} /></button>
         </div>
         <div style={{ display: 'flex', borderBottom: '1px solid var(--surface-4)' }}>
@@ -631,7 +634,7 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
         <div style={{ padding: 18, maxHeight: '60vh', overflowY: 'auto' }}>
           {tab === 'group' && (
             <div style={{ marginBottom: 12 }}>
-              <label style={styles.formLabel}>Título (opcional)</label>
+              <label style={styles.formLabel}>{traducir('chat.titulo_opcional')}</label>
               <input value={form.groupTitle} onChange={(e) => updateForm({ groupTitle: e.target.value })} placeholder="Ej. Refactor backend"
                 style={inputStyle} />
             </div>
@@ -652,7 +655,7 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
                 <div>
                   <label style={styles.formLabel}>Tipo</label>
                   <select value={form.channelType} onChange={(e) => updateForm({ channelType: e.target.value })} style={inputStyle}>
-                    <option value="public">Público</option>
+                    <option value="public">{traducir('chat.publico')}</option>
                     <option value="private">Privado</option>
                     <option value="announcement">Anuncios</option>
                   </select>
@@ -661,10 +664,10 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
             </>
           )}
           {tab === 'direct' ? (
-            <div style={{ marginBottom: 8, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Selecciona un usuario</div>
+            <div style={{ marginBottom: 8, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('chat.selecciona_un_usuario')}</div>
           ) : (
             <div style={{ marginBottom: 8, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-              Añade miembros {tab === 'group' ? '(mínimo 1)' : '(opcional)'}
+              {traducir('chat.anade_miembros')} {tab === 'group' ? '(mínimo 1)' : '(opcional)'}
             </div>
           )}
           <input value={search} onChange={(e) => updateForm({ search: e.target.value })} placeholder="Buscar usuarios…"
@@ -746,6 +749,7 @@ const inputStyle: CSSProperties = {
 function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
   conv: Conv; existingUserIds?: string[]; onClose: () => void; onAdded?: () => void
 }) {
+  const { t: traducir } = useAppLang()
   const toast = useToast()
   const [search, setSearch] = useState('')
   const [picked, setPicked] = useState<UserLike[]>([])
@@ -788,7 +792,7 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>Añadir miembros a {conv.title || 'grupo'}</div>
+          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>{traducir('chat.anadir_miembros_a')} {conv.title || 'grupo'}</div>
           <button onClick={onClose} style={styles.iconCloseBtn}>
             <X size={16} />
           </button>
@@ -797,7 +801,7 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
           autoFocus
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Busca por nombre o email…"
+          placeholder={traducir('chat.busca_por_nombre_o_email')}
           style={inputStyle}
         />
         {picked.length > 0 && (
@@ -962,6 +966,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
   setDraft: Dispatch<SetStateAction<string>>; showSlashMenu: boolean;
   setShowSlashMenu: (v: boolean) => void
 }) {
+  const { t: traducir } = useAppLang()
   const realtime = useChatRealtime()
   const qc = useQueryClient()
   const toast = useToast()
@@ -1156,7 +1161,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
         color: 'var(--text-3)', flexDirection: 'column', gap: 14,
       }}>
         <MessageSquare size={48} />
-        <div style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>Selecciona una conversación</div>
+        <div style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>{traducir('chat.selecciona_una_conversacion')}</div>
       </div>
     )
   }
@@ -1254,7 +1259,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
   return (
     <div
       role="region"
-      aria-label="Conversación"
+      aria-label={traducir('chat.conversacion')}
       style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
@@ -1270,7 +1275,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
           pointerEvents: 'none',
           fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--accent)',
         }}>
-          Suelta el archivo para subirlo
+          {traducir('chat.suelta_el_archivo_para_subirlo')}
         </div>
       )}
       {/* Header */}
@@ -1289,9 +1294,9 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, position: 'relative' }}>
-          <IconBtn onClick={() => onCallStart('audio')} title="Llamada de voz"><Phone size={15} /></IconBtn>
+          <IconBtn onClick={() => onCallStart('audio')} title={traducir('chat.llamada_de_voz')}><Phone size={15} /></IconBtn>
           <IconBtn onClick={() => onCallStart('video')} title="Videollamada"><Video size={15} /></IconBtn>
-          <IconBtn onClick={() => setPanelUi({ headerMenuOpen: !headerMenuOpen })} title="Más acciones"><MoreVertical size={15} /></IconBtn>
+          <IconBtn onClick={() => setPanelUi({ headerMenuOpen: !headerMenuOpen })} title={traducir('chat.mas_acciones')}><MoreVertical size={15} /></IconBtn>
           {headerMenuOpen && (
             <ConvHeaderMenu
               conv={conv}
@@ -1584,15 +1589,16 @@ function groupReactions(rs: AnyRec[]) {
 
 // ── Bot card renderers ───────────────────────────────────────────────────────
 function BotCard({ meta }: { meta: AnyRec }) {
+  const { t: traducir } = useAppLang()
   if (!meta?.card) return null
   if (meta.card === 'task') return <Card icon={ListChecks} accent="var(--success)" title="Tarea creada" body={`#${meta.task_id?.slice(0, 8) || ''}`} />
-  if (meta.card === 'ticket' || meta.card === 'escalation') return <Card icon={Headphones} accent="var(--warning)" title="Ticket de soporte" body={`Nº ${meta.ticket?.number || meta.ticket?.id?.slice(0, 8)} → ${meta.ticket?.assignee || ''}`} />
+  if (meta.card === 'ticket' || meta.card === 'escalation') return <Card icon={Headphones} accent="var(--warning)" title={traducir('chat.ticket_de_soporte')} body={`Nº ${meta.ticket?.number || meta.ticket?.id?.slice(0, 8)} → ${meta.ticket?.assignee || ''}`} />
   if (meta.card === 'imputation') return <Card icon={Zap} accent="var(--accent)" title={`${meta.hours}h imputadas`} body={`Proyecto ${meta.project_id?.slice(0, 8) || '?'}`} />
   if (meta.card === 'risk') return <Card icon={AlertCircle} accent="var(--danger)" title="Riesgo registrado" body={meta.title} />
-  if (meta.card === 'decision') return <Card icon={FileSignature} accent="var(--purple, #7c3aed)" title="Decisión registrada" body={meta.text} />
+  if (meta.card === 'decision') return <Card icon={FileSignature} accent="var(--purple, #7c3aed)" title={traducir('chat.decision_registrada')} body={meta.text} />
   if (meta.card === 'poll') return <PollCard meta={meta} />
   if (meta.card === 'call') return <Card icon={Video} accent="var(--accent)" title="Llamada iniciada" body={`Sala ${meta.room?.slice(-8) || ''}`} />
-  if (meta.card === 'call_summary') return <Card icon={Sparkles} accent="var(--accent)" title="Resumen de reunión" body={`${meta.actions?.length || 0} acciones detectadas`} />
+  if (meta.card === 'call_summary') return <Card icon={Sparkles} accent="var(--accent)" title={traducir('chat.resumen_de_reunion')} body={`${meta.actions?.length || 0} acciones detectadas`} />
   if (meta.card === 'answer') return <Card icon={Sparkles} accent="var(--accent)" title="Nexus IA" body={meta.source} />
   if (meta.card === 'webhook') return <Card icon={Megaphone} accent="var(--purple)" title={meta.source || 'Webhook entrante'} body="" />
   return null
@@ -1700,6 +1706,7 @@ function AttachmentChip({ att }: { att: AnyRec }) {
 
 // ── Search modal (Cmd+K) ───────────────────────────────────────────────────
 function SearchModal({ onClose, onJump }: { onClose: () => void; onJump: (conversationId: string) => void }) {
+  const { t: traducir } = useAppLang()
   const [q, setQ] = useState('')
   const { data: result, isFetching } = useQuery({
     queryKey: ['collab-search', q],
@@ -1735,12 +1742,12 @@ function SearchModal({ onClose, onJump }: { onClose: () => void; onJump: (conver
         <div style={{ maxHeight: '54vh', overflowY: 'auto' }}>
           {q.trim().length < 2 && (
             <div style={{ padding: 24, fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
-              Escribe al menos 2 caracteres. Soporta operadores: <code>from:juan</code> · <code>in:#general</code> · <code>before:2026-05-01</code> · <code>has:link</code> · <code>is:pinned</code> · <code>type:bot</code>
+              {traducir('chat.escribe_al_menos_2_caracteres_soporta_operadores')} <code>from:juan</code> · <code>in:#general</code> · <code>before:2026-05-01</code> · <code>has:link</code> · <code>is:pinned</code> · <code>type:bot</code>
             </div>
           )}
           {isFetching && <div style={{ padding: 18, fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Buscando…</div>}
           {!isFetching && q.trim().length >= 2 && hits.length === 0 && (
-            <div style={{ padding: 18, fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Sin resultados</div>
+            <div style={{ padding: 18, fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{traducir('chat.sin_resultados')}</div>
           )}
           {hits.map((h) => (
             <button key={h.id} onClick={() => onJump(h.conversation_id)} style={{
@@ -1793,6 +1800,7 @@ function LinkedEntityChips({ msg }: { msg: Msg }) {
 function LinkPickerModal({ messageId, kind, onClose, onPicked }: {
   messageId: string; kind: string; onClose: () => void; onPicked: () => void
 }) {
+  const { t: traducir } = useAppLang()
   const [q, setQ] = useState('')
   const { data: items = [] } = useQuery({
     queryKey: ['link-candidates', messageId, kind, q],
@@ -1827,7 +1835,7 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }: {
             color: 'var(--text-1)', fontSize: 'var(--text-sm)', outline: 'none', fontFamily: 'inherit',
           }} />
         <div style={{ marginTop: 10, maxHeight: 320, overflowY: 'auto' }}>
-          {items.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', padding: 14 }}>Sin resultados</div>}
+          {items.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', padding: 14 }}>{traducir('chat.sin_resultados')}</div>}
           {items.map((it) => (
             <button key={it.id} onClick={() => link.mutate(it.id)} style={{
               display: 'block', width: '100%', textAlign: 'left',
@@ -1873,6 +1881,7 @@ function MentionMenu({ items, onPick }: { items: AnyRec[]; onPick: (it: AnyRec) 
 
 // ── Thread side panel ──────────────────────────────────────────────────────
 function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: string; onClose: () => void }) {
+  const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const [reply, setReply] = useState('')
   const { data: thread = [] } = useQuery({
@@ -1900,7 +1909,7 @@ function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: string; on
         <button onClick={onClose} style={styles.iconCloseBtn}><X size={14} /></button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
-        {thread.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Sin respuestas todavía.</div>}
+        {thread.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('chat.sin_respuestas_todavia')}</div>}
         {thread.map(m => (
           <div key={m.id} style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{m.author_name || 'Usuario'} · {new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</div>
@@ -1950,6 +1959,7 @@ function SlashMenu({ draft, onPick }: { draft: string; onPick: (cmd: string) => 
 
 // ── Right context panel ─────────────────────────────────────────────────────
 function ContextPanel({ conv }: { conv: Conv }) {
+  const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const { user: me } = useAuth()
@@ -2012,7 +2022,7 @@ function ContextPanel({ conv }: { conv: Conv }) {
       borderLeft: '1px solid var(--surface-4)',
       overflowY: 'auto', padding: '14px 14px 24px',
     }}>
-      <Section title="Información">
+      <Section title={traducir('chat.informacion')}>
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{conv.kind === 'channel' ? 'Canal' : conv.kind === 'group' ? 'Grupo' : 'Chat directo'}</div>
       </Section>
       <Section title={`Conectados (${onlineUsers.length})`}>
@@ -2039,10 +2049,10 @@ function ContextPanel({ conv }: { conv: Conv }) {
           right={conv.kind === 'group' ? (
             <button
               onClick={() => setShowAddMember(true)}
-              title="Añadir miembro"
+              title={traducir('chat.anadir_miembro')}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, color: 'var(--text-2)', cursor: 'pointer', padding: '2px 6px', fontSize: 'var(--text-xs)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
             >
-              <Plus size={11} /> Añadir
+              <Plus size={11} /> {traducir('chat.anadir')}
             </button>
           ) : null}
         >
@@ -2087,21 +2097,21 @@ function ContextPanel({ conv }: { conv: Conv }) {
         />
       )}
       <Section title={`Anclados (${pins.length})`}>
-        {pins.length === 0 ? <Empty>Ningún mensaje anclado</Empty> : pins.map(p => (
+        {pins.length === 0 ? <Empty>{traducir('chat.ningun_mensaje_anclado')}</Empty> : pins.map(p => (
           <div key={p.id} style={styles.contextRowMutedText}>
             <Pin size={10} /> {p.preview}
           </div>
         ))}
       </Section>
       <Section title={`Llamadas (${calls.length})`}>
-        {calls.length === 0 ? <Empty>Sin llamadas</Empty> : calls.slice(0, 5).map(c => (
+        {calls.length === 0 ? <Empty>{traducir('chat.sin_llamadas')}</Empty> : calls.slice(0, 5).map(c => (
           <div key={c.id} style={styles.contextRowMutedText}>
             {c.kind === 'video' ? <Video size={11} /> : <Phone size={11} />} {c.duration_seconds}s — {c.status}
             {c.has_summary && <Sparkles size={10} style={{ marginLeft: 4, color: 'var(--warning)' }} />}
           </div>
         ))}
       </Section>
-      <Section title="Próximos eventos (7d)">
+      <Section title={traducir('chat.proximos_eventos_7d')}>
         {!calendar?.events?.length ? (
           <Empty>{calendar?.providers_connected?.length ? 'Sin eventos próximos' : 'Conecta Google/M365 para ver tu calendario'}</Empty>
         ) : calendar.events.slice(0, 6).map((ev: AnyRec) => (
@@ -2115,7 +2125,7 @@ function ContextPanel({ conv }: { conv: Conv }) {
         ))}
       </Section>
       <Section title={`Decisiones (${decisions.length})`}>
-        {decisions.length === 0 ? <Empty>Sin decisiones registradas</Empty> : decisions.slice(0, 5).map(d => (
+        {decisions.length === 0 ? <Empty>{traducir('chat.sin_decisiones_registradas')}</Empty> : decisions.slice(0, 5).map(d => (
           <div key={d.id} style={styles.contextRowMutedText}>
             <FileSignature size={10} style={{ marginRight: 4 }} /> {(d.text || '').slice(0, 100)}
           </div>
@@ -2148,13 +2158,14 @@ function Loader() {
 
 // ── Activity tab ────────────────────────────────────────────────────────────
 function ActivityList() {
+  const { t: traducir } = useAppLang()
   const { data: notifs = [] } = useQuery({ queryKey: ['collab-notifications'], queryFn: () => collabApi.listNotifications(false) as Promise<AnyRec[]> })
   const { data: mentions = [] } = useQuery({ queryKey: ['collab-mentions'], queryFn: () => collabApi.listMyMentions() as Promise<AnyRec[]> })
   const { data: saved = [] } = useQuery({ queryKey: ['collab-saved'], queryFn: () => collabApi.listSaved() as Promise<AnyRec[]> })
   return (
     <div style={{ width: 360, background: 'var(--surface-1)', borderRight: '1px solid var(--surface-4)', overflowY: 'auto', padding: 16 }}>
       <Section title={`Notificaciones (${notifs.length})`}>
-        {notifs.length === 0 ? <Empty>Sin notificaciones</Empty> : notifs.slice(0, 30).map(n => (
+        {notifs.length === 0 ? <Empty>{traducir('chat.sin_notificaciones')}</Empty> : notifs.slice(0, 30).map(n => (
           <div key={n.id} style={{ padding: '8px 10px', borderRadius: 6, background: n.is_read ? 'transparent' : 'var(--accent-muted)', marginBottom: 4 }}>
             <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{n.title}</div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{(n.body || '').slice(0, 80)}</div>
@@ -2162,14 +2173,14 @@ function ActivityList() {
         ))}
       </Section>
       <Section title={`Menciones (${mentions.length})`}>
-        {mentions.length === 0 ? <Empty>Sin menciones</Empty> : mentions.slice(0, 20).map(m => (
+        {mentions.length === 0 ? <Empty>{traducir('chat.sin_menciones')}</Empty> : mentions.slice(0, 20).map(m => (
           <div key={m.id} style={styles.contextRowMutedText}>
             <AtSign size={10} /> {m.preview}
           </div>
         ))}
       </Section>
       <Section title={`Guardados (${saved.length})`}>
-        {saved.length === 0 ? <Empty>Sin guardados</Empty> : saved.slice(0, 20).map(s => (
+        {saved.length === 0 ? <Empty>{traducir('chat.sin_guardados')}</Empty> : saved.slice(0, 20).map(s => (
           <div key={s.id} style={styles.contextRowMutedText}>
             <Bookmark size={10} /> {s.preview}
           </div>

@@ -53,6 +53,7 @@ const ROLES = ['admin', 'pm', 'team_lead', 'hr', 'developer', 'designer', 'finan
 
 // ── Modal de paso ─────────────────────────────────────────────────────────────
 function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; onClose: () => void }) {
+  const traducir = useAppT()
   const t = useAppT()
   const idPrefix = useId()
   const toast = useToast()
@@ -146,7 +147,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
           <div style={{ gridColumn: '1/-1' }}>
             <label htmlFor={`${idPrefix}-approver-department`} style={lbl}>{t('approvals.department')}</label>
             <select id={`${idPrefix}-approver-department`} value={form.approver_department} onChange={e => setForm(f=>({...f,approver_department:e.target.value}))} style={inp}>
-              <option value="">— Sin departamento —</option>
+              <option value="">{traducir('approvals.sin_departamento')}</option>
               {depts.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
             </select>
           </div>
@@ -174,7 +175,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
         {/* ── v2 enterprise fields ── */}
         {form.approver_type === 'group' && (
           <div style={{ gridColumn: '1/-1' }}>
-            <label htmlFor={`${idPrefix}-group`} style={lbl}>Grupo de aprobadores</label>
+            <label htmlFor={`${idPrefix}-group`} style={lbl}>{traducir('approvals.grupo_de_aprobadores')}</label>
             <select id={`${idPrefix}-group`} value={form.approver_group_id} onChange={e => setForm(f=>({...f,approver_group_id:e.target.value}))} style={inp}>
               <option value="">— Seleccionar grupo —</option>
               {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -185,7 +186,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
         <div style={{ gridColumn: '1/-1' }}>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
             <input type="checkbox" checked={form.parallel_quorum} onChange={e => setForm(f=>({...f,parallel_quorum:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
-            Quórum paralelo (varios aprobadores simultáneos)
+            {traducir('approvals.quorum_paralelo_varios_aprobadores_simultaneos')}
           </label>
         </div>
 
@@ -206,18 +207,18 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
         <div style={{ gridColumn: '1/-1' }}>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
             <input type="checkbox" checked={form.requires_attachment} onChange={e => setForm(f=>({...f,requires_attachment:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
-            Requiere adjunto obligatorio para aprobar
+            {traducir('approvals.requiere_adjunto_obligatorio_para_aprobar')}
           </label>
         </div>
 
         <div style={{ gridColumn: '1/-1' }}>
-          <label htmlFor={`${idPrefix}-condition`} style={lbl}>Condición de paso (JSON, opcional)</label>
+          <label htmlFor={`${idPrefix}-condition`} style={lbl}>{traducir('approvals.condicion_de_paso_json_opcional')}</label>
           <textarea id={`${idPrefix}-condition`} value={form.step_condition} rows={2}
             onChange={e => setForm(f=>({...f,step_condition:e.target.value}))}
             style={{...inp, resize:'vertical', fontFamily:'monospace', fontSize:'var(--text-xs)'}}
             placeholder='{"amount_gt": 5000, "department": "finance"}' />
           <p style={{ fontSize:'var(--text-xs)', color:'var(--text-3)', margin:'2px 0 0' }}>
-            Si se define, este paso solo se activa cuando la condición se cumple.
+            {traducir('approvals.si_se_define_este_paso_solo_se')}
           </p>
         </div>
       </div>
@@ -233,6 +234,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
 
 // ── Detalle de flujo ──────────────────────────────────────────────────────────
 function WorkflowDetail({ workflowId, onBack }: { workflowId: any; onBack: () => void }) {
+  const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -311,7 +313,7 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: any; onBack: () =>
                   </select>
                 ) : (
                   <button
-                    title="Cambiar categoría del documento"
+                    title={traducir('approvals.cambiar_categoria_del_documento')}
                     onClick={() => setEditingCategory(true)}
                     style={{ fontSize: 'var(--text-2xs)', padding: '1px 6px', borderRadius: 4, background: configuredCategory ? 'var(--purple-bg, #ede9fe)' : 'var(--surface-3)', color: configuredCategory ? 'var(--purple, #7c3aed)' : 'var(--text-3)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
                   >
@@ -616,6 +618,7 @@ function MyPendingTab() {
 }
 
 function WorkflowTemplatesTab() {
+  const traducir = useAppT()
   const toast = useToast()
   const idPrefix = useId()
   const qc = useQueryClient()
@@ -759,7 +762,7 @@ function WorkflowTemplatesTab() {
       {isLoading && <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-2)' }}>Cargando plantillas...</div>}
 
       {!isLoading && !templates.length && (
-        <EmptyState svgIcon={<Sparkles size={36} />} title="Sin plantillas" description="No hay plantillas disponibles" />
+        <EmptyState svgIcon={<Sparkles size={36} />} title={traducir('approvals.sin_plantillas')} description="No hay plantillas disponibles" />
       )}
 
       {!isLoading && templates.length > 0 && (
@@ -800,12 +803,12 @@ function WorkflowTemplatesTab() {
             </div>
             <label htmlFor={`${idPrefix}-scratch-default`} style={{ gridColumn: '1/-1', display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
               <input id={`${idPrefix}-scratch-default`} type="checkbox" checked={scratch.is_default} onChange={e => setScratch(s => ({ ...s, is_default: e.target.checked }))} style={{ accentColor: 'var(--accent)' }} />
-              Marcar como flujo por defecto
+              {traducir('approvals.marcar_como_flujo_por_defecto')}
             </label>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>Pasos de aprobacion</div>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{traducir('approvals.pasos_de_aprobacion')}</div>
             <button onClick={addScratchStep} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>+ Anadir paso</button>
           </div>
 
@@ -815,7 +818,7 @@ function WorkflowTemplatesTab() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 0.7fr 0.9fr auto', gap: 8, alignItems: 'end' }}>
                   <div>
                     <label htmlFor={`${idPrefix}-step-name-${idx}`} style={lbl}>Paso {idx + 1}</label>
-                    <input id={`${idPrefix}-step-name-${idx}`} value={step.name} onChange={e => updateScratchStep(idx, 'name', e.target.value)} style={inp} placeholder="Nombre del paso" />
+                    <input id={`${idPrefix}-step-name-${idx}`} value={step.name} onChange={e => updateScratchStep(idx, 'name', e.target.value)} style={inp} placeholder={traducir('approvals.nombre_del_paso')} />
                   </div>
                   <div>
                     <label htmlFor={`${idPrefix}-step-type-${idx}`} style={lbl}>Aprobador</label>
@@ -854,7 +857,7 @@ function WorkflowTemplatesTab() {
                   <div style={{ marginTop: 8 }}>
                     <label htmlFor={`${idPrefix}-step-dept-${idx}`} style={lbl}>Departamento</label>
                     <select id={`${idPrefix}-step-dept-${idx}`} value={step.approver_department || ''} onChange={e => updateScratchStep(idx, 'approver_department', e.target.value)} style={inp}>
-                      <option value="">— Sin departamento —</option>
+                      <option value="">{traducir('approvals.sin_departamento')}</option>
                       {depts.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
                     </select>
                   </div>
@@ -874,6 +877,7 @@ function WorkflowTemplatesTab() {
 }
 
 function WorkflowSimulatorTab() {
+  const traducir = useAppT()
   const [entityType, setEntityType] = useState('document')
   const [category, setCategory] = useState('')
   const [department, setDepartment] = useState('')
@@ -895,7 +899,7 @@ function WorkflowSimulatorTab() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
       <div style={{ ...panel, padding: '14px 16px' }}>
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>Simula antes de publicar para validar ruta, aprobadores y SLA estimado.</div>
+        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>{traducir('approvals.simula_antes_de_publicar_para_validar_ruta')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(180px,1fr))', gap: 10 }}>
           <div>
             <label style={lbl}>Entity Type</label>
@@ -914,7 +918,7 @@ function WorkflowSimulatorTab() {
           <div>
             <label style={lbl}>Department</label>
             <select value={department} onChange={e => setDepartment(e.target.value)} style={inp}>
-              <option value="">— Sin departamento —</option>
+              <option value="">{traducir('approvals.sin_departamento')}</option>
               {depts.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
             </select>
           </div>
@@ -924,7 +928,7 @@ function WorkflowSimulatorTab() {
           </div>
           <div style={{ gridColumn: 'span 2' }}>
             <label style={lbl}>Requested by user id (opcional)</label>
-            <input value={requestedByUserId} onChange={e => setRequestedByUserId(e.target.value)} style={inp} placeholder="uuid del solicitante" />
+            <input value={requestedByUserId} onChange={e => setRequestedByUserId(e.target.value)} style={inp} placeholder={traducir('approvals.uuid_del_solicitante')} />
           </div>
         </div>
         <div style={{ marginTop: 10 }}>
@@ -935,7 +939,7 @@ function WorkflowSimulatorTab() {
       {result && (
         <div style={{ ...panel, padding: '14px 16px' }}>
           {!result.matched ? (
-            <div style={{ color: 'var(--warning)', fontWeight: 700 }}>Sin coincidencia: {result.reason}</div>
+            <div style={{ color: 'var(--warning)', fontWeight: 700 }}>{traducir('approvals.sin_coincidencia')} {result.reason}</div>
           ) : (
             <>
               <div style={{ fontSize: "var(--text-md)", fontWeight: 800, marginBottom: 6 }}>Flujo seleccionado: {result.workflow?.name}</div>
@@ -997,6 +1001,7 @@ function exportBottlenecksCSV(items: any[], recommendations: any[], days: number
 }
 
 function WorkflowBottlenecksTab() {
+  const traducir = useAppT()
   const [days, setDays] = useState(90)
   const [workflowFilter, setWorkflowFilter] = useState('')
 
@@ -1038,7 +1043,7 @@ function WorkflowBottlenecksTab() {
         </select>
         <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>Flujo</span>
         <select value={workflowFilter} onChange={e => setWorkflowFilter(e.target.value)} style={{ ...inp, width: 200 }}>
-          <option value="">Todos los flujos</option>
+          <option value="">{traducir('approvals.todos_los_flujos')}</option>
           {workflowsData.map(w => (
             <option key={w.id} value={w.id}>{w.name}</option>
           ))}
@@ -1052,9 +1057,9 @@ function WorkflowBottlenecksTab() {
       </div>
 
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: 28, color: 'var(--text-2)' }}>Cargando cuellos de botella...</div>
+        <div style={{ textAlign: 'center', padding: 28, color: 'var(--text-2)' }}>{traducir('approvals.cargando_cuellos_de_botella')}</div>
       ) : items.length === 0 ? (
-        <EmptyState svgIcon={<BarChart3 size={36} />} title="Sin datos suficientes" description="No hay decisiones historicas para calcular cuellos de botella." />
+        <EmptyState svgIcon={<BarChart3 size={36} />} title={traducir('approvals.sin_datos_suficientes')} description="No hay decisiones historicas para calcular cuellos de botella." />
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
@@ -1090,7 +1095,7 @@ function WorkflowBottlenecksTab() {
               <div style={{ ...panel, padding: '12px 14px' }}>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Weekly rejection trend</div>
                 {weeklyTrend.length === 0 ? (
-                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>Sin tendencia semanal disponible.</div>
+                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{traducir('approvals.sin_tendencia_semanal_disponible')}</div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {weeklyTrend.slice(-8).map(row => (
@@ -1159,6 +1164,7 @@ function WorkflowBottlenecksTab() {
 
 // ── Grupos de aprobadores ─────────────────────────────────────────────────────
 function ApprovalGroupsTab() {
+  const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const { data: groups = [], isLoading } = useQuery<any[]>({
@@ -1201,10 +1207,10 @@ function ApprovalGroupsTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <Button onClick={() => { setEditGroup(null); setForm({ name: '', description: '', member_ids: [] }); setShowCreate(true) }}>+ Nuevo grupo</Button>
+        <Button onClick={() => { setEditGroup(null); setForm({ name: '', description: '', member_ids: [] }); setShowCreate(true) }}>{traducir('approvals.nuevo_grupo')}</Button>
       </div>
       {groups.length === 0 ? (
-        <EmptyState svgIcon={<Users size={36} />} title="Sin grupos" description="Crea grupos de aprobadores para asignarlos a pasos de flujo." />
+        <EmptyState svgIcon={<Users size={36} />} title={traducir('approvals.sin_grupos')} description="Crea grupos de aprobadores para asignarlos a pasos de flujo." />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
           {groups.map(g => {
@@ -1228,10 +1234,10 @@ function ApprovalGroupsTab() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
             <div>
               <label style={lbl}>Nombre *</label>
-              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Ej: Comité financiero" />
+              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={traducir('approvals.ej_comite_financiero')} />
             </div>
             <div>
-              <label style={lbl}>Descripción</label>
+              <label style={lbl}>{traducir('approvals.descripcion')}</label>
               <input value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} />
             </div>
             <div>
@@ -1258,6 +1264,7 @@ function ApprovalGroupsTab() {
 
 // ── Carga de aprobadores ──────────────────────────────────────────────────────
 function ApproverLoadTab() {
+  const traducir = useAppT()
   const [days, setDays] = useState(90)
   const { data, isLoading } = useQuery<any>({
     queryKey: ['approver-load', days],
@@ -1267,7 +1274,7 @@ function ApproverLoadTab() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
-        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>Período:</span>
+        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{traducir('approvals.periodo')}</span>
         {[30, 60, 90, 180].map(d => (
           <button key={d} onClick={() => setDays(d)}
             style={{ background: days === d ? 'var(--accent)' : 'var(--surface-3)', border: 'none', borderRadius: 6, padding: '4px 12px', color: days === d ? '#fff' : 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>
@@ -1276,7 +1283,7 @@ function ApproverLoadTab() {
         ))}
       </div>
       {isLoading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>Cargando carga de aprobadores…</div>
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>{traducir('approvals.cargando_carga_de_aprobadores')}</div>
       ) : !data ? null : (
         <>
           {(data.overloaded_approvers || []).length > 0 && (
@@ -1322,6 +1329,7 @@ function ApproverLoadTab() {
 
 // ── Matriz de aprobación ──────────────────────────────────────────────────────
 function ApprovalMatrixTab({ workflows = [] }: { workflows?: any[] }) {
+  const traducir = useAppT()
   const t = useAppT()
   const entityMap = entityLabels(t)
   const entityTypes = Object.keys(entityMap)
@@ -1331,7 +1339,7 @@ function ApprovalMatrixTab({ workflows = [] }: { workflows?: any[] }) {
   return (
     <div>
       <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 16 }}>
-        Vista de qué flujos están activos por tipo de entidad. Verde = activo por defecto, azul = activo no-default, gris = inactivo.
+        {traducir('approvals.vista_de_que_flujos_estan_activos_por')}
       </p>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'collapse', fontSize: 'var(--text-xs)', minWidth: 600 }}>
@@ -1380,6 +1388,7 @@ interface ApprovalsPageProps {
 }
 
 export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): JSX.Element {
+  const traducir = useAppT()
   const createIdPrefix = useId()
   const t = useAppT()
   const { user, loading } = useAuth()
@@ -1620,19 +1629,19 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
             </div>
             {form.entity_type === 'document' && (
               <div>
-                <label htmlFor={`${createIdPrefix}-doc-category`} style={lbl}>Categoría del documento</label>
+                <label htmlFor={`${createIdPrefix}-doc-category`} style={lbl}>{traducir('approvals.categoria_del_documento')}</label>
                 <select id={`${createIdPrefix}-doc-category`} value={form.document_category} onChange={e => setForm(f=>({...f,document_category:e.target.value}))} style={inp}>
-                  <option value="">— Fallback: aplica a todos los documentos —</option>
+                  <option value="">{traducir('approvals.fallback_aplica_a_todos_los_documentos')}</option>
                   <option value="contract">Contrato</option>
                   <option value="deliverable">Entregable</option>
                   <option value="proposal">Propuesta</option>
                   <option value="sop">SOP / Procedimiento</option>
                   <option value="requirements">Requisitos</option>
-                  <option value="meeting_notes">Actas de reunión</option>
+                  <option value="meeting_notes">{traducir('approvals.actas_de_reunion')}</option>
                   <option value="legal">Legal</option>
                   <option value="other">Otro</option>
                 </select>
-                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4 }}>Si no se especifica categoría, este flujo actúa como fallback para cualquier documento sin flujo específico.</div>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4 }}>{traducir('approvals.si_no_se_especifica_categoria_este_flujo')}</div>
               </div>
             )}
             <div>
@@ -1645,19 +1654,19 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
             </label>
             {/* v2 enterprise */}
             <div>
-              <label htmlFor={`${createIdPrefix}-chain`} style={lbl}>Encadenar con flujo (al aprobar, opcional)</label>
+              <label htmlFor={`${createIdPrefix}-chain`} style={lbl}>{traducir('approvals.encadenar_con_flujo_al_aprobar_opcional')}</label>
               <select id={`${createIdPrefix}-chain`} value={form.chain_on_approval_workflow_id}
                 onChange={e => setForm(f=>({...f,chain_on_approval_workflow_id:e.target.value}))} style={inp}>
-                <option value="">— Sin encadenamiento —</option>
+                <option value="">{traducir('approvals.sin_encadenamiento')}</option>
                 {workflows.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </div>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
               <input type="checkbox" checked={form.sla_block_on_breach} onChange={e => setForm(f=>({...f,sla_block_on_breach:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
-              Bloquear entidad si se supera el SLA
+              {traducir('approvals.bloquear_entidad_si_se_supera_el_sla')}
             </label>
             <div>
-              <label htmlFor={`${createIdPrefix}-auto-rules`} style={lbl}>Reglas de auto-aprobación (JSON, opcional)</label>
+              <label htmlFor={`${createIdPrefix}-auto-rules`} style={lbl}>{traducir('approvals.reglas_de_auto_aprobacion_json_opcional')}</label>
               <textarea id={`${createIdPrefix}-auto-rules`} value={form.auto_approval_rules} rows={2}
                 onChange={e => setForm(f=>({...f,auto_approval_rules:e.target.value}))}
                 style={{...inp, resize:'vertical', fontFamily:'monospace', fontSize:'var(--text-xs)'}}
