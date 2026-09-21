@@ -23,6 +23,7 @@ import {
   PortalSelect as PortalSelectBase, PortalTextarea as PortalTextareaBase,
   PortalBanner as PortalBannerBase,
 } from './PortalUI'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 // PortalUI is untyped JS: alias each component to accept partial props so
 // optional props need not be passed explicitly (behavior unchanged).
@@ -129,6 +130,7 @@ interface RoutingHint { when?: { field?: string; equals?: unknown; in?: unknown[
 interface DynamicRules { fields?: DynamicField[]; routing_hints?: RoutingHint[] }
 
 export function PortalSupportDesk() {
+  const { t: traducir } = useAppLang()
   const _t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -306,7 +308,7 @@ export function PortalSupportDesk() {
             </PortalCard>
 
               <PortalCard style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Descripción original</div>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{traducir('portalsupportdesk.descripcion_original')}</div>
               <p style={{ fontSize: 'var(--text-sm)', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{ticketDetail.description}</p>
             </PortalCard>
 
@@ -329,7 +331,7 @@ export function PortalSupportDesk() {
             {ticketDetail.resolution && (
               <PortalCard style={{ marginBottom: 14, borderColor: 'var(--success-border, rgba(16,185,129,0.3))' }}>
                 <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <CheckCircle2 size={13} /> Resolución del equipo
+                  <CheckCircle2 size={13} /> {traducir('portalsupportdesk.resolucion_del_equipo')}
                 </div>
                 <p style={{ fontSize: 'var(--text-sm)', lineHeight: 1.7, margin: 0 }}>{ticketDetail.resolution}</p>
               </PortalCard>
@@ -338,7 +340,7 @@ export function PortalSupportDesk() {
             {ticketDetail.csat_requested_at && !ticketDetail.csat_score && (
               <PortalCard style={{ marginBottom: 14, borderColor: 'var(--success-border, rgba(16,185,129,0.3))' }}>
                 <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Star size={14} style={{ color: 'var(--warning)' }} /> ¿Cómo valorarías la atención recibida?
+                  <Star size={14} style={{ color: 'var(--warning)' }} /> {traducir('portalsupportdesk.como_valorarias_la_atencion_recibida')}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {[1, 2, 3, 4, 5].map(n => (
@@ -358,7 +360,7 @@ export function PortalSupportDesk() {
 
             {Array.isArray(ticketDetail.history) && ticketDetail.history.length > 0 && (
               <PortalCard style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Actividad del ticket</div>
+                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{traducir('portalsupportdesk.actividad_del_ticket')}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {ticketDetail.history.slice(-8).reverse().map((h, idx) => (
                     <div key={`${h.changed_at}-${idx}`} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px' }}>
@@ -374,7 +376,7 @@ export function PortalSupportDesk() {
 
             {upcomingEvents.length > 0 && (
               <PortalCard style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Calendario de eventos</div>
+                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{traducir('portalsupportdesk.calendario_de_eventos')}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {upcomingEvents.map((ev) => (
                     <div key={ev.id} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px' }}>
@@ -387,7 +389,7 @@ export function PortalSupportDesk() {
             )}
 
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, marginBottom: 12 }}>Conversación</div>
+              <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, marginBottom: 12 }}>{traducir('portalsupportdesk.conversacion')}</div>
               {ticketDetail.comments?.filter(c => c.is_public).map(c => (
                 <div key={c.id} style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
                   <div style={{
@@ -483,7 +485,7 @@ export function PortalSupportDesk() {
       {/* Tickets */}
       {tab === 'tickets' && (
         tickets.length === 0 ? (
-          <PortalEmpty icon={Headphones} title="No tienes tickets"
+          <PortalEmpty icon={Headphones} title={traducir('portalsupportdesk.no_tienes_tickets')}
             description="¿Necesitas ayuda? Abre un ticket y el equipo te atenderá en plazo SLA."
             action={<PortalButton icon={<Plus size={14} />} onClick={() => { setDynamicValues({}); setShowCreate(true) }}>Abrir ticket</PortalButton>}
           />
@@ -520,7 +522,7 @@ export function PortalSupportDesk() {
                       borderRadius: 8, fontSize: 'var(--text-xs)',
                       color: 'var(--warning)', fontWeight: 700,
                       display: 'inline-flex', alignItems: 'center', gap: 6,
-                    }}><Clock size={12} /> Esperan tu respuesta — clic para abrir</div>
+                    }}><Clock size={12} /> {traducir('portalsupportdesk.esperan_tu_respuesta_clic_para_abrir')}</div>
                   )}
                   {tk.csat_requested_at && !tk.csat_score && (
                     <div style={{
@@ -529,7 +531,7 @@ export function PortalSupportDesk() {
                       borderRadius: 8, fontSize: 'var(--text-xs)',
                       color: 'var(--success)', fontWeight: 700,
                       display: 'inline-flex', alignItems: 'center', gap: 6,
-                    }}><Star size={12} /> Valora la atención recibida</div>
+                    }}><Star size={12} /> {traducir('portalsupportdesk.valora_la_atencion_recibida')}</div>
                   )}
                 </PortalCard>
               )
@@ -543,7 +545,7 @@ export function PortalSupportDesk() {
         <>
           <div style={{ marginBottom: 16, position: 'relative' }}>
             <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} />
-            <PortalInput value={searchKB} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setSearchKB(e.target.value)} placeholder="Buscar artículo..."
+            <PortalInput value={searchKB} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setSearchKB(e.target.value)} placeholder={traducir('portalsupportdesk.buscar_articulo')}
               style={{ paddingLeft: 34, fontSize: 'var(--text-md)', padding: '11px 12px 11px 34px' }} />
           </div>
           {kbArticles.length === 0 ? (
@@ -568,7 +570,7 @@ export function PortalSupportDesk() {
       {/* Announcements */}
       {tab === 'announcements' && (
         announcements.length === 0 ? (
-          <PortalEmpty icon={Megaphone} title="Sin comunicados activos" />
+          <PortalEmpty icon={Megaphone} title={traducir('portalsupportdesk.sin_comunicados_activos')} />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {announcements.map(a => {
@@ -597,7 +599,7 @@ export function PortalSupportDesk() {
       <PortalModal
         open={showCreate}
         onClose={() => { setDynamicValues({}); setShowCreate(false) }}
-        title="Abrir nuevo ticket"
+        title={traducir('portalsupportdesk.abrir_nuevo_ticket')}
         subtitle="Cuéntanos qué necesitas. Sigue las plantillas si te ayuda."
         width={620}
         footer={
@@ -609,10 +611,10 @@ export function PortalSupportDesk() {
         }
       >
         <PortalBanner tone="info" icon={<BookOpen size={16} />}
-          title="¿Has revisado la base de conocimiento?"
+          title={traducir('portalsupportdesk.has_revisado_la_base_de_conocimiento')}
           body="Muchos casos están ya documentados — revisa la KB antes de abrir un ticket nuevo." />
         {catalog.length > 0 && (
-          <PortalField label="Servicio del catálogo">
+          <PortalField label={traducir('portalsupportdesk.servicio_del_catalogo')}>
             <PortalSelect value={createForm.service_item_id}
               onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, service_item_id: e.target.value }))}>
               <option value="">Seleccionar...</option>
@@ -636,7 +638,7 @@ export function PortalSupportDesk() {
           </PortalField>
         )}
         <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <PortalField label="Tipo de ticket">
+          <PortalField label={traducir('portalsupportdesk.tipo_de_ticket')}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {([
                 ['incident', 'Incidencia', Bug],
@@ -656,27 +658,27 @@ export function PortalSupportDesk() {
               ))}
             </div>
           </PortalField>
-          <PortalField label="Título" required>
-            <PortalInput value={createForm.title} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, title: e.target.value }))} placeholder="Resumen claro del problema" />
+          <PortalField label={traducir('portalsupportdesk.titulo')} required>
+            <PortalInput value={createForm.title} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, title: e.target.value }))} placeholder={traducir('portalsupportdesk.resumen_claro_del_problema')} />
           </PortalField>
-          <PortalField label="Descripción" required hint="Cuanto más contexto añadas, antes te resolveremos">
-            <PortalTextarea rows={4} value={createForm.description} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe el problema o solicitud..." />
+          <PortalField label={traducir('portalsupportdesk.descripcion')} required hint="Cuanto más contexto añadas, antes te resolveremos">
+            <PortalTextarea rows={4} value={createForm.description} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder={traducir('portalsupportdesk.describe_el_problema_o_solicitud')} />
           </PortalField>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <PortalField label="Urgencia">
               <PortalSelect value={createForm.urgency} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, urgency: e.target.value }))}>
-                <option value="critical">Crítica — el negocio está parado</option>
-                <option value="high">Alta — funcionalidad importante no funciona</option>
-                <option value="medium">Media — hay un workaround</option>
+                <option value="critical">{traducir('portalsupportdesk.critica_el_negocio_esta_parado')}</option>
+                <option value="high">{traducir('portalsupportdesk.alta_funcionalidad_importante_no_funciona')}</option>
+                <option value="medium">{traducir('portalsupportdesk.media_hay_un_workaround')}</option>
                 <option value="low">Baja — problema menor</option>
               </PortalSelect>
             </PortalField>
             <PortalField label="Impacto">
               <PortalSelect value={createForm.impact} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, impact: e.target.value }))}>
-                <option value="enterprise">Toda la empresa</option>
+                <option value="enterprise">{traducir('portalsupportdesk.toda_la_empresa')}</option>
                 <option value="department">Mi departamento</option>
-                <option value="user">Solo a mí</option>
-                <option value="minimal">Mínimo</option>
+                <option value="user">{traducir('portalsupportdesk.solo_a_mi')}</option>
+                <option value="minimal">{traducir('portalsupportdesk.minimo')}</option>
               </PortalSelect>
             </PortalField>
           </div>
@@ -685,7 +687,7 @@ export function PortalSupportDesk() {
             <PortalBanner
               tone="info"
               icon={<GitBranch size={14} />}
-              title="Ruta sugerida automáticamente"
+              title={traducir('portalsupportdesk.ruta_sugerida_automaticamente')}
               body={Object.entries(routingHint).map(([k, v]) => `${k}=${v}`).join(', ')}
             />
           )}

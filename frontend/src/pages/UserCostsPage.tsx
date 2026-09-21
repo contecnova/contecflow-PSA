@@ -32,6 +32,7 @@ const fmtCur = (v: number | null | undefined, currency = 'EUR', lang = 'es') =>
 
 
 export default function UserCostsPage() {
+  const { t } = useAppLang()
   const { lang } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
@@ -91,12 +92,12 @@ export default function UserCostsPage() {
     <PageShell>
       <PageHeader
         icon={<Wallet size={22} />}
-        title="Estructura de coste"
+        title={t('usercosts.estructura_de_coste')}
         subtitle="Salario bruto, coste empresa y coste/hora real por persona — base para el cálculo de margen real."
         meta={
           (summary && (
             <span>
-              {summary.users_with_cost} con coste · {summary.users_missing_cost} sin coste · media {fmtCur(summary.avg_cost_per_hour, 'EUR', lang)}/h
+              {summary.users_with_cost} {t('usercosts.con_coste')} {summary.users_missing_cost} {t('usercosts.sin_coste_media')} {fmtCur(summary.avg_cost_per_hour, 'EUR', lang)}/h
             </span>
           )) as never
         }
@@ -110,18 +111,18 @@ export default function UserCostsPage() {
         <KpiBox icon="📊" label="Coste anual total (aprox.)"
                 value={fmtCur(totalAnnualCost, 'EUR', lang)}
                 sub="Estimación 1.700 h/año" />
-        <KpiBox icon="⚠️" label="Sin datos de coste"
+        <KpiBox icon="⚠️" label={t('usercosts.sin_datos_de_coste')}
                 value={summary?.users_missing_cost ?? 0}
                 sub="Hay que completarlos para que el margen sea real"
                 accent={(summary?.users_missing_cost ?? 0) > 0 ? 'var(--warning)' : 'var(--success)'} />
-        <KpiBox icon="🌍" label="Países configurados"
+        <KpiBox icon="🌍" label={t('usercosts.paises_configurados')}
                 value={countries.length}
                 sub={`${countries.filter((c) => !c.is_default).length} overrides org`} />
       </div>
 
       {/* Country presets */}
       <Section
-        title="Países y % de coste empresa"
+        title={t('usercosts.paises_y_de_coste_empresa')}
         icon={<Globe size={16} />}
         actions={
           <div style={{ display: 'flex', gap: 6 }}>
@@ -130,13 +131,13 @@ export default function UserCostsPage() {
               Cargar predefinidos
             </Button>
             <Button size="sm" onClick={() => setEditCountry({ country_code: '', country_name: '', currency: 'EUR', employer_cost_pct: 0.30, productive_hours_year: 1700 })}>
-              + Override país
+              {t('usercosts.override_pais')}
             </Button>
           </div>
         }
       >
         {loadingCountries ? <Spinner /> : countries.length === 0 ? (
-          <EmptyState icon="🌍" title="Sin países configurados"
+          <EmptyState icon="🌍" title={t('usercosts.sin_paises_configurados')}
                       description="Carga los predefinidos para empezar (España, Francia, US, Brasil, etc.)"
                       ctaLabel="Cargar países" onCta={() => seedCountriesMut.mutate(false)} />
         ) : (
@@ -184,10 +185,10 @@ export default function UserCostsPage() {
                       </td>
                       <td style={{ ...td, textAlign: 'right' }}>
                         <Button size="xs" variant="ghost" onClick={() => setHistoryUser(user || { id: u.user_id, full_name: u.full_name })}>
-                          <History size={11} /> Histórico
+                          <History size={11} /> {t('usercosts.historico')}
                         </Button>
                         <Button size="xs" onClick={() => setEditProfile({ user: user || { id: u.user_id, full_name: u.full_name } })}>
-                          <Plus size={11} /> Nueva versión
+                          <Plus size={11} /> {t('usercosts.nueva_version')}
                         </Button>
                       </td>
                     </tr>
@@ -271,6 +272,7 @@ function KpiBox({ icon, label, value, sub, accent = 'var(--accent)' }: { icon: R
 }
 
 function CountryCard({ c, onEdit }: { c: CountryRow; onEdit: () => void }) {
+  const { t } = useAppLang()
   return (
     <div onClick={onEdit}
       role="button"
@@ -286,7 +288,7 @@ function CountryCard({ c, onEdit }: { c: CountryRow; onEdit: () => void }) {
       </div>
       <div style={{ display: 'flex', gap: 14, fontSize: 'var(--text-sm)' }}>
         <span><strong>{((c.employer_cost_pct ?? 0) * 100).toFixed(1)}%</strong> coste empresa</span>
-        <span style={{ color: 'var(--text-3)' }}>{c.productive_hours_year} h/año</span>
+        <span style={{ color: 'var(--text-3)' }}>{c.productive_hours_year} {t('usercosts.h_ano')}</span>
         <span style={{ color: 'var(--text-3)' }}>{c.currency}</span>
       </div>
       {c.notes && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-4)' }}>{c.notes}</div>}
@@ -312,6 +314,7 @@ function SourceBadge({ source }: { source?: string }) {
 
 // ── Profile wizard ───────────────────────────────────────────────────────────
 function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: UserRow; countries: CountryRow[]; existing?: any; onClose: () => void; onSaved: () => void }) {
+  const { t } = useAppLang()
   const { lang } = useAppLang()
   const toast = useToast()
   const [form, setForm] = useState({
@@ -370,16 +373,15 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
     <Modal open onClose={onClose} title={`Coste/hora — ${user.full_name}`} width={620}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: 0 }}>
-          Selecciona el país (rellena % SS empresa y horas productivas), luego añade el bruto anual y los extras.
-          La aplicación calcula el coste/hora real para imputaciones y márgenes.
+          {t('usercosts.selecciona_el_pais_rellena_ss_empresa_y')}
         </p>
 
         {/* Step 1 — Country */}
         <div>
-          <Label>País / región</Label>
+          <Label>{t('usercosts.pais_region')}</Label>
           <select value={form.country_code} onChange={(e) => onPickCountry(e.target.value)}
                   style={selectStyle}>
-            <option value="">— Selecciona país —</option>
+            <option value="">{t('usercosts.selecciona_pais')}</option>
             {countries.map(c => (
               <option key={c.id} value={c.country_code}>
                 {c.country_code} · {c.country_name} ({((c.employer_cost_pct ?? 0) * 100).toFixed(1)}% — {c.productive_hours_year}h)
@@ -404,7 +406,7 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
           <Input label="Costes extra anuales" type="number" value={form.extra_annual_costs}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, extra_annual_costs: e.target.value })}
                  hint="Bonus, equipo, formación, beneficios" />
-          <Input label="Horas productivas/año" type="number" value={form.productive_hours_year}
+          <Input label={t('usercosts.horas_productivas_ano')} type="number" value={form.productive_hours_year}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, productive_hours_year: e.target.value })}
                  hint="Anuales − vacaciones − festivos − formación" />
         </div>
@@ -414,11 +416,11 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
                       borderRadius: 8, padding: 14 }}>
           <div style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', color: 'var(--accent)',
                         letterSpacing: '0.07em', marginBottom: 8 }}>
-            Cálculo derivado
+            {t('usercosts.calculo_derivado')}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
             <Stat label="Coste anual total" value={fmtCur(total, form.currency, lang)} />
-            <Stat label="Coste por hora" value={fmtCur(costPerHour, form.currency, lang)}
+            <Stat label={t('usercosts.coste_por_hora')} value={fmtCur(costPerHour, form.currency, lang)}
                   emphasised />
           </div>
         </div>
@@ -429,7 +431,7 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={save}>Guardar versión</Button>
+          <Button onClick={save}>{t('usercosts.guardar_version')}</Button>
         </div>
       </div>
     </Modal>
@@ -439,6 +441,7 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
 
 // ── Country override editor ─────────────────────────────────────────────────
 function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClose: () => void; onSaved: () => void }) {
+  const { t } = useAppLang()
   const toast = useToast()
   const [form, setForm] = useState<{ country_code: string; country_name: string; currency: string; employer_cost_pct: number | string; productive_hours_year: number | string; notes: string }>({
     country_code: preset.country_code || '',
@@ -498,12 +501,12 @@ function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClo
            title={preset.id ? `Editar ${preset.country_name}` : 'Nuevo país'} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
-          <Input label="Código ISO" value={form.country_code}
+          <Input label={t('usercosts.codigo_iso')} value={form.country_code}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, country_code: e.target.value.toUpperCase() })}
                  placeholder="ES" />
           <Input label="Nombre" value={form.country_name}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, country_name: e.target.value })}
-                 placeholder="España" />
+                 placeholder={t('usercosts.espana')} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
           <Input label="Moneda" value={form.currency}
@@ -511,7 +514,7 @@ function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClo
           <Input label="% Coste empresa" type="number" value={form.employer_cost_pct}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, employer_cost_pct: e.target.value })}
                  hint="0.32 = 32%" />
-          <Input label="Horas/año productivas" type="number" value={form.productive_hours_year}
+          <Input label={t('usercosts.horas_ano_productivas')} type="number" value={form.productive_hours_year}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, productive_hours_year: e.target.value })} />
         </div>
         <Input label="Notas" value={form.notes}
@@ -535,6 +538,7 @@ function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClo
 
 // ── History of versions per user ────────────────────────────────────────────
 function HistoryModal({ user, onClose, onAddNew }: { user: UserRow; onClose: () => void; onAddNew: () => void }) {
+  const { t } = useAppLang()
   const { lang } = useAppLang()
   const { data: profiles = [], isLoading } = useQuery<ProfileRow[]>({
     queryKey: ['user-costs-history', user.id],
@@ -543,12 +547,12 @@ function HistoryModal({ user, onClose, onAddNew }: { user: UserRow; onClose: () 
   return (
     <Modal open onClose={onClose} title={`Histórico — ${user.full_name}`} width={620}>
       {isLoading ? <Spinner /> : profiles.length === 0 ? (
-        <EmptyState icon="○" title="Sin versiones aún"
+        <EmptyState icon="○" title={t('usercosts.sin_versiones_aun')}
                     ctaLabel="+ Crear primera versión" onCta={onAddNew} />
       ) : (
         <>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-            <Button size="sm" onClick={onAddNew}>+ Nueva versión</Button>
+            <Button size="sm" onClick={onAddNew}>{t('usercosts.nueva_version_2')}</Button>
           </div>
           {profiles.map(p => (
             <div key={p.id} style={{
@@ -564,7 +568,7 @@ function HistoryModal({ user, onClose, onAddNew }: { user: UserRow; onClose: () 
                   }}>vigente</span>}
                 </div>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-                  {fmtCur(p.gross_annual_salary, p.currency, lang)} bruto · {((p.employer_cost_pct ?? 0) * 100).toFixed(1)}% empresa · {p.productive_hours_year}h/año
+                  {fmtCur(p.gross_annual_salary, p.currency, lang)} bruto · {((p.employer_cost_pct ?? 0) * 100).toFixed(1)}% empresa · {p.productive_hours_year}{t('usercosts.h_ano')}
                   {p.notes && <> · {p.notes}</>}
                 </div>
               </div>
@@ -573,7 +577,7 @@ function HistoryModal({ user, onClose, onAddNew }: { user: UserRow; onClose: () 
                   {fmtCur(p.cost_per_hour, p.currency, lang)} / h
                 </div>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-                  {fmtCur(p.total_annual_cost, p.currency, lang)} / año
+                  {fmtCur(p.total_annual_cost, p.currency, lang)} {t('usercosts.ano')}
                 </div>
               </div>
             </div>

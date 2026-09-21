@@ -40,6 +40,7 @@ const _COMPLEXITY_CFG = {
 }
 
 function ProfileModal({ user, onClose }: { user: any; onClose: () => void }) {
+  const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [text, setText] = useState<string>(user?.profile_text || '')
@@ -54,17 +55,16 @@ function ProfileModal({ user, onClose }: { user: any; onClose: () => void }) {
   return (
     <Modal open onClose={onClose} title={`Perfil semántico — ${user?.user_name || 'Usuario'}`} width={600}>
       <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16, lineHeight: 1.6 }}>
-        Describe las capacidades, rol, tecnologías y área de experiencia de este usuario.
-        Cuanto más detallado, mejor será la asignación automática.
+        {traducir('semanticengine.describe_las_capacidades_rol_tecnologias_y_area')}
       </p>
       <div style={{ marginBottom: 14 }}>
-        <label style={ls}>Texto del perfil *</label>
+        <label style={ls}>{traducir('semanticengine.texto_del_perfil')}</label>
         <textarea value={text} onChange={e => setText(e.target.value)} rows={6}
           style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }}
-          placeholder="Describe las capacidades, rol, tecnologias y area de experiencia..." />
+          placeholder={traducir('semanticengine.describe_las_capacidades_rol_tecnologias_y_area_2')} />
       </div>
       <div style={{ marginBottom: 20 }}>
-        <label style={ls}>Carga máxima simultánea (tickets/tareas)</label>
+        <label style={ls}>{traducir('semanticengine.carga_maxima_simultanea_tickets_tareas')}</label>
         <input type="number" value={maxLoad} onChange={e => setMaxLoad(parseInt(e.target.value))}
           style={{ ...fs, width: 100 }} min={1} max={50} />
       </div>
@@ -80,6 +80,7 @@ function ProfileModal({ user, onClose }: { user: any; onClose: () => void }) {
 }
 
 function TestPanel() {
+  const traducir = useAppT()
   const [type, setType] = useState('ticket')
   const [title, setTitle] = useState('')
   const [desc, setDesc] = useState('')
@@ -102,7 +103,7 @@ function TestPanel() {
 
   return (
     <div style={{ ...card, padding: '20px 24px' }}>
-      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>🧪 Probar asignación</div>
+      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>{traducir('semanticengine.probar_asignacion')}</div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {['ticket', 'task'].map(t => (
           <button key={t} onClick={() => setType(t)}
@@ -113,14 +114,14 @@ function TestPanel() {
       </div>
       <div style={{ display: 'grid', gap: 12, marginBottom: 14 }}>
         <div>
-          <label style={ls}>Título</label>
+          <label style={ls}>{traducir('semanticengine.titulo')}</label>
           <input value={title} onChange={e => setTitle(e.target.value)} style={fs}
             placeholder={type === 'ticket' ? 'Error al iniciar sesión en el portal' : 'Implementar endpoint de autenticación JWT'} />
         </div>
         <div>
-          <label style={ls}>Descripción (opcional)</label>
+          <label style={ls}>{traducir('semanticengine.descripcion_opcional')}</label>
           <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3}
-            style={{ ...fs, resize: 'vertical' }} placeholder="Descripcion opcional del ticket o tarea" />
+            style={{ ...fs, resize: 'vertical' }} placeholder={traducir('semanticengine.descripcion_opcional_del_ticket_o_tarea')} />
         </div>
       </div>
       <Button onClick={runTest} disabled={testing || !title.trim()}>
@@ -135,7 +136,7 @@ function TestPanel() {
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 4 }}>Asignación sugerida</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 4 }}>{traducir('semanticengine.asignacion_sugerida')}</div>
                   <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: result.needs_review ? 'var(--warning)' : 'var(--success)' }}>
                     {result.suggested_user_name || result.suggested_user_id || '— Sin candidato —'}
                   </div>
@@ -176,6 +177,7 @@ function TestPanel() {
 }
 
 export default function SemanticEnginePage() {
+  const traducir = useAppT()
   const _t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -327,7 +329,7 @@ export default function SemanticEnginePage() {
       {tab === 'overview' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <div style={{ ...card, padding: '20px 24px' }}>
-            <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>Modo del motor</div>
+            <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>{traducir('semanticengine.modo_del_motor')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {Object.entries(ENGINE_MODES).map(([key, meta]) => (
                 <button key={key} onClick={() => saveConfig({ engine_mode: key })} disabled={savingConfig}
@@ -350,7 +352,7 @@ export default function SemanticEnginePage() {
               <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>Embeddings y modelo</div>
 
               <div style={{ marginBottom: 14 }}>
-                <label style={ls}>Backend de embeddings</label>
+                <label style={ls}>{traducir('semanticengine.backend_de_embeddings')}</label>
                 <select
                   value={config.embeddings_backend || 'tfidf'}
                   onChange={e => {
@@ -401,7 +403,7 @@ export default function SemanticEnginePage() {
             </div>
 
             <div style={{ ...card, padding: '20px 24px' }}>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>Umbrales de confianza</div>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>{traducir('semanticengine.umbrales_de_confianza')}</div>
               {[
                 { key: 'threshold_ticket', label: 'Tickets (mín. para auto-asignar)', val: config.threshold_ticket },
                 { key: 'threshold_task',   label: 'Tareas (mín. para auto-asignar)',  val: config.threshold_task },
@@ -422,7 +424,7 @@ export default function SemanticEnginePage() {
             </div>
 
             <div style={{ ...card, padding: '20px 24px' }}>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>Auto-asignación</div>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>{traducir('semanticengine.auto_asignacion')}</div>
               {[
                 { key: 'auto_assign_tickets', label: 'Auto-asignar tickets (sin confirmación)', val: config.auto_assign_tickets },
                 { key: 'auto_assign_tasks',   label: 'Auto-asignar tareas (sin confirmación)',  val: config.auto_assign_tasks },
@@ -436,7 +438,7 @@ export default function SemanticEnginePage() {
                 </div>
               ))}
               <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 8, fontSize: "var(--text-xs)", color: 'var(--warning)' }}>
-                ⚠ Con auto-asignación activada, los items se asignan directamente si la confianza supera el umbral. Desactivado por defecto para permitir revisión.
+                {traducir('semanticengine.con_auto_asignacion_activada_los_items_se')}
               </div>
             </div>
           </div>
@@ -448,11 +450,11 @@ export default function SemanticEnginePage() {
         <div>
           <div style={{ ...card, overflow: 'hidden' }}>
             <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
-              <span>Usuario</span><span>Perfil</span><span>Tickets</span><span>Tareas</span><span>Estado</span><span>Acción</span>
+              <span>Usuario</span><span>Perfil</span><span>Tickets</span><span>Tareas</span><span>Estado</span><span>{traducir('semanticengine.accion')}</span>
             </div>
             {profilesWithUsers.length === 0 ? (
               <div style={{ padding: 32, textAlign: 'center' }}>
-                <EmptyState icon="👥" title="Sin perfiles semanticos" description="Configura perfiles para habilitar la asignacion automatica" />
+                <EmptyState icon="👥" title={traducir('semanticengine.sin_perfiles_semanticos')} description="Configura perfiles para habilitar la asignacion automatica" />
               </div>
             ) : profilesWithUsers.map(u => (
               <div key={u.user_id} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, alignItems: 'center', fontSize: "var(--text-base)" }}>
@@ -492,7 +494,7 @@ export default function SemanticEnginePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16 }}>
             {/* Acceptance gauge */}
             <div style={{ ...card, padding: '20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16, alignSelf: 'flex-start' }}>Tasa de aceptación</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16, alignSelf: 'flex-start' }}>{traducir('semanticengine.tasa_de_aceptacion')}</div>
               {(() => {
                 const acc = stats.accepted || 0
                 const rej = stats.rejected || 0
@@ -533,10 +535,10 @@ export default function SemanticEnginePage() {
 
             {/* Stacked breakdown */}
             <div style={{ ...card, padding: '20px 24px' }}>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>Distribución de sugerencias</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>{traducir('semanticengine.distribucion_de_sugerencias')}</div>
               {(() => {
                 const tot = (stats.accepted||0) + (stats.rejected||0) + (stats.pending||0)
-                if (tot === 0) return <div style={{ color: 'var(--text-2)', fontSize: "var(--text-base)" }}>Sin datos todavía. Procesa algunas tareas o tickets para obtener métricas.</div>
+                if (tot === 0) return <div style={{ color: 'var(--text-2)', fontSize: "var(--text-base)" }}>{traducir('semanticengine.sin_datos_todavia_procesa_algunas_tareas_o')}</div>
                 const bars = [
                   { label: 'Aceptadas', val: stats.accepted||0, color: 'var(--success)' },
                   { label: 'Rechazadas', val: stats.rejected||0, color: 'var(--danger)' },
@@ -568,7 +570,7 @@ export default function SemanticEnginePage() {
                     {/* By mode */}
                     {Object.keys(stats.by_mode || {}).length > 0 && (
                       <div style={{ marginTop: 8, borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
-                        <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 8 }}>PIPELINE DE RESOLUCIÓN</div>
+                        <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 8 }}>{traducir('semanticengine.pipeline_de_resolucion')}</div>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           {Object.entries(stats.by_mode).map(([mode, count]: [string, any]) => (
                             <div key={mode} style={{ padding: '4px 10px', borderRadius: 20, background: 'var(--surface-3)', fontSize: "var(--text-xs)", color: 'var(--text-1)' }}>
@@ -586,7 +588,7 @@ export default function SemanticEnginePage() {
 
           {/* Bottom row: system status */}
           <div style={{ ...card, padding: '20px 24px' }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>Estado del sistema</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>{traducir('semanticengine.estado_del_sistema')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
               {[
                 { label: 'Expert cache', value: stats.cache_size || 0, icon: '⚡', hint: 'Items en caché exacta', color: 'var(--accent)' },
@@ -604,7 +606,7 @@ export default function SemanticEnginePage() {
               ))}
             </div>
             <div style={{ marginTop: 14, padding: '12px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.6 }}>
-              💡 Para mejorar la precisión: genera perfiles automáticos, procesa algunos tickets/tareas y corrige manualmente las asignaciones incorrectas. El sistema aprende de cada corrección.
+              {traducir('semanticengine.para_mejorar_la_precision_genera_perfiles_automaticos')}
             </div>
           </div>
         </div>

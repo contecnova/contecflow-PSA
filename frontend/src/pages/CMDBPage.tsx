@@ -60,6 +60,7 @@ const ENV_CFG: Record<string, {label:string;color:string}>   = {production:{labe
 const REL_TYPES = ['depends_on','runs_on','connects_to','hosts','monitors','backs_up']
 
 function CMDBItemForm({ item, categories, onClose }: { item: CI | null; categories: CI[]; onClose: () => void }) {
+  const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!item?.id
@@ -118,9 +119,9 @@ function CMDBItemForm({ item, categories, onClose }: { item: CI | null; categori
             </select>
           </div>
           <div>
-            <label style={ls}>Categoría</label>
+            <label style={ls}>{traducir('cmdb.categoria')}</label>
             <select style={is} value={String(form.category_id ?? '')} onChange={e => set('category_id')(e.target.value)}>
-              <option value="">Sin categoría</option>
+              <option value="">{traducir('cmdb.sin_categoria')}</option>
               {categories.map((c: CI) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -129,7 +130,7 @@ function CMDBItemForm({ item, categories, onClose }: { item: CI | null; categori
         {(CI_TYPE_FIELDS[String(form.ci_type ?? '')] || CI_TYPE_FIELDS.other).length > 0 && (
           <div>
             <div style={{fontSize: "var(--text-xs)",fontWeight:700,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10}}>
-              {CI_TYPE_ICONS[String(form.ci_type ?? '')]} Campos específicos — {String(form.ci_type ?? '')}
+              {CI_TYPE_ICONS[String(form.ci_type ?? '')]} {traducir('cmdb.campos_especificos')} {String(form.ci_type ?? '')}
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
               {(CI_TYPE_FIELDS[String(form.ci_type ?? '')] || CI_TYPE_FIELDS.other).map((field: {k:string;l:string;ph:string;type?:string}) => (
@@ -148,7 +149,7 @@ function CMDBItemForm({ item, categories, onClose }: { item: CI | null; categori
           </div>
         )}
         <div>
-          <label style={ls}>Descripción</label>
+          <label style={ls}>{traducir('cmdb.descripcion')}</label>
           <textarea style={{...is, height:70, resize:'vertical'}} value={String(form.description ?? '')} onChange={e => set('description')(e.target.value)} />
         </div>
         <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
@@ -165,6 +166,7 @@ function CMDBItemForm({ item, categories, onClose }: { item: CI | null; categori
 type Rel = { id: string; rel_type?: string; to_item?: CI; from_item?: CI }
 
 function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[]; onClose: () => void }) {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [fromId, _setFromId] = useState(item.id)
@@ -195,7 +197,7 @@ function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[];
           <div>
             {(rels?.outgoing||[]).length > 0 && (
               <div style={{marginBottom:16}}>
-                <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Sale de este activo</div>
+                <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>{traducir('cmdb.sale_de_este_activo')}</div>
                 {(rels?.outgoing||[]).map((r: Rel) => (
                   <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:6,marginBottom:4,fontSize: "var(--text-sm)"}}>
                     <span style={{color:'var(--accent)'}}>{CI_TYPE_ICONS[r.to_item?.ci_type ?? '']||'📌'} {r.to_item?.name}</span>
@@ -208,7 +210,7 @@ function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[];
             )}
             {(rels?.incoming||[]).length > 0 && (
               <div style={{marginBottom:16}}>
-                <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Apunta a este activo</div>
+                <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>{traducir('cmdb.apunta_a_este_activo')}</div>
                 {(rels?.incoming||[]).map((r: Rel) => (
                   <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:6,marginBottom:4,fontSize: "var(--text-sm)"}}>
                     <span style={{color:'var(--warning)'}}>{CI_TYPE_ICONS[r.from_item?.ci_type ?? '']||'📌'} {r.from_item?.name}</span>
@@ -219,12 +221,12 @@ function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[];
               </div>
             )}
             {(rels?.outgoing||[]).length === 0 && (rels?.incoming||[]).length === 0 && (
-              <div style={{textAlign:'center',padding:'20px',color:'var(--text-3)',fontSize: "var(--text-base)"}}>Sin relaciones definidas</div>
+              <div style={{textAlign:'center',padding:'20px',color:'var(--text-3)',fontSize: "var(--text-base)"}}>{traducir('cmdb.sin_relaciones_definidas')}</div>
             )}
           </div>
         )}
         <div style={{borderTop:'1px solid var(--surface-4)',paddingTop:14}}>
-          <div style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--text-2)',marginBottom:10}}>AÑADIR RELACIÓN</div>
+          <div style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--text-2)',marginBottom:10}}>{traducir('cmdb.anadir_relacion')}</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:8,alignItems:'center'}}>
             <select style={is} value={toId} onChange={e => setToId(e.target.value)}>
               <option value="">Activo destino...</option>
@@ -253,6 +255,7 @@ function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[];
 type ChangelogEntry = { id: string; action?: string; created_at?: string; user_name?: string; summary?: string; field?: string; old_value?: string; new_value?: string }
 
 function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
+  const traducir = useAppT()
   const { data: entries = [], isLoading } = useQuery<ChangelogEntry[]>({
     queryKey: ['cmdb-changelog', item.id],
     queryFn: () => cmdbApi.changelog(item.id).then(r => r.data).catch(() => []),
@@ -265,7 +268,7 @@ function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
     <Modal open onClose={onClose} title={`Historial — ${item.name}`} width={580}>
       {isLoading ? <Spinner /> : entries.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
-          Sin cambios registrados
+          {traducir('cmdb.sin_cambios_registrados')}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 480, overflowY: 'auto' }}>
@@ -285,7 +288,7 @@ function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
                     {ACTION_LABEL[e.action ?? ''] || e.action}
                   </span>
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{e.created_at?.slice(0, 16)}</span>
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>por {e.user_name}</span>
+                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{traducir('cmdb.por')} {e.user_name}</span>
                 </div>
                 <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{e.summary}</div>
                 {e.field && (
@@ -307,6 +310,7 @@ function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
 
 // ── Linked assets for a CI (drill-down panel) ────────────────────────────────
 function CILinkedAssets({ ciId }: { ciId: string }) {
+  const traducir = useAppT()
   const { data: assets, isLoading } = useQuery<CI[]>({
     queryKey: ['ci-assets', ciId],
     queryFn: () => cmdbApi.assetsByCI(ciId).then(r => r.data?.assets || []).catch(() => []),
@@ -316,7 +320,7 @@ function CILinkedAssets({ ciId }: { ciId: string }) {
   if (!assets?.length) return (
     <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12, marginBottom: 8 }}>
       <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>Activos vinculados</div>
-      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Ningún activo vinculado a este CI.</div>
+      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{traducir('cmdb.ningun_activo_vinculado_a_este_ci')}</div>
     </div>
   )
   return (
@@ -342,6 +346,7 @@ function CILinkedAssets({ ciId }: { ciId: string }) {
 
 // ── CMDB Agents on-prem tab ──────────────────────────────────────────────────
 function CMDBAgentsTab() {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [agentName, setAgentName] = useState('')
@@ -382,11 +387,11 @@ function CMDBAgentsTab() {
       {/* Registration form */}
       <div style={{ ...ps }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
-          🤖 Registrar nuevo agente on-prem
+          {traducir('cmdb.registrar_nuevo_agente_on_prem')}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, alignItems: 'flex-end' }}>
           <div>
-            <label style={labelStyle}>Nombre del agente</label>
+            <label style={labelStyle}>{traducir('cmdb.nombre_del_agente')}</label>
             <input value={agentName} onChange={e => setAgentName(e.target.value)} style={inputStyle} placeholder="agent-datacenter-01" />
           </div>
           <div>
@@ -406,13 +411,13 @@ function CMDBAgentsTab() {
         {newToken && (
           <div style={{ marginTop: 16, background: 'rgba(99,179,237,0.08)', border: '1px solid rgba(99,179,237,0.3)', borderRadius: 10, padding: '14px 18px' }}>
             <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--info)', textTransform: 'uppercase', marginBottom: 8 }}>
-              🔑 Token de registro (úsalo una sola vez)
+              {traducir('cmdb.token_de_registro_usalo_una_sola_vez')}
             </div>
             <code style={{ display: 'block', fontSize: "var(--text-sm)", color: 'var(--text-1)', wordBreak: 'break-all', fontFamily: 'var(--font-mono)', background: 'var(--surface-4)', padding: '8px 12px', borderRadius: 6 }}>
               {newToken}
             </code>
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 8 }}>
-              Ejecuta el agente con: <code style={{ fontFamily: 'var(--font-mono)' }}>CMDB_TOKEN={newToken} ./cmdb-agent</code>
+              {traducir('cmdb.ejecuta_el_agente_con')} <code style={{ fontFamily: 'var(--font-mono)' }}>CMDB_TOKEN={newToken} ./cmdb-agent</code>
             </div>
             <button onClick={() => setNewToken(null)} style={{ marginTop: 10, background: 'none', border: 'none', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
               Ocultar token
@@ -429,7 +434,7 @@ function CMDBAgentsTab() {
         {isLoading ? <Spinner /> :
          agents.length === 0 ? (
            <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
-             No hay agentes registrados. Registra el primero arriba.
+             {traducir('cmdb.no_hay_agentes_registrados_registra_el_primero')}
            </div>
          ) : (
            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
@@ -473,6 +478,7 @@ function CMDBAgentsTab() {
 }
 
 export default function CMDBPage(): JSX.Element {
+  const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -551,7 +557,7 @@ export default function CMDBPage(): JSX.Element {
   return (
     <PageShell>
       <PageHeader icon={<Database size={18} />} title={t('cmdb.title')} subtitle={t('cmdb.subtitle')}
-        actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo activo</Button>} />
+        actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>{traducir('cmdb.nuevo_activo')}</Button>} />
 
       <Tabs
         items={[
@@ -584,7 +590,7 @@ export default function CMDBPage(): JSX.Element {
                 </select>
               </div>
               <div>
-                <label style={ls}>Radio de expansión</label>
+                <label style={ls}>{traducir('cmdb.radio_de_expansion')}</label>
                 <select style={{...is,width:120}} value={topoRadius} onChange={e => setTopoRadius(Number(e.target.value))}>
                   {[1,2,3].map(r => <option key={r} value={r}>{r} {r===1?'nivel':'niveles'}</option>)}
                 </select>
@@ -633,7 +639,7 @@ export default function CMDBPage(): JSX.Element {
                 <button
                   onClick={() => setDrillCI(null)}
                   style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-lg)", padding: 0 }}
-                  aria-label="Cerrar panel de detalle"
+                  aria-label={traducir('cmdb.cerrar_panel_de_detalle')}
                 >✕</button>
               </div>
 
@@ -731,7 +737,7 @@ export default function CMDBPage(): JSX.Element {
                     setDrillCI(null)
                   }}
                 >
-                  🔗 Ver como CI central
+                  {traducir('cmdb.ver_como_ci_central')}
                 </Button>
                 <Button
                   variant="secondary"
@@ -773,14 +779,14 @@ export default function CMDBPage(): JSX.Element {
           <div>
             <label style={ls}>Tipo</label>
             <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{...is,width:160}}>
-              <option value="">Todos los tipos</option>
+              <option value="">{traducir('cmdb.todos_los_tipos')}</option>
               {CI_TYPES.map(t => <option key={t} value={t}>{CI_TYPE_ICONS[t]} {t} ({typeCounts[t]||0})</option>)}
             </select>
           </div>
           <div>
             <label style={ls}>Estado</label>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{...is,width:160}}>
-              <option value="">Todos</option>
+              <option value="">{traducir('cmdb.todos')}</option>
               {Object.entries(STATUS_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
@@ -796,9 +802,9 @@ export default function CMDBPage(): JSX.Element {
       {isLoading ? <Spinner /> : items.length === 0 ? (
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
           <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>🖥️</div>
-          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>Sin activos IT</div>
-          <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>Registra servidores, aplicaciones, bases de datos y otros activos de tu infraestructura.</div>
-          <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Añadir primer activo</Button>
+          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{traducir('cmdb.sin_activos_it')}</div>
+          <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>{traducir('cmdb.registra_servidores_aplicaciones_bases_de_datos_y')}</div>
+          <Button onClick={() => { setEditing(null); setShowForm(true) }}>{traducir('cmdb.anadir_primer_activo')}</Button>
         </div>
       ) : (
         <div style={ps}>
@@ -890,7 +896,7 @@ export default function CMDBPage(): JSX.Element {
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex',gap:6}}>
                         <button onClick={() => setHistoryItem(item)}
-                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}} title="Ver historial de cambios">📋</button>
+                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}} title={traducir('cmdb.ver_historial_de_cambios')}>📋</button>
                         <button onClick={() => setRelItem(item)}
                           style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>🔗</button>
                         <button onClick={() => { setEditing(item); setShowForm(true) }}

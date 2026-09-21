@@ -28,6 +28,7 @@ import {
 import { sdWorkflowDesignerApi } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
 import { Button, Spinner, Page, StatusBadge } from '../../components/ui'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 // ── Catálogo visual de los nodos (color + icono por tipo) ────────────────────
 const NODE_VISUAL: Record<string, { color: string; icon: string; label: string }> = {
@@ -104,6 +105,7 @@ export default function WorkflowDesignerPage() {
 
 // ── Listado de blueprints ────────────────────────────────────────────────────
 function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
+  const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const [search, setSearch] = useState('')
@@ -162,17 +164,17 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
         </div>
         <select value={filter} onChange={e => setFilter(e.target.value)}
           className="ds-input" style={{ width: 'auto', minWidth: 160 }}>
-          <option value="">Todos los procesos</option>
+          <option value="">{traducir('workflowdesigner.todos_los_procesos')}</option>
           <option value="ticket">Ticket</option>
           <option value="change">Cambio</option>
-          <option value="approval">Aprobación</option>
+          <option value="approval">{traducir('workflowdesigner.aprobacion')}</option>
         </select>
         <div className="ds-toolbar__spacer" />
         <Button variant="secondary" onClick={() => setShowTemplates(true)}>
           <Sparkles size={14} /> Plantilla
         </Button>
         <Button onClick={() => setShowCreate(true)}>
-          <Plus size={14} /> Nuevo blueprint
+          <Plus size={14} /> {traducir('workflowdesigner.nuevo_blueprint')}
         </Button>
       </div>
 
@@ -281,12 +283,13 @@ function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: any; onOpen: ()
 }
 
 function CloneBlueprintModal({ bp, onClose, onConfirm }: { bp: any; onClose: () => void; onConfirm: (name: string) => void }) {
+  const { t: traducir } = useAppLang()
   const [name, setName] = useState(`${bp.name} (copia)`)
   return (
     <Modal title="Clonar blueprint" onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div>
-          <label style={labelStyle}>Nombre de la copia</label>
+          <label style={labelStyle}>{traducir('workflowdesigner.nombre_de_la_copia')}</label>
           <input autoFocus value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
@@ -313,6 +316,7 @@ function ConfirmModal({ title, message, confirmLabel = 'Confirmar', onClose, onC
 }
 
 function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (bp: any) => void }) {
+  const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [name, setName] = useState('')
@@ -338,22 +342,22 @@ function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => void; onC
   })
 
   return (
-    <Modal title="Nuevo blueprint" onClose={onClose}>
+    <Modal title={traducir('workflowdesigner.nuevo_blueprint')} onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div>
           <label style={labelStyle}>Nombre</label>
-          <input autoFocus value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder="p.ej. Triaje de incidentes" />
+          <input autoFocus value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder={traducir('workflowdesigner.p_ej_triaje_de_incidentes')} />
         </div>
         <div>
-          <label style={labelStyle}>Tipo de proceso</label>
+          <label style={labelStyle}>{traducir('workflowdesigner.tipo_de_proceso')}</label>
           <select value={processType} onChange={e => setProcessType(e.target.value)} style={inputStyle}>
             <option value="ticket">Ticket</option>
             <option value="change">Cambio</option>
-            <option value="approval">Aprobación</option>
+            <option value="approval">{traducir('workflowdesigner.aprobacion')}</option>
           </select>
         </div>
         <div>
-          <label style={labelStyle}>Descripción (opcional)</label>
+          <label style={labelStyle}>{traducir('workflowdesigner.descripcion_opcional')}</label>
           <textarea rows={3} value={description} onChange={e => setDescription(e.target.value)} style={{ ...inputStyle, resize: 'vertical' }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
@@ -659,6 +663,7 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
 
 // ── Runs tab ────────────────────────────────────────────────────────────────
 function RunsTab({ blueprintId }: { blueprintId: string }) {
+  const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const [activeRunId, setActiveRunId] = useState<any>(null)
@@ -710,9 +715,9 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
         ) : runs.length === 0 ? (
           <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-3)' }}>
             <Activity size={32} style={{ marginBottom: 8 }} />
-            <div style={{ fontWeight: 600 }}>Aún no hay ejecuciones</div>
+            <div style={{ fontWeight: 600 }}>{traducir('workflowdesigner.aun_no_hay_ejecuciones')}</div>
             <div style={{ fontSize: 'var(--text-sm)' }}>
-              Pulsa "Ejecutar" para iniciar una nueva.
+              {traducir('workflowdesigner.pulsa_ejecutar_para_iniciar_una_nueva')}
             </div>
           </div>
         ) : (
@@ -761,7 +766,7 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
       }}>
         {!activeRunId ? (
           <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>
-            Selecciona una ejecución para ver su historial.
+            {traducir('workflowdesigner.selecciona_una_ejecucion_para_ver_su_historial')}
           </div>
         ) : !runDetail ? (
           <Spinner />
@@ -802,7 +807,7 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
                 Historial ({runDetail.steps.length})
               </div>
               {runDetail.steps.length === 0 ? (
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Sin pasos aún.</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('workflowdesigner.sin_pasos_aun')}</div>
               ) : runDetail.steps.map((s: any, i: number) => (
                 <div key={s.id} style={{
                   borderLeft: `2px solid ${NODE_VISUAL[s.node_type]?.color || 'var(--text-3)'}`,
@@ -841,6 +846,7 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
 }
 
 function ResumeBranchPicker({ runDetail, onResume, pending }: { runDetail: any; onResume: (branch: string) => void; pending: boolean }) {
+  const { t: traducir } = useAppLang()
   // Branch options según el tipo del nodo actual
   const nodeType = runDetail.steps?.find((s: any) => s.status === 'waiting')?.node_type || 'approval'
   const branches: { b: string; label: string; color?: string }[] = ({
@@ -856,7 +862,7 @@ function ResumeBranchPicker({ runDetail, onResume, pending }: { runDetail: any; 
       borderRadius: 8, padding: 10,
     }}>
       <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#f59e0b', marginBottom: 6 }}>
-        ⏸ Esperando intervención · {NODE_VISUAL[nodeType]?.label || nodeType}
+        {traducir('workflowdesigner.esperando_intervencion')} {NODE_VISUAL[nodeType]?.label || nodeType}
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {branches.map(({ b, label, color }) => (
@@ -876,6 +882,7 @@ function ResumeBranchPicker({ runDetail, onResume, pending }: { runDetail: any; 
 }
 
 function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: any; onClose: () => void; onStarted?: () => void }) {
+  const { t: traducir } = useAppLang()
   const toast = useToast()
   const [contextJson, setContextJson] = useState('{\n  "priority": "P3"\n}')
   const [targetType, setTargetType] = useState(blueprint.process_type || 'manual')
@@ -895,15 +902,15 @@ function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: any; onCl
     onError: (e: any) => toast.error(e?.response?.data?.detail || e?.message || 'Error'),
   })
   return (
-    <Modal title="Iniciar ejecución" onClose={onClose} width={520}>
+    <Modal title={traducir('workflowdesigner.iniciar_ejecucion')} onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', gap: 10 }}>
           <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Tipo de entidad</label>
+            <label style={labelStyle}>{traducir('workflowdesigner.tipo_de_entidad')}</label>
             <input value={targetType} onChange={e => setTargetType(e.target.value)} style={inputStyle} placeholder="ticket / change / manual" />
           </div>
           <div style={{ flex: 1 }}>
-            <label style={labelStyle}>ID de entidad (opcional)</label>
+            <label style={labelStyle}>{traducir('workflowdesigner.id_de_entidad_opcional')}</label>
             <input value={targetId} onChange={e => setTargetId(e.target.value)} style={inputStyle} placeholder="123e4567-…" />
           </div>
         </div>
@@ -912,7 +919,7 @@ function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: any; onCl
           <textarea value={contextJson} onChange={e => setContextJson(e.target.value)} rows={6}
             style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 'var(--text-xs)', resize: 'vertical' }} />
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
-            Las decisiones del workflow lo evaluarán (p.ej. <code>priority == 'P1'</code>).
+            {traducir('workflowdesigner.las_decisiones_del_workflow_lo_evaluaran_p')} <code>priority == 'P1'</code>).
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
@@ -970,13 +977,14 @@ function Palette({ onAdd }: { onAdd: (type: string) => void }) {
 }
 
 function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (patch: any) => void; onDelete: () => void }) {
+  const { t: traducir } = useAppLang()
   if (!node) {
     return (
       <div style={{
         background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12,
         padding: 14, color: 'var(--text-3)', fontSize: 'var(--text-sm)',
       }}>
-        Selecciona un nodo para editar sus propiedades.
+        {traducir('workflowdesigner.selecciona_un_nodo_para_editar_sus_propiedades')}
       </div>
     )
   }
@@ -1006,19 +1014,19 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (p
       {/* Campos por tipo */}
       {t === 'state' && <>
         <FieldText label="Status" value={config.status} onChange={v => setConfig('status', v)} placeholder="open / in_progress / done" />
-        <FieldText label="Asignar al rol" value={config.assignee_role} onChange={v => setConfig('assignee_role', v)} placeholder="support_l1" />
+        <FieldText label={traducir('workflowdesigner.asignar_al_rol')} value={config.assignee_role} onChange={v => setConfig('assignee_role', v)} placeholder="support_l1" />
         <FieldNumber label="SLA (horas)" value={config.sla_hours} onChange={v => setConfig('sla_hours', v)} />
       </>}
       {t === 'decision' && <>
-        <FieldText label="Expresión" value={config.expression} onChange={v => setConfig('expression', v)} placeholder="priority == 'P1'" />
+        <FieldText label={traducir('workflowdesigner.expresion')} value={config.expression} onChange={v => setConfig('expression', v)} placeholder="priority == 'P1'" />
       </>}
       {t === 'approval' && <>
-        <FieldText label="Rol que aprueba" value={config.approver_role} onChange={v => setConfig('approver_role', v)} placeholder="manager" />
+        <FieldText label={traducir('workflowdesigner.rol_que_aprueba')} value={config.approver_role} onChange={v => setConfig('approver_role', v)} placeholder="manager" />
         <FieldNumber label="Plazo (horas)" value={config.deadline_hours} onChange={v => setConfig('deadline_hours', v)} />
       </>}
       {t === 'wait' && <>
         <FieldNumber label="Esperar (minutos)" value={config.wait_minutes} onChange={v => setConfig('wait_minutes', v)} />
-        <FieldText label="O hasta el campo" value={config.until_field} onChange={v => setConfig('until_field', v)} placeholder="due_date" />
+        <FieldText label={traducir('workflowdesigner.o_hasta_el_campo')} value={config.until_field} onChange={v => setConfig('until_field', v)} placeholder="due_date" />
       </>}
       {t === 'notify' && <>
         <FieldSelect label="Canal" value={config.channel || 'email'} onChange={v => setConfig('channel', v)} options={[
@@ -1028,7 +1036,7 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (p
         <FieldText label="Destinatarios" value={config.recipients} onChange={v => setConfig('recipients', v)} placeholder="$assignee" />
       </>}
       {t === 'http_call' && <>
-        <FieldSelect label="Método" value={config.method || 'POST'} onChange={v => setConfig('method', v)} options={[
+        <FieldSelect label={traducir('workflowdesigner.metodo')} value={config.method || 'POST'} onChange={v => setConfig('method', v)} options={[
           { v: 'GET', l: 'GET' }, { v: 'POST', l: 'POST' }, { v: 'PATCH', l: 'PATCH' }, { v: 'DELETE', l: 'DELETE' },
         ]} />
         <FieldText label="URL" value={config.url} onChange={v => setConfig('url', v)} placeholder="https://api.x.com/foo" />
@@ -1036,10 +1044,10 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (p
       </>}
       {t === 'create_ticket' && <>
         <FieldText label="Cola" value={config.queue} onChange={v => setConfig('queue', v)} placeholder="support" />
-        <FieldText label="Plantilla de título" value={config.title_template} onChange={v => setConfig('title_template', v)} placeholder="Seguimiento: ${title}" />
+        <FieldText label={traducir('workflowdesigner.plantilla_de_titulo')} value={config.title_template} onChange={v => setConfig('title_template', v)} placeholder="Seguimiento: ${title}" />
         {/* La descripción es obligatoria en el modelo de ticket y no había campo
             para escribirla: el motor se cae al título si se deja en blanco. */}
-        <FieldText label="Plantilla de descripción" value={config.description_template} onChange={v => setConfig('description_template', v)} placeholder="Creado por el flujo desde ${title}" />
+        <FieldText label={traducir('workflowdesigner.plantilla_de_descripcion')} value={config.description_template} onChange={v => setConfig('description_template', v)} placeholder={traducir('workflowdesigner.creado_por_el_flujo_desde_title')} />
         <FieldSelect label="Prioridad" value={config.priority || 'P3'} onChange={v => setConfig('priority', v)} options={[
           { v: 'P1', l: 'P1 — Crítica' }, { v: 'P2', l: 'P2 — Alta' }, { v: 'P3', l: 'P3 — Normal' }, { v: 'P4', l: 'P4 — Baja' },
         ]} />
@@ -1084,12 +1092,13 @@ function FieldTextarea({ label, value, onChange }: { label: string; value: any; 
 }
 
 function ValidationBadge({ validation }: { validation: any }) {
+  const { t: traducir } = useAppLang()
   if (!validation) return null
   const errs = validation.errors?.length || 0
   const warns = validation.warnings?.length || 0
   if (errs === 0 && warns === 0) {
     return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#10b981', fontSize: 'var(--text-xs)' }}>
-      <CheckCircle size={12} /> Válido
+      <CheckCircle size={12} /> {traducir('workflowdesigner.valido')}
     </span>
   }
   if (errs > 0) {

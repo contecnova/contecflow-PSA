@@ -172,7 +172,9 @@ function analizar(ruta) {
 function tieneHook(cuerpo, fuente, nombre) {
   const n = nombre.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   return new RegExp(
-    `const\\s*\\{[^}]*\\b${n}\\b[^}]*\\}\\s*=\\s*useAppLang\\(\\)`
+    // Destructurado, de cualquiera de los dos hooks que devuelven objeto.
+    `const\\s*\\{[^}]*\\b${n}\\b[^}]*\\}\\s*=\\s*use(?:AppLang|AppT)\\(\\)`
+    // O directo, que es lo que devuelve el `useAppT` de AppLangContext.
     + `|const\\s+${n}\\s*=\\s*useAppT\\(\\)`,
   ).test(cuerpo.getText(fuente))
 }
@@ -219,12 +221,36 @@ function tEstaOcupado(fuente) {
 // como «llamar a un objeto». Lo cazó el typecheck estricto, pero en un fichero
 // sin tipos habría llegado a producción como un fallo en tiempo de ejecución
 // dentro de una lista.
+// ── Hay TRES formas de pedir la función, y dos se llaman igual ───────────────
+//
+// `i18n/AppLangContext` exporta `useAppT()` que devuelve **la función**, y
+// `hooks/useAppT` exporta otro `useAppT()` que devuelve **un objeto** con `.t`
+// dentro. Mismo nombre, formas incompatibles, y la única manera de saber cuál
+// es mirar de dónde viene el import. Dar por hecha la primera compilaba
+// `t(...)` sobre un objeto en `ITSMKnowledgeTab`: `Type 'AppT' has no call
+// signatures`. Queda anotado como hallazgo aparte: dos hooks públicos con el
+// mismo nombre y distinto contrato son una trampa para cualquiera.
+function fuenteDelImport(fuente, nombre) {
+  for (const s of fuente.statements) {
+    if (!ts.isImportDeclaration(s) || !s.importClause?.namedBindings) continue
+    const b = s.importClause.namedBindings
+    if (!ts.isNamedImports(b)) continue
+    if (b.elements.some((e) => e.name.text === nombre)) return s.moduleSpecifier.getText(fuente)
+  }
+  return null
+}
+
 function formaDelHook(texto, fuente) {
   const nombreT = tEstaOcupado(fuente) ? 'traducir' : 't'
-  if (/\buseAppT\b/.test(texto)) {
+  const destructura = nombreT === 't' ? 't' : `t: ${nombreT}`
+  const origen = fuenteDelImport(fuente, 'useAppT')
+
+  if (origen && /hooks\/useAppT/.test(origen)) {
+    return { llamada: `const { ${destructura} } = useAppT()`, nombre: 'useAppT', t: nombreT }
+  }
+  if (origen) {
     return { llamada: `const ${nombreT} = useAppT()`, nombre: 'useAppT', t: nombreT }
   }
-  const destructura = nombreT === 't' ? 't' : `t: ${nombreT}`
   return {
     llamada: `const { ${destructura} } = useAppLang()`, nombre: 'useAppLang', t: nombreT,
   }
