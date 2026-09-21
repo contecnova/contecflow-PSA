@@ -71,6 +71,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
   onClose: () => void
   onSaved: () => void
 }) {
+  const t = useAppT()
   const toast = useToast()
   const [managerId, setManagerId]   = useState(user.manager_id || '')
   const [jobTitle, setJobTitle]     = useState(user.job_title || '')
@@ -124,17 +125,17 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
         <div>
           <label style={LS}>Departamento</label>
           <select value={department} onChange={e => setDepartment(e.target.value)} style={IS}>
-            <option value="">— Sin departamento —</option>
+            <option value="">{t('orgchart.sin_departamento')}</option>
             {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
           </select>
         </div>
         <div>
           <label style={LS}>Reporta a / Aprobador directo</label>
           <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', marginBottom:6, lineHeight:1.6 }}>
-            Esta persona aprobará los <strong>gastos</strong>, <strong>ausencias</strong> e <strong>imputaciones</strong> de {user.full_name.split(' ')[0]}.
+            {t('orgchart.esta_persona_aprobara_los')} <strong>gastos</strong>, <strong>ausencias</strong> e <strong>imputaciones</strong> {t('orgchart.de')} {user.full_name.split(' ')[0]}.
           </div>
           <select value={managerId} onChange={e => setManagerId(e.target.value)} style={IS}>
-            <option value="">Sin manager (nivel raíz — aprobación manual)</option>
+            <option value="">{t('orgchart.sin_manager_nivel_raiz_aprobacion_manual')}</option>
             {eligible.map(u => (
               <option key={u.id} value={u.id}>
                 {u.full_name}
@@ -148,8 +149,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
         <div style={{ padding:'10px 14px', background:'var(--accent-muted)',
           border:'1px solid var(--accent-glow)', borderRadius:8, fontSize: "var(--text-sm)",
           color:'var(--text-2)', lineHeight:1.7 }}>
-          💡 <strong>Cómo funciona la aprobación:</strong> cuando {user.full_name.split(' ')[0]} envíe
-          un gasto, solicite una ausencia o entregue su timesheet,
+          💡 <strong>{t('orgchart.como_funciona_la_aprobacion')}</strong> {t('orgchart.cuando')} {user.full_name.split(' ')[0]} {t('orgchart.envie_un_gasto_solicite_una_ausencia_o')}
           {managerId
             ? ` ${eligible.find(u=>u.id===managerId)?.full_name || 'su manager'} recibirá la notificación para aprobar o rechazar.`
             : ' quedará pendiente de asignación de aprobador.'}
@@ -157,7 +157,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
 
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving} loading={saving}>Guardar posición</Button>
+          <Button onClick={handleSave} disabled={saving} loading={saving}>{t('orgchart.guardar_posicion')}</Button>
         </div>
       </div>
     </Modal>
@@ -236,6 +236,7 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
   allUsers: OrgUser[]
   isAdmin: boolean
 }) {
+  const t = useAppT()
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<OrgUser | null>(null)
   const qc = useQueryClient()
@@ -323,7 +324,7 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
       <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
         borderRadius:12, padding:20, overflow:'auto', maxHeight:'calc(100vh - 260px)' }}>
         {nodes.length === 0
-          ? <EmptyState icon="🏢" title="Sin organigrama configurado"
+          ? <EmptyState icon="🏢" title={t('orgchart.sin_organigrama_configurado')}
               description={isAdmin
                 ? 'Ve a la pestaña Posiciones para asignar managers y construir la jerarquía'
                 : 'El organigrama aún no ha sido configurado'} />
@@ -351,6 +352,7 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
 
 // ── Pestaña 2: Tabla de posiciones ────────────────────────────────────────────
 function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: boolean }) {
+  const t = useAppT()
   const [editing, setEditing]   = useState<OrgUser | null>(null)
   const [filterDept, setFilterDept] = useState('')
   const [search, setSearch]     = useState('')
@@ -384,7 +386,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
           placeholder="Buscar persona..."
           style={{ ...IS, flex:1, minWidth:200 }} />
         <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={IS}>
-          <option value="">Todos los departamentos</option>
+          <option value="">{t('orgchart.todos_los_departamentos')}</option>
           {depts.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <span style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{filtered.length} persona{filtered.length!==1?'s':''}</span>
@@ -453,7 +455,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
                       </div>
                     ) : (
                       <span style={{ fontSize: "var(--text-sm)", color:'var(--text-4)', fontStyle:'italic' }}>
-                        Sin aprobador asignado
+                        {t('orgchart.sin_aprobador_asignado')}
                       </span>
                     )}
                   </td>
@@ -475,7 +477,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
 
         {filtered.length === 0 && (
           <div style={{ padding:'32px', textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>
-            Sin resultados para los filtros seleccionados
+            {t('orgchart.sin_resultados_para_los_filtros_seleccionados')}
           </div>
         )}
       </div>
@@ -498,6 +500,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
 
 // ── Pestaña 3: Cadenas de aprobación ─────────────────────────────────────────
 function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
+  const t = useAppT()
   const [selectedUserId, setSelectedUserId] = useState('')
   const [search, setSearch] = useState('')
 
@@ -529,7 +532,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
         borderRadius:12, padding:16, height:'fit-content' }}>
         <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--text-2)', marginBottom:12,
           textTransform:'uppercase', letterSpacing:'0.06em' }}>
-          👤 Ver cadena de aprobación
+          {t('orgchart.ver_cadena_de_aprobacion')}
         </div>
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Buscar persona..."
@@ -596,7 +599,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
               borderRadius:12, padding:'16px 20px' }}>
               <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)',
                 textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>
-                Qué necesita aprobación
+                {t('orgchart.que_necesita_aprobacion')}
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
                 {[
@@ -619,18 +622,17 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
               borderRadius:12, padding:'16px 20px' }}>
               <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)',
                 textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>
-                Cadena de aprobación
+                {t('orgchart.cadena_de_aprobacion')}
               </div>
 
               {chain.chain.length === 0 ? (
                 <div style={{ padding:'16px', background:'rgba(255,71,87,0.06)',
                   border:'1px solid rgba(255,71,87,0.2)', borderRadius:8 }}>
                   <div style={{ fontSize: "var(--text-base)", color:'var(--danger)', fontWeight:600, marginBottom:4 }}>
-                    ⚠️ Sin aprobador configurado
+                    {t('orgchart.sin_aprobador_configurado')}
                   </div>
                   <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', lineHeight:1.6 }}>
-                    {chain.user_name} no tiene manager asignado. Sus gastos, ausencias e imputaciones
-                    quedarán pendientes sin poder ser aprobados. Ve a la pestaña <strong>Posiciones</strong> para configurarlo.
+                    {chain.user_name} {t('orgchart.no_tiene_manager_asignado_sus_gastos_ausencias')} <strong>Posiciones</strong> {t('orgchart.para_configurarlo')}
                   </div>
                 </div>
               ) : (
@@ -691,9 +693,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
                   <div style={{ marginTop:12, padding:'10px 14px',
                     background:'var(--accent-muted)', border:'1px solid var(--accent-glow)',
                     borderRadius:8, fontSize: "var(--text-sm)", color:'var(--text-2)', lineHeight:1.6 }}>
-                    💡 <strong>{chain.chain[0]?.full_name}</strong> es el aprobador directo.
-                    Si no responde en el plazo configurado, la solicitud se escala automáticamente
-                    al siguiente nivel de la cadena.
+                    💡 <strong>{chain.chain[0]?.full_name}</strong> {t('orgchart.es_el_aprobador_directo_si_no_responde')}
                   </div>
                 </div>
               )}

@@ -69,6 +69,7 @@ const ROLES: ProjectRole[] = ['admin', 'pm', 'team_lead', 'employee', 'hr']
 const COLORS = CHART_COLORS_EXTENDED
 
 function StateForm({ projectId, state, onClose }: { projectId: string; state: WorkflowState | null; onClose: () => void }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!state?.id
@@ -95,12 +96,12 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
     <Modal open onClose={onClose} title={isEdit ? 'Editar estado' : 'Nuevo estado'}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
-          <label style={labelStyle}>Nombre del estado</label>
+          <label style={labelStyle}>{t('workflows.nombre_del_estado')}</label>
           <input style={inputStyle} value={form.name}
             onChange={e => {
               const n = e.target.value
               setForm(f => ({ ...f, name: n, value: isEdit ? f.value : n.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))
-            }} placeholder="Nombre visible del estado" aria-label="Nombre del estado" />
+            }} placeholder={t('workflows.nombre_visible_del_estado')} aria-label={t('workflows.nombre_del_estado')} />
         </div>
         <div>
           <label style={labelStyle}>Valor interno</label>
@@ -112,7 +113,7 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
         <div>
           <label style={labelStyle}>Icono (emoji)</label>
           <input style={{ ...inputStyle, width: 80, textAlign: 'center', fontSize: "var(--text-xl)" }}
-            value={form.icon} onChange={e => set('icon')(e.target.value)} placeholder="📝" aria-label="Icono del estado" />
+            value={form.icon} onChange={e => set('icon')(e.target.value)} placeholder="📝" aria-label={t('workflows.icono_del_estado')} />
         </div>
         <div>
           <label style={labelStyle}>Color</label>
@@ -128,11 +129,11 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
             <input type="checkbox" checked={form.is_initial} onChange={e => set('is_initial')(e.target.checked)} />
-            Estado inicial (punto de entrada)
+            {t('workflows.estado_inicial_punto_de_entrada')}
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
             <input type="checkbox" checked={form.is_final} onChange={e => set('is_final')(e.target.checked)} />
-            Estado final (cuenta como completado)
+            {t('workflows.estado_final_cuenta_como_completado')}
           </label>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
@@ -147,6 +148,7 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
 }
 
 function TransitionForm({ projectId, states, onClose }: { projectId: string; states: WorkflowState[]; onClose: () => void }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [form, setForm] = useState<TransitionFormData>({
@@ -165,7 +167,7 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
   })
 
   return (
-    <Modal open onClose={onClose} title="Nueva transicion">
+    <Modal open onClose={onClose} title={t('workflows.nueva_transicion')}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
@@ -186,11 +188,11 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
           </div>
         </div>
         <div>
-          <label style={labelStyle}>Etiqueta de la transición (opcional)</label>
-          <input style={inputStyle} value={form.label} onChange={e => set('label')(e.target.value)} placeholder="Ejecutar, Validar o Cerrar" aria-label="Etiqueta de la transicion" />
+          <label style={labelStyle}>{t('workflows.etiqueta_de_la_transicion_opcional')}</label>
+          <input style={inputStyle} value={form.label} onChange={e => set('label')(e.target.value)} placeholder="Ejecutar, Validar o Cerrar" aria-label={t('workflows.etiqueta_de_la_transicion')} />
         </div>
         <div>
-          <label style={labelStyle}>Solo puede ejecutarla este rol</label>
+          <label style={labelStyle}>{t('workflows.solo_puede_ejecutarla_este_rol')}</label>
           <select style={inputStyle} value={form.required_role} onChange={e => set('required_role')(e.target.value)}>
             <option value="">Cualquier rol</option>
             {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
@@ -198,7 +200,7 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
           <input type="checkbox" checked={form.requires_comment} onChange={e => set('requires_comment')(e.target.checked)} />
-          Requiere comentario obligatorio al ejecutar
+          {t('workflows.requiere_comentario_obligatorio_al_ejecutar')}
         </label>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -282,7 +284,7 @@ export default function WorkflowsPage() {
               style={{ background: 'transparent', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '7px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit', fontWeight: 600 }}>
               {isResetting ? '⏳' : '↺ Restablecer'}
             </button>
-            <Button variant="secondary" onClick={() => setShowTransitionForm(true)}>+ Transición</Button>
+            <Button variant="secondary" onClick={() => setShowTransitionForm(true)}>{t('workflows.transicion')}</Button>
             <Button onClick={() => { setEditingState(null); setShowStateForm(true) }}>+ Estado</Button>
           </div>
         )}
@@ -294,13 +296,13 @@ export default function WorkflowsPage() {
         <label style={labelStyle}>Proyecto</label>
         <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
           style={{ ...inputStyle, width: 360 }}>
-          <option value="">Selecciona un proyecto...</option>
+          <option value="">{t('workflows.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
         </select>
       </div>
 
       {!selectedProject && (
-        <EmptyState icon="⚙" title="Selecciona un proyecto" description="Elige un proyecto para configurar su workflow" />
+        <EmptyState icon="⚙" title={t('workflows.selecciona_un_proyecto_2')} description="Elige un proyecto para configurar su workflow" />
       )}
 
       {selectedProject && isLoading && <Spinner />}
@@ -308,9 +310,9 @@ export default function WorkflowsPage() {
       {selectedProject && !isLoading && states.length === 0 && (
         <div style={{ ...panelStyle, textAlign: 'center', padding: '48px 24px' }}>
           <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>⚙️</div>
-          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8 }}>Sin workflow definido</div>
+          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8 }}>{t('workflows.sin_workflow_definido')}</div>
           <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 24 }}>
-            Puedes inicializar un workflow Scrum estándar o crear los estados manualmente.
+            {t('workflows.puedes_inicializar_un_workflow_scrum_estandar_o')}
           </div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
             <Button onClick={() => initWorkflow()} disabled={isIniting}>
@@ -321,7 +323,7 @@ export default function WorkflowsPage() {
             </Button>
           </div>
           <div style={{ marginTop: 20, fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
-            El workflow Scrum incluye: Pendiente → En progreso → En revisión → Completado (+ Bloqueado)
+            {t('workflows.el_workflow_scrum_incluye_pendiente_en_progreso')}
           </div>
         </div>
       )}
@@ -367,12 +369,12 @@ export default function WorkflowsPage() {
               <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>Transiciones ({totalTransitions})</div>
               <button onClick={() => setShowTransitionForm(true)}
                 style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 6, padding: '5px 12px', color: 'var(--purple)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-                + Transición
+                {t('workflows.transicion')}
               </button>
             </div>
             {totalTransitions === 0 && (
               <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
-                Sin transiciones. Define qué estados pueden pasar a cuáles.
+                {t('workflows.sin_transiciones_define_que_estados_pueden_pasar')}
               </div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -408,7 +410,7 @@ export default function WorkflowsPage() {
 
           {/* Diagrama visual */}
           <div style={{ ...panelStyle, gridColumn: '1 / -1' }}>
-            <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>Diagrama del workflow</div>
+            <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>{t('workflows.diagrama_del_workflow')}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
               {[...states].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).map((s, i) => (
                 <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

@@ -89,6 +89,7 @@ function StartModal({ onClose, onStart, isPending }: {
   onStart: (p: { project_id: string; task_id: string | null; is_billable: boolean }) => void
   isPending: boolean
 }) {
+  const traducir = useAppT()
   const [projectId, setProjectId] = useState('')
   const [taskId,    setTaskId]    = useState('')
   const [billable,  setBillable]  = useState(true)
@@ -130,7 +131,7 @@ function StartModal({ onClose, onStart, isPending }: {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
           <div>
-            <div id="start-timer-title" style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: 'var(--text-1)' }}>⏱ Iniciar cronómetro</div>
+            <div id="start-timer-title" style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: 'var(--text-1)' }}>{traducir('timer.iniciar_cronometro')}</div>
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 2 }}>Selecciona proyecto y tarea</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-xl)" }}>✕</button>
@@ -138,7 +139,7 @@ function StartModal({ onClose, onStart, isPending }: {
         <div style={{ marginBottom: 14 }}>
           <label style={LS}>Proyecto *</label>
           <select value={projectId} onChange={e => { setProjectId(e.target.value); setTaskId('') }} style={FS}>
-            <option value="">— Selecciona un proyecto —</option>
+            <option value="">{traducir('timer.selecciona_un_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
@@ -146,7 +147,7 @@ function StartModal({ onClose, onStart, isPending }: {
           <label style={LS}>Tarea (opcional)</label>
           <select value={taskId} onChange={e => setTaskId(e.target.value)}
             style={{ ...FS, opacity: projectId ? 1 : 0.5 }} disabled={!projectId}>
-            <option value="">— Sin tarea —</option>
+            <option value="">{traducir('timer.sin_tarea')}</option>
             {tasks.map(t => <option key={t.id} value={t.id}>{t.title || (t as { name?: string }).name}</option>)}
           </select>
         </div>
@@ -186,6 +187,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
   pendingAction: 'stop' | 'cancel' | null
   elapsed: number
 }) {
+  const traducir = useAppT()
   const [description, setDescription] = useState('')
   const [billable, setBillable] = useState(true)
   const [taskId, setTaskId] = useState<string>(currentTimer?.task_id ? String(currentTimer.task_id) : '')
@@ -230,7 +232,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
-            <div id="stop-timer-title" style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: 'var(--text-1)' }}>⏹ Detener sesión</div>
+            <div id="stop-timer-title" style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: 'var(--text-1)' }}>{traducir('timer.detener_sesion')}</div>
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 2 }}>
               Tiempo: <strong style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{formatTime(elapsed)}</strong>
             </div>
@@ -238,30 +240,30 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-xl)" }}>✕</button>
         </div>
         <div style={{ marginBottom: 14 }}>
-          <label style={LS}>Descripción del trabajo</label>
+          <label style={LS}>{traducir('timer.descripcion_del_trabajo')}</label>
           <textarea value={description} onChange={e => setDescription(e.target.value)}
             style={{ ...FS, resize: 'vertical' }} rows={3}
-            placeholder="Describe el trabajo realizado" aria-label="Descripcion del trabajo" autoFocus />
+            placeholder={traducir('timer.describe_el_trabajo_realizado')} aria-label={traducir('timer.descripcion_del_trabajo_2')} autoFocus />
         </div>
         <div style={{ marginBottom: 14 }}>
           <label style={LS}>Tarea final</label>
           <select value={taskId} onChange={e => setTaskId(e.target.value)} style={FS} aria-label="Tarea final">
-            <option value="">— Sin tarea —</option>
+            <option value="">{traducir('timer.sin_tarea')}</option>
             {tasks.map(task => <option key={task.id} value={task.id}>{task.title || (task as { name?: string }).name}</option>)}
           </select>
           <div style={{ marginTop: 6, fontSize: "var(--text-xs)", color: 'var(--text-3)', lineHeight: 1.5 }}>
-            Si ya existe una imputación para esa tarea y fecha, selecciona otra tarea o activa el guardado forzado.
+            {traducir('timer.si_ya_existe_una_imputacion_para_esa')}
           </div>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 22, fontSize: "var(--text-base)", color: 'var(--text-1)' }}>
           <input type="checkbox" checked={billable} onChange={e => setBillable(e.target.checked)}
             style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
-          Marcar como facturable
+          {traducir('timer.marcar_como_facturable')}
         </label>
         <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 22, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>
           <input type="checkbox" checked={forceDuplicate} onChange={e => setForceDuplicate(e.target.checked)}
             style={{ width: 16, height: 16, accentColor: 'var(--warning)', cursor: 'pointer', marginTop: 2 }} />
-          <span>Permitir imputación duplicada y avisar al manager para revisión si ya existe una en la misma tarea y fecha.</span>
+          <span>{traducir('timer.permitir_imputacion_duplicada_y_avisar_al_manager')}</span>
         </label>
         <div style={{ display: 'grid', gap: 10 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -293,6 +295,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
 }
 
 export default function TimerPage() {
+  const traducir = useAppT()
   const t       = useAppT()
   const toast   = useToast()
   const qc      = useQueryClient()
@@ -405,7 +408,7 @@ export default function TimerPage() {
           padding: '10px 16px', marginBottom: 16, color: 'var(--warning)',
           fontSize: "var(--text-base)", fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8,
         }}>
-          ⚠️ Sin conexión — los registros de tiempo se guardarán automáticamente cuando recuperes internet.
+          {traducir('timer.sin_conexion_los_registros_de_tiempo_se')}
         </div>
       )}
       <PageHeader
@@ -417,7 +420,7 @@ export default function TimerPage() {
             padding: '9px 20px', background: 'var(--accent)', border: 'none',
             borderRadius: 9, color: '#fff', fontSize: "var(--text-base)", fontWeight: 700,
             cursor: 'pointer', fontFamily: 'inherit',
-          }}>▶ Nueva sesión</button>
+          }}>{traducir('timer.nueva_sesion')}</button>
         )}
       />
 
@@ -495,15 +498,15 @@ export default function TimerPage() {
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center',
         }}>
           <div style={{ fontSize: "var(--text-56)", opacity: 0.3 }}>⏱</div>
-          <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, color: 'var(--text-1)' }}>Sin sesión activa</div>
+          <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, color: 'var(--text-1)' }}>{traducir('timer.sin_sesion_activa')}</div>
           <div style={{ fontSize: "var(--text-base)", color: 'var(--text-3)', maxWidth: 360, lineHeight: 1.7 }}>
-            Inicia el cronómetro para registrar tiempo automáticamente. Al detenerlo se creará una imputación.
+            {traducir('timer.inicia_el_cronometro_para_registrar_tiempo_automaticamente')}
           </div>
           <button onClick={() => setShowStart(true)} style={{
             marginTop: 8, padding: '12px 32px', background: 'var(--accent)', border: 'none',
             borderRadius: 10, color: '#fff', fontSize: "var(--text-md)", fontWeight: 700,
             cursor: 'pointer', fontFamily: 'inherit',
-          }}>▶ Iniciar cronómetro</button>
+          }}>{traducir('timer.iniciar_cronometro_2')}</button>
         </div>
       )}
 
@@ -515,14 +518,14 @@ export default function TimerPage() {
           padding: '16px 20px', borderBottom: '1px solid var(--surface-4)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
-          <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)' }}>Historial de sesiones</div>
+          <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)' }}>{traducir('timer.historial_de_sesiones')}</div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
-            {timerHistory.length} sesión{timerHistory.length !== 1 ? 'es' : ''}
+            {timerHistory.length} {traducir('timer.sesion')}{timerHistory.length !== 1 ? 'es' : ''}
           </div>
         </div>
         {timerHistory.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
-            No hay sesiones registradas todavía
+            {traducir('timer.no_hay_sesiones_registradas_todavia')}
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>

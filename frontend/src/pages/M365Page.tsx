@@ -63,6 +63,7 @@ function StatusBadge({ ok, label }: { ok?: boolean; label: string }) {
 }
 
 function CalendarTab() {
+  const t = useAppT()
   const [upn,  setUpn]  = useState('')
   const [days, setDays] = useState(14)
   const [synced, setSynced] = useState<CalendarPullResult | null>(null)
@@ -100,14 +101,14 @@ function CalendarTab() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Pull calendar */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20 }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>📅 Pull eventos de calendario</div>
+        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('m365.pull_eventos_de_calendario')}</div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 200 }}>
-            <label style={ls}>UPN del usuario (usuario@empresa.com)</label>
+            <label style={ls}>{t('m365.upn_del_usuario_usuario_empresa_com')}</label>
             <input value={upn} onChange={e => setUpn(e.target.value)} style={fs} placeholder="usuario@empresa.com" />
           </div>
           <div style={{ width: 100 }}>
-            <label style={ls}>Días</label>
+            <label style={ls}>{t('m365.dias')}</label>
             <input type="number" value={days} onChange={e => setDays(Number(e.target.value))} style={fs} min={1} max={90} />
           </div>
           <button onClick={pullCalendar} disabled={!upn || syncLoading} style={{ background: 'var(--accent-glow)', border: 'none', borderRadius: 8, color: 'var(--info)', padding: '10px 18px', cursor: upn ? 'pointer' : 'not-allowed', fontSize: "var(--text-base)", fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
@@ -141,7 +142,7 @@ function CalendarTab() {
             <input value={msUpn} onChange={e => setMsUpn(e.target.value)} style={fs} placeholder="usuario@empresa.com" />
           </div>
           <div style={{ width: 100 }}>
-            <label style={ls}>Días</label>
+            <label style={ls}>{t('m365.dias')}</label>
             <input type="number" value={msDays} onChange={e => setMsDays(Number(e.target.value))} style={fs} min={1} max={90} />
           </div>
           <button onClick={pushMilestones} disabled={!msUpn || msLoading} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, color: 'var(--success)', padding: '10px 18px', cursor: msUpn ? 'pointer' : 'not-allowed', fontSize: "var(--text-base)", fontFamily: 'inherit', whiteSpace: 'nowrap', fontWeight: 600 }}>
@@ -166,6 +167,7 @@ function CalendarTab() {
 const TEAMS_BRAND_PRESETS = ['0078D4', 'FF0000', 'FF8C00', '107C10', '5C2D91']
 
 function TeamsTab() {
+  const t = useAppT()
   const [title,   setTitle]   = useState('')
   const [text,    setText]    = useState('')
   const [color,   setColor]   = useState(TEAMS_BRAND_PRESETS[0])
@@ -188,18 +190,18 @@ function TeamsTab() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20 }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>💬 Enviar notificación a Teams</div>
+        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('m365.enviar_notificacion_a_teams')}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label style={ls}>Título</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} style={fs} placeholder="Titulo de la notificacion" />
+            <label style={ls}>{t('m365.titulo')}</label>
+            <input value={title} onChange={e => setTitle(e.target.value)} style={fs} placeholder={t('m365.titulo_de_la_notificacion')} />
           </div>
           <div>
             <label style={ls}>Mensaje</label>
-            <textarea value={text} onChange={e => setText(e.target.value)} style={{ ...fs, resize: 'vertical' }} rows={3} placeholder="Texto del mensaje..." />
+            <textarea value={text} onChange={e => setText(e.target.value)} style={{ ...fs, resize: 'vertical' }} rows={3} placeholder={t('m365.texto_del_mensaje')} />
           </div>
           <div>
-            <label style={ls}>Color (hex sin #)</label>
+            <label style={ls}>{t('m365.color_hex_sin')}</label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input value={color} onChange={e => setColor(e.target.value)} style={{ ...fs, width: 120 }} placeholder="0078D4" />
               {TEAMS_BRAND_PRESETS.map(c => (
@@ -211,22 +213,22 @@ function TeamsTab() {
           <button onClick={sendNotif} disabled={!title || !text || sending} style={{ alignSelf: 'flex-start', background: 'var(--accent-glow)', border: 'none', borderRadius: 8, color: 'var(--info)', padding: '10px 20px', cursor: 'pointer', fontSize: "var(--text-base)", fontFamily: 'inherit' }}>
             {sending ? 'Enviando…' : '📨 Enviar a Teams'}
           </button>
-          {result?.ok && <div style={{ color: 'var(--success)', fontSize: "var(--text-sm)" }}>✓ Notificación enviada correctamente</div>}
+          {result?.ok && <div style={{ color: 'var(--success)', fontSize: "var(--text-sm)" }}>{t('m365.notificacion_enviada_correctamente')}</div>}
           {result?.error && <div style={{ color: 'var(--danger)', fontSize: "var(--text-sm)" }}>⚠ {typeof result.error === 'string' ? result.error : JSON.stringify(result.error)}</div>}
         </div>
       </div>
 
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 }}>⚙ Notificaciones automáticas</div>
+        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 }}>{t('m365.notificaciones_automaticas')}</div>
         <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.6 }}>
-          Configura Contecflow para enviar automáticamente notificaciones a Teams cuando:
+          {t('m365.configura_contecflow_para_enviar_automaticamente_notificaciones_a')}
           <ul style={{ marginTop: 8, paddingLeft: 20 }}>
-            <li>Un milestone está próximo (≤3 días)</li>
-            <li>Un ticket crítico se abre en el Service Desk</li>
-            <li>El presupuesto supera el 90%</li>
-            <li>Una aprobación queda pendiente por más de 48h</li>
+            <li>{t('m365.un_milestone_esta_proximo_3_dias')}</li>
+            <li>{t('m365.un_ticket_critico_se_abre_en_el')}</li>
+            <li>{t('m365.el_presupuesto_supera_el_90')}</li>
+            <li>{t('m365.una_aprobacion_queda_pendiente_por_mas_de')}</li>
           </ul>
-          Estas se activan via las <strong style={{ color: 'var(--info)' }}>Automatizaciones</strong> o mediante el endpoint <code style={{ color: '#fb923c' }}>POST /api/v1/m365/teams/notify-project</code>.
+          {t('m365.estas_se_activan_via_las')} <strong style={{ color: 'var(--info)' }}>Automatizaciones</strong> {t('m365.o_mediante_el_endpoint')} <code style={{ color: '#fb923c' }}>POST /api/v1/m365/teams/notify-project</code>.
         </div>
       </div>
     </div>
@@ -234,6 +236,7 @@ function TeamsTab() {
 }
 
 function ConfigTab({ status }: { status?: M365Status | null }) {
+  const t = useAppT()
   const envVars = [
     { key: 'AZURE_TENANT_ID',     label: 'Tenant ID de Azure AD',   ok: status?.required_env_vars?.AZURE_TENANT_ID },
     { key: 'AZURE_CLIENT_ID',     label: 'Client ID (App ID)',       ok: status?.required_env_vars?.AZURE_CLIENT_ID },
@@ -253,7 +256,7 @@ function ConfigTab({ status }: { status?: M365Status | null }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Status */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>Estado de la integración</div>
+        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>{t('m365.estado_de_la_integracion')}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {envVars.map(v => (
             <StatusBadge key={v.key} ok={v.ok} label={v.label} />
@@ -263,7 +266,7 @@ function ConfigTab({ status }: { status?: M365Status | null }) {
 
       {/* Setup steps */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>Guía de configuración</div>
+        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('m365.guia_de_configuracion')}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {steps.map(s => (
             <div key={s.n} style={{ display: 'flex', gap: 12 }}>
@@ -313,6 +316,7 @@ function ConfigTab({ status }: { status?: M365Status | null }) {
 }
 
 export default function M365Page() {
+  const t = useAppT()
   const _t = useAppT()
   const [activeTab, setTab] = useState<'calendar' | 'teams' | 'config'>('calendar')
 
@@ -339,7 +343,7 @@ export default function M365Page() {
         <StatusBadge ok={teamsOk} label={`Teams Webhook ${teamsOk ? 'activo' : 'no configurado'}`} />
         {!graphOk && (
           <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', alignSelf: 'center' }}>
-            → pestaña Configuración para el setup
+            {t('m365.pestana_configuracion_para_el_setup')}
           </span>
         )}
       </div>

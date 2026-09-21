@@ -8,6 +8,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { resolveWsBase } from '../../utils/wsUtils'
 import { CLIENT_API, S as PORTAL_STYLES } from '../../pages/portal-client/portalClientContext'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 // Loose backend shapes — full domain types pending services/api migration.
 type Conversation = Record<string, any>
@@ -94,6 +95,7 @@ interface ConversationListItemProps {
 }
 
 function ConversationListItem({ conversation, selected, onSelect, mode }: ConversationListItemProps) {
+  const { t } = useAppLang()
   const unread = mode === 'team' ? conversation.unread_for_team : conversation.unread_for_client
   const lastPreview = conversation.last_message?.body || conversation.title
   return (
@@ -117,9 +119,9 @@ function ConversationListItem({ conversation, selected, onSelect, mode }: Conver
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
         <Badge color={conversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_LABEL[conversation.source] || conversation.source}</Badge>
-        {conversation.pending_review_count > 0 && <Badge color="var(--warning)">{conversation.pending_review_count} revisión</Badge>}
+        {conversation.pending_review_count > 0 && <Badge color="var(--warning)">{conversation.pending_review_count} {t('governedconversations.revision')}</Badge>}
         {conversation.is_sla_breached && <Badge color="var(--danger)">SLA vencido</Badge>}
-        {unread > 0 && <Badge color="var(--danger)">{unread} sin leer</Badge>}
+        {unread > 0 && <Badge color="var(--danger)">{unread} {t('governedconversations.sin_leer')}</Badge>}
       </div>
       <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.45 }}>{lastPreview ? String(lastPreview).slice(0, 120) : 'Sin mensajes aún'}</div>
     </button>
@@ -133,6 +135,7 @@ interface MessageBubbleProps {
 }
 
 function MessageBubble({ message, mode, onReview }: MessageBubbleProps) {
+  const { t } = useAppLang()
   const grc = GRC_LABEL[message.grc_status] || { text: message.grc_status, color: 'var(--text-2)' }
   const alignSelf = message.sender_type === 'client' ? 'flex-start' : 'flex-end'
   const bubbleBg = message.sender_type === 'client' ? 'var(--surface-1)' : 'rgba(0,212,255,0.08)'
@@ -152,7 +155,7 @@ function MessageBubble({ message, mode, onReview }: MessageBubbleProps) {
           {message.source === 'legacy_client_message' && <Badge color="var(--warning)">Legacy</Badge>}
         </div>
         <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{message.body}</div>
-        {message.moderation_notes && <div style={{ marginTop: 8, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>Moderación: {message.moderation_notes}</div>}
+        {message.moderation_notes && <div style={{ marginTop: 8, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t('governedconversations.moderacion')} {message.moderation_notes}</div>}
         {mode === 'team' && message.grc_status === 'pending_review' && (
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
             <button onClick={() => onReview(message, 'approved')} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 700 }}>
@@ -181,6 +184,7 @@ interface ConversationComposerProps {
 }
 
 function ConversationComposer({ mode, value, onChange, onSend, sending, canInternalNotes, isInternalNote, onToggleInternalNote, disabled }: ConversationComposerProps) {
+  const { t } = useAppLang()
   return (
     <div style={{ ...cardStyle, padding: '14px 16px' }}>
       <label style={labelStyle}>Responder</label>
@@ -194,7 +198,7 @@ function ConversationComposer({ mode, value, onChange, onSend, sending, canInter
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <label style={{ display: canInternalNotes ? 'flex' : 'none', gap: 8, alignItems: 'center', fontSize: "var(--text-sm)", color: 'var(--text-2)', cursor: 'pointer' }}>
           <input type="checkbox" checked={isInternalNote} onChange={(event) => onToggleInternalNote(event.target.checked)} />
-          Enviar como nota interna
+          {t('governedconversations.enviar_como_nota_interna')}
         </label>
         <button
           onClick={onSend}
@@ -230,6 +234,7 @@ interface CreateConversationForm {
 }
 
 function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions, defaultProjectId, teamUsers, clientUsers, saving }: CreateConversationModalProps) {
+  const { t } = useAppLang()
   const [form, setForm] = useState<CreateConversationForm>({
     title: '',
     topic_type: 'general',
@@ -260,7 +265,7 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
         <div style={{ fontSize: "var(--text-17)", fontWeight: 800, marginBottom: 16 }}>{mode === 'team' ? 'Nueva conversación gobernada' : 'Nueva conversación con el equipo'}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div style={{ gridColumn: '1 / -1' }}>
-            <label style={labelStyle}>Título</label>
+            <label style={labelStyle}>{t('governedconversations.titulo')}</label>
             <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} style={inputStyle} />
           </div>
           <div>
@@ -272,7 +277,7 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
           <div>
             <label style={labelStyle}>Proyecto</label>
             <select value={form.project_id} onChange={(event) => setForm((prev) => ({ ...prev, project_id: event.target.value }))} style={inputStyle}>
-              <option value="">Sin proyecto</option>
+              <option value="">{t('governedconversations.sin_proyecto')}</option>
               {projectOptions.map((project) => <option key={project.id} value={project.id}>{project.code ? `${project.code} — ` : ''}{project.name}</option>)}
             </select>
           </div>
@@ -337,6 +342,7 @@ export function GovernedConversationInbox({
   emptyTitle,
   emptyDescription,
 }: GovernedConversationInboxProps) {
+  const { t } = useAppLang()
   const toast = useToast() as Toast
   const qc = useQueryClient()
   const [selectedProject, setSelectedProject] = useState<string>(initialProjectId || projectOptions[0]?.id || '')
@@ -521,16 +527,16 @@ export function GovernedConversationInbox({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, marginBottom: 4 }}>{title}</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{conversations.length} conversación(es) · {headerKpi} sin leer</div>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{conversations.length} {t('governedconversations.conversacion_es')} {headerKpi} {t('governedconversations.sin_leer')}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {projectOptions.length > 1 && (
             <select value={selectedProject} onChange={(event) => setSelectedProject(event.target.value)} style={{ ...inputStyle, minWidth: 220 }}>
-              <option value="">Todos los proyectos</option>
+              <option value="">{t('governedconversations.todos_los_proyectos')}</option>
               {projectOptions.map((project) => <option key={project.id} value={project.id}>{project.code ? `${project.code} — ` : ''}{project.name}</option>)}
             </select>
           )}
-          <button onClick={() => setShowCreate(true)} style={{ background: 'var(--accent)', border: 'none', borderRadius: 8, padding: '9px 14px', color: 'var(--portal-bg)', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit' }}>Nueva conversación</button>
+          <button onClick={() => setShowCreate(true)} style={{ background: 'var(--accent)', border: 'none', borderRadius: 8, padding: '9px 14px', color: 'var(--portal-bg)', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit' }}>{t('governedconversations.nueva_conversacion')}</button>
         </div>
       </div>
 
@@ -564,8 +570,8 @@ export function GovernedConversationInbox({
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <Badge color={selectedConversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_LABEL[selectedConversation.source] || selectedConversation.source}</Badge>
-                    {selectedConversation.policy?.requires_client_message_approval && <Badge color="var(--warning)">Aprobación cliente</Badge>}
-                    {selectedConversation.policy?.requires_team_message_approval && <Badge color="var(--warning)">Aprobación equipo</Badge>}
+                    {selectedConversation.policy?.requires_client_message_approval && <Badge color="var(--warning)">{t('governedconversations.aprobacion_cliente')}</Badge>}
+                    {selectedConversation.policy?.requires_team_message_approval && <Badge color="var(--warning)">{t('governedconversations.aprobacion_equipo')}</Badge>}
                     {selectedConversation.is_sla_breached && <Badge color="var(--danger)">SLA vencido</Badge>}
                   </div>
                 </div>
@@ -620,6 +626,7 @@ export function GovernedConversationInbox({
 }
 
 export function ConversationPoliciesPanel() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [drafts, setDrafts] = useState<Record<string, Record<string, any>>>({})
@@ -669,7 +676,7 @@ export function ConversationPoliciesPanel() {
     onError: (error) => toast.error(extractErr(error, 'No se pudo guardar la política')),
   })
 
-  if (isLoading) return <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Cargando políticas…</div>
+  if (isLoading) return <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{t('governedconversations.cargando_politicas')}</div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -680,28 +687,28 @@ export function ConversationPoliciesPanel() {
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
               <div>
                 <div style={{ fontSize: "var(--text-md-em)", fontWeight: 800, textTransform: 'capitalize' }}>{policy.topic_type}</div>
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>Política GRC y de enrutado para conversaciones de tipo {policy.topic_type}.</div>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('governedconversations.politica_grc_y_de_enrutado_para_conversaciones')} {policy.topic_type}.</div>
               </div>
               <Badge color={policy.is_active ? 'var(--success)' : 'var(--text-2)'}>{policy.is_active ? 'Activa' : 'Inactiva'}</Badge>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
               <div>
-                <label style={labelStyle}>Modo de asignación</label>
+                <label style={labelStyle}>{t('governedconversations.modo_de_asignacion')}</label>
                 <select value={draft.assignment_mode || 'manual'} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], assignment_mode: event.target.value } }))} style={inputStyle}>
                   <option value="manual">Manual</option>
-                  <option value="owner_based">Owner del proyecto</option>
+                  <option value="owner_based">{t('governedconversations.owner_del_proyecto')}</option>
                   <option value="role_pool">Pool / rol</option>
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Rol por defecto</label>
+                <label style={labelStyle}>{t('governedconversations.rol_por_defecto')}</label>
                 <input value={draft.default_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_role_key: event.target.value } }))} style={inputStyle} placeholder="admin, manager, pm..." />
               </div>
               <div>
-                <label style={labelStyle}>Pool de asignación</label>
+                <label style={labelStyle}>{t('governedconversations.pool_de_asignacion')}</label>
                 <select value={draft.default_group_id || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_group_id: event.target.value } }))} style={inputStyle}>
-                  <option value="">Sin pool</option>
+                  <option value="">{t('governedconversations.sin_pool')}</option>
                   {agentGroups.map((group: any) => <option key={group.id} value={group.id}>{group.name}</option>)}
                 </select>
               </div>
@@ -757,7 +764,7 @@ export function ConversationPoliciesPanel() {
                 })}
                 style={{ background: 'var(--accent)', border: 'none', borderRadius: 8, padding: '8px 14px', color: 'var(--portal-bg)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}
               >
-                Guardar política
+                {t('governedconversations.guardar_politica')}
               </button>
             </div>
           </div>
