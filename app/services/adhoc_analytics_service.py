@@ -115,6 +115,88 @@ def _enum_str(value):
     return value.value if hasattr(value, "value") else (str(value) if value is not None else "unknown")
 
 
+def _limite_seguro(limit) -> int:
+    """El límite, acotado entre 1 y 10 000. Un valor ilegible vale 100."""
+    try:
+        return max(1, min(int(limit or 100), 10_000))
+    except (TypeError, ValueError):
+        return 100
+
+
+def _expresion_agregada(spec: dict, model):
+    """SUM con `coalesce` o COUNT, según la métrica.
+
+    El `coalesce` no es decorativo: `SUM` sobre cero filas devuelve NULL, y sin
+    él una consulta sin resultados daría `None` donde se espera un número.
+    """
+    if spec["agg"] == "sum":
+        return func.coalesce(func.sum(spec["value_col"](model)), 0.0)
+    return func.count(model.id)
+
+
+def _aplicar_filtros(q, spec: dict, model, filters: dict, date_from, date_to):
+    """Filtro base, rango de fechas y filtros declarados. Común a los tres modos."""
+    if "base_filter" in spec:
+        q = q.filter(spec["base_filter"](model))
+
+    columna_fecha = spec.get("date_col")
+    if columna_fecha is not None:
+        col = columna_fecha(model)
+        if date_from:
+            q = q.filter(col >= date_from)
+        if date_to:
+            q = q.filter(col <= date_to)
+
+    for clave, valor in filters.items():
+        col_fn = spec["filters"].get(clave)
+        if col_fn is not None and valor is not None:
+            q = q.filter(col_fn(model) == valor)
+    return q
+
+
+def _valor(spec: dict, crudo) -> float | int:
+    """El valor agregado con el tipo que le toca: decimal en sumas, entero en cuentas."""
+    if spec["agg"] == "sum":
+        return round(float(crudo or 0), 2)
+    return int(crudo or 0)
+
+
+def _filas_por_mes(db: Session, spec: dict, model, agg, aplicar, limit: int) -> list[dict]:
+    """Agrupado por año y mes.
+
+    Usa `extract`, que SQLAlchemy compila para PostgreSQL y para SQLite. La
+    versión original usaba `func.strftime`, exclusivo de SQLite: habría fallado
+    en producción sobre PostgreSQL.
+    """
+    columna = spec["dimensions"]["month"](model)
+    anio = func.extract("year", columna)
+    mes = func.extract("month", columna)
+    q = aplicar(db.query(anio.label("y"), mes.label("m"), agg.label("v")))
+    filas = q.group_by(anio, mes).order_by(anio, mes).limit(limit).all()
+    return [
+        {
+            "month": f"{int(r.y):04d}-{int(r.m):02d}" if r.y is not None else "unknown",
+            spec["value_key"]: _valor(spec, r.v),
+        }
+        for r in filas
+    ]
+
+
+def _filas_por_dimension(db: Session, spec: dict, model, agg, aplicar,
+                         dim_name: str, limit: int) -> list[dict]:
+    """Agrupado por una dimensión cualquiera.
+
+    Mayor primero en las sumas —lo que interesa de un ranking de horas o de
+    ingresos es la cabeza—; alfabético en los recuentos por estado, donde el
+    orden por cantidad cambiaría de sitio las columnas entre dos consultas.
+    """
+    columna = spec["dimensions"][dim_name](model)
+    q = aplicar(db.query(columna.label("k"), agg.label("v")))
+    orden = agg.desc() if spec["agg"] == "sum" else columna
+    filas = q.group_by(columna).order_by(orden).limit(limit).all()
+    return [{dim_name: _enum_str(r.k), spec["value_key"]: _valor(spec, r.v)} for r in filas]
+
+
 def run_adhoc_query(
     metric: str,
     dimensions: List[str],
@@ -138,9 +220,9 @@ def run_adhoc_query(
     2. Traía todas las filas a memoria para contarlas. Con un histórico grande
        eso es un problema de rendimiento por sí solo.
 
-    El agrupado por mes usa `extract`, que SQLAlchemy compila tanto para
-    PostgreSQL como para SQLite; el código original usaba `func.strftime`, que es
-    exclusivo de SQLite y habría fallado en producción sobre PostgreSQL.
+    Auditoría 2026-09 (hallazgo 18): eran 122 líneas y complejidad 14 con los
+    tres modos de agrupado en línea. Cada uno tiene ahora su función; el cuerpo
+    de aquí es la decisión de cuál toca.
     """
     if db is None:
         raise HTTPException(500, "run_adhoc_query requiere una sesión de base de datos")
@@ -155,80 +237,24 @@ def run_adhoc_query(
 
     model = spec["model"]()
     filters = filters or {}
-    date_from = _coerce_date(date_from)
-    date_to = _coerce_date(date_to)
-    try:
-        limit = max(1, min(int(limit or 100), 10_000))
-    except (TypeError, ValueError):
-        limit = 100
+    limit = _limite_seguro(limit)
+    agg = _expresion_agregada(spec, model)
 
-    # Expresión agregada
-    if spec["agg"] == "sum":
-        agg_expr = func.coalesce(func.sum(spec["value_col"](model)), 0.0)
-    else:
-        agg_expr = func.count(model.id)
+    def aplicar(q):
+        return _aplicar_filtros(
+            q, spec, model, filters, _coerce_date(date_from), _coerce_date(date_to),
+        )
 
-    # Dimensión: sólo la primera reconocida, como hacía la versión anterior
+    # Sólo la primera dimensión reconocida, como hacía la versión anterior.
     dim_name = next((d for d in (dimensions or []) if d in spec["dimensions"]), None)
 
-    def _apply_common(q):
-        if "base_filter" in spec:
-            q = q.filter(spec["base_filter"](model))
-        date_col_fn = spec.get("date_col")
-        if date_col_fn is not None:
-            col = date_col_fn(model)
-            if date_from:
-                q = q.filter(col >= date_from)
-            if date_to:
-                q = q.filter(col <= date_to)
-        for key, value in filters.items():
-            col_fn = spec["filters"].get(key)
-            if col_fn is not None and value is not None:
-                q = q.filter(col_fn(model) == value)
-        return q
-
     if dim_name is None:
-        # Total global: una sola fila desde la base de datos.
-        total = _apply_common(db.query(agg_expr)).scalar() or 0
-        value = round(float(total), 2) if spec["agg"] == "sum" else int(total)
-        results = [{spec["total_key"]: value}]
-        return {
-            "metric": metric,
-            "dimensions": dimensions,
-            "filters": filters,
-            "results": results,
-            "total_rows": len(results),
-        }
-
-    value_key = spec["value_key"]
-
-    if dim_name == "month":
-        date_col = spec["dimensions"]["month"](model)
-        y = func.extract("year", date_col)
-        m = func.extract("month", date_col)
-        q = _apply_common(db.query(y.label("y"), m.label("m"), agg_expr.label("v")))
-        rows = q.group_by(y, m).order_by(y, m).limit(limit).all()
-        results = [
-            {
-                "month": f"{int(r.y):04d}-{int(r.m):02d}" if r.y is not None else "unknown",
-                value_key: round(float(r.v or 0), 2) if spec["agg"] == "sum" else int(r.v or 0),
-            }
-            for r in rows
-        ]
+        total = aplicar(db.query(agg)).scalar() or 0
+        results = [{spec["total_key"]: _valor(spec, total)}]
+    elif dim_name == "month":
+        results = _filas_por_mes(db, spec, model, agg, aplicar, limit)
     else:
-        dim_col = spec["dimensions"][dim_name](model)
-        q = _apply_common(db.query(dim_col.label("k"), agg_expr.label("v")))
-        # Mayor primero para las sumas (era el orden de la versión anterior en
-        # user_id/project_id); alfabético para los recuentos por estado.
-        order = agg_expr.desc() if spec["agg"] == "sum" else dim_col
-        rows = q.group_by(dim_col).order_by(order).limit(limit).all()
-        results = [
-            {
-                dim_name: _enum_str(r.k),
-                value_key: round(float(r.v or 0), 2) if spec["agg"] == "sum" else int(r.v or 0),
-            }
-            for r in rows
-        ]
+        results = _filas_por_dimension(db, spec, model, agg, aplicar, dim_name, limit)
 
     return {
         "metric": metric,
@@ -237,6 +263,65 @@ def run_adhoc_query(
         "results": results,
         "total_rows": len(results),
     }
+
+
+def _filtrar_por_mes(q, columna, valor: str):
+    """Acota una consulta a un mes escrito como `YYYY-MM`.
+
+    `strftime` es de SQLite. Aquí se conserva porque es lo que había y este
+    camino no se ejecuta sobre PostgreSQL; el de `run_adhoc_query`, que sí,
+    usa `extract`. Queda anotado: si este drilldown llega a producción sobre
+    Postgres, hay que cambiarlo igual que allí.
+    """
+    anio, mes = int(valor[:4]), int(valor[5:7])
+    return q.filter(
+        func.strftime("%Y", columna) == str(anio),
+        func.strftime("%m", columna) == f"{mes:02d}",
+    )
+
+
+#: Qué se puede desglosar y cómo. Por cada métrica: el modelo, un filtro base,
+#: por qué dimensiones se puede acotar, la columna de fecha del rango, y cómo
+#: se serializa cada fila.
+#:
+#: Auditoría 2026-09 (hallazgo 18): eran dos bloques con la misma forma
+#: —construir consulta, aplicar dimensión, paginar, serializar— y una cascada
+#: de `elif` por dimensión dentro de cada uno.
+_DRILLDOWNS: dict[str, dict] = {
+    "hours_logged": {
+        "modelo": lambda: Imputation,
+        "base": None,
+        "dimensiones": {
+            "project_id": lambda: Imputation.project_id,
+            "user_id": lambda: Imputation.user_id,
+        },
+        "mes": lambda: Imputation.date,
+        "rango": lambda: Imputation.date,
+        "fila": lambda i: {
+            "id": i.id, "date": str(i.date), "hours": i.hours,
+            "project_id": i.project_id, "user_id": i.user_id,
+            "description": i.description,
+        },
+    },
+    "revenue": {
+        "modelo": lambda: Invoice,
+        "base": lambda: Invoice.status != "cancelled",
+        "dimensiones": {
+            "project_id": lambda: Invoice.project_id,
+            "status": lambda: Invoice.status,
+        },
+        "mes": lambda: Invoice.issue_date,
+        # El rango de fechas no se aplicaba a facturas, y se conserva así: el
+        # desglose de ingresos se acota por la dimensión, no por el periodo.
+        "rango": None,
+        "fila": lambda i: {
+            "id": i.id, "number": i.number, "total": i.total,
+            "currency": i.currency,
+            "status": str(i.status.value) if hasattr(i.status, "value") else str(i.status),
+            "issue_date": str(i.issue_date), "client_name": i.client_name,
+        },
+    },
+}
 
 
 def run_analytics_drilldown(
@@ -249,65 +334,37 @@ def run_analytics_drilldown(
     page_size: int,
     db: Session,
 ) -> dict:
+    """Las filas que hay detrás de una celda de un informe analítico."""
+    spec = _DRILLDOWNS.get(metric)
+    if spec is None:
+        raise HTTPException(
+            status_code=400, detail=f"Metric '{metric}' not supported for drilldown",
+        )
 
-    offset = (page - 1) * page_size
-    rows = []
+    q = db.query(spec["modelo"]())
+    if spec["base"]:
+        q = q.filter(spec["base"]())
 
-    if metric == "hours_logged":
-        q = db.query(Imputation)
-        if dimension == "project_id":
-            q = q.filter(Imputation.project_id == value)
-        elif dimension == "user_id":
-            q = q.filter(Imputation.user_id == value)
-        elif dimension == "month" and len(value) == 7:
-            yr, mo = int(value[:4]), int(value[5:7])
-            q = q.filter(
-                func.strftime('%Y', Imputation.date) == str(yr),
-                func.strftime('%m', Imputation.date) == f"{mo:02d}",
-            )
+    columna = spec["dimensiones"].get(dimension)
+    if columna:
+        q = q.filter(columna() == value)
+    elif dimension == "month" and len(value) == 7:
+        q = _filtrar_por_mes(q, spec["mes"](), value)
+
+    if spec["rango"]:
         if date_from:
-            q = q.filter(Imputation.date >= date_from)
+            q = q.filter(spec["rango"]() >= date_from)
         if date_to:
-            q = q.filter(Imputation.date <= date_to)
-        q.count()
-        items = q.offset(offset).limit(page_size).all()
-        rows = [
-            {"id": i.id, "date": str(i.date), "hours": i.hours,
-             "project_id": i.project_id, "user_id": i.user_id,
-             "description": i.description}
-            for i in items
-        ]
-    elif metric == "revenue":
-        q = db.query(Invoice).filter(Invoice.status != "cancelled")
-        if dimension == "project_id":
-            q = q.filter(Invoice.project_id == value)
-        elif dimension == "month" and len(value) == 7:
-            yr, mo = int(value[:4]), int(value[5:7])
-            q = q.filter(
-                func.strftime('%Y', Invoice.issue_date) == str(yr),
-                func.strftime('%m', Invoice.issue_date) == f"{mo:02d}",
-            )
-        elif dimension == "status":
-            q = q.filter(Invoice.status == value)
-        q.count()
-        items = q.offset(offset).limit(page_size).all()
-        rows = [
-            {"id": i.id, "number": i.number, "total": i.total,
-             "currency": i.currency,
-             "status": str(i.status.value) if hasattr(i.status, 'value') else str(i.status),
-             "issue_date": str(i.issue_date), "client_name": i.client_name}
-            for i in items
-        ]
-    else:
-        raise HTTPException(status_code=400, detail=f"Metric '{metric}' not supported for drilldown")
+            q = q.filter(spec["rango"]() <= date_to)
 
+    filas = q.offset((page - 1) * page_size).limit(page_size).all()
     return {
         "metric": metric,
         "dimension": dimension,
         "value": value,
         "page": page,
         "page_size": page_size,
-        "rows": rows,
+        "rows": [spec["fila"](f) for f in filas],
     }
 
 

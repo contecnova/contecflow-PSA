@@ -7,7 +7,7 @@ import json
 import logging
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.core.ratelimit import limiter
@@ -169,7 +169,9 @@ def get_group_workload(group_id: str, db: Session = Depends(get_db), _: User = D
 
 @router.patch("/problems/{problem_id}", summary="Actualizar problema")
 @limiter.limit("30/minute")
-def update_problem(request: Request, problem_id: str, payload: ProblemUpdateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_problem(request: Request, problem_id: str, payload: ProblemUpdateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     p = get_scoped_problem_or_404(db, current_user, problem_id)
     apply_problem_update(db, current_user, p, payload)
     _commit_or_rollback(db)
@@ -177,7 +179,9 @@ def update_problem(request: Request, problem_id: str, payload: ProblemUpdateIn, 
 
 @router.delete("/problems/{problem_id}", summary="Cerrar problema")
 @limiter.limit("30/minute")
-def close_problem(request: Request, problem_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def close_problem(request: Request, problem_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     """Auditoria 2026-08 (hallazgo 37): esta ruta **no existia**.
 
     El boton de borrar de `ITSMKnowledgeTab` **no hacia nada** — uno de los dos
@@ -191,7 +195,9 @@ def close_problem(request: Request, problem_id: str, db: Session = Depends(get_d
 
 @router.post("/problems/{problem_id}/link-ticket/{ticket_id}", summary="Vincular ticket a problema")
 @limiter.limit("30/minute")
-def link_ticket_to_problem(request: Request, problem_id: str, ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def link_ticket_to_problem(request: Request, problem_id: str, ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     link_ticket_to_problem_record(db, current_user, problem_id, ticket_id)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
@@ -280,19 +286,32 @@ def get_change(change_id: str, db: Session = Depends(get_db), current_user: User
     return APIResponse.ok(data=get_change_payload(db, current_user, change_id, full=True))
 
 @router.post("/changes", summary="Crear Change Request ITSM")
-def create_change(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_change(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     cr = create_change_record(db, current_user, payload)
     _commit_or_rollback(db); db.refresh(cr)
     return APIResponse.ok(data=serialize_change(cr))
 
 @router.patch("/changes/{change_id}", summary="Actualizar Change Request")
-def update_change(change_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_change(change_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     cr = update_change_record(db, current_user, change_id, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data=serialize_change(cr))
 
 @router.delete("/changes/{change_id}", summary="Cancelar Change Request")
-def cancel_change(change_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def cancel_change(
+    change_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada. El resto del ciclo de vida del
+    # cambio —`rollout/start`, `rollback`, `cab/fast-track`— ya exige
+    # gestor; cancelarlo no puede ser mas facil que ejecutarlo.
+    _: User = Depends(require_any_manager),
+):
     """Auditoria 2026-08 (hallazgo 37): esta ruta **no existia**.
 
     El boton de borrar de un cambio **no hacia nada** — el otro borrado
@@ -305,14 +324,18 @@ def cancel_change(change_id: str, db: Session = Depends(get_db), current_user: U
     return APIResponse.ok(data=datos)
 
 @router.post("/changes/{change_id}/approve", summary="Aprobar Change Request (CAB)")
-def approve_change(change_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def approve_change(change_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     cr = approve_change_record(db, current_user, change_id, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True, "status": cr.status.value})
 
 
 @router.post("/changes/{change_id}/assess-risk", summary="Evaluar riesgo de cambio con IA")
-def assess_change_risk(change_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def assess_change_risk(change_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     cr = get_change_by_id(db, current_user, change_id)
     if not cr:
         raise HTTPException(404, "Change request no encontrado")
@@ -345,6 +368,7 @@ def plan_change_rollout(
     payload: dict = Body(default={}),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     cr = get_change_by_id(db, current_user, change_id)
     if not cr:
@@ -395,7 +419,9 @@ def automation_check(change_id: str, db: Session = Depends(get_db), current_user
 
 
 @router.post("/changes/{change_id}/rollback-script", summary="Generar script de rollback")
-def rollback_script(change_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def rollback_script(change_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     cr = get_change_by_id(db, current_user, change_id)
     if not cr:
         raise HTTPException(404, "Change request no encontrado")
@@ -427,7 +453,9 @@ def declare_major_incident(payload: dict = Body(...), db: Session = Depends(get_
     return APIResponse.ok(data=serialize_major_incident(mi))
 
 @router.patch("/major-incidents/{mi_id}", summary="Actualizar incidente mayor")
-def update_major_incident(mi_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_major_incident(mi_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     mi = update_major_incident_record(db, mi_id, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data=serialize_major_incident(mi))

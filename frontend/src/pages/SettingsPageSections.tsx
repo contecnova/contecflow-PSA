@@ -87,6 +87,7 @@ const isUserFacingSetting = (key: string) => {
 }
 
 function GeneralSection() {
+  const { t } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const { data: settings = [] } = useQuery<any>({ queryKey: ['settings-general'], queryFn: () => settingsApi.getGeneral().then(r => r.data) })
@@ -95,13 +96,13 @@ function GeneralSection() {
   const visible = (settings || []).filter((s: any) => isUserFacingSetting(s.key))
 
   return (
-    <Section icon="⚙️" title="Configuración general" description="Parámetros globales de la organización">
+    <Section icon="⚙️" title={t('settings.configuracion_general')} description="Parámetros globales de la organización">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
         {visible.map((s: any) => <SettingField key={s.key} setting={s} label={LABELS[s.key] || s.key} onSave={(v) => update({ key: s.key, value: v })} />)}
       </div>
       {visible.length === 0 && (
         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>
-          Sin parámetros generales configurados.
+          {t('settings.sin_parametros_generales_configurados')}
         </div>
       )}
     </Section>
@@ -143,6 +144,7 @@ function SettingField({ setting, label, onSave }: { setting: any; label: any; on
 
 // ── Users section ─────────────────────────────────────────────────────────────
 function UsersSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [ui, setUi] = React.useReducer(
@@ -188,8 +190,8 @@ function UsersSection() {
             color: 'var(--text-3)', pointerEvents: 'none',
           }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar usuario por nombre o alias"
-            aria-label="Buscar usuario por nombre o alias"
+            placeholder={t('settings.buscar_usuario_por_nombre_o_alias')}
+            aria-label={t('settings.buscar_usuario_por_nombre_o_alias')}
             className="ds-input"
             style={{ paddingLeft: 32 }} />
         </div>
@@ -197,10 +199,10 @@ function UsersSection() {
           value={orgFilter}
           onChange={(e) => setOrgFilter(e.target.value)}
           className="ds-input"
-          aria-label="Filtrar usuarios por organización"
+          aria-label={t('settings.filtrar_usuarios_por_organizacion')}
           style={{ minWidth: 220, maxWidth: 320 }}
         >
-          <option value="">Todas las organizaciones</option>
+          <option value="">{t('settings.todas_las_organizaciones')}</option>
           {organizations.filter((o: any) => o.is_active !== false).map((o: any) => (
             <option key={o.id} value={o.id}>{o.name}</option>
           ))}
@@ -216,7 +218,7 @@ function UsersSection() {
             Limpiar filtros
           </Button>
         )}
-        <Button onClick={() => setShowCreate(true)}>+ Nuevo usuario</Button>
+        <Button onClick={() => setShowCreate(true)}>{t('settings.nuevo_usuario')}</Button>
       </div>
       {isLoading ? <Spinner /> : (
         <div style={styles.colGap8}>
@@ -315,6 +317,7 @@ const userEditSchema = userFormSchemaBase.extend({
 })
 
 function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], departments = [], organizations = [] }: any) {
+  const { t } = useAppLang()
   const isEdit = !!user
   const [form, setForm] = useState({
     username: user?.username || '',
@@ -370,14 +373,14 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
           }
         </select>{errField('role')}</div>
         <div><label style={ls}>Departamento</label><select value={form.department} onChange={set('department')} style={fs}>
-          <option value="">— Sin departamento —</option>
+          <option value="">{t('settings.sin_departamento')}</option>
           {departments.filter((d: any) => d.is_active !== false).map((d: any) => <option key={d.id} value={d.name}>{d.name}</option>)}
         </select></div>
         <div><label style={ls}>Cargo</label><input value={form.job_title} onChange={set('job_title')} style={fs} /></div>
         <div><label style={ls}>Horas semanales</label><input type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} style={validation.inputStyle(fs, 'weekly_capacity_hours')} />{errField('weekly_capacity_hours')}</div>
         <div><label style={ls}>Tarifa €/hora</label><input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} />{errField('hourly_rate')}</div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={ls}>Organizaciones (selección múltiple)</label>
+          <label style={ls}>{t('settings.organizaciones_seleccion_multiple')}</label>
           <select multiple value={form.organization_ids} onChange={setOrganizations} style={{ ...fs, minHeight: 112 }}>
             {organizations.filter((o: any) => o.is_active !== false).map((o: any) => (
               <option key={o.id} value={o.id}>{o.name} ({o.slug})</option>
@@ -385,9 +388,9 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
           </select>
         </div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={ls}>Organización principal</label>
+          <label style={ls}>{t('settings.organizacion_principal')}</label>
           <select value={form.organization_id} onChange={set('organization_id')} style={fs}>
-            <option value="">— Sin organización principal —</option>
+            <option value="">{t('settings.sin_organizacion_principal')}</option>
             {form.organization_ids.map((orgId: any) => {
               const org = organizations.find((o: any) => o.id === orgId)
               return <option key={orgId} value={orgId}>{org?.name || orgId}</option>
@@ -397,11 +400,11 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Zona horaria</label>
           <select value={form.timezone} onChange={set('timezone')} style={fs}>
-            <option value="">— Usa la zona de la organización —</option>
+            <option value="">{t('settings.usa_la_zona_de_la_organizacion')}</option>
             {COMMON_TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </select>
         </div>
-        {!isEdit && <div style={{ gridColumn: '1/-1' }}><label style={ls}>Contraseña *</label><input type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} />{errField('password')}</div>}
+        {!isEdit && <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('settings.contrasena')}</label><input type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} />{errField('password')}</div>}
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={isPending}>
@@ -458,6 +461,7 @@ function RolesSection() {
 }
 
 function RoleFormModal({ role, modules, onClose, onSave }: any) {
+  const { t } = useAppLang()
   const [form, setForm] = useState({ name: role?.name || '', description: role?.description || '', color: /^#[0-9a-fA-F]{6}$/.test(role?.color) ? role.color : '#7a8aaa', module_access: role?.module_access || {} })
   const toggleModule = (m: any) => setForm(f => ({ ...f, module_access: { ...f.module_access, [m]: !f.module_access[m] } }))
   const allOn = modules.every((m: any) => form.module_access[m.id])
@@ -468,10 +472,10 @@ function RoleFormModal({ role, modules, onClose, onSave }: any) {
           <div><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} disabled={role?.is_system} /></div>
           <div><label style={ls}>Color</label><div style={{ display: 'flex', gap: 8 }}><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#7a8aaa'} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 40, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, flex: 1 }} /></div></div>
         </div>
-        <div><label style={ls}>Descripción</label><input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} /></div>
+        <div><label style={ls}>{t('settings.descripcion')}</label><input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} /></div>
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <label style={ls}>Módulos accesibles</label>
+            <label style={ls}>{t('settings.modulos_accesibles')}</label>
             <button onClick={() => setForm(f => ({ ...f, module_access: modules.reduce((a: any, m: any) => ({ ...a, [m.id]: !allOn }), {}) }))} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
               {allOn ? 'Desactivar todos' : 'Activar todos'}
             </button>
@@ -505,6 +509,7 @@ const CONDITION_LABELS: Record<string, string> = {
 const THRESHOLD_CONDITIONS = ['threshold_above', 'threshold_below']
 
 function AlertConfigSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const SEV_CFG: Record<string, string> = { info: 'var(--accent)', warning: 'var(--warning)', critical: 'var(--danger)' }
@@ -599,12 +604,12 @@ function AlertConfigSection() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>Reglas personalizadas</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>Alertas basadas en métricas del sistema</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('settings.alertas_basadas_en_metricas_del_sistema')}</div>
           </div>
-          <Button onClick={() => setShowCreate(true)}>+ Nueva alerta</Button>
+          <Button onClick={() => setShowCreate(true)}>{t('settings.nueva_alerta')}</Button>
         </div>
         {rules.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>No hay reglas personalizadas. Crea la primera.</div>
+          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('settings.no_hay_reglas_personalizadas_crea_la_primera')}</div>
         ) : (
           <div style={styles.colGap8}>
             {rules.map((rule: any) => (
@@ -632,22 +637,22 @@ function AlertConfigSection() {
       </div>
 
       {showCreate && (
-        <Modal open title="Nueva regla de alerta" onClose={() => { setShowCreate(false); setRuleForm(EMPTY_RULE) }} width={480}>
+        <Modal open title={t('settings.nueva_regla_de_alerta')} onClose={() => { setShowCreate(false); setRuleForm(EMPTY_RULE) }} width={480}>
           <div style={styles.colGap14}>
             <div>
               <label style={ls}>Nombre</label>
-              <input value={ruleForm.name} onChange={setR('name')} style={fs} placeholder="Ej: Ingresos por debajo del objetivo" />
+              <input value={ruleForm.name} onChange={setR('name')} style={fs} placeholder={t('settings.ej_ingresos_por_debajo_del_objetivo')} />
             </div>
             <div>
-              <label style={ls}>Métrica</label>
+              <label style={ls}>{t('settings.metrica')}</label>
               <select value={ruleForm.metric_key} onChange={setR('metric_key')} style={fs}>
-                <option value="">— Selecciona una métrica —</option>
+                <option value="">{t('settings.selecciona_una_metrica')}</option>
                 {metrics.map((m: any) => <option key={m.key} value={m.key}>{m.label}</option>)}
               </select>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
-                <label style={ls}>Condición</label>
+                <label style={ls}>{t('settings.condicion')}</label>
                 <select value={ruleForm.condition} onChange={setR('condition')} style={fs}>
                   {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
@@ -686,6 +691,7 @@ function AlertConfigSection() {
 
 // ── Rate tables section ───────────────────────────────────────────────────────
 function RateTablesSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const { data: tables = [], isLoading } = useQuery<any>({ queryKey: ['rate-tables'], queryFn: () => advancedConfigApi.getRateTables().then(r => r.data) })
@@ -723,7 +729,7 @@ function RateTablesSection() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div>
                   <span style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{t.name}</span>
-                  {t.is_default && <span style={styles.pill}>Por defecto</span>}
+                  {t.is_default && <span style={styles.pill}>{t('settings.por_defecto')}</span>}
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8 }}>{t.applies_to === 'role' ? 'Por rol' : t.applies_to === 'department' ? 'Por departamento' : 'Por cliente'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -740,8 +746,8 @@ function RateTablesSection() {
                   editingEntryId === e.id ? (
                     <React.Fragment key={e.id}>
                       <input value={editEntryForm.label} onChange={ev => setEditEntryForm((f: any)=>({...f,label:ev.target.value}))} style={{...fs,padding:'5px 8px'}} autoFocus />
-                      <input type="number" value={editEntryForm.cost_rate} onChange={ev => setEditEntryForm((f: any)=>({...f,cost_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder="Coste por hora" aria-label="Coste por hora" />
-                      <input type="number" value={editEntryForm.billing_rate} onChange={ev => setEditEntryForm((f: any)=>({...f,billing_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder="Tarifa de facturacion" aria-label="Tarifa de facturacion" />
+                      <input type="number" value={editEntryForm.cost_rate} onChange={ev => setEditEntryForm((f: any)=>({...f,cost_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
+                      <input type="number" value={editEntryForm.billing_rate} onChange={ev => setEditEntryForm((f: any)=>({...f,billing_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
                       <div style={{display:'flex',gap:4}}>
                         <button onClick={() => updateEntry({ tableId: t.id, entryId: e.id, data: editEntryForm })} disabled={!editEntryForm.label} style={{background:'var(--accent)',border:'none',borderRadius:5,padding:'4px 8px',color:'#fff',cursor:'pointer',fontSize: "var(--text-sm)"}}>✓</button>
                         <button onClick={() => setEditingEntryId(null)} style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:5,padding:'4px 7px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✕</button>
@@ -762,11 +768,11 @@ function RateTablesSection() {
               </div>
               {addingEntry === t.id && (
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginTop: 8, padding: '10px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 8 }}>
-                  <input value={entryForm.label} onChange={e => setEntryForm((f: any) => ({ ...f, label: e.target.value }))} style={{ ...fs }} placeholder="Etiqueta de la tarifa" aria-label="Etiqueta de la tarifa" />
-                  <input type="number" value={entryForm.cost_rate} onChange={e => setEntryForm((f: any) => ({ ...f, cost_rate: e.target.value }))} style={fs} placeholder="Coste por hora" aria-label="Coste por hora" />
-                  <input type="number" value={entryForm.billing_rate} onChange={e => setEntryForm((f: any) => ({ ...f, billing_rate: e.target.value }))} style={fs} placeholder="Tarifa de facturacion" aria-label="Tarifa de facturacion" />
+                  <input value={entryForm.label} onChange={e => setEntryForm((f: any) => ({ ...f, label: e.target.value }))} style={{ ...fs }} placeholder={t('settings.etiqueta_de_la_tarifa')} aria-label={t('settings.etiqueta_de_la_tarifa')} />
+                  <input type="number" value={entryForm.cost_rate} onChange={e => setEntryForm((f: any) => ({ ...f, cost_rate: e.target.value }))} style={fs} placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
+                  <input type="number" value={entryForm.billing_rate} onChange={e => setEntryForm((f: any) => ({ ...f, billing_rate: e.target.value }))} style={fs} placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <Button size="sm" onClick={() => { addEntry({ tableId: t.id, data: entryForm }); setEntryForm({ label: '', cost_rate: '', billing_rate: '' }); setAddingEntry(null) }} disabled={!entryForm.label}>Añadir</Button>
+                    <Button size="sm" onClick={() => { addEntry({ tableId: t.id, data: entryForm }); setEntryForm({ label: '', cost_rate: '', billing_rate: '' }); setAddingEntry(null) }} disabled={!entryForm.label}>{t('settings.anadir')}</Button>
                     <Button size="sm" variant="secondary" onClick={() => setAddingEntry(null)}>×</Button>
                   </div>
                 </div>
@@ -774,8 +780,8 @@ function RateTablesSection() {
             </div>
           ))}
           <div style={{ display: 'flex', gap: 10, padding: '12px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10, alignItems: 'flex-end' }}>
-            <div style={{ flex: 2 }}><label style={ls}>Nombre tabla</label><input value={newTable.name} onChange={e => setNewTable((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre de la tabla" aria-label="Nombre de la tabla" /></div>
-            <div style={{ flex: 1 }}><label style={ls}>Aplica a</label><select value={newTable.applies_to} onChange={e => setNewTable((f: any) => ({ ...f, applies_to: e.target.value }))} style={fs}><option value="role">Por rol</option><option value="department">Por depto</option><option value="client">Por cliente</option></select></div>
+            <div style={{ flex: 2 }}><label style={ls}>Nombre tabla</label><input value={newTable.name} onChange={e => setNewTable((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_tabla')} aria-label={t('settings.nombre_de_la_tabla')} /></div>
+            <div style={{ flex: 1 }}><label style={ls}>Aplica a</label><select value={newTable.applies_to} onChange={e => setNewTable((f: any) => ({ ...f, applies_to: e.target.value }))} style={fs}><option value="role">{t('settings.por_rol')}</option><option value="department">{t('settings.por_depto')}</option><option value="client">{t('settings.por_cliente')}</option></select></div>
             <Button onClick={() => { createTable(newTable); setNewTable({ name: '', applies_to: 'role', is_default: false }) }} disabled={!newTable.name}>Crear tabla</Button>
           </div>
         </div>
@@ -786,6 +792,7 @@ function RateTablesSection() {
 
 // ── Vacation policies section ─────────────────────────────────────────────────
 function VacationSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const currentYear = new Date().getFullYear()
@@ -805,15 +812,15 @@ function VacationSection() {
   return (
     <Section icon="🏖️" title="Vacaciones y permisos" description="Configura politicas y saldos del equipo">
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12 }}>Políticas configuradas</div>
+        <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12 }}>{t('settings.politicas_configuradas')}</div>
         <div style={styles.colGap8}>
           {policies.map((p: any) => (
             <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${p.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
               <div style={{ flex: 1 }}>
                 <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>{p.name}</span>
-                {p.is_default && <span style={styles.pill}>Por defecto</span>}
+                {p.is_default && <span style={styles.pill}>{t('settings.por_defecto')}</span>}
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
-                  {p.days_per_year} días/año {p.carries_over ? `· Acumula hasta ${p.max_carryover_days || '∞'} días` : '· No acumula'}
+                  {p.days_per_year} {t('settings.dias_ano')} {p.carries_over ? `· Acumula hasta ${p.max_carryover_days || '∞'} días` : '· No acumula'}
                 </div>
               </div>
               <button onClick={() => deletePolicy(p.id)} style={styles.btnDelete}>🗑</button>
@@ -821,10 +828,10 @@ function VacationSection() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 12, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div style={{ flex: 2 }}><label style={ls}>Nombre</label><input value={newPolicy.name} onChange={e => setNewPolicy((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre de la politica" aria-label="Nombre de la politica" /></div>
-          <div style={{ flex: 1 }}><label style={ls}>Días/año</label><input type="number" value={newPolicy.days_per_year} onChange={e => setNewPolicy((f: any) => ({ ...f, days_per_year: +e.target.value }))} style={fs} /></div>
-          <div style={{ flex: 1 }}><label style={ls}>Máx. acumulación</label><input type="number" value={newPolicy.max_carryover_days} onChange={e => setNewPolicy((f: any) => ({ ...f, max_carryover_days: +e.target.value }))} style={fs} /></div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-sm)" }}><input type="checkbox" checked={newPolicy.is_default} onChange={e => setNewPolicy((f: any) => ({ ...f, is_default: e.target.checked }))} />Por defecto</label>
+          <div style={{ flex: 2 }}><label style={ls}>Nombre</label><input value={newPolicy.name} onChange={e => setNewPolicy((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_politica')} aria-label={t('settings.nombre_de_la_politica')} /></div>
+          <div style={{ flex: 1 }}><label style={ls}>{t('settings.dias_ano_2')}</label><input type="number" value={newPolicy.days_per_year} onChange={e => setNewPolicy((f: any) => ({ ...f, days_per_year: +e.target.value }))} style={fs} /></div>
+          <div style={{ flex: 1 }}><label style={ls}>{t('settings.max_acumulacion')}</label><input type="number" value={newPolicy.max_carryover_days} onChange={e => setNewPolicy((f: any) => ({ ...f, max_carryover_days: +e.target.value }))} style={fs} /></div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-sm)" }}><input type="checkbox" checked={newPolicy.is_default} onChange={e => setNewPolicy((f: any) => ({ ...f, is_default: e.target.checked }))} />{t('settings.por_defecto')}</label>
           <Button onClick={() => { createPolicy(newPolicy); setNewPolicy({ name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false }) }} disabled={!newPolicy.name}>Crear</Button>
         </div>
       </div>
@@ -832,7 +839,7 @@ function VacationSection() {
       {/* Balances */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>Saldos del equipo</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{t('settings.saldos_del_equipo')}</div>
           <select value={year} onChange={e => setYear(+e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}>
             {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
@@ -863,6 +870,7 @@ function VacationSection() {
 
 // ── Numbering section ─────────────────────────────────────────────────────────
 function NumberingSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const { data: seqs = [], isLoading } = useQuery<any>({ queryKey: ['numbering-seqs'], queryFn: () => advancedConfigApi.getNumbering().then(r => r.data) })
@@ -883,10 +891,10 @@ function NumberingSection() {
               <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <div><label style={{ ...ls, fontSize: "var(--text-2xs)" }}>Prefijo</label><input defaultValue={s.prefix} onBlur={e => update({ entity: s.entity, data: { ...s, prefix: e.target.value } })} style={{ ...fs, width: 70 }} placeholder="Prefijo" aria-label="Prefijo" /></div>
                 <div><label style={{ ...ls, fontSize: "var(--text-2xs)" }}>Sep.</label><input defaultValue={s.separator} onBlur={e => update({ entity: s.entity, data: { ...s, separator: e.target.value } })} style={{ ...fs, width: 40 }} /></div>
-                <div><label style={{ ...ls, fontSize: "var(--text-2xs)" }}>Dígitos</label><input type="number" min="1" max="8" defaultValue={s.padding} onBlur={e => update({ entity: s.entity, data: { ...s, padding: +e.target.value } })} style={{ ...fs, width: 60 }} /></div>
+                <div><label style={{ ...ls, fontSize: "var(--text-2xs)" }}>{t('settings.digitos')}</label><input type="number" min="1" max="8" defaultValue={s.padding} onBlur={e => update({ entity: s.entity, data: { ...s, padding: +e.target.value } })} style={{ ...fs, width: 60 }} /></div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-2)', paddingBottom: 4 }}>
                   <input type="checkbox" defaultChecked={s.include_year} onChange={e => update({ entity: s.entity, data: { ...s, include_year: e.target.checked } })} />
-                  Incluir año
+                  {t('settings.incluir_ano')}
                 </label>
               </div>
               <div style={{ flexShrink: 0 }}>
@@ -967,9 +975,9 @@ function CustomFieldsSection() {
                       <div style={{ display:'flex', gap:8, padding:'10px', background:'var(--accent-muted)',
                         border:'1px solid var(--accent-glow)', borderRadius:8, marginTop:-4, alignItems:'center' }}>
                         <input value={editFieldForm.name} onChange={e=>setEditFieldForm((f: any)=>({...f,name:e.target.value}))}
-                          style={{...fs,flex:2}} placeholder="Nombre del campo" aria-label="Nombre del campo" autoFocus />
+                          style={{...fs,flex:2}} placeholder={t('settings.nombre_del_campo')} aria-label={t('settings.nombre_del_campo')} autoFocus />
                         <input value={editFieldForm.placeholder} onChange={e=>setEditFieldForm((f: any)=>({...f,placeholder:e.target.value}))}
-                          style={{...fs,flex:2}} placeholder="Placeholder del campo" aria-label="Placeholder del campo" />
+                          style={{...fs,flex:2}} placeholder={t('settings.placeholder_del_campo')} aria-label={t('settings.placeholder_del_campo')} />
                         <label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontSize: "var(--text-sm)",whiteSpace:'nowrap'}}>
                           <input type="checkbox" checked={editFieldForm.is_required}
                             onChange={e=>setEditFieldForm((f: any)=>({...f,is_required:e.target.checked}))} />Obligatorio
@@ -989,13 +997,13 @@ function CustomFieldsSection() {
         </div>
       )}
       <div style={{ padding: '14px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
-        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 12 }}>Añadir campo personalizado</div>
+        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 12 }}>{t('settings.anadir_campo_personalizado')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 10, alignItems: 'flex-end' }}>
           <div><label style={ls}>Entidad</label><select value={form.entity} onChange={e => setForm((f: any) => ({ ...f, entity: e.target.value }))} style={fs}>{ENTITIES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}</select></div>
-          <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} style={fs} placeholder="Nombre del campo" aria-label="Nombre del campo" /></div>
+          <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} style={fs} placeholder={t('settings.nombre_del_campo')} aria-label={t('settings.nombre_del_campo')} /></div>
           <div><label style={ls}>Clave</label><input value={form.field_key} onChange={e => setForm((f: any) => ({ ...f, field_key: e.target.value }))} style={fs} placeholder="Clave interna" aria-label="Clave interna" /></div>
           <div><label style={ls}>Tipo</label><select value={form.field_type} onChange={e => setForm((f: any) => ({ ...f, field_type: e.target.value }))} style={fs}>{TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
-          <Button onClick={() => { createField(form); setForm({ entity: form.entity, name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' }) }} disabled={!form.name || !form.field_key}>Añadir</Button>
+          <Button onClick={() => { createField(form); setForm({ entity: form.entity, name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' }) }} disabled={!form.name || !form.field_key}>{t('settings.anadir')}</Button>
         </div>
       </div>
     </Section>
@@ -1059,6 +1067,7 @@ function TemplatesSection() {
 }
 
 function CreateTemplateModal({ onClose, onSave, isSaving = false }: any) {
+  const { t } = useAppLang()
   const [ui, setUi] = React.useReducer(
     (s: any, p: any) => {
       const next = typeof p === 'function' ? p(s) : p
@@ -1160,15 +1169,15 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: any) {
   }
 
   return (
-    <Modal open title="Nueva plantilla" onClose={onClose} width={760}>
+    <Modal open title={t('settings.nueva_plantilla')} onClose={onClose} width={760}>
       <div style={styles.colGap16}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 12 }}>
-          <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder="Nombre de la plantilla" aria-label="Nombre de la plantilla" /></div>
+          <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder={t('settings.nombre_de_la_plantilla')} aria-label={t('settings.nombre_de_la_plantilla')} /></div>
           <div><label style={ls}>Tipo proyecto</label><select value={form.project_type} onChange={set('project_type')} style={fs}><option value="consulting">consulting</option><option value="development">development</option><option value="maintenance">maintenance</option><option value="internal">internal</option><option value="rd">rd</option></select></div>
           <div><label style={ls}>Semanas estimadas</label><input type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} style={fs} /></div>
           <div><label style={ls}>Horas estimadas</label><input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} /></div>
         </div>
-        <div><label style={ls}>Descripción</label><textarea value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} /></div>
+        <div><label style={ls}>{t('settings.descripcion')}</label><textarea value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} /></div>
 
         {/* Phases */}
         <div>
@@ -1185,13 +1194,13 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: any) {
             </div>
           ))}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8, marginBottom: 8 }}>
-            <input value={phase.name} onChange={e => setPhase((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre de la fase" aria-label="Nombre de la fase" />
-            <input value={phase.description} onChange={e => setPhase((f: any) => ({ ...f, description: e.target.value }))} style={fs} placeholder="Descripción de fase" aria-label="Descripción de fase" />
+            <input value={phase.name} onChange={e => setPhase((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_fase')} aria-label={t('settings.nombre_de_la_fase')} />
+            <input value={phase.description} onChange={e => setPhase((f: any) => ({ ...f, description: e.target.value }))} style={fs} placeholder={t('settings.descripcion_de_fase')} aria-label={t('settings.descripcion_de_fase')} />
             <input type="number" value={phase.estimated_weeks} onChange={e => setPhase((f: any) => ({ ...f, estimated_weeks: e.target.value }))} style={fs} placeholder="Semanas" aria-label="Semanas estimadas" />
             <input type="number" value={phase.estimated_hours} onChange={e => setPhase((f: any) => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas estimadas" />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8 }}>
-            <input value={task.title} onChange={e => setTask((f: any) => ({ ...f, title: e.target.value }))} style={fs} placeholder="Título tarea" aria-label="Título tarea" />
+            <input value={task.title} onChange={e => setTask((f: any) => ({ ...f, title: e.target.value }))} style={fs} placeholder={t('settings.titulo_tarea')} aria-label={t('settings.titulo_tarea')} />
             <input type="number" value={task.estimated_hours} onChange={e => setTask((f: any) => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas tarea" />
             <input value={task.skill_required} onChange={e => setTask((f: any) => ({ ...f, skill_required: e.target.value }))} style={fs} placeholder="Skill requerida" aria-label="Skill requerida" />
             <Button size="sm" onClick={addTaskToPhase} disabled={!task.title}>+ Tarea</Button>
@@ -1212,13 +1221,13 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: any) {
         <div>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>Riesgos ({form.risks.length})</div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8 }}>
-            <input value={risk.title} onChange={e => setRisk((f: any) => ({ ...f, title: e.target.value }))} style={fs} placeholder="Título riesgo" aria-label="Título riesgo" />
-            <input value={risk.category} onChange={e => setRisk((f: any) => ({ ...f, category: e.target.value }))} style={fs} placeholder="Categoría" aria-label="Categoría riesgo" />
+            <input value={risk.title} onChange={e => setRisk((f: any) => ({ ...f, title: e.target.value }))} style={fs} placeholder={t('settings.titulo_riesgo')} aria-label={t('settings.titulo_riesgo')} />
+            <input value={risk.category} onChange={e => setRisk((f: any) => ({ ...f, category: e.target.value }))} style={fs} placeholder={t('settings.categoria')} aria-label={t('settings.categoria_riesgo')} />
             <select value={risk.probability} onChange={e => setRisk((f: any) => ({ ...f, probability: e.target.value }))} style={fs}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
             <select value={risk.impact} onChange={e => setRisk((f: any) => ({ ...f, impact: e.target.value }))} style={fs}><option value="minor">minor</option><option value="moderate">moderate</option><option value="major">major</option><option value="critical">critical</option></select>
             <Button size="sm" onClick={addRisk} disabled={!risk.title}>+ Riesgo</Button>
           </div>
-          <textarea value={risk.mitigation_plan} onChange={e => setRisk((f: any) => ({ ...f, mitigation_plan: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder="Plan de mitigación (opcional)" />
+          <textarea value={risk.mitigation_plan} onChange={e => setRisk((f: any) => ({ ...f, mitigation_plan: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder={t('settings.plan_de_mitigacion_opcional')} />
         </div>
 
         {/* Deliverables */}
@@ -1228,10 +1237,10 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: any) {
             <input value={deliverable.name} onChange={e => setDeliverable((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre entregable" aria-label="Nombre entregable" />
             <input value={deliverable.format} onChange={e => setDeliverable((f: any) => ({ ...f, format: e.target.value }))} style={fs} placeholder="Formato" aria-label="Formato entregable" />
             <input type="number" value={deliverable.week_offset} onChange={e => setDeliverable((f: any) => ({ ...f, week_offset: e.target.value }))} style={fs} placeholder="Semana" aria-label="Semana entregable" />
-            <input type="number" value={deliverable.billing_pct} onChange={e => setDeliverable((f: any) => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder="% facturación" aria-label="Porcentaje facturación" />
+            <input type="number" value={deliverable.billing_pct} onChange={e => setDeliverable((f: any) => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder={t('settings.facturacion')} aria-label={t('settings.porcentaje_facturacion')} />
             <Button size="sm" onClick={addDeliverable} disabled={!deliverable.name}>+ Entregable</Button>
           </div>
-          <textarea value={deliverable.acceptance_criteria} onChange={e => setDeliverable((f: any) => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder="Criterio de aceptación (opcional)" />
+          <textarea value={deliverable.acceptance_criteria} onChange={e => setDeliverable((f: any) => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder={t('settings.criterio_de_aceptacion_opcional')} />
         </div>
 
         <div style={styles.rowFlexEnd}>
@@ -1268,6 +1277,7 @@ function TemplateDetailModal({ template, onClose }: any) {
 
 // ── Offices section ───────────────────────────────────────────────────────────
 function OfficesSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const { timezone: defaultTimezone } = useOrgSettings()
@@ -1296,7 +1306,7 @@ function OfficesSection() {
                 border: '1px solid var(--accent-glow)', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <div style={{ flex: 2, minWidth: 120 }}><label style={ls}>Nombre *</label>
                   <input value={editForm.name} onChange={e => setEditForm((f: any)=>({...f,name:e.target.value}))} style={fs} autoFocus /></div>
-                <div style={{ flex: 1, minWidth: 90 }}><label style={ls}>País</label>
+                <div style={{ flex: 1, minWidth: 90 }}><label style={ls}>{t('settings.pais')}</label>
                   <input value={editForm.country} onChange={e => setEditForm((f: any)=>({...f,country:e.target.value}))} style={fs} /></div>
                 <div style={{ flex: 1, minWidth: 90 }}><label style={ls}>Ciudad</label>
                   <input value={editForm.city} onChange={e => setEditForm((f: any)=>({...f,city:e.target.value}))} style={fs} /></div>
@@ -1325,14 +1335,14 @@ function OfficesSection() {
             )}
           </div>
         ))}
-        {offices.length === 0 && <EmptyState svgIcon={<Building2 size={36} />} title="Sin sedes registradas" description="Añade la primera sede para tu organización" />}
+        {offices.length === 0 && <EmptyState svgIcon={<Building2 size={36} />} title={t('settings.sin_sedes_registradas')} description="Añade la primera sede para tu organización" />}
       </div>
       <div style={styles.addPanel10}>
-        <div style={{ flex: 2 }}><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre de la sede" aria-label="Nombre de la sede" /></div>
-        <div style={{ flex: 1 }}><label style={ls}>País</label><input value={form.country} onChange={e => setForm((f: any) => ({ ...f, country: e.target.value }))} style={fs} placeholder="Pais" aria-label="Pais" /></div>
+        <div style={{ flex: 2 }}><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_sede')} aria-label={t('settings.nombre_de_la_sede')} /></div>
+        <div style={{ flex: 1 }}><label style={ls}>{t('settings.pais')}</label><input value={form.country} onChange={e => setForm((f: any) => ({ ...f, country: e.target.value }))} style={fs} placeholder="Pais" aria-label="Pais" /></div>
         <div style={{ flex: 1 }}><label style={ls}>Ciudad</label><input value={form.city} onChange={e => setForm((f: any) => ({ ...f, city: e.target.value }))} style={fs} /></div>
         <div style={{ flex: 1 }}><label style={ls}>Zona horaria</label><select value={form.timezone} onChange={e => setForm((f: any) => ({ ...f, timezone: e.target.value }))} style={fs}>{TIMEZONES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-        <Button onClick={() => { create(form); setForm({ name: '', country: '', city: '', timezone: defaultTimezone }) }} disabled={!form.name}>Añadir</Button>
+        <Button onClick={() => { create(form); setForm({ name: '', country: '', city: '', timezone: defaultTimezone }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
       </div>
     </Section>
   )
@@ -1340,6 +1350,7 @@ function OfficesSection() {
 
 // ── Task types section ────────────────────────────────────────────────────────
 function TaskTypesSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const { data: types = [], isLoading } = useQuery<any>({ queryKey: ['task-types-config'], queryFn: () => advancedConfigApi.getTaskTypes().then(r => r.data) })
@@ -1357,7 +1368,7 @@ function TaskTypesSection() {
   const setEditForm = (v: any) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
 
   return (
-    <Section icon="🏷️" title="Tipos de tarea" description="Gestiona etiquetas y tipos facturables">
+    <Section icon="🏷️" title={t('settings.tipos_de_tarea')} description="Gestiona etiquetas y tipos facturables">
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
           {types.map((t: any) => (
@@ -1391,7 +1402,7 @@ function TaskTypesSection() {
         <div><label style={ls}>Icono</label><input value={form.icon} onChange={e => setForm((f: any) => ({ ...f, icon: e.target.value }))} style={{ ...fs, width: 60 }} placeholder="Icono" aria-label="Icono" /></div>
         <div><label style={ls}>Color</label><div style={{ display: 'flex', gap: 6 }}><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#7a8aaa'} onChange={e => setForm((f: any) => ({ ...f, color: e.target.value }))} style={{ width: 38, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm((f: any) => ({ ...f, color: e.target.value }))} style={{ ...fs, width: 90 }} /></div></div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", paddingBottom: 4 }}><input type="checkbox" checked={form.is_billable_default} onChange={e => setForm((f: any) => ({ ...f, is_billable_default: e.target.checked }))} />Facturable</label>
-        <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '📋', color: '#7a8aaa', is_billable_default: true }) }} disabled={!form.name || !form.value}>Añadir</Button>
+        <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '📋', color: '#7a8aaa', is_billable_default: true }) }} disabled={!form.name || !form.value}>{t('settings.anadir')}</Button>
       </div>
     </Section>
   )
@@ -1399,6 +1410,7 @@ function TaskTypesSection() {
 
 // ── Departments & Holidays (existing) ─────────────────────────────────────────
 function DepartmentsSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const { data = [], isLoading } = useQuery<any>({ queryKey: ['departments'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
@@ -1424,9 +1436,9 @@ function DepartmentsSection() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
                   background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10 }}>
                   <input value={editForm.name} onChange={e => setEditForm((f: any) => ({ ...f, name: e.target.value }))}
-                    style={{ ...fs, flex: 2, padding: '5px 9px' }} placeholder="Nombre del departamento" aria-label="Nombre del departamento" autoFocus />
+                    style={{ ...fs, flex: 2, padding: '5px 9px' }} placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} autoFocus />
                   <input value={editForm.description} onChange={e => setEditForm((f: any) => ({ ...f, description: e.target.value }))}
-                    style={{ ...fs, flex: 3, padding: '5px 9px' }} placeholder="Descripcion" aria-label="Descripcion del departamento" />
+                    style={{ ...fs, flex: 3, padding: '5px 9px' }} placeholder="Descripcion" aria-label={t('settings.descripcion_del_departamento')} />
                   <button onClick={() => update({ id: d.id, data: editForm })} disabled={!editForm.name}
                     style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '5px 12px',
                       color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✓</button>
@@ -1449,13 +1461,13 @@ function DepartmentsSection() {
               )}
             </div>
           ))}
-          {data.length === 0 && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>Sin departamentos</div>}
+          {data.length === 0 && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>{t('settings.sin_departamentos')}</div>}
         </div>
       )}
       <div style={{ display: 'flex', gap: 10, padding: '10px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
-        <input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} style={{ ...fs, flex: 2 }} placeholder="Nombre del departamento" aria-label="Nombre del departamento" />
-        <input value={form.description} onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))} style={{ ...fs, flex: 2 }} placeholder="Descripcion" aria-label="Descripcion del departamento" />
-        <Button onClick={() => { create(form); setForm({ name: '', description: '' }) }} disabled={!form.name}>Añadir</Button>
+        <input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} style={{ ...fs, flex: 2 }} placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} />
+        <input value={form.description} onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))} style={{ ...fs, flex: 2 }} placeholder="Descripcion" aria-label={t('settings.descripcion_del_departamento')} />
+        <Button onClick={() => { create(form); setForm({ name: '', description: '' }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
       </div>
     </Section>
   )
@@ -1468,6 +1480,7 @@ const OPERATOR_LABELS: Record<string, string> = { '+': 'Suma', '-': 'Resta', '*'
 const EMPTY_METRIC = { label: '', description: '', operand_a: '', operator: '/', operand_b_type: 'metric', operand_b: '', scale: 1 }
 
 function MetricsSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
 
@@ -1510,10 +1523,10 @@ function MetricsSection() {
   }
 
   return (
-    <Section icon="📊" title="Métricas" description="Métricas del sistema disponibles para alertas y análisis">
+    <Section icon="📊" title={t('settings.metricas')} description="Métricas del sistema disponibles para alertas y análisis">
       {/* Built-in metrics */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>Métricas del sistema ({builtinMetrics.length})</div>
+        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>{t('settings.metricas_del_sistema')}{builtinMetrics.length})</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
           {builtinMetrics.map((m: any) => (
             <div key={m.key} style={{ padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
@@ -1527,11 +1540,11 @@ function MetricsSection() {
       {/* Custom metrics */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em' }}>Métricas personalizadas ({customMetrics.length})</div>
-          <Button onClick={() => setShowCreate(true)}>+ Nueva métrica</Button>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{t('settings.metricas_personalizadas')}{customMetrics.length})</div>
+          <Button onClick={() => setShowCreate(true)}>{t('settings.nueva_metrica')}</Button>
         </div>
         {customMetrics.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>No hay métricas personalizadas. Crea la primera combinando métricas existentes.</div>
+          <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('settings.no_hay_metricas_personalizadas_crea_la_primera')}</div>
         ) : (
           <div style={styles.colGap8}>
             {customMetrics.map((cm: any) => {
@@ -1560,21 +1573,21 @@ function MetricsSection() {
       </div>
 
       {showCreate && (
-        <Modal open title="Nueva métrica personalizada" onClose={() => { setShowCreate(false); setForm(EMPTY_METRIC) }} width={500}>
+        <Modal open title={t('settings.nueva_metrica_personalizada')} onClose={() => { setShowCreate(false); setForm(EMPTY_METRIC) }} width={500}>
           <div style={styles.colGap14}>
             <div>
               <label style={ls}>Nombre</label>
               <input value={form.label} onChange={setF('label')} style={fs} placeholder="Ej: Ratio coste-ingreso" />
             </div>
             <div>
-              <label style={ls}>Descripción (opcional)</label>
-              <input value={form.description} onChange={setF('description')} style={fs} placeholder="Para qué sirve esta métrica" />
+              <label style={ls}>{t('settings.descripcion_opcional')}</label>
+              <input value={form.description} onChange={setF('description')} style={fs} placeholder={t('settings.para_que_sirve_esta_metrica')} />
             </div>
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 12 }}>Fórmula: (A operador B) × escala</div>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 12 }}>{t('settings.formula_a_operador_b_escala')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 10, alignItems: 'end', marginBottom: 12 }}>
                 <div>
-                  <label style={ls}>Métrica A</label>
+                  <label style={ls}>{t('settings.metrica_a')}</label>
                   <select value={form.operand_a} onChange={setF('operand_a')} style={fs}>
                     <option value="">— Selecciona —</option>
                     {builtinMetrics.map((m: any) => <option key={m.key} value={m.key}>{m.label}</option>)}
@@ -1589,7 +1602,7 @@ function MetricsSection() {
                 <div>
                   <label style={ls}>Tipo B</label>
                   <select value={form.operand_b_type} onChange={setF('operand_b_type')} style={fs}>
-                    <option value="metric">Otra métrica</option>
+                    <option value="metric">{t('settings.otra_metrica')}</option>
                     <option value="constant">Constante</option>
                   </select>
                 </div>
@@ -1705,6 +1718,7 @@ function ProviderCard({ provider, config, form, onChange, onSave, isSaving }: an
 }
 
 function ESignSettingsSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
 
@@ -1740,7 +1754,7 @@ function ESignSettingsSection() {
   }
 
   return (
-    <Section icon="✍" title="Firma Electrónica" description="Configura las credenciales de los proveedores de firma electrónica. Los cambios se aplican inmediatamente.">
+    <Section icon="✍" title={t('settings.firma_electronica')} description="Configura las credenciales de los proveedores de firma electrónica. Los cambios se aplican inmediatamente.">
       {isLoading ? (
         <Spinner />
       ) : (
@@ -1748,14 +1762,14 @@ function ESignSettingsSection() {
           <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', marginBottom: 20 }}>
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, marginBottom: 6 }}>Modo manual siempre disponible</div>
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-              Sin credenciales, las solicitudes se gestionan en modo manual: NexusPM registra el estado internamente sin enviar sobres a proveedores externos. Configura DocuSign o Adobe Sign para el flujo completo.
+              {t('settings.sin_credenciales_las_solicitudes_se_gestionan_en')}
             </div>
           </div>
 
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Webhooks de sincronización de estado</div>
+            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>{t('settings.webhooks_de_sincronizacion_de_estado')}</div>
             <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px' }}>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>Configura en el panel de tu proveedor las siguientes URLs de webhook:</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{t('settings.configura_en_el_panel_de_tu_proveedor')}</div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--accent)', marginBottom: 2 }}>DocuSign Connect: <span style={{ color: 'var(--text-1)' }}>/api/v1/esign/webhooks/docusign</span></div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--accent)' }}>Adobe Sign: <span style={{ color: 'var(--text-1)' }}>/api/v1/esign/webhooks/adobe</span></div>
             </div>
@@ -1782,6 +1796,7 @@ function ESignSettingsSection() {
 const IDLE_TIMEOUT_OPTIONS = [5, 10, 15, 30, 60, 120, 240]
 
 function SessionSecuritySection() {
+  const { t } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
 
@@ -1800,7 +1815,7 @@ function SessionSecuritySection() {
   const idleMinutes = parseInt(find('idle_timeout_minutes') || '30', 10)
 
   return (
-    <Section icon="🔒" title="Seguridad de sesión" description="Controla el cierre automático por inactividad">
+    <Section icon="🔒" title={t('settings.seguridad_de_sesion')} description="Controla el cierre automático por inactividad">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 520 }}>
 
         {/* Toggle idle timeout */}
@@ -1811,10 +1826,10 @@ function SessionSecuritySection() {
         }}>
           <div>
             <div style={{ fontWeight: 700, color: 'var(--text-1)', fontSize: 'var(--text-sm)' }}>
-              Cierre de sesión por inactividad
+              {t('settings.cierre_de_sesion_por_inactividad')}
             </div>
             <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)', marginTop: 2 }}>
-              Cierra la sesión automáticamente si el usuario no tiene actividad
+              {t('settings.cierra_la_sesion_automaticamente_si_el_usuario')}
             </div>
           </div>
           <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, flexShrink: 0, cursor: 'pointer' }}>
@@ -1844,7 +1859,7 @@ function SessionSecuritySection() {
           opacity: idleEnabled ? 1 : 0.45,
           pointerEvents: idleEnabled ? 'auto' : 'none',
         }}>
-          <label style={ls}>Minutos de inactividad antes de cerrar sesión</label>
+          <label style={ls}>{t('settings.minutos_de_inactividad_antes_de_cerrar_sesion')}</label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
             {IDLE_TIMEOUT_OPTIONS.map(m => (
               <button
@@ -1865,7 +1880,7 @@ function SessionSecuritySection() {
             ))}
           </div>
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 10 }}>
-            Se mostrará un aviso 60 segundos antes de cerrar la sesión.
+            {t('settings.se_mostrara_un_aviso_60_segundos_antes')}
           </div>
         </div>
 

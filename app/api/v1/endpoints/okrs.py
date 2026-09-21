@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -112,6 +112,7 @@ def delete_kr(kr_id: str, db: Session = Depends(get_db),
 # ── Check-ins ─────────────────────────────────────────────────────────────────
 @router.post("/key-results/{kr_id}/checkin", summary="Registrar progreso", status_code=201)
 def checkin_kr(kr_id: str, payload: CheckinIn,
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: avance del propio KR
                db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     kr = okr_service.get_key_result(db, kr_id)
     if not kr:

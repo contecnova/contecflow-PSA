@@ -1034,36 +1034,38 @@ def withdraw_feature_request(fr_id: str, reason: Optional[str], current_client, 
     return fr_out(fr)
 
 
-def respond_to_fr(fr_id: str, payload, current_user, db: Session) -> dict:
+#: Estado de la solicitud → estado de la petición de cambio enlazada.
+#: Auditoría 2026-09 (hallazgo 18): eran tres `elif` seguidos. Los estados que
+#: no están aquí **no tocan** la petición de cambio, y eso es deliberado: una
+#: solicitud en revisión no cambia nada aguas abajo.
+_ESTADO_DE_CR_SEGUN_FR = {
+    FeatureRequestStatus.in_development: ChangeRequestStatus.approved,
+    FeatureRequestStatus.done: ChangeRequestStatus.implemented,
+    FeatureRequestStatus.rejected: ChangeRequestStatus.rejected,
+}
 
-    fr = db.query(FeatureRequest).filter(FeatureRequest.id == fr_id).first()
-    if not fr:
+
+def _acotar_fr_a_la_organizacion(fr, current_user, db: Session) -> None:
+    """Comprueba que la solicitud es de un proyecto de quien pregunta.
+
+    Se responde «no encontrada» y no «prohibido»: un 403 confirmaría que esa
+    solicitud existe en otra organización.
+    """
+    if not getattr(current_user, "organization_id", None):
+        return
+    if getattr(current_user, "is_superadmin", False):
+        return
+    proyecto = db.query(ProjectModel).filter(ProjectModel.id == fr.project_id).first()
+    if not proyecto or proyecto.organization_id != current_user.organization_id:
         raise ValueError("FR no encontrada")
-    if getattr(current_user, "organization_id", None) and not getattr(current_user, "is_superadmin", False):
-        project = db.query(ProjectModel).filter(ProjectModel.id == fr.project_id).first()
-        if not project or project.organization_id != current_user.organization_id:
-            raise ValueError("FR no encontrada")
-    if payload.status == "estimated" and not payload.pm_response:
-        raise ValueError("pm_response es obligatorio para presupuestar una solicitud")
-    data = payload.model_dump(exclude_unset=True, exclude_none=True)
-    for k, v in data.items():
-        setattr(fr, k, v)
-    cr = None
-    if fr.change_request_id:
-        cr = db.query(ChangeRequest).filter(ChangeRequest.id == fr.change_request_id).first()
-        if cr:
-            if fr.status == FeatureRequestStatus.in_development:
-                cr.status = ChangeRequestStatus.approved
-            elif fr.status == FeatureRequestStatus.done:
-                cr.status = ChangeRequestStatus.implemented
-            elif fr.status == FeatureRequestStatus.rejected:
-                cr.status = ChangeRequestStatus.rejected
-            db.commit()
-    db.commit()
-    db.refresh(fr)
+
+
+def _avisar_del_cambio_de_estado(fr, cr) -> None:
+    """Notifica al cliente por WebSocket. Un fallo aquí no tumba la respuesta."""
     try:
-        user_id = str(fr.client_id)
-        notif = {
+        # `spawn` conserva la referencia (auditoría 2026-08, P2-15): sin ella el
+        # recolector podía descartar la notificación antes de enviarse.
+        spawn(publish_user_notification(str(fr.client_id), {
             "type": "cr_state_changed",
             "feature_request_id": fr.id,
             "change_request_id": getattr(fr, "change_request_id", None),
@@ -1071,12 +1073,35 @@ def respond_to_fr(fr_id: str, payload, current_user, db: Session) -> dict:
             "cr_status": cr.status if cr else None,
             "title": fr.title,
             "ts": datetime.now(timezone.utc).isoformat(),
-        }
-        # spawn conserva la referencia (auditoría 2026-08, P2-15): sin ella el GC
-        # podía descartar la notificación antes de enviarse.
-        spawn(publish_user_notification(user_id, notif), name="portal-notif")
+        }), name="portal-notif")
     except Exception as e:
         logger.warning(f"No se pudo enviar notificación WS: {e}")
+
+
+def respond_to_fr(fr_id: str, payload, current_user, db: Session) -> dict:
+    """Responde a una solicitud de funcionalidad del portal de cliente."""
+    fr = db.query(FeatureRequest).filter(FeatureRequest.id == fr_id).first()
+    if not fr:
+        raise ValueError("FR no encontrada")
+    _acotar_fr_a_la_organizacion(fr, current_user, db)
+
+    # Presupuestar sin explicar el presupuesto deja al cliente con una cifra y
+    # ningún motivo.
+    if payload.status == "estimated" and not payload.pm_response:
+        raise ValueError("pm_response es obligatorio para presupuestar una solicitud")
+
+    for clave, valor in payload.model_dump(exclude_unset=True, exclude_none=True).items():
+        setattr(fr, clave, valor)
+
+    cr = None
+    if fr.change_request_id:
+        cr = db.query(ChangeRequest).filter(ChangeRequest.id == fr.change_request_id).first()
+        if cr and fr.status in _ESTADO_DE_CR_SEGUN_FR:
+            cr.status = _ESTADO_DE_CR_SEGUN_FR[fr.status]
+
+    db.commit()
+    db.refresh(fr)
+    _avisar_del_cambio_de_estado(fr, cr)
     return fr_out(fr)
 
 

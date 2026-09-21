@@ -8,6 +8,81 @@ from . import register_metric
 from app.core import timeutil
 
 
+def _ingreso_de_pipeline(db: Session, d_from: date) -> float:
+    """Oportunidades abiertas, ponderadas por su probabilidad de cierre.
+
+    Ponderar es lo que hace que esto sea un forecast y no una lista de deseos:
+    una oportunidad al 20 % aporta una quinta parte de su importe.
+    """
+    from app.models.pipeline import Opportunity
+
+    return sum(
+        (opp.expected_revenue or 0) * (opp.probability or 0) / 100
+        for opp in db.query(Opportunity).filter(
+            Opportunity.stage.notin_(["won", "lost"]),
+            Opportunity.created_at >= d_from,
+        ).all()
+        if opp.created_at
+    )
+
+
+def _ingreso_de_proyectos(db: Session, d_from: date, d_to: date,
+                          project_ids: Optional[list[str]]) -> float:
+    """Horas que quedan por imputar en proyectos activos, a su tarifa.
+
+    Las imputaciones se traen **en una sola consulta agrupada** y no una por
+    proyecto: con una cartera grande, lo segundo son cientos de viajes a la
+    base de datos para sumar un número.
+    """
+    from app.models.imputation import Imputation
+    from app.models.project import Project
+
+    q = db.query(Project).filter(Project.status == "active")
+    if project_ids is not None:
+        q = q.filter(Project.id.in_(project_ids))
+    proyectos = q.all()
+
+    facturables = [p.id for p in proyectos if p.estimated_hours and p.billing_rate]
+    if not facturables:
+        return 0.0
+
+    imputadas = {
+        fila[0]: fila[1] or 0
+        for fila in db.query(Imputation.project_id, func.sum(Imputation.hours))
+        .filter(
+            Imputation.project_id.in_(facturables),
+            Imputation.date.between(d_from, d_to),
+        )
+        .group_by(Imputation.project_id).all()
+    }
+    return sum(
+        max(0, p.estimated_hours - imputadas.get(p.id, 0)) * p.billing_rate
+        for p in proyectos if p.estimated_hours and p.billing_rate
+    )
+
+
+def _ingreso_de_contratos(db: Session, hoy: date, project_ids: Optional[list[str]]) -> float:
+    """Lo que queda por devengar de los contratos vigentes.
+
+    Se prorratea el importe anual a días: es una aproximación declarada, y la
+    alternativa —leer el calendario de facturación real— es otra métrica.
+    """
+    from app.models.pipeline import Contract
+
+    q = db.query(Contract).filter(Contract.status == "active", Contract.end_date >= hoy)
+    if project_ids is not None:
+        q = q.filter(Contract.project_id.in_(project_ids))
+
+    total = 0.0
+    for contrato in q.all():
+        if not contrato.end_date:
+            continue
+        dias = (contrato.end_date - hoy).days
+        if dias > 0:
+            total += ((contrato.total_amount or 0) / 12 / 30) * dias
+    return total
+
+
 @register_metric("forecast_revenue")
 def metric_forecast_revenue(
     db: Session,
@@ -19,92 +94,32 @@ def metric_forecast_revenue(
     project_ids: Optional[list[str]] = None,
     **kwargs
 ) -> tuple[list[dict], dict]:
-    """
-    Forecast de ingresos a 90 días: combina pipeline + proyectos activos + horas estimadas.
-    Requiere modelos: Opportunity (pipeline), Project (horas restantes), Contract (vigentes).
+    """Forecast de ingresos a 90 días: pipeline + proyectos activos + contratos.
+
+    Devuelve vacío si falta algún modelo: esta métrica vive en un catálogo del
+    que se piden varias a la vez, y una que reviente tumbaría la pantalla.
     """
     try:
-        from app.models.pipeline import Opportunity, Contract
-        from app.models.project import Project
-        from app.models.imputation import Imputation
+        hoy = timeutil.today()
+        DIAS = 90
 
-        today = timeutil.today()
-        forecast_days = 90
-        forecast_end = today + timedelta(days=forecast_days)
+        pipeline = _ingreso_de_pipeline(db, d_from)
+        proyectos = _ingreso_de_proyectos(db, d_from, d_to, project_ids)
+        contratos = _ingreso_de_contratos(db, hoy, project_ids)
+        total = pipeline + proyectos + contratos
 
-        # 1. Pipeline opportunities (weighted by probability)
-        pipeline_revenue = 0
-        opportunities = db.query(Opportunity).filter(
-            Opportunity.stage.notin_(["won", "lost"]),
-            Opportunity.created_at >= d_from
-        ).all()
+        def porcentaje(parte: float) -> float:
+            return round(parte / total * 100, 1) if total > 0 else 0
 
-        for opp in opportunities:
-            weighted = (opp.expected_revenue or 0) * (opp.probability or 0) / 100
-            if opp.created_at:
-                days_left = (forecast_end - opp.created_at.date()).days
-                if days_left > 0:
-                    pipeline_revenue += weighted
-
-        # 2. Active projects: hours remaining * rate (batch query)
-        project_revenue = 0
-        active_projects_q = db.query(Project).filter(Project.status == "active")
-        if project_ids is not None:
-            active_projects_q = active_projects_q.filter(Project.id.in_(project_ids))
-        active_projects = active_projects_q.all()
-        billing_project_ids = [p.id for p in active_projects if p.estimated_hours and p.billing_rate]
-        imputations_by_project = {r[0]: r[1] or 0 for r in db.query(Imputation.project_id, func.sum(Imputation.hours))
-            .filter(Imputation.project_id.in_(billing_project_ids), Imputation.date.between(d_from, d_to))
-            .group_by(Imputation.project_id).all()} if billing_project_ids else {}
-        for proj in active_projects:
-            if proj.estimated_hours and proj.billing_rate:
-                imputations = imputations_by_project.get(proj.id, 0)
-                hours_remaining = max(0, proj.estimated_hours - imputations)
-                revenue = hours_remaining * proj.billing_rate
-                project_revenue += revenue
-
-        # 3. Active contracts revenue remaining
-        contract_revenue = 0
-        contracts_q = db.query(Contract).filter(
-            Contract.status == "active",
-            Contract.end_date >= today
-        )
-        if project_ids is not None:
-            contracts_q = contracts_q.filter(Contract.project_id.in_(project_ids))
-        contracts = contracts_q.all()
-
-        for contract in contracts:
-            if contract.end_date:
-                days_left = (contract.end_date - today).days
-                if days_left > 0:
-                    monthly_value = (contract.total_amount or 0) / 12
-                    monthly_days = 30
-                    revenue_per_day = monthly_value / monthly_days
-                    contract_revenue += revenue_per_day * days_left
-
-        rows = [
-            {
-                "label": "Ingreso pipeline (ponderado)",
-                "value": round(pipeline_revenue, 0),
-                "percentage": round(pipeline_revenue / (pipeline_revenue + project_revenue + contract_revenue) * 100, 1) if (pipeline_revenue + project_revenue + contract_revenue) > 0 else 0,
-                "type": "pipeline"
-            },
-            {
-                "label": "Ingreso proyectos activos",
-                "value": round(project_revenue, 0),
-                "percentage": round(project_revenue / (pipeline_revenue + project_revenue + contract_revenue) * 100, 1) if (pipeline_revenue + project_revenue + contract_revenue) > 0 else 0,
-                "type": "projects"
-            },
-            {
-                "label": "Ingreso contratos vigentes",
-                "value": round(contract_revenue, 0),
-                "percentage": round(contract_revenue / (pipeline_revenue + project_revenue + contract_revenue) * 100, 1) if (pipeline_revenue + project_revenue + contract_revenue) > 0 else 0,
-                "type": "contracts"
-            },
+        filas = [
+            {"label": "Ingreso pipeline (ponderado)", "value": round(pipeline, 0),
+             "percentage": porcentaje(pipeline), "type": "pipeline"},
+            {"label": "Ingreso proyectos activos", "value": round(proyectos, 0),
+             "percentage": porcentaje(proyectos), "type": "projects"},
+            {"label": "Ingreso contratos vigentes", "value": round(contratos, 0),
+             "percentage": porcentaje(contratos), "type": "contracts"},
         ]
-
-        meta_patch = {"forecast_days": forecast_days, "forecast_end": str(forecast_end)}
-        return rows, meta_patch
+        return filas, {"forecast_days": DIAS, "forecast_end": str(hoy + timedelta(days=DIAS))}
     except (ImportError, Exception):
         return [], {}
 

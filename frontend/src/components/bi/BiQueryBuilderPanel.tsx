@@ -9,6 +9,7 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biQueryBuilderApi } from '../../services/api'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 const TABS = [
   { id: 'builder', label: '🔧 Constructor' },
@@ -84,6 +85,7 @@ const AGG_FUNCS  = ['count', 'sum', 'avg', 'min', 'max']
 const NULL_OPS = new Set(['is_null', 'is_not_null'])
 
 export default function BiQueryBuilderPanel() {
+  const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const [tab, setTab] = useState<string>('builder')
   const [results, setResults] = useState<QueryResult | null>(null)
@@ -227,7 +229,7 @@ export default function BiQueryBuilderPanel() {
         <div>
           <div style={{ fontWeight: 700, fontSize: "var(--text-lg)" }}>🔧 Query Builder Visual</div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 2 }}>
-            Construye consultas BI sin SQL de forma visual
+            {traducir('biquerybuilder.construye_consultas_bi_sin_sql_de_forma')}
           </div>
         </div>
       </div>
@@ -276,7 +278,7 @@ export default function BiQueryBuilderPanel() {
               <div style={ps}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>Filtros</span>
-                  <button style={btn(false)} onClick={addFilter}>+ Añadir filtro</button>
+                  <button style={btn(false)} onClick={addFilter}>{traducir('biquerybuilder.anadir_filtro')}</button>
                 </div>
                 {filters.map((f, i) => (
                   <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -297,7 +299,7 @@ export default function BiQueryBuilderPanel() {
 
               {/* Group by + Aggregations */}
               <div style={ps}>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 10 }}>Agrupar por</div>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 10 }}>{traducir('biquerybuilder.agrupar_por')}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                   {availableFields.map(f => (
                     <button key={f.name} onClick={() => toggleGroupBy(f.name)}
@@ -308,7 +310,7 @@ export default function BiQueryBuilderPanel() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>Agregaciones</span>
-                  <button style={btn(false)} onClick={addAgg}>+ Añadir</button>
+                  <button style={btn(false)} onClick={addAgg}>{traducir('biquerybuilder.anadir')}</button>
                 </div>
                 {aggregations.map((a, i) => (
                   <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
@@ -329,21 +331,21 @@ export default function BiQueryBuilderPanel() {
               {/* Sort + Limit */}
               <div style={{ ...ps, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ flex: '1 1 160px' }}>
-                  <label style={ls}>Ordenar por</label>
+                  <label style={ls}>{traducir('biquerybuilder.ordenar_por')}</label>
                   <select style={is} value={sortBy} onChange={e => setSortBy(e.target.value)}>
-                    <option value="">Sin orden</option>
+                    <option value="">{traducir('biquerybuilder.sin_orden')}</option>
                     {availableFields.map(f => <option key={f.name} value={f.name}>{f.label ?? f.name}</option>)}
                   </select>
                 </div>
                 <div style={{ flex: '0 0 100px' }}>
-                  <label style={ls}>Dirección</label>
+                  <label style={ls}>{traducir('biquerybuilder.direccion')}</label>
                   <select style={is} value={sortDir} onChange={e => setSortDir(e.target.value)}>
                     <option value="asc">ASC ↑</option>
                     <option value="desc">DESC ↓</option>
                   </select>
                 </div>
                 <div style={{ flex: '0 0 100px' }}>
-                  <label style={ls}>Límite</label>
+                  <label style={ls}>{traducir('biquerybuilder.limite')}</label>
                   <input type="number" style={is} value={limit} min={1} max={5000}
                     onChange={e => setLimit(Number(e.target.value))} />
                 </div>
@@ -352,7 +354,7 @@ export default function BiQueryBuilderPanel() {
               {/* Save name + Run */}
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <div style={{ flex: '1 1 200px' }}>
-                  <label style={ls}>Nombre de la query (requerido para guardar)</label>
+                  <label style={ls}>{traducir('biquerybuilder.nombre_de_la_query_requerido_para_guardar')}</label>
                   <input style={is} placeholder="Mi query…" value={queryName}
                     onChange={e => setQueryName(e.target.value)} />
                 </div>
@@ -376,7 +378,7 @@ export default function BiQueryBuilderPanel() {
         <div>
           {savedQueries.length === 0 ? (
             <div style={{ color: 'var(--text-3)', fontSize: "var(--text-base)", textAlign: 'center', padding: 40 }}>
-              No hay queries guardadas todavía. Crea una en el constructor.
+              {traducir('biquerybuilder.no_hay_queries_guardadas_todavia_crea_una')}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -406,7 +408,7 @@ export default function BiQueryBuilderPanel() {
         <div>
           {!results ? (
             <div style={{ color: 'var(--text-3)', fontSize: "var(--text-base)", textAlign: 'center', padding: 40 }}>
-              Ejecuta una query para ver resultados.
+              {traducir('biquerybuilder.ejecuta_una_query_para_ver_resultados')}
             </div>
           ) : (
             <div>
@@ -439,7 +441,7 @@ export default function BiQueryBuilderPanel() {
                 </table>
                 {results.rows && results.rows.length > 200 && (
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 8, textAlign: 'center' }}>
-                    Mostrando 200 de {results.rows.length} filas
+                    {traducir('biquerybuilder.mostrando_200_de')} {results.rows.length} filas
                   </div>
                 )}
               </div>

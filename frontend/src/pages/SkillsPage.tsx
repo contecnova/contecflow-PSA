@@ -132,6 +132,7 @@ function SkillsMatrix({ users, skills }: { users: MatrixUser[]; skills: CatalogS
 }
 
 function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => void }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [modalTab, setModalTab] = useState('skills')
@@ -180,7 +181,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
         <div>
           {skillHistory.length === 0 ? (
             <div style={{ textAlign:'center', padding:'32px 0', color:'var(--text-3)', fontSize: "var(--text-base)" }}>
-              Sin historial de evaluaciones registrado
+              {t('skills.sin_historial_de_evaluaciones_registrado')}
             </div>
           ) : skillHistory.map(e => {
             const LEVEL_ICONS: Record<string, string> = { basic:'⬜', intermediate:'🔵', advanced:'🟣', expert:'⭐' }
@@ -199,7 +200,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
                 </div>
                 <div style={{ textAlign:'right', flexShrink:0 }}>
                   <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{e.recorded_at?.slice(0,10)}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>por {e.recorded_by}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{t('skills.por')} {e.recorded_by}</div>
                 </div>
               </div>
             )
@@ -212,7 +213,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
       {/* Existing skills */}
       <div style={{ marginBottom: 20 }}>
         {Object.keys(byCategory).length === 0 ? (
-          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', textAlign: 'center', padding: '16px 0' }}>Sin skills registrados</div>
+          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', textAlign: 'center', padding: '16px 0' }}>{t('skills.sin_skills_registrados')}</div>
         ) : Object.entries(byCategory).map(([cat, skills]) => (
           <div key={cat} style={{ marginBottom: 14 }}>
             <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{CAT_LABELS[cat] || cat}</div>
@@ -233,12 +234,12 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
 
       {/* Add skill */}
       <div style={{ padding: 16, background: 'var(--accent-muted)', border: '2px dashed var(--accent-muted)', borderRadius: 10 }}>
-        <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--accent)', marginBottom: 14 }}>➕ Añadir nuevo skill</div>
+        <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--accent)', marginBottom: 14 }}>{t('skills.anadir_nuevo_skill')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
           <div>
             <label style={ls}>Skill *</label>
             <select value={form.skill_id} onChange={e => setForm(f => ({ ...f, skill_id: e.target.value }))} style={{ ...fs, borderColor: form.skill_id ? 'var(--accent)' : 'var(--surface-4)' }}>
-              <option value="">— Selecciona un skill —</option>
+              <option value="">{t('skills.selecciona_un_skill')}</option>
               {CATEGORIES.map(cat => (
                 <optgroup key={cat} label={CAT_LABELS[cat] || cat}>
                   {catalog.filter(s => s.category === cat).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -253,17 +254,17 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
             </select>
           </div>
           <div>
-            <label style={ls}>Años exp.</label>
+            <label style={ls}>{t('skills.anos_exp')}</label>
             <input type="number" min="0" max="30" step="0.5" value={form.years_experience} onChange={e => setForm(f => ({ ...f, years_experience: e.target.value }))} style={fs} placeholder="Ej: 3.5" />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 14 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)", color: 'var(--text-1)' }}>
             <input type="checkbox" checked={form.certified} onChange={e => setForm(f => ({ ...f, certified: e.target.checked }))} />
-            Tiene certificación
+            {t('skills.tiene_certificacion')}
           </label>
           {form.certified && (
-            <input value={form.cert_name} onChange={e => setForm(f => ({ ...f, cert_name: e.target.value }))} style={{ ...fs, flex: 1 }} placeholder="Nombre de la certificacion" />
+            <input value={form.cert_name} onChange={e => setForm(f => ({ ...f, cert_name: e.target.value }))} style={{ ...fs, flex: 1 }} placeholder={t('skills.nombre_de_la_certificacion')} />
           )}
         </div>
         <button
@@ -285,6 +286,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
 }
 
 function StaffingSearch() {
+  const t = useAppT()
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
   const [minLevel, setMinLevel] = useState('basic')
   const [results, setResults] = useState<StaffMatch[] | null>(null)
@@ -305,7 +307,7 @@ function StaffingSearch() {
 
   return (
     <Card style={{ padding: 20 }}>
-      <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>🔍 Buscar recursos por skills</h3>
+      <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>{t('skills.buscar_recursos_por_skills')}</h3>
       <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: 2 }}>
           <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Skills requeridos</div>
@@ -319,7 +321,7 @@ function StaffingSearch() {
           </div>
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Nivel mínimo</div>
+          <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{t('skills.nivel_minimo')}</div>
           <select value={minLevel} onChange={e => setMinLevel(e.target.value)}
             style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}>
             {LEVELS.map(l => <option key={l} value={l}>{LEVEL_CFG[l].label}</option>)}
@@ -334,7 +336,7 @@ function StaffingSearch() {
         <div style={{ marginTop: 16 }}>
           <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 10 }}>{results.length} recursos encontrados</div>
           {results.length === 0 ? (
-            <EmptyState icon="🔍" title="Sin recursos para estos criterios" description="Ajusta los skills o el nivel minimo requerido" />
+            <EmptyState icon="🔍" title={t('skills.sin_recursos_para_estos_criterios')} description="Ajusta los skills o el nivel minimo requerido" />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {results.map(u => (
@@ -366,11 +368,12 @@ function StaffingSearch() {
 }
 
 function UserSkillPreview({ userId }: { userId: string }) {
+  const t = useAppT()
   const { data: skills = [] } = useQuery<UserSkill[]>({
     queryKey: ['user-skills-preview', userId],
     queryFn: () => skillsApi.userSkills(userId).then(r => r.data?.items ?? r.data ?? []),
   })
-  if (skills.length === 0) return <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Sin skills registrados · haz clic para añadir</div>
+  if (skills.length === 0) return <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('skills.sin_skills_registrados_haz_clic_para_anadir')}</div>
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
       {skills.slice(0, 6).map(s => {
@@ -381,7 +384,7 @@ function UserSkillPreview({ userId }: { userId: string }) {
           </span>
         )
       })}
-      {skills.length > 6 && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>+{skills.length - 6} más</span>}
+      {skills.length > 6 && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>+{skills.length - 6} {t('skills.mas')}</span>}
     </div>
   )
 }
@@ -460,7 +463,7 @@ export default function SkillsPage() {
 
       {tab === 'matrix' && (
         loadingMatrix ? <Spinner /> : !matrix ? null : matrix.users.length === 0 ? (
-          <EmptyState icon="🗂" title="Sin datos de skills" description="Anade skills al perfil de los usuarios para ver la matriz" />
+          <EmptyState icon="🗂" title={t('skills.sin_datos_de_skills')} description="Anade skills al perfil de los usuarios para ver la matriz" />
         ) : (
           <Card style={{ padding: 16 }}>
             <div style={{ marginBottom: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -480,7 +483,7 @@ export default function SkillsPage() {
         <div>
           <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-muted)', borderRadius: 10, padding: '10px 16px', marginBottom: 20, fontSize: "var(--text-base)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: "var(--text-lg-em)" }}>💡</span>
-            Haz clic en cualquier persona para ver y editar sus skills
+            {t('skills.haz_clic_en_cualquier_persona_para_ver')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
             {users.filter(u => u.is_active !== false).map(u => (
@@ -510,13 +513,13 @@ export default function SkillsPage() {
       {tab === 'catalog' && (
         <div>
           <Card style={{ padding: 16, marginBottom: 20 }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>Añadir nuevo skill al catálogo</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>{t('skills.anadir_nuevo_skill_al_catalogo')}</div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              <input value={newSkill.name} onChange={e => setNewSkill(f => ({ ...f, name: e.target.value }))} style={{ ...inputStyle, flex: 2 }} placeholder="Nombre del skill" />
+              <input value={newSkill.name} onChange={e => setNewSkill(f => ({ ...f, name: e.target.value }))} style={{ ...inputStyle, flex: 2 }} placeholder={t('skills.nombre_del_skill')} />
               <select value={newSkill.category} onChange={e => setNewSkill(f => ({ ...f, category: e.target.value }))} style={{ ...inputStyle, flex: 1 }}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{CAT_LABELS[c]}</option>)}
               </select>
-              <Button onClick={() => { createSkill(newSkill); setNewSkill({ name: '', category: 'technical', description: '' }) }} disabled={!newSkill.name}>Añadir</Button>
+              <Button onClick={() => { createSkill(newSkill); setNewSkill({ name: '', category: 'technical', description: '' }) }} disabled={!newSkill.name}>{t('skills.anadir')}</Button>
             </div>
           </Card>
           {loadingCatalog ? <Spinner /> : (

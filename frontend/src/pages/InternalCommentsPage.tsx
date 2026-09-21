@@ -30,6 +30,7 @@ const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 function InternalCommentThread({ ticketId }: { ticketId: string | number }) {
+  const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [content, setContent] = useState('')
@@ -125,7 +126,7 @@ function InternalCommentThread({ ticketId }: { ticketId: string | number }) {
           <div>
             <label style={ls}>{t('internal_comments.add_label')}</label>
             <textarea value={content} onChange={e => setContent(e.target.value)}
-              placeholder="Escribe un comentario privado..."
+              placeholder={traducir('internalcomments.escribe_un_comentario_privado')}
               rows={3} style={{...is, marginBottom:8, resize:'vertical'}} />
             <Button onClick={() => addComment()} disabled={adding || !content.trim()}>
               {adding ? t('internal_comments.sending') : '🔒 ' + t('internal_comments.add_btn')}
@@ -138,6 +139,7 @@ function InternalCommentThread({ ticketId }: { ticketId: string | number }) {
 }
 
 export default function InternalCommentsPage(): JSX.Element {
+  const traducir = useAppT()
   const t = useAppT()
   const [ticketId, setTicketId] = useState<string | number | ''>('')
   const [search, setSearch] = useState('')
@@ -218,9 +220,7 @@ export default function InternalCommentsPage(): JSX.Element {
           )}
         </div>
         <div style={{marginTop:12, fontSize: "var(--text-sm)", color:'var(--text-3)', lineHeight:1.7}}>
-          Los comentarios internos son visibles <strong style={{color:'var(--warning)'}}>solo para el equipo de soporte</strong>.
-          El cliente no los puede ver en el portal. Usa estas notas para coordinar internamente,
-          escalar o registrar contexto técnico sensible.
+          {traducir('internalcomments.los_comentarios_internos_son_visibles')} <strong style={{color:'var(--warning)'}}>{traducir('internalcomments.solo_para_el_equipo_de_soporte')}</strong>{traducir('internalcomments.el_cliente_no_los_puede_ver_en')}
         </div>
       </div>
 

@@ -123,28 +123,132 @@ def max_bytes_for(profile: UploadProfile) -> int:
 
 # ── Detección por bytes mágicos ───────────────────────────────────────────────
 
+#: Firma de cabecera → tipo MIME. Auditoría 2026-09 (hallazgo 18): esto era una
+#: cascada de nueve `if` con `return`, que es **una tabla escrita como código**.
+#: Como tabla se lee de un vistazo y añadir un formato es añadir una fila, no
+#: una rama. El orden importa sólo en que la primera que encaje gana, y ninguna
+#: de estas firmas es prefijo de otra.
+_FIRMAS: tuple[tuple[bytes, str], ...] = (
+    (b"%PDF-",                  "application/pdf"),
+    (b"\x89PNG\r\n\x1a\n",     "image/png"),
+    (b"\xff\xd8\xff",          "image/jpeg"),
+    (b"GIF87a",                 "image/gif"),
+    (b"GIF89a",                 "image/gif"),
+    (b"\x1aE\xdf\xa3",          "video/webm"),
+    (b"ID3",                    "audio/mpeg"),
+    (b"\xff\xfb",               "audio/mpeg"),
+)
+
+#: Lo que se encuentra dentro de un ZIP y qué formato de Office significa. Los
+#: `.docx`, `.xlsx`, `.pptx` y `.odt` son todos ZIP: el tipo real está en los
+#: nombres de las entradas, no en la cabecera.
+_ENTRADAS_DE_ZIP: tuple[tuple[str, str], ...] = (
+    ("word/",       "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+    ("xl/",         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+    ("ppt/",        "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+    ("content.xml", "application/vnd.oasis.opendocument.text"),
+)
+
+
+def _mime_de_zip(content: bytes) -> str:
+    """Qué formato es un ZIP, mirando los nombres de sus primeras entradas.
+
+    Se leen 2 KB en crudo en vez de abrirlo como ZIP a propósito: esto corre
+    sobre bytes que aún no se ha decidido aceptar, y un lector de ZIP sobre
+    contenido no validado es superficie de ataque (bombas de descompresión,
+    rutas con `..`). Buscar subcadenas no ejecuta nada.
+    """
+    nombres = content[:2048].decode("latin-1", errors="ignore").lower()
+    for marca, mime in _ENTRADAS_DE_ZIP:
+        if marca in nombres:
+            return mime
+    return "application/zip"
+
+
 def detect_mime_from_magic(content: bytes) -> Optional[str]:
+    """El tipo real de un archivo según sus primeros bytes, o `None`."""
     if not content:
         return None
     head = content[:16]
-    if head.startswith(b"%PDF-"):             return "application/pdf"
-    if head.startswith(b"\x89PNG\r\n\x1a\n"): return "image/png"
-    if head.startswith(b"\xff\xd8\xff"):      return "image/jpeg"
-    if head.startswith(b"GIF87a") or head.startswith(b"GIF89a"): return "image/gif"
-    if head.startswith(b"RIFF") and content[8:12] == b"WEBP": return "image/webp"
-    if head.startswith(b"\x1aE\xdf\xa3"):     return "video/webm"
-    if head.startswith(b"ID3") or head[:2] == b"\xff\xfb": return "audio/mpeg"
+    for firma, mime in _FIRMAS:
+        if head.startswith(firma):
+            return mime
+    # Los dos que no son un simple prefijo: WEBP lleva el marcador en el byte 8,
+    # y un ZIP hay que abrirlo un poco para saber qué es.
+    if head.startswith(b"RIFF") and content[8:12] == b"WEBP":
+        return "image/webp"
     if head.startswith(b"PK\x03\x04"):
-        name = (content[:2048].decode("latin-1", errors="ignore")).lower()
-        if "word/" in name: return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        if "xl/" in name:   return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        if "ppt/" in name:  return "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-        if "content.xml" in name: return "application/vnd.oasis.opendocument.text"
-        return "application/zip"
+        return _mime_de_zip(content)
     return None
 
 
 # ── Validación de contenido ───────────────────────────────────────────────────
+
+#: Lo que manda un cliente que no sabe qué tipo es. No es una afirmación, así
+#: que no puede contradecir a los bytes mágicos.
+_TIPOS_SIN_OPINION = ("application/octet-stream", "binary/octet-stream")
+
+
+def _comprobar_extension(file_name: str, permitidas: set) -> None:
+    """Rechaza por extensión. Los comprimidos van aparte, y con su motivo."""
+    ext = os.path.splitext(file_name or "")[1].lower()
+    if ext in BLOCKED_ARCHIVE_EXTENSIONS:
+        raise HTTPException(
+            415,
+            "Subida de archivos comprimidos bloqueada por seguridad "
+            "(riesgo de fuga de secretos y payloads ocultos).",
+        )
+    if ext and ext not in permitidas:
+        raise HTTPException(
+            415,
+            f"Tipo de archivo no permitido (extensión: {ext}). "
+            f"Formatos aceptados aquí: {', '.join(sorted(permitidas))}.",
+        )
+
+
+def _comprobar_ejecutable(content: bytes) -> None:
+    """Rechaza lo que empieza como un ejecutable o un script, sea cual sea el nombre."""
+    if not content:
+        return
+    cabecera = content[:8]
+    for magic in BLOCKED_MAGIC_BYTES:
+        if cabecera.startswith(magic):
+            raise HTTPException(
+                415,
+                "El contenido del archivo parece ser un ejecutable o script. "
+                "Subida rechazada por seguridad.",
+            )
+
+
+def _comprobar_tipo_real(content: bytes, content_type: str, permitidos: set) -> None:
+    """El cruce que importa: lo declarado contra lo que los bytes dicen.
+
+    El `Content-Type` lo elige el cliente, así que por sí solo no prueba nada.
+    Lo que se comprueba aquí es la **coherencia** entre los dos, y por eso este
+    trozo va después de los demás y no antes.
+
+    `application/octet-stream` se acepta como «no lo sé» y no cuenta como
+    desacuerdo: es lo que mandan los clientes que no adivinan el tipo.
+    """
+    detectado = detect_mime_from_magic(content)
+    if detectado == "application/zip":
+        raise HTTPException(
+            415, "Contenedor ZIP detectado. Este tipo de archivo está bloqueado por seguridad."
+        )
+    if detectado and detectado not in permitidos:
+        raise HTTPException(415, f"Tipo de archivo detectado no permitido: {detectado}")
+    if (
+        detectado
+        and content_type
+        and content_type not in _TIPOS_SIN_OPINION
+        and detectado != content_type
+    ):
+        raise HTTPException(
+            415,
+            f"El tipo real del archivo ({detectado}) no coincide con el "
+            f"Content-Type enviado ({content_type}).",
+        )
+
 
 def validate_upload(
     file_name: str,
@@ -154,59 +258,19 @@ def validate_upload(
 ) -> None:
     """Valida extensión, MIME declarado, bytes mágicos y su coherencia.
 
-    El cruce final es el que importa: el `Content-Type` lo elige el cliente, así
-    que por sí solo no prueba nada. Si el tipo real detectado por bytes mágicos
-    no coincide con el declarado, se rechaza.
+    Auditoría 2026-09 (hallazgo 18): eran cuatro comprobaciones independientes
+    en una sola función de complejidad 11. Cada una tiene ahora su nombre, y el
+    orden —que sí importa: primero lo barato, el cruce caro al final— se lee en
+    estas cuatro líneas.
     """
-    allowed_ext = _PROFILE_EXT.get(profile, ALLOWED_EXTENSIONS)
-    allowed_mime = _PROFILE_MIME.get(profile, ALLOWED_MIME_TYPES)
+    permitidas = _PROFILE_EXT.get(profile, ALLOWED_EXTENSIONS)
+    permitidos = _PROFILE_MIME.get(profile, ALLOWED_MIME_TYPES)
 
-    ext = os.path.splitext(file_name or "")[1].lower()
-    if ext in BLOCKED_ARCHIVE_EXTENSIONS:
-        raise HTTPException(
-            415,
-            "Subida de archivos comprimidos bloqueada por seguridad "
-            "(riesgo de fuga de secretos y payloads ocultos).",
-        )
-    if ext and ext not in allowed_ext:
-        raise HTTPException(
-            415,
-            f"Tipo de archivo no permitido (extensión: {ext}). "
-            f"Formatos aceptados aquí: {', '.join(sorted(allowed_ext))}.",
-        )
-
-    if content_type and content_type not in allowed_mime:
-        if content_type not in ("application/octet-stream", "binary/octet-stream"):
-            raise HTTPException(415, f"Tipo de contenido no permitido: {content_type}.")
-
-    if content:
-        header = content[:8]
-        for magic in BLOCKED_MAGIC_BYTES:
-            if header.startswith(magic):
-                raise HTTPException(
-                    415,
-                    "El contenido del archivo parece ser un ejecutable o script. "
-                    "Subida rechazada por seguridad.",
-                )
-
-    detected = detect_mime_from_magic(content)
-    if detected == "application/zip":
-        raise HTTPException(
-            415, "Contenedor ZIP detectado. Este tipo de archivo está bloqueado por seguridad."
-        )
-    if detected and detected not in allowed_mime:
-        raise HTTPException(415, f"Tipo de archivo detectado no permitido: {detected}")
-    if (
-        detected
-        and content_type
-        and content_type not in ("application/octet-stream", "binary/octet-stream")
-        and detected != content_type
-    ):
-        raise HTTPException(
-            415,
-            f"El tipo real del archivo ({detected}) no coincide con el "
-            f"Content-Type enviado ({content_type}).",
-        )
+    _comprobar_extension(file_name, permitidas)
+    if content_type and content_type not in permitidos and content_type not in _TIPOS_SIN_OPINION:
+        raise HTTPException(415, f"Tipo de contenido no permitido: {content_type}.")
+    _comprobar_ejecutable(content)
+    _comprobar_tipo_real(content, content_type, permitidos)
 
 
 # ── Lectura acotada ──────────────────────────────────────────────────────────

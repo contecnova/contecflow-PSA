@@ -31,6 +31,7 @@ import {
   PortalBars as PortalBarsRaw,
   formatDuration, formatMoney,
 } from './PortalUI'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 // PortalUI components have loosely-typed (`any`) props; re-alias as permissive
 // components so callers don't need to pass every inferred-required prop.
@@ -51,6 +52,7 @@ const PortalBars = PortalBarsRaw as AnyFC
 const SECTION_GAP = 24
 
 export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string) => void }) {
+  const { t: traducir } = useAppLang()
   const _t = useLang()
   const { client, isReady } = (useClientAuth() ?? {}) as { client?: any; isReady?: boolean }
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
@@ -175,10 +177,10 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
   if (!dash.project) {
     return (
       <div>
-        <PortalPageHeader title="Sin proyecto asignado" icon={FolderOpen} />
+        <PortalPageHeader title={traducir('portaldashboard.sin_proyecto_asignado')} icon={FolderOpen} />
         <PortalEmpty
           icon={FolderOpen}
-          title="Aún no tienes acceso a ningún proyecto"
+          title={traducir('portaldashboard.aun_no_tienes_acceso_a_ningun_proyecto')}
           description={dash.message || 'Cuando el equipo te asigne un proyecto, lo verás aquí con todas sus métricas.'}
         />
       </div>
@@ -352,10 +354,10 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
               }}><Zap size={18} /></div>
               <div>
                 <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 800, color: 'var(--text-1)' }}>
-                  Tienes {totalActions} acción(es) pendiente(s)
+                  Tienes {totalActions} {traducir('portaldashboard.accion_es_pendiente_s')}
                 </div>
                 <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
-                  Estos son los puntos donde el proyecto te espera a ti.
+                  {traducir('portaldashboard.estos_son_los_puntos_donde_el_proyecto')}
                 </div>
               </div>
             </div>
@@ -447,7 +449,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         <PortalKpi
           icon={ThumbsUp}
           tone={csat == null ? 'default' : csat >= 4 ? 'success' : csat >= 3 ? 'warning' : 'danger'}
-          label="Satisfacción (CSAT)"
+          label={traducir('portaldashboard.satisfaccion_csat')}
           value={csat != null ? `${csat}/5` : '—'}
           sub={ticketsCSATPending ? `${ticketsCSATPending} encuestas pendientes` : 'Tickets valorados'}
         />
@@ -456,7 +458,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       {/* ── Health & schedule ──────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: SECTION_GAP }}>
         <PortalCard>
-          <PortalSection title="Salud del proyecto" hint="Plazo, presupuesto y eficiencia (SPI)">
+          <PortalSection title={traducir('portaldashboard.salud_del_proyecto')} hint="Plazo, presupuesto y eficiencia (SPI)">
             <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
               <PortalDonut
                 size={120} stroke={14}
@@ -470,13 +472,13 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
               <div style={{ flex: 1, minWidth: 200 }}>
                 <DataRow label="Inicio" value={project.start_date || '—'} />
                 <DataRow label="Fin previsto" value={project.end_date_planned || '—'} />
-                <DataRow label="Días transcurridos" value={`${elapsedDays}${totalDays ? ` / ${totalDays}` : ''}`} />
+                <DataRow label={traducir('portaldashboard.dias_transcurridos')} value={`${elapsedDays}${totalDays ? ` / ${totalDays}` : ''}`} />
                 <DataRow label="SPI (eficiencia)" value={spi != null ? spi : '—'}
                   tone={spi == null ? 'default' : spi >= 1 ? 'success' : spi >= 0.85 ? 'warning' : 'danger'}
                   hint={spi == null ? null : spi >= 1 ? 'En plazo' : spi >= 0.85 ? 'Ligero retraso' : 'Riesgo de retraso'} />
                 <DataRow label="Burn rate" value={burnRate ? `${burnRate.toFixed(1)} h/día` : '—'} />
                 {burnRisk != null && (
-                  <DataRow label="Desviación proyectada" value={`${burnRisk > 0 ? '+' : ''}${burnRisk}%`}
+                  <DataRow label={traducir('portaldashboard.desviacion_proyectada')} value={`${burnRisk > 0 ? '+' : ''}${burnRisk}%`}
                     tone={burnRisk > 10 ? 'danger' : burnRisk > 0 ? 'warning' : 'success'}
                     hint={burnRisk > 10 ? 'Sobreconsumo previsto' : burnRisk > 0 ? 'Aviso temprano' : 'Bajo control'} />
                 )}
@@ -486,10 +488,10 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         </PortalCard>
 
         <PortalCard>
-          <PortalSection title="Próximos hitos" hint="Lo que viene en los próximos 60 días"
+          <PortalSection title={traducir('portaldashboard.proximos_hitos')} hint="Lo que viene en los próximos 60 días"
             action={<PortalButton variant="ghost" size="sm" onClick={() => go('roadmap')} icon={<ArrowRight size={13} />}>Roadmap</PortalButton>}>
             {upcomingMilestones.length === 0 ? (
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', padding: '8px 0' }}>No hay hitos previstos a corto plazo.</div>
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', padding: '8px 0' }}>{traducir('portaldashboard.no_hay_hitos_previstos_a_corto_plazo')}</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {upcomingMilestones.map(m => {
@@ -525,7 +527,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       {/* ── Delivery quality (UAT + Deliverables) ──────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: SECTION_GAP }}>
         <PortalCard>
-          <PortalSection title="Calidad de entrega"
+          <PortalSection title={traducir('portaldashboard.calidad_de_entrega')}
             hint="UAT y entregables aceptados"
             action={<PortalButton variant="ghost" size="sm" onClick={() => go('uat')} icon={<ArrowRight size={13} />}>UAT</PortalButton>}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
@@ -551,7 +553,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         </PortalCard>
 
         <PortalCard>
-          <PortalSection title="Estado de entregables" hint={`${delTotal} entregables totales`}
+          <PortalSection title={traducir('portaldashboard.estado_de_entregables')} hint={`${delTotal} entregables totales`}
             action={<PortalButton variant="ghost" size="sm" onClick={() => go('roadmap')} icon={<ArrowRight size={13} />}>Ver roadmap</PortalButton>}>
             <PortalBars items={[
               { label: 'Aceptados',    value: delAccepted,  color: 'var(--success)' },
@@ -560,7 +562,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
               { label: 'Rechazados',   value: delRejected,  color: 'var(--danger)' },
             ]} />
             {delTotal === 0 && (
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginTop: 8 }}>Todavía no se han definido entregables.</div>
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginTop: 8 }}>{traducir('portaldashboard.todavia_no_se_han_definido_entregables')}</div>
             )}
           </PortalSection>
         </PortalCard>
@@ -589,14 +591,14 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         </PortalCard>
 
         <PortalCard>
-          <PortalSection title="Tiempos de respuesta y resolución" hint="Promedios sobre tus tickets">
+          <PortalSection title={traducir('portaldashboard.tiempos_de_respuesta_y_resolucion')} hint="Promedios sobre tus tickets">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
               <MetricBlock icon={TimerReset} label="1ª respuesta media" value={formatDuration(sd.avg_first_response_minutes)} tone="accent" />
-              <MetricBlock icon={Clock}       label="Resolución media"   value={formatDuration(sd.avg_resolution_minutes)}     tone="success" />
+              <MetricBlock icon={Clock}       label={traducir('portaldashboard.resolucion_media')}   value={formatDuration(sd.avg_resolution_minutes)}     tone="success" />
             </div>
             <DataRow label="Cumplimiento SLA" value={slaCompliance != null ? `${slaCompliance}%` : '—'} tone={slaCompliance == null ? 'default' : slaCompliance >= 90 ? 'success' : 'warning'} />
             <DataRow label="Riesgo SLA respuesta" value={sd.response_breached_open || 0} tone={sd.response_breached_open ? 'danger' : 'default'} />
-            <DataRow label="Riesgo SLA resolución" value={sd.resolution_breached_open || 0} tone={sd.resolution_breached_open ? 'danger' : 'default'} />
+            <DataRow label={traducir('portaldashboard.riesgo_sla_resolucion')} value={sd.resolution_breached_open || 0} tone={sd.resolution_breached_open ? 'danger' : 'default'} />
             <DataRow label="Tickets cerrados" value={ticketsResolved} tone="default" />
           </PortalSection>
         </PortalCard>
@@ -605,18 +607,18 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       {/* ── Trend & ageing ─────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: SECTION_GAP }}>
         <PortalCard>
-          <PortalSection title="Tendencia de tickets" hint="Últimas 12 semanas">
+          <PortalSection title={traducir('portaldashboard.tendencia_de_tickets')} hint="Últimas 12 semanas">
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14, marginTop: 6 }}>
               <div style={{ flex: 1 }}>
                 <PortalSpark values={ticketTrend} width={280} height={56} color="var(--accent)" />
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
                   <span>hace 12 sem</span>
-                  <span>esta semana</span>
+                  <span>{traducir('portaldashboard.esta_semana')}</span>
                 </div>
               </div>
               <div style={{ minWidth: 120 }}>
                 <DataRow label="Total 12 sem" value={ticketTrend.reduce((s, n) => s + n, 0)} />
-                <DataRow label="Última sem" value={ticketTrend[ticketTrend.length - 1] || 0} />
+                <DataRow label={traducir('portaldashboard.ultima_sem')} value={ticketTrend[ticketTrend.length - 1] || 0} />
                 <DataRow label="Pico" value={Math.max(...ticketTrend, 0)} />
               </div>
             </div>
@@ -624,8 +626,8 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         </PortalCard>
 
         <PortalCard>
-          <PortalSection title="Solicitudes de cambio (FR)" hint="Estado actual de tus peticiones"
-            action={<PortalButton variant="ghost" size="sm" onClick={() => go('requests')} icon={<ArrowRight size={13} />}>Ver todas</PortalButton>}>
+          <PortalSection title={traducir('portaldashboard.solicitudes_de_cambio_fr')} hint="Estado actual de tus peticiones"
+            action={<PortalButton variant="ghost" size="sm" onClick={() => go('requests')} icon={<ArrowRight size={13} />}>{traducir('portaldashboard.ver_todas')}</PortalButton>}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
               <PortalDonut
                 size={110} stroke={12}
@@ -640,11 +642,11 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 centerBottom="totales"
               />
               <div style={{ flex: 1, minWidth: 180 }}>
-                <DataRow label="Nuevas / en revisión" value={frs.filter(f => ['new', 'reviewing'].includes(f.status)).length} />
-                <DataRow label="Con presupuesto" value={frs.filter(f => f.status === 'estimated').length} tone="warning" />
+                <DataRow label={traducir('portaldashboard.nuevas_en_revision')} value={frs.filter(f => ['new', 'reviewing'].includes(f.status)).length} />
+                <DataRow label={traducir('portaldashboard.con_presupuesto')} value={frs.filter(f => f.status === 'estimated').length} tone="warning" />
                 <DataRow label="Aprobadas" value={frs.filter(f => f.status === 'approved').length} tone="success" />
                 <DataRow label="Rechazadas" value={frs.filter(f => f.status === 'rejected').length} tone="default" />
-                <DataRow label="Esperan tu decisión" value={frsAwaitDecision.length} tone={frsAwaitDecision.length ? 'warning' : 'default'} />
+                <DataRow label={traducir('portaldashboard.esperan_tu_decision')} value={frsAwaitDecision.length} tone={frsAwaitDecision.length ? 'warning' : 'default'} />
               </div>
             </div>
           </PortalSection>
@@ -654,7 +656,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       {/* ── Financial ──────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: SECTION_GAP }}>
         <PortalCard>
-          <PortalSection title="Facturación" hint={`${invoices.length} facturas (${currency})`}
+          <PortalSection title={traducir('portaldashboard.facturacion')} hint={`${invoices.length} facturas (${currency})`}
             action={<PortalButton variant="ghost" size="sm" onClick={() => go('invoices')} icon={<ArrowRight size={13} />}>Ver facturas</PortalButton>}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
               <PortalDonut
@@ -672,17 +674,17 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 <DataRow label="Pagado" value={formatMoney(totalPaid, currency)} tone="success" />
                 <DataRow label="Pendiente" value={formatMoney(invoicesPending.reduce((s, i) => s + Number(i.total || 0), 0), currency)} tone="warning" />
                 <DataRow label="Vencido" value={formatMoney(totalOverdue, currency)} tone={totalOverdue ? 'danger' : 'default'} />
-                <DataRow label="Por aprobar" value={`${invoicesAwaiting.length} factura(s)`} tone={invoicesAwaiting.length ? 'warning' : 'default'} />
+                <DataRow label={traducir('portaldashboard.por_aprobar')} value={`${invoicesAwaiting.length} factura(s)`} tone={invoicesAwaiting.length ? 'warning' : 'default'} />
               </div>
             </div>
           </PortalSection>
         </PortalCard>
 
         <PortalCard>
-          <PortalSection title="Próximas facturaciones por hito"
+          <PortalSection title={traducir('portaldashboard.proximas_facturaciones_por_hito')}
             hint="Hitos con porcentaje de facturación asociado">
             {milestones.filter(m => m.billing_pct).slice(0, 5).length === 0 ? (
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', padding: '8px 0' }}>No hay facturación por hito configurada en este proyecto.</div>
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', padding: '8px 0' }}>{traducir('portaldashboard.no_hay_facturacion_por_hito_configurada_en')}</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {milestones.filter(m => m.billing_pct).slice(0, 5).map(m => (
@@ -711,7 +713,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         <PortalCard>
           <PortalSection title="Actividad reciente" hint="Últimos eventos del proyecto">
             {activity.length === 0 ? (
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', padding: '8px 0' }}>Sin actividad reciente.</div>
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', padding: '8px 0' }}>{traducir('portaldashboard.sin_actividad_reciente')}</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {activity.map((it: any, i: number) => {
@@ -737,7 +739,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         </PortalCard>
 
         <PortalCard>
-          <PortalSection title="Atajos rápidos">
+          <PortalSection title={traducir('portaldashboard.atajos_rapidos')}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <QuickLink onClick={() => go('support')} icon={Headphones} label="Abrir ticket" hint="Service desk" />
               <QuickLink onClick={() => go('requests')} icon={Lightbulb} label="Pedir cambio" hint="Feature request" />

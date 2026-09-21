@@ -75,6 +75,7 @@ function PBadge({ v }: { v?: Priority }) {
 }
 
 function KELinkedTickets({ kedbId }: { kedbId: string | number }) {
+  const { t } = useAppT()
   const { data: tickets, isLoading } = useQuery<LinkedTicket[]>({
     queryKey: ['sd-ke-tickets', kedbId],
     queryFn: () => sdKbApi.knownErrorTickets(kedbId).then(r => r.data as LinkedTicket[]).catch(() => []),
@@ -83,7 +84,7 @@ function KELinkedTickets({ kedbId }: { kedbId: string | number }) {
   if (isLoading) return <div style={{ padding: '8px 0' }}><Spinner /></div>
   if (!tickets?.length) return (
     <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', padding: '8px 0', borderTop: '1px solid var(--surface-4)', marginTop: 10 }}>
-      No hay tickets vinculados a este error conocido.
+      {t('itsmknowledge.no_hay_tickets_vinculados_a_este_error')}
     </div>
   )
   return (
@@ -103,6 +104,7 @@ function KELinkedTickets({ kedbId }: { kedbId: string | number }) {
 }
 
 function KnownErrors() {
+  const { t } = useAppT()
   useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -127,12 +129,12 @@ function KnownErrors() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
-          Base de errores conocidos - Problemas con causa raiz y workaround documentado.
+          {t('itsmknowledge.base_de_errores_conocidos_problemas_con_causa')}
         </div>
-        <Button onClick={() => { setEditing(null); setShowNew(true) }}>+ Nuevo error conocido</Button>
+        <Button onClick={() => { setEditing(null); setShowNew(true) }}>{t('itsmknowledge.nuevo_error_conocido')}</Button>
       </div>
       {isLoading ? <Spinner /> :
-       kedb.length === 0 ? <EmptyState icon="📚" title="Sin errores conocidos" description="Crea el primer error conocido para documentar workaround y causa raíz." /> :
+       kedb.length === 0 ? <EmptyState icon="📚" title={t('itsmknowledge.sin_errores_conocidos')} description="Crea el primer error conocido para documentar workaround y causa raíz." /> :
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {kedb.map((ke) => (
           <div key={ke.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
@@ -167,7 +169,7 @@ function KnownErrors() {
               </div>
             ) : ke.fix_description ? (
               <div>
-                <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: COLOR.info, marginBottom: 4 }}>SOLUCIÓN DEFINITIVA</div>
+                <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: COLOR.info, marginBottom: 4 }}>{t('itsmknowledge.solucion_definitiva')}</div>
                 <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', background: `${COLOR.info}08`, border: `1px solid ${COLOR.info}20`, borderRadius: 8, padding: '10px 14px' }}>
                   {ke.fix_description}
                 </div>
@@ -212,6 +214,7 @@ type KEDBModalProps = {
 }
 
 function KEDBModal({ item, onClose, onSaved, IS, LS }: KEDBModalProps) {
+  const { t } = useAppT()
   const idPrefix = useId()
   const isEdit = !!item
   const [form, setForm] = useState({
@@ -229,11 +232,11 @@ function KEDBModal({ item, onClose, onSaved, IS, LS }: KEDBModalProps) {
   return (
     <Modal open title={isEdit ? 'Editar error conocido' : 'Nuevo error conocido (KEDB)'} onClose={onClose} size="lg">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div><label htmlFor={`${idPrefix}-title`} style={LS}>Titulo *</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder="Título del error conocido" /></div>
-        <div><label htmlFor={`${idPrefix}-description`} style={LS}>Descripcion</label><textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Describe el error conocido" /></div>
-        <div><label htmlFor={`${idPrefix}-root-cause`} style={LS}>Causa raiz</label><textarea id={`${idPrefix}-root-cause`} value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Causa raíz identificada" /></div>
-        <div><label htmlFor={`${idPrefix}-workaround`} style={LS}>Workaround (solución temporal)</label><textarea id={`${idPrefix}-workaround`} value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Solución temporal disponible" /></div>
-        <div><label htmlFor={`${idPrefix}-fix-description`} style={LS}>Solución definitiva</label><textarea id={`${idPrefix}-fix-description`} value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder="Solución definitiva aplicada" /></div>
+        <div><label htmlFor={`${idPrefix}-title`} style={LS}>Titulo *</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder={t('itsmknowledge.titulo_del_error_conocido')} /></div>
+        <div><label htmlFor={`${idPrefix}-description`} style={LS}>Descripcion</label><textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.describe_el_error_conocido')} /></div>
+        <div><label htmlFor={`${idPrefix}-root-cause`} style={LS}>Causa raiz</label><textarea id={`${idPrefix}-root-cause`} value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.causa_raiz_identificada')} /></div>
+        <div><label htmlFor={`${idPrefix}-workaround`} style={LS}>{t('itsmknowledge.workaround_solucion_temporal')}</label><textarea id={`${idPrefix}-workaround`} value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.solucion_temporal_disponible')} /></div>
+        <div><label htmlFor={`${idPrefix}-fix-description`} style={LS}>{t('itsmknowledge.solucion_definitiva_2')}</label><textarea id={`${idPrefix}-fix-description`} value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.solucion_definitiva_aplicada')} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div><label htmlFor={`${idPrefix}-priority`} style={LS}>Prioridad</label><select id={`${idPrefix}-priority`} value={form.priority} onChange={set('priority')} style={IS}>{['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}</select></div>
           <div><label htmlFor={`${idPrefix}-status`} style={LS}>Estado</label><select id={`${idPrefix}-status`} value={form.status} onChange={set('status')} style={IS}>{[['open', 'Abierto'], ['investigating', 'Investigando'], ['known_error', 'Error conocido'], ['resolved', 'Resuelto']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
@@ -248,6 +251,7 @@ function KEDBModal({ item, onClose, onSaved, IS, LS }: KEDBModalProps) {
 }
 
 function Problems() {
+  const { t } = useAppT()
   useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -299,14 +303,14 @@ function Problems() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
-          Registro de problemas - causas raiz de incidentes recurrentes.
+          {t('itsmknowledge.registro_de_problemas_causas_raiz_de_incidentes')}
         </div>
-        <Button onClick={() => { setEditing(null); setShowModal(true) }}>+ Nuevo problema</Button>
+        <Button onClick={() => { setEditing(null); setShowModal(true) }}>{t('itsmknowledge.nuevo_problema')}</Button>
       </div>
 
       {isLoading ? <Spinner /> :
        problems.length === 0
-        ? <EmptyState icon="🔍" title="Sin problemas registrados" description="Crea el primer problema para investigar incidentes recurrentes." />
+        ? <EmptyState icon="🔍" title={t('itsmknowledge.sin_problemas_registrados')} description="Crea el primer problema para investigar incidentes recurrentes." />
         : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {problems.map((p) => {
               const sc = statusColors[p.status ?? ''] || COLOR.text2
@@ -394,6 +398,7 @@ type ProblemModalProps = {
 }
 
 function ProblemModal({ item, onClose, onSaved, isPending, IS, LS }: ProblemModalProps) {
+  const { t } = useAppT()
   const idPrefix = useId()
   const isEdit = !!item
   const [form, setForm] = useState({
@@ -410,11 +415,11 @@ function ProblemModal({ item, onClose, onSaved, isPending, IS, LS }: ProblemModa
   return (
     <Modal open title={isEdit ? `Editar - ${item.number}` : 'Nuevo problema'} onClose={onClose} size="lg">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div><label htmlFor={`${idPrefix}-title`} style={LS}>Titulo *</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder="Título del problema" /></div>
-        <div><label htmlFor={`${idPrefix}-description`} style={LS}>Descripcion</label><textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Describe el problema" /></div>
-        <div><label htmlFor={`${idPrefix}-root-cause`} style={LS}>Causa raiz</label><textarea id={`${idPrefix}-root-cause`} value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Causa raíz identificada" /></div>
-        <div><label htmlFor={`${idPrefix}-workaround`} style={LS}>Workaround (solucion temporal)</label><textarea id={`${idPrefix}-workaround`} value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Solución temporal" /></div>
-        <div><label htmlFor={`${idPrefix}-fix-description`} style={LS}>Solucion definitiva (opcional)</label><textarea id={`${idPrefix}-fix-description`} value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder="Solución definitiva" /></div>
+        <div><label htmlFor={`${idPrefix}-title`} style={LS}>Titulo *</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder={t('itsmknowledge.titulo_del_problema')} /></div>
+        <div><label htmlFor={`${idPrefix}-description`} style={LS}>Descripcion</label><textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.describe_el_problema')} /></div>
+        <div><label htmlFor={`${idPrefix}-root-cause`} style={LS}>Causa raiz</label><textarea id={`${idPrefix}-root-cause`} value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.causa_raiz_identificada')} /></div>
+        <div><label htmlFor={`${idPrefix}-workaround`} style={LS}>Workaround (solucion temporal)</label><textarea id={`${idPrefix}-workaround`} value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.solucion_temporal')} /></div>
+        <div><label htmlFor={`${idPrefix}-fix-description`} style={LS}>Solucion definitiva (opcional)</label><textarea id={`${idPrefix}-fix-description`} value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.solucion_definitiva_2')} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div><label htmlFor={`${idPrefix}-priority`} style={LS}>Prioridad</label><select id={`${idPrefix}-priority`} value={form.priority} onChange={set('priority')} style={IS}>{[['p1_critical', 'P1 Critico'], ['p2_high', 'P2 Alto'], ['p3_medium', 'P3 Medio'], ['p4_low', 'P4 Bajo']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
           <div><label htmlFor={`${idPrefix}-status`} style={LS}>Estado</label><select id={`${idPrefix}-status`} value={form.status} onChange={set('status')} style={IS}>{[['open', 'Abierto'], ['investigating', 'Investigando'], ['known_error', 'Error conocido'], ['resolved', 'Resuelto'], ['closed', 'Cerrado']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
@@ -429,6 +434,7 @@ function ProblemModal({ item, onClose, onSaved, isPending, IS, LS }: ProblemModa
 }
 
 function KB() {
+  const { t } = useAppT()
   useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -459,11 +465,11 @@ function KB() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-        <input placeholder="Buscar artículos" aria-label="Buscar artículos" value={search} onChange={e => setSearch(e.target.value)} style={{ ...IS, flex: 1 }} />
-        <Button onClick={() => { setEditing(null); setShowNew(true) }}>+ Nuevo articulo</Button>
+        <input placeholder={t('itsmknowledge.buscar_articulos')} aria-label={t('itsmknowledge.buscar_articulos')} value={search} onChange={e => setSearch(e.target.value)} style={{ ...IS, flex: 1 }} />
+        <Button onClick={() => { setEditing(null); setShowNew(true) }}>{t('itsmknowledge.nuevo_articulo')}</Button>
       </div>
       {isLoading ? <Spinner /> :
-      articles.length === 0 ? <EmptyState icon="📖" title="Sin artículos" description="Crea el primer artículo de conocimiento." /> :
+      articles.length === 0 ? <EmptyState icon="📖" title={t('itsmknowledge.sin_articulos')} description="Crea el primer artículo de conocimiento." /> :
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px,1fr))', gap: 14 }}>
         {articles.map((a) => (
           <div key={a.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 18 }}>
@@ -500,6 +506,7 @@ type KBArticleModalProps = {
 }
 
 function KBArticleModal({ article, onClose, onSaved }: KBArticleModalProps) {
+  const { t } = useAppT()
   const idPrefix = useId()
   const toast = useToast()
   const isEdit = !!article
@@ -525,13 +532,13 @@ function KBArticleModal({ article, onClose, onSaved }: KBArticleModalProps) {
     <Modal open title={isEdit ? 'Editar articulo KB' : 'Nuevo articulo KB'} onClose={onClose} size="lg">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div><label style={LS}>Titulo *</label><input value={form.title} onChange={set('title')} style={IS} /></div>
-        <div><label htmlFor={`${idPrefix}-summary`} style={LS}>Resumen</label><input id={`${idPrefix}-summary`} value={form.summary} onChange={set('summary')} style={IS} placeholder="Resumen del artículo" /></div>
-        <div><label htmlFor={`${idPrefix}-body`} style={LS}>Contenido *</label><textarea id={`${idPrefix}-body`} value={form.body} onChange={set('body')} rows={8} style={{ ...IS, resize: 'vertical' }} placeholder="Contenido del artículo" /></div>
+        <div><label htmlFor={`${idPrefix}-summary`} style={LS}>Resumen</label><input id={`${idPrefix}-summary`} value={form.summary} onChange={set('summary')} style={IS} placeholder={t('itsmknowledge.resumen_del_articulo')} /></div>
+        <div><label htmlFor={`${idPrefix}-body`} style={LS}>Contenido *</label><textarea id={`${idPrefix}-body`} value={form.body} onChange={set('body')} rows={8} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.contenido_del_articulo')} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div><label htmlFor={`${idPrefix}-tags`} style={LS}>Etiquetas (separadas por coma)</label><input id={`${idPrefix}-tags`} value={form.tags} onChange={set('tags')} style={IS} placeholder="etiqueta1, etiqueta2" /></div>
+          <div><label htmlFor={`${idPrefix}-tags`} style={LS}>{t('itsmknowledge.etiquetas_separadas_por_coma')}</label><input id={`${idPrefix}-tags`} value={form.tags} onChange={set('tags')} style={IS} placeholder="etiqueta1, etiqueta2" /></div>
           <div><label htmlFor={`${idPrefix}-status`} style={LS}>Estado</label><select id={`${idPrefix}-status`} value={form.status} onChange={set('status')} style={IS}><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></div>
         </div>
-        <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}><input type="checkbox" checked={form.is_public} onChange={set('is_public')} />Visible en el portal cliente</label>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}><input type="checkbox" checked={form.is_public} onChange={set('is_public')} />{t('itsmknowledge.visible_en_el_portal_cliente')}</label>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.title || !form.body} loading={isPending}>{isEdit ? 'Guardar cambios' : 'Crear articulo'}</Button>

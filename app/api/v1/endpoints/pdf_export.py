@@ -18,7 +18,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import io
 from app.db.session import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.models.user import User
 from app.core.responses import APIListResponse
 import app.services.pdf_export_service as _pdf
@@ -35,6 +35,7 @@ def export_pdf(
     payload: ExportPdfIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     export_type = payload.export_type or "generic"
     source_id = payload.source_id

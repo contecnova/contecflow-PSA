@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin, require_any_manager
+from app.core.deps import (
+    get_current_user,
+    require_admin,
+    require_any_manager,
+    require_internal_user,
+)
 from app.db.session import get_db
 from app.models.billing_reports import InvoiceStatus
 from app.models.user import User
@@ -196,6 +201,7 @@ def convert_currency_post(
     payload: ConvertCurrencyRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: una conversion es un calculo
 ):
     return APIResponse.ok(data=_convert_currency_impl(
         amount=payload.amount,

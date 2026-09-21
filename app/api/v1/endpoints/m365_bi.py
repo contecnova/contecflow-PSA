@@ -18,7 +18,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -62,6 +62,7 @@ def configure_teams_tab(
     payload: TeamsTabRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Genera la configuración de una pestaña Teams que embebe un dashboard BI.
 
@@ -96,6 +97,7 @@ def post_teams_bi_card(
     payload: TeamsCardRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Publica un Adaptive Card 1.5 con KPIs del dashboard BI en el canal indicado.
 
@@ -153,6 +155,7 @@ def create_sharepoint_bi_page(
     payload: SharePointPageRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Crea (o actualiza) una página en SharePoint Online con el dashboard BI incrustado.
 

@@ -234,7 +234,7 @@ function DsrTab() {
                     </div>
                     <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 3, display: 'flex', gap: 12 }}>
                       <span>Creado: {fmt(dsr.created_at)}</span>
-                      {dsr.deadline && <span>Límite: {fmt(dsr.deadline)}</span>}
+                      {dsr.deadline && <span>{t('bigdpr.limite')} {fmt(dsr.deadline)}</span>}
                       {dsr.resolved_at && <span>Resuelto: {fmt(dsr.resolved_at)}</span>}
                     </div>
                     {dsr.notes && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>{dsr.notes}</div>}
@@ -381,7 +381,7 @@ function ConsentTab() {
             <button onClick={() => setHistUser(null)} style={{ ...S.btnGhost, padding: '3px 8px' }}>✕</button>
           </div>
           {!(historyData.history?.length) ? (
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Sin historial</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('bigdpr.sin_historial')}</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {(historyData.history || []).map((h, idx) => (
@@ -451,6 +451,7 @@ function MasksTab() {
 
 // ── Tab Stats ─────────────────────────────────────────────────────────────────
 function StatsTab() {
+  const t = useAppT()
   const { data, isLoading } = useQuery<GdprStats>({
     queryKey: ['bi-gdpr-stats'],
     queryFn:  () => biGdprApi.getStats().then(r => r.data as GdprStats),
@@ -462,7 +463,7 @@ function StatsTab() {
     return Object.entries(data.by_type).map(([type, count]) => ({ type, count: Number(count || 0) }))
   }, [data])
 
-  if (isLoading) return <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', padding: '20px 0', textAlign: 'center' }}>Cargando estadísticas…</div>
+  if (isLoading) return <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', padding: '20px 0', textAlign: 'center' }}>{t('bigdpr.cargando_estadisticas')}</div>
 
   return (
     <div>
@@ -476,7 +477,7 @@ function StatsTab() {
 
       {byType.length > 0 && (
         <div style={{ ...S.innerCard, marginBottom: 12 }}>
-          <div style={S.sectionTitle}>DSRs por tipo</div>
+          <div style={S.sectionTitle}>{t('bigdpr.dsrs_por_tipo')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {byType.map(({ type, count }) => (
               <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -495,7 +496,7 @@ function StatsTab() {
         <div style={{ ...S.innerCard, borderColor: 'var(--danger-border)' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--danger)', marginBottom: 6 }}>
             <AlertTriangle size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-            {data?.overdue} DSR{data?.overdue !== 1 ? 's' : ''} ha{data?.overdue !== 1 ? 'n' : ''} superado el plazo GDPR (30 días)
+            {data?.overdue} DSR{data?.overdue !== 1 ? 's' : ''} ha{data?.overdue !== 1 ? 'n' : ''} {t('bigdpr.superado_el_plazo_gdpr_30_dias')}
           </div>
           <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
             {(data?.overdue_ids ?? []).join(', ')}

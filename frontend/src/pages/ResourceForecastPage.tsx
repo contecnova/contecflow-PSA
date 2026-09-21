@@ -273,6 +273,7 @@ function UserDetailPanel({ userId, weeks }: { userId: string | number; weeks: nu
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function ResourceForecastPage() {
+  const t = useAppT()
   const _t = useAppT()
   const _toast = useToast()
   const [weeks, setWeeks]             = useState(13)
@@ -400,10 +401,10 @@ export default function ResourceForecastPage() {
 
           {loadingHeatmap ? (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>
-              Calculando proyección...
+              {t('resourceforecast.calculando_proyeccion')}
             </div>
           ) : users.length === 0 ? (
-            <EmptyState icon="📈" title="Sin datos de prevision"
+            <EmptyState icon="📈" title={t('resourceforecast.sin_datos_de_prevision')}
               description="Selecciona un horizonte y aplica filtros para ver la prevision" />
           ) : (
             <div>
@@ -427,7 +428,7 @@ export default function ResourceForecastPage() {
               </div>
             ))}
             <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', marginLeft: 'auto' }}>
-              Haz clic en un nombre para ver el detalle por proyecto
+              {t('resourceforecast.haz_clic_en_un_nombre_para_ver')}
             </div>
           </div>
         </div>
@@ -437,7 +438,7 @@ export default function ResourceForecastPage() {
       {view === 'summary' && (
         <div style={panel}>
           <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>
-            Tendencia de carga del equipo — {weeks} semanas
+            {t('resourceforecast.tendencia_de_carga_del_equipo')} {weeks} semanas
           </div>
           {loadingSummary ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>
@@ -445,11 +446,11 @@ export default function ResourceForecastPage() {
             </div>
           ) : summaryError ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--danger)', fontSize: "var(--text-base)" }}>
-              No se pudo cargar el resumen de capacidad.
+              {t('resourceforecast.no_se_pudo_cargar_el_resumen_de')}
             </div>
           ) : summary.week_trend.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>
-              Sin datos de carga disponibles. Configura usuarios con capacidad semanal y asigna reservas de recursos.
+              {t('resourceforecast.sin_datos_de_carga_disponibles_configura_usuarios')}
             </div>
           ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

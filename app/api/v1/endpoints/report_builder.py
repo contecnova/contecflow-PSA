@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user, get_db, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.report_builder_service as _svc
@@ -66,6 +66,7 @@ def preview_report(
     q: ReportQuery,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     if q.entity not in _svc.ENTITIES:
         raise HTTPException(400, f"Entidad '{q.entity}' desconocida")
@@ -89,6 +90,7 @@ def export_report(
     page_size: int = Query(2000, ge=1, le=10000, description="Tamaño de página para exportación paginada"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     if q.entity not in _svc.ENTITIES:
         raise HTTPException(400, f"Entidad '{q.entity}' desconocida")

@@ -786,6 +786,7 @@ function StatusBadge({ status }: { status: string | undefined }) {
 }
 
 function TaskMovementLogDrawer({ task, onClose }: { task: Task; onClose: () => void }) {
+  const traducir = useAppT()
   const { data: log = [], isLoading } = useQuery<any[]>({
     queryKey: ['task-movement-log', task.id],
     queryFn: () => tasksApi.movementLog(task.id).then(r => (r.data as any)?.items ?? r.data ?? []),
@@ -825,7 +826,7 @@ function TaskMovementLogDrawer({ task, onClose }: { task: Task; onClose: () => v
         {isLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner /></div>
         ) : log.length === 0 ? (
-          <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-sm)', textAlign: 'center', paddingTop: 40 }}>Sin movimientos registrados</div>
+          <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-sm)', textAlign: 'center', paddingTop: 40 }}>{traducir('kanbanadvanced.sin_movimientos_registrados')}</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             {log.map((entry, i) => (

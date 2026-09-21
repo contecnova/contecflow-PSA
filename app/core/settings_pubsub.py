@@ -80,50 +80,68 @@ def publish_invalidation(scope: str, key: Optional[str]) -> None:
         logger.warning("settings pub/sub publish failed (scope=%s key=%s): %s", scope, key, exc)
 
 
+def _cerrar_en_silencio(*recursos) -> None:
+    """Cierra lo que se le pase, sin dejar que un fallo al cerrar tape otro.
+
+    Auditoría 2026-09 (hallazgo 18): eran dos `try/except` idénticos en el
+    `finally`, uno por recurso. Un error al cerrar es ruido: lo que importaba
+    ya pasó antes.
+    """
+    for recurso in recursos:
+        if recurso is None:
+            continue
+        try:
+            recurso.close()
+        except Exception:
+            logger.debug("_subscriber_loop: fallo best-effort ignorado", exc_info=True)
+
+
+def _escuchar_canal(client, pubsub) -> None:
+    """Aplica las invalidaciones que lleguen por el canal, hasta que se pare."""
+    pubsub.subscribe(CHANNEL)
+    logger.info("settings pub/sub subscriber connected (channel=%s)", CHANNEL)
+    for mensaje in pubsub.listen():
+        if _sub_stop.is_set():
+            return
+        if mensaje and mensaje.get("type") == "message":
+            _dispatch_invalidation(mensaje.get("data"))
+
+
 def _subscriber_loop() -> None:
-    """Daemon-thread body: subscribe to CHANNEL and apply invalidations."""
+    """Cuerpo del hilo demonio: se suscribe a CHANNEL y aplica invalidaciones.
+
+    Reconecta con espera exponencial hasta 30 s. La espera se hace sobre el
+    evento de parada y no con `sleep`, para que apagar el proceso no tenga que
+    esperar al siguiente reintento.
+    """
     try:
         import redis  # type: ignore
     except Exception:  # pragma: no cover
         return
-    backoff = 1.0
+
+    espera = 1.0
     while not _sub_stop.is_set():
-        client = None
-        pubsub = None
+        client = pubsub = None
         try:
             client = redis.from_url(
                 settings.REDIS_URL,
                 socket_connect_timeout=2,
-                socket_timeout=None,  # blocking listen needs no read timeout
+                # La escucha es bloqueante: un tiempo de lectura la cortaría en
+                # cada pausa sin tráfico.
+                socket_timeout=None,
                 decode_responses=True,
             )
             pubsub = client.pubsub(ignore_subscribe_messages=True)
-            pubsub.subscribe(CHANNEL)
-            logger.info("settings pub/sub subscriber connected (channel=%s)", CHANNEL)
-            backoff = 1.0
-            for message in pubsub.listen():
-                if _sub_stop.is_set():
-                    break
-                if not message or message.get("type") != "message":
-                    continue
-                _dispatch_invalidation(message.get("data"))
+            espera = 1.0
+            _escuchar_canal(client, pubsub)
         except Exception as exc:
             if _sub_stop.is_set():
-                break
-            logger.warning("settings pub/sub subscriber error (retry %.0fs): %s", backoff, exc)
-            _sub_stop.wait(backoff)
-            backoff = min(backoff * 2, 30.0)
+                return
+            logger.warning("settings pub/sub subscriber error (retry %.0fs): %s", espera, exc)
+            _sub_stop.wait(espera)
+            espera = min(espera * 2, 30.0)
         finally:
-            try:
-                if pubsub is not None:
-                    pubsub.close()
-            except Exception:
-                logger.debug("_subscriber_loop: fallo best-effort ignorado", exc_info=True)
-            try:
-                if client is not None:
-                    client.close()
-            except Exception:
-                logger.debug("_subscriber_loop: fallo best-effort ignorado", exc_info=True)
+            _cerrar_en_silencio(pubsub, client)
 
 
 def _dispatch_invalidation(raw_payload) -> None:

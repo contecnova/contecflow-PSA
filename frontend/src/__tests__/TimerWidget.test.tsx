@@ -2,6 +2,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import TimerWidget from '../components/TimerWidget'
+import { AppLangProvider } from '../i18n/AppLangContext';
 
 // TimerWidget usa los helpers `imputationsApi` / `projectsApi` (no el axios crudo),
 // y `useAuth` del contexto. Mockeamos exactamente esos exports.
@@ -33,7 +34,17 @@ function renderWithQueryClient(ui: React.ReactElement) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
   })
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
+  // `TimerWidget` pasa ahora su texto por `t()`, y `useAppLang` lanza a
+  // proposito si no encuentra el proveedor: es la guarda que impide usar la
+  // traduccion fuera del arbol donde existe. Lo correcto es que el test monte
+  // el contexto, no debilitar la guarda para que el test pase. El proveedor ya
+  // contempla Vitest —`loading` arranca en `false`—, asi que pinta de
+  // inmediato.
+  return render(
+    <AppLangProvider>
+      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+    </AppLangProvider>,
+  )
 }
 
 const runningTimer = {

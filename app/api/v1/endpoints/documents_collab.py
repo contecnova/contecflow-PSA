@@ -6,7 +6,7 @@ import base64
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_user
+from app.core.deps import get_current_user, get_db, require_internal_user
 from app.core.responses import APIListResponse
 from app.models.user import User
 from app.services.documents_collab_service import (
@@ -26,6 +26,7 @@ async def save_collab_snapshot(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: los documentos ya tienen permisos por documento; el rol solo excluye al externo
 ):
     # Audit #C7: async is required to read the raw body without blocking; DB
     # work is delegated to the threadpool via `run_db`.

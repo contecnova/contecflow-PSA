@@ -120,15 +120,9 @@ def discover_aws(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
 # KUBERNETES DISCOVERY
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def discover_kubernetes(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
-    """Descubre nodos y namespaces de un cluster Kubernetes."""
-    try:
-        from kubernetes import client as k8s_client
-        from kubernetes import config as k8s_config
-    except ImportError as exc:
-        raise ImportError(
-            "El proveedor Kubernetes requiere: pip install kubernetes"
-        ) from exc
+def _cargar_kubeconfig(provider_config: dict[str, Any]) -> None:
+    """Carga la configuración de acceso al cluster, por cualquiera de las tres vías."""
+    from kubernetes import config as k8s_config
 
     try:
         if provider_config.get("in_cluster"):
@@ -137,74 +131,100 @@ def discover_kubernetes(provider_config: dict[str, Any]) -> list[dict[str, Any]]
             k8s_config.load_kube_config(config_file=provider_config["kubeconfig_path"])
         else:
             k8s_config.load_kube_config()
-    # intentional: chained re-raise preserves context
     except Exception as exc:
         raise RuntimeError(f"No se pudo cargar kubeconfig: {exc}") from exc
 
+
+def _ip_interna(estado) -> str:
+    """La IP interna del nodo, si la publica."""
+    for direccion in (estado.addresses or []):
+        if direccion.type == "InternalIP":
+            return direccion.address
+    return ""
+
+
+def _nodo_como_ci(node) -> dict[str, Any]:
+    """Un nodo de Kubernetes como elemento de configuración."""
+    meta = node.metadata
+    estado = node.status
+    condiciones = {c.type: c.status for c in (estado.conditions or [])}
+    info = estado.node_info
+    etiquetas = meta.labels or {}
+
+    return {
+        "external_id": meta.uid,
+        "name": meta.name,
+        "ci_type": "server",
+        # Un nodo que no está `Ready` no está caído: está fuera de servicio, y
+        # `maintenance` es lo que eso significa en el CMDB.
+        "status": "active" if condiciones.get("Ready") == "True" else "maintenance",
+        "environment": etiquetas.get("environment", "production"),
+        "ip_address": _ip_interna(estado),
+        "hostname": meta.name,
+        "version": info.kubelet_version if info else "",
+        "description": f"K8s Node — kubelet {getattr(info, 'kubelet_version', '')}",
+        "attributes": json.dumps({
+            "os": getattr(info, "os_image", ""),
+            "arch": getattr(info, "architecture", ""),
+            "container_runtime": getattr(info, "container_runtime_version", ""),
+            "labels": etiquetas,
+        }),
+        "discovery_provider": PROVIDER_K8S,
+        "last_discovered_at": utcnow().isoformat(),
+    }
+
+
+def _namespace_como_ci(ns) -> dict[str, Any]:
+    """Un namespace de Kubernetes como elemento de configuración."""
+    meta = ns.metadata
+    fase = ns.status.phase if ns.status else "Active"
+    etiquetas = meta.labels or {}
+
+    return {
+        "external_id": f"ns:{meta.uid}",
+        "name": f"k8s-ns-{meta.name}",
+        "ci_type": "service",
+        "status": "active" if fase == "Active" else "decommissioned",
+        "environment": etiquetas.get("environment", "production"),
+        "ip_address": "",
+        "hostname": "",
+        "version": "",
+        "description": f"Kubernetes Namespace: {meta.name}",
+        "attributes": json.dumps({"namespace": meta.name, "labels": etiquetas}),
+        "discovery_provider": PROVIDER_K8S,
+        "last_discovered_at": utcnow().isoformat(),
+    }
+
+
+def discover_kubernetes(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
+    """Descubre nodos y namespaces de un cluster Kubernetes.
+
+    Los dos barridos son independientes: si uno falla, el otro sigue y se
+    devuelve lo que se haya podido leer. Un descubrimiento parcial es más útil
+    que ninguno, y el aviso queda en el registro.
+    """
+    try:
+        from kubernetes import client as k8s_client
+    except ImportError as exc:
+        raise ImportError(
+            "El proveedor Kubernetes requiere: pip install kubernetes"
+        ) from exc
+
+    _cargar_kubeconfig(provider_config)
     v1 = k8s_client.CoreV1Api()
-    discovered: list[dict] = []
+    descubiertos: list[dict] = []
 
-    # Nodes
-    try:
-        for node in v1.list_node().items:
-            meta = node.metadata
-            status_obj = node.status
-            conditions = {c.type: c.status for c in (status_obj.conditions or [])}
-            is_ready = conditions.get("Ready") == "True"
+    for listar, convertir, que in (
+        (v1.list_node, _nodo_como_ci, "nodes"),
+        (v1.list_namespace, _namespace_como_ci, "namespaces"),
+    ):
+        try:
+            descubiertos += [convertir(item) for item in listar().items]
+        except Exception as exc:
+            logger.warning("K8s %s discovery error: %s", que, exc)
 
-            internal_ip = ""
-            for addr in (status_obj.addresses or []):
-                if addr.type == "InternalIP":
-                    internal_ip = addr.address
-                    break
-
-            node_info = status_obj.node_info
-            discovered.append({
-                "external_id": meta.uid,
-                "name": meta.name,
-                "ci_type": "server",
-                "status": "active" if is_ready else "maintenance",
-                "environment": (meta.labels or {}).get("environment", "production") if meta.labels else "production",
-                "ip_address": internal_ip,
-                "hostname": meta.name,
-                "version": node_info.kubelet_version if node_info else "",
-                "description": f"K8s Node — kubelet {getattr(node_info, 'kubelet_version', '')}",
-                "attributes": json.dumps({
-                    "os": getattr(node_info, "os_image", ""),
-                    "arch": getattr(node_info, "architecture", ""),
-                    "container_runtime": getattr(node_info, "container_runtime_version", ""),
-                    "labels": meta.labels or {},
-                }),
-                "discovery_provider": PROVIDER_K8S,
-                "last_discovered_at": utcnow().isoformat(),
-            })
-    except Exception as exc:
-        logger.warning("K8s nodes discovery error: %s", exc)
-
-    # Namespaces
-    try:
-        for ns in v1.list_namespace().items:
-            meta = ns.metadata
-            phase = ns.status.phase if ns.status else "Active"
-            discovered.append({
-                "external_id": f"ns:{meta.uid}",
-                "name": f"k8s-ns-{meta.name}",
-                "ci_type": "service",
-                "status": "active" if phase == "Active" else "decommissioned",
-                "environment": (meta.labels or {}).get("environment", "production"),
-                "ip_address": "",
-                "hostname": "",
-                "version": "",
-                "description": f"Kubernetes Namespace: {meta.name}",
-                "attributes": json.dumps({"namespace": meta.name, "labels": meta.labels or {}}),
-                "discovery_provider": PROVIDER_K8S,
-                "last_discovered_at": utcnow().isoformat(),
-            })
-    except Exception as exc:
-        logger.warning("K8s namespaces discovery error: %s", exc)
-
-    logger.info("K8s discovery: %d activos encontrados", len(discovered))
-    return discovered
+    logger.info("K8s discovery: %d activos encontrados", len(descubiertos))
+    return descubiertos
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -12,6 +12,7 @@ import type { CSSProperties } from 'react'
 // react-plotly.js ships no type declarations of its own; resolved via ambient/module types
 import Plot from '../../charts/PlotlyCustom'
 import type { Data } from 'plotly.js'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 interface RawNode {
   [key: string]: unknown
@@ -478,6 +479,7 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
 // ─── IMPACT LEGEND ───────────────────────────────────────────────────────────
 
 function ImpactLegend({ impactRadius, sourceName }: { impactRadius: number; sourceName?: string }) {
+  const { t } = useAppLang()
   return (
     <div style={{
       display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
@@ -485,7 +487,7 @@ function ImpactLegend({ impactRadius, sourceName }: { impactRadius: number; sour
     }}>
       {sourceName && (
         <span style={{ color: 'var(--text-2)', marginRight: 4 }}>
-          Impacto de <strong style={{ color: IMPACT_COLORS[0] }}>{sourceName}</strong>:
+          {t('cmdbtopologygraph.impacto_de')} <strong style={{ color: IMPACT_COLORS[0] }}>{sourceName}</strong>:
         </span>
       )}
       {Array.from({ length: impactRadius + 1 }, (_, d) => (
@@ -496,7 +498,7 @@ function ImpactLegend({ impactRadius, sourceName }: { impactRadius: number; sour
       ))}
       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#334155', display: 'inline-block', flexShrink: 0 }} />
-        <span style={{ color: 'var(--text-3)' }}>Sin impacto / fuera del radio</span>
+        <span style={{ color: 'var(--text-3)' }}>{t('cmdbtopologygraph.sin_impacto_fuera_del_radio')}</span>
       </span>
     </div>
   )
@@ -510,6 +512,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
   onNodeClick?: (node: GraphNode) => void
   centerName?: string
 }) {
+  const { t } = useAppLang()
   const [hovered, setHovered] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState('2d')
   const [impactSource, setImpactSource] = useState<string | null>(null)
@@ -533,7 +536,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
     return (
       <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>
         <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>🔭</div>
-        Selecciona un CI para ver su topología de dependencias
+        {t('cmdbtopologygraph.selecciona_un_ci_para_ver_su_topologia')}
       </div>
     )
   }
@@ -584,7 +587,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
       {/* Hint */}
       {!impactSource && (
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>
-          💡 Haz clic en cualquier nodo para analizar su radio de impacto y abrir el panel de detalle
+          {t('cmdbtopologygraph.haz_clic_en_cualquier_nodo_para_analizar')}
         </div>
       )}
 

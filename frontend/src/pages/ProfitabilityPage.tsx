@@ -173,6 +173,7 @@ function MilestoneRow({ m, projectId, onUpdate }: { m: MilestoneItem; projectId:
 }
 
 function ProjectDetail({ projectId, onClose }: { projectId: string | number; onClose: () => void }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showAddMilestone, setShowAddMilestone] = useState(false)
@@ -255,7 +256,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
             ))}
           </div>
           <div style={{ marginTop: 12, fontSize: "var(--text-xs)", color: 'var(--text-2)', borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
-            CPI &gt; 1 = bajo coste · SPI &gt; 1 = adelantado · EAC = coste total estimado al finalizar · VAC = presupuesto disponible restante
+            {t('profitability.cpi_1_bajo_coste_spi_1_adelantado')}
           </div>
         </div>
       )}
@@ -280,8 +281,8 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
 
         {/* By person */}
         <Card style={{ padding: 16 }}>
-          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Por persona</h4>
-          {data.by_person?.length === 0 ? <EmptyState icon="👤" title="Sin detalle por persona" /> : (
+          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('profitability.por_persona')}</h4>
+          {data.by_person?.length === 0 ? <EmptyState icon="👤" title={t('profitability.sin_detalle_por_persona')} /> : (
             data.by_person?.slice(0, 6).map(p => (
               <div key={p.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--surface-4)30', fontSize: "var(--text-sm)" }}>
                 <span>{p.user_name}</span>
@@ -298,7 +299,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
       {/* Weekly evolution */}
       {(data.by_week?.length ?? 0) > 0 && (
         <Card style={{ padding: 16, marginBottom: 20 }}>
-          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Evolución semanal</h4>
+          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('profitability.evolucion_semanal')}</h4>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={data.by_week} margin={{ top: 0, right: 0, left: -20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
@@ -314,11 +315,11 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
       {/* Milestones */}
       <Card style={{ padding: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Hitos de facturación</h4>
-          <Button size="sm" onClick={() => setShowAddMilestone(true)} icon="＋">Añadir hito</Button>
+          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('profitability.hitos_de_facturacion')}</h4>
+          <Button size="sm" onClick={() => setShowAddMilestone(true)} icon="＋">{t('profitability.anadir_hito')}</Button>
         </div>
         {data.milestones?.length === 0 ? (
-          <EmptyState icon="🏁" title="Sin hitos de facturacion" description="Anade hitos para seguir la facturacion del proyecto" />
+          <EmptyState icon="🏁" title={t('profitability.sin_hitos_de_facturacion')} description="Anade hitos para seguir la facturacion del proyecto" />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {(data.milestones ?? []).map(m => (
@@ -336,13 +337,13 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
         {showAddMilestone && (
           <div style={{ marginTop: 14, padding: 14, background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div><label style={ls}>Nombre</label><input value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre del hito" aria-label="Nombre del hito" /></div>
+              <div><label style={ls}>Nombre</label><input value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('profitability.nombre_del_hito')} aria-label={t('profitability.nombre_del_hito')} /></div>
               <div><label style={ls}>Fecha</label><input type="date" value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} style={fs} /></div>
-              <div><label style={ls}>Importe €</label><input type="number" value={msForm.billing_amount} onChange={e => setMsForm(f => ({ ...f, billing_amount: e.target.value }))} style={fs} placeholder="Importe del hito" aria-label="Importe del hito" /></div>
-              <div><label style={ls}>% Contrato</label><input type="number" value={msForm.billing_pct} onChange={e => setMsForm(f => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder="Porcentaje del contrato" aria-label="Porcentaje del contrato" /></div>
+              <div><label style={ls}>Importe €</label><input type="number" value={msForm.billing_amount} onChange={e => setMsForm(f => ({ ...f, billing_amount: e.target.value }))} style={fs} placeholder={t('profitability.importe_del_hito')} aria-label={t('profitability.importe_del_hito')} /></div>
+              <div><label style={ls}>% Contrato</label><input type="number" value={msForm.billing_pct} onChange={e => setMsForm(f => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder={t('profitability.porcentaje_del_contrato')} aria-label={t('profitability.porcentaje_del_contrato')} /></div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <Button size="sm" onClick={() => addMilestone(msForm)} disabled={!msForm.name}>Añadir</Button>
+              <Button size="sm" onClick={() => addMilestone(msForm)} disabled={!msForm.name}>{t('profitability.anadir')}</Button>
               <Button size="sm" variant="secondary" onClick={() => setShowAddMilestone(false)}>Cancelar</Button>
             </div>
           </div>
@@ -402,12 +403,12 @@ export default function ProfitabilityPage() {
       )}
 
       {isLoading ? <Spinner /> : projects.length === 0 ? (
-        <EmptyState icon="💰" title="Sin datos de rentabilidad" description="No hay proyectos con informacion de rentabilidad para este filtro" />
+        <EmptyState icon="💰" title={t('profitability.sin_datos_de_rentabilidad')} description="No hay proyectos con informacion de rentabilidad para este filtro" />
       ) : (
         <>
           {/* Chart */}
           <Card style={{ marginBottom: 24, padding: 20 }}>
-            <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Margen por proyecto</h3>
+            <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('profitability.margen_por_proyecto')}</h3>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={projects.slice().reverse()} margin={{ top: 0, right: 0, left: 0, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />

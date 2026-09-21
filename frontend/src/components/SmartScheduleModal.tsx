@@ -20,6 +20,7 @@ import {
 } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import { Sparkles, X, RefreshCw } from 'lucide-react'
+import { useAppLang } from '../i18n/AppLangContext'
 
 interface Suggestion {
   task_id: string | number
@@ -44,6 +45,7 @@ interface ErrLike {
 }
 
 export default function SmartScheduleModal({ open, onClose, projectId, projectName }: SmartScheduleModalProps) {
+  const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])  // mutable: [{task_id, suggested_start, suggested_due, rationale, _selected, _title}]
@@ -171,11 +173,11 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Sparkles size={18} color="var(--accent)" /> Auto-planificar tareas sin fecha
+              <Sparkles size={18} color="var(--accent)" /> {traducir('smartschedulemodal.auto_planificar_tareas_sin_fecha')}
             </h3>
             <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginTop: 4 }}>
               {projectName ? <>Proyecto: <strong>{projectName}</strong></> : 'Todas las tareas sin fecha visibles'}
-              {unscheduledCount > 0 && <> · {unscheduledCount} sin planificar</>}
+              {unscheduledCount > 0 && <> · {unscheduledCount} {traducir('smartschedulemodal.sin_planificar')}</>}
             </div>
           </div>
           <button onClick={onClose}
@@ -187,7 +189,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
         {/* Controls */}
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
           <label style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
-            Máx. tareas a planificar:
+            {traducir('smartschedulemodal.max_tareas_a_planificar')}
           </label>
           <input
             type="number" min={1} max={100} value={maxTasks}
@@ -225,7 +227,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
           )}
           {isLoading ? (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>
-              ⏳ Generando sugerencias con IA…
+              {traducir('smartschedulemodal.generando_sugerencias_con_ia')}
             </div>
           ) : suggestions.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>
@@ -245,9 +247,9 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
                 <input
                   type="checkbox" checked={allSelected}
                   onChange={_toggleAll}
-                  title="Seleccionar/Deseleccionar todas"
+                  title={traducir('smartschedulemodal.seleccionar_deseleccionar_todas')}
                 />
-                <div>Tarea / Razón IA</div>
+                <div>{traducir('smartschedulemodal.tarea_razon_ia')}</div>
                 <div>Start</div>
                 <div>Due</div>
               </div>
@@ -305,7 +307,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
           paddingTop: 14, borderTop: '1px solid var(--surface-4)', marginTop: 12,
         }}>
           <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
-            {selectedCount} de {suggestions.length} seleccionadas
+            {selectedCount} {traducir('smartschedulemodal.de')} {suggestions.length} seleccionadas
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onClose} disabled={isApplying}

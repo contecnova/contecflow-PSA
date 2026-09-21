@@ -12,6 +12,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { predictionsApi } from '../../services/api'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 
@@ -51,6 +52,7 @@ interface RiskData {
 }
 
 export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectRiskBadgeProps) {
+  const { t } = useAppLang()
   const [showTooltip, setShowTooltip] = useState(false)
 
   // Skip prediction if project has insufficient data
@@ -135,7 +137,7 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
 
           {data.signals && data.signals.length > 0 && (
             <div>
-              <div style={{ color: 'var(--text-3)', marginBottom: 4 }}>Señales:</div>
+              <div style={{ color: 'var(--text-3)', marginBottom: 4 }}>{t('projectriskbadge.senales')}</div>
               {data.signals.slice(0, 3).map((s, i) => (
                 <div key={i} style={{ color: 'var(--text-2)', marginBottom: 2 }}>
                   · {s.signal}
@@ -152,7 +154,7 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
 
           {data.used_heuristic && (
             <div style={{ marginTop: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>
-              ~ Basado en heurística (sin modelo ML entrenado)
+              {t('projectriskbadge.basado_en_heuristica_sin_modelo_ml_entrenado')}
             </div>
           )}
         </div>

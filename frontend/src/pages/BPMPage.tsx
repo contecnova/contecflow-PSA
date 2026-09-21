@@ -4,6 +4,7 @@ import { Button, Page } from '../components/ui'
 import { Network, Plus, X, ChevronLeft, Edit3, Download, Search } from 'lucide-react'
 import { bpmnProcessesApi, apiErrorMsg } from '../services/api'
 import { useToast } from '../context/ToastContext'
+import { useAppLang } from '../i18n/AppLangContext'
 
 // NOTE: bpmn-js (JS + CSS) is loaded dynamically inside useBpmnViewer so it
 // stays out of the initial bundle (~400 KB JS + assets). See audit #43, #81.
@@ -1498,6 +1499,7 @@ type Process = {
 type NewProcess = { name: string; category: string; description: string; owner: string; sla: string }
 
 export default function BPMPage(): JSX.Element {
+  const { t: traducir } = useAppLang()
   const [selectedCat, setSelectedCat]         = useState('all')
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
   const [editMode, setEditMode]               = useState(false)
@@ -1681,11 +1683,11 @@ export default function BPMPage(): JSX.Element {
   return (
     <Page
       icon={<Network size={18} />}
-      title="BPM — Procesos de Negocio"
+      title={traducir('bpm.bpm_procesos_de_negocio')}
       subtitle={`${allProcesses.length} procesos · ${PROCESS_CATALOG.length} del sistema · ${allProcesses.filter(p => (p as any).isCustom).length} personalizados`}
       rightActions={
         <Button onClick={() => { setShowAddForm(true); setSelectedProcess(null) }}>
-          <Plus size={13} /> Nuevo proceso
+          <Plus size={13} /> {traducir('bpm.nuevo_proceso')}
         </Button>
       }
     >
@@ -1750,18 +1752,18 @@ export default function BPMPage(): JSX.Element {
               border: '1px solid var(--accent)',
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>Nuevo proceso personalizado</div>
+                <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>{traducir('bpm.nuevo_proceso_personalizado')}</div>
                 <button onClick={() => setShowAddForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}>
                   <X size={16} />
                 </button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
                 <div>
-                  <label style={lbl}>Nombre del proceso *</label>
-                  <input value={newProcess.name} onChange={e => setNewProcess(p => ({ ...p, name: e.target.value }))} placeholder="Ej: Gestión de proveedores" style={inp} />
+                  <label style={lbl}>{traducir('bpm.nombre_del_proceso')}</label>
+                  <input value={newProcess.name} onChange={e => setNewProcess(p => ({ ...p, name: e.target.value }))} placeholder={traducir('bpm.ej_gestion_de_proveedores')} style={inp} />
                 </div>
                 <div>
-                  <label style={lbl}>Categoría</label>
+                  <label style={lbl}>{traducir('bpm.categoria')}</label>
                   <select value={newProcess.category} onChange={e => setNewProcess(p => ({ ...p, category: e.target.value }))} style={inp}>
                     {CATEGORIES.filter(c => c.id !== 'all').map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                   </select>
@@ -1772,15 +1774,15 @@ export default function BPMPage(): JSX.Element {
                 </div>
                 <div>
                   <label style={lbl}>SLA</label>
-                  <input value={newProcess.sla} onChange={e => setNewProcess(p => ({ ...p, sla: e.target.value }))} placeholder="Ej: 3 días" style={inp} />
+                  <input value={newProcess.sla} onChange={e => setNewProcess(p => ({ ...p, sla: e.target.value }))} placeholder={traducir('bpm.ej_3_dias')} style={inp} />
                 </div>
               </div>
               <div style={{ marginBottom: 12 }}>
-                <label style={lbl}>Descripción</label>
-                <input value={newProcess.description} onChange={e => setNewProcess(p => ({ ...p, description: e.target.value }))} placeholder="Describe brevemente el proceso..." style={inp} />
+                <label style={lbl}>{traducir('bpm.descripcion')}</label>
+                <input value={newProcess.description} onChange={e => setNewProcess(p => ({ ...p, description: e.target.value }))} placeholder={traducir('bpm.describe_brevemente_el_proceso')} style={inp} />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <Button disabled={!newProcess.name.trim()} onClick={handleAddProcess}>Crear y diseñar</Button>
+                <Button disabled={!newProcess.name.trim()} onClick={handleAddProcess}>{traducir('bpm.crear_y_disenar')}</Button>
                 <button onClick={() => setShowAddForm(false)} style={{ ...ghostBtn, padding: '8px 14px', fontSize: 'var(--text-base)' }}>Cancelar</button>
               </div>
             </div>
@@ -1866,7 +1868,7 @@ export default function BPMPage(): JSX.Element {
               <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
                 {editMode && (
                   <div style={editModeBadge}>
-                    <Edit3 size={11} /> Modo edición — arrastra nodos, añade elementos desde la paleta
+                    <Edit3 size={11} /> {traducir('bpm.modo_edicion_arrastra_nodos_anade_elementos_desde')}
                   </div>
                 )}
                 <div ref={containerRef} style={diagramContainer} />
@@ -1884,7 +1886,7 @@ export default function BPMPage(): JSX.Element {
                   <div style={{ color: 'var(--text-2)', fontSize: 'var(--text-sm)', marginBottom: 16 }}>
                     {search ? 'Prueba con otro término de búsqueda.' : 'Crea el primer proceso personalizado.'}
                   </div>
-                  {!search && <Button onClick={() => setShowAddForm(true)}><Plus size={13} style={{ marginRight: 4 }} />Nuevo proceso</Button>}
+                  {!search && <Button onClick={() => setShowAddForm(true)}><Plus size={13} style={{ marginRight: 4 }} />{traducir('bpm.nuevo_proceso')}</Button>}
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 14 }}>

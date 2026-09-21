@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user, get_db, require_admin
 from app.core.async_db import run_db
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -184,6 +184,7 @@ def suggest_branch(
     task_id: int,
     db:      Session = Depends(get_db),
     _:       User    = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: integracion con el repositorio
 ):
     task = get_task(db, task_id)
     if not task:

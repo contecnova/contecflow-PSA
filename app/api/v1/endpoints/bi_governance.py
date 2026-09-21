@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
 from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
@@ -55,6 +55,7 @@ def update_governance_config(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: gobierno del dato
 ):
     org_id = getattr(current_user, 'organization_id', None)
     current = svc._get_json(db, GOVERNANCE_CONFIG_KEY, org_id, dict(_DEFAULT_CONFIG))
@@ -85,6 +86,7 @@ def create_policy(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: gobierno del dato
 ):
     import uuid as _uuid
     org_id = getattr(current_user, 'organization_id', None)
@@ -146,6 +148,7 @@ def log_access(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: gobierno del dato
 ):
     org_id = getattr(current_user, 'organization_id', None)
     row = svc.log_bi_access(
@@ -207,6 +210,7 @@ def track_lineage(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: gobierno del dato
 ):
     org_id = getattr(current_user, 'organization_id', None)
     row = svc.track_data_lineage(
@@ -240,6 +244,7 @@ def upsert_field(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: gobierno del dato
 ):
     org_id = getattr(current_user, 'organization_id', None)
     try:

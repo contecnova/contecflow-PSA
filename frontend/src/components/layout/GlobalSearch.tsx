@@ -122,7 +122,7 @@ export default function GlobalSearch({ onClose }: Props) {
   return (
     <div role="presentation" style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:'15vh' }}
       onMouseDown={onClose}>
-      <div role="dialog" aria-modal="true" aria-label="Búsqueda global" style={{ width:'100%', maxWidth:620, background:'var(--surface-1)', borderRadius:16, border:'.5px solid var(--surface-4)', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
+      <div role="dialog" aria-modal="true" aria-label={t('globalsearch.busqueda_global')} style={{ width:'100%', maxWidth:620, background:'var(--surface-1)', borderRadius:16, border:'.5px solid var(--surface-4)', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
         onMouseDown={e => e.stopPropagation()}>
         <div style={{ display:'flex', alignItems:'center', padding:'14px 18px', borderBottom:'.5px solid var(--surface-4)', gap:10 }}>
           <span style={{ fontSize: "var(--text-lg)", color:'var(--text-2)' }}>⌕</span>
@@ -142,7 +142,7 @@ export default function GlobalSearch({ onClose }: Props) {
           {debouncedQ.length < 2 ? (
             <div>
               <div style={{ padding: '10px 18px 6px', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
-                Acciones rápidas
+                {t('globalsearch.acciones_rapidas')}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, padding: '0 10px 10px' }}>
                 {QUICK_ACTIONS.map((action, idx) => {

@@ -169,7 +169,7 @@ export default function IncidentAssignmentPanel() {
           </span>
           {stats?.total_recommendations != null && (
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-              {stats.total_recommendations} recomendaciones · {stats.total_unassigned ?? 0} sin asignar
+              {stats.total_recommendations} recomendaciones · {stats.total_unassigned ?? 0} {t('incidentassignment.sin_asignar')}
             </span>
           )}
         </div>
@@ -190,13 +190,13 @@ export default function IncidentAssignmentPanel() {
             />
             <input
               type="text"
-              placeholder="Título de la incidencia (opcional)"
+              placeholder={t('incidentassignment.titulo_de_la_incidencia_opcional')}
               value={ticketTitle}
               onChange={e => setTicketTitle(e.target.value)}
               style={inputBase}
             />
             <textarea
-              placeholder="Descripción / palabras clave (opcional, ayuda al matching)"
+              placeholder={t('incidentassignment.descripcion_palabras_clave_opcional_ayuda_al_matching')}
               value={ticketDescription}
               onChange={e => setTicketDescription(e.target.value)}
               rows={2}
@@ -204,7 +204,7 @@ export default function IncidentAssignmentPanel() {
             />
             <div style={{ display: 'flex', gap: 8 }}>
               <select value={priority} onChange={e => setPriority(e.target.value)} style={{ ...inputBase, flex: '0 0 180px' }}>
-                <option value="p1_critical">P1 Crítico</option>
+                <option value="p1_critical">{t('incidentassignment.p1_critico')}</option>
                 <option value="p2_high">P2 Alto</option>
                 <option value="p3_medium">P3 Medio</option>
                 <option value="p4_low">P4 Bajo</option>
@@ -226,7 +226,7 @@ export default function IncidentAssignmentPanel() {
               background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
               borderRadius: 8, padding: '8px 12px', marginBottom: 12,
             }}>
-              No hay agentes disponibles. Crea grupos y asigna miembros desde la pestaña Configuración.
+              {t('incidentassignment.no_hay_agentes_disponibles_crea_grupos_y')}
             </div>
           )}
 
@@ -253,7 +253,7 @@ export default function IncidentAssignmentPanel() {
                     </div>
                   )}
                   <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
-                    Método: <span style={{ fontFamily: 'var(--font-mono)' }}>{recommendation.method_used}</span>
+                    {t('incidentassignment.metodo')} <span style={{ fontFamily: 'var(--font-mono)' }}>{recommendation.method_used}</span>
                   </div>
                   <div style={{ marginTop: 10 }}>
                     {applySuccess ? (
@@ -267,7 +267,7 @@ export default function IncidentAssignmentPanel() {
                         loading={applyMutation.isPending}
                         style={{ fontSize: 'var(--text-sm)' }}
                       >
-                        ✓ Aplicar asignación
+                        {t('incidentassignment.aplicar_asignacion')}
                       </Button>
                     )}
                     {applyMutation.isError && (
@@ -284,7 +284,7 @@ export default function IncidentAssignmentPanel() {
                   border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)',
                   borderRadius: 8, padding: '8px 12px', marginBottom: 10,
                 }}>
-                  No se ha podido recomendar ningún agente.
+                  {t('incidentassignment.no_se_ha_podido_recomendar_ningun_agente')}
                 </div>
               )}
 
@@ -361,7 +361,7 @@ export default function IncidentAssignmentPanel() {
           {statsLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner /></div>
           ) : !candidates.length ? (
-            <EmptyState icon="📊" title="Sin agentes registrados" />
+            <EmptyState icon="📊" title={t('incidentassignment.sin_agentes_registrados')} />
           ) : (
             <div style={{
               background: 'var(--surface-3)',

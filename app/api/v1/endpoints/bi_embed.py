@@ -18,6 +18,7 @@ from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import bi_embed_service as svc
+from app.core.deps import require_admin
 
 router = APIRouter(prefix="/bi/embed", tags=["BI Embedded SDK"])
 
@@ -29,6 +30,7 @@ def create_embed_token(
     payload: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: tokens de incrustacion
 ):
     """Genera un JWT firmado para incrustar un dashboard en un iframe externo.
 
@@ -51,6 +53,7 @@ def revoke_embed_token(
     jti: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: tokens de incrustacion
 ):
     enforce_abac(db, current_user, "bi_embed_token", jti, action="delete")
     org_id = str(current_user.organization_id or "global")
@@ -65,6 +68,7 @@ def sso_exchange(
     payload: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: tokens de incrustacion
 ):
     """Intercambia un token JWT de un proveedor SSO externo por un embed token.
 
@@ -114,6 +118,7 @@ def save_embed_config(
     payload: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: tokens de incrustacion
 ):
     org_id = str(current_user.organization_id or "global")
     result = svc.save_embed_config(db, org_id, payload)

@@ -140,6 +140,7 @@ def create_change_request(
     payload: CRIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     cr = change_service.create_change_request(
         db,
@@ -157,6 +158,7 @@ def update_change_request(
     payload: CRIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     cr = change_service.get_by_id(db, cr_id, project_id=project_id)
     if not cr:
@@ -173,6 +175,7 @@ def submit_cr(
     cr_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     cr = change_service.get_by_id(db, cr_id)
     if not cr:

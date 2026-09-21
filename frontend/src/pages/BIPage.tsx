@@ -89,9 +89,10 @@ function KpiCard({ label, value, note }: { label: string; value: ReactNode; note
 }
 
 function EmptyDash() {
+  const t = useAppT()
   return (
     <div style={{ textAlign: 'center', color: 'var(--text-3)', border: '1px dashed var(--surface-4)', borderRadius: 12, padding: 30 }}>
-      No hay datos para el período seleccionado.
+      {t('bi.no_hay_datos_para_el_periodo_seleccionado')}
     </div>
   )
 }
@@ -180,7 +181,7 @@ export default function BIPage(): JSX.Element {
 
           <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ padding: 12, borderBottom: '1px solid var(--surface-4)', fontWeight: 700, color: 'var(--text-1)' }}>
-              Estado de proyectos
+              {t('bi.estado_de_proyectos')}
             </div>
             {isMobile ? (
               <div style={{ display: 'grid', gap: 8, padding: 10 }}>

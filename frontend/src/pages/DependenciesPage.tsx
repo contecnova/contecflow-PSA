@@ -113,7 +113,7 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
         </div>
 
         <div>
-          <label style={ls}>Tipo de dependencia</label>
+          <label style={ls}>{t('dependencies.tipo_de_dependencia')}</label>
           <div style={{display:'flex', flexDirection:'column', gap:6}}>
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dependency_type')(dt.value)}
@@ -134,10 +134,10 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
 
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
           <div>
-            <label style={ls}>Días de lag (retraso)</label>
+            <label style={ls}>{t('dependencies.dias_de_lag_retraso')}</label>
             <input type="number" style={is} value={form.lag_days} min={0}
               onChange={e => set('lag_days')(+e.target.value)} />
-            <div style={{fontSize: "var(--text-xs)", color:'var(--text-3)', marginTop:4}}>Días extra tras cumplir la condición</div>
+            <div style={{fontSize: "var(--text-xs)", color:'var(--text-3)', marginTop:4}}>{t('dependencies.dias_extra_tras_cumplir_la_condicion')}</div>
           </div>
         </div>
 
@@ -166,10 +166,11 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
 }
 
 function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] }) {
-  if (!nodes.length) return <EmptyState icon="🔗" title="Sin tareas" description="Este proyecto no tiene tareas para representar dependencias" />
+  const t = useAppT()
+  if (!nodes.length) return <EmptyState icon="🔗" title={t('dependencies.sin_tareas')} description="Este proyecto no tiene tareas para representar dependencias" />
   if (!edges.length) return (
     <div style={{textAlign:'center', padding:'32px', color:'var(--text-2)', fontSize: "var(--text-base)"}}>
-      Sin dependencias definidas. Crea dependencias entre tareas para verlas aquí.
+      {t('dependencies.sin_dependencias_definidas_crea_dependencias_entre_tareas')}
     </div>
   )
 
@@ -230,7 +231,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
                   )
                 })}
                 {outEdges.length===0 && inEdges.length===0 && (
-                  <span style={{color:'var(--surface-4)', fontSize: "var(--text-xs)"}}>sin dependencias</span>
+                  <span style={{color:'var(--surface-4)', fontSize: "var(--text-xs)"}}>{t('dependencies.sin_dependencias')}</span>
                 )}
               </div>
               <div style={{fontSize: "var(--text-2xs)", color:'var(--text-2)'}}>
@@ -303,7 +304,7 @@ export default function DependenciesPage(): JSX.Element {
     <PageShell>
       <PageHeader icon={<GitMerge size={18} />} title={t('dependencies.title')} subtitle={t('dependencies.subtitle')}
         actions={project && (
-          <Button onClick={() => setShowForm(true)}>+ Nueva dependencia</Button>
+          <Button onClick={() => setShowForm(true)}>{t('dependencies.nueva_dependencia')}</Button>
         )} />
 
       <div style={{...ps, marginBottom:20}}>
@@ -311,7 +312,7 @@ export default function DependenciesPage(): JSX.Element {
           <div>
             <label style={ls}>Proyecto</label>
             <select value={project} onChange={e => setProject(e.target.value)} style={is}>
-              <option value="">Selecciona un proyecto...</option>
+              <option value="">{t('dependencies.selecciona_un_proyecto')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
@@ -330,7 +331,7 @@ export default function DependenciesPage(): JSX.Element {
         </div>
       </div>
 
-      {!project && <EmptyState icon="🔗" title="Selecciona un proyecto" description="Elige un proyecto para ver o crear dependencias entre tareas" />}
+      {!project && <EmptyState icon="🔗" title={t('dependencies.selecciona_un_proyecto_2')} description="Elige un proyecto para ver o crear dependencias entre tareas" />}
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && (
@@ -359,9 +360,9 @@ export default function DependenciesPage(): JSX.Element {
               {edges.length === 0 ? (
                 <div style={{textAlign:'center', padding:'48px 24px'}}>
                   <div style={{fontSize: "var(--text-6xl)", marginBottom:16}}>🔗</div>
-                  <div style={{fontSize: "var(--text-md-em)", fontWeight:600, marginBottom:8}}>Sin dependencias</div>
+                  <div style={{fontSize: "var(--text-md-em)", fontWeight:600, marginBottom:8}}>{t('dependencies.sin_dependencias_2')}</div>
                   <div style={{fontSize: "var(--text-base)", color:'var(--text-2)', marginBottom:20}}>
-                    Define qué tareas bloquean a otras para visualizar el camino crítico.
+                    {t('dependencies.define_que_tareas_bloquean_a_otras_para')}
                   </div>
                   <Button onClick={() => setShowForm(true)}>+ Crear primera dependencia</Button>
                 </div>

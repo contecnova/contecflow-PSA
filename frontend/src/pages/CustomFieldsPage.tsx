@@ -57,6 +57,7 @@ const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)
 const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 function FieldForm({ field, projectId, onClose }: { field: CustomField | null; projectId: string; onClose: () => void }) {
+  const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!field?.id
@@ -93,11 +94,11 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
     <Modal open onClose={onClose} title={isEdit ? 'Editar campo' : 'Nuevo campo personalizado'}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
-          <label style={labelStyle}>Nombre del campo</label>
+          <label style={labelStyle}>{traducir('customfields.nombre_del_campo')}</label>
           <input style={inputStyle} value={form.name} onChange={e => {
             const n = e.target.value
             setForm(f => ({ ...f, name: n, field_key: isEdit ? f.field_key : autoKey(n) }))
-          }} placeholder="Nombre visible del campo" aria-label="Nombre visible del campo" />
+          }} placeholder={traducir('customfields.nombre_visible_del_campo')} aria-label={traducir('customfields.nombre_visible_del_campo')} />
         </div>
 
         <div>
@@ -105,12 +106,12 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
           <input style={{ ...inputStyle, fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)" }}
             value={form.field_key}
             onChange={e => set('field_key')(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
-            placeholder="clave_del_campo" aria-label="Clave del campo" disabled={isEdit} />
-          {isEdit && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 3 }}>La clave no se puede cambiar una vez creado</div>}
+            placeholder="clave_del_campo" aria-label={traducir('customfields.clave_del_campo')} disabled={isEdit} />
+          {isEdit && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 3 }}>{traducir('customfields.la_clave_no_se_puede_cambiar_una')}</div>}
         </div>
 
         <div>
-          <label style={labelStyle}>Tipo de campo</label>
+          <label style={labelStyle}>{traducir('customfields.tipo_de_campo')}</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
             {FIELD_TYPES.map(t => (
               <button key={t.value} onClick={() => set('field_type')(t.value)}
@@ -124,7 +125,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
 
         {form.field_type === 'select' && (
           <div>
-            <label style={labelStyle}>Opciones del selector</label>
+            <label style={labelStyle}>{traducir('customfields.opciones_del_selector')}</label>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
               {form.options.map((o) => (
                 <span key={o} style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent-border-strong)', borderRadius: 20, padding: '3px 10px', fontSize: "var(--text-sm)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -138,7 +139,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
               <input style={{ ...inputStyle, flex: 1 }} value={optionInput}
                 onChange={e => setOptionInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addOption()}
-                placeholder="Nueva opcion" aria-label="Nueva opcion" />
+                placeholder={traducir('customfields.nueva_opcion')} aria-label={traducir('customfields.nueva_opcion')} />
               <Button onClick={addOption}>+</Button>
             </div>
           </div>
@@ -151,12 +152,12 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
             <input type="checkbox" checked={form.show_in_list} onChange={e => set('show_in_list')(e.target.checked)} />
-            <span>Visible en lista de tareas</span>
+            <span>{traducir('customfields.visible_en_lista_de_tareas')}</span>
           </label>
         </div>
 
         <div>
-          <label style={labelStyle}>Orden de visualización</label>
+          <label style={labelStyle}>{traducir('customfields.orden_de_visualizacion')}</label>
           <input type="number" style={{ ...inputStyle, width: 100 }} value={form.sort_order}
             onChange={e => set('sort_order')(+e.target.value)} />
         </div>
@@ -173,6 +174,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
 }
 
 export default function CustomFieldsPage(): JSX.Element {
+  const traducir = useAppT()
   const _t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -208,7 +210,7 @@ export default function CustomFieldsPage(): JSX.Element {
         title={_t('custom_fields.title')}
         subtitle={_t('custom_fields.subtitle')}
         actions={selectedProject && (
-          <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo campo</Button>
+          <Button onClick={() => { setEditing(null); setShowForm(true) }}>{traducir('customfields.nuevo_campo')}</Button>
         )}
       />
 
@@ -217,13 +219,13 @@ export default function CustomFieldsPage(): JSX.Element {
         <label style={labelStyle}>Proyecto</label>
         <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
           style={{ ...inputStyle, width: 360 }}>
-          <option value="">Selecciona un proyecto...</option>
+          <option value="">{traducir('customfields.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
 
       {!selectedProject && (
-        <EmptyState icon="🗂" title="Selecciona un proyecto" description="Elige un proyecto para gestionar sus campos personalizados" />
+        <EmptyState icon="🗂" title={traducir('customfields.selecciona_un_proyecto_2')} description="Elige un proyecto para gestionar sus campos personalizados" />
       )}
 
       {selectedProject && isLoading && <Spinner />}
@@ -231,9 +233,9 @@ export default function CustomFieldsPage(): JSX.Element {
       {selectedProject && !isLoading && fields.length === 0 && (
         <div style={{ ...panelStyle, textAlign: 'center', padding: '48px 24px' }}>
           <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🗂</div>
-          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8 }}>Sin campos personalizados</div>
+          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8 }}>{traducir('customfields.sin_campos_personalizados')}</div>
           <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>
-            Crea campos propios para este proyecto: severidad, cliente, sprint objetivo, URL de diseño, etc.
+            {traducir('customfields.crea_campos_propios_para_este_proyecto_severidad')}
           </div>
           <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Crear primer campo</Button>
         </div>
@@ -243,7 +245,7 @@ export default function CustomFieldsPage(): JSX.Element {
         <div style={panelStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{fields.length} campos — {selectedProj?.name}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>Estos campos aparecen en todas las tareas de este proyecto</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{traducir('customfields.estos_campos_aparecen_en_todas_las_tareas')}</div>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
             <thead>

@@ -220,8 +220,9 @@ const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }: { acti
 
 // ── Heatmap component ─────────────────────────────────────────────────────────
 function HeatmapChart({ data, meta }: { data: any[]; meta?: any }) {
+  const traducir = useAppT()
   const weeks = meta?.weeks || []
-  if (!data.length || !weeks.length) return <EmptyState svgIcon={<Grid3X3 size={36} />} title="Sin datos disponibles" />
+  if (!data.length || !weeks.length) return <EmptyState svgIcon={<Grid3X3 size={36} />} title={traducir('reports.sin_datos_disponibles')} />
   const maxVal = Math.max(...data.flatMap((r: any) => weeks.map((w: any) => r[w] || 0)))
   const getColor = (v: any) => {
     if (!v) return 'var(--surface-3)'
@@ -271,7 +272,8 @@ function HeatmapChart({ data, meta }: { data: any[]; meta?: any }) {
 
 // ── Data table ────────────────────────────────────────────────────────────────
 function DataTable({ data, isCurrency, isPercent }: { data: any[]; isCurrency?: any; isPercent?: any }) {
-  if (!data.length) return <EmptyState svgIcon={<TableIcon size={36} />} title="Sin datos disponibles" />
+  const traducir = useAppT()
+  if (!data.length) return <EmptyState svgIcon={<TableIcon size={36} />} title={traducir('reports.sin_datos_disponibles')} />
   const keys = Object.keys(data[0]).filter(k => k !== 'status')
   const fmt = (v: any) => {
     if (typeof v !== 'number') return v
@@ -305,7 +307,8 @@ function DataTable({ data, isCurrency, isPercent }: { data: any[]; isCurrency?: 
 
 // ── Chart renderer ────────────────────────────────────────────────────────────
 function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height = 320 }: { data: any[]; chartType?: any; meta?: any; color?: string; height?: number }) {
-  if (!data || data.length === 0) return <EmptyState svgIcon={<BarChartBig size={36} />} title="Sin datos" description="No hay datos disponibles para este gráfico" />
+  const traducir = useAppT()
+  if (!data || data.length === 0) return <EmptyState svgIcon={<BarChartBig size={36} />} title={traducir('reports.sin_datos')} description="No hay datos disponibles para este gráfico" />
 
   const isCurrency = meta?.y_label?.includes('€')
   const isPercent = meta?.y_label?.includes('%')
@@ -450,6 +453,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
 
 // ── Summary bar ───────────────────────────────────────────────────────────────
 function SummaryBar({ summary, meta, prevSummary }: { summary?: any; meta?: any; prevSummary?: any }) {
+  const traducir = useAppT()
   if (!summary || !summary.total) return null
   const isCurrency = meta?.y_label?.includes('€')
   const isPercent  = meta?.y_label?.includes('%')
@@ -481,7 +485,7 @@ function SummaryBar({ summary, meta, prevSummary }: { summary?: any; meta?: any;
             </div>
             {t && (
               <div style={{ fontSize: "var(--text-xs)", color: t.color, marginTop: 3, fontWeight: 700 }}>
-                {t.icon} {t.pct}% vs período anterior
+                {t.icon} {t.pct}{traducir('reports.vs_periodo_anterior')}
               </div>
             )}
           </div>
@@ -493,6 +497,7 @@ function SummaryBar({ summary, meta, prevSummary }: { summary?: any; meta?: any;
 
 // ── Report panel ──────────────────────────────────────────────────────────────
 function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: any; initialChart?: any; onSave?: any }) {
+  const traducir = useAppT()
   const today = new Date().toISOString().split('T')[0]
   const threeMonthsAgo = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
 
@@ -565,9 +570,9 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
           {/* Metric selector */}
           <div>
-            <label style={ls}>📊 Métrica</label>
+            <label style={ls}>{traducir('reports.metrica')}</label>
             <select value={metric} onChange={e => handleMetricChange(e.target.value)} style={fs}>
-              <option value="">Seleccionar métrica...</option>
+              <option value="">{traducir('reports.seleccionar_metrica')}</option>
               {catalogue && Object.entries(catalogue).map(([cat, items]: [string, any]) => (
                 <optgroup key={cat} label={`${CAT_ICONS[cat] || '📊'} ${cat}`}>
                   {items.map((item: any) => <option key={item.id} value={item.id}>{item.label}</option>)}
@@ -580,7 +585,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           <div>
             <label style={ls}>📁 Proyecto</label>
             <select value={projectId} onChange={e => setProjectId(e.target.value)} style={fs}>
-              <option value="">Todos los proyectos</option>
+              <option value="">{traducir('reports.todos_los_proyectos')}</option>
               {filters?.projects?.map((p: any) => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
           </div>
@@ -589,7 +594,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           <div>
             <label style={ls}>👤 Persona</label>
             <select value={userId} onChange={e => setUserId(e.target.value)} style={fs}>
-              <option value="">Todas las personas</option>
+              <option value="">{traducir('reports.todas_las_personas')}</option>
               {filters?.users?.map((u: any) => <option key={u.id} value={u.id}>{u.label}</option>)}
             </select>
           </div>
@@ -598,7 +603,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           <div>
             <label style={ls}>🏢 Departamento</label>
             <select value={department} onChange={e => setDepartment(e.target.value)} style={fs}>
-              <option value="">Todos</option>
+              <option value="">{traducir('reports.todos')}</option>
               {filters?.departments?.map((d: any) => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
@@ -658,8 +663,8 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
         <div>
           <div style={{ textAlign: 'center', padding: '40px 0 24px', color: 'var(--text-3)' }}>
             <div style={{ fontSize: "var(--text-42)", marginBottom: 12 }}>📊</div>
-            <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 6, color: 'var(--text-2)' }}>Selecciona una métrica para empezar</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Elige entre {Object.values(catalogue || {}).flat().length || '...'} métricas disponibles</div>
+            <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 6, color: 'var(--text-2)' }}>{traducir('reports.selecciona_una_metrica_para_empezar')}</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Elige entre {Object.values(catalogue || {}).flat().length || '...'} {traducir('reports.metricas_disponibles')}</div>
           </div>
           {/* Métricas populares como acceso rápido */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
@@ -702,7 +707,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <div style={{ display: 'flex', gap: 8 }}>
               {onSave && (
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <input value={reportName} onChange={e => setReportName(e.target.value)} placeholder="Nombre del informe" style={{ ...fs, width: 200, fontSize: "var(--text-sm)" }} />
+                  <input value={reportName} onChange={e => setReportName(e.target.value)} placeholder={traducir('reports.nombre_del_informe')} style={{ ...fs, width: 200, fontSize: "var(--text-sm)" }} />
                   <Button size="sm" onClick={() => onSave({ name: reportName || result.meta?.label, metric, chartType, color, dateFrom, dateTo, projectId, userId, department, topN })} disabled={!metric}>💾 Guardar</Button>
                 </div>
               )}
@@ -736,7 +741,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
       ) : (
         <EmptyState
           icon="⚠️"
-          title="Plantilla no disponible"
+          title={traducir('reports.plantilla_no_disponible')}
           description="La métrica seleccionada no está disponible en este entorno o devolvió un error."
         />
       )}
@@ -793,6 +798,7 @@ function MiniPanel({ config }: { config: any }) {
 
 // ── ScheduledReportsTab ────────────────────────────────────────────────────────
 function ScheduledReportsTab() {
+  const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showCreate, setShowCreate] = useState(false)
@@ -877,7 +883,7 @@ function ScheduledReportsTab() {
         <div>
           <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>Informes programados</div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-            Envío automático por email · Los informes se ejecutan con APScheduler integrado
+            {traducir('reports.envio_automatico_por_email_los_informes_se')}
           </div>
         </div>
         <Button onClick={() => setShowCreate(s => !s)}>
@@ -891,8 +897,7 @@ function ScheduledReportsTab() {
         display: 'flex', gap: 8, alignItems: 'flex-start' }}>
         <span style={{ flexShrink: 0 }}>⚙️</span>
         <span>
-          Configura <strong>SMTP_HOST</strong>, <strong>SMTP_USER</strong> y <strong>SMTP_PASS</strong> en las
-          variables de entorno para envío real. Sin SMTP, los informes se generan y quedan en el log del servidor.
+          Configura <strong>SMTP_HOST</strong>, <strong>SMTP_USER</strong> y <strong>SMTP_PASS</strong> {traducir('reports.en_las_variables_de_entorno_para_envio')}
         </span>
       </div>
 
@@ -900,16 +905,16 @@ function ScheduledReportsTab() {
       {showCreate && (
         <div style={{ ...ps, border: '1px solid var(--accent-border)', marginBottom: 20 }}>
           <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16, color: 'var(--accent)' }}>
-            Nuevo informe programado
+            {traducir('reports.nuevo_informe_programado')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
               <label style={ls}>Nombre *</label>
               <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="Nombre del informe" style={is} />
+                placeholder={traducir('reports.nombre_del_informe')} style={is} />
             </div>
             <div>
-              <label style={ls}>Métrica</label>
+              <label style={ls}>{traducir('reports.metrica_2')}</label>
               <select value={form.metric} onChange={e => setForm(f => ({ ...f, metric: e.target.value }))} style={is}>
                 {METRICS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
@@ -921,7 +926,7 @@ function ScheduledReportsTab() {
               </select>
             </div>
             <div>
-              <label style={ls}>Destinatarios (emails separados por coma) *</label>
+              <label style={ls}>{traducir('reports.destinatarios_emails_separados_por_coma')}</label>
               <input value={form.recipients} onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))}
                 placeholder="email1@empresa.com, email2@empresa.com" style={is} />
             </div>
@@ -931,7 +936,7 @@ function ScheduledReportsTab() {
             <input type="checkbox" checked={form.include_pdf}
               onChange={e => setForm(f => ({ ...f, include_pdf: e.target.checked }))}
               style={{ accentColor: 'var(--accent)' }} />
-            Adjuntar PDF del informe al email
+            {traducir('reports.adjuntar_pdf_del_informe_al_email')}
           </label>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowCreate(false)}
@@ -953,8 +958,8 @@ function ScheduledReportsTab() {
       ) : scheduled.length === 0 ? (
         <div style={{ ...ps, textAlign: 'center', padding: '40px 20px', color: 'var(--text-2)' }}>
           <div style={{ fontSize: "var(--text-4xl)", marginBottom: 10 }}>📅</div>
-          <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 4 }}>Sin informes programados</div>
-          <div style={{ fontSize: "var(--text-sm)" }}>Crea informes para recibir datos automáticamente por email</div>
+          <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 4 }}>{traducir('reports.sin_informes_programados')}</div>
+          <div style={{ fontSize: "var(--text-sm)" }}>{traducir('reports.crea_informes_para_recibir_datos_automaticamente_por')}</div>
         </div>
       ) : (
         scheduled.map((rep: any) => (
@@ -1100,6 +1105,7 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: any[]; sup
 }
 
 export default function ReportsPage() {
+  const traducir = useAppT()
   const t = useAppT()
   const { _user } = useAuth() as any
   const [mode, setMode] = useState<any>('explorer') // explorer | dashboard | presets
@@ -1147,7 +1153,7 @@ export default function ReportsPage() {
       title={t('reports.title')}
       subtitle={t('reports.subtitle')}
       rightActions={
-        <div className="ds-segmented" role="group" aria-label="Modo de informe">
+        <div className="ds-segmented" role="group" aria-label={traducir('reports.modo_de_informe')}>
           {MODES.map(({ id, label, Icon }) => (
             <button key={id} type="button"
               aria-pressed={mode === id}
@@ -1166,8 +1172,7 @@ export default function ReportsPage() {
       {mode === 'overview' && (
         <div>
           <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 24, lineHeight: 1.6 }}>
-            {totalMetrics} métricas disponibles en {Object.keys(catalogue || {}).length} categorías.
-            Haz clic en cualquier métrica para abrirla en el Explorador.
+            {totalMetrics} {traducir('reports.metricas_disponibles_en')} {Object.keys(catalogue || {}).length} {traducir('reports.categorias_haz_clic_en_cualquier_metrica_para')}
           </p>
           {catalogue && Object.entries(catalogue).map(([cat, items]: [string, any]) => (
             <div key={cat} style={{ marginBottom: 28 }}>
@@ -1208,7 +1213,7 @@ export default function ReportsPage() {
       {/* Dashboard */}
       {mode === 'dashboard' && (
         saved.length === 0 ? (
-          <EmptyState svgIcon={<Pin size={36} />} title="Sin informes guardados" description="Genera un informe y guárdalo para verlo aquí" />
+          <EmptyState svgIcon={<Pin size={36} />} title={traducir('reports.sin_informes_guardados')} description="Genera un informe y guárdalo para verlo aquí" />
         ) : (
           <ReportsDashboard saved={saved} onRemove={removeReport} onOpen={openReport} />
         )

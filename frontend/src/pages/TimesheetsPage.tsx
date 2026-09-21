@@ -67,6 +67,7 @@ function StatusBadge({ status }: { status: TimesheetStatus }) {
 }
 
 function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => void }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [editingId, setEditingId] = useState<string | number | null>(null)
@@ -112,7 +113,7 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
   return (
     <Modal open title={`Semana ${weekStart}`} onClose={onClose} width={660}>
       {isLoading ? <Spinner /> : lines.length === 0 ? (
-        <EmptyState icon="⏱️" title="Sin imputaciones" description="No hay lineas registradas para esta semana" />
+        <EmptyState icon="⏱️" title={t('timesheets.sin_imputaciones')} description="No hay lineas registradas para esta semana" />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {(Object.entries(byDay) as Array<[string, TimesheetLine[]]>).sort().map(([day, dayLines]) => (
@@ -134,8 +135,8 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
                       <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>h</span>
                       <input value={editForm.description}
                         onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                        placeholder="Descripcion del trabajo"
-                        aria-label="Descripcion del trabajo"
+                        placeholder={t('timesheets.descripcion_del_trabajo')}
+                        aria-label={t('timesheets.descripcion_del_trabajo')}
                         style={{ ...IS, flex: 1 }} />
                       <button onClick={() => updateLine({ id: l.id, data: { hours: editForm.hours, description: editForm.description } })}
                         disabled={updating || editForm.hours <= 0}
@@ -198,6 +199,7 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
 }
 
 function ReviewModal({ timesheet, onClose }: { timesheet: TimesheetItem; onClose: () => void }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [notes, setNotes] = useState('')
@@ -222,7 +224,7 @@ function ReviewModal({ timesheet, onClose }: { timesheet: TimesheetItem; onClose
           ))}
         </div>
         <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas (opcional)</label>
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Notas de revision" aria-label="Notas de revision"
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder={t('timesheets.notas_de_revision')} aria-label={t('timesheets.notas_de_revision')}
           style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -340,12 +342,12 @@ export default function TimesheetsPage() {
       {tab === 'mine' && (
         <div>
           {loadingMine ? <Spinner /> : mySheets.length === 0 ? (
-            <EmptyState icon="📋" title="Sin timesheets" description="Aun no has generado ningun parte semanal" />
+            <EmptyState icon="📋" title={t('timesheets.sin_timesheets')} description="Aun no has generado ningun parte semanal" />
           ) : (
             <div data-export-table="timesheets-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <select value={mineStatusFilter} onChange={e => setMineStatusFilter(e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
-                  <option value="">Estado: todos</option>
+                  <option value="">{t('timesheets.estado_todos')}</option>
                     <option value="draft">Borrador</option>
                     <option value="submitted">Enviado</option>
                     <option value="approved">Aprobado</option>
@@ -362,12 +364,12 @@ export default function TimesheetsPage() {
                 <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{filteredMine.length} / {mySheets.length}</span>
               </div>
               {filteredMine.length === 0 ? (
-                <EmptyState icon="🔍" title="Sin resultados" description="No hay timesheets que coincidan con los filtros" />
+                <EmptyState icon="🔍" title={t('timesheets.sin_resultados')} description="No hay timesheets que coincidan con los filtros" />
               ) : filteredMine.map(ts => (
                 <div key={ts.week_start} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${ts.status === 'rejected' ? 'var(--danger-border)' : ts.status === 'approved' ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 12 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>
-                      Semana del {fmtDate(ts.week_start)} al {fmtDate(ts.week_end)}
+                      {t('timesheets.semana_del')} {fmtDate(ts.week_start)} {t('timesheets.al')} {fmtDate(ts.week_end)}
                     </div>
                     <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                       <span>Total: <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{fmtHours(ts.total_hours)}</span></span>
@@ -382,7 +384,7 @@ export default function TimesheetsPage() {
                   </div>
                   <StatusBadge status={ts.status} />
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => setViewLines(ts.week_start)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Ver líneas</button>
+                    <button onClick={() => setViewLines(ts.week_start)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('timesheets.ver_lineas')}</button>
                     {(ts.status === 'draft' || ts.status === 'rejected') && (ts.total_hours ?? 0) > 0 && (
                       <Button size="sm" onClick={() => submit(ts.week_start)} loading={submitting}>Enviar</Button>
                     )}
@@ -397,7 +399,7 @@ export default function TimesheetsPage() {
       {tab === 'pending' && (
         <div>
           {loadingPending ? <Spinner /> : pending.length === 0 ? (
-            <EmptyState icon="✅" title="Sin pendientes" description="No hay timesheets pendientes de revision" />
+            <EmptyState icon="✅" title={t('timesheets.sin_pendientes')} description="No hay timesheets pendientes de revision" />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -413,13 +415,13 @@ export default function TimesheetsPage() {
                 <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{filteredPending.length} / {pending.length}</span>
               </div>
               {filteredPending.length === 0 ? (
-                <EmptyState icon="🔍" title="Sin resultados" description="No hay timesheets pendientes que coincidan con los filtros" />
+                <EmptyState icon="🔍" title={t('timesheets.sin_resultados')} description="No hay timesheets pendientes que coincidan con los filtros" />
               ) : filteredPending.map(ts => (
                 <div key={ts.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{ts.user_name}</div>
                     <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
-                      Semana del {fmtDate(ts.week_start)} · {fmtHours(ts.total_hours)} · {fmtHours(ts.billable_hours)} facturables
+                      {t('timesheets.semana_del')} {fmtDate(ts.week_start)} · {fmtHours(ts.total_hours)} · {fmtHours(ts.billable_hours)} facturables
                     </div>
                   </div>
                   <StatusBadge status={ts.status} />
@@ -434,13 +436,13 @@ export default function TimesheetsPage() {
       {tab === 'team' && (
         <div>
           {loadingTeam ? <Spinner /> : teamSheets.length === 0 ? (
-            <EmptyState icon="👥" title="Sin timesheets de equipo" description="Todavia no hay partes semanales del equipo" />
+            <EmptyState icon="👥" title={t('timesheets.sin_timesheets_de_equipo')} description="Todavia no hay partes semanales del equipo" />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)} placeholder="Buscar persona o semana..." aria-label="Buscar equipo" style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 340, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
                 <select value={teamStatusFilter} onChange={e => setTeamStatusFilter(e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
-                  <option value="">Estado: todos</option>
+                  <option value="">{t('timesheets.estado_todos')}</option>
                   <option value="draft">Borrador</option>
                   <option value="submitted">Enviado</option>
                   <option value="approved">Aprobado</option>
@@ -457,7 +459,7 @@ export default function TimesheetsPage() {
                 <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{filteredTeam.length} / {teamSheets.length}</span>
               </div>
               {filteredTeam.length === 0 ? (
-                <EmptyState icon="🔍" title="Sin resultados" description="No hay timesheets de equipo que coincidan con los filtros" />
+                <EmptyState icon="🔍" title={t('timesheets.sin_resultados')} description="No hay timesheets de equipo que coincidan con los filtros" />
               ) : (
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>

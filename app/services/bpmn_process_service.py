@@ -284,83 +284,113 @@ def clave_unica(db, clave: str, organization_id) -> str:
     return clave
 
 
+#: Tamaños de los elementos del diagrama, en píxeles. Los eventos son círculos
+#: pequeños; las tareas, cajas.
+_TAMANO_EVENTO = (36, 36)
+_TAMANO_TAREA = (110, 80)
+
+#: Separación horizontal entre elementos.
+_SEPARACION = 60
+
+
+def _elementos_bpmn(steps: list[str]) -> list[tuple[str, str, str]]:
+    """Convierte la lista de pasos en `(id, tipo, etiqueta)`.
+
+    El primero es el evento de inicio y el último el de fin; los de en medio,
+    tareas. Es una convención de esta función, no de BPMN: el formato admite
+    grafos, y aquí se genera siempre una cadena lineal.
+    """
+    elementos = []
+    for idx, etiqueta in enumerate(steps):
+        if idx == 0:
+            tipo, eid = "startEvent", f"StartEvent_{idx + 1}"
+        elif idx == len(steps) - 1:
+            tipo, eid = "endEvent", f"EndEvent_{idx + 1}"
+        else:
+            tipo, eid = "task", f"Activity_{idx + 1}"
+        elementos.append((eid, tipo, etiqueta))
+    return elementos
+
+
+def _proceso_bpmn(elementos: list[tuple[str, str, str]],
+                  flujos: list[tuple[str, str, str]]) -> str:
+    """Los nodos y las transiciones del proceso.
+
+    Cada nodo declara sus flujos de entrada y salida: BPMN lo exige aunque la
+    información esté también en el propio `sequenceFlow`.
+    """
+    partes = []
+    for eid, tipo, etiqueta in elementos:
+        entradas = "".join(f"<bpmn:incoming>{f[0]}</bpmn:incoming>" for f in flujos if f[2] == eid)
+        salidas = "".join(f"<bpmn:outgoing>{f[0]}</bpmn:outgoing>" for f in flujos if f[1] == eid)
+        partes.append(
+            f'<bpmn:{tipo} id="{eid}" name="{escape(etiqueta)}">{entradas}{salidas}</bpmn:{tipo}>'
+        )
+    partes += [
+        f'<bpmn:sequenceFlow id="{fid}" sourceRef="{src}" targetRef="{tgt}" />'
+        for fid, src, tgt in flujos
+    ]
+    return "".join(partes)
+
+
+def _diagrama_bpmn(elementos: list[tuple[str, str, str]],
+                   flujos: list[tuple[str, str, str]]) -> tuple[str, str]:
+    """Las formas y las líneas del diagrama, colocadas en una fila horizontal.
+
+    Sin esto el diagrama se abre sin posiciones y el editor lo apila todo en la
+    esquina, que es lo mismo que no tener diagrama.
+
+    Los eventos se bajan 22 px para que su centro quede alineado con el de las
+    tareas, que son más altas.
+    """
+    y = 120
+    formas, lineas = [], []
+    x = 180
+
+    for indice, (eid, tipo, _) in enumerate(elementos):
+        ancho, alto = _TAMANO_EVENTO if tipo in ("startEvent", "endEvent") else _TAMANO_TAREA
+        forma_y = y + 22 if tipo in ("startEvent", "endEvent") else y
+        formas.append(
+            f'<bpmndi:BPMNShape id="{eid}_di" bpmnElement="{eid}">'
+            f'<dc:Bounds x="{x}" y="{forma_y}" width="{ancho}" height="{alto}" />'
+            f"</bpmndi:BPMNShape>"
+        )
+
+        if indice < len(flujos):
+            fid = flujos[indice][0]
+            centro_y = y + 60 if tipo == "task" else y + 40
+            lineas.append(
+                f'<bpmndi:BPMNEdge id="{fid}_di" bpmnElement="{fid}">'
+                f'<di:waypoint x="{x + ancho}" y="{centro_y}" />'
+                f'<di:waypoint x="{x + ancho + _SEPARACION}" y="{centro_y}" />'
+                f"</bpmndi:BPMNEdge>"
+            )
+        x += ancho + _SEPARACION
+
+    return "".join(formas), "".join(lineas)
+
+
 def build_bpmn_xml(process_key: str, process_name: str, steps: list[str]) -> str:
+    """Diagrama BPMN 2.0 válido a partir de una lista lineal de pasos.
+
+    El primer paso es el evento de inicio, el último el de fin, y los de en
+    medio tareas. Incluye la capa de diagrama (BPMNDI) para que se abra
+    colocado y no haya que maquetarlo a mano.
     """
-    Generate a valid BPMN 2.0 XML diagram from a linear list of steps.
-    The first step → StartEvent, last → EndEvent, intermediate → Tasks.
-    Includes BPMNDI shapes/edges so the diagram renders without manual layout.
-    """
+    # Un proceso necesita al menos un principio y un final: con menos, el XML
+    # sería válido y el diagrama no diría nada.
     if not steps:
         steps = ["Start", "End"]
     if len(steps) == 1:
         steps = [steps[0], "Done"]
 
     proc_id = f"Process_{process_key}"
-    elements: list[tuple[str, str, str]] = []  # (id, type, label)
-    for idx, label in enumerate(steps):
-        if idx == 0:
-            kind = "startEvent"
-            eid = f"StartEvent_{idx + 1}"
-        elif idx == len(steps) - 1:
-            kind = "endEvent"
-            eid = f"EndEvent_{idx + 1}"
-        else:
-            kind = "task"
-            eid = f"Activity_{idx + 1}"
-        elements.append((eid, kind, label))
-
-    flows: list[tuple[str, str, str]] = []
-    for i in range(len(elements) - 1):
-        flows.append((f"Flow_{i + 1}", elements[i][0], elements[i + 1][0]))
-
-    process_xml: list[str] = []
-    for eid, kind, label in elements:
-        incoming = [f"<bpmn:incoming>{f[0]}</bpmn:incoming>" for f in flows if f[2] == eid]
-        outgoing = [f"<bpmn:outgoing>{f[0]}</bpmn:outgoing>" for f in flows if f[1] == eid]
-        inner = "".join(incoming + outgoing)
-        process_xml.append(
-            f'<bpmn:{kind} id="{eid}" name="{escape(label)}">{inner}</bpmn:{kind}>'
-        )
-    for fid, src, tgt in flows:
-        process_xml.append(
-            f'<bpmn:sequenceFlow id="{fid}" sourceRef="{src}" targetRef="{tgt}" />'
-        )
-
-    # ── BPMNDI layout: horizontal lane, 150px between elements ────────────────
-    di_shapes: list[str] = []
-    x = 180
-    y = 120
-    for eid, kind, _ in elements:
-        if kind in ("startEvent", "endEvent"):
-            w, h = 36, 36
-            shape_x, shape_y = x, y + 22
-        else:
-            w, h = 110, 80
-            shape_x, shape_y = x, y
-        di_shapes.append(
-            f'<bpmndi:BPMNShape id="{eid}_di" bpmnElement="{eid}">'
-            f'<dc:Bounds x="{shape_x}" y="{shape_y}" width="{w}" height="{h}" />'
-            f'</bpmndi:BPMNShape>'
-        )
-        x += w + 60
-
-    di_edges: list[str] = []
-    cursor_x = 180
-    for i, (fid, src, tgt) in enumerate(flows):  # noqa: B007
-        src_kind = elements[i][1]
-        src_w = 36 if src_kind in ("startEvent", "endEvent") else 110
-        tgt_x = cursor_x + src_w + 60
-        # Centerlines
-        src_cx = cursor_x + src_w
-        tgt_cx = tgt_x
-        cy = y + 60 if src_kind == "task" else y + 40
-        di_edges.append(
-            f'<bpmndi:BPMNEdge id="{fid}_di" bpmnElement="{fid}">'
-            f'<di:waypoint x="{src_cx}" y="{cy}" />'
-            f'<di:waypoint x="{tgt_cx}" y="{cy}" />'
-            f'</bpmndi:BPMNEdge>'
-        )
-        cursor_x = tgt_x
+    elementos = _elementos_bpmn(steps)
+    flujos = [
+        (f"Flow_{i + 1}", elementos[i][0], elementos[i + 1][0])
+        for i in range(len(elementos) - 1)
+    ]
+    formas, lineas = _diagrama_bpmn(elementos, flujos)
 
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -370,12 +400,12 @@ def build_bpmn_xml(process_key: str, process_name: str, steps: list[str]) -> str
                   id="Definitions_{process_key}"
                   targetNamespace="http://contecflow/bpmn">
   <bpmn:process id="{proc_id}" name="{escape(process_name)}" isExecutable="false">
-    {''.join(process_xml)}
+    {_proceso_bpmn(elementos, flujos)}
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="{proc_id}">
-      {''.join(di_shapes)}
-      {''.join(di_edges)}
+      {formas}
+      {lineas}
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>"""

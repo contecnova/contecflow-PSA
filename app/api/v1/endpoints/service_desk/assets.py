@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_any_manager
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -140,6 +140,7 @@ def create_asset(
     payload: AssetCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     asset = create_asset_record(db, payload)
     db.commit()
@@ -209,6 +210,7 @@ def update_asset(
     payload: AssetUpdateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     asset = update_asset_record(db, asset_id, payload, changed_by=current_user.id)
     db.commit()
@@ -221,6 +223,10 @@ def retire_asset(
     asset_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada. Retirar un activo es una decision de
+    # inventario, no del usuario que lo tiene asignado.
+    _: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "sd_asset", asset_id, action="delete")
     asset = retire_asset_record(db, asset_id, changed_by=current_user.id)
@@ -234,6 +240,7 @@ def assign_asset(
     payload: AssetAssignIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     user_name = assign_asset_record(
         db, asset_id, payload.user_id, changed_by=current_user.id, notes=payload.notes
@@ -266,6 +273,7 @@ def create_asset_refresh_ticket(
     asset_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     result = create_refresh_ticket(db, asset_id, acting_user_id=current_user.id)
     db.commit()

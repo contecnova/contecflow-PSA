@@ -112,6 +112,7 @@ function SectionHeading({ title, description }: { title: string; description?: s
 }
 
 export default function DataGovernancePage(): JSX.Element {
+  const { t } = useAppLang()
   const { lang } = useAppLang()
   const isMobile = useMediaQuery('(max-width: 900px)')
 
@@ -280,15 +281,15 @@ export default function DataGovernancePage(): JSX.Element {
         <BiGovernancePanel />
 
         <div>
-          <SectionHeading title="Auditoría y linaje" />
+          <SectionHeading title={t('datagovernance.auditoria_y_linaje')} />
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 14 }}>
 
             {/* Audit trail */}
             <div style={S.card}>
               <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Auditoría de accesos</span>
+                <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('datagovernance.auditoria_de_accesos')}</span>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input value={govAuditUserFilter} onChange={e => setGovAuditUserFilter(e.target.value)} placeholder="Filtrar por user_id"
+                  <input value={govAuditUserFilter} onChange={e => setGovAuditUserFilter(e.target.value)} placeholder={t('datagovernance.filtrar_por_user_id')}
                     style={{ ...S.input, width: 130, padding: '5px 10px', fontSize: 'var(--text-xs)' }} />
                   <button onClick={() => setGovAuditTick(x => x + 1)} style={{ ...S.btnSecondary, padding: '5px 10px', fontSize: 'var(--text-xs)' }}>Filtrar</button>
                 </div>
@@ -296,7 +297,7 @@ export default function DataGovernancePage(): JSX.Element {
               <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
                 <button onClick={handleLogGovAuditEvent} style={S.btnAccentOutline()}>Registrar acceso</button>
                 {(govAuditData?.items || []).length === 0
-                  ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Sin eventos de auditoría</div>
+                  ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('datagovernance.sin_eventos_de_auditoria')}</div>
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
                       {(govAuditData?.items || []).slice(0, 20).map((ev, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
@@ -315,7 +316,7 @@ export default function DataGovernancePage(): JSX.Element {
             {/* Lineage */}
             <div style={S.card}>
               <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Linaje de datos</span>
+                <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('datagovernance.linaje_de_datos')}</span>
                 <button onClick={() => refetchGovLineage()} style={{ ...S.btnSecondary, padding: '5px 10px', fontSize: 'var(--text-xs)' }}>Refrescar</button>
               </div>
               <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
@@ -323,10 +324,10 @@ export default function DataGovernancePage(): JSX.Element {
                   <input value={newLineageSource} onChange={e => setNewLineageSource(e.target.value)} placeholder="Tabla origen" style={{ ...S.input, flex: 1, minWidth: 80, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
                   <span style={{ color: 'var(--text-3)' }}>→</span>
                   <input value={newLineageTarget} onChange={e => setNewLineageTarget(e.target.value)} placeholder="Tabla destino" style={{ ...S.input, flex: 1, minWidth: 80, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
-                  <button onClick={handleAddLineageEdge} style={{ ...S.btnAccentOutline(), padding: '6px 14px', fontSize: 'var(--text-xs)' }}>Añadir</button>
+                  <button onClick={handleAddLineageEdge} style={{ ...S.btnAccentOutline(), padding: '6px 14px', fontSize: 'var(--text-xs)' }}>{t('datagovernance.anadir')}</button>
                 </div>
                 {(govLineageData?.items || []).length === 0
-                  ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Sin edges de linaje</div>
+                  ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('datagovernance.sin_edges_de_linaje')}</div>
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
                       {(govLineageData?.items || []).slice(0, 20).map((edge, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
@@ -343,7 +344,7 @@ export default function DataGovernancePage(): JSX.Element {
             {/* Field sensitivity */}
             <div style={S.card}>
               <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Clasificación de campos</span>
+                <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('datagovernance.clasificacion_de_campos')}</span>
                 <button onClick={() => refetchGovFields()} style={{ ...S.btnSecondary, padding: '5px 10px', fontSize: 'var(--text-xs)' }}>Refrescar</button>
               </div>
               <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
@@ -356,7 +357,7 @@ export default function DataGovernancePage(): JSX.Element {
                   <button onClick={handleUpsertFieldSensitivity} style={{ ...S.btnAccentOutline(COLOR.warning), padding: '6px 14px', fontSize: 'var(--text-xs)' }}>Clasificar</button>
                 </div>
                 {(govFieldData?.items || []).length === 0
-                  ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Sin campos clasificados</div>
+                  ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('datagovernance.sin_campos_clasificados')}</div>
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
                       {(govFieldData?.items || []).slice(0, 20).map((f, i) => {
                         const sc = f.sensitivity === 'critical' || f.sensitivity === 'pii' ? COLOR.danger : f.sensitivity === 'high' ? COLOR.warning : COLOR.success
@@ -390,7 +391,7 @@ export default function DataGovernancePage(): JSX.Element {
             </div>
             <div style={{ ...S.cardPad, display: 'grid', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input value={sharedViewName} onChange={e => setSharedViewName(e.target.value)} placeholder="Nombre de la vista..."
+                <input value={sharedViewName} onChange={e => setSharedViewName(e.target.value)} placeholder={t('datagovernance.nombre_de_la_vista')}
                   style={{ ...S.input, flex: 1 }} />
                 <button onClick={handleCreateSharedView} style={S.btnAccentOutline(COLOR.success)}>Guardar vista</button>
               </div>
@@ -398,8 +399,8 @@ export default function DataGovernancePage(): JSX.Element {
                 <input value={sharedViewsSearch} onChange={e => setSharedViewsSearch(e.target.value)} placeholder="Buscar vista..."
                   style={{ ...S.input, flex: 1, minWidth: 160 }} />
                 <select value={sharedViewsSort} onChange={e => setSharedViewsSort(e.target.value as SharedViewsSort)} style={{ ...S.input, width: 'auto' }}>
-                  <option value="date_desc">Más recientes</option>
-                  <option value="date_asc">Más antiguas</option>
+                  <option value="date_desc">{t('datagovernance.mas_recientes')}</option>
+                  <option value="date_asc">{t('datagovernance.mas_antiguas')}</option>
                   <option value="author_asc">Autor (A-Z)</option>
                   <option value="name_asc">Nombre (A-Z)</option>
                 </select>
@@ -435,22 +436,22 @@ export default function DataGovernancePage(): JSX.Element {
           {/* Comments */}
           <div style={S.card}>
             <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}>
-              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Comentarios de widgets</span>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('datagovernance.comentarios_de_widgets')}</span>
             </div>
             <div style={{ ...S.cardPad, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <select value={commentWidget} onChange={e => setCommentWidget(e.target.value)} style={S.input}>
                 <option value="kpi_grid">KPI grid</option>
-                <option value="health_chart">Estado de salud</option>
-                <option value="profit_table">Rentabilidad por proyecto</option>
+                <option value="health_chart">{t('datagovernance.estado_de_salud')}</option>
+                <option value="profit_table">{t('datagovernance.rentabilidad_por_proyecto')}</option>
                 <option value="ai_narrative">Narrativa IA</option>
               </select>
               <textarea value={commentText} onChange={e => setCommentText(e.target.value)} rows={3}
-                placeholder="Añade un comentario para este widget..."
+                placeholder={t('datagovernance.anade_un_comentario_para_este_widget')}
                 style={{ ...S.input, resize: 'vertical' }} />
               <button onClick={handleCreateComment} style={S.btnAccentOutline()}>Guardar comentario</button>
               <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 10, display: 'grid', gap: 8, maxHeight: 200, overflowY: 'auto' }}>
                 {comments.length === 0
-                  ? <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>Sin comentarios para este widget</div>
+                  ? <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>{t('datagovernance.sin_comentarios_para_este_widget')}</div>
                   : comments.map(c => (
                       <div key={c.id} style={{ padding: '8px 10px', background: 'var(--surface-3)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                         <div style={{ flex: 1 }}>
@@ -472,9 +473,9 @@ export default function DataGovernancePage(): JSX.Element {
         {/* Bookmarks */}
         <div style={S.card}>
           <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-            <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Bookmarks de dashboard</span>
+            <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('datagovernance.bookmarks_de_dashboard')}</span>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input value={newBookmarkName} onChange={e => setNewBookmarkName(e.target.value)} placeholder="Nombre del bookmark"
+              <input value={newBookmarkName} onChange={e => setNewBookmarkName(e.target.value)} placeholder={t('datagovernance.nombre_del_bookmark')}
                 style={{ ...S.input, width: 200 }} />
               <button onClick={async () => {
                 if (!newBookmarkName.trim()) return
@@ -488,7 +489,7 @@ export default function DataGovernancePage(): JSX.Element {
           </div>
           <div style={S.cardPad}>
             {!(bookmarks?.items || []).length
-              ? <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)', padding: '16px 0' }}>Sin bookmarks guardados</div>
+              ? <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)', padding: '16px 0' }}>{t('datagovernance.sin_bookmarks_guardados')}</div>
               : <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
                   {(bookmarks?.items || []).map(bm => (
                     <div key={bm.id} style={{ ...S.card, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -499,7 +500,7 @@ export default function DataGovernancePage(): JSX.Element {
                         }}
                           style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>✕</button>
                       </div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Período: {bm.period_days}d · Tab: {bm.active_tab || 'executive'}</div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('datagovernance.periodo')} {bm.period_days}d · Tab: {bm.active_tab || 'executive'}</div>
                       {bm.description && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{bm.description}</div>}
                       {bm.shared && <span style={{ fontSize: 'var(--text-2xs)', padding: '3px 8px', borderRadius: 10, background: `${COLOR.success}18`, color: COLOR.success, fontWeight: 700, alignSelf: 'flex-start' }}>Compartido</span>}
                     </div>
@@ -513,7 +514,7 @@ export default function DataGovernancePage(): JSX.Element {
         {governance && (
           <div style={S.card}>
             <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Resumen de gobernanza</span>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('datagovernance.resumen_de_gobernanza')}</span>
               <button onClick={handleRunGovernance} style={S.btnAccentOutline()}>Ejecutar checks</button>
             </div>
             <div style={{ ...S.cardPad, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
@@ -530,7 +531,7 @@ export default function DataGovernancePage(): JSX.Element {
             </div>
             {governanceRun && (
               <div style={{ ...S.cardPad, borderTop: '1px solid var(--surface-4)', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
-                Último run: {JSON.stringify(governanceRun).slice(0, 200)}
+                {t('datagovernance.ultimo_run')} {JSON.stringify(governanceRun).slice(0, 200)}
               </div>
             )}
           </div>

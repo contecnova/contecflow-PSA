@@ -659,6 +659,7 @@ function TaskDetailModal({ task, open, onClose }: { task: any; open: boolean; on
 }
 
 export default function TasksPage() {
+  const traducir = useAppT()
   const t = useAppT()
   const { hasRole } = useAuth()
   const toast = useToast()
@@ -922,7 +923,7 @@ export default function TasksPage() {
               <Button
                 variant="subtle"
                 onClick={() => setSmartScheduleOpen(true)}
-                title="Sugerir fechas para tareas sin planificar usando IA"
+                title={traducir('tasks.sugerir_fechas_para_tareas_sin_planificar_usando')}
               >
                 <Sparkles size={13} /> Auto-planificar
               </Button>
@@ -945,7 +946,7 @@ export default function TasksPage() {
           ))}
           <button type="button" onClick={clearQuickFilters} className="ds-pill"
             style={{ cursor: 'pointer', fontFamily: 'inherit' }}>
-            Limpiar filtros rápidos
+            {traducir('tasks.limpiar_filtros_rapidos')}
           </button>
         </div>
       )}

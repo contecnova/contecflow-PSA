@@ -101,6 +101,7 @@ function RagPill({ rag }: { rag: RagLevel }) {
 
 // ── Create/edit portfolio modal ────────────────────────────────────────────────
 function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem | null; onClose: () => void; onSave: (data: PortfolioFormData) => void }) {
+  const t = useAppT()
   const [form, setForm] = useState<PortfolioFormData>(initial
     ? {
       name: initial.name,
@@ -120,12 +121,12 @@ function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem 
       <div role="dialog" aria-modal="true" aria-labelledby="portfolio-create-title" style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 28, width: 480, maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
         <div id="portfolio-create-title" style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 20 }}>{initial ? 'Editar cartera' : 'Nueva cartera'}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder="Nombre de la cartera..." /></div>
-          <div><label style={ls}>Descripción</label><textarea value={form.description || ''} onChange={set('description')} style={{ ...fs, resize: 'vertical', minHeight: 70 }} /></div>
+          <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder={t('portfolio.nombre_de_la_cartera')} /></div>
+          <div><label style={ls}>{t('portfolio.descripcion')}</label><textarea value={form.description || ''} onChange={set('description')} style={{ ...fs, resize: 'vertical', minHeight: 70 }} /></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div><label style={ls}>Estado</label>
               <select value={form.status} onChange={set('status')} style={fs}>
-                <option value="planning">Planificación</option>
+                <option value="planning">{t('portfolio.planificacion')}</option>
                 <option value="active">Activo</option>
                 <option value="archived">Archivado</option>
               </select>
@@ -150,6 +151,7 @@ function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem 
 
 // ── Add project to portfolio modal ─────────────────────────────────────────────
 function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portfolioId: string | number; existingIds: Array<string | number>; onClose: () => void; onAdded: () => void }) {
+  const t = useAppT()
   const [search, setSearch] = useState('');
   const qc = useQueryClient();
 
@@ -169,7 +171,7 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
   return (
     <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseDown={onClose}>
       <div role="dialog" aria-modal="true" aria-labelledby="portfolio-add-project-title" style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 24, width: 440, maxWidth: '95vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
-        <div id="portfolio-add-project-title" style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 14 }}>Añadir proyecto a la cartera</div>
+        <div id="portfolio-add-project-title" style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 14 }}>{t('portfolio.anadir_proyecto_a_la_cartera')}</div>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proyectos..."
           style={{ padding: '9px 13px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)', fontSize: "var(--text-base)", marginBottom: 12 }} />
         <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -185,7 +187,7 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
               <Plus size={14} color="var(--accent)" />
             </button>
           ))}
-          {available.length === 0 && <div style={{ color: 'var(--text-3)', fontSize: "var(--text-base)", padding: '20px 0', textAlign: 'center' }}>Sin resultados</div>}
+          {available.length === 0 && <div style={{ color: 'var(--text-3)', fontSize: "var(--text-base)", padding: '20px 0', textAlign: 'center' }}>{t('portfolio.sin_resultados')}</div>}
         </div>
         <button onClick={onClose} style={{ marginTop: 14, padding: '8px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }}>Cerrar</button>
       </div>
@@ -195,6 +197,7 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
 
 // ── Portfolio dashboard ────────────────────────────────────────────────────────
 function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | number; onClose: () => void }) {
+  const t = useAppT()
   const qc = useQueryClient();
   const [showAddProject, setShowAddProject] = useState(false);
   const [expandedId, setExpandedId] = useState<string | number | null>(null);
@@ -229,7 +232,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <button onClick={() => setShowAddProject(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: '1px solid var(--accent)', background: 'var(--accent)15', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-base)", fontWeight: 600 }}>
-                <Plus size={13} /> Añadir proyecto
+                <Plus size={13} /> {t('portfolio.anadir_proyecto')}
               </button>
               <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}><X size={18} /></button>
             </div>
@@ -318,9 +321,9 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
                       {isExpanded && (
                         <tr style={{ background: 'var(--surface-2)' }}>
                           <td colSpan={9} style={{ padding: '8px 28px 14px' }}>
-                            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 8 }}>Hitos próximos</div>
+                            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 8 }}>{t('portfolio.hitos_proximos')}</div>
                             {p.milestones.length === 0
-                              ? <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Sin hitos próximos</span>
+                              ? <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('portfolio.sin_hitos_proximos')}</span>
                               : p.milestones.map(m => (
                                 <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', fontSize: "var(--text-sm)" }}>
                                   {m.is_completed ? <Check size={12} color="var(--success)" /> : <Clock size={12} color="#f59e0b" />}
@@ -402,8 +405,8 @@ export default function PortfolioPage() {
       ) : portfolios.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
           <Briefcase size={40} style={{ marginBottom: 16, opacity: 0.3 }} />
-          <div style={{ fontSize: "var(--text-lg)", fontWeight: 600, marginBottom: 8 }}>Sin carteras</div>
-          <div style={{ fontSize: "var(--text-base)" }}>Crea tu primera cartera para agrupar proyectos y hacer seguimiento consolidado.</div>
+          <div style={{ fontSize: "var(--text-lg)", fontWeight: 600, marginBottom: 8 }}>{t('portfolio.sin_carteras')}</div>
+          <div style={{ fontSize: "var(--text-base)" }}>{t('portfolio.crea_tu_primera_cartera_para_agrupar_proyectos')}</div>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 }}>

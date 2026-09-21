@@ -125,6 +125,7 @@ const ML_RISK_CFG: Record<RiskLevel, RiskCardConfig> = {
 }
 
 function MLPredictionsTab() {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
 
@@ -189,10 +190,10 @@ function MLPredictionsTab() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'flex-start' }}>
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
-            Cartera de proyectos — ML
+            {t('riskscores.cartera_de_proyectos_ml')}
           </div>
           {lPortfolio ? <div style={{ padding: 24 }}><Spinner /></div> : projects.length === 0 ? (
-            <EmptyState icon="🤖" title="Sin predicciones ML" description="Entrena el modelo primero para ver predicciones de riesgo" />
+            <EmptyState icon="🤖" title={t('riskscores.sin_predicciones_ml')} description="Entrena el modelo primero para ver predicciones de riesgo" />
           ) : (
             <div style={{ maxHeight: 480, overflowY: 'auto' }}>
               {projects.map((p) => {
@@ -225,7 +226,7 @@ function MLPredictionsTab() {
           <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 18px' }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 8 }}>Entrenar modelo</div>
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 12 }}>
-              Usa el historial de proyectos cerrados para entrenar el modelo de predicción de sobrecosto/retraso.
+              {t('riskscores.usa_el_historial_de_proyectos_cerrados_para')}
             </div>
             <Button onClick={() => train()} disabled={training} style={{ width: '100%' }}>
               <Brain size={13} style={{ marginRight: 6 }} />
@@ -236,11 +237,11 @@ function MLPredictionsTab() {
           {/* Models */}
           <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
-              Versiones del modelo
+              {t('riskscores.versiones_del_modelo')}
             </div>
             <div style={{ maxHeight: 180, overflowY: 'auto' }}>
               {lModels ? <div style={{ padding: 16 }}><Spinner /></div> : models.length === 0 ? (
-                <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Sin modelos entrenados</div>
+                <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('riskscores.sin_modelos_entrenados')}</div>
               ) : models.map((m, i) => (
                 <div key={m.id || i} style={{ padding: '8px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -259,11 +260,11 @@ function MLPredictionsTab() {
           {/* Logs */}
           <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
-              Historial de predicciones
+              {t('riskscores.historial_de_predicciones')}
             </div>
             <div style={{ maxHeight: 200, overflowY: 'auto' }}>
               {lLogs ? <div style={{ padding: 16 }}><Spinner /></div> : logs.length === 0 ? (
-                <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Sin predicciones registradas</div>
+                <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('riskscores.sin_predicciones_registradas')}</div>
               ) : logs.map((l, i) => {
                 const level = l.risk_level || 'low'
                 const cfg = ML_RISK_CFG[level]
@@ -385,7 +386,7 @@ export default function RiskScoresPage() {
         {/* Lista de proyectos */}
         <div>
           {isLoading ? <Spinner /> : filtered.length === 0 ? (
-            <EmptyState icon="🛡" title="Sin datos de riesgo" description="Los proyectos con calculos de riesgo apareceran aqui" />
+            <EmptyState icon="🛡" title={t('riskscores.sin_datos_de_riesgo')} description="Los proyectos con calculos de riesgo apareceran aqui" />
           ) : (
             <div data-export-table="risk-scores-list" style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {filtered.map((p) => {
@@ -466,14 +467,14 @@ export default function RiskScoresPage() {
             </ResponsiveContainer>
 
             <div style={{ marginTop:16 }}>
-              <ScoreBar value={detail.schedule_risk || 0} label="Riesgo de cronograma" />
-              <ScoreBar value={detail.budget_risk || 0} label="Riesgo de presupuesto" />
-              <ScoreBar value={detail.scope_risk || 0} label="Riesgo de alcance" />
-              <ScoreBar value={detail.resource_risk || 0} label="Riesgo de recursos" />
+              <ScoreBar value={detail.schedule_risk || 0} label={t('riskscores.riesgo_de_cronograma')} />
+              <ScoreBar value={detail.budget_risk || 0} label={t('riskscores.riesgo_de_presupuesto')} />
+              <ScoreBar value={detail.scope_risk || 0} label={t('riskscores.riesgo_de_alcance')} />
+              <ScoreBar value={detail.resource_risk || 0} label={t('riskscores.riesgo_de_recursos')} />
             </div>
 
             <div style={{ marginTop:16, background:'var(--surface-2)', borderRadius:8, padding:'12px 14px' }}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', marginBottom:6, textTransform:'uppercase', letterSpacing:'.06em' }}>Recomendación</div>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', marginBottom:6, textTransform:'uppercase', letterSpacing:'.06em' }}>{t('riskscores.recomendacion')}</div>
               <div style={{ fontSize: "var(--text-sm)", color:'var(--text-1)' }}>{detail.recommendation}</div>
             </div>
 

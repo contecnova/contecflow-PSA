@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin, require_internal_user
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -109,6 +109,7 @@ def create_problem(
     payload: ProblemIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     problem = svc.create_problem(db, current_user=current_user, payload=payload)
     _commit_or_rollback(db)
@@ -121,6 +122,7 @@ def create_problem_by_correlation(
     payload: ProblemCorrelationIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     problem = svc.create_problem_from_correlation(
         db,
@@ -139,6 +141,7 @@ def suggest_problem_rca(
     problem_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     from app.services.service_desk.problem_service import get_scoped_problem_or_404
 
@@ -163,6 +166,7 @@ def link_incidents(
     payload: LinkIncidentsIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     result = svc.link_incidents_to_problem(
         db,
@@ -180,6 +184,7 @@ def create_change_from_problem(
     payload: ProblemToChangeIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     try:
         result = svc.close_problem_to_change(
@@ -205,6 +210,7 @@ def promote_problem_to_kedb(
     payload: PromoteToKEDBIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     """
     Promote a Problem to the Known Error Database (KEDB).
@@ -237,6 +243,7 @@ def approve_problem_rca(
     payload: ApproveRCAIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     """
     Mark the Root Cause Analysis as approved.
@@ -261,6 +268,7 @@ def kedb_mark_reviewed(
     payload: MarkKEDBReviewedIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     """Record a manual review of a Known Error entry and extend its review window."""
     from app.services.service_desk.problem_service import get_scoped_problem_or_404
@@ -338,6 +346,7 @@ def kedb_stats(
 def run_kedb_expiry_scan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     """Demote expired KEDB entries back to investigating status."""
     from app.services.service_desk.known_error_service import run_kedb_expiry_scan as _scan
@@ -353,6 +362,7 @@ def run_kedb_expiry_scan(
 def run_kedb_effectiveness_scan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     """Batch-recompute effectiveness scores for all active KEDB entries."""
     from app.services.service_desk.known_error_service import run_kedb_effectiveness_scan as _scan
@@ -383,6 +393,7 @@ def create_rca_template(
     payload: RcaTemplateCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     """Create a custom RCA template stored in sd_problem_rca_templates."""
     import json
@@ -412,6 +423,7 @@ def update_rca_template(
     payload: RcaTemplateUpdateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     """Update a non-system custom RCA template."""
 
@@ -446,8 +458,19 @@ def delete_rca_template(
     template_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
-    """Soft-delete (deactivate) a non-system custom RCA template."""
+    """Desactiva una plantilla RCA propia. Las del sistema no se borran.
+
+    Auditoría 2026-09: el resumen de esta ruta dice «(admin)» **desde que se
+    escribió**, y no había ninguna guarda que lo exigiera. El único control era
+    `enforce_abac`, que es fail-open: sin políticas activas —el caso por
+    defecto— cualquier usuario autenticado podía desactivar las plantillas de
+    análisis de causa raíz de su organización.
+
+    Esto no es una decisión de producto nueva: es la que ya estaba escrita en
+    la propia ruta, aplicada.
+    """
     enforce_abac(db, current_user, "sd_rca_template", template_id, action="delete")
     tpl = svc.get_rca_template(db, template_id=template_id)
     if not tpl:
@@ -466,6 +489,7 @@ def start_rca_wizard(
     payload: WizardStartIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     """
     Initialise (or reset) the RCA wizard for this problem.
@@ -504,6 +528,7 @@ def submit_rca_wizard_step(
     payload: WizardStepIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     """
     Record the analyst's answer for a specific step.
@@ -526,6 +551,7 @@ def rca_wizard_ai_assist(
     payload: WizardAIAssistIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     """
     Request an AI-generated hint for a specific wizard step.
@@ -547,6 +573,7 @@ def complete_rca_wizard(
     problem_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     """
     Finalise the RCA wizard.

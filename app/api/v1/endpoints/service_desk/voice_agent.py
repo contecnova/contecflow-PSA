@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
 from app.core.ratelimit import limiter
 from app.core.responses import APIResponse
 from app.db.session import get_db
@@ -78,6 +78,7 @@ def update_ivr_config(
     body: ConfigUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     updates = body.model_dump(exclude_none=True)
@@ -91,6 +92,7 @@ def start_voice_session(
     body: SessionCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: dominio: configuracion del agente de voz
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=create_session(db, str(org_id) if org_id else None, body.caller_id, body.channel))
@@ -135,6 +137,7 @@ def add_turn(
     body: TranscriptTurn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: dominio: configuracion del agente de voz
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=add_transcript_turn(db, str(org_id) if org_id else None, session_id, body.speaker, body.text))
@@ -148,6 +151,7 @@ def end_session(
     body: CloseSession,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: dominio: configuracion del agente de voz
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=close_session(db, str(org_id) if org_id else None, session_id, body.resolution))
@@ -160,6 +164,7 @@ def create_ticket(
     session_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: dominio: configuracion del agente de voz
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=create_ticket_from_session(db, str(org_id) if org_id else None, session_id, current_user.id))

@@ -79,7 +79,7 @@ export default function BiConditionalDeliveryPanel() {
           <h3 style={{ margin: 0, fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>
             {t('bi.delivery.title', 'Entrega Condicional de Reportes')}
           </h3>
-          <p style={{ margin: 0, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>Envía reportes solo cuando los datos cambian significativamente</p>
+          <p style={{ margin: 0, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('biconditionaldelivery.envia_reportes_solo_cuando_los_datos_cambian')}</p>
         </div>
       </div>
 

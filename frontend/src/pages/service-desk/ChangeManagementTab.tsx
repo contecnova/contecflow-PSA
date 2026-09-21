@@ -8,6 +8,7 @@ import { useToast } from '../../context/ToastContext'
 import { changesApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 type ChangeId = string | number
 type ChangeRisk = 'low' | 'medium' | 'high' | 'critical' | string
@@ -104,6 +105,7 @@ function ChangeDetailPanel({
   onAction: (change: ChangeItem, action: StatusAction) => void
   statusActions: Record<string, StatusAction[]>
 }) {
+  const { t } = useAppLang()
   const { data: detail, isLoading } = useQuery({
     queryKey: ['sd-change-detail', change.id],
     queryFn: () => changesApi.get(change.id).then(r => r.data),
@@ -168,12 +170,12 @@ function ChangeDetailPanel({
               </div>
             ))}
           </div>
-          <Section title="Descripción" content={c.description} />
-          <Section title="Justificación de negocio" content={c.business_justification} />
-          <Section title="Plan de implementación" content={c.implementation_plan} />
-          <Section title="Plan de rollback" content={c.rollback_plan} />
-          <Section title="Plan de pruebas" content={c.test_plan} />
-          <Section title="Descripción de impacto" content={c.impact_description} />
+          <Section title={t('changemanagement.descripcion')} content={c.description} />
+          <Section title={t('changemanagement.justificacion_de_negocio')} content={c.business_justification} />
+          <Section title={t('changemanagement.plan_de_implementacion')} content={c.implementation_plan} />
+          <Section title={t('changemanagement.plan_de_rollback')} content={c.rollback_plan} />
+          <Section title={t('changemanagement.plan_de_pruebas')} content={c.test_plan} />
+          <Section title={t('changemanagement.descripcion_de_impacto')} content={c.impact_description} />
         </>}
       </div>
     </div>
@@ -181,6 +183,7 @@ function ChangeDetailPanel({
 }
 
 function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onClose: () => void; onSaved: () => void }) {
+  const { t } = useAppLang()
   const idPrefix = useId()
   const toast = useToast()
   const [form, setForm] = useState<ChangeFormData>({
@@ -214,18 +217,18 @@ function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onC
   return (
     <Modal open title={`Editar ${change.number}`} onClose={onClose} size="lg">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxHeight: '70vh', overflowY: 'auto', paddingRight: 4 }}>
-        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-title`} style={LS}>Título *</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} /></div>
-        <div><label htmlFor={`${idPrefix}-change-type`} style={LS}>Tipo de cambio</label><select id={`${idPrefix}-change-type`} value={form.change_type} onChange={set('change_type')} style={IS}><option value="standard">Standard — pre-aprobado</option><option value="normal">Normal — requiere CAB</option><option value="emergency">Emergency — ECAB</option></select></div>
+        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-title`} style={LS}>{t('changemanagement.titulo')}</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} /></div>
+        <div><label htmlFor={`${idPrefix}-change-type`} style={LS}>{t('changemanagement.tipo_de_cambio')}</label><select id={`${idPrefix}-change-type`} value={form.change_type} onChange={set('change_type')} style={IS}><option value="standard">Standard — pre-aprobado</option><option value="normal">Normal — requiere CAB</option><option value="emergency">Emergency — ECAB</option></select></div>
         <div><label htmlFor={`${idPrefix}-risk`} style={LS}>Riesgo</label><select id={`${idPrefix}-risk`} value={form.risk} onChange={set('risk')} style={IS}>{[['low', 'Bajo'], ['medium', 'Medio'], ['high', 'Alto'], ['critical', 'Crítico']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
         <div><label htmlFor={`${idPrefix}-planned-start`} style={LS}>Inicio planificado</label><input id={`${idPrefix}-planned-start`} type="datetime-local" value={form.planned_start} onChange={set('planned_start')} style={IS} /></div>
         <div><label htmlFor={`${idPrefix}-planned-end`} style={LS}>Fin planificado</label><input id={`${idPrefix}-planned-end`} type="datetime-local" value={form.planned_end} onChange={set('planned_end')} style={IS} /></div>
         <div><label htmlFor={`${idPrefix}-downtime`} style={LS}>Downtime estimado (min)</label><input id={`${idPrefix}-downtime`} type="number" value={form.downtime_minutes} onChange={set('downtime_minutes')} style={IS} min="0" /></div>
-        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-description`} style={LS}>Descripción *</label><textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
-        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-business-justification`} style={LS}>Justificación de negocio</label><textarea id={`${idPrefix}-business-justification`} value={form.business_justification} onChange={set('business_justification')} rows={2} style={{ ...IS, resize: 'vertical' }} /></div>
-        <div><label htmlFor={`${idPrefix}-implementation-plan`} style={LS}>Plan de implementación</label><textarea id={`${idPrefix}-implementation-plan`} value={form.implementation_plan} onChange={set('implementation_plan')} rows={4} style={{ ...IS, resize: 'vertical' }} /></div>
-        <div><label htmlFor={`${idPrefix}-rollback-plan`} style={LS}>Plan de rollback</label><textarea id={`${idPrefix}-rollback-plan`} value={form.rollback_plan} onChange={set('rollback_plan')} rows={4} style={{ ...IS, resize: 'vertical' }} /></div>
-        <div><label htmlFor={`${idPrefix}-test-plan`} style={LS}>Plan de pruebas</label><textarea id={`${idPrefix}-test-plan`} value={form.test_plan} onChange={set('test_plan')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
-        <div><label htmlFor={`${idPrefix}-impact-description`} style={LS}>Descripción de impacto</label><textarea id={`${idPrefix}-impact-description`} value={form.impact_description} onChange={set('impact_description')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-description`} style={LS}>{t('changemanagement.descripcion_2')}</label><textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-business-justification`} style={LS}>{t('changemanagement.justificacion_de_negocio')}</label><textarea id={`${idPrefix}-business-justification`} value={form.business_justification} onChange={set('business_justification')} rows={2} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div><label htmlFor={`${idPrefix}-implementation-plan`} style={LS}>{t('changemanagement.plan_de_implementacion')}</label><textarea id={`${idPrefix}-implementation-plan`} value={form.implementation_plan} onChange={set('implementation_plan')} rows={4} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div><label htmlFor={`${idPrefix}-rollback-plan`} style={LS}>{t('changemanagement.plan_de_rollback')}</label><textarea id={`${idPrefix}-rollback-plan`} value={form.rollback_plan} onChange={set('rollback_plan')} rows={4} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div><label htmlFor={`${idPrefix}-test-plan`} style={LS}>{t('changemanagement.plan_de_pruebas')}</label><textarea id={`${idPrefix}-test-plan`} value={form.test_plan} onChange={set('test_plan')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div><label htmlFor={`${idPrefix}-impact-description`} style={LS}>{t('changemanagement.descripcion_de_impacto')}</label><textarea id={`${idPrefix}-impact-description`} value={form.impact_description} onChange={set('impact_description')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10 }}><Button variant="secondary" onClick={onClose}>Cancelar</Button><Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}>Guardar cambios</Button></div>
       </div>
     </Modal>
@@ -233,6 +236,7 @@ function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onC
 }
 
 function NewChangeModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const { t } = useAppLang()
   const idPrefix = useId()
   const toast = useToast()
   const [form, setForm] = useState<ChangeFormData>({
@@ -252,17 +256,17 @@ function NewChangeModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
   const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   return (
-    <Modal open title="Nuevo Change Request" onClose={onClose} size="lg">
+    <Modal open title={t('changemanagement.nuevo_change_request')} onClose={onClose} size="lg">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-title`} style={LS}>Título *</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder="Título del cambio" /></div>
-        <div><label style={LS}>Tipo de cambio</label><select value={form.change_type} onChange={set('change_type')} style={IS}><option value="standard">Standard — pre-aprobado</option><option value="normal">Normal — requiere CAB</option><option value="emergency">Emergency — ECAB</option></select></div>
-        <div><label style={LS}>Riesgo</label><select value={form.risk} onChange={set('risk')} style={IS}><option value="low">Bajo</option><option value="medium">Medio</option><option value="high">Alto</option><option value="critical">Crítico</option></select></div>
+        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-title`} style={LS}>{t('changemanagement.titulo')}</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder={t('changemanagement.titulo_del_cambio')} /></div>
+        <div><label style={LS}>{t('changemanagement.tipo_de_cambio')}</label><select value={form.change_type} onChange={set('change_type')} style={IS}><option value="standard">Standard — pre-aprobado</option><option value="normal">Normal — requiere CAB</option><option value="emergency">Emergency — ECAB</option></select></div>
+        <div><label style={LS}>Riesgo</label><select value={form.risk} onChange={set('risk')} style={IS}><option value="low">Bajo</option><option value="medium">Medio</option><option value="high">Alto</option><option value="critical">{t('changemanagement.critico')}</option></select></div>
         <div><label style={LS}>Inicio planificado</label><input type="datetime-local" value={form.planned_start} onChange={set('planned_start')} style={IS} /></div>
         <div><label style={LS}>Fin planificado</label><input type="datetime-local" value={form.planned_end} onChange={set('planned_end')} style={IS} /></div>
-        <div style={{ gridColumn: '1/-1' }}><label style={LS}>Descripción *</label><textarea value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
-        <div style={{ gridColumn: '1/-1' }}><label style={LS}>Justificación de negocio</label><textarea value={form.business_justification} onChange={set('business_justification')} rows={2} style={{ ...IS, resize: 'vertical' }} /></div>
-        <div><label style={LS}>Plan de implementación</label><textarea value={form.implementation_plan} onChange={set('implementation_plan')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
-        <div><label style={LS}>Plan de rollback</label><textarea value={form.rollback_plan} onChange={set('rollback_plan')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div style={{ gridColumn: '1/-1' }}><label style={LS}>{t('changemanagement.descripcion_2')}</label><textarea value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div style={{ gridColumn: '1/-1' }}><label style={LS}>{t('changemanagement.justificacion_de_negocio')}</label><textarea value={form.business_justification} onChange={set('business_justification')} rows={2} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div><label style={LS}>{t('changemanagement.plan_de_implementacion')}</label><textarea value={form.implementation_plan} onChange={set('implementation_plan')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div><label style={LS}>{t('changemanagement.plan_de_rollback')}</label><textarea value={form.rollback_plan} onChange={set('rollback_plan')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}><Button variant="secondary" onClick={onClose}>Cancelar</Button><Button onClick={() => mutate(form)} disabled={isPending || !form.title || !form.description} loading={isPending}>Crear Change Request</Button></div>
       </div>
     </Modal>
@@ -270,6 +274,7 @@ function NewChangeModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
 }
 
 export default function ChangeManagementTab() {
+  const { t } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
@@ -315,14 +320,14 @@ export default function ChangeManagementTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ display: 'flex', gap: 10 }}><select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={IS}><option value="">Todos los estados</option>{['draft', 'submitted', 'cab_review', 'approved', 'scheduled', 'in_progress', 'implemented', 'post_review', 'closed_success', 'closed_failed'].map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}</select></div>
-        <Button onClick={() => setShowNew(true)}>+ Nuevo Change Request</Button>
+        <div style={{ display: 'flex', gap: 10 }}><select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={IS}><option value="">{t('changemanagement.todos_los_estados')}</option>{['draft', 'submitted', 'cab_review', 'approved', 'scheduled', 'in_progress', 'implemented', 'post_review', 'closed_success', 'closed_failed'].map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}</select></div>
+        <Button onClick={() => setShowNew(true)}>{t('changemanagement.nuevo_change_request_2')}</Button>
       </div>
 
-      {isLoading ? <Spinner /> : changes.length === 0 ? <EmptyState icon="🔄" title="Sin cambios registrados" description="Crea el primer change request para iniciar el flujo de gestión de cambios." /> :
+      {isLoading ? <Spinner /> : changes.length === 0 ? <EmptyState icon="🔄" title={t('changemanagement.sin_cambios_registrados')} description="Crea el primer change request para iniciar el flujo de gestión de cambios." /> :
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr style={{ borderBottom: '2px solid var(--surface-4)' }}><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={changeSort} onSort={setChangeSort}>Nº</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={changeSort} onSort={setChangeSort}>Título</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="change_type" sort={changeSort} onSort={setChangeSort}>Tipo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="risk" sort={changeSort} onSort={setChangeSort}>Riesgo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={changeSort} onSort={setChangeSort}>Estado</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="planned_start" sort={changeSort} onSort={setChangeSort}>Inicio planif.</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="owner" sort={changeSort} onSort={setChangeSort}>Owner</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Acciones</th></tr></thead>
+            <thead><tr style={{ borderBottom: '2px solid var(--surface-4)' }}><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={changeSort} onSort={setChangeSort}>Nº</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.titulo_2')}</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="change_type" sort={changeSort} onSort={setChangeSort}>Tipo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="risk" sort={changeSort} onSort={setChangeSort}>Riesgo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={changeSort} onSort={setChangeSort}>Estado</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="planned_start" sort={changeSort} onSort={setChangeSort}>Inicio planif.</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="owner" sort={changeSort} onSort={setChangeSort}>Owner</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Acciones</th></tr></thead>
             <tbody>
               {sortedChanges.map(c => {
                 const sc = CHANGE_STATUS_COLOR[c.status ?? ''] || COLOR.text2

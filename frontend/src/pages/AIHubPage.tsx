@@ -313,6 +313,7 @@ function TestModal({ provider, onClose }: { provider: any; onClose: () => void }
 
 // ── Governance Tab ───────────────────────────────────────────────────────────
 function GovernanceTab() {
+  const traducir = useAppT()
   // Read-only viewer del audit log + stats. El CRUD de policies se gestiona
   // vía API directa hasta que se complete la UI dedicada (decisión ARCH).
   // #45: converted fetch() → useQuery (read-only GETs, no side-effects).
@@ -367,14 +368,14 @@ function GovernanceTab() {
       {/* Policies list */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontWeight: 700 }}>🛡 Políticas configuradas ({policies.length})</div>
+          <div style={{ fontWeight: 700 }}>{traducir('aihub.politicas_configuradas')}{policies.length})</div>
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
             CRUD via <code>POST /api/v1/ai-governance/policies</code> · UI completa pendiente
           </div>
         </div>
         {policies.length === 0 ? (
           <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>
-            Sin policies activas. Los guardrails (detección PII, keywords prohibidas) están listos pero requieren al menos una policy configurada vía API.
+            {traducir('aihub.sin_policies_activas_los_guardrails_deteccion_pii')}
           </div>
         ) : (
           <div style={{ maxHeight: 240, overflowY: 'auto' }}>
@@ -398,10 +399,10 @@ function GovernanceTab() {
       {/* Audit log */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', fontWeight: 700 }}>
-          📋 Audit log — últimas 50 evaluaciones
+          {traducir('aihub.audit_log_ultimas_50_evaluaciones')}
         </div>
         {auditLog.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Sin actividad reciente</div>
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>{traducir('aihub.sin_actividad_reciente')}</div>
         ) : (
           <div style={{ maxHeight: 360, overflowY: 'auto' }}>
             {auditLog.map((l: any) => (
@@ -425,6 +426,7 @@ function GovernanceTab() {
 }
 
 export default function AIHubPage(): JSX.Element {
+  const traducir = useAppT()
   const { lang } = useAppLang()
   const t = useAppT()
   const statusCfg = getStatusCfg(t)
@@ -563,7 +565,7 @@ export default function AIHubPage(): JSX.Element {
             <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: diagResults.error > 0 ? 'var(--danger)' : diagResults.warning > 0 ? 'var(--warning)' : 'var(--success)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: "var(--text-md)" }}>
-                  Diagnóstico — {diagResults.healthy}/{diagResults.total} operativos
+                  {traducir('aihub.diagnostico')} {diagResults.healthy}/{diagResults.total} operativos
                 </div>
                 <button onClick={() => setDiagResults(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: "var(--text-lg)" }}>✕</button>
               </div>
@@ -716,7 +718,7 @@ export default function AIHubPage(): JSX.Element {
       {tab === 'observability' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Estado de salud de los modelos predictivos ITSM y BI (solo admins)</div>
+            <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{traducir('aihub.estado_de_salud_de_los_modelos_predictivos')}</div>
             <Button onClick={() => triggerRetrain()} disabled={retraining}>
               {retraining ? '⏳ Reentrenando...' : '▶ Forzar reentrenamiento'}
             </Button>
@@ -724,7 +726,7 @@ export default function AIHubPage(): JSX.Element {
 
           {obsLoading ? <Spinner /> : !obsHealth ? (
             <div style={{ ...card, padding: '32px', textAlign: 'center', color: 'var(--text-3)' }}>
-              Sin datos de observabilidad — requiere permisos de administrador
+              {traducir('aihub.sin_datos_de_observabilidad_requiere_permisos_de')}
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -745,7 +747,7 @@ export default function AIHubPage(): JSX.Element {
                     {data.score != null && (
                       <div style={{ marginBottom: 10 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: "var(--text-sm)" }}>
-                          <span style={{ color: 'var(--text-2)' }}>Score de salud</span>
+                          <span style={{ color: 'var(--text-2)' }}>{traducir('aihub.score_de_salud')}</span>
                           <span style={{ fontWeight: 700, color: statusColor }}>{(data.score * 100).toFixed(0)}%</span>
                         </div>
                         <div style={{ height: 6, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
@@ -762,7 +764,7 @@ export default function AIHubPage(): JSX.Element {
                       )}
                       {data.accuracy != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--text-3)' }}>Precisión</span>
+                          <span style={{ color: 'var(--text-3)' }}>{traducir('aihub.precision')}</span>
                           <span>{(data.accuracy * 100).toFixed(1)}%</span>
                         </div>
                       )}

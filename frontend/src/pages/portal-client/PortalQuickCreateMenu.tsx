@@ -13,6 +13,7 @@ import {
   X, Headphones, Lightbulb, MessageSquare, FileSignature,
   Receipt, FlaskConical, Sparkles,
 } from 'lucide-react'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 interface PortalQuickCreateBadges {
   uat?: number
@@ -37,6 +38,7 @@ interface QuickAction {
 }
 
 export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }: PortalQuickCreateMenuProps) {
+  const { t } = useAppLang()
   const panelRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -89,7 +91,7 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
       <div role="presentation" onMouseDown={onClose}
         style={{ position: 'fixed', inset: 0, zIndex: 500 }} />
       <div ref={panelRef}
-        role="dialog" aria-label="Crear nuevo"
+        role="dialog" aria-label={t('portalquickcreatemenu.crear_nuevo')}
         style={{
           position: 'fixed', top: 52, right: 16, zIndex: 501,
           width: 300,
@@ -108,7 +110,7 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
           borderBottom: '1px solid var(--surface-4)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
-          <span>Crear nuevo</span>
+          <span>{t('portalquickcreatemenu.crear_nuevo')}</span>
           <button onClick={onClose} aria-label="Cerrar"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', padding: 2 }}>
             <X size={13} />

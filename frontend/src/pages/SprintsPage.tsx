@@ -70,6 +70,7 @@ const _STATUS_CFG = {
 
 // ── Retrospective modal (v25 AI insights) ────────────────────────────────────
 function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId: string; onClose: () => void }) {
+  const t = useAppT()
   const toast = useToast()
   const [manualNotes, setManualNotes] = useState('')
 
@@ -108,12 +109,12 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
       )}
 
       {isLoading ? (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '24px 0' }}><Spinner /><span style={{ color: 'var(--text-2)', fontSize: "var(--text-base)" }}>Analizando datos del sprint...</span></div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '24px 0' }}><Spinner /><span style={{ color: 'var(--text-2)', fontSize: "var(--text-base)" }}>{t('sprints.analizando_datos_del_sprint')}</span></div>
       ) : ins && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {/* Went well */}
           <div style={{ background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 10, padding: '12px 14px' }}>
-            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', marginBottom: 8 }}>✓ Qué fue bien</div>
+            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', marginBottom: 8 }}>{t('sprints.que_fue_bien')}</div>
             {ins.went_well?.map((item, i) => (
               <div key={i} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 5, display: 'flex', gap: 7 }}>
                 <span style={{ color: 'var(--success)', flexShrink: 0 }}>→</span>{item}
@@ -143,7 +144,7 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
           {/* Risks */}
           {(ins.risks?.length ?? 0) > 0 && (
             <div style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 10, padding: '12px 14px' }}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--danger)', textTransform: 'uppercase', marginBottom: 8 }}>⚠ Señales de riesgo</div>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--danger)', textTransform: 'uppercase', marginBottom: 8 }}>{t('sprints.senales_de_riesgo')}</div>
               {ins.risks?.map((r, i) => (
                 <div key={i} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 5, display: 'flex', gap: 7 }}>
                   <span style={{ color: 'var(--danger)', flexShrink: 0 }}>!</span>{r}
@@ -156,12 +157,12 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
 
       {/* Manual notes */}
       <div>
-        <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Notas del equipo</label>
+        <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{t('sprints.notas_del_equipo')}</label>
         <textarea
           value={manualNotes}
           onChange={e => setManualNotes(e.target.value)}
           rows={3}
-          placeholder="Escribe notas para el equipo..."
+          placeholder={t('sprints.escribe_notas_para_el_equipo')}
           style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
         />
       </div>
@@ -187,6 +188,7 @@ const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 
 
 // ── Task card ──────────────────────────────────────────────────────────────────
 function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { task: Task; onStatusChange?: (taskId: string, status: string) => void; onMoveToBacklog?: (taskId: string) => void; compact?: boolean }) {
+  const t = useAppT()
   const [showMenu, setShowMenu] = useState(false)
   const cfg = TASK_STATUS_CFG[task.status || ''] || { label: task.status, color: 'var(--text-2)' }
   const pColor = PRIORITY_COLOR[task.priority || ''] || 'var(--text-2)'
@@ -224,7 +226,7 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
               <div style={{ height: 1, background: 'var(--surface-4)', margin: '6px 0' }} />
               <button onClick={() => openConfirmGlobal({ message: '¿Mover esta tarea al backlog?', onConfirm: () => { onMoveToBacklog(task.id); setShowMenu(false) }, danger: true })}
                 style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', background: 'transparent', border: 'none', borderRadius: 6, color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-                ← Mover al backlog
+                {t('sprints.mover_al_backlog')}
               </button>
             </>
           )}
@@ -273,6 +275,7 @@ function SprintKanban({ sprint, onStatusChange, onMoveToBacklog }: { sprint: Spr
 
 // ── Burndown Chart ─────────────────────────────────────────────────────────────
 function BurndownChart({ sprintId, projectId }: { sprintId: string; projectId: string }) {
+  const t = useAppT()
   const { data, isLoading } = useQuery<{ burndown?: unknown[] }>({
     queryKey: ['burndown', sprintId],
     queryFn: () => projectSprintsApi.burndown(projectId, sprintId).then(r => r.data),
@@ -280,7 +283,7 @@ function BurndownChart({ sprintId, projectId }: { sprintId: string; projectId: s
   })
   if (isLoading) return <Spinner />
   const points = data?.burndown || []
-  if (points.length < 2) return <div style={{ textAlign: 'center', color: 'var(--text-3)', padding: 20 }}>Sin suficientes datos aún</div>
+  if (points.length < 2) return <div style={{ textAlign: 'center', color: 'var(--text-3)', padding: 20 }}>{t('sprints.sin_suficientes_datos_aun')}</div>
 
   return (
     <ResponsiveContainer width="100%" height={220}>
@@ -411,7 +414,7 @@ export default function SprintsPage() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>
         <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setActiveView('board') }}
           style={{ ...fs, width: 300 }}>
-          <option value="">Selecciona un proyecto...</option>
+          <option value="">{t('sprints.selecciona_un_proyecto')}</option>
           {projects.map((p: { id: string; code?: string; name?: string }) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
         {selectedProject && (
@@ -422,13 +425,13 @@ export default function SprintsPage() {
                 {v === 'board' ? '🎯 Tablero' : v === 'backlog' ? '📋 Backlog' : '📊 Velocidad'}
               </button>
             ))}
-            <Button onClick={() => setShowCreateSprint(true)}>+ Nuevo sprint</Button>
+            <Button onClick={() => setShowCreateSprint(true)}>{t('sprints.nuevo_sprint')}</Button>
           </div>
         )}
       </div>
 
       {!selectedProject && (
-        <EmptyState icon="⚡" title="Selecciona un proyecto" description="Elige un proyecto para gestionar sus sprints" />
+        <EmptyState icon="⚡" title={t('sprints.selecciona_un_proyecto_2')} description="Elige un proyecto para gestionar sus sprints" />
       )}
 
       {selectedProject && isLoading && <Spinner />}
@@ -460,7 +463,7 @@ export default function SprintsPage() {
                     <BurndownChart sprintId={activeSprint.id} projectId={selectedProject} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <Button onClick={() => setShowAddTasks(activeSprint.id)}>+ Añadir tareas</Button>
+                    <Button onClick={() => setShowAddTasks(activeSprint.id)}>{t('sprints.anadir_tareas')}</Button>
                     <button onClick={() => setShowRetro(activeSprint)}
                       style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                       📝 Retro
@@ -481,15 +484,15 @@ export default function SprintsPage() {
           ) : (
             <div style={{ background: 'var(--surface-2)', border: '1px dashed var(--surface-4)', borderRadius: 12, padding: '24px', marginBottom: 24, textAlign: 'center', color: 'var(--text-3)' }}>
               <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 8 }}>⚡</div>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>No hay sprint activo</div>
-              <div style={{ fontSize: "var(--text-base)" }}>Crea un sprint y pulsa &quot;Iniciar&quot; para comenzar</div>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>{t('sprints.no_hay_sprint_activo')}</div>
+              <div style={{ fontSize: "var(--text-base)" }}>{t('sprints.crea_un_sprint_y_pulsa_quot_iniciar')}</div>
             </div>
           )}
 
           {/* Planning sprints */}
           {planningSprints.length > 0 && (
             <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>En planificación</div>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>{t('sprints.en_planificacion')}</div>
               {planningSprints.map(sprint => (
                 <div key={sprint.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px', marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -543,7 +546,7 @@ export default function SprintsPage() {
       {selectedProject && !isLoading && activeView === 'backlog' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>Backlog del proyecto ({backlog.length} tareas sin sprint)</div>
+            <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{t('sprints.backlog_del_proyecto')}{backlog.length} {t('sprints.tareas_sin_sprint')}</div>
           </div>
           {backlog.length === 0 ? (
             <EmptyState icon="✅" title="Backlog vacio" description="Todas las tareas estan asignadas a un sprint" />
@@ -590,7 +593,7 @@ export default function SprintsPage() {
       {selectedProject && !isLoading && activeView === 'velocity' && (
         <div>
           {!velocity || velocity.sprints?.length === 0 ? (
-            <EmptyState icon="📊" title="Sin datos de velocidad" description="Completa sprints para ver la evolucion de la velocidad del equipo" />
+            <EmptyState icon="📊" title={t('sprints.sin_datos_de_velocidad')} description="Completa sprints para ver la evolucion de la velocidad del equipo" />
           ) : (
             <div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 28 }}>
@@ -608,7 +611,7 @@ export default function SprintsPage() {
               </div>
 
               <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }}>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>Velocidad por sprint</div>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>{t('sprints.velocidad_por_sprint')}</div>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={velocity.sprints} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
@@ -631,7 +634,7 @@ export default function SprintsPage() {
                     <div key={s.sprint} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', marginBottom: 10 }}>
                       <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{s.sprint} — {s.name}</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, fontSize: "var(--text-sm)" }}>
-                        {sprint?.went_well && <div><div style={{ color: 'var(--success)', fontWeight: 700, marginBottom: 4 }}>✓ Qué fue bien</div><div style={{ color: 'var(--text-2)' }}>{sprint.went_well}</div></div>}
+                        {sprint?.went_well && <div><div style={{ color: 'var(--success)', fontWeight: 700, marginBottom: 4 }}>{t('sprints.que_fue_bien')}</div><div style={{ color: 'var(--text-2)' }}>{sprint.went_well}</div></div>}
                         {sprint?.to_improve && <div><div style={{ color: 'var(--warning)', fontWeight: 700, marginBottom: 4 }}>↑ A mejorar</div><div style={{ color: 'var(--text-2)' }}>{sprint.to_improve}</div></div>}
                         {sprint?.action_items && <div><div style={{ color: 'var(--accent)', fontWeight: 700, marginBottom: 4 }}>→ Acciones</div><div style={{ color: 'var(--text-2)' }}>{sprint.action_items}</div></div>}
                       </div>
@@ -646,10 +649,10 @@ export default function SprintsPage() {
 
       {/* Modal: Create Sprint */}
       {showCreateSprint && (
-        <Modal open title="Nuevo sprint" onClose={() => setShowCreateSprint(false)} width={500}>
+        <Modal open title={t('sprints.nuevo_sprint_2')} onClose={() => setShowCreateSprint(false)} width={500}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div><label style={ls}>Nombre del sprint *</label><input value={sprintForm.name} onChange={e => setSprintForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre del sprint..." /></div>
-            <div><label style={ls}>Objetivo del sprint</label><textarea value={sprintForm.goal} onChange={e => setSprintForm(f => ({ ...f, goal: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Objetivo del sprint..." /></div>
+            <div><label style={ls}>{t('sprints.nombre_del_sprint')}</label><input value={sprintForm.name} onChange={e => setSprintForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('sprints.nombre_del_sprint_2')} /></div>
+            <div><label style={ls}>{t('sprints.objetivo_del_sprint')}</label><textarea value={sprintForm.goal} onChange={e => setSprintForm(f => ({ ...f, goal: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('sprints.objetivo_del_sprint_2')} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div><label style={ls}>Fecha inicio</label><input type="date" value={sprintForm.start_date} onChange={e => setSprintForm(f => ({ ...f, start_date: e.target.value }))} style={fs} /></div>
               <div><label style={ls}>Fecha fin</label><input type="date" value={sprintForm.end_date} onChange={e => setSprintForm(f => ({ ...f, end_date: e.target.value }))} style={fs} /></div>
@@ -664,13 +667,13 @@ export default function SprintsPage() {
 
       {/* Modal: Add tasks to sprint */}
       {showAddTasks && (
-        <Modal open title="Anadir tareas al sprint" onClose={() => setShowAddTasks(false)} width={600}>
+        <Modal open title={t('sprints.anadir_tareas_al_sprint')} onClose={() => setShowAddTasks(false)} width={600}>
           <div>
             {backlog.length === 0 ? (
               <EmptyState icon="✅" title="Backlog vacio" description="No hay tareas disponibles para anadir al sprint" />
             ) : (
               <>
-                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 14 }}>Selecciona las tareas del backlog para añadir a este sprint:</div>
+                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 14 }}>{t('sprints.selecciona_las_tareas_del_backlog_para_anadir')}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
                   {backlog.map(task => {
                     const sel = selectedBacklogTasks.includes(task.id)
@@ -690,7 +693,7 @@ export default function SprintsPage() {
                   <div style={{ display: 'flex', gap: 10 }}>
                     <Button variant="secondary" onClick={() => setShowAddTasks(false)}>Cancelar</Button>
                     <Button onClick={() => { addTasksToSprint({ sprintId: showAddTasks || '', taskIds: selectedBacklogTasks }); setSelectedBacklogTasks([]) }} disabled={selectedBacklogTasks.length === 0}>
-                      Añadir al sprint
+                      {t('sprints.anadir_al_sprint')}
                     </Button>
                   </div>
                 </div>

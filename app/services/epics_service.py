@@ -481,39 +481,81 @@ def get_roadmap_data(project_id: str, db) -> dict:
 
 # ── NQL ───────────────────────────────────────────────────────────────────────
 
+#: Qué se puede buscar con NQL y cómo. Por cada entidad: el modelo, un filtro
+#: base opcional, el mapa de condición NQL a columna, y cómo se serializa.
+#:
+#: Auditoría 2026-09 (hallazgo 18): eran tres bloques con la misma forma
+#: —construir consulta, aplicar condiciones, serializar— escritos a mano.
+#: Declararlos deja claro de un vistazo **qué campos se pueden buscar en cada
+#: entidad**, que es justo lo que alguien necesita saber para escribir una
+#: consulta, y estaba repartido entre veinte líneas de `if`.
+#:
+#: `ilike` marca las condiciones que buscan por texto parcial; las demás son
+#: igualdad exacta.
+_ENTIDADES_NQL: dict[str, dict] = {
+    "task": {
+        "modelo": lambda: Task,
+        "base": None,
+        "campos": {
+            "status":   (lambda: Task.status, False),
+            "priority": (lambda: Task.priority, False),
+            "project":  (lambda: Task.project_id, False),
+            "title":    (lambda: Task.title, True),
+        },
+        "serializar": lambda t: {
+            "id": t.id, "title": t.title, "status": t.status,
+            "priority": t.priority, "project_id": t.project_id,
+        },
+    },
+    "project": {
+        "modelo": lambda: Project,
+        "base": None,
+        "campos": {
+            "status": (lambda: Project.status, False),
+            "name":   (lambda: Project.name, True),
+        },
+        "serializar": lambda p: {"id": p.id, "name": p.name, "status": p.status},
+    },
+    "epic": {
+        "modelo": lambda: Epic,
+        "base": lambda: Epic.is_active == True,  # noqa: E712
+        "campos": {
+            "status":   (lambda: Epic.status, False),
+            "priority": (lambda: Epic.priority, False),
+            "title":    (lambda: Epic.title, True),
+        },
+        "serializar": serialize_epic,
+    },
+}
+
+
 def execute_nql_search(entity_type: str, query: str, limit: int, db) -> dict:
-    conds = parse_nql(query)
+    """Busca con una consulta NQL sobre una de las entidades declaradas."""
+    spec = _ENTIDADES_NQL.get(entity_type)
+    if spec is None:
+        raise HTTPException(
+            400,
+            f"entity_type '{entity_type}' no soportado. "
+            f"Usa: {', '.join(sorted(_ENTIDADES_NQL))}",
+        )
 
-    if entity_type == "task":
-        q = db.query(Task)
-        if "status"   in conds: q = q.filter(Task.status    == conds["status"]["val"])
-        if "priority" in conds: q = q.filter(Task.priority  == conds["priority"]["val"])
-        if "project"  in conds: q = q.filter(Task.project_id== conds["project"]["val"])
-        if "title"    in conds: q = q.filter(Task.title.ilike(f"%{conds['title']['val']}%"))
-        results = q.limit(limit).all()
-        return {"entity_type": "task", "count": len(results),
-                "results": [{"id": t.id, "title": t.title, "status": t.status,
-                             "priority": t.priority, "project_id": t.project_id}
-                            for t in results]}
+    condiciones = parse_nql(query)
+    q = db.query(spec["modelo"]())
+    if spec["base"]:
+        q = q.filter(spec["base"]())
 
-    if entity_type == "project":
-        q = db.query(Project)
-        if "status" in conds: q = q.filter(Project.status == conds["status"]["val"])
-        if "name"   in conds: q = q.filter(Project.name.ilike(f"%{conds['name']['val']}%"))
-        results = q.limit(limit).all()
-        return {"entity_type": "project", "count": len(results),
-                "results": [{"id": r.id, "name": r.name, "status": r.status} for r in results]}
+    for nombre, (columna, parcial) in spec["campos"].items():
+        if nombre not in condiciones:
+            continue
+        valor = condiciones[nombre]["val"]
+        q = q.filter(columna().ilike(f"%{valor}%") if parcial else columna() == valor)
 
-    if entity_type == "epic":
-        q = db.query(Epic).filter(Epic.is_active == True)
-        if "status"   in conds: q = q.filter(Epic.status   == conds["status"]["val"])
-        if "priority" in conds: q = q.filter(Epic.priority == conds["priority"]["val"])
-        if "title"    in conds: q = q.filter(Epic.title.ilike(f"%{conds['title']['val']}%"))
-        results = q.limit(limit).all()
-        return {"entity_type": "epic", "count": len(results),
-                "results": [serialize_epic(e) for e in results]}
-
-    raise HTTPException(400, f"entity_type '{entity_type}' no soportado. Usa: task, project, epic")
+    resultados = q.limit(limit).all()
+    return {
+        "entity_type": entity_type,
+        "count": len(resultados),
+        "results": [spec["serializar"](r) for r in resultados],
+    }
 
 
 def list_saved_filters(entity_type, user_id, db) -> list:

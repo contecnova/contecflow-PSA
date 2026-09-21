@@ -552,92 +552,93 @@ def run_predictive_scan(db: Session) -> dict:
 
 # ── SLA breach prediction ─────────────────────────────────────────────────────
 
-def predict_sla_breach(db: Session, ticket: Ticket) -> dict:
-    """Predict the probability and timing of SLA breach for an open ticket.
+#: Umbral de probabilidad → (nivel, qué hacer). De más grave a menos; gana el
+#: primero que alcance. Auditoría 2026-09 (hallazgo 18): eran cuatro `if/elif`
+#: con dos asignaciones cada uno.
+_NIVELES_DE_INCUMPLIMIENTO: tuple[tuple[float, str, str], ...] = (
+    (0.80, "critical", "Escalar inmediatamente y reasignar a agente senior"),
+    (0.55, "high", "Priorizar y contactar al solicitante para actualización"),
+    (0.30, "medium", "Monitorizar — puede resolver en tiempo si no hay bloqueos"),
+    (0.00, "low", "On track — probabilidad baja de incumplir SLA"),
+)
 
-    Algorithm:
-      1. If the SLA deadline has already passed → probability = 1.0 (already breached).
-      2. If no SLA deadline → return low-confidence estimate based on priority risk.
-      3. Otherwise: compare predicted resolution time against time remaining.
-         breach_prob = predicted_minutes / deadline_minutes_remaining (capped 0-1).
 
-    Returns::
+def _a_fecha_de_sla(valor):
+    """El vencimiento de SLA como fecha con zona, o `None`.
 
-        {
-          "ticket_id": str,
-          "already_breached": bool,
-          "breach_probability": float,   # 0-1
-          "sla_response_due": str | None,
-          "sla_resolution_due": str | None,
-          "minutes_until_resolution_due": int | None,
-          "predicted_resolution_min": int,
-          "risk_level": str,             # critical|high|medium|low
-          "recommendation": str,
-        }
+    Puede venir como texto —de un JSON guardado— y con `Z` en vez de offset,
+    que `fromisoformat` no acepta hasta Python 3.11.
     """
-    now = datetime.now(tz=timezone.utc)
+    if valor is None:
+        return None
+    if isinstance(valor, str):
+        try:
+            from datetime import datetime as _dt
 
-    # Determine the most relevant SLA deadline (resolution takes precedence)
+            return _dt.fromisoformat(valor.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return valor
+
+
+def _texto_de_fecha(valor) -> Optional[str]:
+    """Una fecha en ISO, venga como fecha o como texto."""
+    if not valor:
+        return None
+    return valor.isoformat() if hasattr(valor, "isoformat") else str(valor)
+
+
+def predict_sla_breach(db: Session, ticket: Ticket) -> dict:
+    """Probabilidad y momento de incumplir el SLA de un ticket abierto.
+
+    Algoritmo:
+      1. Si el vencimiento ya pasó → probabilidad 1.0 (ya incumplido).
+      2. Sin vencimiento declarado → se usa el riesgo de escalado como proxy,
+         que es una estimación de baja confianza y así queda dicho.
+      3. Si no: tiempo previsto de resolución contra tiempo restante.
+
+    Devuelve `ticket_id`, `already_breached`, `breach_probability` (0-1), los
+    dos vencimientos, los minutos que quedan, la predicción en minutos, el
+    nivel de riesgo y la recomendación.
+    """
+    ahora = datetime.now(tz=timezone.utc)
     resolution_due = getattr(ticket, "sla_resolution_due", None)
     response_due = getattr(ticket, "sla_response_due", None)
 
-    # Check already breached
-    already_breached = False
-    minutes_remaining: Optional[int] = None
-    sla_deadline = resolution_due or response_due
+    # El de resolución manda sobre el de respuesta: es el que de verdad marca
+    # el incumplimiento de cara al cliente.
+    vencimiento = _a_fecha_de_sla(resolution_due or response_due)
 
-    if sla_deadline is not None:
-        if isinstance(sla_deadline, str):
-            try:
-                from datetime import datetime as _dt
-                sla_deadline = _dt.fromisoformat(sla_deadline.replace("Z", "+00:00"))
-            except ValueError:
-                sla_deadline = None
+    ya_incumplido = False
+    minutos_restantes: Optional[int] = None
+    if vencimiento is not None:
+        restante = (vencimiento - ahora).total_seconds()
+        ya_incumplido = restante <= 0
+        minutos_restantes = 0 if ya_incumplido else int(restante / 60)
 
-    if sla_deadline is not None:
-        delta = sla_deadline - now
-        if delta.total_seconds() <= 0:
-            already_breached = True
-            minutes_remaining = 0
-        else:
-            minutes_remaining = int(delta.total_seconds() / 60)
+    previstos = predict_time_to_resolve(db, ticket)
 
-    predicted_min = predict_time_to_resolve(db, ticket)
-
-    # Compute breach probability
-    if already_breached:
-        breach_prob = 1.0
-    elif minutes_remaining is None:
-        # No SLA deadline: fall back to escalation risk as proxy
-        breach_prob = predict_escalation_risk(db, ticket)
+    if ya_incumplido:
+        probabilidad = 1.0
+    elif minutos_restantes is None:
+        probabilidad = predict_escalation_risk(db, ticket)
     else:
-        # Ratio: if predicted time > remaining → will breach
-        breach_prob = min(1.0, predicted_min / max(1, minutes_remaining))
+        probabilidad = min(1.0, previstos / max(1, minutos_restantes))
 
-    # Risk level
-    if breach_prob >= 0.80:
-        risk_level = "critical"
-        recommendation = "Escalar inmediatamente y reasignar a agente senior"
-    elif breach_prob >= 0.55:
-        risk_level = "high"
-        recommendation = "Priorizar y contactar al solicitante para actualización"
-    elif breach_prob >= 0.30:
-        risk_level = "medium"
-        recommendation = "Monitorizar — puede resolver en tiempo si no hay bloqueos"
-    else:
-        risk_level = "low"
-        recommendation = "On track — probabilidad baja de incumplir SLA"
+    nivel, recomendacion = next(
+        (n, r) for corte, n, r in _NIVELES_DE_INCUMPLIMIENTO if probabilidad >= corte
+    )
 
     return {
         "ticket_id": ticket.id,
-        "already_breached": already_breached,
-        "breach_probability": round(breach_prob, 4),
-        "sla_response_due": response_due.isoformat() if hasattr(response_due, "isoformat") else str(response_due) if response_due else None,
-        "sla_resolution_due": resolution_due.isoformat() if hasattr(resolution_due, "isoformat") else str(resolution_due) if resolution_due else None,
-        "minutes_until_resolution_due": minutes_remaining,
-        "predicted_resolution_min": predicted_min,
-        "risk_level": risk_level,
-        "recommendation": recommendation,
+        "already_breached": ya_incumplido,
+        "breach_probability": round(probabilidad, 4),
+        "sla_response_due": _texto_de_fecha(response_due),
+        "sla_resolution_due": _texto_de_fecha(resolution_due),
+        "minutes_until_resolution_due": minutos_restantes,
+        "predicted_resolution_min": previstos,
+        "risk_level": nivel,
+        "recommendation": recomendacion,
     }
 
 

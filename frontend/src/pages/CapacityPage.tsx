@@ -92,6 +92,7 @@ function weekLabel(dateStr: string) {
 
 // ── Modal de nueva asignación ─────────────────────────────────────────────────
 function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onClose: () => void }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [form, setForm] = useState<AssignForm>({
@@ -140,7 +141,7 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
   }
 
   return (
-    <Modal open title="Nueva asignacion" onClose={onClose} width={460}>
+    <Modal open title={t('capacity.nueva_asignacion')} onClose={onClose} width={460}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
         <div>
           <label style={ls}>Persona *</label>
@@ -153,7 +154,7 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
         <div>
           <label style={ls}>Proyecto</label>
           <select value={form.project_id} onChange={setField('project_id')} style={fs}>
-            <option value="">Sin proyecto (disponible)</option>
+            <option value="">{t('capacity.sin_proyecto_disponible')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
@@ -176,7 +177,7 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
         </div>
         <div>
           <label style={ls}>Notas</label>
-          <input value={form.notes} onChange={setField('notes')} style={fs} placeholder="Notas de la asignacion" aria-label="Notas de la asignacion" />
+          <input value={form.notes} onChange={setField('notes')} style={fs} placeholder={t('capacity.notas_de_la_asignacion')} aria-label={t('capacity.notas_de_la_asignacion')} />
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -294,6 +295,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
 }
 
 export default function CapacityPage(): JSX.Element {
+  const t = useAppT()
   const _t = useAppT() as (key: string) => string
   const toast = useToast()
   const qc = useQueryClient()
@@ -384,12 +386,12 @@ export default function CapacityPage(): JSX.Element {
         </select>
         <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
           style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', maxWidth: 180 }}>
-          <option value="">Todos los departamentos</option>
+          <option value="">{t('capacity.todos_los_departamentos')}</option>
           {departments.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
-        <Button onClick={() => { setAssignPrefill(null); setShowAssign(true) }}>+ Nueva asignación</Button>
+        <Button onClick={() => { setAssignPrefill(null); setShowAssign(true) }}>{t('capacity.nueva_asignacion_2')}</Button>
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 'auto' }}>
-          💡 Arrastra para mover · clic en + para añadir
+          {t('capacity.arrastra_para_mover_clic_en_para_anadir')}
         </div>
       </div>
 
@@ -412,7 +414,7 @@ export default function CapacityPage(): JSX.Element {
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-2)' }}>Cargando planificador...</div>
       ) : displayUsers.length === 0 ? (
-        <EmptyState icon="👥" title="Sin personas disponibles" description="No hay recursos que coincidan con el filtro actual" />
+        <EmptyState icon="👥" title={t('capacity.sin_personas_disponibles')} description="No hay recursos que coincidan con el filtro actual" />
       ) : (
         <div style={{ overflowX: 'auto', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: 16 }}>
           <table style={{ borderCollapse: 'separate', borderSpacing: '4px 4px', minWidth: '100%' }}>

@@ -131,6 +131,7 @@ const clientCreateSchema = z.object({
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function ClientsPage(): JSX.Element {
+  const traducir = useAppT()
   const _t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -232,10 +233,10 @@ export default function ClientsPage(): JSX.Element {
           <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{_t('clients.title')}</div>
         </div>
         <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar cliente por nombre o codigo" aria-label="Buscar cliente por nombre o codigo" style={{ ...inp, marginBottom: 8 }} />
+          placeholder={traducir('clients.buscar_cliente_por_nombre_o_codigo')} aria-label={traducir('clients.buscar_cliente_por_nombre_o_codigo')} style={{ ...inp, marginBottom: 8 }} />
         <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
           <select value={statusF} onChange={e => setStatusF(e.target.value)} style={{ ...inp, flex: 1 }}>
-            <option value="">Todos los estados</option>
+            <option value="">{traducir('clients.todos_los_estados')}</option>
             {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
           <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ ...inp, width: 'auto' }}>
@@ -246,7 +247,7 @@ export default function ClientsPage(): JSX.Element {
           </select>
         </div>
         {isLoading ? <Spinner /> : clients.length === 0
-          ? <EmptyState icon="🏢" title="Sin clientes" description="Crea el primer cliente para empezar" />
+          ? <EmptyState icon="🏢" title={traducir('clients.sin_clientes')} description="Crea el primer cliente para empezar" />
           : clientView === 'grid' ? (sortedClients as Client[]).map(c => (
             <button key={c.id} type="button" onClick={() => { setSelected(c); setActiveTab('contacts') }}
               style={{ ...panel, padding: '14px 16px', marginBottom: 8, cursor: 'pointer', borderColor: selected?.id === c.id ? 'var(--accent)' : 'var(--surface-4)', background: selected?.id === c.id ? 'var(--accent-muted)' : 'var(--surface-2)', transition: 'all 0.12s' }}
@@ -300,7 +301,7 @@ export default function ClientsPage(): JSX.Element {
           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🏢</div>
-              <div style={{ fontSize: "var(--text-md)" }}>Selecciona un cliente para ver su perfil completo</div>
+              <div style={{ fontSize: "var(--text-md)" }}>{traducir('clients.selecciona_un_cliente_para_ver_su_perfil')}</div>
             </div>
           </div>
         ) : (
@@ -362,7 +363,7 @@ export default function ClientsPage(): JSX.Element {
             {activeTab === 'tickets' && (
               <div>
                 {detail?.tickets?.length === 0
-                  ? <EmptyState icon="🎫" title="Sin tickets" description="Este cliente todavia no tiene tickets asociados" />
+                  ? <EmptyState icon="🎫" title={traducir('clients.sin_tickets')} description="Este cliente todavia no tiene tickets asociados" />
                   : detail?.tickets?.map(t => (
                     <div key={t.id} style={{ ...panel, padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
@@ -431,7 +432,7 @@ export default function ClientsPage(): JSX.Element {
                 style={inp} />
             </div>
             <div>
-              <label style={lbl}>Teléfono</label>
+              <label style={lbl}>{traducir('clients.telefono')}</label>
               <input value={editClientForm.contact_phone}
                 onChange={e => setEditClientForm(f => ({ ...f, contact_phone: e.target.value }))}
                 style={inp} />
@@ -447,7 +448,7 @@ export default function ClientsPage(): JSX.Element {
               </select>
             </div>
             <div>
-              <label style={lbl}>País</label>
+              <label style={lbl}>{traducir('clients.pais')}</label>
               <input value={editClientForm.country}
                 onChange={e => setEditClientForm(f => ({ ...f, country: e.target.value }))}
                 style={inp} placeholder="Pais" aria-label="Pais" />
@@ -503,7 +504,7 @@ export default function ClientsPage(): JSX.Element {
           <div style={{ color: 'var(--danger)', fontSize: 'var(--text-xs)', marginTop: 4 }}>{createValidation.errors[key]}</div>
         )
         return (
-        <Modal open title="Nuevo cliente" onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={600}>
+        <Modal open title={traducir('clients.nuevo_cliente')} onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={600}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div><label style={lbl}>Nombre *</label><input value={newForm.name} onChange={setCreateField('name')} style={createValidation.inputStyle(inp, 'name')} />{errField('name')}</div>
             <div><label style={lbl}>Nombre corto</label><input value={newForm.short_name} onChange={setCreateField('short_name')} style={createValidation.inputStyle(inp, 'short_name')} />{errField('short_name')}</div>
@@ -515,7 +516,7 @@ export default function ClientsPage(): JSX.Element {
             </div>
             <div><label style={lbl}>Contacto principal</label><input value={newForm.contact_name} onChange={setCreateField('contact_name')} style={createValidation.inputStyle(inp, 'contact_name')} />{errField('contact_name')}</div>
             <div><label style={lbl}>Email contacto</label><input type="email" value={newForm.contact_email} onChange={setCreateField('contact_email')} style={createValidation.inputStyle(inp, 'contact_email')} />{errField('contact_email')}</div>
-            <div><label style={lbl}>Teléfono</label><input value={newForm.contact_phone} onChange={setCreateField('contact_phone')} style={createValidation.inputStyle(inp, 'contact_phone')} />{errField('contact_phone')}</div>
+            <div><label style={lbl}>{traducir('clients.telefono')}</label><input value={newForm.contact_phone} onChange={setCreateField('contact_phone')} style={createValidation.inputStyle(inp, 'contact_phone')} />{errField('contact_phone')}</div>
             <div><label style={lbl}>Estado</label>
               <select value={newForm.status} onChange={setCreateField('status')} style={inp}>
                 {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

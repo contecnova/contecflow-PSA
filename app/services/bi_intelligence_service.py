@@ -680,111 +680,154 @@ def ml_detect_anomalies_multivariate(
     }
 
 
+#: Índices de las características dentro del vector, para no leer `f[3]` a
+#: ciegas. Auditoría 2026-09 (hallazgo 18): el cálculo del riesgo usaba
+#: posiciones numéricas sueltas en tres sitios distintos.
+_F_PRESUPUESTO, _F_TARIFA, _F_DURACION, _F_AVANCE, _F_TAREAS = range(5)
+
+
+def _rasgos_del_proyecto(db: Session, proyecto, hoy) -> tuple[list, dict]:
+    """El vector de características de un proyecto y sus datos de cabecera.
+
+    Auditoría 2026-09: aquí había **código muerto** — dos expresiones de la
+    forma `x = ... if hasattr(start, "days") or True else 30`, cuyo `or True`
+    hace la condición siempre cierta, y cuyo resultado se pisaba dos líneas más
+    abajo dentro de un `try`. Se quedan sólo los `try`, que es lo que corría.
+
+    Sin fechas, la duración por defecto es de 30 días y el avance cero: un
+    proyecto sin plazo declarado no puede ir tarde.
+    """
+    from app.models.task import Task
+
+    inicio = getattr(proyecto, "start_date", None) or hoy
+    fin = getattr(proyecto, "end_date", None) or hoy
+
+    try:
+        duracion = max(1, (fin - inicio).days)
+    except Exception:
+        logger.debug(
+            "Project %s duration_days fallback (start=%r end=%r)",
+            proyecto.id, inicio, fin, exc_info=True,
+        )
+        duracion = 30
+
+    try:
+        transcurridos = max(0, (hoy - inicio).days)
+    except Exception:
+        logger.debug(
+            "Project %s elapsed_days fallback (start=%r)", proyecto.id, inicio, exc_info=True,
+        )
+        transcurridos = 0
+
+    abiertas = db.query(Task).filter(
+        Task.project_id == proyecto.id,
+        Task.status.notin_(["done", "closed", "completed"]),
+    ).count()
+
+    presupuesto = float(proyecto.budget_amount or 0)
+    return (
+        [
+            presupuesto,
+            float(proyecto.billing_rate or 0),
+            duracion,
+            min(1.0, transcurridos / duracion),
+            abiertas,
+        ],
+        {
+            "project_id": str(proyecto.id),
+            "project_name": proyecto.name,
+            "budget": presupuesto,
+        },
+    )
+
+
+def _riesgo_heuristico(rasgos: list[list]) -> list[float]:
+    """Riesgo sin modelo: avance del plazo pesa más que la cola de tareas.
+
+    Veinte tareas abiertas se toman como saturación. No es un modelo, y por eso
+    el motor se devuelve como `heuristic_fallback` y no como una predicción.
+    """
+    return [
+        min(1.0, f[_F_AVANCE] * 0.6 + min(1.0, f[_F_TAREAS] / 20.0) * 0.4)
+        for f in rasgos
+    ]
+
+
+def _riesgo_con_lightgbm(rasgos: list[list]) -> list[float]:
+    """Riesgo con LightGBM sobre una etiqueta aproximada.
+
+    La etiqueta es heurística —«va tarde y con cola, o casi sin plazo»— porque
+    no hay histórico etiquetado de sobrecostes. Si no hay al menos dos
+    proyectos de cada clase no se entrena: un modelo con una sola clase
+    devuelve la misma probabilidad para todo y sería peor que la heurística.
+    """
+    import lightgbm as lgb  # type: ignore
+    import numpy as np  # type: ignore
+
+    etiquetas = [
+        1 if (f[_F_AVANCE] > 0.8 and f[_F_TAREAS] > 5) or (f[_F_AVANCE] > 0.9) else 0
+        for f in rasgos
+    ]
+    if sum(etiquetas) < 2 or len(etiquetas) - sum(etiquetas) < 2:
+        raise ImportError("insufficient_class_diversity")
+
+    modelo = lgb.LGBMClassifier(
+        n_estimators=50, learning_rate=0.1, random_state=42, verbose=-1,
+    )
+    modelo.fit(np.array(rasgos), etiquetas)
+    return modelo.predict_proba(np.array(rasgos))[:, 1]
+
+
 def ml_predict_project_overrun_lgbm(
     db: Session,
     *,
     organization_id: Optional[str],
 ) -> dict[str, Any]:
-    """Predict project budget/schedule overrun risk using LightGBM (falls back to sklearn).
+    """Riesgo de sobrecoste o retraso por proyecto, con LightGBM o heurística.
 
-    Features: budget_amount, billing_rate, planned_duration_days, team_size,
-              elapsed_pct, cost_consumed_pct, open_tasks_count.
+    Características: presupuesto, tarifa, duración planificada, porcentaje de
+    plazo consumido y tareas abiertas.
     """
     from app.models.project import Project
-    from app.models.task import Task
 
     q = db.query(Project).filter(Project.status == "active")
     if organization_id:
         q = q.filter(Project.organization_id == organization_id)
-    projects = q.all()
+    proyectos = q.all()
 
-    if not projects:
+    if not proyectos:
         return {"generated_at": _iso_now(), "engine": "none", "predictions": []}
 
-    today = timeutil.today()
-    features = []
-    meta = []
-
-    for p in projects:
-        budget = float(p.budget_amount or 0)
-        rate = float(p.billing_rate or 0)
-        start = p.start_date if hasattr(p, "start_date") and p.start_date else today
-        end = p.end_date if hasattr(p, "end_date") and p.end_date else today
-        duration_days = max(1, (end - start).days) if hasattr(start, "days") or True else 30
-        try:
-            duration_days = max(1, (end - start).days)
-        except Exception:
-            logger.debug("Project %s duration_days fallback (start=%r end=%r)", p.id, start, end, exc_info=True)
-            duration_days = 30
-
-        elapsed_days = max(0, (today - start).days) if hasattr(start, "days") or True else 0
-        try:
-            elapsed_days = max(0, (today - start).days)
-        except Exception:
-            logger.debug("Project %s elapsed_days fallback (start=%r)", p.id, start, exc_info=True)
-            elapsed_days = 0
-
-        elapsed_pct = min(1.0, elapsed_days / duration_days)
-
-        # Open tasks count
-        open_tasks = db.query(Task).filter(
-            Task.project_id == p.id,
-            Task.status.notin_(["done", "closed", "completed"]),
-        ).count() if hasattr(Task, "project_id") else 0
-
-        features.append([budget, rate, duration_days, elapsed_pct, open_tasks])
-        meta.append({
-            "project_id": str(p.id),
-            "project_name": p.name,
-            "budget": budget,
-        })
-
-    if not features:
-        return {"generated_at": _iso_now(), "engine": "none", "predictions": []}
+    hoy = timeutil.today()
+    rasgos, cabeceras = [], []
+    for proyecto in proyectos:
+        vector, cabecera = _rasgos_del_proyecto(db, proyecto, hoy)
+        rasgos.append(vector)
+        cabeceras.append(cabecera)
 
     try:
-        import lightgbm as lgb  # type: ignore
-        import numpy as np  # type: ignore
-
-        X = np.array(features)
-        # Heuristic label: overrun if elapsed_pct > 0.8 and open_tasks > 5
-        y_proxy = [
-            1 if (f[3] > 0.8 and f[4] > 5) or (f[3] > 0.9) else 0
-            for f in features
-        ]
-
-        if sum(y_proxy) < 2 or len(y_proxy) - sum(y_proxy) < 2:
-            # Not enough class diversity for proper training — use heuristic
-            raise ImportError("insufficient_class_diversity")
-
-        model = lgb.LGBMClassifier(n_estimators=50, learning_rate=0.1, random_state=42, verbose=-1)
-        model.fit(X, y_proxy)
-        proba = model.predict_proba(X)[:, 1]
-        engine = "lightgbm"
+        probabilidades = _riesgo_con_lightgbm(rasgos)
+        motor = "lightgbm"
     except (ImportError, Exception):
-        # Fallback: heuristic risk score
-        proba = []
-        for f in features:
-            # budget_pct * 0.4 + elapsed_pct * 0.4 + open_task_factor * 0.2
-            open_task_factor = min(1.0, f[4] / 20.0)
-            score = f[3] * 0.6 + open_task_factor * 0.4
-            proba.append(min(1.0, score))
-        engine = "heuristic_fallback"
+        probabilidades = _riesgo_heuristico(rasgos)
+        motor = "heuristic_fallback"
 
-    predictions = []
-    for m, risk in zip(meta, proba):  # noqa: B905
-        predictions.append({
-            **m,
-            "overrun_probability": round(float(risk), 3),
-            "risk_level": "critical" if risk >= 0.7 else ("high" if risk >= 0.4 else "low"),
-        })
-
-    predictions.sort(key=lambda x: x["overrun_probability"], reverse=True)
+    predicciones = [
+        {
+            **cabecera,
+            "overrun_probability": round(float(riesgo), 3),
+            "risk_level": (
+                "critical" if riesgo >= 0.7 else "high" if riesgo >= 0.4 else "low"
+            ),
+        }
+        for cabecera, riesgo in zip(cabeceras, probabilidades)  # noqa: B905
+    ]
+    predicciones.sort(key=lambda p: p["overrun_probability"], reverse=True)
 
     return {
         "generated_at": _iso_now(),
-        "engine": engine,
-        "predictions": predictions,
+        "engine": motor,
+        "predictions": predicciones,
     }
 
 

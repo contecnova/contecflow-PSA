@@ -290,6 +290,50 @@ import logging as _logging
 _worker_logger = _logging.getLogger(__name__)
 
 
+def _aplicar_cortacircuitos(hook) -> None:
+    """Suspende un webhook tras N fallos seguidos, y avisa a los administradores.
+
+    Auditoría 2026-09 (hallazgo 18): esto vivía dentro de la tarea de entrega,
+    anidado a cuatro niveles. Es una decisión con nombre propio —«este destino
+    está muerto, deja de intentarlo»— y aquí se puede probar sola.
+
+    Suspender no es tirar la configuración: el webhook se queda inactivo con su
+    `suspended_at`, y alguien lo reactiva desde el panel cuando arregle el
+    destino. Sin esto, un endpoint muerto recibe reintentos para siempre.
+
+    El evento de aviso usa **su propia sesión** porque la de la entrega puede
+    estar a medias de una transacción que todavía no se ha confirmado.
+    """
+    from datetime import datetime, timezone
+
+    umbral = getattr(settings, "WEBHOOK_CB_THRESHOLD", 5)
+    if hook.consecutive_failures < umbral or not hook.is_active:
+        return
+
+    hook.is_active = False
+    hook.suspended_at = datetime.now(timezone.utc)
+    _worker_logger.error(
+        "Circuit breaker: webhook %s (%s) suspended after %d consecutive "
+        "failures. Re-enable via the admin panel once the endpoint is fixed.",
+        hook.id, hook.url, hook.consecutive_failures,
+    )
+    try:
+        from app.core.events import emit_event
+        from app.db.session import worker_db_session
+
+        with worker_db_session() as _db:
+            emit_event(_db, "webhook.suspended", {
+                "webhook_id": hook.id,
+                "webhook_name": hook.name,
+                "url": hook.url,
+                "consecutive_failures": hook.consecutive_failures,
+            })
+    except Exception as exc:
+        # El aviso es cortesía: que no se pueda emitir no debe impedir la
+        # suspensión, que es lo que de verdad protege al destino.
+        _worker_logger.debug("Could not emit webhook.suspended event: %s", exc)
+
+
 @celery_app.task(
     bind=True,
     name="app.worker.deliver_webhook",
@@ -389,39 +433,12 @@ def deliver_webhook_task(self, webhook_id: int, body: str, event: str):
         hook.last_triggered_at = datetime.now(timezone.utc)
 
         if success:
-            # Reset circuit-breaker counter on any successful delivery.
+            # Cualquier entrega correcta reinicia el contador del cortacircuitos.
             hook.consecutive_failures = 0
         else:
             hook.failed_deliveries = (hook.failed_deliveries or 0) + 1
             hook.consecutive_failures = (hook.consecutive_failures or 0) + 1
-
-            # Circuit breaker — suspend after WEBHOOK_CB_THRESHOLD consecutive failures
-            # so a permanently dead endpoint stops receiving attempts automatically.
-            cb_threshold = getattr(settings, "WEBHOOK_CB_THRESHOLD", 5)
-            if hook.consecutive_failures >= cb_threshold and hook.is_active:
-                hook.is_active = False
-                hook.suspended_at = datetime.now(timezone.utc)
-                _worker_logger.error(
-                    "Circuit breaker: webhook %s (%s) suspended after %d consecutive "
-                    "failures. Re-enable via the admin panel once the endpoint is fixed.",
-                    hook.id, hook.url, hook.consecutive_failures,
-                )
-                # Emit a system event so admins receive an in-app notification.
-                try:
-                    from app.core.events import emit_event
-                    with worker_db_session() as _db2:
-                        emit_event(
-                            _db2,
-                            "webhook.suspended",
-                            {
-                                "webhook_id": hook.id,
-                                "webhook_name": hook.name,
-                                "url": hook.url,
-                                "consecutive_failures": hook.consecutive_failures,
-                            },
-                        )
-                except Exception as _ne:
-                    _worker_logger.debug("Could not emit webhook.suspended event: %s", _ne)
+            _aplicar_cortacircuitos(hook)
 
         db.commit()
 

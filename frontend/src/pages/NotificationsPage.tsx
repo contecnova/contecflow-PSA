@@ -375,7 +375,7 @@ export default function NotificationsPage() {
             </div>
             {unreadCount > 0 && (
               <Button variant="secondary" onClick={() => markAll()}>
-                ✓ Marcar todas como leídas
+                {t('notifications.marcar_todas_como_leidas')}
               </Button>
             )}
           </div>
@@ -416,7 +416,7 @@ export default function NotificationsPage() {
       </div>
 
       {(isLoading && alertsLoading) ? <Spinner /> : filtered.length === 0 ? (
-        <EmptyState icon="🔔" title="Sin notificaciones"
+        <EmptyState icon="🔔" title={t('notifications.sin_notificaciones')}
           description={filter === 'unread' ? 'Todo al día — no tienes notificaciones sin leer' : 'Sin notificaciones en este filtro'} />
       ) : (
         <GroupedNotifList notifications={filtered} onMarkRead={handleMarkRead} />

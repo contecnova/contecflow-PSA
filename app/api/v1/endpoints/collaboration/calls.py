@@ -9,7 +9,7 @@ declarados— y el idioma de la transcripcion, que ahora sale de
 from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -34,7 +34,9 @@ def _token_de(call, user, *, role: str) -> CallTokenOut:
 
 
 @router.post("/calls/start", response_model=APIResponse[CallTokenOut], summary="Iniciar llamada")
-def start_call(payload: CallStartIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def start_call(payload: CallStartIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     call = svc.start_call(
         db, current_user,
         conversation_id=payload.conversation_id, kind=payload.kind,
@@ -55,7 +57,9 @@ def leave_call(call_id: str, current_user: User = Depends(get_current_user), db:
 
 
 @router.post("/calls/{call_id}/end", summary="Cerrar llamada")
-def end_call(call_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def end_call(call_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     recien_cerrada = svc.end_call(db, current_user, call_id)
     if recien_cerrada:
         # El resumen post-llamada (Nexus IA) se encola solo la primera vez: dos
@@ -67,7 +71,9 @@ def end_call(call_id: str, current_user: User = Depends(get_current_user), db: S
 
 
 @router.post("/calls/{call_id}/recording/start", summary="Iniciar grabación")
-def start_recording(call_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def start_recording(call_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+):
     return APIResponse.ok(
         data={"recording_id": svc.start_recording(db, current_user, call_id)})
 
@@ -84,6 +90,7 @@ async def transcribe_chunk(
     audio: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
 ):
     # La llamada se comprueba ANTES de leer el fichero: no tiene sentido
     # descargar audio de una llamada a la que no se tiene acceso.

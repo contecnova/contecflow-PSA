@@ -156,33 +156,61 @@ def find_default_workflow(entity_type: str, db: Session, category: Optional[str]
         ApprovalWorkflow.is_active == True,
     ).first()
 
+def _esta_en_el_grupo(step, current_user: User, db: Session) -> bool:
+    """Si el usuario pertenece al grupo aprobador del paso.
+
+    El JSON malformado se registra y cuenta como «no pertenece»: un grupo
+    corrupto no puede autorizar, y tampoco puede tumbar la aprobación entera.
+    """
+    if not step.approver_group_id:
+        return False
+    grupo = db.query(ApprovalGroup).filter(ApprovalGroup.id == step.approver_group_id).first()
+    if not grupo:
+        return False
+    try:
+        return current_user.id in json.loads(grupo.member_ids or "[]")
+    except Exception:
+        logger.warning(
+            "Failed to parse approval group member_ids for group=%s", grupo.id, exc_info=True,
+        )
+        return False
+
+
+#: Cómo autoriza cada tipo de aprobador. Auditoría 2026-09 (hallazgo 18): eran
+#: cinco `if` seguidos. Como tabla se ve la lista cerrada de formas de aprobar,
+#: y que **no hay ninguna que dé paso a un administrador por serlo** — eso es
+#: deliberado: quien aprueba tiene que estar configurado explícitamente.
+_APROBADORES = {
+    "user": lambda step, u, requested_by, db: step.approver_user_id == u.id,
+    "role": lambda step, u, requested_by, db: u.role == step.approver_role,
+    "any_in_department": lambda step, u, requested_by, db: (
+        u.department == step.approver_department
+    ),
+    "manager": lambda step, u, requested_by, db: _es_su_responsable(u, requested_by, db),
+}
+
+
+def _es_su_responsable(current_user: User, requested_by: str, db: Session) -> bool:
+    """Si quien aprueba es el responsable directo de quien pidió."""
+    solicitante = db.query(User).filter(User.id == requested_by).first()
+    return bool(solicitante and solicitante.manager_id == current_user.id)
+
+
 def _is_authorized(step, current_user: User, requested_by: str, db: Session) -> bool:
-    # Group authorisation
-    if step.approver_group_id:
-        group = db.query(ApprovalGroup).filter(ApprovalGroup.id == step.approver_group_id).first()
-        if group:
-            try:
-                members = json.loads(group.member_ids or "[]")
-                if current_user.id in members:
-                    return True
-            except Exception:
-                logger.warning("Failed to parse approval group member_ids for group=%s", group.id, exc_info=True)
-    if step.approver_type == "group" and step.approver_group_id:
-        return False  # already checked above
-    # Solo autoriza si el usuario está explícitamente configurado como aprobador
-    if step.approver_type == "user" and step.approver_user_id == current_user.id:
+    """Si este usuario puede resolver este paso de aprobación.
+
+    La pertenencia al grupo se mira **siempre** que el paso tenga grupo, aunque
+    el tipo de aprobador sea otro: un paso puede declarar un grupo y además un
+    rol, y estar en el grupo basta.
+    """
+    if _esta_en_el_grupo(step, current_user, db):
         return True
-    if step.approver_type == "role" and current_user.role == step.approver_role:
-        return True
-    if step.approver_type == "manager":
-        requester = db.query(User).filter(User.id == requested_by).first()
-        if requester and requester.manager_id == current_user.id:
-            return True
-    if step.approver_type == "any_in_department":
-        if current_user.department == step.approver_department:
-            return True
-    # No bypass para admin: debe estar configurado explícitamente
-    return False
+    if step.approver_type == "group":
+        # Ya se ha comprobado arriba; si no estaba en el grupo, no hay más vías.
+        return False
+
+    regla = _APROBADORES.get(step.approver_type or "")
+    return bool(regla and regla(step, current_user, requested_by, db))
 
 def _parse_trigger_conditions(raw: Optional[str]) -> dict:
     if not raw:

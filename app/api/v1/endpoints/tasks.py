@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 from app.db.session import get_db
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user, require_admin_or_pm
+from app.core.deps import get_current_user, require_admin_or_pm, require_internal_user
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.models.task import TaskStatus, TaskPriority
@@ -187,6 +187,7 @@ def create_dependency(
     lag_days: int = Body(0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=svc_create_task_dependency(db, predecessor_id, successor_id, dependency_type, lag_days, current_user.id))
 
@@ -196,6 +197,11 @@ def delete_dependency(
     dep_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada. Una dependencia entre tareas es
+    # estructura de proyecto: la decide quien planifica, igual que
+    # `POST /epics/{id}/dependencies/{id}`, que ya exige lo mismo.
+    _: User = Depends(require_admin_or_pm),
 ):
     enforce_abac(db, current_user, "task_dependency", dep_id, action="delete")
     return APIResponse.ok(data=svc_delete_task_dependency(db, dep_id))
@@ -239,6 +245,7 @@ def create_task(
     payload: TaskCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: crear una tarea es trabajo diario, no estructura
 ):
     enforce_abac(db, current_user, "task", action="create")
     return APIResponse.ok(data=create_task_record(db, payload, current_user))
@@ -295,6 +302,7 @@ def add_comment(
     payload: TaskCommentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=add_comment_record(db, task_id, payload, current_user))
 
@@ -335,5 +343,6 @@ def cascade_reschedule(
     new_end_date: date = Body(..., embed=True),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: excepcion revisada: replanifica en cascada: estructura
 ):
     return APIResponse.ok(data=svc_cascade_reschedule(task_id, new_end_date, db))

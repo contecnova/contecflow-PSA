@@ -140,6 +140,7 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
 }
 
 function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const t = useAppT()
   const [form, setForm] = useState<{ name: string; description: string; project_type: string; estimated_weeks: string; estimated_hours: string; phases: any[]; risks: any[]; deliverables: any[] }>({
     name: '',
     description: '',
@@ -257,7 +258,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
         maxWidth: '95vw', maxHeight: '92vh', overflowY: 'auto',
         boxShadow: '0 20px 60px rgba(0,0,0,.3)',
       }}>
-        <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, marginBottom: 16 }}>Nueva plantilla desde cero</div>
+        <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, marginBottom: 16 }}>{t('projecttemplates.nueva_plantilla_desde_cero')}</div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
           <input value={form.name} onChange={set('name')} placeholder="Nombre *" style={inp} />
@@ -265,18 +266,18 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
           <input type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} placeholder="Semanas" style={inp} />
           <input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} placeholder="Horas" style={inp} />
         </div>
-        <textarea value={form.description} onChange={set('description')} rows={2} placeholder="Descripción" style={{ ...inp, width: '100%', resize: 'vertical', marginBottom: 14 }} />
+        <textarea value={form.description} onChange={set('description')} rows={2} placeholder={t('projecttemplates.descripcion')} style={{ ...inp, width: '100%', resize: 'vertical', marginBottom: 14 }} />
 
         <div style={{ marginBottom: 16 }}>
           <div style={h3}>Fases ({form.phases.length})</div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
             <input value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} placeholder="Nombre fase" style={inp} />
-            <input value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} placeholder="Descripción fase" style={inp} />
+            <input value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} placeholder={t('projecttemplates.descripcion_fase')} style={inp} />
             <input type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} placeholder="Semanas" style={inp} />
             <input type="number" value={phase.estimated_hours} onChange={e => setPhase(f => ({ ...f, estimated_hours: e.target.value }))} placeholder="Horas" style={inp} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8 }}>
-            <input value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} placeholder="Título tarea" style={inp} />
+            <input value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} placeholder={t('projecttemplates.titulo_tarea')} style={inp} />
             <input type="number" value={task.estimated_hours} onChange={e => setTask(f => ({ ...f, estimated_hours: e.target.value }))} placeholder="Horas" style={inp} />
             <input value={task.skill_required} onChange={e => setTask(f => ({ ...f, skill_required: e.target.value }))} placeholder="Skill" style={inp} />
             <button onClick={addTaskToPhase} style={btnSecondary}>+ Tarea</button>
@@ -294,13 +295,13 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
         <div style={{ marginBottom: 16 }}>
           <div style={h3}>Riesgos ({form.risks.length})</div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8 }}>
-            <input value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} placeholder="Título riesgo" style={inp} />
-            <input value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} placeholder="Categoría" style={inp} />
+            <input value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} placeholder={t('projecttemplates.titulo_riesgo')} style={inp} />
+            <input value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} placeholder={t('projecttemplates.categoria')} style={inp} />
             <select value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))} style={inp}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
             <select value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))} style={inp}><option value="minor">minor</option><option value="moderate">moderate</option><option value="major">major</option><option value="critical">critical</option></select>
             <button onClick={addRisk} style={btnSecondary}>+ Riesgo</button>
           </div>
-          <textarea value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} placeholder="Mitigación (opcional)" style={{ ...inp, width: '100%', resize: 'vertical', marginTop: 8 }} />
+          <textarea value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} placeholder={t('projecttemplates.mitigacion_opcional')} style={{ ...inp, width: '100%', resize: 'vertical', marginTop: 8 }} />
         </div>
 
         <div style={{ marginBottom: 16 }}>
@@ -309,10 +310,10 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
             <input value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} placeholder="Nombre" style={inp} />
             <input value={deliverable.format} onChange={e => setDeliverable(f => ({ ...f, format: e.target.value }))} placeholder="Formato" style={inp} />
             <input type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} placeholder="Semana" style={inp} />
-            <input type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} placeholder="% facturación" style={inp} />
+            <input type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} placeholder={t('projecttemplates.facturacion')} style={inp} />
             <button onClick={addDeliverable} style={btnSecondary}>+ Entregable</button>
           </div>
-          <textarea value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} placeholder="Criterio aceptación (opcional)" style={{ ...inp, width: '100%', resize: 'vertical', marginTop: 8 }} />
+          <textarea value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} placeholder={t('projecttemplates.criterio_aceptacion_opcional')} style={{ ...inp, width: '100%', resize: 'vertical', marginTop: 8 }} />
         </div>
 
         {error && <div style={{ color: 'var(--danger)', marginBottom: 12, fontSize: "var(--text-sm)" }}>{error}</div>}

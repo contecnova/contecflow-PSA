@@ -15,6 +15,7 @@ import {
   PortalPageHeader, PortalCard, PortalSection, PortalEmpty,
   PortalBadge, PortalButton, PortalField, PortalTextarea, PortalBanner,
 } from './PortalUI'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 type ScoreKey = 'overall_satisfaction' | 'communication_score' | 'quality_score' | 'deadline_score'
 
@@ -61,6 +62,7 @@ const SCORES: Array<{ key: ScoreKey; label: string; hint: string }> = [
 const RATING_LABELS = ['Muy mala', 'Mala', 'Aceptable', 'Buena', 'Excelente']
 
 export function PortalSurveys() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [active, setActive] = useState<SurveyItem | null>(null)
@@ -134,7 +136,7 @@ export function PortalSurveys() {
         />
 
         <PortalCard style={{ marginBottom: 16 }} accent={false} onClick={undefined}>
-          <PortalSection title="Puntúa cada aspecto" hint="De 1 (muy mala) a 5 (excelente)" action={undefined}>
+          <PortalSection title={t('portalsurveys.puntua_cada_aspecto')} hint="De 1 (muy mala) a 5 (excelente)" action={undefined}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {SCORES.map(s => (
                 <RatingRow key={s.key}
@@ -148,13 +150,13 @@ export function PortalSurveys() {
         </PortalCard>
 
         <PortalCard style={{ marginBottom: 16 }} accent={false} onClick={undefined}>
-          <PortalSection title="¿Recomendarías el servicio?" hint="NPS — del 0 (nunca) al 10 (totalmente)" action={undefined}>
+          <PortalSection title={t('portalsurveys.recomendarias_el_servicio')} hint="NPS — del 0 (nunca) al 10 (totalmente)" action={undefined}>
             <NpsScale value={form.nps_score} onChange={(v: number) => setForm(f => ({ ...f, nps_score: v }))} />
           </PortalSection>
         </PortalCard>
 
         <PortalCard style={{ marginBottom: 16 }} accent={false} onClick={undefined}>
-          <PortalSection title="¿Recomendarías el equipo a otra empresa?" hint={undefined} action={undefined}>
+          <PortalSection title={t('portalsurveys.recomendarias_el_equipo_a_otra_empresa')} hint={undefined} action={undefined}>
             <div style={{ display: 'flex', gap: 10 }}>
               {[
                 { v: true,  label: 'Sí, lo recomendaría',  Icon: ThumbsUp,   color: 'var(--success)' },
@@ -186,7 +188,7 @@ export function PortalSurveys() {
             <PortalField label="" hint={undefined} required={false}>
               <PortalTextarea rows={4} value={form.comments}
                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setForm(f => ({ ...f, comments: e.target.value }))}
-                placeholder="Cuéntanos tu experiencia..." maxLength={2000} />
+                placeholder={t('portalsurveys.cuentanos_tu_experiencia')} maxLength={2000} />
             </PortalField>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 6, textAlign: 'right' }}>
               {form.comments.length} / 2000
@@ -212,7 +214,7 @@ export function PortalSurveys() {
   return (
     <div>
       <PortalPageHeader
-        title="Encuestas de satisfacción"
+        title={t('portalsurveys.encuestas_de_satisfaccion')}
         subtitle="Comparte tu experiencia con el equipo. Tu feedback es anónimo dentro del proyecto."
         icon={Sparkles}
         actions={undefined}
@@ -235,7 +237,7 @@ export function PortalSurveys() {
         <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>Cargando...</div>
       ) : surveys.length === 0 ? (
         <PortalEmpty icon={Sparkles}
-          title="No tienes encuestas"
+          title={t('portalsurveys.no_tienes_encuestas')}
           description="Cuando el equipo te envíe una encuesta de satisfacción, la verás aquí."
           action={undefined} />
       ) : (
@@ -257,7 +259,7 @@ export function PortalSurveys() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{s.title}</div>
                         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-                          Enviada el {s.sent_at}
+                          {t('portalsurveys.enviada_el')} {s.sent_at}
                         </div>
                       </div>
                       <PortalBadge tone="warning" icon={undefined}>Pendiente</PortalBadge>
@@ -285,11 +287,11 @@ export function PortalSurveys() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{s.title}</div>
                         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-                          Respondida el {s.completed_at}
+                          {t('portalsurveys.respondida_el')} {s.completed_at}
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                           {s.overall_satisfaction != null && (
-                            <Pill icon={<Star size={11} />} label="Satisfacción" value={`${s.overall_satisfaction}/5`} />
+                            <Pill icon={<Star size={11} />} label={t('portalsurveys.satisfaccion')} value={`${s.overall_satisfaction}/5`} />
                           )}
                           {s.nps_score != null && (
                             <Pill icon={<MessageCircle size={11} />} label="NPS" value={`${s.nps_score}/10`} />
@@ -297,7 +299,7 @@ export function PortalSurveys() {
                           {s.would_recommend !== undefined && (
                             <Pill
                               icon={s.would_recommend ? <ThumbsUp size={11} /> : <ThumbsDown size={11} />}
-                              label="Recomendaría"
+                              label={t('portalsurveys.recomendaria')}
                               value={s.would_recommend ? 'Sí' : 'No'}
                               color={s.would_recommend ? 'var(--success)' : 'var(--danger)'}
                             />
@@ -362,6 +364,7 @@ function RatingRow({ label, hint, value, onChange }: { label: string; hint?: str
 }
 
 function NpsScale({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  const { t } = useAppLang()
   return (
     <div>
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -384,8 +387,8 @@ function NpsScale({ value, onChange }: { value: number; onChange: (value: number
         })}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 6 }}>
-        <span>0 — No lo recomendaría</span>
-        <span>10 — Lo recomendaría sin dudar</span>
+        <span>{t('portalsurveys.0_no_lo_recomendaria')}</span>
+        <span>{t('portalsurveys.10_lo_recomendaria_sin_dudar')}</span>
       </div>
     </div>
   )

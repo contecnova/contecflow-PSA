@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import api from '../services/api'
 import { useToast } from './ToastContext'
 import { useIdleTimeout } from '../hooks/useIdleTimeout'
+import { useAppLang } from '../i18n/AppLangContext'
 
 // Prevent Vite from hot-replacing this module individually: a partial HMR reload
 // creates a new context reference while AuthProvider still injects the old one,
@@ -108,6 +109,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
+  const { t } = useAppLang()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [sessionExpired, setSessionExpired] = useState<boolean>(false)
@@ -240,10 +242,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>⏱️</div>
             <h3 style={{ margin: '0 0 8px', color: 'var(--text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
-              Sesión a punto de expirar
+              {t('authcontext.sesion_a_punto_de_expirar')}
             </h3>
             <p style={{ color: 'var(--text-2)', margin: '0 0 24px', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
-              Tu sesión se cerrará por inactividad en{' '}
+              {t('authcontext.tu_sesion_se_cerrara_por_inactividad_en')}{' '}
               <strong style={{ color: secondsLeft <= 15 ? '#ff4757' : 'var(--accent)' }}>
                 {secondsLeft}s
               </strong>.
@@ -257,7 +259,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                   cursor: 'pointer', fontSize: 'var(--text-sm)',
                 }}
               >
-                Continuar sesión
+                {t('authcontext.continuar_sesion')}
               </button>
               <button
                 onClick={logout}
@@ -267,7 +269,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                   padding: '10px 20px', cursor: 'pointer', fontSize: 'var(--text-sm)',
                 }}
               >
-                Cerrar sesión
+                {t('authcontext.cerrar_sesion')}
               </button>
             </div>
           </div>

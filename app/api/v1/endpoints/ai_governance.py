@@ -22,7 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_user
+from app.core.deps import get_current_user, get_db, require_admin
 from app.core.responses import APIListResponse, APIResponse
 from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
@@ -128,6 +128,7 @@ def create_policy(
     body: PolicyIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: politicas y guardrails de IA
 ):
     verify_admin_or_governance_role(current_user)
     _validate_policy(body)
@@ -182,6 +183,7 @@ def update_policy(
     body: PolicyUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: politicas y guardrails de IA
 ):
     verify_admin_or_governance_role(current_user)
     p = svc_get_policy(db, policy_id=policy_id, org_id=_org(current_user))
@@ -196,6 +198,7 @@ def deactivate_policy(
     policy_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: politicas y guardrails de IA
 ):
     verify_admin_or_governance_role(current_user)
     enforce_abac(db, current_user, "ai_governance_policy", policy_id, action="delete")
@@ -266,6 +269,7 @@ def test_prompt(
     body: CheckRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: politicas y guardrails de IA
 ):
     verify_admin_or_governance_role(current_user)
     result = check_prompt(body.text, current_user, body.module, db)
@@ -284,6 +288,7 @@ def test_output(
     body: CheckRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: politicas y guardrails de IA
 ):
     verify_admin_or_governance_role(current_user)
     result = check_output(body.text, current_user, body.module, db)

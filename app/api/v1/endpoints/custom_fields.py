@@ -13,7 +13,7 @@ from typing import List
 from app.schemas.custom_fields import CustomFieldIn, FieldValueIn, WorkflowStateIn, TransitionIn, TaskTransitionIn, PermissionIn
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_pm
+from app.core.deps import get_current_user, require_admin_or_pm, require_internal_user
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -86,6 +86,7 @@ def save_task_custom_values(
     payload: List[FieldValueIn],
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=_svc.save_task_custom_values(project_id, task_id, payload, db))
 
@@ -184,6 +185,7 @@ def transition_task(
     payload: TaskTransitionIn,
     db: Session = Depends(get_db),
     current: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: mover una tarea por su flujo es trabajo diario
 ):
     return APIResponse.ok(data=_svc.transition_task(project_id, task_id, payload, current, db))
 

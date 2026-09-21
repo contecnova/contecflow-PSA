@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user, get_db, require_any_manager
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User, UserRole
 from app.services import nps_service
@@ -53,6 +53,7 @@ def submit_nps(
     body: NPSCreate,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: salud y satisfaccion de cliente
 ):
     if not nps_service.client_exists(db, client_id):
         raise HTTPException(404, "Cliente no encontrado")
@@ -116,6 +117,7 @@ def create_health_snapshot(
     body: HealthSnapshotCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: salud y satisfaccion de cliente
 ):
     if current_user.role not in (UserRole.admin, UserRole.pm):
         raise HTTPException(403, "Solo admins/PMs pueden crear snapshots")
@@ -140,6 +142,7 @@ def auto_compute_health(
     client_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: salud y satisfaccion de cliente
 ):
     """Auto-compute health score from current data signals and save a snapshot."""
     if current_user.role not in (UserRole.admin, UserRole.pm):

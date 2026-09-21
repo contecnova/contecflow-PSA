@@ -82,10 +82,10 @@ function RejectModal({ milestone, onClose, onReject }: { milestone: MilestoneIte
         </div>
       )}
       <div style={{ marginBottom: 16 }}>
-        <label style={lbl}>Motivo del rechazo *</label>
+        <label style={lbl}>{t('milestonebilling.motivo_del_rechazo')}</label>
         <textarea value={reason} onChange={e => setReason(e.target.value)}
           style={{ ...inp, minHeight: 80, resize: 'vertical' }}
-          placeholder="Describe el motivo del rechazo" aria-label="Motivo del rechazo" />
+          placeholder={t('milestonebilling.describe_el_motivo_del_rechazo')} aria-label={t('milestonebilling.motivo_del_rechazo_2')} />
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
@@ -97,6 +97,7 @@ function RejectModal({ milestone, onClose, onReject }: { milestone: MilestoneIte
 
 // ── Milestone card ────────────────────────────────────────────────────────────
 function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projectName: string; onRefresh: () => void | Promise<unknown> }) {
+  const t = useAppT()
   const toast = useToast()
   const _qc = useQueryClient()
   const [showReject, setShowReject] = useState(false)
@@ -148,7 +149,7 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
             )}
             {m.billing_pct && !m.billing_amount && (
               <span style={{ marginLeft: 10, color: 'var(--warning)', fontWeight: 600 }}>
-                {m.billing_pct}% del contrato
+                {m.billing_pct}{t('milestonebilling.del_contrato')}
               </span>
             )}
           </div>
@@ -177,7 +178,7 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
                 ↩ Desmarcar
               </button>
               <Button size="sm" onClick={() => act('request')} loading={loading === 'request'}>
-                ⏳ Solicitar aprobación
+                {t('milestonebilling.solicitar_aprobacion')}
               </Button>
             </>
           )}
@@ -232,14 +233,14 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
   })
 
   return (
-    <Modal open title="Nuevo milestone" onClose={onClose} width={500}>
+    <Modal open title={t('milestonebilling.nuevo_milestone')} onClose={onClose} width={500}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
         <div>
           <label style={lbl}>Nombre *</label>
-          <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Nombre del milestone" aria-label="Nombre del milestone" />
+          <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t('milestonebilling.nombre_del_milestone')} aria-label={t('milestonebilling.nombre_del_milestone')} />
         </div>
         <div>
-          <label style={lbl}>Fecha límite</label>
+          <label style={lbl}>{t('milestonebilling.fecha_limite')}</label>
           <input type="date" value={form.due_date} onChange={e => setForm(f=>({...f,due_date:e.target.value}))} style={inp} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -248,12 +249,12 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
             <input type="number" value={form.billing_amount} onChange={e => setForm(f=>({...f,billing_amount:e.target.value}))} style={inp} placeholder="Importe a facturar" aria-label="Importe a facturar" />
           </div>
           <div>
-            <label style={lbl}>O % del contrato</label>
-            <input type="number" value={form.billing_pct} onChange={e => setForm(f=>({...f,billing_pct:e.target.value}))} style={inp} placeholder="Porcentaje del contrato" aria-label="Porcentaje del contrato" min="0" max="100" />
+            <label style={lbl}>{t('milestonebilling.o_del_contrato')}</label>
+            <input type="number" value={form.billing_pct} onChange={e => setForm(f=>({...f,billing_pct:e.target.value}))} style={inp} placeholder={t('milestonebilling.porcentaje_del_contrato')} aria-label={t('milestonebilling.porcentaje_del_contrato')} min="0" max="100" />
           </div>
         </div>
         <div>
-          <label style={lbl}>Descripción</label>
+          <label style={lbl}>{t('milestonebilling.descripcion')}</label>
           <textarea value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
         </div>
       </div>
@@ -267,6 +268,7 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function MilestoneBillingPage(): JSX.Element {
+  const t = useAppT()
   const _t = useAppT()
   const _toast = useToast()
   const _qc = useQueryClient()
@@ -331,14 +333,14 @@ export default function MilestoneBillingPage(): JSX.Element {
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
             {selectedProject && (
-              <Button onClick={() => setShowNew(true)}>+ Nuevo milestone</Button>
+              <Button onClick={() => setShowNew(true)}>{t('milestonebilling.nuevo_milestone_2')}</Button>
             )}
           </div>
 
           {!selectedProject ? (
-            <EmptyState icon="🧾" title="Selecciona un proyecto" description="Elige un proyecto para gestionar sus milestones de facturacion" />
+            <EmptyState icon="🧾" title={t('milestonebilling.selecciona_un_proyecto')} description="Elige un proyecto para gestionar sus milestones de facturacion" />
           ) : milestones.length === 0 ? (
-            <EmptyState icon="○" title="Sin milestones" description="Crea el primer milestone para empezar a controlar hitos facturables" />
+            <EmptyState icon="○" title={t('milestonebilling.sin_milestones')} description="Crea el primer milestone para empezar a controlar hitos facturables" />
           ) : (
             <div>
               {/* Flujo visual */}
@@ -374,11 +376,11 @@ export default function MilestoneBillingPage(): JSX.Element {
       {tab === 'dashboard' && (
         <div>
           {dashboard.length === 0 ? (
-            <EmptyState icon="✅" title="Sin pendientes" description="No hay milestones pendientes de accion en este momento" />
+            <EmptyState icon="✅" title={t('milestonebilling.sin_pendientes')} description="No hay milestones pendientes de accion en este momento" />
           ) : (
             <>
               <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>
-                {dashboard.length} milestones requieren acción en todos los proyectos
+                {dashboard.length} {t('milestonebilling.milestones_requieren_accion_en_todos_los_proyectos')}
               </div>
               {dashboard.map(m => (
                 <MilestoneCard

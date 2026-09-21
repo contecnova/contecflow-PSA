@@ -58,6 +58,7 @@ const inp: CSSProperties   = { background: 'var(--surface-3)', border: '1px soli
 
 // ── Full-text search ──────────────────────────────────────────────────────────
 function FTSMode() {
+  const t = useAppT()
   const [searchParams, setSearchParams] = useSearchParams()
   const q = searchParams.get('q') || ''
   const entity = (searchParams.get('entity') || 'all') as EntityTypeId | 'all'
@@ -141,7 +142,7 @@ function FTSMode() {
       ) : (
         <div>
           <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>
-            {totalResults} resultado(s) para &quot;{q}&quot;
+            {totalResults} {t('search.resultado_s_para')}{q}&quot;
           </div>
           {ENTITY_TYPES.filter(e => (results[e.id]?.length ?? 0) > 0).map(etype => (
             <div key={etype.id} style={{ marginBottom: 24 }}>
@@ -181,6 +182,7 @@ function FTSMode() {
 
 // ── NQL / Advanced search ─────────────────────────────────────────────────────
 function NQLMode() {
+  const t = useAppT()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<NqlResponse | null>(null)
   const toast = useToast()
@@ -219,7 +221,7 @@ function NQLMode() {
             ))}
           </div>
           <Button onClick={() => runSearch({ query })} loading={isPending} disabled={!query.trim()}>
-            Ejecutar búsqueda
+            {t('search.ejecutar_busqueda')}
           </Button>
         </div>
       </div>
@@ -242,7 +244,7 @@ function NQLMode() {
               pageSize={20}
             />
           ) : (
-            <EmptyState icon="📭" title="Sin resultados NQL" description="La consulta no devolvio registros" />
+            <EmptyState icon="📭" title={t('search.sin_resultados_nql')} description="La consulta no devolvio registros" />
           )}
         </div>
       )}

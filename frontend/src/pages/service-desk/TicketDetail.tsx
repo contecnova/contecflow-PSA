@@ -244,7 +244,7 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
           </Button>
         </div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={LS}>Campos dinámicos (JSON)</label>
+          <label style={LS}>{t('ticketdetail.campos_dinamicos_json')}</label>
           <textarea value={dynamicFieldsText} onChange={e => setDynamicFieldsText(e.target.value)} rows={6} style={{ ...IS, resize: 'vertical', fontFamily: 'var(--font-mono)' }} />
         </div>
       </div>
@@ -466,7 +466,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           {ticket.dynamic_fields && Object.keys(ticket.dynamic_fields).length > 0 && (
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>
-                Campos dinámicos
+                {t('ticketdetail.campos_dinamicos')}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 {Object.entries(ticket.dynamic_fields).map(([k, v]) => (
@@ -547,7 +547,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               <button onClick={() => setShowCanned(s => !s)}
                 style={{ fontSize: "var(--text-xs)", padding: '5px 10px', borderRadius: 7, background: showCanned ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${showCanned ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`, color: showCanned ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                ⚡ Respuestas rápidas
+                {t('ticketdetail.respuestas_rapidas')}
               </button>
               <button onClick={() => suggestReply()} disabled={suggestingReply}
                 style={{ fontSize: "var(--text-xs)", padding: '5px 10px', borderRadius: 7, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: suggestingReply ? 'wait' : 'pointer', fontFamily: 'inherit' }}>

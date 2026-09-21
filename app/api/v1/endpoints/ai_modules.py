@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.core.ratelimit import limiter
 from app.core.uploads import UploadProfile, read_and_validate_upload_sync
 from app.core.responses import APIListResponse, APIResponse
@@ -102,6 +102,7 @@ def acknowledge_prediction(
     pred_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_svc.acknowledge_prediction(db, pred_id, current_user.id))
@@ -130,6 +131,7 @@ def process_meeting(
     payload: MeetingProcessPayload,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_svc.process_meeting(db, payload, current_user))
@@ -145,6 +147,7 @@ def create_tasks_from_meeting(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_svc.create_tasks_from_meeting(db, meeting_id, payload, current_user))
@@ -258,6 +261,7 @@ def generate_kb_from_ticket(
     ticket_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_svc.generate_kb_from_ticket(db, ticket_id, current_user))
@@ -270,6 +274,7 @@ def search_kb(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     query = payload.get("query", "")
     if not query: raise HTTPException(400, "query required")
@@ -301,33 +306,75 @@ def update_kb(
 # VOICE INTERFACE
 # ═══════════════════════════════════════════════════════════════════════════════
 
+#: Código interno del proveedor STT → (código HTTP, texto). Auditoría 2026-09
+#: (hallazgo 18): eran cuatro `if` seguidos. Lo que no está aquí sale con el
+#: código que devolvió el proveedor, o 502 si no dio ninguno: el fallo es de un
+#: tercero y un 500 haría pensar que es nuestro.
+_ERRORES_STT: dict[int, tuple[int, str]] = {
+    504: (504, "Timeout esperando respuesta STT"),
+    401: (401, "Credenciales STT inválidas"),
+    403: (401, "Credenciales STT inválidas"),
+    422: (422, "No se pudo transcribir el audio"),
+}
+
+
+def _http_del_error_stt(exc) -> HTTPException:
+    """Traduce un `STTError` al código HTTP que le corresponde."""
+    texto = str(exc)
+    # Este caso no viene con código: lo dice el mensaje del factory.
+    if "Ningún STT provider está disponible" in texto:
+        return HTTPException(
+            503,
+            "No hay un proveedor STT configurado. Activa OPENAI_API_KEY o "
+            "configura otro proveedor de transcripción.",
+        )
+    codigo = exc.status_code or 502
+    http, motivo = _ERRORES_STT.get(codigo, (codigo, "Error de STT"))
+    return HTTPException(http, f"{motivo}: {texto[:200]}")
+
+
+def _puente_de_clave_openai_heredada(db: Session) -> None:
+    """Retrocompatibilidad: la clave de OpenAI guardada en base de datos.
+
+    El factory de STT lee la clave del entorno, así que si el proveedor
+    primario es OpenAI y no hay clave en el entorno se busca en un proveedor
+    guardado y se publica ahí. Escribe en `os.environ` **a propósito**: es el
+    contrato del SDK de OpenAI.
+    """
+    if (getattr(settings, "STT_PROVIDER", "openai") or "openai").lower() != "openai":
+        return
+    if settings.OPENAI_API_KEY:
+        return
+    clave = _openai_key_from_db(db)
+    if clave:
+        os.environ["OPENAI_API_KEY"] = clave
+
+
 @router.post("/voice/transcribe", summary="Transcribir audio (OpenAI / Azure / Google / whisper local) y procesar como comando")
 def transcribe_voice_audio(
     audio: UploadFile = File(..., description="Archivo de audio (.mp3, .wav, .m4a, .webm, .ogg)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
-    # Item #51: multi-provider STT vía factory. El provider primario y los
-    # fallbacks se configuran en settings.STT_PROVIDER / STT_FALLBACK_PROVIDERS.
-    # Default: OpenAI (compatibilidad con configuraciones existentes).
+    """Transcribe audio y lo procesa como un comando de voz.
+
+    Item #51: el proveedor primario y los de respaldo se configuran en
+    `settings.STT_PROVIDER` / `STT_FALLBACK_PROVIDERS`. Por defecto OpenAI, por
+    compatibilidad con las configuraciones existentes.
+    """
     audio_bytes = audio.file.read()
     if not audio_bytes:
         raise HTTPException(400, "El archivo de audio está vacío.")
     if len(audio_bytes) > 25 * 1024 * 1024:
         raise HTTPException(413, "El archivo de audio no puede superar 25 MB.")
 
-    # Para retrocompatibilidad: si el provider primario es OpenAI y no hay
-    # OPENAI_API_KEY en env, intentamos recuperarla de un provider en DB.
-    if (getattr(settings, "STT_PROVIDER", "openai") or "openai").lower() == "openai" and not settings.OPENAI_API_KEY:
-        legacy_key = _openai_key_from_db(db)
-        if legacy_key:
-            # env-driven shim: bridge legacy DB-stored key into the OpenAI SDK env
-            # contract. Intentionally writes to os.environ — the factory reads from there.
-            os.environ["OPENAI_API_KEY"] = legacy_key  # el factory leerá esto
+    _puente_de_clave_openai_heredada(db)
 
     from app.services.stt import transcribe_audio as _stt_transcribe, STTError as _STTError
+
     try:
-        result = _stt_transcribe(
+        resultado = _stt_transcribe(
             audio_bytes,
             audio.filename or "audio.wav",
             audio.content_type or "audio/wav",
@@ -335,35 +382,21 @@ def transcribe_voice_audio(
             db=db,
             org_id=getattr(current_user, "organization_id", None),
         )
-        transcript = (result.text or "").strip()
+        transcripcion = (resultado.text or "").strip()
     except _STTError as exc:
-        exc_str = str(exc)
-        # Verificar primero si es "sin proveedores disponibles" (message check)
-        if "Ningún STT provider está disponible" in exc_str:
-            raise HTTPException(
-                503,
-                "No hay un proveedor STT configurado. Activa OPENAI_API_KEY o configura otro proveedor de transcripción.",
-            )
-        # Mapeo de status code interno a HTTP code apropiado.
-        sc = exc.status_code or 502  # Default a 502 para errores genéricos de STT
-        if sc == 504:
-            raise HTTPException(504, f"Timeout esperando respuesta STT: {exc_str[:200]}")
-        if sc in (401, 403):
-            raise HTTPException(401, f"Credenciales STT inválidas: {exc_str[:200]}")
-        if sc == 422:
-            raise HTTPException(422, f"No se pudo transcribir el audio: {exc_str[:200]}")
-        # Default para otros STTError
-        raise HTTPException(sc, f"Error de STT: {exc_str[:200]}")
+        raise _http_del_error_stt(exc)
     except Exception as exc:
         raise HTTPException(500, f"Error inesperado de transcripción: {str(exc)[:150]}")
 
-    if not transcript:
-        raise HTTPException(422, "El proveedor STT no pudo transcribir el audio (resultado vacío).")
+    if not transcripcion:
+        raise HTTPException(
+            422, "El proveedor STT no pudo transcribir el audio (resultado vacío).",
+        )
 
-    # /voice/transcribe entra siempre en modo dry-run: requiere confirmación
-    # humana después de ver la transcripción.
-    result = _process_voice_core(transcript, db, current_user, confirm=False)
-    return APIResponse.ok(data={**result, "whisper_transcript": transcript})
+    # Esta ruta entra **siempre** en modo de prueba: el usuario tiene que ver la
+    # transcripción y confirmar antes de que se ejecute nada.
+    salida = _process_voice_core(transcripcion, db, current_user, confirm=False)
+    return APIResponse.ok(data={**salida, "whisper_transcript": transcripcion})
 
 
 from app.schemas.ai_modules import VoiceCommandPayload
@@ -374,6 +407,7 @@ def process_voice_command(
     payload: VoiceCommandPayload,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=_process_voice_core(
         payload.transcript.strip(), db, current_user,
@@ -436,6 +470,7 @@ def revenue_forecast(
     months_ahead: int = 3,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=_svc.revenue_forecast(db, months_ahead=months_ahead))
 
@@ -450,6 +485,7 @@ def smart_schedule(
     payload: SmartScheduleRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=_svc.smart_schedule(db, payload, current_user))
 

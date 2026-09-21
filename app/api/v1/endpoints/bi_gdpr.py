@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
 from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
@@ -66,6 +66,7 @@ def record_consent(
     body: ConsentIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     org_id = getattr(current_user, "organization_id", None)
     consented = body.consented if body.consented is not None else bool(body.granted)
@@ -172,6 +173,7 @@ def create_dsr(
     body: DSRIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     org_id = getattr(current_user, "organization_id", None)
     subject_id = body.subject_id or body.user_id
@@ -195,6 +197,7 @@ def resolve_dsr(
     body: DSRResolveIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -211,6 +214,7 @@ def resolve_dsr_compat(
     body: DSRResolveIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     # Completing a DSR here triggers the same irreversible erasure pipeline as
     # the dedicated /erasure-execute endpoint, so it must carry the same admin
@@ -237,6 +241,7 @@ def execute_erasure(
     dsr_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     """
     Physically anonymise all personal data for the subject referenced in a DSR.
@@ -272,6 +277,7 @@ def portability_export(
     dsr_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     """
     Generate a full data export (JSON) for the subject referenced in a portability DSR.
@@ -320,6 +326,7 @@ def set_field_mask(
     body: FieldMaskIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     org_id = getattr(current_user, "organization_id", None)
     dataset = body.dataset or body.entity

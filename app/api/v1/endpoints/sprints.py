@@ -223,6 +223,7 @@ def reorder_sprint_backlog(
     payload: ReorderBacklog,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     svc.reorder_sprint_backlog(db, sprint_id, payload.task_ids)
     return APIResponse.ok(data={"ok": True})

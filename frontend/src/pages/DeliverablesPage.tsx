@@ -102,6 +102,7 @@ function StatusDropdown({ del, onUpdate }: { del: DeliverableItem; onUpdate: (st
 }
 
 function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableItem | null; projectId: string; onClose: () => void }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!del?.id
@@ -132,11 +133,11 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Nombre *</label>
-          <input value={form.name} onChange={set('name')} style={fs} placeholder="Nombre del entregable" aria-label="Nombre del entregable" />
+          <input value={form.name} onChange={set('name')} style={fs} placeholder={t('deliverables.nombre_del_entregable')} aria-label={t('deliverables.nombre_del_entregable')} />
         </div>
         <div>
           <label style={ls}>Formato</label>
-          <input value={form.format} onChange={set('format')} style={fs} placeholder="Formato de entrega" aria-label="Formato de entrega" />
+          <input value={form.format} onChange={set('format')} style={fs} placeholder={t('deliverables.formato_de_entrega')} aria-label={t('deliverables.formato_de_entrega')} />
         </div>
         <div>
           <label style={ls}>Fecha planificada</label>
@@ -145,21 +146,21 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
         <div>
           <label style={ls}>Responsable</label>
           <select value={form.owner_id} onChange={set('owner_id')} style={fs}>
-            <option value="">Sin asignar</option>
+            <option value="">{t('deliverables.sin_asignar')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
         </div>
         <div>
           <label style={ls}>Contacto cliente</label>
-          <input value={form.client_contact} onChange={set('client_contact')} style={fs} placeholder="Contacto del cliente" aria-label="Contacto del cliente" />
+          <input value={form.client_contact} onChange={set('client_contact')} style={fs} placeholder={t('deliverables.contacto_del_cliente')} aria-label={t('deliverables.contacto_del_cliente')} />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={ls}>Descripción</label>
+          <label style={ls}>{t('deliverables.descripcion')}</label>
           <textarea value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={ls}>Criterios de aceptación</label>
-          <textarea value={form.acceptance_criteria} onChange={set('acceptance_criteria')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Criterios de aceptacion" aria-label="Criterios de aceptacion" />
+          <label style={ls}>{t('deliverables.criterios_de_aceptacion')}</label>
+          <textarea value={form.acceptance_criteria} onChange={set('acceptance_criteria')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('deliverables.criterios_de_aceptacion_2')} aria-label={t('deliverables.criterios_de_aceptacion_2')} />
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -247,7 +248,7 @@ export default function DeliverablesPage(): JSX.Element {
               <option value="">Seleccionar proyecto...</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
-            {selectedProject && hasRole('admin', 'pm') && <Button onClick={() => setShowCreate(true)} icon="＋">Nuevo entregable</Button>}
+            {selectedProject && hasRole('admin', 'pm') && <Button onClick={() => setShowCreate(true)} icon="＋">{t('deliverables.nuevo_entregable')}</Button>}
           </div>
 
           {selectedProject && (summary.total ?? 0) > 0 && (
@@ -268,9 +269,9 @@ export default function DeliverablesPage(): JSX.Element {
           )}
 
           {!selectedProject ? (
-            <EmptyState icon="📦" title="Selecciona un proyecto" description="Elige un proyecto para consultar sus entregables" />
+            <EmptyState icon="📦" title={t('deliverables.selecciona_un_proyecto')} description="Elige un proyecto para consultar sus entregables" />
           ) : isLoading ? <Spinner /> : deliverables.length === 0 ? (
-            <EmptyState icon="📦" title="Sin entregables" description="Este proyecto todavia no tiene entregables definidos" />
+            <EmptyState icon="📦" title={t('deliverables.sin_entregables')} description="Este proyecto todavia no tiene entregables definidos" />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {deliverables.map(d => {
@@ -320,7 +321,7 @@ export default function DeliverablesPage(): JSX.Element {
 
       {tab === 'overview' && (
         overview.length === 0 ? (
-          <EmptyState icon="📦" title="Sin entregables en la vista global" description="No hay entregables registrados en ningun proyecto" />
+          <EmptyState icon="📦" title={t('deliverables.sin_entregables_en_la_vista_global')} description="No hay entregables registrados en ningun proyecto" />
         ) : (
           <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>

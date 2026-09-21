@@ -1,4 +1,5 @@
 import { Suspense, lazy, useMemo, ComponentType } from 'react'
+import { useAppLang } from '../i18n/AppLangContext'
 
 // Lazy-load each chart implementation so the heavy chart libraries
 // (plotly.js, echarts) are split into per-type bundles and only fetched
@@ -72,12 +73,13 @@ export interface DynamicChartProps {
 }
 
 export default function DynamicChart({ type = 'treemap', data, config = {} }: DynamicChartProps) {
+  const { t } = useAppLang()
   const width = (config.width as number | undefined) || 900
   const height = (config.height as number | undefined) || 380
 
   const ChartComponent = useMemo(() => COMPONENT_MAP[type] || (TreemapChart as unknown as ComponentType<AnyChartProps>), [type])
   return (
-    <Suspense fallback={<div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>Cargando gráfico…</div>}>
+    <Suspense fallback={<div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>{t('dynamicchart.cargando_grafico')}</div>}>
       <ChartComponent data={data} width={width} height={height} config={config} />
     </Suspense>
   )

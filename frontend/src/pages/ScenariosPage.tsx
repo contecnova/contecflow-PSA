@@ -105,13 +105,13 @@ export default function ScenariosPage() {
     <PageShell>
       <PageHeader icon={<GitBranch size={18} />} title={t('scenarios.title')} subtitle={t('scenarios.subtitle')} showListExport={false} />
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:20 }}>
-        <Button onClick={()=>setShowCreate(true)}>+ Nuevo escenario</Button>
+        <Button onClick={()=>setShowCreate(true)}>{t('scenarios.nuevo_escenario')}</Button>
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'340px 1fr', gap:20 }}>
         <div>
           {isLoading ? <Spinner /> : scenarios.length === 0 ? (
-            <EmptyState icon="🔮" title="Sin escenarios" description="Crea un escenario para simular el impacto en capacidad" />
+            <EmptyState icon="🔮" title={t('scenarios.sin_escenarios')} description="Crea un escenario para simular el impacto en capacidad" />
           ) : scenarios.map(s => (
             <button key={s.id} type="button" onClick={()=>setSelected(s.id)}
               style={{ ...card, padding:'14px 18px', marginBottom:10, cursor:'pointer', border: selected===s.id ? '.5px solid rgba(0,212,255,0.25)' : '.5px solid var(--surface-4)', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
@@ -129,8 +129,8 @@ export default function ScenariosPage() {
           {!selected ? (
             <div style={{ ...card, padding:'48px', textAlign:'center', color:'var(--text-3)' }}>
               <div style={{ fontSize: "var(--text-5xl)", marginBottom:12 }}>🔮</div>
-              <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:6 }}>Selecciona un escenario</div>
-              <div style={{ fontSize: "var(--text-sm)" }}>O crea uno nuevo para simular el impacto en capacidad</div>
+              <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:6 }}>{t('scenarios.selecciona_un_escenario')}</div>
+              <div style={{ fontSize: "var(--text-sm)" }}>{t('scenarios.o_crea_uno_nuevo_para_simular_el')}</div>
             </div>
           ) : !detail ? <Spinner /> : (
             <div>
@@ -165,7 +165,7 @@ export default function ScenariosPage() {
                   {/* Timeline chart */}
                   {(results.capacity_timeline?.length ?? 0) > 0 && (
                     <div style={{ ...card, padding:'16px 20px', marginBottom:16 }}>
-                      <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>Utilización semanal</div>
+                      <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>{t('scenarios.utilizacion_semanal')}</div>
                       <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={(results.capacity_timeline ?? []).slice(0,16)}>
                           <XAxis dataKey="week" tick={{ fontSize: "var(--text-3xs)" }} tickFormatter={w=>w.slice(-4)} />
@@ -191,7 +191,7 @@ export default function ScenariosPage() {
               {/* Projects list */}
               {(detail.projects?.length ?? 0) > 0 && (
                 <div style={{ ...card, padding:'16px 20px', marginTop:16 }}>
-                  <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>Proyectos en el escenario</div>
+                  <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>{t('scenarios.proyectos_en_el_escenario')}</div>
                   {(detail.projects ?? []).map(p => (
                     <div key={p.id} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                       <div>
@@ -209,23 +209,23 @@ export default function ScenariosPage() {
       </div>
 
       {showCreate && (
-        <Modal open title="Nuevo escenario" onClose={()=>setShowCreate(false)} width={560}>
+        <Modal open title={t('scenarios.nuevo_escenario_2')} onClose={()=>setShowCreate(false)} width={560}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div><label style={ls}>Nombre</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
-            <div><label style={ls}>Descripción</label><input value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={fs} /></div>
-            <div><label style={ls}>Horizonte de simulación (semanas)</label><input type="number" min={4} max={52} value={form.horizon_weeks} onChange={e=>setForm(f=>({...f,horizon_weeks:+e.target.value}))} style={fs} /></div>
+            <div><label style={ls}>{t('scenarios.descripcion')}</label><input value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={fs} /></div>
+            <div><label style={ls}>{t('scenarios.horizonte_de_simulacion_semanas')}</label><input type="number" min={4} max={52} value={form.horizon_weeks} onChange={e=>setForm(f=>({...f,horizon_weeks:+e.target.value}))} style={fs} /></div>
 
             <div style={{ borderTop:'.5px solid var(--surface-4)', paddingTop:14 }}>
-              <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:10 }}>Añadir proyectos hipotéticos</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:10 }}>{t('scenarios.anadir_proyectos_hipoteticos')}</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-                <input placeholder="Nombre del proyecto" value={newProject.name} onChange={e=>setNewProject(p=>({...p,name:e.target.value}))} style={fs} />
+                <input placeholder={t('scenarios.nombre_del_proyecto')} value={newProject.name} onChange={e=>setNewProject(p=>({...p,name:e.target.value}))} style={fs} />
                 <input type="number" placeholder="Total horas" value={newProject.total_hours||''} onChange={e=>setNewProject(p=>({...p,total_hours:+e.target.value}))} style={fs} />
                 <div><label style={ls}>Inicio</label><input type="date" value={newProject.start_date} onChange={e=>setNewProject(p=>({...p,start_date:e.target.value}))} style={fs} /></div>
                 <div><label style={ls}>Fin</label><input type="date" value={newProject.end_date} onChange={e=>setNewProject(p=>({...p,end_date:e.target.value}))} style={fs} /></div>
               </div>
               <button onClick={()=>{ if(newProject.name){ setForm(f=>({...f,projects:[...f.projects,{...newProject}]})); setNewProject({name:'',start_date:'',end_date:'',total_hours:0}) }}}
                 style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding:'6px 14px', color:'var(--text-1)', cursor:'pointer', fontSize: "var(--text-base)", fontFamily:'inherit' }}>
-                + Añadir proyecto
+                {t('scenarios.anadir_proyecto')}
               </button>
               {form.projects.length > 0 && (
                 <div style={{ marginTop:10 }}>

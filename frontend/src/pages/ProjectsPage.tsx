@@ -219,6 +219,7 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: an
 }
 
 function ProjectFormModal({ open, onClose, project = null }: { open: any; onClose: any; project?: any }) {
+  const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const { _invalidate } = useInvalidate() as any
@@ -334,7 +335,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={ls}>Nombre *</label>
-          <input value={form.name} onChange={set('name')} style={fs} placeholder="Nombre del proyecto" aria-label="Nombre del proyecto" />
+          <input value={form.name} onChange={set('name')} style={fs} placeholder={traducir('projects.nombre_del_proyecto')} aria-label={traducir('projects.nombre_del_proyecto')} />
           {errors.name && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.name}</div>}
         </div>
         <div>
@@ -362,21 +363,21 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
           <ClientSelect
             value={form.client_id}
             onChange={(id, client) => setForm(f => ({ ...f, client_id: id, client_name: client ? client.name : '' }))}
-            placeholder="Selecciona un cliente"
+            placeholder={traducir('projects.selecciona_un_cliente')}
             style={fs}
           />
         </div>
         <div>
           <label style={ls}>Departamento</label>
           <select value={form.department} onChange={set('department')} style={fs}>
-            <option value="">Sin departamento</option>
+            <option value="">{traducir('projects.sin_departamento')}</option>
             {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>Tipo de facturación</label>
+          <label style={ls}>{traducir('projects.tipo_de_facturacion')}</label>
           <select value={form.billing_type} onChange={set('billing_type')} style={fs}>
-            <option value="">Sin especificar</option>
+            <option value="">{traducir('projects.sin_especificar')}</option>
             {(BILLING_TYPES as any[]).map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
@@ -392,8 +393,8 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
               <input type="number" value={form.retainer_amount} onChange={set('retainer_amount')} style={fs} placeholder="Importe mensual" aria-label="Importe mensual" />
             </div>
             <div>
-              <label style={ls}>Día del mes (1-28)</label>
-              <input type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} style={fs} placeholder="Dia de corte" aria-label="Dia de corte" />
+              <label style={ls}>{traducir('projects.dia_del_mes_1_28')}</label>
+              <input type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} style={fs} placeholder={traducir('projects.dia_de_corte')} aria-label={traducir('projects.dia_de_corte')} />
               {errors.retainer_day && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.retainer_day}</div>}
             </div>
           </>
@@ -408,9 +409,9 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
           {errors.end_date_planned && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.end_date_planned}</div>}
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
-          <label style={ls}>Descripción</label>
+          <label style={ls}>{traducir('projects.descripcion')}</label>
           <textarea value={form.description} onChange={set('description')} rows={3}
-            style={{ ...fs, resize: 'vertical' }} placeholder="Descripcion del proyecto" aria-label="Descripcion del proyecto" />
+            style={{ ...fs, resize: 'vertical' }} placeholder={traducir('projects.descripcion_del_proyecto')} aria-label={traducir('projects.descripcion_del_proyecto')} />
         </div>
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -430,6 +431,7 @@ const MEMBER_ROLES: Record<string, string> = {
 }
 
 function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { project: any; detail: any; open: any; onClose: any; onEdit: (p: any) => void }) {
+  const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -554,7 +556,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", margin: 0 }}>
-              Personas asignadas explícitamente a este proyecto.
+              {traducir('projects.personas_asignadas_explicitamente_a_este_proyecto')}
             </p>
             <Button onClick={() => setShowAdd(s => !s)}>
               {showAdd ? '× Cancelar' : '+ Añadir miembro'}
@@ -604,8 +606,8 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
           {loadingMembers ? <Spinner /> : members.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-2)' }}>
               <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 10 }}>👥</div>
-              <div style={{ fontSize: "var(--text-md)" }}>Todavía no hay miembros asignados</div>
-              <div style={{ fontSize: "var(--text-sm)", marginTop: 4 }}>Usa el botón &quot;Añadir miembro&quot; para asignar personas al proyecto</div>
+              <div style={{ fontSize: "var(--text-md)" }}>{traducir('projects.todavia_no_hay_miembros_asignados')}</div>
+              <div style={{ fontSize: "var(--text-sm)", marginTop: 4 }}>{traducir('projects.usa_el_boton_anadir_miembro_para_asignar')}</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -654,7 +656,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
         ) : (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-2)' }}>
             <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 10 }}>📅</div>
-            <div>No hay fases definidas en este proyecto</div>
+            <div>{traducir('projects.no_hay_fases_definidas_en_este_proyecto')}</div>
           </div>
         )
       )}
@@ -670,8 +672,8 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
           {loadingFRs ? <Spinner /> : featureRequests.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-2)' }}>
               <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 10 }}>💡</div>
-              <div style={{ fontSize: "var(--text-md)" }}>No hay solicitudes de funcionalidad para este proyecto</div>
-              <div style={{ fontSize: "var(--text-sm)", marginTop: 4, color: 'var(--text-3)' }}>Los clientes pueden crear solicitudes desde el portal</div>
+              <div style={{ fontSize: "var(--text-md)" }}>{traducir('projects.no_hay_solicitudes_de_funcionalidad_para_este')}</div>
+              <div style={{ fontSize: "var(--text-sm)", marginTop: 4, color: 'var(--text-3)' }}>{traducir('projects.los_clientes_pueden_crear_solicitudes_desde_el')}</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -689,12 +691,12 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                           <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{fr.code}</span>
                           <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: statusColors[fr.status] || 'var(--text-2)', background: `${statusColors[fr.status] || 'var(--text-2)'}18`, border: `1px solid ${statusColors[fr.status] || 'var(--text-2)'}40`, borderRadius: 5, padding: '2px 7px' }}>{statusLabels[fr.status] || fr.status}</span>
                           <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: priorityColors[fr.priority] || 'var(--text-2)' }}>● {fr.priority}</span>
-                          {fr.client_approved === true && <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>✓ Cliente aprobó</span>}
-                          {fr.client_approved === false && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)' }}>✗ Cliente rechazó</span>}
+                          {fr.client_approved === true && <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>{traducir('projects.cliente_aprobo')}</span>}
+                          {fr.client_approved === false && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{traducir('projects.cliente_rechazo')}</span>}
                         </div>
                         <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 4 }}>{fr.title}</div>
                         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{fr.description}</div>
-                        {fr.business_justification && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 4, fontStyle: 'italic' }}>Justificación: {fr.business_justification}</div>}
+                        {fr.business_justification && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 4, fontStyle: 'italic' }}>{traducir('projects.justificacion')} {fr.business_justification}</div>}
                         {(fr.estimated_cost != null || fr.estimated_hours != null) && (
                           <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
                             {fr.estimated_cost != null && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>💶 {fmtCurrency(fr.estimated_cost)}</span>}
@@ -718,7 +720,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                     {/* Formulario de respuesta PM */}
                     {isResponding && (
                       <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--surface-4)' }}>
-                        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Respuesta del PM</div>
+                        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>{traducir('projects.respuesta_del_pm')}</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
                           <div>
                             <label style={{ ...ls }}>Coste estimado (€)</label>
@@ -734,8 +736,8 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                           </div>
                         </div>
                         <div style={{ marginBottom: 10 }}>
-                          <label style={{ ...ls }}>Mensaje al cliente</label>
-                          <textarea rows={3} value={respondForm.pm_response} onChange={e => setRespondForm(f => ({ ...f, pm_response: e.target.value }))} style={{ ...fs, resize: 'vertical' }} placeholder="Explica la estimación o razón del rechazo..." />
+                          <label style={{ ...ls }}>{traducir('projects.mensaje_al_cliente')}</label>
+                          <textarea rows={3} value={respondForm.pm_response} onChange={e => setRespondForm(f => ({ ...f, pm_response: e.target.value }))} style={{ ...fs, resize: 'vertical' }} placeholder={traducir('projects.explica_la_estimacion_o_razon_del_rechazo')} />
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <label style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Estado</label>
@@ -773,6 +775,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
  
  
 function TemplatesTab() {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
@@ -810,11 +813,11 @@ function TemplatesTab() {
   return (
     <div>
       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:16}}>
-        <Button onClick={() => setShowCreate(true)}>+ Nueva plantilla</Button>
+        <Button onClick={() => setShowCreate(true)}>{traducir('projects.nueva_plantilla')}</Button>
       </div>
 
       {isLoading ? <Spinner /> : templates.length === 0 ? (
-        <EmptyState svgIcon={<ClipboardList size={36} />} title="Sin plantillas" description="Crea una plantilla para reutilizar fases y tareas" />
+        <EmptyState svgIcon={<ClipboardList size={36} />} title={traducir('projects.sin_plantillas')} description="Crea una plantilla para reutilizar fases y tareas" />
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:16}}>
           {templates.map(t => (
@@ -839,11 +842,11 @@ function TemplatesTab() {
                   <span style={{color:'var(--text-3)',marginLeft:8}}>{ph.duration_weeks}w · {ph.tasks?.length||0} tareas</span>
                 </div>
               ))}
-              {(t.phases?.length||0) > 3 && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)',marginTop:4}}>+{t.phases.length-3} fases más</div>}
+              {(t.phases?.length||0) > 3 && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)',marginTop:4}}>+{t.phases.length-3} {traducir('projects.fases_mas')}</div>}
 
               <button onClick={() => { setInstantiating(t); setInstForm({ name:`${t.name} — ${new Date().getFullYear()}`, client_id:'', client_name:'', start_date:new Date().toISOString().slice(0,10), budget_amount:'', pm_id:'' }) }}
                 style={{marginTop:14,width:'100%',background:'linear-gradient(135deg, var(--accent), var(--purple))',border:'none',borderRadius:8,padding:'9px',color:'#fff',cursor:'pointer',fontFamily:'inherit',fontWeight:700,fontSize: "var(--text-base)"}}>
-                ▶ Crear proyecto desde esta plantilla
+                {traducir('projects.crear_proyecto_desde_esta_plantilla')}
               </button>
             </div>
           ))}
@@ -854,16 +857,16 @@ function TemplatesTab() {
         <Modal open title={`Crear proyecto — ${instantiating.name}`} onClose={() => setInstantiating(null)} width={520}>
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
             <div style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border)',borderRadius:8,padding:'10px 14px',fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
-              Esta plantilla creará <strong style={{color:'var(--text-1)'}}>{instantiating.phases?.length||0} fases</strong> y aproximadamente <strong style={{color:'var(--text-1)'}}>{instantiating.phases?.reduce((s: number, p: any)=>s+(p.tasks?.length||0),0)||0} tareas</strong> automáticamente.
+              {traducir('projects.esta_plantilla_creara')} <strong style={{color:'var(--text-1)'}}>{instantiating.phases?.length||0} fases</strong> y aproximadamente <strong style={{color:'var(--text-1)'}}>{instantiating.phases?.reduce((s: number, p: any)=>s+(p.tasks?.length||0),0)||0} tareas</strong> {traducir('projects.automaticamente')}
             </div>
-            <div><label style={ls}>Nombre del proyecto *</label><input value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
+            <div><label style={ls}>{traducir('projects.nombre_del_proyecto_2')}</label><input value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-              <div><label style={ls}>Cliente</label><ClientSelect value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder="Selecciona un cliente" style={fs} /></div>
-              <div><label style={ls}>Fecha de inicio</label><input type="date" value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
+              <div><label style={ls}>Cliente</label><ClientSelect value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder={traducir('projects.selecciona_un_cliente')} style={fs} /></div>
+              <div><label style={ls}>{traducir('projects.fecha_de_inicio')}</label><input type="date" value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
               <div><label style={ls}>Presupuesto €</label><input type="number" value={instForm.budget_amount} onChange={e => setInstForm(f=>({...f,budget_amount:e.target.value}))} style={fs} /></div>
               <div><label style={ls}>Project Manager</label>
                 <select value={instForm.pm_id||''} onChange={e => setInstForm(f=>({...f,pm_id:e.target.value}))} style={fs}>
-                  <option value="">Sin asignar</option>
+                  <option value="">{traducir('projects.sin_asignar')}</option>
                   {pms.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
                 </select>
               </div>
@@ -879,10 +882,10 @@ function TemplatesTab() {
       )}
 
       {showCreate && (
-        <Modal open title="Nueva plantilla" onClose={() => setShowCreate(false)} width={580}>
+        <Modal open title={traducir('projects.nueva_plantilla_2')} onClose={() => setShowCreate(false)} width={580}>
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
-            <div><label style={ls}>Nombre *</label><input value={newTpl.name} onChange={e => setNewTpl(f=>({...f,name:e.target.value}))} style={fs} placeholder="Nombre de la plantilla" aria-label="Nombre de la plantilla" /></div>
-            <div><label style={ls}>Descripción</label><textarea value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} /></div>
+            <div><label style={ls}>Nombre *</label><input value={newTpl.name} onChange={e => setNewTpl(f=>({...f,name:e.target.value}))} style={fs} placeholder={traducir('projects.nombre_de_la_plantilla')} aria-label={traducir('projects.nombre_de_la_plantilla')} /></div>
+            <div><label style={ls}>{traducir('projects.descripcion')}</label><textarea value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} /></div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
               <div><label style={ls}>Tipo</label>
                 <select value={newTpl.project_type} onChange={e => setNewTpl(f=>({...f,project_type:e.target.value}))} style={fs}>
@@ -929,6 +932,7 @@ interface ProjectRow {
 }
 
 export default function ProjectsPage() {
+  const traducir = useAppT()
   const t = useAppT()
   const { hasRole } = useAuth()
   const toast = useToast()
@@ -1002,7 +1006,7 @@ export default function ProjectsPage() {
             </div>
             {hasRole('admin', 'pm') && (
               <Button onClick={() => setShowCreate(true)}>
-                <Plus size={13} /> Nuevo proyecto
+                <Plus size={13} /> {traducir('projects.nuevo_proyecto')}
               </Button>
             )}
           </div>
@@ -1032,18 +1036,18 @@ export default function ProjectsPage() {
             color: 'var(--text-3)', pointerEvents: 'none',
           }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar proyecto por nombre o código"
+            placeholder={traducir('projects.buscar_proyecto_por_nombre_o_codigo')}
             className="ds-input"
             style={{ paddingLeft: 32 }} />
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           className="ds-input" style={{ flex: '1 1 160px', minWidth: 140 }}>
-          <option value="">Todos los estados</option>
+          <option value="">{traducir('projects.todos_los_estados')}</option>
           {PROJECT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
           className="ds-input" style={{ flex: '1 1 160px', minWidth: 140 }}>
-          <option value="">Todos los tipos</option>
+          <option value="">{traducir('projects.todos_los_tipos')}</option>
           {PROJECT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
       </div>
@@ -1051,7 +1055,7 @@ export default function ProjectsPage() {
       {isLoading ? (
         <SkeletonProjects />
       ) : filtered.length === 0 && view !== 'templates' ? (
-        <EmptyState icon="folder" title="Sin proyectos" description="Crea el primer proyecto para empezar a planificar" ctaLabel="Crear proyecto" onCta={() => setShowCreate(true)} />
+        <EmptyState icon="folder" title={traducir('projects.sin_proyectos')} description="Crea el primer proyecto para empezar a planificar" ctaLabel="Crear proyecto" onCta={() => setShowCreate(true)} />
       ) : view === 'grid' ? (
         <div className="ds-grid-cards">
           {sortedProjects.map(p => (
@@ -1111,7 +1115,7 @@ export default function ProjectsPage() {
             {ganttMode === 'project' && (
               <select value={selected?.id || ''} onChange={e => { const p = filtered.find(x => x.id === e.target.value); setSelected(p || null) }}
                 style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}>
-                <option value="">Selecciona un proyecto...</option>
+                <option value="">{traducir('projects.selecciona_un_proyecto')}</option>
                 {filtered.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
               </select>
             )}
@@ -1142,7 +1146,7 @@ export default function ProjectsPage() {
           {ganttMode === 'project' && !selected && (
             <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
               <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>📅</div>
-              <div style={{ fontSize: "var(--text-md)" }}>Selecciona un proyecto para ver su Gantt</div>
+              <div style={{ fontSize: "var(--text-md)" }}>{traducir('projects.selecciona_un_proyecto_para_ver_su_gantt')}</div>
             </div>
           )}
         </div>

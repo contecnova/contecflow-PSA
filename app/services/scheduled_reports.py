@@ -161,77 +161,107 @@ def _build_html_body(report_name: str, report_type: str, frequency: str, next_ru
 
 # ── Core executor ─────────────────────────────────────────────────────────────
 
-def _execute_report(report: ScheduledReport, db) -> None:
-    """Generate PDF and distribute via email + Slack."""
-    report_type = getattr(report, "report_type", None) or "custom"
-    slack_webhook = getattr(report, "slack_webhook", None)
+def _destinatarios_de(report) -> list[str]:
+    """Los correos del informe, sin duplicados y conservando el orden.
 
-    # Resolve recipients
-    recipients: list[str] = []
-    try:
-        recipients = json.loads(report.recipients or "[]")
-    except Exception:
-        logger.warning("No se pudieron parsear los destinatarios del informe '%s'", report.name)
-    try:
-        extra = json.loads(getattr(report, "recipients_extra", None) or "[]")
-        recipients = list(dict.fromkeys(recipients + extra))  # deduplicate, preserve order
-    except Exception:
-        logger.warning("No se pudieron parsear los destinatarios extra del informe '%s'", report.name)
+    Las dos listas se leen por separado y cada una tolera su propio JSON roto:
+    si `recipients_extra` está corrupto, el informe todavía se puede enviar a
+    los destinatarios principales.
+    """
+    correos: list[str] = []
+    for campo in ("recipients", "recipients_extra"):
+        try:
+            crudo = json.loads(getattr(report, campo, None) or "[]")
+        except Exception:
+            logger.warning(
+                "No se pudieron parsear los destinatarios (%s) del informe '%s'",
+                campo, report.name,
+            )
+            continue
+        correos += crudo
+    return list(dict.fromkeys(correos))
 
-    # Org context (report created_by user's org)
-    org_id: Optional[str] = None
+
+def _organizacion_del_informe(report, db) -> Optional[str]:
+    """La organización de quien creó el informe, que es la que acota sus datos."""
     try:
         from app.models.user import User
-        creator = db.query(User).filter(User.id == report.created_by).first()
-        if creator:
-            org_id = getattr(creator, "organization_id", None)
-    except Exception:
-        logger.exception("Error resolviendo organización del creador del informe '%s'", report.name)
 
-    # Fetch OLAP KPIs for Slack summary (always, even if no email)
+        creador = db.query(User).filter(User.id == report.created_by).first()
+        return getattr(creador, "organization_id", None) if creador else None
+    except Exception:
+        logger.exception(
+            "Error resolviendo organización del creador del informe '%s'", report.name,
+        )
+        return None
+
+
+def _pdf_del_informe(report, db, org_id, report_type: str) -> bytes:
+    """El PDF del informe, con el generador nuevo y el antiguo como respaldo.
+
+    Si los dos fallan se devuelven cero bytes y **no se envía correo**: mandar
+    un adjunto vacío es peor que no mandar nada.
+    """
+    try:
+        from app.services.report_pdf_service import build_report_pdf
+
+        return build_report_pdf(report, db, org_id=org_id)
+    except Exception as exc:
+        logger.error("PDF generation failed for '%s': %s", report.name, exc, exc_info=True)
+
+    try:
+        from app.services.report_pdf import generate_report_pdf as _antiguo
+
+        return _antiguo(
+            title=report.name,
+            metric_label=report_type.replace("_", " ").title(),
+            data=[], summary={}, filters={},
+        )
+    except Exception:
+        logger.exception("Legacy PDF fallback also failed for report '%s'", report.name)
+        return b""
+
+
+def _execute_report(report: ScheduledReport, db) -> None:
+    """Genera el PDF del informe y lo reparte por correo y por Slack."""
+    report_type = getattr(report, "report_type", None) or "custom"
+    destinatarios = _destinatarios_de(report)
+    org_id = _organizacion_del_informe(report, db)
+
+    # Los KPIs se piden siempre, aunque no haya correo: el resumen de Slack los
+    # usa y no depende del PDF.
     kpis: dict = {}
     try:
         from app.services.olap.query_engine import get_kpi_summary
+
         kpis = get_kpi_summary(org_id)
     except Exception:
         logger.warning("Fallo obteniendo KPIs OLAP para el informe '%s'", report.name)
 
-    # Generate PDF
-    pdf_bytes: bytes = b""
-    try:
-        from app.services.report_pdf_service import build_report_pdf
-        pdf_bytes = build_report_pdf(report, db, org_id=org_id)
-    except Exception as exc:
-        logger.error("PDF generation failed for '%s': %s", report.name, exc, exc_info=True)
-        # Fallback to legacy PDF
+    pdf = _pdf_del_informe(report, db, org_id, report_type)
+
+    if destinatarios and pdf:
+        nombre = report.name.replace(" ", "_")[:40]
         try:
-            from app.services.report_pdf import generate_report_pdf as _legacy
-            pdf_bytes = _legacy(
-                title=report.name,
-                metric_label=report_type.replace("_", " ").title(),
-                data=[], summary={}, filters={},
+            _send_email(
+                destinatarios,
+                f"[ContecFlow] {report.name} — {datetime.now().strftime('%d/%m/%Y')}",
+                _build_html_body(
+                    report.name, report_type, report.frequency,
+                    _get_next_run(report.frequency),
+                ),
+                pdf,
+                f"ContecFlow_{nombre}_{datetime.now().strftime('%Y%m%d')}.pdf",
             )
-        except Exception:
-            logger.exception("Legacy PDF fallback also failed for report '%s'", report.name)
-            pdf_bytes = b""
-
-    safe_name = report.name.replace(" ", "_")[:40]
-    filename = f"ContecFlow_{safe_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
-    subject = f"[ContecFlow] {report.name} — {datetime.now().strftime('%d/%m/%Y')}"
-    next_run = _get_next_run(report.frequency)
-
-    # Email delivery
-    if recipients and pdf_bytes:
-        html_body = _build_html_body(report.name, report_type, report.frequency, next_run)
-        try:
-            _send_email(recipients, subject, html_body, pdf_bytes, filename)
         except Exception as exc:
+            # El correo sí propaga: es la entrega principal, y un informe que
+            # no llega tiene que marcar el envío como fallido.
             logger.error("Email delivery failed for '%s': %s", report.name, exc)
             raise
 
-    # Slack delivery
-    if slack_webhook:
-        _send_slack(slack_webhook, report.name, report_type, kpis)
+    slack = getattr(report, "slack_webhook", None)
+    if slack:
+        _send_slack(slack, report.name, report_type, kpis)
 
 
 # ── Public API ────────────────────────────────────────────────────────────────

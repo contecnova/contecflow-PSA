@@ -97,13 +97,43 @@ bash scripts/ci_local.sh
 **3765 passed, 19 skipped, 1 xfailed, 0 fallos** con `-n 4`;
 `ruff check app tests` limpio; `tsc` limpio; **92/92 vitest**; `npm audit` en
 **cero**; `typecheck:strict` **0 errores en 338 de 338 ficheros, tests
-incluidos** — la migración gradual a modo estricto ha terminado (§3.sexvicies).
+incluidos** (§3.sexvicies); y **ninguna función de `app/` por encima de
+complejidad 10** (§3.septvicies) — los dos hallazgos que llevaban toda la
+auditoría abiertos, cerrados.
+
+**Y la suite tarda ahora 8 minutos en vez de 40** (§3.novovicies): tardaba
+preparándose —392 tablas creadas y destruidas y cuatro hashes bcrypt por test—,
+no ejecutando.
 
 > Y es la primera vez que ese «0 fallos» se mide **con la semántica de tenant de
 > producción puesta** (§3.sexdecies). La primera pasada con los escuchadores
 > registrados dio **23 en rojo**: catorce del propio banco de pruebas, dos
 > regresiones de la jornada y **siete defectos de producción** (§3.vicies).
 >
+> **Advertencia de entorno, segunda parte: cómo saber si la suite avanza.**
+> En esta máquina, `Get-Process python | Measure-Object CPU -Sum` de PowerShell
+> **no sirve para eso**. Da cifras absurdamente bajas: cuatro procesos `pytest`
+> ejecutando tests a buen ritmo —con sus registros creciendo 410 bytes en 40
+> segundos— reportaban **0,875 s de CPU acumulados entre los cuatro**. Dos
+> órdenes de magnitud por debajo de la realidad.
+>
+> Eso llevó a declarar colgada una pasada de 33 minutos que muy probablemente
+> estaba sana, y a matarla. Dos señales que **tampoco valen**:
+>
+> * **Que los procesos existan.** Un proceso colgado existe igual de bien que
+>   uno trabajando.
+> * **Que el fichero de salida esté vacío**, si el comando va canalizado
+>   (`| tail`, `| head`): esos filtros no escriben nada hasta el final, así que
+>   cero bytes a los treinta minutos es lo esperado y no dice nada.
+>
+> **La señal que sí funciona es cuánto CRECE el registro**, y para eso hay que
+> escribir a fichero con `>` y no canalizar. Con `pytest` sin `-q` el avance se
+> escribe según ocurre, con su porcentaje.
+>
+> Lo mismo dicho al revés, que es como conviene recordarlo: *antes de declarar
+> que algo está parado, comprobar que el instrumento mide*. Aquí el instrumento
+> no medía, y el diagnóstico fue una invención con aspecto de dato.
+
 > **Y una advertencia de entorno que costó una jornada:** `pytest-xdist` con
 > `-n auto` se quedaba colgado en la máquina de desarrollo —los trabajadores
 > arrancan y no consumen CPU, tanto con `-n auto` como con `-n 2` sobre un solo
@@ -904,6 +934,654 @@ estricto es el que manda para el gate.
 
 **Verificado:** `npm run typecheck:strict` 0 errores · `npx vitest run` 27
 ficheros, **92/92** · `npm run build` correcto.
+
+## 3.septvicies La complejidad llega a cero, y dos guardianes que no medían
+
+`scripts/audit_complejidad.py` dice hoy **«Ninguna función de `app/` por encima
+de 10.»** Se llegó ahí desde 94 / 253 / 17 (funciones / exceso / máximo),
+pasando por 74 / 173 / 16 al empezar esta pasada.
+
+**Y ninguna se arregló partiéndola para bajar un número.** Eso es lo único que
+hace interesante el cero: casi todas eran una de dos cosas.
+
+### Una tabla escrita como cascada de `if`
+
+Los bytes mágicos de un fichero. Las palabras clave de un triaje de tickets —dos
+tablas, y como tabla se ve que ninguna palabra se repite entre grupos, que era
+imposible de comprobar antes—. Las once reglas de una retrospectiva. Los nueve
+operadores de una expresión de flujo. Los **19 pasos** de un plan de pruebas
+(197 líneas) y los **15 avisos** de un plan de comunicación (260). Los cinco
+tipos de aprobador —y como tabla se ve que **no hay ninguna vía que dé paso a un
+administrador por serlo**, que es deliberado—. Los pesos de un cálculo de riesgo
+de sesión. Las seis recomendaciones de cumplimiento con su umbral. El espejo de
+campos trabajador→usuario. El catálogo de diez informes del sistema.
+
+Un plan de pruebas **es** una tabla. Verlo entero es lo que hace falta para
+revisarlo con quien lo va a ejecutar, y añadir un paso pasa a ser añadir una
+fila en su sitio en vez de una rama en medio de un bloque de 200 líneas.
+
+### El mismo bloque escrito dos o más veces
+
+| Dónde | Cuántas veces |
+|---|---|
+| El diccionario de respuesta de `analytics.run_query` | **tres** |
+| El `try/except` de registro de `ai_providers.test_provider` | **cuatro** |
+| El respaldo a JSON de `bi_collaboration.resolve_comment` | dos |
+| La aritmética de solapamiento de reservas en `get_advanced_utilization` | dos |
+| DocuSign y Adobe en `create_provider_envelope` (40 líneas cada uno) | dos |
+| La lista de permisos del portal en `PortalUsersTab` | dos |
+| La cabecera + filas + autoajuste de las hojas de Excel | cuatro |
+| La cadena de umbrales de carga de `ResourceForecastPage` | **tres, en el mismo fichero** |
+| La respuesta «ya está corriendo» del trabajo de auto-resolución | dos |
+
+### Defectos que nadie estaba buscando
+
+* **`useTaskComments` leía haciendo POST.** Llamaba al endpoint de *crear* un
+  comentario, con cuerpo nulo, para *leerlos*. No existe endpoint de lectura. El
+  `.catch(() => [])` se tragaba el error y devolvía lista vacía, indistinguible
+  de «no hay comentarios». Borrado: estaba exportado y no lo llamaba nadie.
+* **El refinamiento con Claude de `estimate_task_hours` nunca se ejecutó.**
+  Construía el contexto con `for t in similar_tasks[:5]` leyendo `t.title` y
+  `t.actual_hours`, pero `similar_tasks` son filas `(Task, horas_reales)`:
+  `AttributeError` sobre la fila, y `actual_hours` es la columna que el hallazgo
+  de 2026-08 ya documentó como inexistente. Las dos excepciones caían en un
+  `except Exception` que registraba un aviso y seguía. Resultado correcto por
+  accidente, rama muerta en la práctica.
+* **El chequeo SSRF de las automatizaciones se distinguía por el texto del
+  mensaje.** Dos `raise ValueError` que se atrapaban a sí mismos y se separaban
+  con `"Solo se permiten" in str(e)`. Cambiar una palabra del mensaje habría
+  roto el control sin que nada avisara.
+* **Código muerto en la predicción de sobrecoste**: dos expresiones
+  `x = ... if hasattr(start, "days") or True else 30`, cuyo `or True` hace la
+  condición siempre cierta y cuyo resultado se pisaba dos líneas después.
+* **`Modal size="lg"`, `EmptyState subtitle=`/`message=`, `Card className=`** —
+  props que se pasaban y nadie leía. Ver §3.sexvicies.
+
+---
+
+## 3.octovicies Los dos guardianes que no podían fallar
+
+Esto es lo más incómodo de la jornada y lo que más conviene leer.
+
+### El guardián de cobertura ABAC se satisfacía a sí mismo
+
+`tests/test_abac_coverage.py` comprueba que ninguna ruta tenga `enforce_abac()`
+como **único** control —porque `enforce_abac` es *fail-open*: sin políticas
+activas, que es el caso por defecto, no comprueba nada—. Pasaba en verde con
+cero rutas señaladas.
+
+Era mentira. `_called_service_sources` resuelve cada nombre que el endpoint
+llama, concatena su código fuente, y busca ahí señales de autorización
+(`user.role`, `is_superadmin`, `HTTPException(403)`...). **`enforce_abac` es uno
+de esos nombres**, y su cuerpo contenía `is_superadmin` y `user.role`. Así que
+toda ruta cuyo único control fuera `enforce_abac` quedaba tapada por el propio
+`enforce_abac`. El guardián no podía fallar por el motivo exacto que existe para
+detectar.
+
+Salió al bajar la complejidad de `enforce_abac`: al mover el corte de superadmin
+y el 403 a dos ayudantes, las señales desaparecieron de su cuerpo y el test se
+puso rojo de golpe sobre **65 rutas**. No era una regresión — era la primera vez
+que medía.
+
+### Y de las 65, cuarenta y una eran fallo del propio detector
+
+Aquí está la parte que importa, y es la misma lección otra vez: **antes de
+actuar sobre un número, comprobar que el instrumento mide**.
+
+Las 65 se quedaron en 54 al reconocer la comprobación de propiedad
+`..._for_user(db, id, current_user.id)`. Al empezar a arreglar las 54 una por
+una, leyendo el código, resultó que **la mayoría ya tenían control** y el
+detector no lo veía. Tres defectos suyos, los tres reales:
+
+1. **Resolvía los nombres sueltos.** Del código `msg_svc.delete_message(...)`
+   guardaba sólo `delete_message` y luego buscaba *ese nombre* por el módulo,
+   quedándose con el primer objeto que tuviera uno igual. En un proyecto con
+   varios `delete_message`, eso resuelve a **otra función** y la comprobación
+   real nunca se mira. Ahora sigue el camino entero.
+2. **Miraba un solo salto.** El patrón de aquí es endpoint → servicio →
+   ayudante, y la comprobación vive en el tercero la mitad de las veces.
+3. **No conocía dos idiomas que este proyecto usa a diario.** La propiedad
+   escrita como `fila.user_id == user.id` —cuando el servicio llama `user` a su
+   parámetro, como medio `app/services/collaboration/`— y el acotado por
+   organización `organization_id=getattr(current_user, "organization_id", None)`,
+   que el propio docstring del test **ya nombraba como control válido**.
+
+Ejemplo concreto de lo que se estaba contando mal: `delete_message` comprueba
+organización, propiedad del mensaje y rol, y responde 403. Estaba en la lista de
+«sin control».
+
+Cada ampliación se añadió **después de leer el código que la justifica**, nunca
+para poner el test en verde — que es exactamente el vicio que este test tenía.
+
+### Lo que queda de verdad: 24 rutas
+
+Las 24 se comprobaron a mano: no tienen guarda de rol, ni comprobación de
+propiedad, ni acotado explícito por organización en ninguno de los dos saltos.
+Todas son `DELETE` de objetos de negocio de la organización —clientes, planes de
+capacidad, activos, cambios, plantillas, claves de API, dependencias de tarea—.
+
+El filtrado automático de `TenantSession` impide que un cliente toque los de
+otro. Lo que **no** hay es control de quién, dentro de la misma organización,
+puede borrarlos: hoy puede cualquier empleado.
+
+Están registradas en `ABAC_UNICO_CONTROL_CONOCIDAS` con trinquete de dos
+direcciones —una ruta nueva en esa situación rompe el test, y una que se arregle
+y no se quite de la lista, también—, validado rompiéndolo por los dos lados.
+
+**La 25.ª ya está arreglada, y era la única que no necesitaba decisión de
+nadie:** `DELETE /sd/rca/templates/{id}` dice «(admin)» en su propio resumen
+desde que se escribió, y no tenía guarda. Ahora la tiene. No es una política
+nueva: es la que ya estaba escrita, aplicada.
+
+> **Las 24 restantes son deuda medida, no una exención.** Cada una necesita una
+> decisión de producto —¿quién puede borrar un cliente, un plan de capacidad, un
+> activo?— y no se arreglan en un barrido. Aplicar `require_any_manager` a las
+> veinticuatro de golpe sería rápido y sería una ñapa: restringiría flujos
+> legítimos sin que nadie lo haya decidido. Es lo primero que hay que mirar de
+> lo que queda abierto, y la decisión no es del que refactoriza.
+
+> **Cerrado en §3.trigies: quedan 1 de 24.** Se miraron las veinticuatro una a
+> una. **Siete no tenían el problema** —el control existía y el detector no
+> sabía leerlo—, **dieciséis llevan ya una guarda con el motivo escrito al
+> lado**, y **una no se puede guardar porque no hace nada**. El párrafo de
+> arriba sigue teniendo razón en lo que decía: la ñapa habría sido el barrido
+> uniforme, y por eso hay cuatro decisiones distintas y no una.
+
+### Un test que sólo pasaba según el orden
+
+`tests/conftest.py` ponía las variables de entorno **después** de
+`from app.db.session import TenantSession`, que arrastra `app.core.config` y
+construye `settings` con los valores que hubiera **antes**. Consecuencia:
+`test_scim_user_provisioning` fallaba —`SCIM_BEARER_TOKEN` vacío— salvo que algo
+anterior en la suite hubiera dejado el valor puesto. Un test que depende del
+orden no prueba lo que dice probar. El bloque va ahora antes del primer import
+de `app`, que es el único sitio donde sirve.
+
+### Y una regresión mía, cazada por un guardián que ya existía
+
+La suite completa acabó con **un fallo**, y era mío. Al sacar el registro de
+fallo del trabajo de auto-resolución a su propia función, el `db.rollback()` se
+fue con ella — y `tests/test_commit_rollback.py` lo busca **en el cuerpo del
+manejador de excepciones, por AST, sin seguir las llamadas**. Señaló el sitio
+con fichero y línea:
+
+```
+app/api/v1/endpoints/service_desk/ai_auto_resolution.py:429
+```
+
+Lo relevante no es el despiste, es **que el guardián tiene razón y su
+conservadurismo es el correcto**. El `rollback()` tiene que quedar a la vista en
+el manejador: es lo que impide que un fallo de base deje la sesión abortada y
+que el `commit()` siguiente reviente con `PendingRollbackError` tapando el error
+real —el defecto de 2026-08 que ese test existe para que no vuelva—. Esconderlo
+tras una llamada lo deja invisible para el guardián, que es exactamente como ese
+defecto volvió cinco veces antes de que el test existiera.
+
+Así que el `rollback()` vuelve al manejador, con el motivo escrito al lado, y el
+ayudante deja de deshacer: hay uno solo y está donde se lee.
+
+> Conviene decirlo tal cual: en esta jornada **dos guardianes fallaron por no
+> medir** (§3.octovicies) y **uno funcionó exactamente como debía** contra el
+> código que yo acababa de escribir. La diferencia entre unos y otro es que este
+> comprueba una propiedad sintáctica que no se puede satisfacer por accidente.
+
+### Tests nuevos donde no había ninguno
+
+`tests/test_ask_the_data_sql_policy.py` — **17 casos**. `validate_sql` es lo
+único que separa el SQL que escribe un modelo de lenguaje, a partir de texto
+libre del usuario, de la base de datos. **No tenía ni un test.** Al
+refactorizarla, la única forma de saber si algo cambiaba fue compararla a mano
+con la versión anterior sobre 16 casos; esa comparación queda ahora escrita.
+Cubre lo que de verdad importa: que el filtro por organización se **inyecta** y
+no se confía en el que el modelo haya podido escribir, y que va antes del
+`GROUP BY` en las consultas agregadas.
+
+---
+
+## 3.novovicies La suite tardaba preparándose, no ejecutando
+
+**De ~40 minutos a 8.** Y el diagnóstico es más útil que el número.
+
+### Lo que costaba cada test antes de empezar el test
+
+| | por test | × 3818 tests |
+|---|---|---|
+| Crear y destruir **392 tablas** | 0,836 s | **53 min** |
+| **Cuatro** hashes bcrypt de la misma contraseña | 1,190 s | **75 min** |
+
+Ciento veintiocho minutos de CPU montando el escenario. Los tests en sí eran la
+parte pequeña, y ninguna optimización de paralelismo iba a arreglar eso.
+
+La fixture `db` es `autouse` y de ámbito de función, así que **todos** los tests
+pagaban las dos cosas, tocaran la base o no.
+
+### Los dos arreglos, y lo que deliberadamente NO se hizo
+
+- **El esquema se crea una vez** y entre tests se vacían las filas. Vaciar las
+  392 tablas cuesta 0,042 s frente a 0,836 s — veinte veces menos— y deja la
+  base igual de limpia. Se vacía **al principio y no al final**: si un test se
+  interrumpe a medias, el siguiente sigue empezando limpio.
+- **El hash se calcula una vez.** Los cuatro sitios cifraban la *misma* cadena.
+  Que los usuarios de prueba compartan hash no cambia nada —sigue siendo un
+  bcrypt válido de esa contraseña— y ningún test depende de lo contrario.
+- De paso, fuera tres `print` que sacaban la contraseña de prueba y los hashes
+  por pantalla en cada test.
+
+**Lo que NO se hizo, y es lo que más se tienta:** bajar las rondas de bcrypt en
+tests. Eso habría sido más rápido todavía y habría cambiado el comportamiento de
+lo que se está probando. El coste del hashing es parte del sistema; lo que
+sobraba era repetirlo cuatro veces por test.
+
+### Y rompió 1857 tests antes de funcionar
+
+Dos tests hacen `DROP TABLE IF EXISTS dashboard_comments` **a propósito**, para
+ejercitar el respaldo a JSON de `bi_collaboration_service`. Con `create_all` por
+test la tabla se recreaba sola; vaciando, no. Todo lo que iba detrás moría en el
+`setup` con «no such table»: **679 errores en un cuarto de la suite y 1178 en
+otro**.
+
+> **Lo cazó la suite completa, y sólo podía cazarlo ella.** Los 52 tests
+> dirigidos que se corrieron antes pasaron sin un rasguño: el fallo únicamente
+> aparece cuando un test se ejecuta **después** de otro concreto. Es el caso
+> exacto donde la verificación dirigida no sirve — un cambio en `conftest.py`
+> cambia el suelo que pisan los 3818— y donde ahorrarse la pasada completa
+> habría metido la rotura entera en `main`.
+
+El arreglo es preciso y barato: antes de vaciar se mira qué tablas existen —1,1
+ms, 0,1 minutos sobre toda la suite— y se recrean sólo las que falten, que el
+99,9 % de las veces son cero.
+
+### Cómo se corre ahora
+
+Cuatro procesos `pytest` **independientes**, un cuarto de los ficheros cada uno,
+repartidos alternos. No `xdist`: sus trabajadores se cuelgan de forma
+intermitente en esta máquina (ver la advertencia de entorno de la cabecera), y
+cuatro procesos que no se hablan entre sí no tienen ese modo de fallo. El
+aislamiento no se pierde — `conftest.py` ya monta una SQLite en memoria por
+proceso, que es lo que hace `xdist` por dentro.
+
+Cada proceso escribe su propio registro, así que el avance se ve mientras
+ocurre y un cuelgue se localiza en el cuarto que sea.
+
+**Medido:** 3802 passed, 19 skipped, 1 xfailed, **0 fallos**, en 8 minutos de
+reloj (6:07 el cuarto más rápido, 7:52 el más lento).
+
+---
+
+## 3.trigies Las 24 rutas sin control, una a una
+
+**De 24 a 1.** Y el reparto importa más que el número, porque las tres suertes
+que corrieron son distintas.
+
+| | rutas | qué eran |
+|---|---|---|
+| Falsos positivos | **7** | el control estaba; el detector no sabía leerlo |
+| Guarda aplicada | **16** | no lo tenían; ahora sí, con el motivo al lado |
+| Sin arreglo posible | **1** | el endpoint no hace nada que proteger |
+
+### Los siete que ya estaban acotados, y los cuatro idiomas que faltaban
+
+Ninguno se «arregló»: se leyó el código y resultó que el control estaba escrito
+de una forma que la expresión regular no contemplaba. Cada hueco está tapado en
+el detector, con el ejemplo real que lo destapó:
+
+- **`SavedFilter.created_by == user_id`** — propiedad, con otro nombre de
+  columna. Ampliar la lista de nombres a secas habría sido demasiado laxo
+  (`Task.assignee_id == assignee_id` es un filtro de búsqueda, no una
+  autorización), así que `_acota_por_propiedad` exige **las dos mitades**: que
+  el endpoint entregue la identidad de quien llama y que aguas abajo se compare
+  contra una columna de propiedad. Aclara 5 rutas.
+- **`run_in_threadpool(svc.abortar, uid, current_user)`** — para el AST la
+  única llamada ahí es `run_in_threadpool`; `svc.abortar`, que es quien
+  comprueba `meta.get("user_id") == user.id`, es un *argumento* y nunca se
+  leía. `TRAMPOLINES` sigue las funciones que se pasan a los tres nombres que
+  de verdad las ejecutan. Aclara `DELETE /collaboration/tus/{uid}`.
+- **`AppSetting.key == f"{_TEMPLATE_KEY_PREFIX}{user_id}"`** — no hay columna
+  de propiedad que comparar: el id del usuario **es parte de la clave**, así
+  que nadie puede nombrar la fila de otro. Aclara `DELETE
+  /reports/templates/{id}`.
+- **`DashboardWidget.user_id == current_user_id`** — el parámetro se llama
+  `current_user_id` y la alternancia se quedaba en `user_id`. Aclara `DELETE
+  /dashboard-widgets/reset`.
+
+### Las dieciséis: cuatro decisiones, no un barrido
+
+El criterio, escrito para que se pueda discutir: **borrar no puede ser más
+fácil que crear**. Aplicado da cuatro respuestas distintas, y ninguna es
+`require_any_manager` por defecto:
+
+| decisión | rutas | por qué |
+|---|---|---|
+| La misma guarda que crear | 2 (ALM) | `POST /alm/licenses` y `POST .../installs` ya exigen gestor: revocar con el mismo rol no atrapa a nadie |
+| Gestor | 9 | capacidad, clientes, activos, cambios: operaciones de gestión por naturaleza |
+| PM o admin | 3 | dependencias y epics: estructura de proyecto, coherente con `POST /epics/{id}/dependencies` |
+| Sólo excluir subcontratista | 2 | vínculos de ticket y etiquetas de wiki |
+| Propiedad, no rol | 1 | `esign` |
+
+Las dos últimas filas son las que un barrido habría estropeado:
+
+- **Vínculos entre tickets y etiquetas de wiki.** Crear está abierto a
+  cualquiera y quitar es la operación inversa exacta, reversible en un clic.
+  Restringir sólo el quitar dejaría vínculos y etiquetas puestos por error que
+  nadie salvo un PM podría limpiar. Se excluye al subcontratista y ya.
+- **`DELETE /esign/{id}`, anular una solicitud de firma.** Aquí
+  `require_any_manager` es justo lo cómodo y lo equivocado: `POST /esign` está
+  abierto a cualquier usuario, así que exigir rol de gestión para anular
+  dejaría al propio solicitante atrapado con una petición enviada por error.
+  El control correcto es el de propiedad —`created_by_id`— con los gestores por
+  encima, y va **después del 404**, para que quien no puede anularla tampoco
+  pueda averiguar por la respuesta si existe.
+
+### La que no se arregla: `DELETE /marketplace/uninstall`
+
+No desinstala nada. Su cuerpo entero es `return APIResponse.ok(data={"result":
+"ok"})`. Y no es un caso aislado: `POST /install` tampoco instala y
+`GET /instances` devuelve siempre la lista vacía. **El módulo marketplace es
+una fachada.**
+
+Ponerle `require_admin` habría puesto el test en verde en diez segundos. Sería
+teatro: protege un no-op y deja a la siguiente auditoría leyendo una guarda
+donde no hay funcionalidad. Se queda en `ABAC_UNICO_CONTROL_CONOCIDAS` con el
+motivo escrito en el propio endpoint, y se guardará el día que haga algo.
+
+### El guardián volvió a satisfacerse solo — y esta vez con mi prosa
+
+Al documentar **por qué** `uninstall_integration` no lleva guarda, el docstring
+decía la frase «colgarle un `require_admin` haría pasar el test».
+
+Y la hizo pasar. `SERVICE_AUTHZ_SIGNALS` busca `require_` sobre el fuente en
+crudo, sin distinguir código de prosa.
+
+> Es la misma familia que el `enforce_abac` satisfaciéndose a sí mismo de
+> §3.octovicies, y era peor de lo que parece: valía para **cualquier**
+> endpoint. Bastaba un comentario que nombrase `is_superadmin`, `require_admin`
+> o un 403 para que el barrido lo diera por protegido. Cualquiera podía
+> silenciar este test escribiendo un comentario.
+
+Arreglado en la raíz, no reescribiendo el docstring: `_sin_prosa` blanquea
+comentarios y docstrings **en su sitio** —sin recomponer el fuente a partir de
+los tokens, que rompe la adyacencia y hace que `enforce_abac(` deje de
+encontrarse— y deja las cadenas normales, que sí son código y hacen falta para
+reconocer dos de los cuatro idiomas de arriba.
+
+**Lo cazó la segunda regla del trinquete**, la que obliga a sacar de la lista lo
+que ya no aparece. Sin esa regla el arreglo habría entrado en verde y el
+detector se habría quedado ciego para siempre.
+
+### Validado rompiéndolo, por los dos lados
+
+- Quitar la guarda de `delete_capacity_plan` → el test la señala como ruta
+  nueva sin control.
+- Poner un comentario que menciona `require_admin`, `is_superadmin` y un 403 en
+  un endpoint sin guarda → **sigue** señalándolo. La prosa ya no cuenta.
+
+### Tres hallazgos que salieron de paso, y son más anchos que las 24
+
+1. **Crear está tan sin guarda como borrar.** El detector sólo miraba rutas que
+   llaman a `enforce_abac`, y eso es casi todo `DELETE`. De las 15 rutas de
+   escritura de `clients.py`, **ninguna** tenía control de rol; en
+   `service_desk` la mayoría de los `POST` tampoco. El hallazgo real no son 24
+   borrados: es que el control de rol está puesto a parches en toda la capa API.
+2. **Dos rutas públicas para una sola operación.** `DELETE
+   /tasks/dependencies/{dep_id}` y `DELETE /task-dependencies/{dep_id}` hacen
+   lo mismo desde dos routers distintos. Llevan la misma guarda a propósito —lo
+   que no puede pasar es que una sea la puerta de atrás de la otra—, pero sobra
+   una.
+3. **Sólo 2 de las 16 rutas tenían algún test.** Las guardas nuevas se
+   verificaron con la suite completa y con las dos roturas deliberadas de
+   arriba; las catorce restantes siguen sin cobertura propia, que es
+   probablemente por lo que nadie notó que no tenían control.
+
+---
+
+## 3.untrigies Los tres idiomas al 100 % y pantallas sólo en castellano
+
+Las dos cosas son verdad a la vez, y por eso hacía falta un cuarto medidor.
+
+`check_i18n_coverage.mjs`, `check_i18n.mjs` y `check_i18n_no_new_debt.mjs`
+comparan los diccionarios entre sí: cuántas claves tiene `es` y cuántas de esas
+están en `en` y en `zh`. Los tres dan 100 %, y no mienten.
+
+**Pero miden el diccionario, no las pantallas.** Una cadena escrita directamente
+en el JSX —`<h2>Resumen del proyecto</h2>`— no tiene clave. Al no tener clave no
+le falta a ningún idioma, así que los tres gates la dan por buena y el 100 %
+convive con pantallas enteras que sólo existen en castellano.
+
+### Cuánto, medido de verdad
+
+**1.852 cadenas en 134 ficheros**, el 65 % de ellas en `src/pages`. Las peores:
+`SettingsPageSections.tsx` con 113, `PerformanceReviewsPage.tsx` con 57,
+`DocumentsPage.tsx` con 50.
+
+> La primera medición se hizo con expresiones regulares y dio **1.325**. La
+> buena es la del AST: la regex no veía el texto que ocupa varias líneas —que es
+> la mitad de los títulos y descripciones largas— ni distinguía un `>` de
+> comparación de una etiqueta que se cierra. Se deja dicho para que nadie lea
+> una mejora de 527 donde sólo hubo un instrumento mejor.
+
+### Tres piezas, no una
+
+- **`check_i18n_literales.mjs`** — el gate. Recorre el AST de TypeScript, no el
+  texto, y cuenta nodos `JsxText` y atributos visibles (`placeholder`, `title`,
+  `label`, `aria-label`, `alt`) con castellano dentro. Trinquete de dos
+  direcciones, como los demás de este repo. Validado rompiéndolo: un `<span>`
+  castellano nuevo lo pone en rojo.
+- **`i18n_extraer_literales.mjs`** — la herramienta para bajarlo. Edita por
+  posiciones exactas del AST, de atrás hacia delante para que los
+  desplazamientos no se muevan, y vuelca las claves castellanas. **No inventa
+  traducciones**: inglés y chino se escriben a mano, que es trabajo de idioma.
+- **`i18n_insertar_modulo.mjs`** — mete el módulo en los tres ficheros de golpe
+  y **falla si ya existe en alguno**. Insertar a mano en tres sitios de 4.000
+  líneas es exactamente como se llegó al defecto que encontró el gate de
+  duplicados: un módulo declarado dos veces, donde JavaScript se queda con el
+  último y descarta en silencio 204 traducciones ya escritas.
+
+### Dónde va el hook, que es la parte que se rompe sola
+
+`t` sale de `useAppLang()`, que es un hook de React: sólo puede llamarse en el
+cuerpo del componente. El literal, en cambio, casi siempre está dentro de un
+`.map(...)` o de un `renderX` anidado. Insertar el hook en la función que
+envuelve al literal lo dejaría **dentro del callback** — ilegal, y de las que
+funcionan hasta que la lista se queda vacía. Por eso la herramienta busca la
+función de **primer nivel del módulo**, que es el componente, y ahí lo pone.
+
+### Cerrado: 1.852 → 0
+
+Ciento treinta y cuatro ficheros, en catorce tandas, cada una con su typecheck
+estricto y sus 92 tests de frontend antes de pasar a la siguiente.
+
+**Los dos últimos no eran una pantalla más.** `ErrorBoundary` y `RouteBoundary`
+son componentes de **clase** —lo exige React para capturar errores de render—,
+así que no pueden llamar a `useAppLang()`. Y aunque pudieran, no deberían: un
+boundary se pinta precisamente cuando el árbol de arriba ha fallado, y si lo que
+falló fue el proveedor de idioma, la pantalla de último recurso fallaría
+también. `traducirSinHook` lee el idioma de `localStorage`: sin contexto de
+React, y por tanto sin poder arrastrar al boundary consigo.
+
+### El tercer hallazgo: 174 claves que nadie declaró
+
+Salió al terminar, contando qué claves pedía el código y cuáles existían.
+
+`t('tasks.add_comment')` no deja la pantalla en blanco, que sería evidente.
+`resolveTranslation` tiene un último recurso que **humaniza la clave**:
+
+```
+t('tasks.add_comment')               ->  "Add comment"
+t('tasks.tab_details')               ->  "Tab details"
+t('settings.empty_templates_title')  ->  "Empty templates title"
+```
+
+Un usuario español lee texto inventado en inglés, con aspecto de estar bien.
+**Nadie lo reporta como «falta la traducción» porque no parece que falte nada.**
+
+> **Y ninguno de los cuatro gates podía verlo, por construcción.** No está en
+> `es`, así que a `en` y a `zh` no les falta —cobertura 100 %—; y el JSX sí pasa
+> por `t()`, así que tampoco es un literal. Es el hueco exacto entre los dos
+> tipos de medida que había.
+
+Las 174 son **todas anteriores** a este trabajo. Una de ellas lo explica bien:
+`bi_project_detail` estaba declarada **dentro de `alm`** en los tres idiomas, y
+como `t()` parte por el primer punto, su ruta real era
+`alm.bi_project_detail.subtitle`: inalcanzable. El valor estaba escrito y era
+correcto; lo único mal era el sitio.
+
+`check_i18n_claves_sin_definir.mjs` lo vigila, por AST y no por texto —el
+docstring de `AppLangContext` documenta la API con `t('module.key')`, y un grep
+ingenuo lo denuncia como clave rota—. Validado rompiéndolo.
+
+### Cuatro defectos de la herramienta, cada uno cazado por un guardián distinto
+
+Vale la pena la lista, porque ninguno se encontró leyendo el código:
+
+| qué | lo cazó |
+|---|---|
+| Hook insertado donde `t` ya significaba otra cosa (`.map(t => …)`) | typecheck estricto |
+| `useAppT` insertado en `renderBlocks`, que **no** es un componente | ESLint, regla de hooks |
+| Segundo `gantt:` al final de `en.mjs`, que lo declara anidado a 14 espacios | el gate de duplicados, en el mismo minuto: 81 traducciones descartadas |
+| `Pagination` y `TimerWidget` renderizados sin proveedor de idioma | los 92 tests de frontend |
+
+El de `renderBlocks` es el que más enseña: la herramienta trataba como
+componente toda función de primer nivel. React usa la **mayúscula inicial** para
+distinguirlos, y esa es ahora la regla; las funciones que devuelven JSX sin ser
+componentes se dejan sin tocar y se listan, porque el arreglo correcto —pasarles
+`t` por parámetro— lo decide quien lee el código.
+
+Y el de los tests merece decirse: se arregló montando el contexto **en el
+test**, no relajando la guarda de `useAppLang`. Esa guarda existe para impedir
+que alguien use la traducción fuera del árbol donde vive; debilitarla para poner
+un test en verde habría sido cambiar el producto para no cambiar la prueba.
+
+### Primera pantalla, y lo que costó
+
+`PortalUsersTab.tsx`: 31 literales, 28 claves —los textos repetidos comparten
+clave a propósito: «Permisos en el portal» salía dos veces, y traducirla dos
+veces es un sitio donde desincronizarse—. `1.852 → 1.821`, typecheck estricto en
+cero y ESLint sin errores. Con `SubcontractorsPage`, `OKRsPage`, `ChangesPage`
+y `SprintsPage` detrás, **1.721**.
+
+De paso sale un defecto pequeño: el `placeholder` decía «Nueva contrasena», sin
+eñe, mientras la etiqueta de al lado decía «Nueva contraseña». Al pasar por una
+clave hay un único texto y deja de poder divergir.
+
+---
+
+## 3.duotrigies Casi la mitad de la API escribía sin preguntar quién eras
+
+Esto salió de cerrar las 24 rutas `DELETE` de §3.trigies. El detector de ABAC
+sólo mira rutas que llaman a `enforce_abac`, y eso es casi todo `DELETE`; al
+contar **todas** las de escritura apareció el tamaño real:
+
+| | antes | ahora |
+|---|---|---|
+| Rutas de escritura **con** guarda de rol | 603 | **929** |
+| Rutas de escritura **sin** ninguna | **563** | 0 |
+| Exentas, con motivo comprobado | — | 115 |
+
+`TenantSession` seguía impidiendo el acceso entre organizaciones. Lo que
+faltaba era quién, **dentro** de la misma empresa, puede hacer cada cosa.
+
+### Lo que NO se hizo, que es la mitad del trabajo
+
+Poner `require_any_manager` a las 563 habría tardado diez minutos y habría
+dejado el producto inservible: imputar horas, abrir un ticket, comentar una
+tarea o editar el perfil propio habrían pasado a exigir rol de gestión.
+
+La decisión se tomó con **cinco reglas en orden**, y el orden es el argumento:
+
+1. **Otra superficie de autenticación** → fuera. El portal de cliente
+   (`get_current_client`), las API key y los webhooks de proveedor no tienen
+   usuario interno: un cliente no tiene rol de empleado y Twilio no tiene rol.
+2. **Dominios sensibles** → `require_admin` siempre. Aquí hay un detalle que
+   importa: `DELETE /abac/policies/{id}` salía como «acotada al usuario» porque
+   el servicio comprueba `created_by`. Para una **política de permisos** eso
+   significa «quien la creó puede borrarla», que es demasiado laxo para el
+   motor que gobierna los accesos de todos.
+3. **Acotada al propio usuario** → exenta. Reutiliza `_acota_por_propiedad`, el
+   comprobador ya validado de `test_abac_coverage`.
+4. **La guarda que usan sus hermanas** en el mismo fichero. Evidencia del
+   repositorio, no gusto de quien refactoriza.
+5. **Tabla por dominio** para los ficheros sin ninguna hermana guardada.
+
+Con dos anulaciones que van **antes** de la regla 4, porque la forma de la ruta
+dice lo que hace mejor que el fichero donde vive: lo que huele a configuración
+(`/config`, `/credentials`, `/providers`) sube a `require_admin`, y lo que huele
+a trabajo diario (`/comments`, `/values/`, `/suggest/`, `/analyze`) baja a
+`require_internal_user`.
+
+**Y una tabla de excepciones revisadas a mano**, que salió de leer las 109
+decisiones restrictivas una por una. El caso que la retrata: `POST /sd/tickets`
+salía `any_manager` porque `tickets.py` tiene `merge`, `split` y `auto-assign`
+con esa guarda. Abrir un ticket es la acción central de un service desk; pedir
+rol de gestión para eso no es endurecer nada.
+
+El reparto final no se parece a un barrido:
+
+| guarda | rutas |
+|---|---|
+| `require_internal_user` (sólo excluye al subcontratado) | 172 |
+| `require_admin` (configuración, credenciales, gobierno) | 127 |
+| `require_any_manager` | 53 |
+| `require_admin_or_pm` | 19 |
+| `require_admin_or_hr` | 8 |
+
+### Las 32 pruebas que corrigieron la primera pasada
+
+La primera aplicación puso 372 guardas y dejó **32 tests en rojo**. Todos
+señalaban lo mismo, y con sus propios nombres:
+
+```
+test_un_empleado_puede_editar_sus_propios_datos_de_perfil
+test_user_can_create_own_plan
+test_manager_can_create_plan_for_direct_report
+```
+
+Rutas de **autoservicio** restringidas de más: editar el perfil propio, crear
+el plan de desarrollo propio, presentar algo a aprobación, decidir como
+aprobador designado. En todas ellas el control existe y vive **dentro** del
+endpoint —«¿es tu perfil?», «¿eres el aprobador?»—, que es justo lo que un
+barrido no puede ver.
+
+> **Ahí el test tiene razón y la guarda no**, y conviene decirlo tal cual: la
+> suite no fue un trámite al final, fue el instrumento que corrigió la
+> decisión. De esos 32 fallos salió `EXENTAS_REVISADAS`, con las 21 rutas y el
+> motivo de cada una.
+
+Dos las decidió el test por otra vía: `POST /developer/apps` y `POST /forms`
+llevaban `require_admin` por ser credenciales OAuth y una puerta pública, pero
+sus tests usan `pm_token`. La audiencia prevista estaba escrita; la guarda baja
+a `require_admin_or_pm`.
+
+### Cuatro defectos del aplicador, cada uno con su síntoma
+
+Editar 360 firmas a máquina tiene su propia lista:
+
+| qué | cómo se vio |
+|---|---|
+| Firma de una sola línea partida sin coma | 105 errores de sintaxis de ruff |
+| `_` como nombre, donde el endpoint ya tenía un `_` | «Duplicate parameter» |
+| La misma función registrada en v1 **y** v2, parcheada dos veces | «Duplicate parameter», 17 de ellas |
+| El import nuevo dentro de un `from … import (` multilínea | el fichero dejaba de parsear |
+
+El último es el mismo fallo que ya costó un `en.mjs` roto en la tanda de
+traducción, con otra sintaxis: «la última línea que empieza por `import`» es la
+**apertura** de un import multilínea. Se arregla igual, preguntando al AST por
+el final del último import y no al texto por su principio.
+
+### El guardián
+
+`tests/test_guardas_de_rol.py`, cuatro reglas:
+
+1. Ninguna ruta de escritura sin guarda **y sin motivo**.
+2. Las exenciones escritas a mano siguen correspondiendo a una ruta real — una
+   entrada que sobra convierte la lista en historia en vez de descripción.
+3. El reparto de exenciones automáticas, en su número medido, con trinquete de
+   dos direcciones.
+4. Las 929 guardas no retroceden.
+
+Validado rompiéndolo: quitar **una** guarda de `clients.py` pone dos de las
+cuatro en rojo.
+
+---
 
 ## 3.duovicies El barrido de duplicación: 31 parejas, cero defectos
 
@@ -3469,7 +4147,14 @@ Hecho:
   exacto de claves que faltan.
 - **Al traducir, subir `COBERTURA_MINIMA` en `check_i18n_coverage.mjs`.**
 
-### #18 complejidad — parcial, con dos defectos reales encontrados de paso
+### #18 complejidad — **cerrado**: ninguna función de `app/` por encima de 10
+
+> **Estado hoy:** `python scripts/audit_complejidad.py` responde «Ninguna
+> función de `app/` por encima de 10». Se llegó desde 94 / 253 / 17 (funciones
+> por encima del umbral / exceso acumulado / máximo). El **cómo** está en
+> §3.septvicies, y es la parte que importa: casi todas eran una tabla escrita
+> como cascada de `if`, o el mismo bloque copiado dos, tres y hasta cuatro
+> veces. Lo que sigue debajo es el registro de la primera mitad del trabajo.
 
 **La métrica honesta.** El *recuento* de funciones sobre el umbral se mueve
 poco (138 → 94), porque partir una función grande produce varias medianas. La
@@ -4474,11 +5159,56 @@ día divergen, y aquí ya lo habían hecho.
 
 ### Otros pendientes con riesgo propio
 
-- `strictNullChecks` (226 errores) y `noImplicitAny` (387).
-- `echarts` 5→6 y `react-router-dom` 6→7: son los **3 moderate** que quedan en
-  `npm audit`. Cada uno es una migración con riesgo real sobre las 119 rutas
-  lazy, así que están medidos y no forzados. El gate bloqueante está en nivel
-  `high`, que está a 0.
+> **Esta lista estaba desfasada y se corrige midiendo.** Decía
+> `strictNullChecks` (226 errores) y `noImplicitAny` (387), y las dos están hoy
+> en **cero**: `npm run typecheck:strict` cubre los 338 ficheros de `src/`,
+> tests incluidos (§3.sexvicies). Decía también **3 moderate** en `npm audit`
+> por `echarts` y `react-router-dom`; `npm audit` responde hoy **cero
+> vulnerabilidades**, esas dos migraciones incluidas.
+
+**Lo que queda abierto de verdad, medido hoy:**
+
+> **Cerrado en §3.duotrigies.** Este punto decía que el control de rol estaba
+> a parches en toda la capa API, y era verdad: contando **todas** las rutas de
+> escritura —no sólo las que llaman a `enforce_abac`— había **563 sin ningún
+> control de rol** frente a 603 que sí lo tenían. Hoy son **929 con guarda** y
+> **115 exentas con motivo escrito y comprobado**, y un guardián de cuatro
+> reglas impide que el número vuelva.
+> **Cerrado en §3.untrigies: 0 de 1.852.** Este punto decía «traducción al
+> 62,2 %, faltan 1.419 claves», y ya era falso cuando se escribió —eso se cerró
+> en `d5295e6`—. Lo que sí quedaba era otra cosa: **1.852 cadenas escritas a
+> pelo en el JSX**, que al no tener clave no le faltaban a ningún idioma y por
+> eso ningún gate las veía. Hoy son **cero**, en los tres idiomas, y hay dos
+> gates nuevos que lo sostienen.
+>
+> Y de camino salió una tercera cara del mismo hallazgo: **174 claves que el
+> código pedía y que nadie había declarado nunca**, todas anteriores a este
+> trabajo. No salían en blanco —el runtime humaniza la clave—, así que un
+> usuario español leía «Add comment» y nadie lo reportaba.
+> **Y el tercer punto de esta lista tampoco estaba abierto.** Decía «204
+> `db.query()` / `db.commit()` en la capa API». La medición oficial —
+> `python scripts/audit_db_access_in_api.py`, que cuenta por árbol de sintaxis
+> sobre `app/api/` entera— responde hoy **0 puntos en 0 ficheros**, desde 257,
+> y tiene guardián propio en `tests/test_capa_api_sin_acceso_a_base.py`, que
+> importa el mismo script para que la regla no pueda divergir de la medida.
+>
+> Un `grep` ingenuo de `db.commit()` sigue devolviendo 48, y por ahí venía la
+> confusión: son parte de las **109 fronteras de transacción** que quedan a
+> propósito en el endpoint. Confirmar no es consultar, y moverlo al servicio
+> sería lo contrario de lo que hicieron esas tandas.
+
+> **Los tres puntos de esta sección estaban desfasados a la vez, y conviene
+> decirlo entero.** Los tres describían trabajo ya hecho: la traducción se
+> cerró en `d5295e6`, el acceso a datos llegó a cero en la tanda de
+> `collaboration`, y las 24 rutas se cerraron en §3.trigies. Ninguno se
+> actualizó aquí al cerrarse.
+>
+> La lección es la misma que recorre toda esta auditoría, aplicada al propio
+> documento: **un número que nadie vuelve a medir envejece hacia el lado
+> equivocado**. Los tres se detectaron al ir a trabajar en ellos y encontrarse
+> el trabajo hecho — es decir, midiendo antes de actuar, que es lo único que ha
+> funcionado aquí. Lo que queda abierto de verdad son las dos primeras entradas
+> de esta lista, y las dos tienen ya un gate que las mide sola.
 
 ---
 

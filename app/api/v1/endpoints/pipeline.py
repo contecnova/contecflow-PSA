@@ -3,7 +3,12 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.deps import (
+    get_current_user,
+    require_admin,
+    require_any_manager,
+    require_internal_user,
+)
 from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.services import pipeline_service
@@ -64,6 +69,7 @@ def create_opportunity(
     payload: OpportunityIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     opp = pipeline_service.create_opportunity(db, current_user, payload.model_dump())
     return APIResponse.ok(data=_opp_out(opp))
@@ -117,6 +123,7 @@ def add_activity(
     payload: ActivityIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     act = pipeline_service.add_activity(db, current_user, opp_id, payload.type, payload.content)
     return APIResponse.ok(data={"id": act.id, "message": "Actividad añadida"})
@@ -141,6 +148,7 @@ def generate_proposal(
     payload: dict = Body(default={}),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     opp = proposal_svc.generate_proposal(
         db, opp_id,
@@ -162,6 +170,7 @@ def mark_proposal_sent(
     opp_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     opp = proposal_svc.mark_proposal_sent(db, opp_id)
     return APIResponse.ok(data={

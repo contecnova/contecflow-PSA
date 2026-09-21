@@ -126,6 +126,7 @@ interface OverviewData {
 }
 
 function OverviewView({ data }: { data?: OverviewData | null }) {
+  const t = useAppT()
   const d = data ?? {}
   const ts = d.timestamp ? new Date(d.timestamp) : null
   const olap = d.olap || {}
@@ -191,7 +192,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
         >
           <MetricRow label="Activos" value={schedActive} />
           <MetricRow
-            label="Con error"
+            label={t('bigovernance.con_error')}
             value={<span style={{ color: schedError > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 700 }}>{schedError}</span>}
           />
         </OverviewSection>
@@ -200,11 +201,11 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
         <OverviewSection
           icon={MessageCircle}
           iconColor={collabColor}
-          title="Colaboración"
-          badge={<span style={chip(collabColor)}>{unresolved} sin resolver</span>}
+          title={t('bigovernance.colaboracion')}
+          badge={<span style={chip(collabColor)}>{unresolved} {t('bigovernance.sin_resolver')}</span>}
         >
           <MetricRow
-            label="Comentarios sin resolver"
+            label={t('bigovernance.comentarios_sin_resolver')}
             value={<span style={{ color: collabColor, fontWeight: 700 }}>{unresolved}</span>}
           />
         </OverviewSection>
@@ -213,12 +214,12 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
         <OverviewSection
           icon={Zap}
           iconColor="var(--purple)"
-          title="Política de cache (TTL)"
-          badge={<span style={chip('var(--purple)')}>{cache.metric_count ?? 0} métricas</span>}
+          title={t('bigovernance.politica_de_cache_ttl')}
+          badge={<span style={chip('var(--purple)')}>{cache.metric_count ?? 0} {t('bigovernance.metricas')}</span>}
         >
-          <MetricRow label="TTL por defecto" value={`${cache.default_ttl_seconds ?? '—'}s`} />
-          <MetricRow label="TTL mínimo" value={`${cache.min_ttl_seconds ?? '—'}s`} />
-          <MetricRow label="TTL máximo" value={`${cache.max_ttl_seconds ?? '—'}s`} />
+          <MetricRow label={t('bigovernance.ttl_por_defecto')} value={`${cache.default_ttl_seconds ?? '—'}s`} />
+          <MetricRow label={t('bigovernance.ttl_minimo')} value={`${cache.min_ttl_seconds ?? '—'}s`} />
+          <MetricRow label={t('bigovernance.ttl_maximo')} value={`${cache.max_ttl_seconds ?? '—'}s`} />
         </OverviewSection>
       </div>
     </div>
@@ -349,7 +350,7 @@ export default function BiGovernancePanel() {
             {t('bi.governance.title', 'Gobernanza BI')}
           </h2>
         </div>
-        <span style={chip('var(--accent)')}>{policies.length} políticas</span>
+        <span style={chip('var(--accent)')}>{policies.length} {t('bigovernance.politicas')}</span>
       </div>
 
       <Tabs
@@ -366,7 +367,7 @@ export default function BiGovernancePanel() {
       {tab === 'policies' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
-            <div style={fieldLabel}>Políticas configuradas</div>
+            <div style={fieldLabel}>{t('bigovernance.politicas_configuradas')}</div>
             <Button size="sm" icon={<Plus size={13} />} onClick={() => setShowCreate(v => !v)}>
               {showCreate ? 'Cerrar' : 'Nueva política'}
             </Button>
@@ -380,11 +381,11 @@ export default function BiGovernancePanel() {
               padding: '14px 16px',
               marginBottom: 14,
             }}>
-              <div style={fieldLabel}>Nueva política</div>
+              <div style={fieldLabel}>{t('bigovernance.nueva_politica')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                 <input
                   type="text"
-                  placeholder="Nombre (único)"
+                  placeholder={t('bigovernance.nombre_unico')}
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   style={{ ...inputBase, gridColumn: '1 / -1' }}
@@ -411,7 +412,7 @@ export default function BiGovernancePanel() {
           {policiesLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
           ) : policies.length === 0 ? (
-            <EmptyState icon="🛡" title="Sin políticas" description="Crea la primera política para empezar a gobernar tus datos BI." />
+            <EmptyState icon="🛡" title={t('bigovernance.sin_politicas')} description="Crea la primera política para empezar a gobernar tus datos BI." />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {policies.map(p => {
@@ -455,7 +456,7 @@ export default function BiGovernancePanel() {
                             deletePolicyMutation.mutate(p.name)
                           }
                         }}
-                        title="Eliminar política"
+                        title={t('bigovernance.eliminar_politica')}
                         style={{
                           background: 'transparent', border: 'none', cursor: 'pointer',
                           color: 'var(--text-3)', padding: 4, display: 'inline-flex',
@@ -480,14 +481,14 @@ export default function BiGovernancePanel() {
             <div style={{ minWidth: 100 }}>
               <div style={fieldLabel}>Ventana</div>
               <select value={auditDays} onChange={e => setAuditDays(Number(e.target.value))} style={inputBase}>
-                <option value={7}>7 días</option>
-                <option value={30}>30 días</option>
-                <option value={60}>60 días</option>
-                <option value={90}>90 días</option>
+                <option value={7}>{t('bigovernance.7_dias')}</option>
+                <option value={30}>{t('bigovernance.30_dias')}</option>
+                <option value={60}>{t('bigovernance.60_dias')}</option>
+                <option value={90}>{t('bigovernance.90_dias')}</option>
               </select>
             </div>
             <div style={{ flex: '1 1 200px' }}>
-              <div style={fieldLabel}>Filtrar por user_id</div>
+              <div style={fieldLabel}>{t('bigovernance.filtrar_por_user_id')}</div>
               <input
                 type="text"
                 placeholder="user_id (opcional)"
@@ -504,7 +505,7 @@ export default function BiGovernancePanel() {
           {auditLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
           ) : auditItems.length === 0 ? (
-            <EmptyState icon="📋" title="Sin eventos de auditoría" description={`Ningún evento registrado en los últimos ${auditDays} días.`} />
+            <EmptyState icon="📋" title={t('bigovernance.sin_eventos_de_auditoria')} description={`Ningún evento registrado en los últimos ${auditDays} días.`} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 480, overflowY: 'auto' }}>
               <div style={{
@@ -548,7 +549,7 @@ export default function BiGovernancePanel() {
         overviewLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
         ) : !overviewData ? (
-          <EmptyState icon="📊" title="Sin overview" />
+          <EmptyState icon="📊" title={t('bigovernance.sin_overview')} />
         ) : (
           <OverviewView data={overviewData as OverviewData | null} />
         )

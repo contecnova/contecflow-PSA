@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
@@ -145,7 +145,9 @@ def get_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User
 
 
 @router.post("/tickets", summary="Crear ticket (agente interno)")
-def create_ticket(payload: TicketCreateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_ticket(payload: TicketCreateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: abrir un ticket es la accion central del agente
+):
     ticket = build_internal_ticket(db, payload, current_user.id)
     _commit_or_rollback(db); db.refresh(ticket)
     return APIResponse.ok(data=_ticket_out(ticket))
@@ -192,6 +194,7 @@ def add_comment(
     ticket_id: str, payload: CommentIn,
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db), current_user: Optional[User] = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     ticket = get_scoped_ticket_for_comment_or_404(db, current_user, ticket_id)
     comment = add_internal_comment(db, ticket, ticket_id, payload.body, payload.is_public, current_user)
@@ -216,7 +219,9 @@ def add_client_comment(
 
 
 @router.post("/tickets/{ticket_id}/time-log", summary="Registrar tiempo")
-def log_time(ticket_id: str, payload: TimeLogIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def log_time(ticket_id: str, payload: TimeLogIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+):
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = add_ticket_time(db, ticket, ticket_id, current_user.id, payload.minutes, payload.description, payload.unit)
     _commit_or_rollback(db)
@@ -228,6 +233,7 @@ def restore_pending(
     ticket_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: trabajo del agente
 ):
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = restore_pending_snapshot(db, ticket, current_user.id)
@@ -239,6 +245,7 @@ def restore_pending(
 def escalate_ticket(
     ticket_id: str, to_level: str = Query(...), reason: Optional[str] = Query(None),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: escalar es trabajo del agente
 ):
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = escalate_ticket_level(db, ticket, ticket_id, to_level, reason, current_user.id)
@@ -263,14 +270,32 @@ def get_ticket_links(ticket_id: str, db: Session = Depends(get_db), current_user
 
 
 @router.post("/tickets/{ticket_id}/links", summary="Vincular tickets")
-def link_tickets(ticket_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def link_tickets(ticket_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: vincular tickets, reversible
+):
     lk = create_ticket_link_record(db, ticket_id, payload, current_user.id)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True, "link_id": lk.id})
 
 
 @router.delete("/tickets/{ticket_id}/links/{link_id}", summary="Eliminar vínculo")
-def delete_ticket_link(ticket_id: str, link_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_ticket_link(
+    ticket_id: str,
+    link_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada.
+    #
+    # No se exige gestor a proposito: crear el vinculo (`POST
+    # .../links`) esta abierto a cualquier agente y quitarlo es la
+    # operacion inversa exacta —se puede volver a crear—, asi que
+    # pedir rol de gestion para deshacer lo que uno mismo puede
+    # hacer romperia el trabajo diario del service desk. Lo que si
+    # hay que impedir es que un subcontratista toque la relacion
+    # entre tickets de la organizacion.
+    _: User = Depends(require_internal_user),
+):
     enforce_abac(db, current_user, "sd_ticket_link", link_id, action="delete")
     delete_ticket_link_svc(db, link_id)
     _commit_or_rollback(db)
@@ -278,14 +303,18 @@ def delete_ticket_link(ticket_id: str, link_id: str, db: Session = Depends(get_d
 
 
 @router.post("/tickets/{ticket_id}/sla/pause", summary="Pausar SLA")
-def pause_sla(ticket_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def pause_sla(ticket_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: gestion del SLA por el agente
+):
     result = pause_ticket_sla_from_payload(db, ticket_id, current_user.id, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
 
 
 @router.post("/tickets/{ticket_id}/sla/resume", summary="Reanudar SLA")
-def resume_sla(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def resume_sla(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: gestion del SLA por el agente
+):
     result = resume_ticket_sla(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
@@ -302,14 +331,18 @@ def get_watchers(ticket_id: str, db: Session = Depends(get_db), _: User = Depend
 
 
 @router.post("/tickets/{ticket_id}/watch", summary="Seguir ticket", status_code=201)
-def watch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def watch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+):
     result = watch_ticket_command(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
 
 
 @router.delete("/tickets/{ticket_id}/watch", summary="Dejar de seguir ticket")
-def unwatch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def unwatch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+):
     enforce_abac(db, current_user, "sd_ticket", ticket_id, action="delete")
     result = unwatch_ticket_command(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
@@ -331,7 +364,9 @@ def split_ticket(ticket_id: str, payload: SplitTicketIn, db: Session = Depends(g
 
 
 @router.post("/tickets/{ticket_id}/ai-suggest", summary="Sugerir respuesta IA para ticket")
-def suggest_ticket_response_ai(ticket_id: str, payload: Optional[dict] = Body(default=None), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def suggest_ticket_response_ai(ticket_id: str, payload: Optional[dict] = Body(default=None), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+):
     return APIResponse.ok(data=build_ai_ticket_suggestion(db, ticket_id, payload, current_user))
 
 
@@ -380,7 +415,9 @@ def get_merges(ticket_id: str, db: Session = Depends(get_db), _: User = Depends(
 
 
 @router.post("/tickets/{ticket_id}/to-kb", summary="Convertir resolución de ticket en artículo KB")
-def ticket_to_kb(ticket_id: str, title: str = Query(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def ticket_to_kb(ticket_id: str, title: str = Query(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: el agente escribe la base de conocimiento
+):
     a = create_kb_from_ticket(db, ticket_id, title, current_user.id)
     _commit_or_rollback(db); db.refresh(a)
     return APIResponse.ok(data={"id": a.id, "number": a.number})

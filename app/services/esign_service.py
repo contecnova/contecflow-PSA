@@ -392,102 +392,104 @@ def adobe_configured(db: Optional[Session] = None) -> bool:
     return bool(cfg["client_id"])
 
 
-def create_provider_envelope(envelope, doc, db: Optional[Session] = None) -> dict:
+#: Lo que devuelve esta función cuando no hay proveedor configurado: el sobre se
+#: queda en borrador y se firma a mano.
+_MODO_MANUAL = {"provider_envelope_id": None, "signing_url": None, "status": ESignStatus.draft}
+
+
+def _enviar_a_proveedor(envelope, doc, db, *, nombre: str, config, asegurar_token,
+                        crear, clave_obligatoria: str, clave_del_id: str,
+                        ajuste_a_limpiar: str) -> dict:
+    """Crea el sobre en un proveedor de firma. Vale para DocuSign y para Adobe.
+
+    Auditoría 2026-09 (hallazgo 18): los dos proveedores estaban escritos como
+    dos bloques **estructuralmente idénticos** —comprobar configuración,
+    asegurar token, leer el documento, resolver firmantes, llamar, limpiar el
+    token si hay 401, registrar— de cuarenta líneas cada uno. Lo que cambia
+    entre ellos son cinco nombres, y eso son parámetros, no una copia.
+
+    El 401 borra el token guardado a propósito: es la señal de que caducó, y
+    dejarlo puesto haría fallar también la siguiente llamada.
     """
-    Create an envelope/agreement via the configured provider.
-    Returns dict with {provider_envelope_id, signing_url, status}.
-    Falls back to manual mode when provider is not configured or API call fails.
+    cfg = config(db)
+    if not cfg.get(clave_obligatoria) or (nombre == "DocuSign" and not cfg.get("account_id")):
+        _log.info("[eSign] %s not configured; falling back to manual mode", nombre)
+        return dict(_MODO_MANUAL)
+
+    token = asegurar_token(db, cfg) if db else cfg.get("access_token")
+    if not token:
+        raise ValueError(
+            f"{nombre} access token not available. Complete OAuth at "
+            f"/esign/auth/{nombre.lower().replace(' ', '')}/authorize"
+        )
+
+    doc_bytes, doc_name, doc_ext = _read_document_bytes(doc, db)
+    resultado = crear(
+        token=token,
+        cfg=cfg,
+        subject=envelope.subject or "Document for signature",
+        message=envelope.message,
+        signers=_envelope_signers_from_envelope(envelope, db),
+        doc_name=doc_name,
+        doc_content=doc_bytes,
+        doc_extension=doc_ext,
+    )
+
+    if not resultado["ok"]:
+        if "401" in str(resultado.get("error", "")) and db:
+            _set_db_setting(db, ajuste_a_limpiar, "")
+        raise ValueError(f"{nombre} envelope creation failed: {resultado.get('error')}")
+
+    _log.info("[eSign] %s envelope created: %s", nombre, resultado.get(clave_del_id))
+    return {
+        "provider_envelope_id": resultado[clave_del_id],
+        "signing_url": None,
+        "status": ESignStatus.sent,
+    }
+
+
+def create_provider_envelope(envelope, doc, db: Optional[Session] = None) -> dict:
+    """Crea el sobre/acuerdo en el proveedor configurado.
+
+    Devuelve `{provider_envelope_id, signing_url, status}`. Si el proveedor no
+    está configurado —o no se reconoce— cae a modo manual, que es un estado
+    válido y no un error: el documento se firma fuera de la aplicación.
     """
     from app.services.esign_providers import (
         docusign_create_envelope as _ds_create,
         adobe_sign_create_agreement as _ab_create,
     )
 
-    # ── DocuSign ──────────────────────────────────────────────────────────────
     if envelope.provider == ESignProvider.docusign:
-        cfg = _get_docusign_config(db)
-        if not cfg["integration_key"] or not cfg["account_id"]:
-            _log.info("[eSign] DocuSign not configured; falling back to manual mode")
-            return {"provider_envelope_id": None, "signing_url": None, "status": ESignStatus.draft}
-
-        token = _ensure_docusign_token(db, cfg) if db else cfg.get("access_token")
-        if not token:
-            raise ValueError(
-                "DocuSign access token not available. Complete OAuth at /esign/auth/docusign/authorize"
-            )
-
-        doc_bytes, doc_name, doc_ext = _read_document_bytes(doc, db)
-        signers = _envelope_signers_from_envelope(envelope, db)
-
-        result = _ds_create(
-            access_token=token,
-            account_id=cfg["account_id"],
-            base_url=cfg["base_url"],
-            subject=envelope.subject or "Document for signature",
-            message=envelope.message,
-            signers=signers,
-            doc_name=doc_name,
-            doc_content=doc_bytes,
-            doc_extension=doc_ext,
-            send_immediately=True,
+        return _enviar_a_proveedor(
+            envelope, doc, db,
+            nombre="DocuSign",
+            config=_get_docusign_config,
+            asegurar_token=_ensure_docusign_token,
+            crear=lambda *, token, cfg, **kw: _ds_create(
+                access_token=token, account_id=cfg["account_id"], base_url=cfg["base_url"],
+                send_immediately=True, **kw,
+            ),
+            clave_obligatoria="integration_key",
+            clave_del_id="envelope_id",
+            ajuste_a_limpiar="esign.docusign_access_token",
         )
 
-        if not result["ok"]:
-            # If 401, token expired — clear stored token so next call will refresh
-            if "401" in str(result.get("error", "")):
-                if db:
-                    _set_db_setting(db, "esign.docusign_access_token", "")
-            raise ValueError(f"DocuSign envelope creation failed: {result.get('error')}")
-
-        _log.info("[eSign] DocuSign envelope created: %s", result.get("envelope_id"))
-        return {
-            "provider_envelope_id": result["envelope_id"],
-            "signing_url": None,
-            "status": ESignStatus.sent,
-        }
-
-    # ── Adobe Sign ────────────────────────────────────────────────────────────
     if envelope.provider == ESignProvider.adobe_sign:
-        cfg = _get_adobe_config(db)
-        if not cfg["client_id"]:
-            _log.info("[eSign] Adobe Sign not configured; falling back to manual mode")
-            return {"provider_envelope_id": None, "signing_url": None, "status": ESignStatus.draft}
-
-        token = _ensure_adobe_token(db, cfg) if db else cfg.get("access_token")
-        if not token:
-            raise ValueError(
-                "Adobe Sign access token not available. Complete OAuth at /esign/auth/adobe/authorize"
-            )
-
-        doc_bytes, doc_name, doc_ext = _read_document_bytes(doc, db)
-        signers = _envelope_signers_from_envelope(envelope, db)
-
-        result = _ab_create(
-            access_token=token,
-            base_url=cfg["base_url"],
-            subject=envelope.subject or "Document for signature",
-            message=envelope.message,
-            signers=signers,
-            doc_name=doc_name,
-            doc_content=doc_bytes,
-            doc_extension=doc_ext,
+        return _enviar_a_proveedor(
+            envelope, doc, db,
+            nombre="Adobe Sign",
+            config=_get_adobe_config,
+            asegurar_token=_ensure_adobe_token,
+            crear=lambda *, token, cfg, **kw: _ab_create(
+                access_token=token, base_url=cfg["base_url"], **kw,
+            ),
+            clave_obligatoria="client_id",
+            clave_del_id="agreement_id",
+            ajuste_a_limpiar="esign.adobe_sign_access_token",
         )
 
-        if not result["ok"]:
-            if "401" in str(result.get("error", "")):
-                if db:
-                    _set_db_setting(db, "esign.adobe_sign_access_token", "")
-            raise ValueError(f"Adobe Sign agreement creation failed: {result.get('error')}")
-
-        _log.info("[eSign] Adobe Sign agreement created: %s", result.get("agreement_id"))
-        return {
-            "provider_envelope_id": result["agreement_id"],
-            "signing_url": None,
-            "status": ESignStatus.sent,
-        }
-
-    # ── Manual / unknown provider ─────────────────────────────────────────────
-    return {"provider_envelope_id": None, "signing_url": None, "status": ESignStatus.draft}
+    return dict(_MODO_MANUAL)
 
 
 def _envelope_signers_from_envelope(envelope, db: Optional[Session]) -> list:

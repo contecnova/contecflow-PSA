@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
 from app.core.config import settings
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.core.security import create_access_token, decode_token
 from app.services.ws_service import (
@@ -100,6 +100,7 @@ def phase2_patch_connector(
     payload: ConnectorPatchIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -119,6 +120,7 @@ def phase2_sync_connector(
     connector: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -135,6 +137,7 @@ def enqueue_connector_sync(
     connector: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     """Encola `sync_connector_data` en Celery y devuelve el task_id.
 
@@ -182,6 +185,7 @@ def phase2_report_preview(
     payload: AdvancedPreviewIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -213,6 +217,7 @@ def phase2_visual_query_builder_preview(
     payload: VisualQueryPreviewIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=svc.preview_visual_query(
@@ -256,6 +261,7 @@ def phase2_save_visual_query_builder_template(
     payload: VisualQueryTemplateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -281,6 +287,7 @@ def phase2_delete_visual_query_builder_template(
     template_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     enforce_abac(db, current_user, "bi_visual_query_template", template_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
@@ -312,6 +319,7 @@ def phase2_delivery_run_now(
     report_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     _ = current_user
     return APIResponse.ok(data=svc.run_scheduled_delivery_now(db, report_id=report_id))
@@ -380,6 +388,7 @@ def phase2_save_connector_config(
     payload: ConnectorConfigIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     saved = svc.save_connector_config(
@@ -397,6 +406,7 @@ def phase2_etl_sync(
     payload: ConnectorConfigIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -428,110 +438,165 @@ def phase2_realtime_token(current_user: User = Depends(get_current_user)):
     })
 
 
-@router.websocket("/bi/intelligence/realtime/stream")
-async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Query(default=None)):
-    """BI intelligence real-time stream.
+async def _autorizar_flujo_de_bi(websocket: WebSocket, token: Optional[str]) -> Optional[str]:
+    """Comprueba el token del WebSocket y devuelve el id de usuario, o `None`.
 
-    Tries Redis Pub/Sub first (channel ``contecflow:bi:kpi:<org_id>``).
-    Falls back to 8-second polling when Redis is unavailable.
+    Cuando devuelve `None` **ya ha cerrado el socket** con su código: quien
+    llama sólo tiene que volver. Se separó del cuerpo porque son cuatro
+    rechazos encadenados que no tienen nada que ver con emitir datos.
+
+    El motivo se distingue en el código de cierre pero **no en la razón**: los
+    tres casos de token malo dicen lo mismo, para no ir contando a quien lo
+    intenta qué parte ya tiene bien.
     """
     if not token:
         await websocket.close(code=4001, reason="Token requerido")
-        return
+        return None
 
+    # En producción el token no puede viajar en la URL: queda en los registros
+    # del proxy y en el historial del navegador.
     if settings.ENVIRONMENT in {"production", "staging"}:
         await websocket.close(code=4003, reason="Token en URL no permitido en production")
-        return
+        return None
 
     payload = decode_token(token)
     if not payload or payload.get("type") != "access" or not payload.get("bi_intelligence_stream"):
         await websocket.close(code=4001, reason="Token inválido")
-        return
+        return None
 
     user_id = payload.get("sub")
     if not user_id:
         await websocket.close(code=4001, reason="Token inválido")
-        return
+        return None
+    return user_id
 
-    await websocket.accept()
 
+async def _organizacion_del_usuario(user_id: str) -> Optional[str]:
+    """La organización del usuario, con una sesión que se abre y se cierra aquí."""
     from app.core.async_db import run_db
 
     db = SessionLocal()
-    org_id: Optional[str] = None
     try:
         user = await run_db(_usuario_activo, db, user_id)
-        if user:
-            org_id = getattr(user, "organization_id", None)
-            # Auditoria 2026-08 (hallazgo 22): esta sesion es un
-            # `SessionLocal()` creado a mano, y sin esto `TenantSession` la
-            # trata como «no inicializada» y **no filtra nada**. Va despues de
-            # resolver al usuario: la busqueda por id no sabe todavia de que
-            # organizacion es.
-            publicar_contexto_de_tenant(db, user)
+        if not user:
+            return None
+        # Auditoría 2026-08 (hallazgo 22): esta sesión es un `SessionLocal()`
+        # creado a mano, y sin esto `TenantSession` la trata como «no
+        # inicializada» y **no filtra nada**. Va después de resolver al usuario:
+        # la búsqueda por id no sabe todavía de qué organización es.
+        publicar_contexto_de_tenant(db, user)
+        return getattr(user, "organization_id", None)
     finally:
         db.close()
 
-    # ── Try Redis Pub/Sub first ────────────────────────────────────────────────
+
+async def _emitir_desde_redis(websocket: WebSocket, org_id: Optional[str]) -> bool:
+    """Reenvía el canal Pub/Sub al socket. Devuelve `False` si no pudo usarse.
+
+    `False` significa «Redis no está disponible, usa el sondeo»; si llega a
+    emitir, no vuelve hasta que el cliente se desconecta.
+    """
     from app.core.config import settings as _settings
 
-    if _settings.REDIS_URL:
+    if not _settings.REDIS_URL:
+        return False
+    try:
+        import redis.asyncio as _aredis  # type: ignore
+
+        r = _aredis.from_url(_settings.REDIS_URL, decode_responses=True)
+        pubsub = r.pubsub()
+        channel = f"contecflow:bi:kpi:{org_id or 'global'}"
+        await pubsub.subscribe(channel)
         try:
-            import redis.asyncio as _aredis  # type: ignore
+            while True:
+                try:
+                    raw = await asyncio.wait_for(
+                        pubsub.get_message(ignore_subscribe_messages=True), timeout=30.0,
+                    )
+                except asyncio.TimeoutError:
+                    # Latido: sin tráfico durante 30 s un proxy intermedio
+                    # cortaría la conexión por inactividad.
+                    await websocket.send_text(json.dumps({
+                        "type": "heartbeat",
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                    }))
+                    continue
+                if raw and raw.get("type") == "message":
+                    await websocket.send_text(raw["data"])
+        except WebSocketDisconnect:
+            return True
+        finally:
+            await pubsub.unsubscribe(channel)
+            await r.aclose()
+    except (ImportError, Exception):
+        logger.debug("phase2_realtime_stream: Fall through to polling mode", exc_info=True)
+        return False
 
-            r = _aredis.from_url(_settings.REDIS_URL, decode_responses=True)
-            pubsub = r.pubsub()
-            channel = f"contecflow:bi:kpi:{org_id or 'global'}"
-            await pubsub.subscribe(channel)
-            try:
-                while True:
-                    try:
-                        raw = await asyncio.wait_for(pubsub.get_message(ignore_subscribe_messages=True), timeout=30.0)
-                    except asyncio.TimeoutError:
-                        # Send heartbeat to keep connection alive
-                        await websocket.send_text(json.dumps({"type": "heartbeat", "ts": datetime.now(timezone.utc).isoformat()}))
-                        continue
-                    if raw and raw.get("type") == "message":
-                        await websocket.send_text(raw["data"])
-            except WebSocketDisconnect:
-                return
-            finally:
-                await pubsub.unsubscribe(channel)
-                await r.aclose()
-        except (ImportError, Exception):
-            logger.debug("phase2_realtime_stream: Fall through to polling mode", exc_info=True)
 
-    # ── Fallback: polling every 8 s ────────────────────────────────────────────
+async def _instantanea_de_bi(db, org_id: Optional[str]) -> dict:
+    """Los tres bloques de un tic, cada uno fuera del bucle de eventos."""
+    from app.core.async_db import run_db
+
+    forecast = await run_db(svc.ml_forecast_revenue, db, organization_id=org_id, months_ahead=3)
+    anomalies = await run_db(
+        svc.ml_detect_revenue_anomalies, db, organization_id=org_id, z_threshold=2.0,
+    )
+    delivery = await run_db(svc.delivery_overview, db, organization_id=org_id)
+    return {
+        "type": "bi_intelligence_snapshot",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "forecast_head": forecast.get("forecast", [])[:2],
+        "anomaly_count": len(anomalies.get("items", [])),
+        "delivery": delivery,
+    }
+
+
+async def _emitir_por_sondeo(websocket: WebSocket, user_id: str) -> None:
+    """Respaldo sin Redis: una instantánea cada ocho segundos."""
+    from app.core.async_db import run_db
+
     db = SessionLocal()
     try:
         while True:
             user = await run_db(_usuario_activo, db, user_id)
             if not user:
                 await websocket.send_text(json.dumps({"type": "error", "detail": "user_not_found"}))
-                break
-            _org_id = getattr(user, "organization_id", None)
-            # Ver la nota del otro WebSocket de este fichero. Aqui importa mas:
-            # el bucle llama en cada tic a tres servicios que leen datos de
-            # negocio.
+                return
+            # Se republica en cada tic: el bucle llama a tres servicios que leen
+            # datos de negocio, y la sesión es de larga vida.
             publicar_contexto_de_tenant(db, user)
-
-            # Offload the per-tick ORM/ML work to the threadpool.
-            forecast = await run_db(svc.ml_forecast_revenue, db, organization_id=_org_id, months_ahead=3)
-            anomalies = await run_db(svc.ml_detect_revenue_anomalies, db, organization_id=_org_id, z_threshold=2.0)
-            delivery = await run_db(svc.delivery_overview, db, organization_id=_org_id)
-
-            await websocket.send_text(json.dumps({
-                "type": "bi_intelligence_snapshot",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "forecast_head": forecast.get("forecast", [])[:2],
-                "anomaly_count": len(anomalies.get("items", [])),
-                "delivery": delivery,
-            }))
+            await websocket.send_text(json.dumps(
+                await _instantanea_de_bi(db, getattr(user, "organization_id", None)),
+            ))
             await asyncio.sleep(8)
     except WebSocketDisconnect:
         return
     finally:
         db.close()
+
+
+@router.websocket("/bi/intelligence/realtime/stream")
+async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Query(default=None)):
+    """Flujo de KPIs de BI en tiempo real.
+
+    Intenta Redis Pub/Sub (canal ``contecflow:bi:kpi:<org_id>``) y, si no está
+    disponible, cae a un sondeo de 8 segundos.
+
+    Auditoría 2026-09 (hallazgo 18): esto era una sola función de complejidad 15
+    con tres trabajos dentro —autorizar, reenviar Pub/Sub y sondear—. No se ha
+    partido por partir: cada trozo tiene un nombre que dice qué hace y ninguno
+    necesita mirar a los otros.
+    """
+    user_id = await _autorizar_flujo_de_bi(websocket, token)
+    if not user_id:
+        return
+
+    await websocket.accept()
+    org_id = await _organizacion_del_usuario(user_id)
+
+    if await _emitir_desde_redis(websocket, org_id):
+        return
+    await _emitir_por_sondeo(websocket, user_id)
 
 
 # ── BI Phase 2: Scheduled delivery management ──────────────────────────────────
@@ -592,6 +657,7 @@ def create_delivery_schedule(
     body: DeliveryScheduleCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -620,6 +686,7 @@ def update_delivery_schedule(
     body: DeliveryScheduleUpdateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -639,6 +706,7 @@ def delete_delivery_schedule(
     schedule_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     enforce_abac(db, current_user, "bi_delivery_schedule", schedule_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
@@ -654,6 +722,7 @@ def send_delivery_now(
     schedule_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:

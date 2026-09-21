@@ -94,20 +94,20 @@ function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose:
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar curso' : 'Nuevo curso'} width={520}>
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-        <div><label style={LS}>Título *</label>
+        <div><label style={LS}>{t('training.titulo')}</label>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={IS} autoFocus /></div>
         <div><label style={LS}>Proveedor</label>
-          <input value={form.provider} onChange={e => setForm(f => ({ ...f, provider: e.target.value }))} style={IS} placeholder="Nombre del proveedor" aria-label="Nombre del proveedor" /></div>
+          <input value={form.provider} onChange={e => setForm(f => ({ ...f, provider: e.target.value }))} style={IS} placeholder={t('training.nombre_del_proveedor')} aria-label={t('training.nombre_del_proveedor')} /></div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
-          <div><label style={LS}>Categoría</label>
+          <div><label style={LS}>{t('training.categoria')}</label>
             <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={IS} placeholder="Categoria" aria-label="Categoria" /></div>
           <div><label style={LS}>Horas</label>
-            <input type="number" value={form.duration_h} onChange={e => setForm(f => ({ ...f, duration_h: e.target.value }))} style={IS} placeholder="Horas del curso" aria-label="Horas del curso" /></div>
+            <input type="number" value={form.duration_h} onChange={e => setForm(f => ({ ...f, duration_h: e.target.value }))} style={IS} placeholder={t('training.horas_del_curso')} aria-label={t('training.horas_del_curso')} /></div>
           <div><label style={LS}>Coste €</label>
-            <input type="number" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} style={IS} placeholder="Coste del curso" aria-label="Coste del curso" /></div>
+            <input type="number" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} style={IS} placeholder={t('training.coste_del_curso')} aria-label={t('training.coste_del_curso')} /></div>
         </div>
         <div><label style={LS}>URL</label>
-          <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} style={IS} placeholder="https://proveedor.com/curso" aria-label="URL del curso" /></div>
+          <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} style={IS} placeholder="https://proveedor.com/curso" aria-label={t('training.url_del_curso')} /></div>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}>{isEdit ? t('common.save') : 'Crear curso'}</Button>
@@ -150,7 +150,7 @@ function CertModal({ cert, userId, onClose }: { cert?: CertItem | null; userId?:
             <option value="">Seleccionar…</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select></div>}
-        <div><label style={LS}>Nombre certificación *</label>
+        <div><label style={LS}>{t('training.nombre_certificacion')}</label>
           <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={IS} autoFocus /></div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
           <div><label style={LS}>Organismo emisor</label>
@@ -162,8 +162,8 @@ function CertModal({ cert, userId, onClose }: { cert?: CertItem | null; userId?:
           <div><label style={LS}>Caduca</label>
             <input type="date" value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} style={IS} /></div>
         </div>
-        <div><label style={LS}>URL verificación</label>
-          <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} style={IS} placeholder="https://verificacion.com/certificado" aria-label="URL de verificacion" /></div>
+        <div><label style={LS}>{t('training.url_verificacion')}</label>
+          <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} style={IS} placeholder="https://verificacion.com/certificado" aria-label={t('training.url_de_verificacion')} /></div>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.user_id} loading={isPending}>{isEdit ? t('common.save') : 'Añadir'}</Button>
@@ -226,7 +226,7 @@ export default function TrainingPage() {
         icon={<BookOpen size={18} />}
         title={t('training.title')}
         subtitle={t('training.subtitle')}
-        actions={<div style={{ display:'flex', gap:8 }}>{tab === 'courses' && isAdmin && <Button onClick={() => { setEditingCourse(null); setShowCourseModal(true) }}>+ Curso</Button>}{tab === 'certs' && <Button onClick={() => { setEditingCert(null); setShowCertModal(true) }}>+ Certificación</Button>}</div>}
+        actions={<div style={{ display:'flex', gap:8 }}>{tab === 'courses' && isAdmin && <Button onClick={() => { setEditingCourse(null); setShowCourseModal(true) }}>+ Curso</Button>}{tab === 'certs' && <Button onClick={() => { setEditingCert(null); setShowCertModal(true) }}>{t('training.certificacion')}</Button>}</div>}
       />
 
       {tab === 'certs' && (expired.length > 0 || expiringSoon.length > 0) && (
@@ -256,7 +256,7 @@ export default function TrainingPage() {
 
       {tab === 'courses' && (
         loadC ? <Spinner /> : courses.length === 0 ? (
-          <EmptyState icon="📚" title="Sin cursos" description="Crea el primer curso para arrancar el catalogo de formacion" />
+          <EmptyState icon="📚" title={t('training.sin_cursos')} description="Crea el primer curso para arrancar el catalogo de formacion" />
         ) : (
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px,1fr))', gap:12 }}>
             {courses.map((c) => (
@@ -289,7 +289,7 @@ export default function TrainingPage() {
 
       {tab === 'enrollments' && (
         enrollments.length === 0 ? (
-          <EmptyState icon="👤" title="Sin inscripciones" description="Todavia no hay empleados inscritos en cursos" />
+          <EmptyState icon="👤" title={t('training.sin_inscripciones')} description="Todavia no hay empleados inscritos en cursos" />
         ) : (
           <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, overflow:'hidden' }}>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -320,7 +320,7 @@ export default function TrainingPage() {
 
       {tab === 'certs' && (
         loadCert ? <Spinner /> : certs.length === 0 ? (
-          <EmptyState icon="🏅" title="Sin certificaciones" description="Anade la primera certificacion para hacer seguimiento de vigencias" />
+          <EmptyState icon="🏅" title={t('training.sin_certificaciones')} description="Anade la primera certificacion para hacer seguimiento de vigencias" />
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {certs.map((c) => (
@@ -331,7 +331,7 @@ export default function TrainingPage() {
                   <div style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginTop:2 }}>{c.user_name}{c.cert_id && <span style={{ marginLeft:8, fontFamily:'var(--font-mono)', fontSize: 'var(--text-xs)' }}>#{c.cert_id}</span>}{c.obtained_at && <span style={{ marginLeft:8 }}>· Obtenida: {c.obtained_at}</span>}</div>
                 </div>
                 <div style={{ textAlign:'right', flexShrink:0 }}>
-                  {c.expires_at ? <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color: c.is_expired ? 'var(--danger)' : c.expiring_soon ? 'var(--warning)' : 'var(--success)' }}>{c.is_expired ? '⚠ Caducada' : `Caduca ${c.expires_at}`}</div> : <div style={{ fontSize: 'var(--text-xs)', color:'var(--text-3)' }}>Sin caducidad</div>}
+                  {c.expires_at ? <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color: c.is_expired ? 'var(--danger)' : c.expiring_soon ? 'var(--warning)' : 'var(--success)' }}>{c.is_expired ? '⚠ Caducada' : `Caduca ${c.expires_at}`}</div> : <div style={{ fontSize: 'var(--text-xs)', color:'var(--text-3)' }}>{t('training.sin_caducidad')}</div>}
                 </div>
                 {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 'var(--text-xs)', color:'var(--accent)', whiteSpace:'nowrap' }}>🔗 Verificar</a>}
                 <button onClick={() => { setEditingCert(c); setShowCertModal(true) }} style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'4px 8px', color:'var(--text-2)', cursor:'pointer', fontSize: 'var(--text-xs)' }}>✏</button>

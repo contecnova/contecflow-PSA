@@ -73,6 +73,7 @@ interface Props {
 }
 
 export default function UserProfilePanel({ onClose }: Props) {
+  const { t: traducir } = useAppLang()
   const { user, setUser } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
@@ -213,7 +214,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                 <div>👤 Usuario: <strong style={{ color: 'var(--text-1)' }}>{user?.username}</strong></div>
                 <div style={{ marginTop: 4 }}>📧 Email: <strong style={{ color: 'var(--text-1)' }}>{profileForm.email || user?.email}</strong></div>
                 <div style={{ marginTop: 2, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
-                  Los cambios se aplican al mismo recurso en todo el sistema
+                  {traducir('userprofile.los_cambios_se_aplican_al_mismo_recurso')}
                 </div>
               </div>
 
@@ -258,7 +259,7 @@ export default function UserProfilePanel({ onClose }: Props) {
               <div>
                 <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em',
-                  display: 'block', marginBottom: 4 }}>Teléfono</label>
+                  display: 'block', marginBottom: 4 }}>{traducir('userprofile.telefono')}</label>
                 <input value={profileForm.phone}
                   onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))}
                   style={IS} placeholder="+34 600 000 000" type="tel" />
@@ -267,7 +268,7 @@ export default function UserProfilePanel({ onClose }: Props) {
               <div>
                 <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em',
-                  display: 'block', marginBottom: 4 }}>URL de avatar (opcional)</label>
+                  display: 'block', marginBottom: 4 }}>{traducir('userprofile.url_de_avatar_opcional')}</label>
                 <input value={profileForm.avatar_url}
                   onChange={e => setProfileForm(f => ({ ...f, avatar_url: e.target.value }))}
                   style={IS} placeholder="https://..." />
@@ -299,7 +300,7 @@ export default function UserProfilePanel({ onClose }: Props) {
               <div>
                 <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
-                  Tema de color
+                  {traducir('userprofile.tema_de_color')}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {THEMES.map(t => (
@@ -331,7 +332,7 @@ export default function UserProfilePanel({ onClose }: Props) {
               <div>
                 <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
-                  Color de acento
+                  {traducir('userprofile.color_de_acento')}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 6, marginBottom: 10 }}>
                   {ACCENT_PRESETS.map(p => (
@@ -369,7 +370,7 @@ export default function UserProfilePanel({ onClose }: Props) {
               <div>
                 <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
-                  Densidad de la interfaz
+                  {traducir('userprofile.densidad_de_la_interfaz')}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {([
@@ -407,7 +408,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                 <span style={{ color: 'var(--accent)', fontWeight: 700 }}>Idioma activo: </span>
                 {LANGUAGES.find(l => l.code === activeLang)?.flag} {LANGUAGES.find(l => l.code === activeLang)?.label}
                 <div style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
-                  La navegación cambia al instante. El contenido de las páginas se traduce progresivamente.
+                  {traducir('userprofile.la_navegacion_cambia_al_instante_el_contenido')}
                 </div>
               </div>
               {LANGUAGES.map(lang => {
@@ -453,9 +454,9 @@ export default function UserProfilePanel({ onClose }: Props) {
               {/* Info sesión */}
               <div style={{ padding: '12px 14px', background: 'var(--surface-3)',
                 borderRadius: 8, fontSize: "var(--text-sm)" }}>
-                <div style={{ color: 'var(--text-2)', marginBottom: 6 }}>Sesión actual</div>
+                <div style={{ color: 'var(--text-2)', marginBottom: 6 }}>{traducir('userprofile.sesion_actual')}</div>
                 <div style={{ color: 'var(--text-1)' }}>
-                  Último acceso: {user?.last_login
+                  {traducir('userprofile.ultimo_acceso')} {user?.last_login
                     ? new Date(user.last_login as string).toLocaleDateString('es-ES', {
                         day:'2-digit', month:'short', year:'numeric',
                         hour:'2-digit', minute:'2-digit' })
@@ -471,7 +472,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)',
                     textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>
-                    Cambiar contraseña
+                    {traducir('userprofile.cambiar_contrasena')}
                   </div>
                   {([
                     ['current', 'Contraseña actual', 'Tu contraseña actual'],
@@ -489,7 +490,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                   ))}
                   {pwForm.new && pwForm.confirm && pwForm.new !== pwForm.confirm && (
                     <div style={{ fontSize: "var(--text-xs)", color: 'var(--danger)' }}>
-                      ✗ Las contraseñas no coinciden
+                      {traducir('userprofile.las_contrasenas_no_coinciden')}
                     </div>
                   )}
                 </div>
@@ -498,8 +499,7 @@ export default function UserProfilePanel({ onClose }: Props) {
               {Boolean(user?.sso_provider) && (
                 <div style={{ padding: '12px 14px', background: 'var(--surface-3)',
                   borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                  Tu cuenta usa SSO ({String(user?.sso_provider)}). La contraseña se gestiona
-                  desde tu proveedor de identidad corporativo.
+                  Tu cuenta usa SSO ({String(user?.sso_provider)}{traducir('userprofile.la_contrasena_se_gestiona_desde_tu_proveedor')}
                 </div>
               )}
 
@@ -507,7 +507,7 @@ export default function UserProfilePanel({ onClose }: Props) {
               <div style={{ padding: '12px 14px', background: 'var(--surface-3)',
                 borderRadius: 8 }}>
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 4 }}>
-                  Autenticación de dos factores (MFA)
+                  {traducir('userprofile.autenticacion_de_dos_factores_mfa')}
                 </div>
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>
                   {user?.mfa_enabled

@@ -127,6 +127,7 @@ def request_approval(
     payload: ApprovalRequestIn = Body(default=ApprovalRequestIn()),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     m = request_milestone_approval(milestone_id, payload.message, current_user, db)
     return APIResponse.ok(data={**_ms_out(m, db), "message": "Solicitud de aprobación enviada"})

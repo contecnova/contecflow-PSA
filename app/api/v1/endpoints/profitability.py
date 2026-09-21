@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import date, timedelta
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
@@ -187,6 +187,7 @@ def create_milestone(
     payload: MilestoneIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: margenes e hitos de facturacion
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
@@ -201,6 +202,7 @@ def update_milestone(
     payload: MilestoneUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: margenes e hitos de facturacion
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
@@ -217,6 +219,7 @@ def delete_milestone(
     milestone_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: margenes e hitos de facturacion
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")

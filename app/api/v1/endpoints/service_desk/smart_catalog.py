@@ -129,6 +129,7 @@ def suggest_service(
     payload: SuggestIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=suggest_service_for_query(db, query=payload.query, use_ai=payload.use_ai))
 
@@ -138,6 +139,7 @@ def prefill_form(
     payload: PrefillIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=auto_prefill_request_form(db, description=payload.description, service_id=payload.service_id))
 

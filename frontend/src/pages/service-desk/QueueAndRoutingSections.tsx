@@ -613,7 +613,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
     )
     if (act.key === 'set_priority') return (
       <select value={act.value} onChange={e => upd(e.target.value)} style={IS}>
-        <option value="">No cambiar</option>
+        <option value="">{t('queueandrouting.no_cambiar')}</option>
         {Object.entries(PRIORITY_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
     )
@@ -670,7 +670,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
               style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 6, border: '1px solid var(--surface-4)',
                 background: 'var(--surface-3)', color: 'var(--text-2)', cursor: availCondTypes.length ? 'pointer' : 'not-allowed',
                 fontFamily: 'inherit' }}>
-              + Condición
+              {t('queueandrouting.condicion')}
             </button>
           </div>
           {conditions.length === 0 && (
@@ -713,7 +713,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
               style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 6, border: '1px solid var(--surface-4)',
                 background: 'var(--surface-3)', color: 'var(--text-2)', cursor: actions.length < ACT_TYPES.length ? 'pointer' : 'not-allowed',
                 fontFamily: 'inherit' }}>
-              + Acción
+              {t('queueandrouting.accion')}
             </button>
           </div>
           {actions.map((act, i) => (

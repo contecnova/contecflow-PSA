@@ -222,6 +222,7 @@ type Workflow = {
 }
 
 function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | null; workflows: Workflow[]; onClose: () => void; roles: Role[] }) {
+  const traducir = useAppT()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -272,7 +273,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
             </select>
           </div>
         </div>
-        <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>↕ en conflicto con ↕</div>
+        <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>{traducir('grc.en_conflicto_con')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10, background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 8, padding: '12px 14px' }}>
           <div>
             <label style={ls}>{t('grc.module_b')}</label>
@@ -306,7 +307,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
 
         <div>
           <label style={ls}>{t('grc.risk_description')}</label>
-          <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} placeholder="Descripcion de la regla SoD" aria-label="Descripcion de la regla SoD" />
+          <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} placeholder={traducir('grc.descripcion_de_la_regla_sod')} aria-label={traducir('grc.descripcion_de_la_regla_sod')} />
         </div>
 
         <div>
@@ -345,6 +346,7 @@ type SodViolation = {
 }
 
 function SodTab({ roles }: { roles: Role[] }) {
+  const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -415,7 +417,7 @@ function SodTab({ roles }: { roles: Role[] }) {
       </div>
 
       {isLoading ? <Spinner /> : rules.length === 0 ? (
-        <EmptyState icon="⚠️" title="Sin reglas SoD" description="Crea reglas para detectar conflictos de segregacion de funciones" />
+        <EmptyState icon="⚠️" title={traducir('grc.sin_reglas_sod')} description="Crea reglas para detectar conflictos de segregacion de funciones" />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {rules.map((rule: SodRule) => {
@@ -428,7 +430,7 @@ function SodTab({ roles }: { roles: Role[] }) {
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, background: `${rc}20`, color: rc, padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase' }}>{rule.risk}</span>
                     <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{modA?.icon} {modA?.label} · {ACTION_LABEL[rule.action_a || ''] || rule.action_a}</span>
-                    <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>↔ conflicto con</span>
+                    <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{traducir('grc.conflicto_con')}</span>
                     <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{modB?.icon} {modB?.label} · {ACTION_LABEL[rule.action_b || ''] || rule.action_b}</span>
                     {rule.mitigated_by_workflow_id && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'rgba(0,229,160,0.12)', color: 'var(--success)' }}>✓ Mitigado</span>}
                     {!rule.is_active && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-3)' }}>Inactiva</span>}
@@ -450,7 +452,7 @@ function SodTab({ roles }: { roles: Role[] }) {
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: (rule.roles_conflict?.length ?? 0) > 0 ? 8 : 0 }}>{rule.description}</div>
                 {(rule.roles_conflict?.length ?? 0) > 0 && (
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>Roles con conflicto:</span>
+                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{traducir('grc.roles_con_conflicto')}</span>
                     {rule.roles_conflict?.map((r: string) => {
                       const role = roles.find((x: Role) => x.id === r)
                       return role ? <span key={r} style={{ fontSize: "var(--text-xs)", background: `${role.color}20`, color: role.color, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{role.label}</span> : <span key={r} style={{ fontSize: "var(--text-xs)", background: 'var(--surface-3)', color: 'var(--text-2)', padding: '2px 8px', borderRadius: 4 }}>{r}</span>
@@ -487,6 +489,7 @@ type ViolationRecord = {
 }
 
 function ViolationsTab() {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [filter, setFilter] = useState<boolean | null>(false)
@@ -506,7 +509,7 @@ function ViolationsTab() {
   return (
     <div>
       <div style={{ background: 'rgba(255,71,87,0.06)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '12px 16px', marginBottom: 18, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
-        <strong style={{ color: 'var(--danger)' }}>Violaciones SoD en tiempo real</strong> — Registradas cuando el mismo usuario intenta realizar las dos acciones de un par conflictivo (ej: crear y aprobar su propia solicitud). Cada violación debe revisarse y resolverse explícitamente.
+        <strong style={{ color: 'var(--danger)' }}>Violaciones SoD en tiempo real</strong> {traducir('grc.registradas_cuando_el_mismo_usuario_intenta_realizar')}
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
@@ -535,7 +538,7 @@ function ViolationsTab() {
                     Usuario: <strong>{v.user_name || v.user_id || '—'}</strong> · Contexto: {v.context_type} ({v.context_id})
                   </div>
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>Detectada: {v.detected_at}</div>
-                  {v.resolution_note && <div style={{ fontSize: "var(--text-xs)", color: 'var(--success)', marginTop: 2 }}>Resolución: {v.resolution_note}</div>}
+                  {v.resolution_note && <div style={{ fontSize: "var(--text-xs)", color: 'var(--success)', marginTop: 2 }}>{traducir('grc.resolucion')} {v.resolution_note}</div>}
                 </div>
                 {!v.resolved && (
                   <button onClick={() => {
@@ -571,6 +574,7 @@ type AuditEvent = {
 }
 
 function AuditLogTab() {
+  const traducir = useAppT()
   const [severity, setSeverity] = useState('')
 
   const { data: log = [], isLoading, refetch } = useQuery<AuditEvent[]>({
@@ -587,7 +591,7 @@ function AuditLogTab() {
   return (
     <div>
       <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 16px', marginBottom: 18, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
-        <strong style={{ color: 'var(--text-1)' }}>Audit Log inmutable GRC</strong> — Todos los eventos de seguridad: cambios de permisos, violaciones SoD, resets y aprobaciones críticas. Útil para auditorías SOC-2, ISO 27001 y cumplimiento regulatorio.
+        <strong style={{ color: 'var(--text-1)' }}>Audit Log inmutable GRC</strong> {traducir('grc.todos_los_eventos_de_seguridad_cambios_de')}
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
@@ -602,7 +606,7 @@ function AuditLogTab() {
       </div>
 
       {isLoading ? <Spinner /> : log.length === 0 ? (
-        <EmptyState icon="📋" title="Sin eventos de auditoria" description="Los eventos de seguridad apareceran aqui conforme se produzcan" />
+        <EmptyState icon="📋" title={traducir('grc.sin_eventos_de_auditoria')} description="Los eventos de seguridad apareceran aqui conforme se produzcan" />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 600, overflowY: 'auto', paddingRight: 4 }}>
           {log.map((e: AuditEvent) => {
@@ -636,6 +640,7 @@ function AuditLogTab() {
 }
 
 function ApprovalsTab() {
+  const traducir = useAppT()
   const { data: workflows = [], isLoading } = useQuery<Workflow[]>({
     queryKey: ['approval-workflows-grc'],
     queryFn: () => approvalsApi.listWorkflows(undefined).then(r => r.data),
@@ -645,13 +650,12 @@ function ApprovalsTab() {
     <div>
       <div style={{ marginBottom: 16, padding: '12px 16px', background: 'var(--surface-2)',
         borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
-        Los <strong style={{ color: 'var(--text-1)' }}>flujos de aprobación</strong> mitigan los riesgos
-        SoD añadiendo revisión obligatoria de un segundo nivel. Configúralos en la sección{' '}
+        {traducir('grc.los')} <strong style={{ color: 'var(--text-1)' }}>{traducir('grc.flujos_de_aprobacion')}</strong> {traducir('grc.mitigan_los_riesgos_sod_anadiendo_revision_obligatoria')}{' '}
         <a href="/approvals" style={{ color: 'var(--accent)' }}>Aprobaciones</a>.
       </div>
 
       {isLoading ? <Spinner /> : workflows.length === 0 ? (
-        <EmptyState icon="✅" title="Sin flujos de aprobacion"
+        <EmptyState icon="✅" title={traducir('grc.sin_flujos_de_aprobacion')}
           description="Configura flujos de aprobacion para mitigar riesgos SoD" />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -683,7 +687,7 @@ function ApprovalsTab() {
                   </div>
                 ))}
                 {(!wf.steps || wf.steps.length === 0) && (
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Sin pasos configurados</span>
+                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{traducir('grc.sin_pasos_configurados')}</span>
                 )}
               </div>
             </div>

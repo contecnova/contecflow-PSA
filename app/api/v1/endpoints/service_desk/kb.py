@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -44,14 +44,18 @@ def get_kb_article(article_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/kb", summary="Crear artículo KB")
-def create_kb_article(payload: KBArticleIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_kb_article(payload: KBArticleIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: los agentes escriben la base de conocimiento
+):
     a = build_kb_article(db, payload, current_user.id)
     _commit_or_rollback(db); db.refresh(a)
     return APIResponse.ok(data={"id": a.id, "number": a.number})
 
 
 @router.patch("/kb/{article_id}", summary="Actualizar artículo KB")
-def update_kb_article(article_id: str, payload: KBArticleUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_kb_article(article_id: str, payload: KBArticleUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: los agentes escriben la base de conocimiento
+):
     a = get_scoped_kb_article_or_404(db, current_user, article_id)
     apply_kb_article_update(db, a, payload, changed_by_user_id=current_user.id)
     _commit_or_rollback(db)
@@ -59,7 +63,9 @@ def update_kb_article(article_id: str, payload: KBArticleUpdate, db: Session = D
 
 
 @router.delete("/kb/{article_id}", summary="Eliminar artículo KB")
-def delete_kb_article(article_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_kb_article(article_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: los agentes escriben la base de conocimiento
+):
     enforce_abac(db, current_user, "sd_kb_article", article_id, action="delete")
     delete_kb_article_svc(db, current_user, article_id)
     _commit_or_rollback(db)
@@ -94,6 +100,7 @@ def rollback_kb(
     version: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: los agentes escriben la base de conocimiento
 ):
     article = get_scoped_kb_article_or_404(db, current_user, article_id)
     rollback_kb_to_version(db, article, version, changed_by_user_id=current_user.id)

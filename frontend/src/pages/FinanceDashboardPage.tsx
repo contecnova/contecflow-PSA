@@ -63,6 +63,7 @@ const ICON_ALERT = AlertTriangle as unknown as KpiIconCompat
 const ICON_RULER = Ruler as unknown as KpiIconCompat
 
 export default function FinanceDashboardPage(): JSX.Element {
+  const { t } = useAppLang()
   const [days, setDays] = useState<number>(90)
   const { lang } = useAppLang()
   const toast = useToast()
@@ -216,7 +217,7 @@ export default function FinanceDashboardPage(): JSX.Element {
               value={fmtCur(costSummary.avg_cost_per_hour, lang)}
               color={COLOR.accent} accentBar={COLOR.accent}
               sub={`${costSummary.users_with_cost} de ${costSummary.total_users} personas`} />
-            <KpiCard icon={<KpiIcon icon={ICON_ALERT} />} label="Sin estructura de coste"
+            <KpiCard icon={<KpiIcon icon={ICON_ALERT} />} label={t('financedashboard.sin_estructura_de_coste')}
               value={costSummary.users_missing_cost}
               color={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
               accentBar={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
@@ -254,9 +255,9 @@ export default function FinanceDashboardPage(): JSX.Element {
       {/* Charts */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-3)' }}>
         {/* Top clients */}
-        <SectionCard title="Top clientes por ingresos" badge={clientRows.length}>
+        <SectionCard title={t('financedashboard.top_clientes_por_ingresos')} badge={clientRows.length}>
           {clientRows.length === 0
-            ? <DashEmpty title="Sin datos de ingresos por cliente" description="Asocia proyectos e ingresos a clientes para ver esta métrica" />
+            ? <DashEmpty title={t('financedashboard.sin_datos_de_ingresos_por_cliente')} description="Asocia proyectos e ingresos a clientes para ver esta métrica" />
             : clientRows.map((c, i) => (
                 <BarRow key={c.name}
                   label={c.name}
@@ -269,9 +270,9 @@ export default function FinanceDashboardPage(): JSX.Element {
         </SectionCard>
 
         {/* Pipeline by stage */}
-        <SectionCard title="Pipeline por etapa" badge={openOpportunities}>
+        <SectionCard title={t('financedashboard.pipeline_por_etapa')} badge={openOpportunities}>
           {stageRows.length === 0
-            ? <DashEmpty title="Sin oportunidades en pipeline" />
+            ? <DashEmpty title={t('financedashboard.sin_oportunidades_en_pipeline')} />
             : stageRows.map(([stage, data], i) => (
                 <BarRow key={stage}
                   label={stage}
@@ -286,7 +287,7 @@ export default function FinanceDashboardPage(): JSX.Element {
 
       {/* Top projects by margin */}
       {topProjects.length > 0 && (
-        <SectionCard title="Rentabilidad por proyecto" badge={topProjects.length}>
+        <SectionCard title={t('financedashboard.rentabilidad_por_proyecto')} badge={topProjects.length}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -349,13 +350,13 @@ export default function FinanceDashboardPage(): JSX.Element {
       )}
 
       {/* Currency exchange rates */}
-      <SectionCard title="Tipos de cambio"
+      <SectionCard title={t('financedashboard.tipos_de_cambio')}
         badge={
           <button onClick={() => setShowRateForm(v => !v)}
             style={{ fontSize: 'var(--text-xs)', padding: '3px 9px', borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)',
               cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            {showRateForm ? <><X size={11} /> Cerrar</> : <><Plus size={11} /> Añadir</>}
+            {showRateForm ? <><X size={11} /> Cerrar</> : <><Plus size={11} /> {t('financedashboard.anadir')}</>}
           </button>
         }
       >
@@ -384,7 +385,7 @@ export default function FinanceDashboardPage(): JSX.Element {
           </div>
         )}
         {rates.length === 0 ? (
-          <DashEmpty title="Sin tipos de cambio" description="Añade tasas de conversión para gestionar proyectos multi-divisa" />
+          <DashEmpty title={t('financedashboard.sin_tipos_de_cambio')} description="Añade tasas de conversión para gestionar proyectos multi-divisa" />
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
             {rates.map(r => (

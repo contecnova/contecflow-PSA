@@ -59,6 +59,7 @@ const STATUS_CFG = {
 const PRIORITY_COLORS: Record<string, string> = {critical:'var(--danger)',high:'var(--warning)',medium:'var(--warning)',low:'var(--text-2)'}
 
 function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () => void }) {
+  const traducir = useAppT()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -121,7 +122,7 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
           <>
             <div>
               <label style={ls}>{t('sprint_planning.plan_name')}</label>
-              <input style={is} value={form.name} onChange={e => set('name')(e.target.value)} placeholder="Nombre del plan..." />
+              <input style={is} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={traducir('sprintplanning.nombre_del_plan')} />
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
               <div>
@@ -168,7 +169,7 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
           <>
             <div style={{padding:'14px 16px',background:'var(--success-bg)',border:'1px solid var(--success-border)',borderRadius:8}}>
               <div style={{fontSize: "var(--text-md)",fontWeight:600,color:'var(--success)',marginBottom:4}}>✅ {t('sprint_planning.plan_generated_label')}: {result.name}</div>
-              <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)'}}>{result.task_count} {t('sprint_planning.tasks_label')} · {result.total_points}p de {result.team_capacity}p</div>
+              <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)'}}>{result.task_count} {t('sprint_planning.tasks_label')} · {result.total_points}{traducir('sprintplanning.p_de')} {result.team_capacity}p</div>
             </div>
             {/* Barra de utilización */}
             <div>
@@ -219,6 +220,7 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
 }
 
 export default function SprintPlanningPage() {
+  const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -293,7 +295,7 @@ export default function SprintPlanningPage() {
                         background:sc.bg,color:sc.color,fontWeight:600}}>{t('sprint_planning.status_' + plan.status)}</span>
                     </div>
                     <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',marginTop:4}}>
-                      {plan.task_count} {t('sprint_planning.tasks_label')} · {plan.total_points}p de {plan.team_capacity}p ({pct}% {t('sprint_planning.utilization_label')})
+                      {plan.task_count} {t('sprint_planning.tasks_label')} · {plan.total_points}{traducir('sprintplanning.p_de')} {plan.team_capacity}p ({pct}% {t('sprint_planning.utilization_label')})
                     </div>
                   </div>
                   <div style={{display:'flex',gap:8}}>

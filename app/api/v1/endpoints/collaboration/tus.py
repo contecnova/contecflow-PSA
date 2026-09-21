@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.db.session import get_db
 from app.models.user import User
 from app.services.collaboration import tus as svc
@@ -62,6 +62,7 @@ async def tus_create(
     tus_resumable: str = Header(svc.TUS_VERSION, alias="Tus-Resumable"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
 ):
     uid = await run_in_threadpool(
         svc.crear_sesion, db, current_user,

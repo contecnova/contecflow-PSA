@@ -133,6 +133,7 @@ function ScoreBar({ value, max = 5 }: { value: number | null | undefined; max?: 
 
 // ── ReviewForm: rellenar una evaluación dinámica según preguntas del ciclo ─
 function ReviewForm({ review, onClose }: { review: Dict; onClose: () => void }) {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
 
@@ -294,7 +295,7 @@ function ReviewForm({ review, onClose }: { review: Dict; onClose: () => void }) 
 
           {questions.length === 0 && (
             <div className="ds-card--inset" style={{ display: 'block', textAlign: 'center' }}>
-              <div className="ds-muted">Este ciclo aún no tiene preguntas configuradas.</div>
+              <div className="ds-muted">{traducir('performancereviews.este_ciclo_aun_no_tiene_preguntas_configuradas')}</div>
             </div>
           )}
 
@@ -311,7 +312,7 @@ function ReviewForm({ review, onClose }: { review: Dict; onClose: () => void }) 
             <Button onClick={() => submit()}
               disabled={saving || submitting || missingRequired.length > 0}
               loading={submitting}>
-              <Send size={13} /> Enviar evaluación
+              <Send size={13} /> {traducir('performancereviews.enviar_evaluacion')}
             </Button>
           </div>
         </div>
@@ -322,6 +323,7 @@ function ReviewForm({ review, onClose }: { review: Dict; onClose: () => void }) 
 
 // ── AssignReviewModal: HR/Admin asigna quién evalúa a quién (smart 360°) ───
 function AssignReviewModal({ cycle, onClose }: { cycle: Dict; onClose: () => void }) {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [form, setForm] = useState({ reviewer_id: '', reviewee_id: '', review_type: 'manager' })
@@ -373,7 +375,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Dict; onClose: () => voi
 
   return (
     <Modal open onClose={onClose}
-      title="Asignar evaluación"
+      title={traducir('performancereviews.asignar_evaluacion')}
       subtitle={`Ciclo: ${cycle.name}`}
       width={560}>
       <div className="ds-stack" style={{ gap: 'var(--space-4)' }}>
@@ -437,7 +439,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Dict; onClose: () => voi
             </select>
             {form.reviewee_id && !blockedReason && eligibleUsers.length > 0 && (
               <div className="ds-field__hint">
-                {eligibleUsers.length} evaluador(es) elegible(s) según organigrama y equipo
+                {eligibleUsers.length} {traducir('performancereviews.evaluador_es_elegible_s_segun_organigrama_y')}
               </div>
             )}
           </div>
@@ -456,6 +458,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Dict; onClose: () => voi
 
 // ── QuestionsEditor: edita la plantilla de preguntas de un ciclo en draft ───
 function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatus: string }) {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const editable = cycleStatus === 'draft'
@@ -492,17 +495,17 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
     <div className="ds-card--inset" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
       <div className="ds-row-between">
         <div className="ds-eyebrow" style={styles.inlineIconSm}>
-          <ListChecks size={12} /> Plantilla de preguntas ({questions.length})
+          <ListChecks size={12} /> {traducir('performancereviews.plantilla_de_preguntas')}{questions.length})
         </div>
         {editable && (
           <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
-            <Plus size={11} /> Añadir
+            <Plus size={11} /> {traducir('performancereviews.anadir')}
           </Button>
         )}
       </div>
       {questions.length === 0 ? (
         <div className="ds-muted" style={{ fontSize: 'var(--text-sm)' }}>
-          Sin preguntas. {editable && 'Añade alguna o siembra las predeterminadas.'}
+          {traducir('performancereviews.sin_preguntas')} {editable && 'Añade alguna o siembra las predeterminadas.'}
         </div>
       ) : (
         <div className="ds-stack-sm">
@@ -534,7 +537,7 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
       )}
       {!editable && (
         <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
-          La plantilla solo es editable mientras el ciclo está en borrador.
+          {traducir('performancereviews.la_plantilla_solo_es_editable_mientras_el')}
         </div>
       )}
       {adding && (
@@ -557,6 +560,7 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
 function QuestionEditModal({ question, onClose, onSave }: {
   question?: Dict; onClose: () => void; onSave: (data: Dict) => void
 }) {
+  const traducir = useAppT()
   const isEdit = !!question
   const [form, setForm] = useState(() => ({
     key:       question?.key       || '',
@@ -590,18 +594,18 @@ function QuestionEditModal({ question, onClose, onSave }: {
           <div className="ds-field">
             <label className="ds-field__label">Identificador (opcional)</label>
             <input value={form.key} onChange={e => setForm(f => ({ ...f, key: e.target.value }))}
-              className="ds-input" placeholder="se genera del título si lo dejas vacío" />
+              className="ds-input" placeholder={traducir('performancereviews.se_genera_del_titulo_si_lo_dejas')} />
           </div>
         )}
         <div className="ds-field">
           <label className="ds-field__label">Pregunta *</label>
           <input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
-            className="ds-input" placeholder="Ej: Calidad del trabajo" autoFocus />
+            className="ds-input" placeholder={traducir('performancereviews.ej_calidad_del_trabajo')} autoFocus />
         </div>
         <div className="ds-field">
           <label className="ds-field__label">Ayuda (opcional)</label>
           <input value={form.hint} onChange={e => setForm(f => ({ ...f, hint: e.target.value }))}
-            className="ds-input" placeholder="Texto pequeño de apoyo bajo la pregunta" />
+            className="ds-input" placeholder={traducir('performancereviews.texto_pequeno_de_apoyo_bajo_la_pregunta')} />
         </div>
         <div style={styles.twoColGrid}>
           <div className="ds-field">
@@ -622,13 +626,13 @@ function QuestionEditModal({ question, onClose, onSave }: {
         {isRatingKind(form.kind) && (
           <div style={styles.twoColGrid}>
             <div className="ds-field">
-              <label className="ds-field__label">Escala mín</label>
+              <label className="ds-field__label">{traducir('performancereviews.escala_min')}</label>
               <input type="number" value={form.scale_min}
                 onChange={e => setForm(f => ({ ...f, scale_min: e.target.value }))}
                 className="ds-input" placeholder="1" />
             </div>
             <div className="ds-field">
-              <label className="ds-field__label">Escala máx</label>
+              <label className="ds-field__label">{traducir('performancereviews.escala_max')}</label>
               <input type="number" value={form.scale_max}
                 onChange={e => setForm(f => ({ ...f, scale_max: e.target.value }))}
                 className="ds-input" placeholder={form.kind === 'rating_10' ? '10' : '5'} />
@@ -648,6 +652,7 @@ function QuestionEditModal({ question, onClose, onSave }: {
 
 // ── New360CampaignModal: wizard que crea una campaña con todos sus evaluadores
 function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => void }) {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
 
@@ -740,7 +745,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
   return (
     <Modal open onClose={onClose}
       title={<span style={styles.inlineIcon}>
-        <Target size={16} /> Nueva campaña 360°
+        <Target size={16} /> {traducir('performancereviews.nueva_campana_360')}
       </span>}
       subtitle={`Ciclo: ${cycle.name}`}
       width={680}>
@@ -758,7 +763,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
 
         {!subjectId ? (
           <div className="ds-card--inset" style={{ display: 'block', textAlign: 'center' }}>
-            <div className="ds-muted">Selecciona primero la persona a evaluar para ver sus evaluadores elegibles.</div>
+            <div className="ds-muted">{traducir('performancereviews.selecciona_primero_la_persona_a_evaluar_para')}</div>
           </div>
         ) : (
           <>
@@ -768,10 +773,10 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
                 checked={selfReview} onChange={e => setSelfReview(e.target.checked)} />
               <label htmlFor="self-review-cb" style={{ cursor: 'pointer', flex: 1 }}>
                 <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>
-                  <User size={12} style={{ verticalAlign: 'middle' }} /> Autoevaluación
+                  <User size={12} style={{ verticalAlign: 'middle' }} /> {traducir('performancereviews.autoevaluacion')}
                 </div>
                 <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
-                  La propia persona se evalúa (recomendado en 360°)
+                  {traducir('performancereviews.la_propia_persona_se_evalua_recomendado_en')}
                 </div>
               </label>
             </div>
@@ -788,7 +793,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
               ) : (
                 <select value={managerId} onChange={e => setManagerId(e.target.value)}
                   className="ds-input">
-                  <option value="">— Sin manager —</option>
+                  <option value="">{traducir('performancereviews.sin_manager')}</option>
                   {managerOptions.map(u => (
                     <option key={u.id} value={u.id}>{u.full_name}</option>
                   ))}
@@ -801,7 +806,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
               <label className="ds-field__label">
                 <UsersIcon size={11} style={{ verticalAlign: 'middle' }} /> Pares
                 <span className="ds-muted" style={{ fontWeight: 400, marginLeft: 6 }}>
-                  ({peerIds.length} seleccionados de {peerOptions.length} elegibles)
+                  ({peerIds.length} {traducir('performancereviews.seleccionados_de')} {peerOptions.length} elegibles)
                 </span>
               </label>
               {peerData?.reason_blocked ? (
@@ -810,7 +815,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
                 </div>
               ) : peerOptions.length === 0 ? (
                 <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
-                  Sin pares elegibles
+                  {traducir('performancereviews.sin_pares_elegibles')}
                 </div>
               ) : (
                 <div className="ds-row-wrap" style={{ gap: 6 }}>
@@ -850,7 +855,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
                 </div>
               ) : upwardOptions.length === 0 ? (
                 <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
-                  Sin reportes directos
+                  {traducir('performancereviews.sin_reportes_directos')}
                 </div>
               ) : (
                 <div className="ds-row-wrap" style={{ gap: 6 }}>
@@ -877,14 +882,13 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
             {/* Anonimización */}
             <div className="ds-field">
               <label className="ds-field__label">
-                <Lock size={11} style={{ verticalAlign: 'middle' }} /> Umbral de anonimización
+                <Lock size={11} style={{ verticalAlign: 'middle' }} /> {traducir('performancereviews.umbral_de_anonimizacion')}
               </label>
               <input type="number" min={1} max={20} value={threshold}
                 onChange={e => setThreshold(e.target.value)}
                 className="ds-input" style={{ width: 100 }} />
               <div className="ds-field__hint">
-                Cuando un grupo (pares, upward) tenga menos respuestas que este umbral,
-                los comentarios individuales se ocultan en el dashboard.
+                {traducir('performancereviews.cuando_un_grupo_pares_upward_tenga_menos')}
               </div>
             </div>
           </>
@@ -897,7 +901,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <Button variant="secondary" onClick={onClose}>Cancelar</Button>
             <Button onClick={() => create()} disabled={!canCreate} loading={isPending}>
-              <Target size={13} /> Crear campaña 360°
+              <Target size={13} /> {traducir('performancereviews.crear_campana_360')}
             </Button>
           </div>
         </div>
@@ -910,6 +914,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
 function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
   campaignId: string; onClose: () => void; onOpenHistory?: (id: string, name: string) => void
 }) {
+  const traducir = useAppT()
   const toast = useToast()
   const { data, isLoading } = useQuery<Dict>({
     queryKey: ['perf-campaign-dashboard', campaignId],
@@ -989,7 +994,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
         {/* Comparación por pregunta tipo rating */}
         {ratingQs.length > 0 && (
           <div className="ds-card--inset" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <div className="ds-eyebrow">Comparación por pregunta</div>
+            <div className="ds-eyebrow">{traducir('performancereviews.comparacion_por_pregunta')}</div>
             {ratingQs.map((q: Dict) => {
               const max = ratingMax(q)
               const cmp = data.comparison?.[q.key] || {}
@@ -1076,7 +1081,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
                       </div>
                       {!g.anonymized && items.length === 0 && (
                         <div className="ds-muted" style={{ fontSize: 'var(--text-xs)', paddingLeft: 18 }}>
-                          Sin respuestas
+                          {traducir('performancereviews.sin_respuestas')}
                         </div>
                       )}
                       {!g.anonymized && items.map((it: Dict, idx: number) => (
@@ -1098,7 +1103,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <Button variant="secondary"
               onClick={() => onOpenHistory?.(c.subject_id, c.subject_name)}>
-              <TrendingUp size={13} /> Ver evolución histórica
+              <TrendingUp size={13} /> {traducir('performancereviews.ver_evolucion_historica')}
             </Button>
             <Button variant="secondary" onClick={downloadPdf}>
               <FileDown size={13} /> Descargar PDF
@@ -1117,6 +1122,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
 function History360Modal({ subjectId, subjectName, onClose }: {
   subjectId?: string; subjectName?: string; onClose: () => void
 }) {
+  const traducir = useAppT()
   const { data, isLoading } = useQuery<Dict>({
     queryKey: ['perf-360-history', subjectId],
     queryFn: () => performanceApi.history360(subjectId).then(r => r.data),
@@ -1140,13 +1146,13 @@ function History360Modal({ subjectId, subjectName, onClose }: {
   return (
     <Modal open onClose={onClose}
       title={<span style={styles.inlineIcon}>
-        <TrendingUp size={16} /> Evolución 360° — {subjectName || data?.subject_name}
+        <TrendingUp size={16} /> {traducir('performancereviews.evolucion_360')} {subjectName || data?.subject_name}
       </span>}
       subtitle={`${series.length} campañas con respuestas`}
       width={780}>
       {isLoading ? <Spinner /> : series.length === 0 ? (
         <EmptyState svgIcon={<History size={36} />}
-          title="Sin histórico aún"
+          title={traducir('performancereviews.sin_historico_aun')}
           description="Cuando se cierren campañas con respuestas, aparecerán aquí ordenadas cronológicamente." />
       ) : (
         <div className="ds-stack" style={{ gap: 'var(--space-3)' }}>
@@ -1228,6 +1234,7 @@ function History360Modal({ subjectId, subjectName, onClose }: {
 function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
   cycle: Dict; isManager: boolean; onCreate: (cycle: Dict) => void; onOpenDashboard: (id: string) => void
 }) {
+  const traducir = useAppT()
   const { data: campaigns = [], isLoading } = useQuery<Dict[]>({
     queryKey: ['perf-campaigns', cycle.id],
     queryFn: () => performanceApi.listCampaigns(cycle.id).then(r => r.data).catch(() => []),
@@ -1237,20 +1244,19 @@ function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
     <div className="ds-card--inset" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
       <div className="ds-row-between">
         <div className="ds-eyebrow" style={styles.inlineIconSm}>
-          <Target size={12} /> Campañas 360° ({campaigns.length})
+          <Target size={12} /> {traducir('performancereviews.campanas_360')}{campaigns.length})
         </div>
         {cycle.status !== 'closed' && (
           <span title={!isManager ? NO_PERMISSION_TIP : undefined} style={{ display: 'inline-flex' }}>
             <Button size="sm" onClick={() => onCreate(cycle)} disabled={!isManager}>
-              <Plus size={11} /> Nueva campaña
+              <Plus size={11} /> {traducir('performancereviews.nueva_campana')}
             </Button>
           </span>
         )}
       </div>
       {isLoading ? <Spinner /> : campaigns.length === 0 ? (
         <div className="ds-muted" style={{ fontSize: 'var(--text-sm)' }}>
-          Sin campañas. Una campaña agrupa autoevaluación + manager + pares + upward para una persona,
-          y produce un dashboard agregado y anonimizado.
+          {traducir('performancereviews.sin_campanas_una_campana_agrupa_autoevaluacion_manager')}
         </div>
       ) : (
         <div className="ds-stack-sm">
@@ -1300,6 +1306,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
   onActivate: (id: string) => void; onCloseCycle: (id: string) => void
   onAssign: (cycle: Dict) => void; onCreateCampaign: (cycle: Dict) => void; onOpenDashboard: (id: string) => void
 }) {
+  const traducir = useAppT()
   const [expanded, setExpanded] = useState(false)
   const { data: reviews = [], isLoading } = useQuery<Dict[]>({
     queryKey: ['perf-cycle-reviews', cycle.id],
@@ -1389,7 +1396,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
             isLoading ? <Spinner /> : reviews.length === 0 ? (
               <div className="ds-card--inset" style={{ display: 'block' }}>
                 <div className="ds-muted" style={{ fontSize: 'var(--text-sm)' }}>
-                  Sin evaluaciones aún. {cycle.status === 'active' && isManager && 'Pulsa "Asignar" para crear la primera.'}
+                  {traducir('performancereviews.sin_evaluaciones_aun')} {cycle.status === 'active' && isManager && 'Pulsa "Asignar" para crear la primera.'}
                   {cycle.status === 'active' && !isManager && 'RR.HH. asignará las evaluaciones cuando estén listas.'}
                 </div>
               </div>
@@ -1422,7 +1429,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
                       </div>
                       {r.score_overall != null && <ScoreBar value={r.score_overall} />}
                       <div className="ds-muted" style={{ fontSize: 'var(--text-xs)', marginTop: 4 }}>
-                        por {r.reviewer_name}
+                        {traducir('performancereviews.por')} {r.reviewer_name}
                       </div>
                     </div>
                   )
@@ -1438,6 +1445,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
 
 // ── NewCycleModal ──────────────────────────────────────────────────────────
 function NewCycleModal({ existingCycles, onClose }: { existingCycles: Dict[]; onClose: () => void }) {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [form, setForm] = useState({
@@ -1474,12 +1482,12 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Dict[]; on
     (form.template_mode !== 'clone' || !!form.clone_from)
 
   return (
-    <Modal open onClose={onClose} title="Nuevo ciclo de evaluación" width={520}>
+    <Modal open onClose={onClose} title={traducir('performancereviews.nuevo_ciclo_de_evaluacion')} width={520}>
       <div className="ds-stack">
         <div className="ds-field">
           <label className="ds-field__label">Nombre *</label>
           <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            className="ds-input" placeholder="Ej: Evaluación Q1 2026" autoFocus />
+            className="ds-input" placeholder={traducir('performancereviews.ej_evaluacion_q1_2026')} autoFocus />
         </div>
         <div style={styles.twoColGrid}>
           <div className="ds-field">
@@ -1496,7 +1504,7 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Dict[]; on
           </div>
         </div>
         <div className="ds-field">
-          <label className="ds-field__label">Plantilla de preguntas</label>
+          <label className="ds-field__label">{traducir('performancereviews.plantilla_de_preguntas_2')}</label>
           <div className="ds-row-wrap">
             {[
               { id: 'default', label: 'Por defecto (5 ratings + 3 textos)' },
@@ -1713,6 +1721,7 @@ const GOAL_STATUS_CFG = {
 }
 
 function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectName?: string }) {
+  const traducir = useAppT()
   const [openPlanId, setOpenPlanId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
@@ -1726,16 +1735,16 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
     <div className="ds-stack" style={{ gap: 'var(--space-3)' }}>
       <div className="ds-row-between">
         <div className="ds-eyebrow" style={styles.inlineIconSm}>
-          <MapIcon size={12} /> Planes de desarrollo de {subjectName}
+          <MapIcon size={12} /> {traducir('performancereviews.planes_de_desarrollo_de')} {subjectName}
         </div>
         <Button size="sm" onClick={() => setCreating(true)}>
-          <Plus size={11} /> Nuevo plan
+          <Plus size={11} /> {traducir('performancereviews.nuevo_plan')}
         </Button>
       </div>
 
       {isLoading ? <Spinner /> : plans.length === 0 ? (
         <EmptyState svgIcon={<MapIcon size={36} />}
-          title="Sin planes aún"
+          title={traducir('performancereviews.sin_planes_aun')}
           description="Tras una campaña 360° crea un plan con objetivos concretos, fechas y revisiones." />
       ) : (
         <div className="ds-stack-sm">
@@ -1770,7 +1779,7 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
                       )}
                       {p.next_review_at && (
                         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)' }}>
-                          Próxima revisión: {p.next_review_at}
+                          {traducir('performancereviews.proxima_revision')} {p.next_review_at}
                         </span>
                       )}
                     </div>
@@ -1800,6 +1809,7 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
 }
 
 function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: () => void }) {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [form, setForm] = useState<{
@@ -1838,22 +1848,22 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
   return (
     <Modal open onClose={onClose}
       title={<span style={styles.inlineIcon}>
-        <MapIcon size={16} /> Nuevo plan de desarrollo
+        <MapIcon size={16} /> {traducir('performancereviews.nuevo_plan_de_desarrollo')}
       </span>}
       width={560}>
       <div className="ds-stack">
         <div className="ds-field">
-          <label className="ds-field__label">Título *</label>
+          <label className="ds-field__label">{traducir('performancereviews.titulo')}</label>
           <input value={form.title}
             onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-            className="ds-input" placeholder="Ej: Mejora comunicación 2026" autoFocus />
+            className="ds-input" placeholder={traducir('performancereviews.ej_mejora_comunicacion_2026')} autoFocus />
         </div>
         <div className="ds-field">
           <label className="ds-field__label">Resumen / contexto</label>
           <textarea value={form.summary}
             onChange={e => setForm(f => ({ ...f, summary: e.target.value }))}
             rows={3} className="ds-input" style={{ resize: 'vertical' }}
-            placeholder="Resumen del 360° y áreas de mejora identificadas" />
+            placeholder={traducir('performancereviews.resumen_del_360_y_areas_de_mejora')} />
         </div>
         <div style={styles.twoColGrid}>
           <div className="ds-field">
@@ -1863,7 +1873,7 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
               className="ds-input" />
           </div>
           <div className="ds-field">
-            <label className="ds-field__label">Próxima revisión</label>
+            <label className="ds-field__label">{traducir('performancereviews.proxima_revision_2')}</label>
             <input type="date" value={form.next_review_at}
               onChange={e => setForm(f => ({ ...f, next_review_at: e.target.value }))}
               className="ds-input" />
@@ -1891,7 +1901,7 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
             </div>
           ))}
           <Button size="sm" variant="ghost" onClick={addRow}>
-            <Plus size={11} /> Añadir objetivo
+            <Plus size={11} /> {traducir('performancereviews.anadir_objetivo')}
           </Button>
         </div>
         <div style={styles.flexEndRow}>
@@ -1907,6 +1917,7 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
 }
 
 function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void }) {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [newGoal, setNewGoal] = useState('')
@@ -1983,7 +1994,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
         <div className="ds-card--inset" style={{ display: 'block' }}>
           <div className="ds-eyebrow">Objetivos</div>
           {plan.goals.length === 0 ? (
-            <div className="ds-muted" style={{ fontSize: 'var(--text-sm)' }}>Sin objetivos aún.</div>
+            <div className="ds-muted" style={{ fontSize: 'var(--text-sm)' }}>{traducir('performancereviews.sin_objetivos_aun')}</div>
           ) : (
             <div className="ds-stack-sm">
               {plan.goals.map((g: Dict) => {
@@ -2024,10 +2035,10 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
               onChange={e => setNewGoal(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && newGoal.trim() && addG(newGoal.trim())}
               className="ds-input" style={{ flex: 1 }}
-              placeholder="Añadir nuevo objetivo y pulsar Enter" />
+              placeholder={traducir('performancereviews.anadir_nuevo_objetivo_y_pulsar_enter')} />
             <Button size="sm" onClick={() => newGoal.trim() && addG(newGoal.trim())}
               disabled={!newGoal.trim()}>
-              <Plus size={11} /> Añadir
+              <Plus size={11} /> {traducir('performancereviews.anadir')}
             </Button>
           </div>
         </div>
@@ -2044,6 +2055,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
 
 // ── Page ───────────────────────────────────────────────────────────────────
 export default function PerformanceReviewsPage() {
+  const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -2110,7 +2122,7 @@ export default function PerformanceReviewsPage() {
         tab === 'cycles' && (
           <span title={!isManager ? NO_PERMISSION_TIP : undefined} style={{ display: 'inline-flex' }}>
             <Button onClick={() => setShowNewCycle(true)} disabled={!isManager}>
-              <Plus size={13} /> Nuevo ciclo
+              <Plus size={13} /> {traducir('performancereviews.nuevo_ciclo')}
             </Button>
           </span>
         )
@@ -2147,7 +2159,7 @@ export default function PerformanceReviewsPage() {
       {tab === 'cycles' && (
         loadingCycles ? <Spinner /> : cycles.length === 0 ? (
           <EmptyState svgIcon={<Star size={36} />}
-            title="Sin ciclos de evaluación"
+            title={traducir('performancereviews.sin_ciclos_de_evaluacion')}
             description={isManager
               ? 'Crea el primer ciclo para iniciar evaluaciones.'
               : 'Cuando RR.HH. inicie un ciclo, aparecerá aquí.'} />
@@ -2176,21 +2188,21 @@ export default function PerformanceReviewsPage() {
           }}>
             <div>
               <div style={styles.titleSmBolder}>
-                Mi evolución 360°
+                {traducir('performancereviews.mi_evolucion_360')}
               </div>
               <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
-                Compara tus puntuaciones (others vs self) a lo largo de los ciclos cerrados.
+                {traducir('performancereviews.compara_tus_puntuaciones_others_vs_self_a')}
               </div>
             </div>
             <Button variant="secondary" size="sm"
               onClick={() => setHistorySubject({ id: user?.id, name: user?.full_name ?? undefined })}>
-              <TrendingUp size={12} /> Ver evolución
+              <TrendingUp size={12} /> {traducir('performancereviews.ver_evolucion')}
             </Button>
           </div>
 
           {loadingMine ? <Spinner /> : myReviews.length === 0 ? (
             <EmptyState svgIcon={<CheckCircle2 size={36} />}
-              title="Sin evaluaciones pendientes"
+              title={traducir('performancereviews.sin_evaluaciones_pendientes')}
               description="Cuando alguien te asigne una evaluación, aparecerá aquí." />
           ) : (
           <div data-export-table="performance-pending-list" className="ds-stack-sm">
@@ -2210,7 +2222,7 @@ export default function PerformanceReviewsPage() {
                     </div>
                     <div className="ds-muted">{t.label} · {t.help}</div>
                   </div>
-                  <Button onClick={() => setEditingReview(r)}>Rellenar evaluación</Button>
+                  <Button onClick={() => setEditingReview(r)}>{traducir('performancereviews.rellenar_evaluacion')}</Button>
                 </div>
               )
             })}

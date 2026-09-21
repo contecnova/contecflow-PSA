@@ -44,6 +44,7 @@ const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov
 
 // ── Obligations panel (per-contract) ─────────────────────────────────────────
 function ObligationsPanel({ contractId, onClose, currency }: { contractId: string; onClose: () => void; currency?: string }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -72,10 +73,10 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
   })
 
   return (
-    <Modal open onClose={onClose} title="Obligaciones de desempeño" width={560}>
+    <Modal open onClose={onClose} title={t('revenue.obligaciones_de_desempeno')} width={560}>
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
         {isLoading ? <Spinner /> : obs.length === 0 && !showForm ? (
-          <EmptyState icon="📋" title="Sin obligaciones" description="Añade las obligaciones de desempeño de este contrato" />
+          <EmptyState icon="📋" title={t('revenue.sin_obligaciones')} description="Añade las obligaciones de desempeño de este contrato" />
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {obs.map((ob: any) => {
@@ -106,15 +107,15 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
           <div style={{ border:'.5px solid var(--surface-4)', borderRadius:8, padding:'14px', display:'flex', flexDirection:'column', gap:10 }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
               <div><label style={ls}>Nombre</label>
-                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} placeholder="Ej: Fase 1 — Análisis" />
+                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} placeholder={t('revenue.ej_fase_1_analisis')} />
               </div>
-              <div><label style={ls}>Método</label>
+              <div><label style={ls}>{t('revenue.metodo')}</label>
                 <select value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))} style={fs}>
                   {Object.entries(ASC_METHOD_CFG).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
                 </select>
               </div>
             </div>
-            <div><label style={ls}>Precio de venta independiente (€)</label>
+            <div><label style={ls}>{t('revenue.precio_de_venta_independiente')}</label>
               <input type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} style={fs} placeholder="0" />
             </div>
             <div><label style={ls}>Notas</label>
@@ -128,7 +129,7 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
             </div>
           </div>
         ) : (
-          <Button variant="secondary" onClick={() => setShowForm(true)}>+ Añadir obligación</Button>
+          <Button variant="secondary" onClick={() => setShowForm(true)}>{t('revenue.anadir_obligacion')}</Button>
         )}
       </div>
     </Modal>
@@ -318,7 +319,7 @@ export default function RevenuePage() {
         <div>
           {chartData.length > 0 ? (
             <div style={{ ...card, padding:'20px 24px' }}>
-              <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:16 }}>Ingresos reconocidos vs diferidos por mes</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:16 }}>{t('revenue.ingresos_reconocidos_vs_diferidos_por_mes')}</div>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={chartData}>
                   <XAxis dataKey="mes" tick={{ fontSize: "var(--text-xs)" }} />
@@ -331,7 +332,7 @@ export default function RevenuePage() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <EmptyState icon="📊" title="Sin datos de reconocimiento" description="Crea reglas de reconocimiento de ingresos para ver el grafico" />
+            <EmptyState icon="📊" title={t('revenue.sin_datos_de_reconocimiento')} description="Crea reglas de reconocimiento de ingresos para ver el grafico" />
           )}
         </div>
       )}
@@ -340,10 +341,10 @@ export default function RevenuePage() {
       {tab === 'rules' && (
         <div>
           <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
-            <Button onClick={() => setShowCreate(true)}>+ Nueva regla</Button>
+            <Button onClick={() => setShowCreate(true)}>{t('revenue.nueva_regla')}</Button>
           </div>
           {isLoading ? <Spinner /> : rules.length === 0 ? (
-            <EmptyState icon="📋" title="Sin reglas de reconocimiento" description="Crea una regla para iniciar el reconocimiento de ingresos" />
+            <EmptyState icon="📋" title={t('revenue.sin_reglas_de_reconocimiento')} description="Crea una regla para iniciar el reconocimiento de ingresos" />
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {rules.map(r => {
@@ -374,7 +375,7 @@ export default function RevenuePage() {
                         )}
                       </div>
                       <div style={{ marginLeft:20 }}>
-                        <Button onClick={() => setShowCompute(r)}>Calcular período</Button>
+                        <Button onClick={() => setShowCompute(r)}>{t('revenue.calcular_periodo')}</Button>
                       </div>
                     </div>
                   </div>
@@ -399,8 +400,8 @@ export default function RevenuePage() {
               </Button>
             </div>
             <div style={{ display:'flex', gap:10 }}>
-              <Button variant="secondary" onClick={() => setShowCloseModal(true)}><Lock size={13} style={{ marginRight:4 }} />Cerrar período</Button>
-              <Button onClick={() => setShowCreateContract(true)}>+ Nuevo contrato</Button>
+              <Button variant="secondary" onClick={() => setShowCloseModal(true)}><Lock size={13} style={{ marginRight:4 }} />{t('revenue.cerrar_periodo')}</Button>
+              <Button onClick={() => setShowCreateContract(true)}>{t('revenue.nuevo_contrato')}</Button>
             </div>
           </div>
 
@@ -451,7 +452,7 @@ export default function RevenuePage() {
                     <button
                       onClick={() => reopenPeriodMut({ year: pc.period_year, month: pc.period_month })}
                       style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', padding:0, lineHeight:1 }}
-                      title="Reabrir período"
+                      title={t('revenue.reabrir_periodo')}
                     >
                       <LockOpen size={11} />
                     </button>
@@ -463,9 +464,9 @@ export default function RevenuePage() {
 
           {/* Contracts list */}
           <div>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight:500, marginBottom:10, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.06em' }}>Contratos de reconocimiento</div>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight:500, marginBottom:10, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.06em' }}>{t('revenue.contratos_de_reconocimiento')}</div>
             {contractsLoading ? <Spinner /> : contracts.length === 0 ? (
-              <EmptyState icon="📑" title="Sin contratos ASC 606" description="Crea un contrato para configurar el reconocimiento de ingresos por proyecto" />
+              <EmptyState icon="📑" title={t('revenue.sin_contratos_asc_606')} description="Crea un contrato para configurar el reconocimiento de ingresos por proyecto" />
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                 {contracts.map(c => {
@@ -491,7 +492,7 @@ export default function RevenuePage() {
                           </div>
                           <button onClick={() => setObligationsFor(c.id)}
                             style={{ fontSize: "var(--text-xs)", padding:'3px 10px', borderRadius:6, border:'.5px solid var(--surface-4)', background:'transparent', color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>
-                            📋 Obligaciones de desempeño
+                            {t('revenue.obligaciones_de_desempeno_2')}
                           </button>
                         </div>
                       </div>
@@ -512,21 +513,21 @@ export default function RevenuePage() {
             <div>
               <label style={ls}>Contrato</label>
               <select value={entryFilter.contract_id} onChange={e => setEntryFilter(f=>({...f, contract_id:e.target.value}))} style={fs}>
-                <option value="">Todos los contratos</option>
+                <option value="">{t('revenue.todos_los_contratos')}</option>
                 {contracts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
-              <label style={ls}>Año</label>
+              <label style={ls}>{t('revenue.ano')}</label>
               <select value={entryFilter.year} onChange={e => setEntryFilter(f=>({...f, year:e.target.value}))} style={{...fs, width:100}}>
-                <option value="">Todos</option>
+                <option value="">{t('revenue.todos')}</option>
                 {[currentYear-1, currentYear, currentYear+1].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
             <div>
               <label style={ls}>Mes</label>
               <select value={entryFilter.month} onChange={e => setEntryFilter(f=>({...f, month:e.target.value}))} style={{...fs, width:110}}>
-                <option value="">Todos</option>
+                <option value="">{t('revenue.todos')}</option>
                 {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{i+1} — {m}</option>)}
               </select>
             </div>
@@ -540,7 +541,7 @@ export default function RevenuePage() {
 
           {/* Table */}
           {entriesLoading ? <Spinner /> : entries.length === 0 ? (
-            <EmptyState icon="📋" title="Sin entradas contables" description="Las entradas se generan al ejecutar el reconocimiento mensual" />
+            <EmptyState icon="📋" title={t('revenue.sin_entradas_contables')} description="Las entradas se generan al ejecutar el reconocimiento mensual" />
           ) : (
             <div style={{ ...card, overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize: "var(--text-base)" }}>
@@ -599,7 +600,7 @@ export default function RevenuePage() {
       {/* ── Info ASC 606 ── */}
       {tab === 'info' && (
         <div style={{ ...card, padding:'24px 28px', maxWidth:700 }}>
-          <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:16 }}>ASC 606 / IFRS 15 — Los 5 pasos</div>
+          <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:16 }}>{t('revenue.asc_606_ifrs_15_los_5_pasos')}</div>
           {[
             ['1. Identificar el contrato', 'Acuerdo con el cliente con términos comerciales claros y probabilidad de cobro.'],
             ['2. Identificar las obligaciones', 'Cada entregable distinto (módulo, fase, servicio) es una obligación de desempeño separada.'],
@@ -616,7 +617,7 @@ export default function RevenuePage() {
             </div>
           ))}
           <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:10 }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>Métodos disponibles</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{t('revenue.metodos_disponibles')}</div>
             {Object.entries(ASC_METHOD_CFG).map(([k, v]) => (
               <div key={k} style={{ display:'flex', gap:10, padding:'8px 12px', background:'var(--surface-2)', borderRadius:8 }}>
                 <span style={{ fontSize: "var(--text-lg)" }}>{v.icon}</span>
@@ -632,7 +633,7 @@ export default function RevenuePage() {
 
       {/* ── Modal nueva regla (legacy) ── */}
       {showCreate && (
-        <Modal open title="Nueva regla de reconocimiento" onClose={() => setShowCreate(false)} width={520}>
+        <Modal open title={t('revenue.nueva_regla_de_reconocimiento')} onClose={() => setShowCreate(false)} width={520}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div><label style={ls}>Proyecto</label>
               <select value={form.project_id} onChange={e=>setForm(f=>({...f,project_id:e.target.value}))} style={fs}>
@@ -640,12 +641,12 @@ export default function RevenuePage() {
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
               </select>
             </div>
-            <div><label style={ls}>Método de reconocimiento</label>
+            <div><label style={ls}>{t('revenue.metodo_de_reconocimiento')}</label>
               <select value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))} style={fs}>
                 {Object.entries(METHOD_CFG).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label} — {v.desc}</option>)}
               </select>
             </div>
-            <div><label style={ls}>Valor del contrato (€)</label>
+            <div><label style={ls}>{t('revenue.valor_del_contrato')}</label>
               <input type="number" value={form.contract_value} onChange={e=>setForm(f=>({...f,contract_value:e.target.value}))} style={fs} placeholder="Ej: 50000" />
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -670,10 +671,10 @@ export default function RevenuePage() {
         <Modal open title={`Calcular reconocimiento — ${showCompute.project_name}`} onClose={() => setShowCompute(null)} width={440}>
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
             <div style={{ background:'var(--surface-2)', borderRadius:8, padding:'12px 14px', fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
-              Método: <strong style={{ color:'var(--text-1)' }}>{METHOD_CFG[showCompute.method]?.label}</strong><br/>
+              {t('revenue.metodo_2')} <strong style={{ color:'var(--text-1)' }}>{METHOD_CFG[showCompute.method]?.label}</strong><br/>
               Contrato: <strong style={{ color:'var(--text-1)' }}>{fmt(showCompute.contract_value)}</strong>
             </div>
-            <div><label style={ls}>Período (mes a calcular)</label>
+            <div><label style={ls}>{t('revenue.periodo_mes_a_calcular')}</label>
               <input type="month" value={computePeriod.slice(0,7)} onChange={e=>setComputePeriod(e.target.value+'-01')} style={fs} />
             </div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
@@ -688,7 +689,7 @@ export default function RevenuePage() {
 
       {/* ── Modal nuevo contrato ASC 606 ── */}
       {showCreateContract && (
-        <Modal open title="Nuevo contrato ASC 606" onClose={() => setShowCreateContract(false)} width={540}>
+        <Modal open title={t('revenue.nuevo_contrato_asc_606')} onClose={() => setShowCreateContract(false)} width={540}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div><label style={ls}>Proyecto</label>
               <select value={contractForm.project_id} onChange={e=>setContractForm(f=>({...f,project_id:e.target.value}))} style={fs}>
@@ -696,16 +697,16 @@ export default function RevenuePage() {
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
               </select>
             </div>
-            <div><label style={ls}>Nombre del contrato</label>
+            <div><label style={ls}>{t('revenue.nombre_del_contrato')}</label>
               <input value={contractForm.name} onChange={e=>setContractForm(f=>({...f,name:e.target.value}))} style={fs} placeholder="Ej: Contrato desarrollo Q1 2026" />
             </div>
-            <div><label style={ls}>Método de reconocimiento</label>
+            <div><label style={ls}>{t('revenue.metodo_de_reconocimiento')}</label>
               <select value={contractForm.method} onChange={e=>setContractForm(f=>({...f,method:e.target.value}))} style={fs}>
                 {Object.entries(ASC_METHOD_CFG).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label} — {v.desc}</option>)}
               </select>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              <div><label style={ls}>Valor del contrato</label>
+              <div><label style={ls}>{t('revenue.valor_del_contrato_2')}</label>
                 <input type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} style={fs} placeholder="50000" />
               </div>
               <div><label style={ls}>Moneda</label>
@@ -719,7 +720,7 @@ export default function RevenuePage() {
               <div><label style={ls}>Fecha fin</label><input type="date" value={contractForm.end_date} onChange={e=>setContractForm(f=>({...f,end_date:e.target.value}))} style={fs} /></div>
             </div>
             {contractForm.method === 'straight_line' && (
-              <div><label style={ls}>Duración (meses) — alternativa a fecha fin</label>
+              <div><label style={ls}>{t('revenue.duracion_meses_alternativa_a_fecha_fin')}</label>
                 <input type="number" value={contractForm.duration_months} onChange={e=>setContractForm(f=>({...f,duration_months:e.target.value}))} style={fs} placeholder="12" />
               </div>
             )}
@@ -745,13 +746,13 @@ export default function RevenuePage() {
 
       {/* ── Modal cerrar período ── */}
       {showCloseModal && (
-        <Modal open title="Cerrar período contable" onClose={() => setShowCloseModal(false)} width={420}>
+        <Modal open title={t('revenue.cerrar_periodo_contable')} onClose={() => setShowCloseModal(false)} width={420}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div style={{ background:'var(--warning-bg)', borderRadius:8, padding:'10px 12px', fontSize: "var(--text-sm)", color:'var(--warning)' }}>
-              Una vez cerrado, no se podrán crear ni revertir entradas para este período.
+              {t('revenue.una_vez_cerrado_no_se_podran_crear')}
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              <div><label style={ls}>Año</label>
+              <div><label style={ls}>{t('revenue.ano')}</label>
                 <input type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} style={fs} />
               </div>
               <div><label style={ls}>Mes</label>
@@ -762,7 +763,7 @@ export default function RevenuePage() {
             </div>
             {closedPeriodKeys.has(`${closePeriod.year}-${closePeriod.month}`) && (
               <div style={{ fontSize: "var(--text-sm)", color:'var(--danger)', padding:'6px 10px', background:'var(--danger-bg)', borderRadius:6 }}>
-                Este período ya está cerrado.
+                {t('revenue.este_periodo_ya_esta_cerrado')}
               </div>
             )}
             <div><label style={ls}>Notas (opcional)</label>

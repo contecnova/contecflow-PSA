@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User, UserRole
@@ -67,6 +67,7 @@ def create_risk(
     payload: RiskIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: riesgos de proyecto
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
@@ -112,6 +113,7 @@ def update_risk(
     payload: RiskUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: riesgos de proyecto
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
@@ -128,6 +130,7 @@ def delete_risk(
     risk_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: riesgos de proyecto
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")

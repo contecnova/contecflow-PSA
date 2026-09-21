@@ -91,6 +91,8 @@
     "i18n:gap": "node scripts/i18n_gap.mjs",
     "check:chunks": "node scripts/check_heavy_chunks.mjs",
     "check:i18n:dup": "node scripts/check_i18n_duplicates.mjs",
+    "check:i18n:literales": "node scripts/check_i18n_literales.mjs",
+    "check:i18n:sin-definir": "node scripts/check_i18n_claves_sin_definir.mjs",
     "i18n:missing": "node scripts/i18n_missing.mjs"
   }
 }

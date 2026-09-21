@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from app.schemas.semantic_engine import SemConfigPatch
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_hr
+from app.core.deps import get_current_user, require_admin_or_hr, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 import app.services.semantic_engine_service as _svc
 
@@ -81,6 +81,7 @@ def _candidate_users_for_org(db: Session, current_user, explicit_candidates=None
 @router.post("/suggest/ticket")
 def suggest_ticket_assignee(data: dict = Body(...),
                              db: Session = Depends(get_db),
+    _rol = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                              cu=Depends(get_current_user)):
     title = data.get("title", "")
     desc  = data.get("description", "")
@@ -100,6 +101,7 @@ def suggest_ticket_assignee(data: dict = Body(...),
 @router.post("/suggest/task")
 def suggest_task_assignee(data: dict = Body(...),
                           db: Session = Depends(get_db),
+    _rol = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                           cu=Depends(get_current_user)):
     title      = data.get("title", "")
     desc       = data.get("description", "")
@@ -125,6 +127,7 @@ def suggest_task_assignee(data: dict = Body(...),
 @router.post("/estimate/effort")
 def estimate_effort(data: dict = Body(...),
                     db: Session = Depends(get_db),
+    _rol = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                     _=Depends(get_current_user)):
     title     = data.get("title", "")
     desc      = data.get("description", "")
@@ -136,6 +139,7 @@ def estimate_effort(data: dict = Body(...),
 @router.post("/estimate/sprint-backlog")
 def estimate_sprint_backlog(data: dict = Body(...),
                             db: Session = Depends(get_db),
+    _rol = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                             _=Depends(get_current_user)):
     tasks      = data.get("tasks", [])
     # Default: 2 semanas × DEFAULT_WEEKLY_CAPACITY_HOURS. Antes hardcoded a 80,
@@ -151,6 +155,7 @@ def estimate_sprint_backlog(data: dict = Body(...),
 @router.post("/prioritize")
 def prioritize_queue(data: dict = Body(...),
                      db: Session = Depends(get_db),
+    _rol = Depends(require_admin_or_hr),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                      _=Depends(get_current_user)):
     items    = data.get("items", [])
     assigner = _svc.get_assigner(db)
@@ -167,6 +172,7 @@ def list_profiles(db: Session = Depends(get_db), _=Depends(get_current_user)):
 @router.post("/profiles")
 def create_or_update_profile(data: dict = Body(...),
                               db: Session = Depends(get_db),
+    _rol = Depends(require_admin_or_hr),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                               cu=Depends(get_current_user)):
     user_id      = data.get("user_id")
     profile_text = data.get("profile_text", "")
@@ -208,6 +214,7 @@ def rebuild_embeddings(db: Session = Depends(get_db),
 @router.post("/feedback")
 def record_feedback(data: dict = Body(...),
                     db: Session = Depends(get_db),
+    _rol = Depends(require_admin_or_hr),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                     cu=Depends(get_current_user)):
     item_id              = data.get("item_id", "")
     item_type            = data.get("item_type", "ticket")
@@ -238,5 +245,6 @@ def get_stats(db: Session = Depends(get_db), _=Depends(get_current_user)):
 @router.post("/record-assignment")
 def record_assignment(data: dict = Body(...),
                       db: Session = Depends(get_db),
+    _rol = Depends(require_admin_or_hr),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                       cu=Depends(get_current_user)):
     return APIResponse.ok(data=_svc.record_assignment(db, data, cu.id))

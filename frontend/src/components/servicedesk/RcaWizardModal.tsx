@@ -17,6 +17,7 @@ import { problemsApi } from '../../services/api'
 import { Button, Spinner, Modal } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { COLOR } from '../../constants/theme'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 // TODO type: problemsApi RCA wizard payloads — needs shared types
 interface WizardStepDef {
@@ -50,11 +51,12 @@ const TEMPLATES = [
 ]
 
 function TemplateSelector({ onStart, isPending }: { onStart: (template: string) => void; isPending: boolean }) {
+  const { t: traducir } = useAppLang()
   const [tpl, setTpl] = useState<string>('five_whys')
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
-        Selecciona la metodología de análisis de causa raíz:
+        {traducir('rcawizardmodal.selecciona_la_metodologia_de_analisis_de_causa')}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {TEMPLATES.map(t => (
@@ -84,6 +86,7 @@ interface WizardStepProps {
 }
 
 function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps) {
+  const { t: traducir } = useAppLang()
   const toast = useToast()
   const steps: WizardStepDef[] = state?.steps ?? []
   const currentStep = state?.current_step ?? 0
@@ -127,7 +130,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
       {/* Progress */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>
-          <span>Paso {currentStep + 1} de {totalSteps}</span>
+          <span>Paso {currentStep + 1} {traducir('rcawizardmodal.de')} {totalSteps}</span>
           <span>{progress}% completado</span>
         </div>
         <div style={{ height: 4, background: 'var(--surface-4)', borderRadius: 4, overflow: 'hidden' }}>
@@ -164,7 +167,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
           onChange={e => setAnswer(e.target.value)}
           rows={4}
           style={{ ...IS, resize: 'vertical' }}
-          placeholder="Describe la causa o responde a la pregunta…"
+          placeholder={traducir('rcawizardmodal.describe_la_causa_o_responde_a_la')}
         />
 
         {/* AI hint */}
@@ -204,6 +207,7 @@ interface RcaWizardModalProps {
 }
 
 export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWizardModalProps) {
+  const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
 
@@ -252,7 +256,7 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWiz
           <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>✅</div>
           <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: COLOR.success, marginBottom: 8 }}>RCA completado</div>
           <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>
-            Los campos del problema han sido actualizados con el análisis de causa raíz.
+            {traducir('rcawizardmodal.los_campos_del_problema_han_sido_actualizados')}
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
             <Button variant="secondary" onClick={() => startWizard(wizardState.template || 'five_whys')} loading={starting}>

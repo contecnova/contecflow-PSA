@@ -241,6 +241,7 @@ def update_capacity_plan(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     plan = capacity_service.get_capacity_plan_by_id(db, plan_id)
     if not plan:
@@ -254,6 +255,11 @@ def delete_capacity_plan(
     plan_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada. Planificar capacidad es funcion de
+    # gestion por definicion: quien no puede asignar carga tampoco
+    # deberia poder borrar el plan que la reparte.
+    _: User = Depends(require_any_manager),
 ):
     plan = capacity_service.get_capacity_plan_by_id(db, plan_id)
     if not plan:
@@ -263,6 +269,61 @@ def delete_capacity_plan(
     return APIResponse.ok(data={"ok": True, "message": "Plan de capacidad eliminado correctamente"})
 
 
+def _semanas_del_rango(week_from: date, week_to: date) -> List[date]:
+    """Los lunes de todas las semanas del rango, extremos incluidos."""
+    semanas: List[date] = []
+    cursor = week_from - timedelta(days=week_from.weekday())
+    fin = week_to - timedelta(days=week_to.weekday())
+    while cursor <= fin:
+        semanas.append(cursor)
+        cursor += timedelta(weeks=1)
+    return semanas
+
+
+def _sugerencias_para_semana(uid, usuario, semana: date, exceso: float, *,
+                             capacidad: float, cargas: dict, semanas: List[date],
+                             planes_de_la_semana: list) -> list[dict]:
+    """A qué semanas futuras mover las horas que sobran de una semana.
+
+    **Sólo hacia adelante**: mover carga al pasado no es una opción, y por eso
+    las semanas anteriores se descartan sin mirarlas.
+
+    Se reparte entre tantas semanas como haga falta, la más cercana primero, y
+    se actualiza `cargas` sobre la marcha para no proponer dos veces el mismo
+    hueco. El plan que se nombra es el más grande de la semana sobrecargada,
+    que es el que más margen da para partir.
+    """
+    if not planes_de_la_semana:
+        return []
+
+    mayor = max(planes_de_la_semana, key=lambda p: p.planned_hours)
+    sugerencias = []
+
+    for candidata in semanas:
+        if candidata <= semana:
+            continue
+        libre = capacidad - cargas.get(candidata, 0.0)
+        if libre <= 0:
+            continue
+
+        mover = min(exceso, libre)
+        sugerencias.append({
+            "user_id": uid,
+            "user_name": usuario.full_name,
+            "from_week": str(semana),
+            "to_week": str(candidata),
+            "hours_to_move": round(mover, 2),
+            "plan_id": mayor.id,
+            "project_name": mayor.project.name if mayor.project else None,
+        })
+        cargas[candidata] = cargas.get(candidata, 0.0) + mover
+        exceso -= mover
+        if exceso <= 0:
+            break
+
+    return sugerencias
+
+
 @router.get("/leveling", summary="Nivelacion de recursos -- detecta conflictos y sugiere redistribucion")
 def get_resource_leveling(
     week_from: date = Query(...),
@@ -270,89 +331,62 @@ def get_resource_leveling(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    """
-    Detects overallocation conflicts in CapacityPlan entries for the given range
-    and suggests moving overloaded hours to adjacent free weeks per user.
-    Returns:
-      - conflicts: list of {user, week, planned_hours, capacity, overload_hours}
-      - suggestions: list of {user, from_week, to_week, hours_to_move, plan_id}
-    """
-    users = capacity_service.get_active_users(db, current_user.organization_id)
-    user_map = {u.id: u for u in users}
-    leveling_user_ids = list(user_map.keys())
+    """Detecta sobreasignación en el rango y propone mover horas a semanas libres.
 
-    plans = capacity_service.get_plans_for_leveling(db, week_from, week_to, leveling_user_ids)
-
-    # Aggregate planned hours per (user, week)
+    Devuelve `conflicts` —quién, qué semana y cuántas horas de más— y
+    `suggestions` —de qué semana a cuál y cuántas horas—. **No cambia nada**.
+    """
     from collections import defaultdict
-    totals: dict = defaultdict(float)
-    plan_list: dict = defaultdict(list)
-    for p in plans:
-        key = (p.user_id, p.week_start)
-        totals[key] += p.planned_hours
-        plan_list[key].append(p)
 
-    # Collect all weeks in range
-    monday = week_from - timedelta(days=week_from.weekday())
-    end_monday = week_to - timedelta(days=week_to.weekday())
-    all_weeks: List[date] = []
-    cur = monday
-    while cur <= end_monday:
-        all_weeks.append(cur)
-        cur += timedelta(weeks=1)
+    usuarios = {
+        u.id: u for u in capacity_service.get_active_users(db, current_user.organization_id)
+    }
+    planes = capacity_service.get_plans_for_leveling(
+        db, week_from, week_to, list(usuarios.keys()),
+    )
 
-    conflicts = []
-    suggestions = []
+    totales: dict = defaultdict(float)
+    por_semana: dict = defaultdict(list)
+    for plan in planes:
+        clave = (plan.user_id, plan.week_start)
+        totales[clave] += plan.planned_hours
+        por_semana[clave].append(plan)
 
-    for uid, user in user_map.items():
-        cap = float(user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS or 40)
-        loads = {w: totals.get((uid, w), 0.0) for w in all_weeks}
+    semanas = _semanas_del_rango(week_from, week_to)
+    conflictos: list[dict] = []
+    sugerencias: list[dict] = []
 
-        for week in all_weeks:
-            planned = loads[week]
-            if planned > cap:
-                overload = round(planned - cap, 2)
-                conflicts.append({
-                    "user_id": uid,
-                    "user_name": user.full_name,
-                    "week": str(week),
-                    "planned_hours": round(planned, 2),
-                    "capacity_hours": cap,
-                    "overload_hours": overload,
-                })
-                # Suggest moving overload to the nearest future week with free capacity
-                for candidate in all_weeks:
-                    if candidate <= week:
-                        continue
-                    free = cap - loads.get(candidate, 0.0)
-                    if free <= 0:
-                        continue
-                    move = min(overload, free)
-                    # Find the largest plan in the overloaded week to partially redistribute
-                    week_plans = plan_list.get((uid, week), [])
-                    if not week_plans:
-                        break
-                    biggest_plan = max(week_plans, key=lambda x: x.planned_hours)
-                    suggestions.append({
-                        "user_id": uid,
-                        "user_name": user.full_name,
-                        "from_week": str(week),
-                        "to_week": str(candidate),
-                        "hours_to_move": round(move, 2),
-                        "plan_id": biggest_plan.id,
-                        "project_name": biggest_plan.project.name if biggest_plan.project else None,
-                    })
-                    loads[candidate] = loads.get(candidate, 0.0) + move
-                    overload -= move
-                    if overload <= 0:
-                        break
+    for uid, usuario in usuarios.items():
+        capacidad = float(
+            usuario.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS or 40
+        )
+        cargas = {w: totales.get((uid, w), 0.0) for w in semanas}
+
+        for semana in semanas:
+            planificadas = cargas[semana]
+            if planificadas <= capacidad:
+                continue
+            exceso = round(planificadas - capacidad, 2)
+            conflictos.append({
+                "user_id": uid,
+                "user_name": usuario.full_name,
+                "week": str(semana),
+                "planned_hours": round(planificadas, 2),
+                "capacity_hours": capacidad,
+                "overload_hours": exceso,
+            })
+            sugerencias += _sugerencias_para_semana(
+                uid, usuario, semana, exceso,
+                capacidad=capacidad, cargas=cargas, semanas=semanas,
+                planes_de_la_semana=por_semana.get((uid, semana), []),
+            )
 
     return APIResponse.ok(data={
-        "conflicts": conflicts,
-        "suggestions": suggestions,
+        "conflicts": conflictos,
+        "suggestions": sugerencias,
         "summary": {
-            "total_conflicts": len(conflicts),
-            "total_overload_hours": round(sum(c["overload_hours"] for c in conflicts), 2),
-            "users_affected": len({c["user_id"] for c in conflicts}),
+            "total_conflicts": len(conflictos),
+            "total_overload_hours": round(sum(c["overload_hours"] for c in conflictos), 2),
+            "users_affected": len({c["user_id"] for c in conflictos}),
         },
     })

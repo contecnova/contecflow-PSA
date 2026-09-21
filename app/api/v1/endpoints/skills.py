@@ -123,6 +123,7 @@ def remove_user_skill(
     skill_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin_or_hr),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     if current_user.role not in [UserRole.admin, UserRole.hr] and current_user.id != user_id:
         raise HTTPException(403, "Acceso denegado")

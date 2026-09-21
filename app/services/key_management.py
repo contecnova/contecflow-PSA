@@ -387,55 +387,82 @@ def _rotate_integration_secrets(db) -> int:
     return changed
 
 
-def rotate_due_materials(db=None) -> dict:
-    own_session = False
-    if db is None:
-        db = SessionLocal()
-        own_session = True
+def _fecha_de_ajuste(row) -> Optional[datetime]:
+    """La fecha guardada en un ajuste, o `None` si no hay o no se puede leer.
+
+    Un valor corrupto se lee como «nunca», que es el lado seguro: fuerza una
+    rotación en vez de saltársela.
+    """
+    if not row or not row.value:
+        return None
     try:
-        from app.services.settings_service import get_runtime_bool, get_runtime_int
-        try:
-            enabled = get_runtime_bool(db, "KEY_ROTATION_ENABLED")
-            if enabled is None:
-                enabled = settings.KEY_ROTATION_ENABLED
-        except Exception:
-            enabled = settings.KEY_ROTATION_ENABLED
-        if not enabled:
+        return _str_to_dt(row.value)
+    except Exception:
+        return None
+
+
+def _rotacion_activada(db) -> bool:
+    """Si la rotación automática está encendida, con el ajuste de fichero como respaldo."""
+    from app.services.settings_service import get_runtime_bool
+
+    try:
+        activada = get_runtime_bool(db, "KEY_ROTATION_ENABLED")
+    except Exception:
+        return settings.KEY_ROTATION_ENABLED
+    return settings.KEY_ROTATION_ENABLED if activada is None else activada
+
+
+def _rotar_secretos_si_toca(db) -> int:
+    """Vuelve a cifrar los secretos de integración si ha pasado el intervalo."""
+    from app.services.settings_service import get_runtime_int
+
+    row = _get_setting(db, INTEGRATION_ROTATION_KEY)
+    ultima = _fecha_de_ajuste(row)
+    dias = (
+        get_runtime_int(db, "INTEGRATION_SECRET_ROTATION_DAYS")
+        or settings.INTEGRATION_SECRET_ROTATION_DAYS
+    )
+    if ultima is not None and _now() < ultima + timedelta(days=dias):
+        return 0
+
+    recifrados = _rotate_integration_secrets(db)
+    if not row:
+        row = AppSetting(
+            key=INTEGRATION_ROTATION_KEY,
+            description="Last integration secret re-encryption",
+        )
+        db.add(row)
+    row.value = _dt_to_str(_now())
+    return recifrados
+
+
+def rotate_due_materials(db=None) -> dict:
+    """Rota lo que toque: el llavero JWT y los secretos de integración."""
+    propia = db is None
+    db = db or SessionLocal()
+    try:
+        if not _rotacion_activada(db):
             return {"enabled": False, "jwt_rotated": False, "integration_reencrypted": 0}
 
+        # Sin tabla de ajustes no hay dónde anotar la rotación, así que no se
+        # rota: hacerlo sin poder registrar la fecha la repetiría en cada
+        # arranque.
         if not _settings_table_available(db):
             refresh_caches(db)
             return {"enabled": True, "jwt_rotated": False, "integration_reencrypted": 0}
 
-        jwt_rotated = _rotate_jwt_keyring(db)
-
-        ir_row = _get_setting(db, INTEGRATION_ROTATION_KEY)
-        last_rot = None
-        if ir_row and ir_row.value:
-            try:
-                last_rot = _str_to_dt(ir_row.value)
-            except Exception:
-                last_rot = None
-
-        integration_rotation_days = get_runtime_int(db, "INTEGRATION_SECRET_ROTATION_DAYS") or settings.INTEGRATION_SECRET_ROTATION_DAYS
-        due = (last_rot is None) or (_now() >= last_rot + timedelta(days=integration_rotation_days))
-        integration_reencrypted = 0
-        if due:
-            integration_reencrypted = _rotate_integration_secrets(db)
-            if not ir_row:
-                ir_row = AppSetting(key=INTEGRATION_ROTATION_KEY, description="Last integration secret re-encryption")
-                db.add(ir_row)
-            ir_row.value = _dt_to_str(_now())
+        rotado = _rotate_jwt_keyring(db)
+        recifrados = _rotar_secretos_si_toca(db)
 
         db.commit()
         refresh_caches(db)
         return {
             "enabled": True,
-            "jwt_rotated": jwt_rotated,
-            "integration_reencrypted": integration_reencrypted,
+            "jwt_rotated": rotado,
+            "integration_reencrypted": recifrados,
         }
     finally:
-        if own_session:
+        if propia:
             db.close()
 
 
@@ -448,62 +475,68 @@ def run_scheduled_rotation() -> None:
         logger.error("Key rotation job failed: %s", exc, exc_info=True)
 
 
+def _avisar_de_rotacion_vencida(db, ahora: datetime, ultima, vence) -> None:
+    """Registra el aviso de rotación vencida, como mucho una vez cada 24 h.
+
+    La limitación importa: esta función la llama una pantalla de estado, así
+    que sin ella cada visita al panel escribiría una línea de aviso.
+    """
+    fila = _get_setting(db, INTEGRATION_ROTATION_ALERT_KEY)
+    ultimo_aviso = _fecha_de_ajuste(fila)
+    if ultimo_aviso is not None and ahora < ultimo_aviso + timedelta(hours=24):
+        return
+
+    logger.warning(
+        "Integration secret rotation overdue: last=%s due=%s",
+        _dt_to_str(ultima) if ultima else "never",
+        _dt_to_str(vence) if vence else "unknown",
+    )
+    if not fila:
+        fila = AppSetting(
+            key=INTEGRATION_ROTATION_ALERT_KEY,
+            description="Last emission time for integration secret rotation overdue alert",
+        )
+        db.add(fila)
+    fila.value = _dt_to_str(ahora)
+    db.commit()
+
+
 def get_integration_rotation_status(db=None) -> dict:
-    """Return rotation status and emit a throttled alert when overdue."""
-    own_session = False
-    if db is None:
-        db = SessionLocal()
-        own_session = True
+    """Estado de la rotación de secretos, con aviso limitado cuando está vencida."""
+    from app.services.settings_service import get_runtime_int
+
+    propia = db is None
+    db = db or SessionLocal()
     try:
-        now = _now()
-        row = _get_setting(db, INTEGRATION_ROTATION_KEY)
-        last_rotated_at = None
-        if row and row.value:
-            try:
-                last_rotated_at = _str_to_dt(row.value)
-            except Exception:
-                last_rotated_at = None
+        ahora = _now()
+        ultima = _fecha_de_ajuste(_get_setting(db, INTEGRATION_ROTATION_KEY))
+        dias = int(
+            get_runtime_int(db, "INTEGRATION_SECRET_ROTATION_DAYS")
+            or settings.INTEGRATION_SECRET_ROTATION_DAYS
+            or 30
+        )
 
-        from app.services.settings_service import get_runtime_int
-        interval_days = int(get_runtime_int(db, "INTEGRATION_SECRET_ROTATION_DAYS") or settings.INTEGRATION_SECRET_ROTATION_DAYS or 30)
-        next_due_at = (last_rotated_at + timedelta(days=interval_days)) if last_rotated_at else None
-        is_overdue = bool(next_due_at and now > next_due_at)
-        days_until_due = None
-        if next_due_at:
-            days_until_due = int((next_due_at - now).total_seconds() // 86400)
+        vence = (ultima + timedelta(days=dias)) if ultima else None
+        vencida = bool(vence and ahora > vence)
+        # Sin fecha de última rotación no se puede decir cuántos días quedan:
+        # `None` es «no se sabe», que no es lo mismo que cero.
+        quedan = int((vence - ahora).total_seconds() // 86400) if vence else None
 
-        if is_overdue:
-            alert_row = _get_setting(db, INTEGRATION_ROTATION_ALERT_KEY)
-            should_alert = True
-            if alert_row and alert_row.value:
-                try:
-                    last_alert = _str_to_dt(alert_row.value)
-                    should_alert = now >= last_alert + timedelta(hours=24)
-                except Exception:
-                    should_alert = True
-            if should_alert:
-                logger.warning(
-                    "Integration secret rotation overdue: last=%s due=%s",
-                    _dt_to_str(last_rotated_at) if last_rotated_at else "never",
-                    _dt_to_str(next_due_at) if next_due_at else "unknown",
-                )
-                if not alert_row:
-                    alert_row = AppSetting(
-                        key=INTEGRATION_ROTATION_ALERT_KEY,
-                        description="Last emission time for integration secret rotation overdue alert",
-                    )
-                    db.add(alert_row)
-                alert_row.value = _dt_to_str(now)
-                db.commit()
+        if vencida:
+            _avisar_de_rotacion_vencida(db, ahora, ultima, vence)
 
         return {
-            "interval_days": interval_days,
-            "last_rotated_at": _dt_to_str(last_rotated_at) if last_rotated_at else None,
-            "next_due_at": _dt_to_str(next_due_at) if next_due_at else None,
-            "days_until_due": days_until_due,
-            "is_overdue": is_overdue,
-            "alert_level": "critical" if is_overdue else ("warning" if days_until_due is not None and days_until_due <= 7 else "ok"),
+            "interval_days": dias,
+            "last_rotated_at": _dt_to_str(ultima) if ultima else None,
+            "next_due_at": _dt_to_str(vence) if vence else None,
+            "days_until_due": quedan,
+            "is_overdue": vencida,
+            "alert_level": (
+                "critical" if vencida
+                else "warning" if quedan is not None and quedan <= 7
+                else "ok"
+            ),
         }
     finally:
-        if own_session:
+        if propia:
             db.close()

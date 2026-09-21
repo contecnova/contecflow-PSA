@@ -276,7 +276,7 @@ export default function BudgetsPage(): JSX.Element {
                 <input type="number" value={form.year} onChange={setCreateField('year')} style={createValidation.inputStyle(fs, 'year')} />
                 {createValidation.errors.year && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.year}</div>}
               </div>
-              <div><label style={ls}>{t('budgets.department')}</label><select value={form.department} onChange={setCreateField('department')} style={fs}><option value="">— Sin departamento —</option>{departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}</select></div>
+              <div><label style={ls}>{t('budgets.department')}</label><select value={form.department} onChange={setCreateField('department')} style={fs}><option value="">{t('budgets.sin_departamento')}</option>{departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}</select></div>
             </div>
             <div>
               <label style={ls}>{t('budgets.total_amount')}</label>

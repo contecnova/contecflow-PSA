@@ -36,46 +36,60 @@ PROTECTED_FIELDS = frozenset({
 })
 
 
-def clean_input(data: dict, model_cls, date_fields=None, int_fields=None, float_fields=None) -> dict:
+def _a_fecha_alm(valor):
+    """`'2026-09-15'` a `date`. Una fecha ilegible es `None`, no un error."""
+    partes = str(valor).split("-")
+    return date(int(partes[0]), int(partes[1]), int(partes[2]))
+
+
+def _convertir(valor, conversor, campo: str):
+    """Aplica el conversor. Lo que no se pueda convertir se guarda como `None`.
+
+    Es deliberado y viene del origen del dato: esto limpia un payload de
+    formulario, donde un campo mal escrito es un campo sin rellenar, no una
+    petición inválida. El valor original queda en el registro de depuración.
+    """
+    try:
+        return conversor(valor)
+    except Exception:
+        logger.debug("ALM clean_input: invalid %s field %s=%r → None", campo, campo, valor,
+                     exc_info=True)
+        return None
+
+
+def clean_input(data: dict, model_cls, date_fields=None, int_fields=None,
+                float_fields=None) -> dict:
     """Limpia el dict del frontend: '' → None, tipos correctos, ignora campos sin columna.
 
     Aplica además una deny-list (PROTECTED_FIELDS) para impedir mass-assignment
     de campos de tenant/identidad/auditoría desde el payload del cliente.
-    """
 
-    date_fields  = date_fields  or []
-    int_fields   = int_fields   or []
-    float_fields = float_fields or []
+    Auditoría 2026-09 (hallazgo 18): los tres conversores eran tres bloques
+    `try/except` idénticos salvo por la función. Declararlos como tabla deja un
+    solo sitio donde se decide qué pasa con un valor ilegible.
+    """
+    conversores = [
+        (set(date_fields or []), _a_fecha_alm, "date"),
+        (set(int_fields or []), int, "int"),
+        (set(float_fields or []), float, "float"),
+    ]
+
     out = {}
-    for k, v in data.items():
-        if k in PROTECTED_FIELDS:
+    for clave, valor in data.items():
+        # La deny-list va primero: un campo protegido no se toca ni para
+        # ponerlo a None.
+        if clave in PROTECTED_FIELDS or not hasattr(model_cls, clave):
             continue
-        if not hasattr(model_cls, k):
+        if valor == "" or valor is None:
+            out[clave] = None
             continue
-        if v == "" or v is None:
-            out[k] = None
-            continue
-        if k in date_fields:
-            try:
-                parts = str(v).split("-")
-                out[k] = date(int(parts[0]), int(parts[1]), int(parts[2]))
-            except Exception:
-                logger.debug("ALM clean_input: invalid date field %s=%r → None", k, v, exc_info=True)
-                out[k] = None
-        elif k in int_fields:
-            try:
-                out[k] = int(v)
-            except Exception:
-                logger.debug("ALM clean_input: invalid int field %s=%r → None", k, v, exc_info=True)
-                out[k] = None
-        elif k in float_fields:
-            try:
-                out[k] = float(v)
-            except Exception:
-                logger.debug("ALM clean_input: invalid float field %s=%r → None", k, v, exc_info=True)
-                out[k] = None
+
+        for campos, conversor, nombre in conversores:
+            if clave in campos:
+                out[clave] = _convertir(valor, conversor, nombre)
+                break
         else:
-            out[k] = v
+            out[clave] = valor
     return out
 
 

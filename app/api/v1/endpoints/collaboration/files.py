@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.core.responses import APIResponse
 from app.core.uploads import UploadProfile, read_and_validate_upload
 from app.db.session import get_db
@@ -36,6 +36,7 @@ async def upload_attachment(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     # Lectura acotada + validación de tipo (extensión, MIME declarado, bytes
     # mágicos y coherencia entre ellos). Antes esto no validaba NADA del
@@ -74,6 +75,7 @@ async def upload_new_version(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     # Esta vía no tenía ni el tope de 500 MB que sí tenía la de creación: era un
     # `await file.read()` sin límite.

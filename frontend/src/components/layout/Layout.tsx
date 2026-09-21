@@ -809,6 +809,7 @@ interface TopAppBarProps {
 }
 
 function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, chatUnread, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed, onAlertsOpen: _onAlertsOpen, onQuickCreate, onVoiceOpen }: TopAppBarProps) {
+  const { t: traducir } = useAppLang()
   const location = useLocation()
   const [chatBadgeVisible, setChatBadgeVisible] = useState<boolean>(chatUnread > 0)
   const [chatBadgeCount, setChatBadgeCount] = useState<number>(chatUnread)
@@ -928,8 +929,8 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
       </div>
       <div className="app-topbar-right">
         <button onClick={onQuickCreate}
-          title="Crear nuevo (⌘+)"
-          aria-label="Crear nuevo"
+          title={traducir('layout.crear_nuevo')}
+          aria-label={traducir('layout.crear_nuevo_2')}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 30, height: 30,
@@ -958,8 +959,8 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         {/* I25: Voice command modal — accesible desde cualquier página */}
         <button
           onClick={onVoiceOpen}
-          title="Comando de voz (imputar, crear ticket/tarea, consultar)"
-          aria-label="Abrir comando de voz"
+          title={traducir('layout.comando_de_voz_imputar_crear_ticket_tarea')}
+          aria-label={traducir('layout.abrir_comando_de_voz')}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 30, height: 30,

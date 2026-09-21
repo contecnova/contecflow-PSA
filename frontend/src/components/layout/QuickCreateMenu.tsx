@@ -5,6 +5,7 @@ import { tasksApi, projectsApi } from '../../services/api'
 import { X, CheckSquare, Clock, Ticket, FileText, Building2, ScrollText, AlertTriangle, Receipt, FolderOpen, Sparkles } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
 import SmartScheduleModal from '../SmartScheduleModal'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 const ACTIONS = [
   { id: 'task',     icon: CheckSquare,  label: 'Nueva tarea',     color: 'var(--accent)',  inline: true },
@@ -27,6 +28,7 @@ interface ProjectOption {
 }
 
 function CreateTaskForm({ onClose }: { onClose: () => void }) {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [title, setTitle] = useState<string>('')
@@ -59,12 +61,12 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
 
   return (
     <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>Nueva tarea</div>
+      <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>{t('quickcreatemenu.nueva_tarea')}</div>
       <input
         ref={inputRef}
         value={title}
         onChange={e => setTitle(e.target.value)}
-        placeholder="Título de la tarea..."
+        placeholder={t('quickcreatemenu.titulo_de_la_tarea')}
         onKeyDown={e => { if (e.key === 'Enter' && title.trim()) create() }}
         style={{
           width: '100%', boxSizing: 'border-box',
@@ -85,7 +87,7 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
             fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer',
           }}
         >
-          <option value="">Sin proyecto</option>
+          <option value="">{t('quickcreatemenu.sin_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       )}
@@ -116,6 +118,7 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
 }
 
 export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
+  const { t } = useAppLang()
   const navigate = useNavigate()
   const [activeAction, setActiveAction] = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
@@ -139,7 +142,7 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
         style={{ position: 'fixed', inset: 0, zIndex: 500 }} />
       <div ref={panelRef}
         role="region"
-        aria-label="Crear nuevo"
+        aria-label={t('quickcreatemenu.crear_nuevo')}
         style={{
           position: 'fixed', top: 52, right: 16, zIndex: 501,
           width: 280, background: 'var(--surface-1)',
@@ -168,12 +171,12 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
               borderBottom: '1px solid var(--surface-4)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
-              <span>Crear nuevo</span>
+              <span>{t('quickcreatemenu.crear_nuevo')}</span>
               <button onClick={onClose} aria-label="Cerrar" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', padding: 2 }}>
                 <X size={13} />
               </button>
             </div>
-            <div role="menu" aria-label="Crear nuevo" style={{ padding: '6px 8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div role="menu" aria-label={t('quickcreatemenu.crear_nuevo')} style={{ padding: '6px 8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
               {ACTIONS.map(({ id, icon: Icon, label, color }) => (
                 <button key={id} role="menuitem" onClick={() => handleAction(id)} style={{
                   display: 'flex', alignItems: 'center', gap: 12,

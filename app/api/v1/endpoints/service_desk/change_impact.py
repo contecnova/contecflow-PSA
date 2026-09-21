@@ -37,6 +37,7 @@ from app.services.service_desk.change_impact_service import (
 from app.services.service_desk.change_impact_service import (
     _get_json_setting,
 )
+from app.core.deps import require_internal_user
 
 
 class WhatIfIn(BaseModel):
@@ -56,6 +57,7 @@ def run_impact_analysis(
     change_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     return APIResponse.ok(data=analyze_change_impact_full(db, change_id, current_user_id=str(current_user.id)))
 
@@ -83,6 +85,7 @@ def generate_rollback(
     change_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     return APIResponse.ok(data=generate_rollback_plan(db, change_id, current_user_id=str(current_user.id)))
 
@@ -107,6 +110,7 @@ def generate_testing_plan_endpoint(
     change_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """Generate a structured testing plan with executable steps for pre/execution/post phases.
 
@@ -136,6 +140,7 @@ def generate_comms_plan_endpoint(
     change_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """Generate a structured communications plan adapted to risk level.
 
@@ -167,6 +172,7 @@ def whatif_simulation(
     payload: WhatIfIn,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """Simulate hypothetical changes to a Change Request without persisting anything.
 
@@ -227,6 +233,7 @@ def cab_dashboard(
 def batch_score_changes(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """Scores all pending changes that have no auto_risk_score yet.
 

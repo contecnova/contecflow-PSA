@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
 from app.core.ratelimit import limiter
 from app.core.responses import APIResponse
 from app.db.session import get_db
@@ -65,6 +65,7 @@ def o365_save_config(
     body: O365ConfigUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=save_config(db, str(org_id) if org_id else None, body.model_dump(exclude_none=True)))
@@ -77,6 +78,7 @@ def o365_sync(
     body: Optional[SyncRequest] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     org_id = getattr(current_user, "organization_id", None)
     payload = body or SyncRequest(client_secret="", reports=None)

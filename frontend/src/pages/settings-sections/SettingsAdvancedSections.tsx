@@ -146,9 +146,9 @@ export function IdiomasSection() {
       {activeTab === 'operator' && (
         <div style={card}>
           <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--surface-4)' }}>
-            <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>Idioma del operador (back-office)</div>
+            <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{t('settingsadvanced.idioma_del_operador_back_office')}</div>
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-              Idioma de la interfaz interna. Cada usuario puede configurar el suyo desde aquí. Se guarda en el navegador.
+              {t('settingsadvanced.idioma_de_la_interfaz_interna_cada_usuario')}
             </div>
           </div>
           <div style={{ padding: '20px 24px' }}>
@@ -163,8 +163,7 @@ export function IdiomasSection() {
               ))}
             </div>
             <div style={{ marginTop: 16, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-              💡 Al cambiar el idioma, los menús, títulos y textos de la interfaz se mostrarán en ese idioma.
-              Las páginas que aún no estén totalmente traducidas mostrarán el texto en español.
+              {t('settingsadvanced.al_cambiar_el_idioma_los_menus_titulos')}
             </div>
           </div>
         </div>
@@ -187,7 +186,7 @@ export function IdiomasSection() {
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>BUSCAR CLAVE</div>
               <input value={searchKey} onChange={e => setSearchKey(e.target.value)}
-                placeholder="Buscar clave de traduccion" aria-label="Buscar clave de traduccion" style={{ ...fs, width: 280 }} />
+                placeholder={t('settingsadvanced.buscar_clave_de_traduccion')} aria-label={t('settingsadvanced.buscar_clave_de_traduccion')} style={{ ...fs, width: 280 }} />
             </div>
             <div>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>MODULO</div>
@@ -234,14 +233,14 @@ export function IdiomasSection() {
             })}
             {filteredKeys.length > 200 && (
               <div style={{ padding: '10px 14px', fontSize: "var(--text-sm)", color: 'var(--text-2)', textAlign: 'center' }}>
-                Mostrando 200 de {filteredKeys.length} claves. Usa el filtro para buscar mas especifico.
+                {t('settingsadvanced.mostrando_200_de')} {filteredKeys.length} {t('settingsadvanced.claves_usa_el_filtro_para_buscar_mas')}
               </div>
             )}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-              {filteredKeys.length} claves · {allKeys.length} total · {hasUnsaved && <span style={{ color: 'var(--warning)' }}>⚠ Cambios sin guardar</span>}
+              {filteredKeys.length} claves · {allKeys.length} total · {hasUnsaved && <span style={{ color: 'var(--warning)' }}>{t('settingsadvanced.cambios_sin_guardar')}</span>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={exportJSON}
@@ -274,7 +273,7 @@ export function IdiomasSection() {
             <div>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>BUSCAR</div>
               <input value={portalSearch} onChange={e => setPortalSearch(e.target.value)}
-                placeholder="Buscar texto del portal" aria-label="Buscar texto del portal" style={{ ...fs, width: 260 }} />
+                placeholder={t('settingsadvanced.buscar_texto_del_portal')} aria-label={t('settingsadvanced.buscar_texto_del_portal')} style={{ ...fs, width: 260 }} />
             </div>
             <div>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>IMPORTAR JSON</div>
@@ -344,7 +343,7 @@ export function IdiomasSection() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
               {getPortalKeys().length} claves · 8 idiomas
-              {hasUnsaved && <span style={{ color: 'var(--warning)', marginLeft: 8 }}>⚠ Cambios sin guardar</span>}
+              {hasUnsaved && <span style={{ color: 'var(--warning)', marginLeft: 8 }}>{t('settingsadvanced.cambios_sin_guardar')}</span>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
@@ -408,6 +407,7 @@ export function IdiomasSection() {
 }
 
 export function LogLevelSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const [backendLevel, setBackendLevel] = useState('')
   const [frontendLevel, setFrontendLevel] = useState(
@@ -450,12 +450,12 @@ export function LogLevelSection() {
   const LEVEL_COLORS: Record<string, string> = { DEBUG: 'var(--text-2)', INFO: 'var(--accent)', WARNING: 'var(--warning)', ERROR: 'var(--danger)', CRITICAL: '#c0392b' }
 
   return (
-    <Section icon="📋" title="Nivel de log" description="Controla la verbosidad del backend y frontend">
+    <Section icon="📋" title={t('settingsadvanced.nivel_de_log')} description="Controla la verbosidad del backend y frontend">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '18px 20px' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>🖥️ Servidor (FastAPI / Uvicorn)</div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>
-            Cambia el nivel en tiempo real sin reiniciar. Configurable tambien por variable de entorno <code style={{ background: 'var(--surface-3)', padding: '1px 6px', borderRadius: 4, fontSize: "var(--text-xs)" }}>LOG_LEVEL=INFO</code>
+            {t('settingsadvanced.cambia_el_nivel_en_tiempo_real_sin')} <code style={{ background: 'var(--surface-3)', padding: '1px 6px', borderRadius: 4, fontSize: "var(--text-xs)" }}>LOG_LEVEL=INFO</code>
           </div>
           {!isLoading && serverLevel && (
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--success)', marginBottom: 12 }}>
@@ -481,7 +481,7 @@ export function LogLevelSection() {
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '18px 20px' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>🌐 Navegador (React / Vite)</div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>
-            Controla la consola del navegador. Se guarda en localStorage. Tambien puedes escribir en la consola: <code style={{ background: 'var(--surface-3)', padding: '1px 6px', borderRadius: 4, fontSize: "var(--text-xs)" }}>{"__contecflowLogger.setLevel('debug')"}</code>
+            {t('settingsadvanced.controla_la_consola_del_navegador_se_guarda')} <code style={{ background: 'var(--surface-3)', padding: '1px 6px', borderRadius: 4, fontSize: "var(--text-xs)" }}>{"__contecflowLogger.setLevel('debug')"}</code>
           </div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--success)', marginBottom: 12 }}>
             Nivel actual: <strong>{frontendLevel.toUpperCase()}</strong>
@@ -505,6 +505,7 @@ export function LogLevelSection() {
 }
 
 export function EmailInboundSection() {
+  const { t } = useAppLang()
   const webhookUrl = `${window.location.origin}/api/v1/service-desk/inbound-email`
 
   return (
@@ -513,19 +514,19 @@ export function EmailInboundSection() {
         {/* Pasos + URL/Header en grid 2 columnas para aprovechar el ancho */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
           <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', fontSize: "var(--text-sm)" }}>
-            <div style={{ fontWeight: 700, marginBottom: 10, color: 'var(--text-1)' }}>¿Cómo funciona?</div>
+            <div style={{ fontWeight: 700, marginBottom: 10, color: 'var(--text-1)' }}>{t('settingsadvanced.como_funciona')}</div>
             <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7, color: 'var(--text-2)' }}>
-              <li>Configura tu proveedor de email (Mailgun, SendGrid, Postmark o similar) para reenviar los emails entrantes a la URL de webhook.</li>
-              <li>El proveedor envía el email parseado como JSON a Contecflow.</li>
-              <li>Contecflow crea el ticket automáticamente con asunto → título y cuerpo → descripción.</li>
-              <li>El ticket se asigna al primer agente disponible con política SLA activa.</li>
+              <li>{t('settingsadvanced.configura_tu_proveedor_de_email_mailgun_sendgrid')}</li>
+              <li>{t('settingsadvanced.el_proveedor_envia_el_email_parseado_como')}</li>
+              <li>{t('settingsadvanced.contecflow_crea_el_ticket_automaticamente_con_asunto')}</li>
+              <li>{t('settingsadvanced.el_ticket_se_asigna_al_primer_agente')}</li>
             </ol>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label style={{ display: 'block', fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 6 }}>
-                URL del Webhook
+                {t('settingsadvanced.url_del_webhook')}
               </label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input readOnly value={webhookUrl}
@@ -536,17 +537,16 @@ export function EmailInboundSection() {
                 </button>
               </div>
               <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
-                Configura esta URL en tu proveedor de email.
+                {t('settingsadvanced.configura_esta_url_en_tu_proveedor_de')}
               </div>
             </div>
 
             <div>
               <label style={{ display: 'block', fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 6 }}>
-                Autenticación (X-Contecflow-Email-Secret)
+                {t('settingsadvanced.autenticacion_x_contecflow_email_secret')}
               </label>
               <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)', lineHeight: 1.6 }}>
-                Configura la variable de entorno <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>INBOUND_EMAIL_SECRET</code> en el servidor con un valor secreto aleatorio.
-                El relay debe enviar ese mismo valor en la cabecera HTTP <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>X-Contecflow-Email-Secret</code> con cada petición.
+                {t('settingsadvanced.configura_la_variable_de_entorno')} <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>INBOUND_EMAIL_SECRET</code> {t('settingsadvanced.en_el_servidor_con_un_valor_secreto')} <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>X-Contecflow-Email-Secret</code> {t('settingsadvanced.con_cada_peticion')}
               </div>
             </div>
           </div>
@@ -555,7 +555,7 @@ export function EmailInboundSection() {
         {/* Guías por proveedor */}
         <div>
           <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 8 }}>
-            Guías de configuración por proveedor
+            {t('settingsadvanced.guias_de_configuracion_por_proveedor')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
             {[
@@ -578,7 +578,7 @@ export function EmailInboundSection() {
         {/* Formato JSON esperado */}
         <div>
           <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 6 }}>
-            Formato JSON esperado <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(superset compatible con todos los proveedores)</span>
+            Formato JSON esperado <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{t('settingsadvanced.superset_compatible_con_todos_los_proveedores')}</span>
           </div>
           <pre style={{
             background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -756,6 +756,7 @@ function SystemSettingItem({ setting }: { setting: any }) {
 }
 
 export function SystemStateSection() {
+  const { t } = useAppLang()
   const { data: settings = [], isLoading } = useQuery<any[]>({
     queryKey: ['settings-general'],
     queryFn: () => settingsApi.general().then(r => r.data as any),
@@ -774,12 +775,12 @@ export function SystemStateSection() {
   const groupMeta = Object.fromEntries(SYSTEM_KEY_GROUPS.map(g => [g.label, g]))
 
   return (
-    <Section icon="🔧" title="Estado del sistema" description="Lectura del estado interno persistido por servicios BI / ITSM (admin · solo lectura)">
+    <Section icon="🔧" title={t('settingsadvanced.estado_del_sistema')} description="Lectura del estado interno persistido por servicios BI / ITSM (admin · solo lectura)">
       {isLoading ? (
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Cargando…</div>
       ) : internal.length === 0 ? (
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>
-          Sin estado interno registrado.
+          {t('settingsadvanced.sin_estado_interno_registrado')}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -789,11 +790,9 @@ export function SystemStateSection() {
             borderRadius: 10, padding: '10px 14px',
             fontSize: 'var(--text-xs)', color: 'var(--text-2)', lineHeight: 1.5,
           }}>
-            <strong style={{ color: 'var(--warning)' }}>⚠ Vista de solo lectura.</strong>{' '}
-            Estos blobs son estado interno de servicios y se gestionan desde sus paneles dedicados
-            (<code style={{ fontFamily: 'var(--font-mono)' }}>/bi/govern</code>, <code style={{ fontFamily: 'var(--font-mono)' }}>/bi/data</code>,
-            <code style={{ fontFamily: 'var(--font-mono)' }}>/service-desk → Voz/ML/Auto-Resolución</code>).
-            Editarlos directamente puede romper el módulo correspondiente.
+            <strong style={{ color: 'var(--warning)' }}>{t('settingsadvanced.vista_de_solo_lectura')}</strong>{' '}
+            {t('settingsadvanced.estos_blobs_son_estado_interno_de_servicios')}<code style={{ fontFamily: 'var(--font-mono)' }}>/bi/govern</code>, <code style={{ fontFamily: 'var(--font-mono)' }}>/bi/data</code>,
+            <code style={{ fontFamily: 'var(--font-mono)' }}>{t('settingsadvanced.service_desk_voz_ml_auto_resolucion')}</code>{t('settingsadvanced.editarlos_directamente_puede_romper_el_modulo_correspondiente')}
           </div>
 
           {orderedGroups.map(label => {
@@ -859,6 +858,7 @@ const RUNTIME_GROUPS = [
 
 
 function RuntimeGroupEditor({ groupId, description }: { groupId: string; description?: string }) {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
 
@@ -913,7 +913,7 @@ function RuntimeGroupEditor({ groupId, description }: { groupId: string; descrip
         })}
       </div>
       <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-        Los cambios reemplazan el valor por defecto del archivo de configuración. Vacío = restablecer al valor de fábrica.
+        {t('settingsadvanced.los_cambios_reemplazan_el_valor_por_defecto')}
       </div>
     </div>
   )
@@ -968,6 +968,7 @@ function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSa
 // ── Integration credentials (Phase 2: encrypted per-org provider creds) ─────
 
 function IntegrationProviderEditor({ provider, label }: { provider: any; label?: string }) {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const { data, isLoading, isError, error } = useQuery<any>({
@@ -1020,8 +1021,7 @@ function IntegrationProviderEditor({ provider, label }: { provider: any; label?:
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14 }}>
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
-          {label}. Valores cifrados en reposo. Resuelven: org → global → .env.
-          Vacío + guardar borra el override y vuelve al valor del entorno.
+          {label}{t('settingsadvanced.valores_cifrados_en_reposo_resuelven_org_global')}
         </div>
         <button
           type="button"
@@ -1109,6 +1109,7 @@ function IntegrationProviderEditor({ provider, label }: { provider: any; label?:
 
 
 export function IntegrationCredentialsSection() {
+  const { t } = useAppLang()
   const { data, isLoading, isError, error } = useQuery<any>({
     queryKey: ['integration-providers'],
     queryFn: () => settingsApi.integrations().then(r => r.data),
@@ -1122,15 +1123,15 @@ export function IntegrationCredentialsSection() {
     if (!active && providers.length) setActive(providers[0].provider)
   }, [providers, active])
 
-  if (isLoading) return <Section icon="🔐" title="Credenciales de integración"><div style={{ padding: 12, color: 'var(--text-2)' }}>Cargando…</div></Section>
-  if (isError)   return <Section icon="🔐" title="Credenciales de integración"><div style={{ padding: 12, color: 'var(--danger)' }}>{extractErr(error, GENERIC_ERROR_FALLBACK)}</div></Section>
+  if (isLoading) return <Section icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div style={{ padding: 12, color: 'var(--text-2)' }}>Cargando…</div></Section>
+  if (isError)   return <Section icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div style={{ padding: 12, color: 'var(--danger)' }}>{extractErr(error, GENERIC_ERROR_FALLBACK)}</div></Section>
 
   const currentProvider = providers.find((p: any) => p.provider === active)
 
   return (
     <Section
       icon="🔐"
-      title="Credenciales de integración"
+      title={t('settingsadvanced.credenciales_de_integracion')}
       description="SMTP, AWS S3, Microsoft Graph, Slack, Stripe, etc. Los secretos se cifran en reposo (Fernet/HKDF + opcional AWS KMS) y nunca se devuelven en las respuestas."
     >
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
@@ -1159,10 +1160,11 @@ export function IntegrationCredentialsSection() {
 
 
 export function RuntimeFlagsSection() {
+  const { t } = useAppLang()
   const [active, setActive] = useState(RUNTIME_GROUPS[0].id)
   const current = RUNTIME_GROUPS.find(g => g.id === active) || RUNTIME_GROUPS[0]
   return (
-    <Section icon="⚙️" title="Configuración dinámica" description="Knobs operativos editables sin redeploy. Resuelven org → global → valor del .env.">
+    <Section icon="⚙️" title={t('settingsadvanced.configuracion_dinamica')} description="Knobs operativos editables sin redeploy. Resuelven org → global → valor del .env.">
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
         {RUNTIME_GROUPS.map(g => (
           <button

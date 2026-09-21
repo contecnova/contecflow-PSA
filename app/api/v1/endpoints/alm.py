@@ -111,11 +111,23 @@ def delete_license(lid: str, db: Session = Depends(get_db), cu=Depends(require_a
 
 # ── License Assignments ───────────────────────────────────────────────────────
 @router.post("/licenses/{lid}/assign")
-def assign_license(lid: str, data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(get_current_user)):
+def assign_license(lid: str, data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(get_current_user),
+    _rol = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     return APIResponse.ok(data=assign_license_record(lid, data, cu.id, db))
 
 @router.delete("/licenses/{lid}/assignments/{aid}")
-def revoke_assignment(lid: str, aid: str, db: Session = Depends(get_db), cu=Depends(get_current_user)):
+def revoke_assignment(
+    lid: str,
+    aid: str,
+    db: Session = Depends(get_db),
+    cu=Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada. Crear la licencia (`POST /alm/licenses`)
+    # ya exige gestor, asi que revocar una asignacion con el mismo
+    # rol no atrapa a nadie: nadie por debajo pudo crearla.
+    _=Depends(require_any_manager),
+):
     enforce_abac(db, cu, "alm_license_assignment", aid, action="delete")
     return APIResponse.ok(data=revoke_assignment_record(lid, aid, db))
 
@@ -145,7 +157,9 @@ def delete_asset(aid: str, db: Session = Depends(get_db), cu=Depends(require_any
     return APIResponse.ok(data=delete_asset_record(aid, db))
 
 @router.post("/assets/{aid}/assign")
-def assign_asset(aid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(get_current_user)):
+def assign_asset(aid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(get_current_user),
+    _rol = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+):
     return APIResponse.ok(data=assign_asset_record(aid, data, db))
 
 
@@ -174,7 +188,16 @@ def add_install(aid: str, data: dict = Body(...), db: Session = Depends(get_db),
     return APIResponse.ok(data=add_install_record(aid, data, cu.id, db))
 
 @router.delete("/assets/{aid}/installs/{iid}")
-def remove_install(aid: str, iid: str, db: Session = Depends(get_db), cu=Depends(get_current_user)):
+def remove_install(
+    aid: str,
+    iid: str,
+    db: Session = Depends(get_db),
+    cu=Depends(get_current_user),
+    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
+    # politicas activas no comprueba nada. `POST /alm/assets/{aid}/installs` ya exige
+    # gestor; borrar la instalacion no puede pedir menos que crearla.
+    _=Depends(require_any_manager),
+):
     enforce_abac(db, cu, "alm_software_install", iid, action="delete")
     return APIResponse.ok(data=remove_install_record(aid, iid, db))
 

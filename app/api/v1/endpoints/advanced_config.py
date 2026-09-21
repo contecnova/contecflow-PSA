@@ -347,7 +347,9 @@ def get_field_values(entity_id: str, db: Session = Depends(get_db), _: User = De
     return APIResponse.ok(data=_svc.get_custom_field_values(entity_id, db))
 
 @router.post("/custom-fields/values/{entity_id}", summary="Guardar valores de campos")
-def save_field_values(entity_id: str, values: dict, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def save_field_values(entity_id: str, values: dict, db: Session = Depends(get_db), _: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: configuracion del despliegue
+):
     return APIResponse.ok(data=_svc.save_custom_field_values(entity_id, values, db))
 
 
@@ -358,7 +360,9 @@ def get_templates(db: Session = Depends(get_db), _: User = Depends(get_current_u
     return APIListResponse.ok(items=_svc.list_templates(db))
 
 @router.post("/templates", summary="Crear plantilla")
-def create_template(payload: TemplateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_template(payload: TemplateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: configuracion del despliegue
+):
     return APIResponse.ok(data=_svc.create_template(
         payload.model_dump(),
         str(current_user.id),
@@ -376,6 +380,7 @@ def delete_template(template_id: str, db: Session = Depends(get_db), user: User 
 
 @router.post("/templates/{template_id}/apply/{project_id}", summary="Aplicar plantilla a proyecto")
 def apply_template(template_id: str, project_id: str, start_date: Optional[str] = None,
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: configuracion del despliegue
                    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return APIResponse.ok(data=_svc.apply_template_to_project(
         template_id, project_id, start_date, str(current_user.id),

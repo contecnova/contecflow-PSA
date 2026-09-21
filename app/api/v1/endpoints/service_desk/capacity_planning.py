@@ -24,6 +24,7 @@ from app.services.service_desk.capacity_planning_service import (
     get_capacity_config,
     save_capacity_config,
 )
+from app.core.deps import require_admin
 
 router = APIRouter(prefix="/sd/capacity", tags=["capacity-planning"])
 
@@ -81,6 +82,7 @@ def update_config(
     body: dict,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     org_id = body.get("org_id", "default")
     return APIResponse.ok(data=save_capacity_config(db, org_id, body))

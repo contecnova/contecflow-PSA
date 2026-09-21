@@ -99,6 +99,7 @@ function SectionHeading({ title, description }: { title?: React.ReactNode; descr
 }
 
 export default function DataPlatformPage(): JSX.Element {
+  const { t } = useAppLang()
   const { lang } = useAppLang()
   const isMobile = useMediaQuery('(max-width: 900px)')
 
@@ -256,7 +257,7 @@ export default function DataPlatformPage(): JSX.Element {
 
         {connectors.length > 0 && (
           <div style={S.card}>
-            <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}><div style={S.sectionTitle}>Conectores de datos activos</div></div>
+            <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}><div style={S.sectionTitle}>{t('dataplatform.conectores_de_datos_activos')}</div></div>
             <div style={{ ...S.cardPad, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {connectors.map(([name, cfg]) => (
                 <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--surface-3)', borderRadius: 8 }}>
@@ -316,7 +317,7 @@ export default function DataPlatformPage(): JSX.Element {
             </div>
 
             <div style={S.card}>
-              <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}><div style={S.sectionTitle}>Catálogo de conectores ({phase3CatalogEntries.filter(([, cfg]) => !!cfg?.enabled).length} activos)</div></div>
+              <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}><div style={S.sectionTitle}>{t('dataplatform.catalogo_de_conectores')}{phase3CatalogEntries.filter(([, cfg]) => !!cfg?.enabled).length} activos)</div></div>
               <div style={{ ...S.cardPad, display: 'grid', gap: 6 }}>
                 {phase3CatalogEntries.slice(0, 8).map(([name, cfg]) => (
                   <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -326,7 +327,7 @@ export default function DataPlatformPage(): JSX.Element {
                       style={{ ...S.btnSecondary, padding: '3px 10px', fontSize: 'var(--text-xs)' }}>{cfg.enabled ? 'Off' : 'On'}</button>
                   </div>
                 ))}
-                {phase3CatalogEntries.length === 0 && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Sin conectores en catálogo</div>}
+                {phase3CatalogEntries.length === 0 && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('dataplatform.sin_conectores_en_catalogo')}</div>}
               </div>
             </div>
 
@@ -355,7 +356,7 @@ export default function DataPlatformPage(): JSX.Element {
                 <input value={datasetKey} onChange={e => setDatasetKey(e.target.value)} placeholder="dataset key" style={S.input} />
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button onClick={handleCreateSnapshot} style={S.btnAccentOutline()}>Crear snapshot</button>
-                  <button onClick={handleDiffLastSnapshots} style={S.btnSecondary}>Diff últimos 2</button>
+                  <button onClick={handleDiffLastSnapshots} style={S.btnSecondary}>{t('dataplatform.diff_ultimos_2')}</button>
                   <button onClick={() => refetchPhase3Lineage()} style={S.btnSecondary}>Refrescar</button>
                 </div>
                 {snapshotDiff && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Cambios: {snapshotDiff?.change_count ?? 0}</div>}

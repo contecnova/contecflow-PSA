@@ -41,21 +41,42 @@ _BLOCKED_HOSTNAMES: frozenset[str] = frozenset({
 })
 
 
-def _validate_webhook_url(url: str) -> None:
-    """Raise ValueError if *url* is not safe for outbound webhook delivery.
+def _rechazar_si_es_interna(ip_str: str) -> None:
+    """Levanta si esta IP es interna, reservada o está en la lista de bloqueo.
 
-    Checks:
-    - Scheme must be https.
-    - Hostname must not be a known metadata endpoint.
-    - Resolved IP addresses must not fall in any RFC 1918 / loopback /
-      link-local / reserved range (SSRF prevention).
+    Una cadena que no sea una IP se ignora en silencio: `getaddrinfo` puede
+    devolver formas que `ip_address` no entiende, y eso no es un destino
+    peligroso, es una entrada que no sabemos leer.
+    """
+    try:
+        ip = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return
+
+    if ip.is_loopback or ip.is_link_local or ip.is_private or ip.is_reserved or ip.is_unspecified:
+        raise ValueError(f"Destino bloqueado — IP interna/reservada: {ip_str}")
+    for red in _BLOCKED_NETWORKS:
+        if ip in red:
+            raise ValueError(f"Destino bloqueado — red interna {red}: {ip_str}")
+
+
+def _validate_webhook_url(url: str) -> None:
+    """Levanta `ValueError` si *url* no es un destino seguro para un webhook.
+
+    Comprueba:
+    - que el esquema sea https,
+    - que el nombre no sea un punto de metadatos conocido,
+    - que **ninguna** de las direcciones a las que resuelve caiga en un rango
+      privado, de bucle local, link-local o reservado (prevención de SSRF).
+
+    Se comprueban todas las direcciones y no sólo la primera: un nombre puede
+    resolver a varias, y bastaría con que una fuera interna.
 
     Raises:
-        ValueError: with a human-readable reason; caller should log this.
+        ValueError: con un motivo legible; quien llama debe registrarlo.
     """
     try:
         parsed = _urlparse.urlparse(url)
-    # intentional: chained re-raise preserves context
     except Exception as exc:
         raise ValueError(f"URL malformada: {url!r}") from exc
 
@@ -65,28 +86,16 @@ def _validate_webhook_url(url: str) -> None:
     hostname = (parsed.hostname or "").lower()
     if not hostname:
         raise ValueError("URL de webhook sin hostname")
-
     if hostname in _BLOCKED_HOSTNAMES:
         raise ValueError(f"Hostname de metadata bloqueado: {hostname!r}")
 
-    # Resolve all addresses the hostname maps to and reject any internal one.
     try:
-        addr_infos = socket.getaddrinfo(hostname, None)
-    # intentional: chained re-raise preserves context
+        direcciones = socket.getaddrinfo(hostname, None)
     except socket.gaierror as exc:
         raise ValueError(f"No se pudo resolver el hostname {hostname!r}: {exc}") from exc
 
-    for _family, _type, _proto, _canonname, sockaddr in addr_infos:
-        ip_str = sockaddr[0]
-        try:
-            ip = ipaddress.ip_address(ip_str)
-        except ValueError:
-            continue
-        if ip.is_loopback or ip.is_link_local or ip.is_private or ip.is_reserved or ip.is_unspecified:
-            raise ValueError(f"Destino bloqueado — IP interna/reservada: {ip_str}")
-        for net in _BLOCKED_NETWORKS:
-            if ip in net:
-                raise ValueError(f"Destino bloqueado — red interna {net}: {ip_str}")
+    for *_ignorado, sockaddr in direcciones:
+        _rechazar_si_es_interna(sockaddr[0])
 
 from app.core.config import settings
 from app.core.encryption import encrypt_value
@@ -923,36 +932,77 @@ def get_workers_for_subcontractor(sub_id: str, db: Session) -> list:
     return [serialize_worker(w) for w in workers]
 
 
+#: Campo del trabajador → campo del usuario enlazado. Auditoría 2026-09
+#: (hallazgo 18): eran seis `if` idénticos en línea, que es una tabla escrita
+#: como código. `name` y `email` no están aquí porque no son copias directas:
+#: uno se parte en nombre y apellidos y el otro necesita comprobar duplicados.
+_ESPEJO_TRABAJADOR_USUARIO: tuple[tuple[str, str], ...] = (
+    ("role", "job_title"),
+    ("phone", "phone"),
+    ("cost_rate", "hourly_rate"),
+    ("currency", "currency"),
+    ("is_active", "is_active"),
+)
+
+
+def _sincronizar_usuario_enlazado(db: Session, worker, cambios: dict) -> None:
+    """Refleja en el usuario enlazado los campos que comparte con el trabajador.
+
+    Sólo se tocan los campos **presentes** en el payload: `exclude_unset` deja
+    fuera los que nadie envió, y no es lo mismo «ponlo a nulo» que «no lo toques».
+    """
+    if not worker.user_id:
+        return
+    usuario = db.query(User).filter(User.id == worker.user_id).first()
+    if not usuario:
+        return
+
+    for campo_trabajador, campo_usuario in _ESPEJO_TRABAJADOR_USUARIO:
+        if campo_trabajador in cambios:
+            setattr(usuario, campo_usuario, cambios[campo_trabajador])
+
+    # La capacidad semanal sí distingue: un nulo explícito no la borra, porque
+    # un usuario sin capacidad declarada no es lo mismo que uno con cero.
+    if cambios.get("weekly_capacity_hours") is not None:
+        usuario.weekly_capacity_hours = cambios["weekly_capacity_hours"]
+
+    if "name" in cambios:
+        usuario.full_name = cambios["name"]
+        partes = cambios["name"].strip().split(" ", 1)
+        usuario.first_name = partes[0]
+        usuario.last_name = partes[1] if len(partes) > 1 else None
+
+    # El correo es identidad: si ya lo tiene otro, **no se cambia y no se
+    # levanta error** — el resto de la actualización es válida y el trabajador
+    # se queda con el correo que tenía, que es lo que hacía esta función.
+    nuevo_correo = cambios.get("email")
+    if nuevo_correo:
+        ocupado = db.query(User).filter(
+            User.email == nuevo_correo, User.id != usuario.id,
+        ).first()
+        if not ocupado:
+            usuario.email = nuevo_correo
+
+
 def update_worker(worker_id: str, payload, db: Session) -> dict:
+    """Actualiza un trabajador subcontratado y su usuario enlazado, si lo tiene."""
     worker = db.query(SubcontractorWorker).options(
         joinedload(SubcontractorWorker.skills).joinedload(SubcontractorWorkerSkill.skill),
         joinedload(SubcontractorWorker.assignments),
         joinedload(SubcontractorWorker.user),
-    ).filter(SubcontractorWorker.id == worker_id, SubcontractorWorker.is_active == True).first()
+    ).filter(
+        SubcontractorWorker.id == worker_id,
+        SubcontractorWorker.is_active == True,  # noqa: E712
+    ).first()
     if not worker:
         raise ValueError("not_found")
-    update_data = payload.model_dump(exclude_unset=True)
-    for k, v in update_data.items():
-        setattr(worker, k, v)
-    if worker.user_id:
-        linked_user = db.query(User).filter(User.id == worker.user_id).first()
-        if linked_user:
-            if "name" in update_data:
-                linked_user.full_name = update_data["name"]
-                parts = update_data["name"].strip().split(" ", 1)
-                linked_user.first_name = parts[0]
-                linked_user.last_name = parts[1] if len(parts) > 1 else None
-            if "role" in update_data: linked_user.job_title = update_data["role"]
-            if "phone" in update_data: linked_user.phone = update_data["phone"]
-            if "cost_rate" in update_data: linked_user.hourly_rate = update_data["cost_rate"]
-            if "currency" in update_data: linked_user.currency = update_data["currency"]
-            if "weekly_capacity_hours" in update_data and update_data["weekly_capacity_hours"] is not None:
-                linked_user.weekly_capacity_hours = update_data["weekly_capacity_hours"]
-            if "is_active" in update_data: linked_user.is_active = update_data["is_active"]
-            if "email" in update_data and update_data["email"]:
-                conflict = db.query(User).filter(User.email == update_data["email"], User.id != linked_user.id).first()
-                if not conflict:
-                    linked_user.email = update_data["email"]
+
+    cambios = payload.model_dump(exclude_unset=True)
+    for clave, valor in cambios.items():
+        setattr(worker, clave, valor)
+
+    _sincronizar_usuario_enlazado(db, worker, cambios)
+
     db.commit()
     db.refresh(worker)
     return serialize_worker(worker)

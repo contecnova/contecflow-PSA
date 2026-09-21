@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { analyticsApi } from '../../services/api'
 import { Search, Send, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucide-react'
 import { COLOR } from '../../constants/theme'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 const EXAMPLE_QUESTIONS = [
   '¿Cuáles son los 5 proyectos con más horas imputadas este mes?',
@@ -59,6 +60,7 @@ interface AskResult {
 }
 
 export default function AskDataWidget({ style = {} }: { style?: React.CSSProperties }) {
+  const { t } = useAppLang()
   const [question, setQuestion] = useState<string>('')
   const [showSql, setShowSql] = useState<boolean>(false)
   const [showExamples, setShowExamples] = useState<boolean>(false)
@@ -106,7 +108,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
             Ask the Data
           </div>
           <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>
-            Pregunta en lenguaje natural · responde con SQL sobre OLAP
+            {t('askdatawidget.pregunta_en_lenguaje_natural_responde_con_sql')}
           </div>
         </div>
       </div>
@@ -118,7 +120,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
             ref={inputRef}
             value={question}
             onChange={e => setQuestion(e.target.value)}
-            placeholder="¿Qué proyectos tienen margen negativo este año?"
+            placeholder={t('askdatawidget.que_proyectos_tienen_margen_negativo_este_ano')}
             disabled={mutation.isPending}
             style={{
               flex: 1, padding: '9px 14px', borderRadius: 8, fontSize: "var(--text-base)",
@@ -147,7 +149,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
           }}
         >
           {showExamples ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-          Ver preguntas de ejemplo
+          {t('askdatawidget.ver_preguntas_de_ejemplo')}
         </button>
 
         {showExamples && (
@@ -169,7 +171,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
       <div style={{ padding: '12px 20px 18px' }}>
         {mutation.isError && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: COLOR.danger, fontSize: "var(--text-sm)" }}>
-            <AlertTriangle size={13} /> Error de conexión con el servidor.
+            <AlertTriangle size={13} /> {t('askdatawidget.error_de_conexion_con_el_servidor')}
           </div>
         )}
 

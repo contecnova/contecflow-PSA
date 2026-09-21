@@ -272,42 +272,39 @@ def get_task_record(db: Session, task_id: str, current_user):
 
 # ── Update ─────────────────────────────────────────────────────────────────────
 
-def update_task_record(db: Session, task_id: str, payload, current_user):
+def _autorizar_edicion_de_tarea(task, project, current_user) -> None:
+    """Quién puede editar una tarea: admin, el PM del proyecto, o su asignado."""
+    if current_user.role == UserRole.admin:
+        return
+    es_pm = project and project.pm_id == current_user.id
+    if not es_pm and task.assignee_id != current_user.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para editar esta tarea")
+
+
+def _guardar_con_bloqueo_optimista(db: Session, task, cambios: dict, task_id: str) -> None:
+    """Aplica los cambios comprobando la versión, y confirma.
+
+    El bloqueo es **optimista**: no se toma un candado, se compara la versión
+    que el cliente creía tener. Si no coincide, alguien guardó por medio y este
+    guardado pisaría su trabajo sin que nadie se entere.
+    """
     import logging
 
     logger = logging.getLogger(__name__)
 
-    task = task_query_for_user(db, current_user).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
-
-    project = project_for_user(db, task.project_id, current_user)
-    if not project:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-
-    if current_user.role != UserRole.admin:
-        is_project_pm = project and project.pm_id == current_user.id
-        if not is_project_pm and task.assignee_id != current_user.id:
-            raise HTTPException(status_code=403, detail="No tienes permiso para editar esta tarea")
-
-    old_assignee_id = task.assignee_id
-
-    old_status = task.status  # capture before any mutation
-
-    if payload.status and payload.status != task.status:
-        validate_task_transition(task.status, payload.status)
-        apply_status_side_effects(task, payload.status)
-
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        if field == "version":
+    for campo, valor in cambios.items():
+        if campo == "version":
             continue
-        setattr(task, field, value)
+        setattr(task, campo, valor)
 
-    client_version = payload.model_dump(exclude_unset=True).get("version")
-    if client_version is not None and client_version != (task.version or 1):
+    version_cliente = cambios.get("version")
+    if version_cliente is not None and version_cliente != (task.version or 1):
         raise HTTPException(
             status_code=409,
-            detail=f"Conflicto de edición: la tarea fue modificada por otro usuario (versión {task.version}). Recarga y reintenta.",
+            detail=(
+                f"Conflicto de edición: la tarea fue modificada por otro usuario "
+                f"(versión {task.version}). Recarga y reintenta."
+            ),
         )
     task.version = (task.version or 1) + 1
 
@@ -316,45 +313,94 @@ def update_task_record(db: Session, task_id: str, payload, current_user):
     except IntegrityError as e:
         db.rollback()
         logger.error(f"Integrity error updating task {task_id}: {str(e)}")
-        raise HTTPException(status_code=409, detail="Task state conflict. Please reload and try again.")
+        raise HTTPException(
+            status_code=409, detail="Task state conflict. Please reload and try again.",
+        )
     except Exception as e:
         db.rollback()
         logger.error(f"Database error updating task {task_id}: {str(e)}")
         raise HTTPException(status_code=503, detail="Database operation failed")
 
+
+def _registrar_movimiento(db: Session, task, cambios: dict, estado_anterior, current_user) -> None:
+    """Anota el cambio de estado en el registro de movimientos, si lo hubo."""
+    nuevo = cambios.get("status")
+    if nuevo is None or nuevo == estado_anterior:
+        return
+    db.add(TaskMovementLog(
+        task_id=task.id,
+        project_id=task.project_id,
+        moved_by_id=current_user.id,
+        from_status=str(estado_anterior.value) if estado_anterior else None,
+        to_status=str(nuevo.value) if hasattr(nuevo, "value") else str(nuevo),
+        reason=cambios.get("move_reason"),
+    ))
+    db.commit()
+
+
+def _tipo_de_evento(cambios: dict, asignado_anterior):
+    """Qué evento describe mejor esta edición.
+
+    Completar gana sobre reasignar: si una tarea se cierra y se reasigna en el
+    mismo guardado, lo que importa contar es que se cerró.
+    """
+    from app.core.events import EventType
+
+    estado = cambios.get("status")
+    if estado and str(estado) in ("done", "completed", "closed"):
+        return EventType.TASK_COMPLETED
+    asignado = cambios.get("assignee_id")
+    if asignado and asignado != asignado_anterior:
+        return EventType.TASK_ASSIGNED
+    return EventType.TASK_UPDATED
+
+
+def update_task_record(db: Session, task_id: str, payload, current_user):
+    """Actualiza una tarea: autoriza, valida la transición, guarda y anota.
+
+    Auditoría 2026-09 (hallazgo 18): eran 83 líneas y complejidad 14 con la
+    autorización, el bloqueo optimista, el registro de movimientos y la
+    selección de evento mezclados. Cada fase tiene ahora su nombre, y el orden
+    —que importa— se lee en el cuerpo.
+    """
+    task = task_query_for_user(db, current_user).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+
+    project = project_for_user(db, task.project_id, current_user)
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+
+    _autorizar_edicion_de_tarea(task, project, current_user)
+
+    # Se capturan **antes** de mutar nada: después, `task` ya no sabe de dónde
+    # venía.
+    asignado_anterior = task.assignee_id
+    estado_anterior = task.status
+
+    if payload.status and payload.status != task.status:
+        validate_task_transition(task.status, payload.status)
+        apply_status_side_effects(task, payload.status)
+
+    cambios = payload.model_dump(exclude_unset=True)
+    _guardar_con_bloqueo_optimista(db, task, cambios, task_id)
     db.refresh(task)
 
-    # ── Movement log ──────────────────────────────────────────────────────────
-    changed_fields = payload.model_dump(exclude_unset=True)
-    new_status_val = changed_fields.get("status")
-    if new_status_val is not None and new_status_val != old_status:
-        move_reason = changed_fields.get("move_reason")
-        log_entry = TaskMovementLog(
-            task_id=task.id,
-            project_id=task.project_id,
-            moved_by_id=current_user.id,
-            from_status=str(old_status.value) if old_status else None,
-            to_status=str(new_status_val.value) if hasattr(new_status_val, 'value') else str(new_status_val),
-            reason=move_reason,
-        )
-        db.add(log_entry)
-        db.commit()
+    _registrar_movimiento(db, task, cambios, estado_anterior, current_user)
 
-    from app.core.events import emit, EventType
-    new_assignee = changed_fields.get("assignee_id")
-    new_status = changed_fields.get("status")
-    if new_status and str(new_status) in ("done", "completed", "closed"):
-        etype = EventType.TASK_COMPLETED
-    elif new_assignee and new_assignee != old_assignee_id:
-        etype = EventType.TASK_ASSIGNED
-    else:
-        etype = EventType.TASK_UPDATED
-    emit(db, etype,
-         {"title": task.title, "status": str(task.status), "assignee_id": task.assignee_id,
-          "project_id": task.project_id, **changed_fields},
-         actor=current_user, resource_type="task", resource_id=task.id,
-         project_id=task.project_id)
-    return task, old_assignee_id
+    from app.core.events import emit
+
+    emit(
+        db, _tipo_de_evento(cambios, asignado_anterior),
+        {
+            "title": task.title, "status": str(task.status),
+            "assignee_id": task.assignee_id, "project_id": task.project_id,
+            **cambios,
+        },
+        actor=current_user, resource_type="task", resource_id=task.id,
+        project_id=task.project_id,
+    )
+    return task, asignado_anterior
 
 
 # ── Cancel ─────────────────────────────────────────────────────────────────────
@@ -445,44 +491,68 @@ def add_comment_record(db: Session, task_id: str, payload, current_user):
 
 # ── Bulk dates ─────────────────────────────────────────────────────────────────
 
-def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> dict:
-    import logging
+def _a_fecha(valor):
+    """Una fecha, o `None` si no se puede leer. No levanta.
+
+    Aquí un valor ilegible no puede tumbar una actualización en masa: la fila se
+    queda sin fecha y las demás siguen.
+    """
+    if not valor:
+        return None
+    if isinstance(valor, _date):
+        return valor
+    try:
+        return _date.fromisoformat(str(valor)[:10])
+    except (ValueError, TypeError):
+        return None
+
+
+def _aplicar_fechas_a_tarea(db: Session, cambio: dict, current_user) -> Optional[dict]:
+    """Aplica las fechas a una tarea. Devuelve el error, o `None` si fue bien.
+
+    G5: ABAC se comprueba **tarea a tarea**. Una actualización en masa no es una
+    excepción al control de acceso; sería justo la forma de saltárselo.
+    """
     from app.core.abac_enforce import enforce_abac
+
+    task_id = cambio.get("id")
+    task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+    if not task:
+        return {"id": task_id, "reason": "not_found"}
+
+    if current_user:
+        try:
+            enforce_abac(db, current_user, "task", task.id, action="update")
+        except HTTPException:
+            return {"id": task.id, "reason": "abac_denied"}
+
+    if "start_date" in cambio:
+        task.start_date = _a_fecha(cambio["start_date"])
+    if "due_date" in cambio:
+        task.due_date = _a_fecha(cambio["due_date"])
+    return None
+
+
+def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> dict:
+    """Mueve las fechas de varias tareas de una vez.
+
+    Las tareas que fallan **no detienen** al resto: se devuelven en `errors` con
+    su motivo. Es lo que necesita un Gantt donde el usuario arrastra un bloque y
+    algunas de las tareas no son suyas.
+    """
+    import logging
 
     logger = logging.getLogger(__name__)
 
-    def _to_date(v):
-        if not v:
-            return None
-        if isinstance(v, _date):
-            return v
-        try:
-            return _date.fromisoformat(str(v)[:10])
-        except (ValueError, TypeError):
-            return None
-
-    updated = 0
     errors = []
-    for u in updates:
-        task_id = u.get("id")
-        task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
-        if not task:
-            errors.append({"id": task_id, "reason": "not_found"})
-            continue
+    actualizadas = 0
+    for cambio in updates:
+        error = _aplicar_fechas_a_tarea(db, cambio, current_user)
+        if error:
+            errors.append(error)
+        else:
+            actualizadas += 1
 
-        # G5 Fix: Enforce ABAC for each task individually in bulk date update
-        if current_user:
-            try:
-                enforce_abac(db, current_user, "task", task.id, action="update")
-            except HTTPException:
-                errors.append({"id": task.id, "reason": "abac_denied"})
-                continue
-
-        if "start_date" in u:
-            task.start_date = _to_date(u["start_date"])
-        if "due_date" in u:
-            task.due_date = _to_date(u["due_date"])
-        updated += 1
     try:
         db.commit()
     except IntegrityError as e:
@@ -493,7 +563,8 @@ def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> d
         db.rollback()
         logger.error(f"Database error in bulk_update_dates: {str(e)}")
         raise HTTPException(status_code=503, detail="Database operation failed")
-    return {"updated": updated, "errors": errors}
+
+    return {"updated": actualizadas, "errors": errors}
 
 
 # ── Background task helpers ────────────────────────────────────────────────────

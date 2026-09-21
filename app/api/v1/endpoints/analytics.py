@@ -9,7 +9,7 @@ import logging
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 # Legacy metrics fully migrated to MODULAR_METRICS_REGISTRY — see #109/#104.
@@ -831,6 +831,54 @@ def _filtered_project_ids(db, current_user, *, project_id, project_type, client_
 METRIC_REGISTRY = dict(MODULAR_METRICS_REGISTRY)
 
 
+def _respuesta_de_metrica(metric_id: str, meta: dict, filtros: dict, rows: list) -> dict:
+    """La forma de una respuesta analítica.
+
+    Auditoría 2026-09 (hallazgo 18): este diccionario estaba escrito **tres
+    veces, palabra por palabra** dentro de `run_query` —el caso vacío, el del
+    registro de métricas y el final—, con los siete campos de `filters`
+    repetidos en los tres. Tres copias de un contrato de API es una forma
+    garantizada de que un día devuelvan cosas distintas.
+    """
+    return {
+        "metric_id": metric_id,
+        "meta": meta,
+        "filters": filtros,
+        "rows": rows,
+        "total": len(rows),
+        "summary": _compute_summary(rows, meta),
+    }
+
+
+def _ejecutar_metrica(metric_id: str, db, *, d_from, d_to, top_n, project_id,
+                      department, project_ids, user_id, client_id, group_by,
+                      organization_id, meta: dict):
+    """Llama al manejador de la métrica. Devuelve `(filas, meta)`.
+
+    Un manejador puede devolver sólo filas o una tupla `(filas, parche_de_meta)`
+    —hay métricas que ajustan las columnas según los datos—, y aquí se
+    normalizan las dos formas.
+
+    Un fallo del manejador se traga a propósito y devuelve vacío: el catálogo
+    de métricas se consulta desde un panel con varias a la vez, y una que
+    reviente no debe tumbar la pantalla entera.
+    """
+    handler = METRIC_REGISTRY[metric_id]
+    try:
+        resultado = handler(
+            db=db, d_from=d_from, d_to=d_to, top_n=top_n, project_id=project_id,
+            department=department, project_ids=project_ids, user_id=user_id,
+            client_id=client_id, group_by=group_by, organization_id=organization_id,
+        )
+    except Exception:
+        return [], meta
+
+    if isinstance(resultado, tuple):
+        rows, parche = resultado
+        return rows, ({**meta, **parche} if parche else meta)
+    return resultado, meta
+
+
 @router.get("/query/{metric_id}", summary="Ejecutar consulta analítica")
 def run_query(
     metric_id: str,
@@ -841,7 +889,7 @@ def run_query(
     department: Optional[str] = Query(None),
     project_type: Optional[str] = Query(None),
     client_id: Optional[str] = Query(None),
-    group_by: Optional[str] = Query(None),  # secondary grouping
+    group_by: Optional[str] = Query(None),  # agrupación secundaria
     top_n: int = Query(20, ge=1, le=100),
     no_cache: bool = Query(False),
     db: Session = Depends(get_db),
@@ -852,118 +900,48 @@ def run_query(
 
     meta = CATALOGUE[metric_id]
     d_from, d_to = _date_range(date_from, date_to)
-    rows = []
     project_ids = _filtered_project_ids(
-        db,
-        current_user,
-        project_id=project_id,
-        project_type=project_type,
-        client_id=client_id,
+        db, current_user,
+        project_id=project_id, project_type=project_type, client_id=client_id,
     )
 
-    # Explicit forbidden access attempt to foreign project.
+    # Pedir un proyecto concreto y quedarse sin ninguno visible es un intento de
+    # acceso ajeno, no un resultado vacío.
     if project_id and project_ids == []:
         raise HTTPException(403, "No tienes acceso a este proyecto")
 
-    cache_key = _analytics_cache_key(
-        "analytics.query",
-        current_user,
-        {
-            "metric_id": metric_id,
-            "date_from": str(d_from),
-            "date_to": str(d_to),
-            "project_id": project_id,
-            "user_id": user_id,
-            "department": department,
-            "project_type": project_type,
-            "client_id": client_id,
-            "group_by": group_by,
-            "top_n": top_n,
-        },
-    )
-
-    # Tenant has no visible projects under current filters => empty result set.
-    if project_ids == []:
-        response = {
-            "metric_id": metric_id,
-            "meta": meta,
-            "filters": {
-                "date_from": str(d_from), "date_to": str(d_to),
-                "project_id": project_id, "user_id": user_id, "department": department,
-                "project_type": project_type, "client_id": client_id,
-            },
-            "rows": [],
-            "total": 0,
-            "summary": {},
-        }
-        # No cache for empty result: avoids polluting cache with empty responses for rare tenants
-        return APIResponse.ok(data=response)
-    if not no_cache:
-        cached = _cache_get(cache_key)
-        if cached is not None:
-            return APIResponse.ok(data=cached)
-
-    if metric_id in METRIC_REGISTRY:
-        handler = METRIC_REGISTRY[metric_id]
-        try:
-            handler_result = handler(
-                db=db,
-                d_from=d_from,
-                d_to=d_to,
-                top_n=top_n,
-                project_id=project_id,
-                department=department,
-                project_ids=project_ids,
-                user_id=user_id,
-                client_id=client_id,
-                group_by=group_by,
-                organization_id=current_user.organization_id,
-            )
-        except Exception:
-            handler_result = ([], {})
-        if isinstance(handler_result, tuple):
-            rows, meta_patch = handler_result
-            if meta_patch:
-                meta = {**meta, **meta_patch}
-        else:
-            rows = handler_result
-        response = {
-            "metric_id": metric_id,
-            "meta": meta,
-            "filters": {
-                "date_from": str(d_from), "date_to": str(d_to),
-                "project_id": project_id, "user_id": user_id, "department": department,
-                "project_type": project_type, "client_id": client_id,
-            },
-            "rows": rows,
-            "total": len(rows),
-            "summary": _compute_summary(rows, meta),
-        }
-        if not no_cache:
-            ttl = _get_metric_cache_ttl(metric_id)
-            _cache_set(cache_key, response, ttl_seconds=ttl)
-        return APIResponse.ok(data=response)
-
-    rows = []
-
-    if not rows:
-        rows = []
-
-    response = {
-        "metric_id": metric_id,
-        "meta": meta,
-        "filters": {
-            "date_from": str(d_from), "date_to": str(d_to),
-            "project_id": project_id, "user_id": user_id, "department": department,
-            "project_type": project_type, "client_id": client_id,
-        },
-        "rows": rows,
-        "total": len(rows),
-        "summary": _compute_summary(rows, meta),
+    filtros = {
+        "date_from": str(d_from), "date_to": str(d_to),
+        "project_id": project_id, "user_id": user_id, "department": department,
+        "project_type": project_type, "client_id": client_id,
     }
+
+    # Sin proyectos visibles bajo estos filtros no hay nada que calcular. **No
+    # se cachea**: llenaría la caché de respuestas vacías para inquilinos raros.
+    if project_ids == []:
+        return APIResponse.ok(data=_respuesta_de_metrica(metric_id, meta, filtros, []))
+
+    cache_key = _analytics_cache_key(
+        "analytics.query", current_user,
+        {**filtros, "metric_id": metric_id, "group_by": group_by, "top_n": top_n},
+    )
     if not no_cache:
-        ttl = _get_metric_cache_ttl(metric_id)
-        _cache_set(cache_key, response, ttl_seconds=ttl)
+        cacheada = _cache_get(cache_key)
+        if cacheada is not None:
+            return APIResponse.ok(data=cacheada)
+
+    rows: list = []
+    if metric_id in METRIC_REGISTRY:
+        rows, meta = _ejecutar_metrica(
+            metric_id, db, d_from=d_from, d_to=d_to, top_n=top_n, project_id=project_id,
+            department=department, project_ids=project_ids, user_id=user_id,
+            client_id=client_id, group_by=group_by,
+            organization_id=current_user.organization_id, meta=meta,
+        )
+
+    response = _respuesta_de_metrica(metric_id, meta, filtros, rows)
+    if not no_cache:
+        _cache_set(cache_key, response, ttl_seconds=_get_metric_cache_ttl(metric_id))
     return APIResponse.ok(data=response)
 
 
@@ -1042,6 +1020,7 @@ def ask_the_data(
     payload: AskRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: consultas analiticas
 ):
     from app.services.ask_the_data import ask
     org_id = getattr(current_user, "organization_id", None)

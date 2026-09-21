@@ -82,6 +82,7 @@ const rateTableSchema = z.object({
 
 // ── Formulario de entrada ─────────────────────────────────────────────────────
 function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entry?: RateEntry | null; onClose: () => void }) {
+  const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -128,8 +129,8 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
           <input value={form.label} onChange={e => setForm(f=>({...f,label:e.target.value}))} style={inp} placeholder="Rol o perfil" aria-label="Rol o perfil" />
         </div>
         <div>
-          <label style={lbl}>Tarifa facturación (€/h)</label>
-          <input type="number" value={form.billing_rate} onChange={e => setForm(f=>({...f,billing_rate:e.target.value}))} style={inp} placeholder="Tarifa facturacion" aria-label="Tarifa de facturacion" />
+          <label style={lbl}>{traducir('ratecards.tarifa_facturacion_h')}</label>
+          <input type="number" value={form.billing_rate} onChange={e => setForm(f=>({...f,billing_rate:e.target.value}))} style={inp} placeholder="Tarifa facturacion" aria-label={traducir('ratecards.tarifa_de_facturacion')} />
         </div>
         <div>
           <label style={lbl}>Coste interno (€/h)</label>
@@ -140,11 +141,11 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
           <input type="number" value={form.escalation_pct} onChange={e => setForm(f=>({...f,escalation_pct:e.target.value}))} style={inp} placeholder="% anual" aria-label="Escalado anual" min="0" max="20" step="0.5" />
         </div>
         <div>
-          <label style={lbl}>Válido desde</label>
+          <label style={lbl}>{traducir('ratecards.valido_desde')}</label>
           <input type="date" value={form.valid_from} onChange={e => setForm(f=>({...f,valid_from:e.target.value}))} style={inp} />
         </div>
         <div>
-          <label style={lbl}>Válido hasta</label>
+          <label style={lbl}>{traducir('ratecards.valido_hasta')}</label>
           <input type="date" value={form.valid_to} onChange={e => setForm(f=>({...f,valid_to:e.target.value}))} style={inp} />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
@@ -172,6 +173,7 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
 
 // ── Detalle de tabla ──────────────────────────────────────────────────────────
 function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack: () => void }) {
+  const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -225,13 +227,13 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
           </div>
         )}
         <button onClick={() => setShowDupe(true)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-          📋 Duplicar con escalado
+          {traducir('ratecards.duplicar_con_escalado')}
         </button>
-        <Button onClick={() => setShowEntry(true)}>+ Nueva tarifa</Button>
+        <Button onClick={() => setShowEntry(true)}>{traducir('ratecards.nueva_tarifa')}</Button>
       </div>
 
       {entries.length === 0 ? (
-        <EmptyState icon="💰" title="Sin tarifas" description="Anade la primera tarifa a esta tabla" />
+        <EmptyState icon="💰" title={traducir('ratecards.sin_tarifas')} description="Anade la primera tarifa a esta tabla" />
       ) : (
         <div style={{ ...panel, overflow: 'hidden' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
@@ -287,12 +289,12 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
       )}
 
       {showDupe && (
-        <Modal open title="Duplicar tabla con escalado" onClose={() => setShowDupe(false)} width={420}>
+        <Modal open title={traducir('ratecards.duplicar_tabla_con_escalado')} onClose={() => setShowDupe(false)} width={420}>
           <div style={{ marginBottom: 16 }}>
             <label style={lbl}>Escalado anual (%)</label>
             <input type="number" value={dupeEsc} onChange={e => setDupeEsc(+e.target.value)} style={inp} min="0" max="20" step="0.5" />
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6 }}>
-              Se creará una copia de &quot;{table.name}&quot; con todas las tarifas incrementadas en este porcentaje.
+              {traducir('ratecards.se_creara_una_copia_de')}{table.name}{traducir('ratecards.con_todas_las_tarifas_incrementadas_en_este')}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -307,6 +309,7 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function RateCardsPage() {
+  const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -359,13 +362,13 @@ export default function RateCardsPage() {
       <PageHeader icon={<Tag size={18} />} title={t('rate_cards.title')} subtitle={t('rate_cards.subtitle')} />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
-        <Button onClick={() => setShowCreate(true)}>+ Nueva tabla de tarifas</Button>
+        <Button onClick={() => setShowCreate(true)}>{traducir('ratecards.nueva_tabla_de_tarifas')}</Button>
       </div>
 
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>{t('common.loading')}</div>
       ) : tables.length === 0 ? (
-        <EmptyState icon="💰" title="Sin tablas de tarifas" description="Crea la primera tabla para definir precios y costes" />
+        <EmptyState icon="💰" title={traducir('ratecards.sin_tablas_de_tarifas')} description="Crea la primera tabla para definir precios y costes" />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
           {tables.map(t => (
@@ -405,27 +408,27 @@ export default function RateCardsPage() {
       )}
 
       {showCreate && (
-        <Modal open title="Nueva tabla de tarifas" onClose={() => setShowCreate(false)} width={480}>
+        <Modal open title={traducir('ratecards.nueva_tabla_de_tarifas_2')} onClose={() => setShowCreate(false)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
             <div>
               <label style={lbl}>Nombre *</label>
-              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Nombre de la tabla" aria-label="Nombre de la tabla" />
+              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={traducir('ratecards.nombre_de_la_tabla')} aria-label={traducir('ratecards.nombre_de_la_tabla')} />
             </div>
             <div>
-              <label style={lbl}>Descripción</label>
+              <label style={lbl}>{traducir('ratecards.descripcion')}</label>
               <input value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} placeholder="Descripcion opcional" aria-label="Descripcion opcional" />
             </div>
             <div>
               <label style={lbl}>Aplicar a</label>
               <select value={form.applies_to} onChange={e => setForm(f=>({...f,applies_to:e.target.value as AppliesTo}))} style={inp}>
-                <option value="role">Por Rol / Perfil</option>
-                <option value="department">Por Departamento</option>
-                <option value="client">Por Cliente</option>
+                <option value="role">{traducir('ratecards.por_rol_perfil')}</option>
+                <option value="department">{traducir('ratecards.por_departamento')}</option>
+                <option value="client">{traducir('ratecards.por_cliente')}</option>
               </select>
             </div>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
               <input type="checkbox" checked={form.is_default} onChange={e => setForm(f=>({...f,is_default:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
-              Tabla por defecto (se usa cuando no hay otra específica)
+              {traducir('ratecards.tabla_por_defecto_se_usa_cuando_no')}
             </label>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

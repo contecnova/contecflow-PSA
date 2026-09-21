@@ -220,16 +220,16 @@ export default function OrganizationsPage() {
         exportFilePrefix='organizations'
       />
       <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:24, fontSize: "var(--text-base)", color:'var(--accent)' }}>
-        Cada organización tiene sus propios usuarios, proyectos y datos aislados. Esta arquitectura permite ofrecer Contecflow como SaaS multi-empresa.
+        {t('organizations.cada_organizacion_tiene_sus_propios_usuarios_proyectos')}
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
-        <Button onClick={() => setShowCreate(true)}>+ Nueva organización</Button>
+        <Button onClick={() => setShowCreate(true)}>{t('organizations.nueva_organizacion')}</Button>
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns: selected ? '1fr 360px' : '1fr', gap:20 }}>
         <div>
           {isLoading ? <Spinner /> : orgs.length === 0 ? (
-            <EmptyState icon="🏢" title="Sin organizaciones" description="Crea la primera organizacion para gestionar entornos aislados" />
+            <EmptyState icon="🏢" title={t('organizations.sin_organizaciones')} description="Crea la primera organizacion para gestionar entornos aislados" />
           ) : (
             <div data-export-table="organizations-list" style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {orgs.map(o => (
@@ -280,7 +280,7 @@ export default function OrganizationsPage() {
               <span style={{ fontSize: "var(--text-base)", fontWeight:500 }}>Usuarios ({detail.users?.length})</span>
               <Button size="sm" onClick={() => setShowAssignUser(true)}>Asignar usuario</Button>
             </div>
-            {(detail.users || []).length === 0 && <div style={{ color:'var(--text-3)', fontSize: "var(--text-sm)", marginBottom:8 }}>No hay usuarios asignados.</div>}
+            {(detail.users || []).length === 0 && <div style={{ color:'var(--text-3)', fontSize: "var(--text-sm)", marginBottom:8 }}>{t('organizations.no_hay_usuarios_asignados')}</div>}
             {(detail.users || []).map((u, idx, arr) => {
               const isLast = arr.length === 1
               return (
@@ -301,7 +301,7 @@ export default function OrganizationsPage() {
                       {removingUserId && detail && (
                         <Confirm
                           open
-                          title="Quitar usuario de la organizacion"
+                          title={t('organizations.quitar_usuario_de_la_organizacion')}
                           description={`Vas a quitar ${removingUser?.full_name || 'este usuario'} de ${detail.name}. El usuario seguira existiendo en el sistema si pertenece a otras organizaciones.`}
                           onCancel={()=>setRemovingUserId(null)}
                           onConfirm={()=>removeUser({ orgId: detail.id, userId: removingUserId })}
@@ -344,7 +344,7 @@ export default function OrganizationsPage() {
       </div>
 
       {showCreate && (
-        <Modal open title="Nueva organizacion" onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={520}>
+        <Modal open title={t('organizations.nueva_organizacion_2')} onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={520}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
               <div>
@@ -353,7 +353,7 @@ export default function OrganizationsPage() {
                 {createValidation.errors.name && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.name}</div>}
               </div>
               <div>
-                <label style={ls}>Slug (identificador único)</label>
+                <label style={ls}>{t('organizations.slug_identificador_unico')}</label>
                 <input value={form.slug} onChange={e=>{ setForm(f=>({...f,slug:e.target.value.toLowerCase().replace(/\s+/g,'-')})); createValidation.clearFieldError('slug') }} style={createValidation.inputStyle(fs, 'slug')} />
                 {createValidation.errors.slug && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.slug}</div>}
               </div>
@@ -365,18 +365,18 @@ export default function OrganizationsPage() {
                 </select>
               </div>
               <div>
-                <label style={ls}>Máx. usuarios</label>
+                <label style={ls}>{t('organizations.max_usuarios')}</label>
                 <input type="number" value={form.max_users} onChange={e=>{ setForm(f=>({...f,max_users:+e.target.value})); createValidation.clearFieldError('max_users') }} style={createValidation.inputStyle(fs, 'max_users')} />
                 {createValidation.errors.max_users && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.max_users}</div>}
               </div>
               <div>
-                <label style={ls}>Máx. proyectos</label>
+                <label style={ls}>{t('organizations.max_proyectos')}</label>
                 <input type="number" value={form.max_projects} onChange={e=>{ setForm(f=>({...f,max_projects:+e.target.value})); createValidation.clearFieldError('max_projects') }} style={createValidation.inputStyle(fs, 'max_projects')} />
                 {createValidation.errors.max_projects && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.max_projects}</div>}
               </div>
             </div>
             <div>
-              <label style={ls}>Email del admin</label>
+              <label style={ls}>{t('organizations.email_del_admin')}</label>
               <input value={form.admin_email} onChange={e=>{ setForm(f=>({...f,admin_email:e.target.value})); createValidation.clearFieldError('admin_email') }} style={createValidation.inputStyle(fs, 'admin_email')} />
               {createValidation.errors.admin_email && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.admin_email}</div>}
             </div>
@@ -407,18 +407,18 @@ export default function OrganizationsPage() {
                 </select>
               </div>
               <div>
-                <label style={ls}>Máx. usuarios</label>
+                <label style={ls}>{t('organizations.max_usuarios')}</label>
                 <input type="number" value={editForm?.max_users ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_users:+e.target.value})); editValidation.clearFieldError('max_users') }} style={editValidation.inputStyle(fs, 'max_users')} />
                 {editValidation.errors.max_users && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.max_users}</div>}
               </div>
               <div>
-                <label style={ls}>Máx. proyectos</label>
+                <label style={ls}>{t('organizations.max_proyectos')}</label>
                 <input type="number" value={editForm?.max_projects ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_projects:+e.target.value})); editValidation.clearFieldError('max_projects') }} style={editValidation.inputStyle(fs, 'max_projects')} />
                 {editValidation.errors.max_projects && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.max_projects}</div>}
               </div>
             </div>
             <div>
-              <label style={ls}>Email del admin</label>
+              <label style={ls}>{t('organizations.email_del_admin')}</label>
               <input value={editForm?.admin_email ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,admin_email:e.target.value})); editValidation.clearFieldError('admin_email') }} style={editValidation.inputStyle(fs, 'admin_email')} />
               {editValidation.errors.admin_email && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.admin_email}</div>}
             </div>

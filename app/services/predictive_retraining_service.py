@@ -74,71 +74,113 @@ def _org_user_ids(db: Session, organization_id: Optional[str]) -> list[str]:
     return [str(r[0]) for r in rows]
 
 
-def evaluate_itsm_model_health(db: Session, *, organization_id: Optional[str], lookback_days: int = 30) -> dict[str, Any]:
-    cutoff = datetime.now(tz=timezone.utc) - timedelta(days=max(1, lookback_days))
+#: Severidad predicha → palabras que la confirman en la prioridad real. Las
+#: prioridades del ticket vienen con nombres distintos según de dónde salgan
+#: (`p3_medium`, `normal`), así que se compara por contención y no por
+#: igualdad. Auditoría 2026-09 (hallazgo 18): eran cuatro `elif` con la misma
+#: forma dentro del bucle.
+_SEVERIDAD_ACIERTA_CON: dict[str, tuple[str, ...]] = {
+    "critical": ("critical",),
+    "high": ("high",),
+    "medium": ("medium", "normal"),
+    "low": ("low",),
+}
+
+
+def _acierta_la_severidad(predicha: str, prioridad: str) -> bool:
+    """Si la severidad predicha se corresponde con la prioridad real."""
+    return any(p in prioridad for p in _SEVERIDAD_ACIERTA_CON.get(predicha, ()))
+
+
+def _medir_predicciones(tickets) -> tuple[int, float, int, int]:
+    """Recorre los tickets y devuelve `(evaluados, suma_error, aciertos, total)`.
+
+    Dos medidas independientes sobre el mismo recorrido: el error absoluto del
+    tiempo de resolución, y el acierto de la severidad. Un ticket puede
+    contribuir a una y no a la otra.
+    """
+    evaluados = aciertos = total_severidad = 0
+    suma_error = 0.0
+
+    for t in tickets:
+        previsto = getattr(t, "predicted_resolution_minutes", None)
+        real = getattr(t, "resolution_minutes", None)
+        # `real > 0` descarta los cerrados al instante, que no miden nada.
+        if previsto is not None and real is not None and float(real) > 0:
+            suma_error += abs(float(previsto) - float(real))
+            evaluados += 1
+
+        severidad = (getattr(t, "predicted_severity", None) or "").lower()
+        prioridad = str(
+            getattr(getattr(t, "priority", None), "value", getattr(t, "priority", ""))
+        ).lower()
+        if severidad and prioridad:
+            total_severidad += 1
+            if _acierta_la_severidad(severidad, prioridad):
+                aciertos += 1
+
+    return evaluados, suma_error, aciertos, total_severidad
+
+
+def _estado_del_modelo(evaluados: int, mae, acierto) -> str:
+    """Si el modelo está sano, necesita atención, o no hay datos para decirlo.
+
+    Menos de diez muestras es «no se sabe» disfrazado de «atención»: se dice
+    aparte con `insufficient_data` cuando no hay ninguna.
+    """
+    if evaluados == 0:
+        return "insufficient_data"
+    if evaluados < 10 or (mae is not None and mae > 360) or (acierto is not None and acierto < 0.45):
+        return "attention"
+    return "healthy"
+
+
+def evaluate_itsm_model_health(
+    db: Session, *, organization_id: Optional[str], lookback_days: int = 30,
+) -> dict[str, Any]:
+    """Cómo de bien está acertando el modelo predictivo de ITSM.
+
+    Sólo mira tickets ya cerrados con predicción hecha: son los únicos donde se
+    puede comparar lo previsto con lo que pasó.
+    """
+    corte = datetime.now(tz=timezone.utc) - timedelta(days=max(1, lookback_days))
     q = db.query(Ticket).filter(
         Ticket.status.in_([TicketStatus.resolved.value, TicketStatus.closed.value]),
         Ticket.prediction_generated_at.isnot(None),
-        Ticket.prediction_generated_at >= cutoff,
+        Ticket.prediction_generated_at >= corte,
     )
-    org_users = _org_user_ids(db, organization_id)
-    if org_users:
+    usuarios = _org_user_ids(db, organization_id)
+    if usuarios:
         q = q.filter(
-            (Ticket.requester_user_id.in_(org_users))
-            | (Ticket.assigned_to_user_id.in_(org_users))
-            | (Ticket.created_by_user_id.in_(org_users))
+            Ticket.requester_user_id.in_(usuarios)
+            | Ticket.assigned_to_user_id.in_(usuarios)
+            | Ticket.created_by_user_id.in_(usuarios)
         )
 
-    rows = q.all()
-    evaluated = 0
-    mae_sum = 0.0
-    severity_hits = 0
-    severity_total = 0
+    tickets = q.all()
+    evaluados, suma_error, aciertos, total_severidad = _medir_predicciones(tickets)
 
-    for t in rows:
-        pred = getattr(t, "predicted_resolution_minutes", None)
-        actual = getattr(t, "resolution_minutes", None)
-        if pred is not None and actual is not None and float(actual) > 0:
-            mae_sum += abs(float(pred) - float(actual))
-            evaluated += 1
+    mae = round(suma_error / evaluados, 2) if evaluados else None
+    acierto = round(aciertos / total_severidad, 4) if total_severidad else None
 
-        pred_s = (getattr(t, "predicted_severity", None) or "").lower()
-        priority = str(getattr(getattr(t, "priority", None), "value", getattr(t, "priority", ""))).lower()
-        if pred_s and priority:
-            severity_total += 1
-            if (pred_s == "critical" and "critical" in priority) or (pred_s == "high" and "high" in priority):
-                severity_hits += 1
-            elif pred_s == "medium" and ("medium" in priority or "normal" in priority):
-                severity_hits += 1
-            elif pred_s == "low" and "low" in priority:
-                severity_hits += 1
-
-    mae = round(mae_sum / evaluated, 2) if evaluated else None
-    severity_acc = round(severity_hits / severity_total, 4) if severity_total else None
-
-    score = 1.0
+    # La puntuación baja con el error —topado en 0,7 para que un error enorme no
+    # borre la contribución de la severidad— y con los fallos de severidad.
+    puntuacion = 1.0
     if mae is not None:
-        score -= min(0.7, mae / 1200.0)
-    if severity_acc is not None:
-        score -= (1.0 - severity_acc) * 0.3
-    score = round(max(0.0, min(1.0, score)), 4)
-
-    status = "healthy"
-    if evaluated < 10 or (mae is not None and mae > 360) or (severity_acc is not None and severity_acc < 0.45):
-        status = "attention"
-    if evaluated == 0:
-        status = "insufficient_data"
+        puntuacion -= min(0.7, mae / 1200.0)
+    if acierto is not None:
+        puntuacion -= (1.0 - acierto) * 0.3
 
     return {
         "model": "itsm_predictive",
         "organization_id": organization_id,
         "lookback_days": lookback_days,
-        "samples": len(rows),
-        "evaluated_resolution": evaluated,
+        "samples": len(tickets),
+        "evaluated_resolution": evaluados,
         "mae_minutes": mae,
-        "severity_accuracy": severity_acc,
-        "score": score,
-        "status": status,
+        "severity_accuracy": acierto,
+        "score": round(max(0.0, min(1.0, puntuacion)), 4),
+        "status": _estado_del_modelo(evaluados, mae, acierto),
         "evaluated_at": _iso_now(),
     }
 

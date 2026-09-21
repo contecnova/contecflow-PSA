@@ -163,63 +163,142 @@ def _visible_options(values: list[str]) -> list[str]:
     return uniq[:20]
 
 
-def _normalize_mapping_rule(rule: str | dict | None, fallback_col: str) -> tuple[str, str, Optional[str], Optional[str]]:
-    """Return (field_id, field_type, data_source, data_attribute)."""
-    field_id = fallback_col.strip().lower().replace(" ", "_")
-    field_type = "text"
-    data_source = None
-    data_attribute = None
+#: Las tres fuentes de contexto que un campo puede tomar de otra entidad.
+#: Auditoría 2026-09 (hallazgo 18): estaban escritas **tres veces cada una**
+#: —una por prefijo de regla de texto, otra por clave de regla de diccionario y
+#: otra por heurística de nombre de columna—, en tres cascadas paralelas de
+#: `elif`. Como conjunto, las tres formas de reconocerlas comparten la lista.
+_FUENTES_DE_CONTEXTO = ("ci", "service", "client")
 
-    if isinstance(rule, str):
-        clean = rule.strip()
-        if clean:
-            field_id = clean.lower().replace(" ", "_")
-            if clean.startswith("ci."):
-                field_id = clean.replace(".", "_").lower()
-                field_type = "context_ci"
-                data_source = "ci"
-                data_attribute = clean.split(".", 1)[1]
-            elif clean.startswith("service."):
-                field_type = "context_service"
-                data_source = "service"
-                data_attribute = clean.split(".", 1)[1]
-            elif clean.startswith("client."):
-                field_type = "context_client"
-                data_source = "client"
-                data_attribute = clean.split(".", 1)[1]
+
+def _regla_de_texto(clean: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Una regla `fuente.atributo`, como `ci.hostname`. Devuelve (tipo, fuente, atributo)."""
+    for fuente in _FUENTES_DE_CONTEXTO:
+        if clean.startswith(f"{fuente}."):
+            return f"context_{fuente}", fuente, clean.split(".", 1)[1]
+    return None, None, None
+
+
+def _regla_por_nombre_de_columna(col: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Adivina la fuente por el nombre de la columna, para el alta sin fricción.
+
+    Reconoce `ci_algo` y los nombres sueltos (`ci`, `ci_name`, ...). El atributo
+    es lo que queda tras el prefijo, y `name` cuando no queda nada: `ci` a secas
+    significa «el nombre del CI».
+    """
+    for fuente in _FUENTES_DE_CONTEXTO:
+        sueltos = {fuente, f"{fuente}_name"}
+        if fuente == "ci":
+            sueltos |= {"configuration_item", "configuration_item_code"}
+        if col.startswith(f"{fuente}_") or col in sueltos:
+            return f"context_{fuente}", fuente, col.replace(f"{fuente}_", "") or "name"
+    return None, None, None
+
+
+def _normalize_mapping_rule(
+    rule: str | dict | None, fallback_col: str,
+) -> tuple[str, str, Optional[str], Optional[str]]:
+    """Devuelve `(field_id, field_type, data_source, data_attribute)`.
+
+    La regla puede venir como texto (`"ci.hostname"`), como diccionario
+    (`{"source": "ci", "attribute": "hostname"}`) o no venir: en ese último
+    caso se adivina por el nombre de la columna.
+    """
+    col = fallback_col.strip().lower().replace(" ", "_")
+    field_id = col
+    tipo = fuente = atributo = None
+
+    if isinstance(rule, str) and rule.strip():
+        limpia = rule.strip()
+        field_id = limpia.lower().replace(" ", "_")
+        tipo, fuente, atributo = _regla_de_texto(limpia)
+        if fuente == "ci":
+            # El identificador de un campo de CI lleva guion bajo, no punto:
+            # `ci.hostname` es el campo `ci_hostname` del formulario.
+            field_id = limpia.replace(".", "_").lower()
+
     elif isinstance(rule, dict):
-        explicit_id = str(rule.get("id") or "").strip()
-        if explicit_id:
-            field_id = explicit_id.lower().replace(" ", "_")
-        source = str(rule.get("source") or "").strip().lower()
-        attr = str(rule.get("attribute") or "").strip().lower() or None
-        if source in {"ci", "service", "client"}:
-            field_type = f"context_{source}"
-            data_source = source
-            data_attribute = attr
+        explicito = str(rule.get("id") or "").strip()
+        if explicito:
+            field_id = explicito.lower().replace(" ", "_")
+        declarada = str(rule.get("source") or "").strip().lower()
+        if declarada in _FUENTES_DE_CONTEXTO:
+            tipo, fuente = f"context_{declarada}", declarada
+            atributo = str(rule.get("attribute") or "").strip().lower() or None
 
-    # Heuristic fallback by column name for frictionless onboarding.
-    col_l = fallback_col.strip().lower().replace(" ", "_")
-    if field_type == "text":
-        if col_l.startswith("ci_") or col_l in {"ci", "ci_name", "configuration_item", "configuration_item_code"}:
-            field_type = "context_ci"
-            data_source = "ci"
-            data_attribute = col_l.replace("ci_", "") or "name"
-        elif col_l.startswith("service_") or col_l in {"service", "service_name"}:
-            field_type = "context_service"
-            data_source = "service"
-            data_attribute = col_l.replace("service_", "") or "name"
-        elif col_l.startswith("client_") or col_l in {"client", "client_name"}:
-            field_type = "context_client"
-            data_source = "client"
-            data_attribute = col_l.replace("client_", "") or "name"
+    if tipo is None:
+        tipo, fuente, atributo = _regla_por_nombre_de_columna(col)
 
-    return field_id, field_type, data_source, data_attribute
+    return field_id, tipo or "text", fuente, atributo
 
 
 def _pick(obj: object, attr: str, default: str = "") -> str:
     value = getattr(obj, attr, None)
     return str(value or default)
+
+
+def _servicios_visibles(db: Session, org_id, *, portal: bool,
+                        service_item_id, limit: int):
+    """Elementos de servicio activos de la organización.
+
+    Desde el portal sólo los marcados como visibles para clientes: la lista de
+    servicios internos no tiene por qué salir de casa.
+    """
+    q = db.query(ServiceItem).filter(
+        ServiceItem.is_active.is_(True),
+        ServiceItem.organization_id == org_id,
+    )
+    if portal:
+        q = q.filter(ServiceItem.is_visible_to_clients.is_(True))
+    if service_item_id:
+        q = q.filter(ServiceItem.id == service_item_id)
+    return q.order_by(ServiceItem.name.asc()).limit(max(5, limit)).all()
+
+
+def _clientes_visibles(db: Session, org_id, *, portal_client, client_id, limit: int):
+    """Clientes que el sujeto puede ver.
+
+    Un usuario del portal ve **el suyo y sólo el suyo**: un selector que le
+    ofreciera la lista de clientes de la organización sería una fuga por sí
+    mismo.
+    """
+    if portal_client is not None:
+        if not portal_client.client_org_id:
+            return []
+        propio = db.query(Client).filter(
+            Client.id == portal_client.client_org_id,
+            Client.organization_id == org_id,
+        ).first()
+        return [propio] if propio else []
+
+    q = db.query(Client).filter(Client.organization_id == org_id)
+    if client_id:
+        q = q.filter(Client.id == client_id)
+    return q.order_by(Client.name.asc()).limit(max(5, limit)).all()
+
+
+def _cis_visibles(db: Session, org_id, *, portal_client, qn: str, limit: int):
+    """Elementos de configuración visibles, acotados al portal si procede.
+
+    Desde el portal se limitan a los CI de los proyectos del cliente; y si el
+    cliente no tiene proyectos asignados, sólo a los que no cuelgan de ninguno.
+    """
+    q = db.query(ConfigurationItem).filter(ConfigurationItem.organization_id == org_id)
+
+    if portal_client is not None:
+        proyectos = portal_client.get_project_ids()
+        if proyectos:
+            q = q.filter(ConfigurationItem.project_id.in_(proyectos))
+        elif portal_client.client_org_id:
+            q = q.filter(ConfigurationItem.project_id.is_(None))
+
+    if qn:
+        q = q.filter(
+            ConfigurationItem.name.ilike(f"%{qn}%")
+            | ConfigurationItem.code.ilike(f"%{qn}%")
+            | ConfigurationItem.environment.ilike(f"%{qn}%")
+        )
+    return q.order_by(ConfigurationItem.name.asc()).limit(max(5, limit)).all()
 
 
 def _context_options_payload(
@@ -232,73 +311,36 @@ def _context_options_payload(
     q: Optional[str] = None,
     limit: int = 40,
 ) -> dict:
-    qn = (q or "").strip().lower()
+    """Las opciones del selector de contexto: clientes, servicios y CI.
 
-    # La organizacion del sujeto, sea un usuario interno o del portal. Las tres
-    # consultas de abajo se acotan con ella de forma EXPLICITA.
-    #
-    # Auditoria 2026-08: no lo estaban, y dependian del filtro implicito de
-    # `TenantSession`. Este selector es alcanzable desde el portal, y
-    # `get_current_client` no publicaba el contexto de tenant en la sesion, asi
-    # que en ese camino no habia filtro de ninguna clase: un usuario del portal
-    # recibia los clientes y los elementos de configuracion de TODAS las
-    # organizaciones. El contexto ya se publica (ver `client_portal.py`), y este
-    # filtro es lo que hace que no dependa de ello.
+    La organizacion del sujeto, sea un usuario interno o del portal, acota las
+    tres consultas de forma EXPLICITA.
+
+    Auditoria 2026-08: no lo estaban, y dependian del filtro implicito de
+    `TenantSession`. Este selector es alcanzable desde el portal, y
+    `get_current_client` no publicaba el contexto de tenant en la sesion, asi
+    que en ese camino no habia filtro de ninguna clase: un usuario del portal
+    recibia los clientes y los elementos de configuracion de TODAS las
+    organizaciones. El contexto ya se publica (ver `client_portal.py`), y este
+    filtro es lo que hace que no dependa de ello.
+    """
+    qn = (q or "").strip().lower()
     sujeto = portal_client if portal_client is not None else current_user
     org_id = getattr(sujeto, "organization_id", None)
 
-    service_q = db.query(ServiceItem).filter(
-        ServiceItem.is_active.is_(True),
-        ServiceItem.organization_id == org_id,
+    servicios = _servicios_visibles(
+        db, org_id, portal=portal_client is not None,
+        service_item_id=service_item_id, limit=limit,
     )
-    if portal_client is not None:
-        service_q = service_q.filter(ServiceItem.is_visible_to_clients.is_(True))
-    if service_item_id:
-        service_q = service_q.filter(ServiceItem.id == service_item_id)
-    services = service_q.order_by(ServiceItem.name.asc()).limit(max(5, limit)).all()
-
-    clients = []
-    if portal_client is not None:
-        if portal_client.client_org_id:
-            c = (
-                db.query(Client)
-                .filter(
-                    Client.id == portal_client.client_org_id,
-                    Client.organization_id == org_id,
-                )
-                .first()
-            )
-            if c:
-                clients = [c]
-    else:
-        client_q = db.query(Client).filter(Client.organization_id == org_id)
-        if client_id:
-            client_q = client_q.filter(Client.id == client_id)
-        clients = client_q.order_by(Client.name.asc()).limit(max(5, limit)).all()
-
-    ci_q = db.query(ConfigurationItem).filter(
-        ConfigurationItem.organization_id == org_id)
-    if portal_client is not None:
-        project_ids = portal_client.get_project_ids()
-        if project_ids:
-            ci_q = ci_q.filter(ConfigurationItem.project_id.in_(project_ids))
-        elif portal_client.client_org_id:
-            ci_q = ci_q.filter(ConfigurationItem.project_id.is_(None))
-    if qn:
-        ci_q = ci_q.filter(
-            (ConfigurationItem.name.ilike(f"%{qn}%"))
-            | (ConfigurationItem.code.ilike(f"%{qn}%"))
-            | (ConfigurationItem.environment.ilike(f"%{qn}%"))
-        )
-    cis = ci_q.order_by(ConfigurationItem.name.asc()).limit(max(5, limit)).all()
+    clientes = _clientes_visibles(
+        db, org_id, portal_client=portal_client, client_id=client_id, limit=limit,
+    )
+    cis = _cis_visibles(db, org_id, portal_client=portal_client, qn=qn, limit=limit)
 
     return {
         "clients": [
-            {
-                "id": c.id,
-                "name": _pick(c, "name"),
-            }
-            for c in clients
+            {"id": c.id, "name": _pick(c, "name")}
+            for c in clientes
             if (not qn) or (qn in _pick(c, "name").lower())
         ][:limit],
         "services": [
@@ -307,7 +349,7 @@ def _context_options_payload(
                 "name": _pick(s, "name"),
                 "ticket_type": str(getattr(s, "ticket_type", "") or ""),
             }
-            for s in services
+            for s in servicios
             if (not qn) or (qn in _pick(s, "name").lower())
         ][:limit],
         "cis": [
@@ -318,6 +360,7 @@ def _context_options_payload(
                 "ci_type": str(getattr(ci, "ci_type", "") or ""),
                 "status": str(getattr(ci, "status", "") or ""),
                 "environment": _pick(ci, "environment"),
+
                 "project_id": getattr(ci, "project_id", None),
             }
             for ci in cis

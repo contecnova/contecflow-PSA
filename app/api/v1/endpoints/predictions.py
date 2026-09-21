@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services import ml_trainer
@@ -32,6 +32,7 @@ def overrun_risk(
     body: Dict[str, Any] = Body(default_factory=dict),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: calcula una prediccion
 ):
     # Audit #C7: endpoint converted from async→def. It only does DB work; the
     # previous async wrapper forced sync ORM calls onto the event loop. FastAPI

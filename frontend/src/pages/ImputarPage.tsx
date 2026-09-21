@@ -60,6 +60,7 @@ interface WeekGridProps {
 }
 
 function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }: WeekGridProps) {
+  const traducir = useAppT()
   if (!weekData) return null
   const days = ['L', 'M', 'X', 'J', 'V']
   const byDay = weekData.by_day || []
@@ -81,9 +82,9 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
               fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 6,
             }}
-            title="Ver anomalías detectadas en tus imputaciones"
+            title={traducir('imputar.ver_anomalias_detectadas_en_tus_imputaciones')}
           >
-            ⚠ Anomalías detectadas
+            {traducir('imputar.anomalias_detectadas')}
           </button>
         )}
       </div>
@@ -172,6 +173,7 @@ interface AnomaliesDrawerProps {
 }
 
 function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps) {
+  const traducir = useAppT()
   // Auditoría 2026-08 (P1-6): el panel NO se cerraba con Escape — sólo con el
   // ratón sobre el fondo o la X. Para quien navega con teclado era una trampa.
   useEffect(() => {
@@ -197,7 +199,7 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Anomalías en imputaciones"
+        aria-label={traducir('imputar.anomalias_en_imputaciones')}
         // Detiene la propagación para que pulsar dentro no cierre el panel.
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
@@ -210,7 +212,7 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3 style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 700 }}>
-            ⚠ Anomalías en imputaciones
+            {traducir('imputar.anomalias_en_imputaciones_2')}
           </h3>
           <button onClick={onClose}
             style={{ background: 'transparent', border: 'none', color: 'var(--text-2)', fontSize: 20, cursor: 'pointer' }}>
@@ -223,7 +225,7 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
         </div>
         {items.length === 0 ? (
           <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)' }}>
-            Sin anomalías detectadas.
+            {traducir('imputar.sin_anomalias_detectadas')}
           </div>
         ) : items.map((a: Anomaly, idx: number) => (
           <div key={idx} style={{
@@ -253,6 +255,7 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
 }
 
 export default function ImputarPage(): JSX.Element {
+  const traducir = useAppT()
   const t = useAppT()
   const { user } = useAuth()
   const qc = useQueryClient()
@@ -597,7 +600,7 @@ export default function ImputarPage(): JSX.Element {
                 onChange={e => setForceDuplicate(e.target.checked)}
                 style={{ width: 16, height: 16, accentColor: 'var(--warning)', cursor: 'pointer', marginTop: 2, flexShrink: 0 }}
               />
-              <span>Permitir imputación duplicada y avisar al manager para revisión.</span>
+              <span>{traducir('imputar.permitir_imputacion_duplicada_y_avisar_al_manager')}</span>
             </label>
           </div>
         )}

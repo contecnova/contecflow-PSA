@@ -166,7 +166,7 @@ export default function ServiceDeskPage() {
                 style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12,
                   background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)',
                   fontSize: "var(--text-base)", fontWeight: 600, fontFamily: 'inherit', padding: 0 }}>
-                ← Volver a la lista
+                {t('servicedesk.volver_a_la_lista')}
               </button>
             )}
             <TicketDetail ticketId={selId} onClose={() => { setSelId(null); setMobileView('list') }} embedded={true} />

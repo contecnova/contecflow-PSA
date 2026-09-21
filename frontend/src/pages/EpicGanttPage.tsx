@@ -59,10 +59,11 @@ function daysBetween(a?: string, b?: string) {
 }
 
 function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependency[] }) {
+  const t = useAppT()
   const dates = epics.flatMap((e) => [e.start_date, e.end_date].filter((v): v is string => Boolean(v)))
   if (!dates.length) return (
     <div style={{textAlign:'center', padding:40, color:'var(--text-2)', fontSize: "var(--text-base)"}}>
-      Asigna fechas de inicio y fin a las épicas para ver el roadmap visual con dependencias.
+      {t('epicgantt.asigna_fechas_de_inicio_y_fin_a')}
     </div>
   )
 
@@ -167,6 +168,7 @@ function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependenc
 }
 
 function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: EpicItem[]; onClose: () => void }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [form, setForm] = useState({ epic_id:'', depends_on_id:'', dep_type:'finish_to_start', lag_days:0 })
@@ -180,20 +182,20 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
   })
 
   return (
-    <Modal open onClose={onClose} title="Nueva dependencia entre epicas">
+    <Modal open onClose={onClose} title={t('epicgantt.nueva_dependencia_entre_epicas')}>
       <div style={{display:'flex', flexDirection:'column', gap:14}}>
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
           <div>
-            <label style={ls}>Épica A</label>
+            <label style={ls}>{t('epicgantt.epica_a')}</label>
             <select style={is} value={form.epic_id} onChange={e => set('epic_id')(e.target.value)}>
-              <option value="">Selecciona épica...</option>
+              <option value="">{t('epicgantt.selecciona_epica')}</option>
               {epics.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>Épica B (depende de A)</label>
+            <label style={ls}>{t('epicgantt.epica_b_depende_de_a')}</label>
             <select style={is} value={form.depends_on_id} onChange={e => set('depends_on_id')(e.target.value)}>
-              <option value="">Selecciona épica...</option>
+              <option value="">{t('epicgantt.selecciona_epica')}</option>
               {epics.filter(e => e.id !== form.epic_id).map(e => (
                 <option key={e.id} value={e.id}>{e.title}</option>
               ))}
@@ -202,7 +204,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
         </div>
 
         <div>
-          <label style={ls}>Tipo de dependencia</label>
+          <label style={ls}>{t('epicgantt.tipo_de_dependencia')}</label>
           <div style={{display:'flex', flexDirection:'column', gap:6}}>
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dep_type')(dt.value)}
@@ -223,7 +225,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
         </div>
 
         <div>
-          <label style={ls}>Lag (días de retraso adicional)</label>
+          <label style={ls}>{t('epicgantt.lag_dias_de_retraso_adicional')}</label>
           <input type="number" style={{...is, width:120}} value={form.lag_days} min={0}
             onChange={e => set('lag_days')(+e.target.value)} />
         </div>
@@ -283,20 +285,20 @@ export default function EpicGanttPage(): JSX.Element {
       <div style={{...ps, marginBottom:20}}>
         <label style={ls}>Proyecto</label>
         <select value={project} onChange={e => setProject(e.target.value)} style={{...is, width:360}}>
-          <option value="">Selecciona un proyecto...</option>
+          <option value="">{t('epicgantt.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
 
-      {!project && <EmptyState icon="📊" title="Selecciona un proyecto" description="Elige un proyecto para ver el Gantt de epicas y sus dependencias" />}
+      {!project && <EmptyState icon="📊" title={t('epicgantt.selecciona_un_proyecto_2')} description="Elige un proyecto para ver el Gantt de epicas y sus dependencias" />}
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && epics.length === 0 && (
         <div style={{...ps, textAlign:'center', padding:'48px 24px'}}>
           <div style={{fontSize: "var(--text-6xl)", marginBottom:16}}>🎯</div>
-          <div style={{fontSize: "var(--text-md-em)", fontWeight:600, marginBottom:8}}>Sin épicas</div>
+          <div style={{fontSize: "var(--text-md-em)", fontWeight:600, marginBottom:8}}>{t('epicgantt.sin_epicas')}</div>
           <div style={{fontSize: "var(--text-base)", color:'var(--text-2)', marginBottom:20}}>
-            Crea épicas con fechas en la sección <strong>Épicas</strong> para verlas en el Gantt con dependencias.
+            {t('epicgantt.crea_epicas_con_fechas_en_la_seccion')} <strong>{t('epicgantt.epicas')}</strong> {t('epicgantt.para_verlas_en_el_gantt_con_dependencias')}
           </div>
         </div>
       )}
@@ -306,7 +308,7 @@ export default function EpicGanttPage(): JSX.Element {
           {/* Gantt visual */}
           <div style={ps}>
             <div style={{fontSize: "var(--text-md)", fontWeight:600, marginBottom:20}}>
-              Roadmap con dependencias — {projects.find(p => p.id === project)?.name}
+              {t('epicgantt.roadmap_con_dependencias')} {projects.find(p => p.id === project)?.name}
             </div>
             <GanttWithDeps epics={epics} deps={epicDeps} />
           </div>
@@ -317,11 +319,11 @@ export default function EpicGanttPage(): JSX.Element {
               <div style={{fontSize: "var(--text-md)", fontWeight:600}}>
                 Dependencias ({epicDeps.length})
               </div>
-              <Button onClick={() => setShowForm(true)}>+ Añadir</Button>
+              <Button onClick={() => setShowForm(true)}>{t('epicgantt.anadir')}</Button>
             </div>
             {epicDeps.length === 0 ? (
               <div style={{textAlign:'center', padding:'24px', color:'var(--text-3)', fontSize: "var(--text-base)"}}>
-                Sin dependencias entre épicas. Las dependencias aparecen como flechas en el Gantt.
+                {t('epicgantt.sin_dependencias_entre_epicas_las_dependencias_aparecen')}
               </div>
             ) : (
               <div style={{display:'flex', flexDirection:'column', gap:8}}>
