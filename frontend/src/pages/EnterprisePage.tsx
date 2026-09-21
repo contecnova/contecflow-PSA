@@ -22,6 +22,7 @@ const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'v
 const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
 function WebhooksTab() {
+  const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showCreate, setShowCreate] = useState(false)
@@ -46,13 +47,13 @@ function WebhooksTab() {
   return (
     <div>
       <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:20, fontSize: "var(--text-base)", color:'var(--accent)' }}>
-        Los webhooks entrantes permiten que sistemas externos disparen automatizaciones en Contecflow mediante un simple HTTP POST a la URL configurada.
+        {traducir('enterprise.los_webhooks_entrantes_permiten_que_sistemas_externos')}
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
-        <Button onClick={() => setShowCreate(true)}>+ Nuevo webhook</Button>
+        <Button onClick={() => setShowCreate(true)}>{traducir('enterprise.nuevo_webhook')}</Button>
       </div>
       {isLoading ? <Spinner /> : triggers.length === 0 ? (
-        <EmptyState icon="🔗" title="Sin webhooks" description="Crea el primer webhook entrante para automatizaciones" />
+        <EmptyState icon="🔗" title={traducir('enterprise.sin_webhooks')} description="Crea el primer webhook entrante para automatizaciones" />
       ) : triggers.map((t: any) => (
         <div key={t.id} style={{ ...card, padding:'14px 18px', marginBottom:10 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -70,7 +71,7 @@ function WebhooksTab() {
           </div>
           {showLogs === t.id && (
             <div style={{ marginTop:10, borderTop:'.5px solid var(--surface-4)', paddingTop:8 }}>
-              {logs.length === 0 ? <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>Sin llamadas aún</div> :
+              {logs.length === 0 ? <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{traducir('enterprise.sin_llamadas_aun')}</div> :
                 logs.slice(0,5).map((l: any) => (
                   <div key={l.id} style={{ fontSize: "var(--text-xs)", padding:'3px 0', borderBottom:'.5px solid var(--surface-4)', display:'flex', gap:10 }}>
                     <span style={{ color: l.status === 'ok' ? 'var(--success)' : 'var(--danger)' }}>{l.status}</span>
@@ -84,13 +85,13 @@ function WebhooksTab() {
         </div>
       ))}
       {showCreate && (
-        <Modal open title="Nuevo webhook" onClose={() => setShowCreate(false)} width={480}>
+        <Modal open title={traducir('enterprise.nuevo_webhook_2')} onClose={() => setShowCreate(false)} width={480}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} /></div>
-            <div><label style={ls}>Slug (URL)</label><input value={form.slug} onChange={e => setForm(f => ({...f, slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} style={fs} placeholder="mi-webhook" aria-label="Slug del webhook" /></div>
+            <div><label style={ls}>Slug (URL)</label><input value={form.slug} onChange={e => setForm(f => ({...f, slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} style={fs} placeholder="mi-webhook" aria-label={traducir('enterprise.slug_del_webhook')} /></div>
             <div><label style={ls}>Workflow</label>
               <select value={form.workflow_id} onChange={e => setForm(f => ({...f, workflow_id:e.target.value}))} style={fs}>
-                <option value="">Sin workflow</option>
+                <option value="">{traducir('enterprise.sin_workflow')}</option>
                 {workflows.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </div>
@@ -109,6 +110,7 @@ function WebhooksTab() {
 }
 
 function GDPRTab() {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
@@ -135,13 +137,13 @@ function GDPRTab() {
   return (
     <div>
       <div style={{ background:'var(--warning-bg)', border:'.5px solid rgba(251,191,36,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:20, fontSize: "var(--text-base)", color:'var(--warning)' }}>
-        Gestión de solicitudes RGPD. Plazo máximo de respuesta: 30 días (Art. 12 RGPD).
+        {traducir('enterprise.gestion_de_solicitudes_rgpd_plazo_maximo_de')}
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
-        <Button onClick={() => setShowCreate(true)}>+ Nueva solicitud</Button>
+        <Button onClick={() => setShowCreate(true)}>{traducir('enterprise.nueva_solicitud')}</Button>
       </div>
       {isLoading ? <Spinner /> : requests.length === 0 ? (
-        <EmptyState icon="🔒" title="Sin solicitudes RGPD" description="No hay solicitudes de privacidad registradas" />
+        <EmptyState icon="🔒" title={traducir('enterprise.sin_solicitudes_rgpd')} description="No hay solicitudes de privacidad registradas" />
       ) : (
         <div style={{ ...card, overflow:'hidden' }}>
           {requests.map((r: any) => (
@@ -159,14 +161,14 @@ function GDPRTab() {
         </div>
       )}
       {showCreate && (
-        <Modal open title="Nueva solicitud RGPD" onClose={() => setShowCreate(false)} width={480}>
+        <Modal open title={traducir('enterprise.nueva_solicitud_rgpd')} onClose={() => setShowCreate(false)} width={480}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div><label style={ls}>Tipo</label>
               <select value={form.request_type} onChange={e => setForm(f => ({...f, request_type:e.target.value}))} style={fs}>
-                <option value="erasure">Derecho al olvido (Art. 17)</option>
+                <option value="erasure">{traducir('enterprise.derecho_al_olvido_art_17')}</option>
                 <option value="portability">Portabilidad (Art. 20)</option>
                 <option value="access">Acceso (Art. 15)</option>
-                <option value="rectification">Rectificación (Art. 16)</option>
+                <option value="rectification">{traducir('enterprise.rectificacion_art_16')}</option>
               </select>
             </div>
             <div><label style={ls}>Usuario</label>
@@ -175,7 +177,7 @@ function GDPRTab() {
                 {users.map((u: any) => <option key={u.id} value={u.id}>{u.full_name} — {u.email}</option>)}
               </select>
             </div>
-            <div><label style={ls}>Email (si ya no existe)</label>
+            <div><label style={ls}>{traducir('enterprise.email_si_ya_no_existe')}</label>
               <input value={form.subject_email} onChange={e => setForm(f => ({...f, subject_email:e.target.value}))} style={fs} />
             </div>
             <div><label style={ls}>Notas</label>
@@ -193,6 +195,7 @@ function GDPRTab() {
 }
 
 function EmailTab() {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showSend, setShowSend] = useState(false)
@@ -239,8 +242,8 @@ function EmailTab() {
           ))}
         </div>
         <div>
-          <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>Historial de envíos</div>
-          {logs.length === 0 ? <EmptyState icon="✉" title="Sin historial de envios" description="Todavia no se han enviado correos desde este modulo" /> : (
+          <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>{traducir('enterprise.historial_de_envios')}</div>
+          {logs.length === 0 ? <EmptyState icon="✉" title={traducir('enterprise.sin_historial_de_envios')} description="Todavia no se han enviado correos desde este modulo" /> : (
             <div style={{ ...card, overflow:'hidden' }}>
               {logs.slice(0,15).map((l: any) => (
                 <div key={l.id} style={{ display:'grid', gridTemplateColumns:'50px 1fr auto', gap:8, padding:'8px 14px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
@@ -259,10 +262,10 @@ function EmailTab() {
       {showSend && (
         <Modal open title="Enviar email" onClose={() => setShowSend(false)} width={500}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div><label style={ls}>Para</label><input value={sendForm.to} onChange={e => setSendForm(f => ({...f, to:e.target.value}))} style={fs} placeholder="destinatario@empresa.com" aria-label="Destinatario" /></div>
+            <div><label style={ls}>{traducir('enterprise.para')}</label><input value={sendForm.to} onChange={e => setSendForm(f => ({...f, to:e.target.value}))} style={fs} placeholder="destinatario@empresa.com" aria-label="Destinatario" /></div>
             <div><label style={ls}>Plantilla</label>
               <select value={sendForm.template_id} onChange={e => setSendForm(f => ({...f, template_id:e.target.value}))} style={fs}>
-                <option value="">Sin plantilla</option>
+                <option value="">{traducir('enterprise.sin_plantilla')}</option>
                 {allTpl.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
@@ -278,16 +281,16 @@ function EmailTab() {
         </Modal>
       )}
       {showCreate && (
-        <Modal open title="Nueva plantilla de email" onClose={() => setShowCreate(false)} width={560}>
+        <Modal open title={traducir('enterprise.nueva_plantilla_de_email')} onClose={() => setShowCreate(false)} width={560}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div><label style={ls}>Nombre</label><input value={newTpl.name} onChange={e => setNewTpl(f => ({...f, name:e.target.value}))} style={fs} /></div>
             <div><label style={ls}>Asunto (usa {'{{variable}}'})</label><input value={newTpl.subject} onChange={e => setNewTpl(f => ({...f, subject:e.target.value}))} style={fs} /></div>
-            <div><label style={ls}>Categoría</label>
+            <div><label style={ls}>{traducir('enterprise.categoria')}</label>
               <select value={newTpl.category} onChange={e => setNewTpl(f => ({...f, category:e.target.value}))} style={fs}>
                 {['automation','alert','report','invoice'].map((c: string) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div><label style={ls}>HTML del cuerpo</label><textarea value={newTpl.body_html} onChange={e => setNewTpl(f => ({...f, body_html:e.target.value}))} rows={5} style={{...fs, resize:'vertical'}} /></div>
+            <div><label style={ls}>{traducir('enterprise.html_del_cuerpo')}</label><textarea value={newTpl.body_html} onChange={e => setNewTpl(f => ({...f, body_html:e.target.value}))} rows={5} style={{...fs, resize:'vertical'}} /></div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
               <Button onClick={() => createTpl(newTpl)} disabled={!newTpl.name || !newTpl.subject || !newTpl.body_html}>Crear</Button>
@@ -300,6 +303,7 @@ function EmailTab() {
 }
 
 function IntegrationsTab() {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [configuring, setConfiguring] = useState<any>(null)
@@ -368,7 +372,7 @@ function IntegrationsTab() {
   return (
     <div>
       <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>Integraciones nativas</div>
-      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>Conecta Contecflow con tus herramientas de trabajo</div>
+      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>{traducir('enterprise.conecta_contecflow_con_tus_herramientas_de_trabajo')}</div>
 
       {/* Integraciones activas */}
       {integrations.length > 0 && (
@@ -441,7 +445,7 @@ function IntegrationsTab() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, marginBottom: 14 }}>
             <div>
-              <label style={ls}>Nombre de la integración</label>
+              <label style={ls}>{traducir('enterprise.nombre_de_la_integracion')}</label>
               <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={is} />
             </div>
             {configuring.fields?.map((field: any) => (
@@ -473,6 +477,7 @@ function IntegrationsTab() {
 
 
 function AuditTab() {
+  const traducir = useAppT()
   const { data: logs = [] } = useQuery({
     queryKey: ['audit-ent'],
     queryFn: () => enterpriseApi.auditLog({page:1,page_size:50}).then(r => r.data?.logs || []).catch(() => []),
@@ -511,9 +516,9 @@ function AuditTab() {
 
       <div style={{ ...card, overflow:'hidden' }}>
         <div style={{ padding: '10px 16px', fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', borderBottom: '.5px solid var(--surface-4)' }}>
-          Eventos de recuperacion de contrasena
+          {traducir('enterprise.eventos_de_recuperacion_de_contrasena')}
         </div>
-        {passwordResetLogs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-sm)" }}>Sin eventos de recuperacion</div> :
+        {passwordResetLogs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-sm)" }}>{traducir('enterprise.sin_eventos_de_recuperacion')}</div> :
           passwordResetLogs.map((l: any, i: number) => (
             <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
               <span style={{ color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{(l.created_at||'').slice(0,16)}</span>
@@ -529,7 +534,7 @@ function AuditTab() {
         <div style={{ padding: '10px 16px', fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', borderBottom: '.5px solid var(--surface-4)' }}>
           Audit log general (ultimos 30)
         </div>
-      {logs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-sm)" }}>Sin entradas en el audit log</div> :
+      {logs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-sm)" }}>{traducir('enterprise.sin_entradas_en_el_audit_log')}</div> :
         logs.slice(0,30).map((l: any, i: number) => (
           <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
             <span style={{ color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{(l.created_at||'').slice(0,16)}</span>
@@ -545,6 +550,7 @@ function AuditTab() {
 }
 
 function APIKeysTab() {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
@@ -566,16 +572,16 @@ function APIKeysTab() {
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
-        <Button onClick={() => setShowCreate(true)}>+ Nueva API key</Button>
+        <Button onClick={() => setShowCreate(true)}>{traducir('enterprise.nueva_api_key')}</Button>
       </div>
       {newKey && (
         <div style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:10, padding:'14px 18px', marginBottom:20 }}>
-          <div style={{ fontWeight:500, color:'var(--success)', marginBottom:6 }}>Cópiala ahora — no se mostrará de nuevo</div>
+          <div style={{ fontWeight:500, color:'var(--success)', marginBottom:6 }}>{traducir('enterprise.copiala_ahora_no_se_mostrara_de_nuevo')}</div>
           <code style={{ fontSize: "var(--text-base)", background:'var(--surface-1)', padding:'8px 12px', borderRadius:6, display:'block', wordBreak:'break-all' }}>{newKey.key}</code>
           <button onClick={() => setNewKey(null)} style={{ marginTop:8, background:'transparent', border:'none', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>Cerrar</button>
         </div>
       )}
-      {keys.length === 0 ? <EmptyState icon="🗝" title="Sin API keys" description="Genera una clave para integraciones externas" /> : (
+      {keys.length === 0 ? <EmptyState icon="🗝" title={traducir('enterprise.sin_api_keys')} description="Genera una clave para integraciones externas" /> : (
         <div style={{ ...card, overflow:'hidden' }}>
           {keys.map((k: any) => (
             <div key={k.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 130px 110px auto', gap:12, padding:'12px 18px', borderBottom:'.5px solid var(--surface-4)', alignItems:'center', fontSize: "var(--text-sm)" }}>
@@ -592,10 +598,10 @@ function APIKeysTab() {
         </div>
       )}
       {showCreate && (
-        <Modal open title="Nueva API key" onClose={() => setShowCreate(false)} width={420}>
+        <Modal open title={traducir('enterprise.nueva_api_key_2')} onClose={() => setShowCreate(false)} width={420}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} placeholder="Nombre de la clave" aria-label="Nombre de la clave" /></div>
-            <div><label style={ls}>Límite por hora</label><input type="number" value={form.rate_limit_per_hour} onChange={e => setForm(f => ({...f, rate_limit_per_hour:+e.target.value}))} style={fs} /></div>
+            <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} placeholder={traducir('enterprise.nombre_de_la_clave')} aria-label={traducir('enterprise.nombre_de_la_clave')} /></div>
+            <div><label style={ls}>{traducir('enterprise.limite_por_hora')}</label><input type="number" value={form.rate_limit_per_hour} onChange={e => setForm(f => ({...f, rate_limit_per_hour:+e.target.value}))} style={fs} /></div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
               <Button onClick={() => create(form)} disabled={!form.name}>Crear</Button>
@@ -608,6 +614,7 @@ function APIKeysTab() {
 }
 
 function SSOTab() {
+  const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
@@ -673,19 +680,19 @@ function SSOTab() {
 
       {/* Información de integración */}
       <div style={{ ...cardStyle, background: 'var(--purple-bg)', borderColor: 'var(--purple-bg)', marginBottom: 16 }}>
-        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--purple)', marginBottom: 8 }}>📋 Cómo integrar SSO</div>
+        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--purple)', marginBottom: 8 }}>{traducir('enterprise.como_integrar_sso')}</div>
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', lineHeight: 1.7 }}>
-          1. Registra Contecflow como aplicación en tu proveedor (Azure, Okta, Google).<br/>
-          2. Configura el <strong style={{ color: 'var(--text-1)' }}>Redirect URI</strong>: <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4 }}>{window.location.origin}/auth/sso/callback</code><br/>
-          3. Copia el Client ID y Client Secret del proveedor y pégalos aquí.<br/>
-          4. Añade el botón de login SSO desde <strong style={{ color: 'var(--text-1)' }}>Ajustes {'>'} Seguridad</strong>.
+          {traducir('enterprise.1_registra_contecflow_como_aplicacion_en_tu')}<br/>
+          {traducir('enterprise.2_configura_el')} <strong style={{ color: 'var(--text-1)' }}>Redirect URI</strong>: <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4 }}>{window.location.origin}/auth/sso/callback</code><br/>
+          {traducir('enterprise.3_copia_el_client_id_y_client')}<br/>
+          {traducir('enterprise.4_anade_el_boton_de_login_sso')} <strong style={{ color: 'var(--text-1)' }}>Ajustes {'>'} Seguridad</strong>.
         </div>
       </div>
 
       {/* Formulario de creación */}
       {showCreate && (
         <div style={{ ...cardStyle, borderColor: 'var(--accent-glow)' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', marginBottom: 14 }}>Nuevo proveedor SSO</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', marginBottom: 14 }}>{traducir('enterprise.nuevo_proveedor_sso')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
             <div>
               <label style={labelStyle}>Proveedor</label>
@@ -697,12 +704,12 @@ function SSOTab() {
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Nombre (para mostrar en login)</label>
+              <label style={labelStyle}>{traducir('enterprise.nombre_para_mostrar_en_login')}</label>
               <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inputStyle} placeholder={PROVIDER_INFO[form.provider]?.label} />
             </div>
             <div>
               <label style={labelStyle}>Client ID *</label>
-              <input value={form.oidc_client_id} onChange={e => setForm(f=>({...f,oidc_client_id:e.target.value}))} style={inputStyle} placeholder="Client ID del proveedor" aria-label="Client ID del proveedor" />
+              <input value={form.oidc_client_id} onChange={e => setForm(f=>({...f,oidc_client_id:e.target.value}))} style={inputStyle} placeholder={traducir('enterprise.client_id_del_proveedor')} aria-label={traducir('enterprise.client_id_del_proveedor')} />
             </div>
             <div>
               <label style={labelStyle}>Client Secret *</label>
@@ -726,8 +733,8 @@ function SSOTab() {
       {configs.length === 0 && !showCreate ? (
         <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-2)' }}>
           <div style={{ fontSize: "var(--text-4xl)", marginBottom: 10 }}>🔑</div>
-          <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 4 }}>Sin SSO configurado</div>
-          <div style={{ fontSize: "var(--text-sm)" }}>Añade Azure AD, Okta o Google para que los usuarios puedan acceder con su cuenta corporativa</div>
+          <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 4 }}>{traducir('enterprise.sin_sso_configurado')}</div>
+          <div style={{ fontSize: "var(--text-sm)" }}>{traducir('enterprise.anade_azure_ad_okta_o_google_para')}</div>
         </div>
       ) : (
         configs.map((c: any) => {

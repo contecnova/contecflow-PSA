@@ -13,6 +13,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { resolveWsBase } from '../../utils/wsUtils'
 import { PortalUsersTab } from './PortalUsersTab'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../../components/portal/GovernedConversations'
+import { useAppLang } from '../../i18n/AppLangContext'
 
 const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
@@ -38,6 +39,7 @@ const SLA_COLOR: Record<string, string> = {
 }
 
 export function ProjectsTab({ cid }: { cid: string }) {
+  const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const [showLink, setShowLink] = useState(false)
@@ -78,7 +80,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
   return (
     <div>
       <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)', borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-        ℹ️ Un proyecto solo puede estar vinculado a un cliente. Al vincular aquí, el proyecto queda asociado exclusivamente a este cliente.
+        {traducir('clients.un_proyecto_solo_puede_estar_vinculado_a')}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -90,9 +92,9 @@ export function ProjectsTab({ cid }: { cid: string }) {
 
       {showLink && (
         <div style={{ ...panel, padding: '16px 18px', marginBottom: 20, border: '1px solid var(--accent-border)' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12, color: 'var(--accent)' }}>Proyectos disponibles para vincular</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12, color: 'var(--accent)' }}>{traducir('clients.proyectos_disponibles_para_vincular')}</div>
           {loadingAvail ? <Spinner /> : unlinked.length === 0 ? (
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', padding: '10px 0' }}>No hay proyectos disponibles sin cliente asignado.</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', padding: '10px 0' }}>{traducir('clients.no_hay_proyectos_disponibles_sin_cliente_asignado')}</div>
           ) : (
             unlinked.map((p: any) => (
               <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', marginBottom: 6, background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
@@ -113,7 +115,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
       )}
 
       {loadingLinked ? <Spinner /> : linked.length === 0 ? (
-        <EmptyState icon="⬡" title="Sin proyectos vinculados" description="Vincula el primer proyecto a este cliente" />
+        <EmptyState icon="⬡" title={traducir('clients.sin_proyectos_vinculados')} description="Vincula el primer proyecto a este cliente" />
       ) : (
         linked.map((p: any) => (
           <div key={p.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10 }}>
@@ -142,6 +144,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
 }
 
 export function ContactsTab({ cid }: { cid: string }) {
+  const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const [showAdd, setShowAdd] = useState(false)
@@ -174,10 +177,10 @@ export function ContactsTab({ cid }: { cid: string }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{contacts.length} contacto(s)</div>
-        <Button onClick={() => setShowAdd(true)} size="sm">+ Añadir contacto</Button>
+        <Button onClick={() => setShowAdd(true)} size="sm">{traducir('clients.anadir_contacto')}</Button>
       </div>
       {contacts.length === 0 ? (
-        <EmptyState icon="👤" title="Sin contactos" description="Anade un contacto principal para este cliente" />
+        <EmptyState icon="👤" title={traducir('clients.sin_contactos')} description="Anade un contacto principal para este cliente" />
       ) : contacts.map((ct: any) => (
         <div key={ct.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -201,11 +204,11 @@ export function ContactsTab({ cid }: { cid: string }) {
         </div>
       ))}
       {showAdd && (
-        <Modal open title="Nuevo contacto" onClose={() => setShowAdd(false)} width={500}>
+        <Modal open title={traducir('clients.nuevo_contacto')} onClose={() => setShowAdd(false)} width={500}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div><label style={lbl}>Nombre completo *</label><input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={inp} /></div>
             <div><label style={lbl}>Email</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Teléfono</label><input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={inp} /></div>
+            <div><label style={lbl}>{traducir('clients.telefono')}</label><input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={inp} /></div>
             <div><label style={lbl}>Cargo</label><input value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} style={inp} /></div>
             <div><label style={lbl}>Rol</label>
               <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inp}>
@@ -221,7 +224,7 @@ export function ContactsTab({ cid }: { cid: string }) {
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowAdd(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
-            <Button onClick={() => add(form)} disabled={!form.full_name}>Añadir</Button>
+            <Button onClick={() => add(form)} disabled={!form.full_name}>{traducir('clients.anadir')}</Button>
           </div>
         </Modal>
       )}
@@ -230,6 +233,7 @@ export function ContactsTab({ cid }: { cid: string }) {
 }
 
 export function LicensesTab({ cid }: { cid: string }) {
+  const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [showLink, setShowLink] = useState(false)
@@ -261,7 +265,7 @@ export function LicensesTab({ cid }: { cid: string }) {
         <Button onClick={() => setShowLink(true)} size="sm">+ Vincular licencia</Button>
       </div>
       {linked.length === 0 ? (
-        <EmptyState icon="🔑" title="Sin licencias vinculadas" description="Vincula una licencia para este cliente" />
+        <EmptyState icon="🔑" title={traducir('clients.sin_licencias_vinculadas')} description="Vincula una licencia para este cliente" />
       ) : linked.map((l: any) => (
         <div key={l.link_id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -290,7 +294,7 @@ export function LicensesTab({ cid }: { cid: string }) {
           </div>
           <div style={{ marginBottom: 16 }}>
             <label style={lbl}>Notas (opcional)</label>
-            <input value={licNote} onChange={e => setLicNote(e.target.value)} style={inp} placeholder="Notas de la licencia" aria-label="Notas de la licencia" />
+            <input value={licNote} onChange={e => setLicNote(e.target.value)} style={inp} placeholder={traducir('clients.notas_de_la_licencia')} aria-label={traducir('clients.notas_de_la_licencia')} />
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowLink(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
@@ -303,6 +307,7 @@ export function LicensesTab({ cid }: { cid: string }) {
 }
 
 export function ContractsTab({ cid }: { cid: string }) {
+  const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [showLink, setShowLink] = useState(false)
@@ -333,7 +338,7 @@ export function ContractsTab({ cid }: { cid: string }) {
         <Button onClick={() => setShowLink(true)} size="sm">+ Vincular contrato</Button>
       </div>
       {linked.length === 0 ? (
-        <EmptyState icon="📄" title="Sin contratos vinculados" description="Asocia un contrato activo a este cliente" />
+        <EmptyState icon="📄" title={traducir('clients.sin_contratos_vinculados')} description="Asocia un contrato activo a este cliente" />
       ) : linked.map((c: any) => (
         <div key={c.link_id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -406,6 +411,7 @@ export function PortalConfigTab({ cid, clientDetail }: { cid: string; clientDeta
 }
 
 export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: any[] }) {
+  const { t: traducir } = useAppLang()
   const [selectedProject, setSelectedProject] = useState(projects[0]?.id || '')
 
   const { data: sessions = [], isLoading } = useQuery({
@@ -426,7 +432,7 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: any[
   return (
     <div>
       {projects.length === 0 ? (
-        <EmptyState icon="🧪" title="Sin proyectos para UAT" description="Asocia un proyecto para mostrar sesiones UAT" />
+        <EmptyState icon="🧪" title={traducir('clients.sin_proyectos_para_uat')} description="Asocia un proyecto para mostrar sesiones UAT" />
       ) : (
         <>
           {projects.length > 1 && (
@@ -439,9 +445,9 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: any[
           )}
 
           {!selectedProject ? (
-            <EmptyState icon="🧪" title="Selecciona un proyecto" description="Elige un proyecto para ver las sesiones UAT" />
+            <EmptyState icon="🧪" title={traducir('clients.selecciona_un_proyecto')} description="Elige un proyecto para ver las sesiones UAT" />
           ) : isLoading ? <Spinner /> : sessions.length === 0 ? (
-            <EmptyState icon="🧪" title="Sin sesiones UAT" description="Todavia no hay sesiones UAT disponibles para este proyecto" />
+            <EmptyState icon="🧪" title={traducir('clients.sin_sesiones_uat')} description="Todavia no hay sesiones UAT disponibles para este proyecto" />
           ) : (
             sessions.map((s: any) => (
               <div key={s.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10 }}>
@@ -464,7 +470,7 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: any[
                 {s.test_environment && (
                   <div style={{ marginTop: 8, fontSize: "var(--text-xs)" }}>
                     <a href={s.test_environment} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
-                      🔗 Entorno de pruebas
+                      {traducir('clients.entorno_de_pruebas')}
                     </a>
                   </div>
                 )}
@@ -483,6 +489,7 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: any[
 }
 
 export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] }) {
+  const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const { user, loading } = useAuth()
@@ -564,13 +571,13 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-        <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{filteredFrs.length} solicitud(es) del cliente</span>
+        <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{filteredFrs.length} {traducir('clients.solicitud_es_del_cliente')}</span>
         <select value={crFilter} onChange={e => setCrFilter(e.target.value)} style={{ ...inp, width: 160, fontSize: "var(--text-sm)", padding: '4px 8px' }}>
           {crStates.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
       </div>
       {filteredFrs.length === 0 ? (
-        <EmptyState icon="💡" title="Sin solicitudes" description="No hay solicitudes funcionales del cliente" />
+        <EmptyState icon="💡" title={traducir('clients.sin_solicitudes')} description="No hay solicitudes funcionales del cliente" />
       ) : filteredFrs.map((fr: any) => (
         <div key={fr.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, borderLeft: fr.cr_status_color ? `6px solid ${fr.cr_status_color}` : '6px solid var(--text-3)', boxShadow: fr.cr_status ? '0 2px 8px #0001' : undefined, position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
@@ -606,13 +613,13 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{fr.description?.slice(0, 200)}</div>
           {fr.pm_response && (
             <div style={{ marginTop: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '8px 12px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-              <strong style={{ color: 'var(--success)' }}>Respuesta del equipo:</strong> {fr.pm_response}
+              <strong style={{ color: 'var(--success)' }}>{traducir('clients.respuesta_del_equipo')}</strong> {fr.pm_response}
               {fr.estimated_cost && <span style={{ marginLeft: 8, color: 'var(--warning)' }}>· {fr.estimated_cost}€</span>}
               {fr.estimated_delivery_weeks && <span style={{ marginLeft: 8, color: 'var(--accent)' }}>· {fr.estimated_delivery_weeks} semanas</span>}
             </div>
           )}
-          {fr.client_approved === true && <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--success)' }}>✓ Cliente aprobó el {fr.client_approved_at}</div>}
-          {fr.client_approved === false && <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--danger)' }}>✗ Cliente rechazó</div>}
+          {fr.client_approved === true && <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--success)' }}>{traducir('clients.cliente_aprobo_el')} {fr.client_approved_at}</div>}
+          {fr.client_approved === false && <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--danger)' }}>{traducir('clients.cliente_rechazo')}</div>}
           <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end' }}>
             {['new', 'reviewing'].includes(fr.status) && (
               <Button size="sm" onClick={() => { setResponding(fr); setResponseForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) }}>
@@ -637,16 +644,16 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
       {responding && (
         <Modal open title={`Responder a: ${responding.title}`} onClose={() => setResponding(null)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div><label style={ls}>Respuesta / Análisis *</label><textarea value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical' }} placeholder="Respuesta del equipo" aria-label="Respuesta del equipo" /></div>
+            <div><label style={ls}>{traducir('clients.respuesta_analisis')}</label><textarea value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical' }} placeholder={traducir('clients.respuesta_del_equipo_2')} aria-label={traducir('clients.respuesta_del_equipo_2')} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
               <div><label style={ls}>Horas estimadas</label><input type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas estimadas" /></div>
               <div><label style={ls}>Coste estimado €</label><input type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} style={fs} placeholder="Coste" aria-label="Coste estimado" /></div>
-              <div><label style={ls}>Semanas entrega</label><input type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={fs} placeholder="Semanas" aria-label="Semanas de entrega" /></div>
+              <div><label style={ls}>Semanas entrega</label><input type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={fs} placeholder="Semanas" aria-label={traducir('clients.semanas_de_entrega')} /></div>
             </div>
             <div><label style={ls}>Estado</label>
               <select value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} style={fs}>
-                <option value="estimated">Presupuestada (pendiente aprobación cliente)</option>
-                <option value="rejected">Rechazada (no factible)</option>
+                <option value="estimated">{traducir('clients.presupuestada_pendiente_aprobacion_cliente')}</option>
+                <option value="rejected">{traducir('clients.rechazada_no_factible')}</option>
               </select>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -664,16 +671,16 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
               <div style={{ fontWeight: 700, fontSize: "var(--text-md-em)", color: crDetail.cr_status_color }}>
                 <IconCR /> Estado: {crDetail.cr_status_label || crDetail.cr_status}
               </div>
-              <div><b>Título:</b> {crDetail.title}</div>
-              <div><b>Descripción:</b> {crDetail.description}</div>
+              <div><b>{traducir('clients.titulo')}</b> {crDetail.title}</div>
+              <div><b>{traducir('clients.descripcion')}</b> {crDetail.description}</div>
               <div><b>Impacto:</b> {crDetail.impact_label || crDetail.impact || '—'}</div>
               <div><b>Coste impacto:</b> {crDetail.cost_impact != null ? crDetail.cost_impact + ' €' : '—'}</div>
               <div><b>Impacto en plazo:</b> {crDetail.schedule_impact_days != null ? crDetail.schedule_impact_days + ' días' : '—'}</div>
-              <div><b>Notas/resolución:</b> {crDetail.resolution_notes || '—'}</div>
+              <div><b>{traducir('clients.notas_resolucion')}</b> {crDetail.resolution_notes || '—'}</div>
               <div><b>Fechas:</b> {['submitted_at', 'approved_at', 'implemented_at'].map(f => crDetail[f] && (<span key={f} style={{ marginRight: 10 }}>{f.replace('_at', '')}: {crDetail[f]}</span>))}</div>
             </div>
           ) : (
-            <div>No hay Change Request vinculada aún. Se creará automáticamente al aprobar la FR por el cliente.</div>
+            <div>{traducir('clients.no_hay_change_request_vinculada_aun_se')}</div>
           )}
         </Modal>
       )}
@@ -682,10 +689,11 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
 }
 
 export function PortalMensajesTab({ cid, projects }: { cid: string; projects: any[] }) {
+  const { t: traducir } = useAppLang()
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <TeamGovernedConversationInbox
-        title="Conversaciones del cliente"
+        title={traducir('clients.conversaciones_del_cliente')}
         emptyTitle="Sin conversaciones"
         emptyDescription="Todavía no hay conversaciones del portal para este cliente."
         projectOptions={projects.map((project: any) => ({ id: project.id, name: project.name || project.code || project.id, code: project.code || '' }))}
@@ -698,6 +706,7 @@ export function PortalMensajesTab({ cid, projects }: { cid: string; projects: an
 }
 
 export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: any[] }) {
+  const { t: traducir } = useAppLang()
   const [selectedProject, setSelectedProject] = useState(projects[0]?.id || '')
   const { data: docs = [], isLoading } = useQuery({
     queryKey: ['portal-docs-team', cid, selectedProject],
@@ -719,10 +728,10 @@ export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: 
         </div>
       )}
       {!selectedProject
-        ? <EmptyState icon="📄" title="Selecciona un proyecto" description="Elige un proyecto para ver documentos" />
+        ? <EmptyState icon="📄" title={traducir('clients.selecciona_un_proyecto')} description="Elige un proyecto para ver documentos" />
         : <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>{docs.length} documento(s) compartido(s)</div>}
       {docs.length === 0
-        ? <EmptyState icon="📄" title="Sin documentos" description="No hay documentos compartidos en el portal para este proyecto" />
+        ? <EmptyState icon="📄" title={traducir('clients.sin_documentos')} description="No hay documentos compartidos en el portal para este proyecto" />
         : docs.map((d: any) => (
           <div key={d.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -747,6 +756,7 @@ export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: 
 }
 
 export function PortalSettingsTab({ cid }: { cid: string }) {
+  const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const { data: cfg, isLoading } = useQuery({
@@ -793,8 +803,8 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ ...panel, padding: '18px 20px' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>🌐 Módulos del portal</div>
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 12 }}>Qué secciones puede ver el cliente en su portal.</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>{traducir('clients.modulos_del_portal')}</div>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 12 }}>{traducir('clients.que_secciones_puede_ver_el_cliente_en')}</div>
           {MODULES.map(m => (
             <label key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10, cursor: 'pointer' }}>
               <input type="checkbox" checked={modules.includes(m.id)} onChange={() => toggleModule(m.id)} style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
@@ -809,8 +819,8 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
           <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
             <input type="checkbox" checked={sdWithout} onChange={e => setSdWithout(e.target.checked)} style={{ width: 15, height: 15, accentColor: 'var(--accent)', marginTop: 2 }} />
             <div>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>Acceso sin proyecto vinculado</div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>Puede abrir tickets aunque no tenga proyectos asignados</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{traducir('clients.acceso_sin_proyecto_vinculado')}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{traducir('clients.puede_abrir_tickets_aunque_no_tenga_proyectos')}</div>
             </div>
           </label>
         </div>
@@ -820,16 +830,16 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
         <div style={{ ...panel, padding: '18px 20px' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>🌍 Idioma y SLA</div>
           <div style={{ marginBottom: 14 }}>
-            <label style={lbl}>Idioma por defecto del portal</label>
+            <label style={lbl}>{traducir('clients.idioma_por_defecto_del_portal')}</label>
             <select value={defaultLang} onChange={e => setDefaultLang(e.target.value)} style={inp}>
               {languages.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
             </select>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 4 }}>Se aplica a nuevos usuarios. Cada usuario puede cambiarlo desde su perfil.</div>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 4 }}>{traducir('clients.se_aplica_a_nuevos_usuarios_cada_usuario')}</div>
           </div>
           <div>
             <label style={lbl}>Tier SLA</label>
             <select value={slaTier} onChange={e => setSlaTier(e.target.value)} style={inp}>
-              <option value="">Sin tier</option>
+              <option value="">{traducir('clients.sin_tier')}</option>
               <option value="bronze">🥉 Bronze — 24h respuesta</option>
               <option value="silver">🥈 Silver — 8h respuesta</option>
               <option value="gold">🥇 Gold — 4h respuesta</option>
@@ -842,8 +852,8 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
         </div>
 
         <div style={{ ...panel, padding: '18px 20px' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>👤 Perfil del cliente</div>
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 12 }}>Define qué puede modificar el cliente desde su perfil en el portal.</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>{traducir('clients.perfil_del_cliente')}</div>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 12 }}>{traducir('clients.define_que_puede_modificar_el_cliente_desde')}</div>
           {[
             { key: 'allowEdit', val: allowEdit, set: setAllowEdit, label: 'Puede editar su perfil', desc: 'Nombre visible, teléfono, cargo, idioma' },
             { key: 'allowPwd', val: allowPwd, set: setAllowPwd, label: 'Puede cambiar su contraseña', desc: 'El cliente puede actualizar su contraseña de acceso' },
@@ -857,13 +867,13 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
             </label>
           ))}
           <div style={{ marginTop: 4 }}>
-            <label style={lbl}>Máx. usuarios de portal</label>
+            <label style={lbl}>{traducir('clients.max_usuarios_de_portal')}</label>
             <input type="number" min={1} max={100} value={maxUsers} onChange={e => setMaxUsers(+e.target.value)} style={inp} />
           </div>
         </div>
 
         <Button onClick={() => save({ enabled_modules: modules, sd_without_project: sdWithout, sla_tier: slaTier || null, max_portal_users: maxUsers, default_language: defaultLang, allow_profile_edit: allowEdit, allow_pwd_change: allowPwd })} style={{ width: '100%' }} loading={saving}>
-          💾 Guardar configuración del portal
+          {traducir('clients.guardar_configuracion_del_portal')}
         </Button>
       </div>
     </div>

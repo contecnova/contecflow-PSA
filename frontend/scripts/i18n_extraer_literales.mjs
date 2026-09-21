@@ -65,7 +65,12 @@ function aClave(texto) {
 }
 
 function espacioDeNombres(ruta) {
-  return aClave(basename(ruta).replace(/\.tsx$/, '').replace(/Page|Sections|Tab/g, ''))
+  // Los sufijos largos PRIMERO: con `Tab` antes que `Tabs`, `ClientsPageTabs`
+  // se quedaba en `Clientss` —la `s` huerfana de `Tabs`— y el namespace era
+  // `clientss`, que parece una errata y confunde a quien busque la clave.
+  const base = basename(ruta).replace(/\.tsx$/, '')
+    .replace(/Sections|Tabs|Panel|Page|Tab/g, '')
+  return aClave(base)
 }
 
 /** Las funciones de primer nivel del modulo, con su rango. */
@@ -158,9 +163,18 @@ function analizar(ruta) {
   return { original, fuente, hallazgos, componentes }
 }
 
-function tieneHook(cuerpo, fuente) {
-  return /const\s*\{[^}]*\bt\b[^}]*\}\s*=\s*useAppLang\(\)|const\s+t\s*=\s*useAppT\(\)/
-    .test(cuerpo.getText(fuente))
+// Se pregunta por el NOMBRE que se va a emitir, no por «¿hay algún hook?».
+//
+// Con `traducir` costó un segundo typecheck en rojo: varios componentes ya
+// tenían `const t = useAppT()`, la comprobación decía «ya lo tiene» y no
+// insertaba nada — pero las llamadas emitidas eran `traducir(...)`. El hook que
+// hay no sirve si no se llama como lo que se escribe.
+function tieneHook(cuerpo, fuente, nombre) {
+  const n = nombre.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(
+    `const\\s*\\{[^}]*\\b${n}\\b[^}]*\\}\\s*=\\s*useAppLang\\(\\)`
+    + `|const\\s+${n}\\s*=\\s*useAppT\\(\\)`,
+  ).test(cuerpo.getText(fuente))
 }
 
 // Hay DOS formas de pedir `t` en este proyecto y las dos estan en uso:
@@ -172,9 +186,48 @@ function tieneHook(cuerpo, fuente) {
 // comprobacion daba «import puesto» y no anadia nada — pero lo que importaban
 // era `useAppT`, y el hook insertado llamaba a `useAppLang`, que ahi no existe.
 // La comprobacion es por el NOMBRE, no por el modulo.
-function formaDelHook(texto) {
-  if (/\buseAppT\b/.test(texto)) return { llamada: 'const t = useAppT()', nombre: 'useAppT' }
-  return { llamada: 'const { t } = useAppLang()', nombre: 'useAppLang' }
+/** ¿Hay en el fichero algún `t` que NO sea la función de traducción? */
+function tEstaOcupado(fuente) {
+  let ocupado = false
+  function visitar(nodo) {
+    if (ocupado) return
+    // Un parámetro llamado `t` — `tabs.map(t => …)`, que es el caso real.
+    if (ts.isParameter(nodo) && ts.isIdentifier(nodo.name) && nodo.name.text === 't') {
+      ocupado = true
+      return
+    }
+    // O una variable `const t = …` que no salga de los hooks de traducción.
+    if (ts.isVariableDeclaration(nodo) && ts.isIdentifier(nodo.name) && nodo.name.text === 't') {
+      const origen = nodo.initializer?.getText(fuente) ?? ''
+      if (!/useAppT\(\)|useAppLang\(\)/.test(origen)) ocupado = true
+      return
+    }
+    ts.forEachChild(nodo, visitar)
+  }
+  visitar(fuente)
+  return ocupado
+}
+
+// Hay DOS formas de pedir la función en este proyecto y las dos están en uso:
+// `const { t } = useAppLang()` y el atajo `const t = useAppT()`. Se usa la que
+// el fichero ya importe.
+//
+// Y si el nombre `t` ya significa otra cosa en ese fichero, se usa `traducir`.
+// No es hipotético: `PerformanceReviewsPage` recorre sus pestañas con
+// `.map(t => …)`, así que dentro de ese callback `t` es un objeto con `label` y
+// `help`. El hook insertado arriba quedaba tapado y `t('clave')` se compilaba
+// como «llamar a un objeto». Lo cazó el typecheck estricto, pero en un fichero
+// sin tipos habría llegado a producción como un fallo en tiempo de ejecución
+// dentro de una lista.
+function formaDelHook(texto, fuente) {
+  const nombreT = tEstaOcupado(fuente) ? 'traducir' : 't'
+  if (/\buseAppT\b/.test(texto)) {
+    return { llamada: `const ${nombreT} = useAppT()`, nombre: 'useAppT', t: nombreT }
+  }
+  const destructura = nombreT === 't' ? 't' : `t: ${nombreT}`
+  return {
+    llamada: `const { ${destructura} } = useAppLang()`, nombre: 'useAppLang', t: nombreT,
+  }
 }
 
 function aplicar(ruta) {
@@ -191,19 +244,19 @@ function aplicar(ruta) {
   const utiles = hallazgos.filter((h) => h.cuerpo)
 
   // Ediciones de atras hacia delante: asi ninguna mueve a la siguiente.
+  const hook = formaDelHook(original, fuente)
   const ediciones = utiles.map((h) => ({
     desde: h.desde, hasta: h.hasta,
-    con: h.tipo === 'texto' ? `{t('${h.clave}')}` : `{t('${h.clave}')}`,
+    con: `{${hook.t}('${h.clave}')}`,
   }))
 
   // Y el hook, una vez por componente que lo necesite, en la forma que el
   // fichero ya usa.
-  const hook = formaDelHook(original)
   const cuerposVistos = new Set()
   for (const h of utiles) {
     if (cuerposVistos.has(h.cuerpo)) continue
     cuerposVistos.add(h.cuerpo)
-    if (tieneHook(h.cuerpo, fuente)) continue
+    if (tieneHook(h.cuerpo, fuente, hook.t)) continue
     ediciones.push({
       desde: h.cuerpo.getStart(fuente) + 1, hasta: h.cuerpo.getStart(fuente) + 1,
       con: `\n  ${hook.llamada}`,

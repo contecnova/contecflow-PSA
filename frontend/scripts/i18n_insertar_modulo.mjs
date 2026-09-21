@@ -70,7 +70,11 @@ for (const lang of ['es', 'en', 'zh']) {
     // de `en.mjs` acaban asi—, y sin ella lo insertado es un error de sintaxis
     // que tumba el fichero entero: `Unexpected identifier`. Se pone antes de
     // empalmar.
-    const previa = cierreMod - 1
+    // Hay que retroceder hasta la última línea CON CONTENIDO: varios módulos
+    // acaban con una línea en blanco antes del `},`, y poner la coma ahí
+    // escribe una coma suelta en su propia línea, que tampoco parsea.
+    let previa = cierreMod - 1
+    while (previa > apertura && lineas[previa].trim() === '') previa -= 1
     if (previa > apertura && !/[,{]\s*$/.test(lineas[previa])) {
       lineas[previa] = `${lineas[previa].trimEnd()},`
     }

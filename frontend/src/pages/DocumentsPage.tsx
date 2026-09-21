@@ -353,6 +353,7 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
 const CATS = ['contract','deliverable','proposal','sop','legal','requirements','report','presentation','meeting_notes','other'];
 
 function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
+  const t = useAppT()
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -408,7 +409,7 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid var(--surface-4)' }}>
           <div>
             <div id="upload-dialog-title" style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: 'var(--text-1)' }}>Subir documento</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 2 }}>Arrastra un archivo o haz clic para seleccionarlo</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 2 }}>{t('documents.arrastra_un_archivo_o_haz_clic_para')}</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 6 }}>
             <X size={18} />
@@ -455,8 +456,8 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
                     <Upload size={22} style={{ color: 'var(--text-3)' }} />
                   </div>
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-2)' }}>Arrastra aqutu archivo</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>o haz clic para seleccionar</div>
-                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 4 }}>PDF, Word, Excel, Imágenes — máx. 100 MB</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('documents.o_haz_clic_para_seleccionar')}</div>
+                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 4 }}>{t('documents.pdf_word_excel_imagenes_max_100_mb')}</div>
                 </>
               )}
             </div>
@@ -465,16 +466,16 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
           {/* Derecha: metadatos */}
           <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 13 }}>
             <div>
-              <label style={ls}>Título *</label>
+              <label style={ls}>{t('documents.titulo')}</label>
               <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} style={fs} placeholder={file?.name || 'Título del documento'} />
             </div>
             <div>
-              <label style={ls}>Descripción</label>
-              <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} style={{ ...fs, resize: 'none' }} placeholder="Descripcion del documento" aria-label="Descripcion del documento" />
+              <label style={ls}>{t('documents.descripcion')}</label>
+              <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} style={{ ...fs, resize: 'none' }} placeholder={t('documents.descripcion_del_documento')} aria-label={t('documents.descripcion_del_documento')} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
-                <label style={ls}>Categoría</label>
+                <label style={ls}>{t('documents.categoria')}</label>
                 <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={fs}>
                   {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
                 </select>
@@ -482,19 +483,19 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
               <div>
                 <label style={ls}>Proyecto</label>
                 <select value={form.project_id} onChange={e => setForm(p => ({ ...p, project_id: e.target.value }))} style={fs}>
-                  <option value="">Sin proyecto</option>
+                  <option value="">{t('documents.sin_proyecto')}</option>
                   {projects.map((p: any) => <option key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ''}{p.name}</option>)}
                 </select>
               </div>
             </div>
             <div>
               <label style={ls}>Etiquetas</label>
-              <input value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} style={fs} placeholder="Etiquetas separadas por comas" aria-label="Etiquetas separadas por comas" />
+              <input value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} style={fs} placeholder={t('documents.etiquetas_separadas_por_comas')} aria-label={t('documents.etiquetas_separadas_por_comas')} />
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <input type="checkbox" checked={form.requires_approval} onChange={e => setForm(p => ({ ...p, requires_approval: e.target.checked }))}
                 style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
-              <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Requiere aprobación antes de usar</span>
+              <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{t('documents.requiere_aprobacion_antes_de_usar')}</span>
             </label>
           </div>
         </div>
@@ -525,6 +526,7 @@ const ACCESS_LEVELS = [
 ];
 
 function SharePanel({ documentId }: { documentId: any }) {
+  const t = useAppT()
   const toast = useToast();
   const qc = useQueryClient();
   const [subjectType, setSubjectType] = useState('user'); // user | role | department
@@ -601,7 +603,7 @@ function SharePanel({ documentId }: { documentId: any }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
-        <strong>Por defecto</strong>, el creador del documento y los miembros del proyecto tienen acceso. Aquí puedes conceder accesos adicionales a usuarios concretos, a un rol completo o a un departamento.
+        <strong>{t('documents.por_defecto')}</strong>{t('documents.el_creador_del_documento_y_los_miembros')}
       </div>
 
       {/* Add grant */}
@@ -633,7 +635,7 @@ function SharePanel({ documentId }: { documentId: any }) {
           <div style={{ marginBottom: 12 }}>
             <label style={labelStyle}>Usuario</label>
             <select value={userId} onChange={e => setUserId(e.target.value)} style={inputStyle}>
-              <option value="">Selecciona un usuario…</option>
+              <option value="">{t('documents.selecciona_un_usuario')}</option>
               {users.map((u: any) => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
             </select>
           </div>
@@ -660,7 +662,7 @@ function SharePanel({ documentId }: { documentId: any }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
           <div>
-            <label style={labelStyle}>Nivel de acceso</label>
+            <label style={labelStyle}>{t('documents.nivel_de_acceso')}</label>
             <select value={accessLevel} onChange={e => setAccessLevel(e.target.value)} style={inputStyle}>
               {ACCESS_LEVELS.map(a => <option key={a.v} value={a.v}>{a.l}</option>)}
             </select>
@@ -684,7 +686,7 @@ function SharePanel({ documentId }: { documentId: any }) {
         </div>
         {perms.length === 0 ? (
           <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)', border: '1px dashed var(--surface-4)', borderRadius: 10 }}>
-            Sin permisos explícitos. Solo el creador y los miembros del proyecto tienen acceso por defecto.
+            {t('documents.sin_permisos_explicitos_solo_el_creador_y')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -712,6 +714,7 @@ function SharePanel({ documentId }: { documentId: any }) {
 }
 
 function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; onClose: () => void; onRefresh: () => void }) {
+  const t = useAppT()
   const toast = useToast();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -832,7 +835,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
             <Loader size={18} style={{ animation: 'spin 0.8s linear infinite', marginRight: 8 }} /> Cargando...
           </div>
         ) : !doc ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--danger)', fontSize: "var(--text-base)" }}>Documento no encontrado</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--danger)', fontSize: "var(--text-base)" }}>{t('documents.documento_no_encontrado')}</div>
         ) : (
           <>
             {/* Drawer header */}
@@ -877,7 +880,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                   <button
                     onClick={() => submitApprovalMutation.mutate()}
                     disabled={submitApprovalMutation.isPending}
-                    title="Reabre un nuevo flujo de aprobación. El rechazo anterior queda en el histórico."
+                    title={t('documents.reabre_un_nuevo_flujo_de_aprobacion_el')}
                     style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: '#f59e0b', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}
                   >
                     <FileClock size={13} /> {submitApprovalMutation.isPending ? 'Reenviando...' : 'Reenviar a aprobación'}
@@ -932,14 +935,14 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                   <div style={{ padding: '8px 14px', backgroundColor: 'var(--surface-2)', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{activeVer.file_name} · {fmtBytes(activeVer.file_size)}</span>
                     <a href={activeVer.download_url} target="_blank" rel="noreferrer" style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
-                       <ExternalLink size={11} /> Abrir en nueva pestaña
+                       <ExternalLink size={11} /> {t('documents.abrir_en_nueva_pestana')}
                     </a>
                   </div>
                   {(() => {
                     if (previewError) return (
                       <div style={{ padding: 40, textAlign: 'center' }}>
                         <FileIcon mime={activeVer.file_mime_type} name={activeVer.file_name} size={56} />
-                        <div style={{ marginTop: 14, fontSize: "var(--text-base)", color: 'var(--text-3)' }}>El archivo no está disponible en el servidor</div>
+                        <div style={{ marginTop: 14, fontSize: "var(--text-base)", color: 'var(--text-3)' }}>{t('documents.el_archivo_no_esta_disponible_en_el')}</div>
                         {activeVer.download_url && (
                           <a href={activeVer.download_url} target="_blank" rel="noreferrer"
                             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '8px 16px', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'white', textDecoration: 'none', fontSize: "var(--text-base)", fontWeight: 700 }}>
@@ -949,15 +952,15 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                       </div>
                     );
                     const type = detectFileType(activeVer.file_mime_type, activeVer.file_name);
-                    if (type === 'pdf') return <iframe src={activeVer.download_url} style={{ width: '100%', height: 480, border: 'none' }} title="Vista previa del PDF" onError={() => setPreviewError(true)} />;
+                    if (type === 'pdf') return <iframe src={activeVer.download_url} style={{ width: '100%', height: 480, border: 'none' }} title={t('documents.vista_previa_del_pdf')} onError={() => setPreviewError(true)} />;
                     if (type === 'image') return <img src={activeVer.download_url} alt={activeVer.file_name} loading="lazy" decoding="async" style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', display: 'block', margin: '0 auto', padding: 16 }} onError={() => setPreviewError(true)} />;
                     return (
                       <div style={{ padding: 40, textAlign: 'center' }}>
                         <FileIcon mime={activeVer.file_mime_type} name={activeVer.file_name} size={56} />
-                        <div style={{ marginTop: 14, fontSize: "var(--text-base)", color: 'var(--text-3)' }}>Vista previa no disponible para este tipo de archivo</div>
+                        <div style={{ marginTop: 14, fontSize: "var(--text-base)", color: 'var(--text-3)' }}>{t('documents.vista_previa_no_disponible_para_este_tipo')}</div>
                         <a href={activeVer.download_url} target="_blank" rel="noreferrer"
                           style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '8px 16px', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'white', textDecoration: 'none', fontSize: "var(--text-base)", fontWeight: 700 }}>
-                          <Download size={14} /> Descargar para ver
+                          <Download size={14} /> {t('documents.descargar_para_ver')}
                         </a>
                       </div>
                     );
@@ -967,7 +970,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
               {tab === 'preview' && !activeVer?.download_url && (
                 <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
                   <FolderOpen size={36} style={{ display: 'block', margin: '0 auto 12px', opacity: 0.4 }} />
-                  Este documento no tiene archivo adjunto todavía.
+                  {t('documents.este_documento_no_tiene_archivo_adjunto_todavia')}
                 </div>
               )}
 
@@ -1016,16 +1019,16 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                   {!showUploadVersion ? (
                     <button onClick={() => setShowUploadVersion(true)}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px dashed var(--surface-5)', backgroundColor: 'transparent', color: 'var(--accent)', fontSize: "var(--text-base)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', width: '100%', justifyContent: 'center' }}>
-                      <Upload size={14} /> Subir nueva versión
+                      <Upload size={14} /> {t('documents.subir_nueva_version')}
                     </button>
                   ) : (
                     <div style={{ padding: 14, borderRadius: 10, border: '1px solid var(--surface-4)', backgroundColor: 'var(--surface-2)', display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <div onClick={() => fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }} style={{ border: `2px dashed ${file ? 'var(--success)' : 'var(--surface-5)'}`, borderRadius: 8, padding: '12px 16px', textAlign: 'center', cursor: 'pointer' }}>
                         {file ? <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
-                          : <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}><Upload size={13} style={{ display: 'inline', marginRight: 4 }} />Clic para seleccionar archivo</span>}
+                          : <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}><Upload size={13} style={{ display: 'inline', marginRight: 4 }} />{t('documents.clic_para_seleccionar_archivo')}</span>}
                         <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0] ?? null)} />
                       </div>
-                      <input placeholder="Nota del cambio" value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} aria-label="Nota del cambio" />
+                      <input placeholder={t('documents.nota_del_cambio')} value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} aria-label={t('documents.nota_del_cambio')} />
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => versionMutation.mutate()} disabled={!file || versionMutation.isPending}
                           style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', fontSize: "var(--text-base)", fontWeight: 700, cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
@@ -1071,7 +1074,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                     ))}
                     {doc.description && (
                       <div style={{ gridColumn: '1/-1', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px' }}>
-                        <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Descripción</div>
+                        <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>{t('documents.descripcion')}</div>
                         <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.5 }}>{doc.description}</div>
                       </div>
                     )}
@@ -1099,7 +1102,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                       <div style={{ marginTop: 16, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
                         <div style={{ fontWeight: 700, fontSize: "var(--text-sm)", color: 'var(--text-1)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <FileClock size={14} style={{ color: '#f59e0b' }} />
-                          Flujo de aprobación — {doc.approval_request.workflow_name}
+                          {t('documents.flujo_de_aprobacion')} {doc.approval_request.workflow_name}
                         </div>
                         {/* Step indicator */}
                         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 4 }}>
@@ -1121,7 +1124,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                             );
                           })}
                           <span style={{ marginLeft: 8, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
-                            Paso {doc.approval_request.current_step} de {doc.approval_request.total_steps}
+                            Paso {doc.approval_request.current_step} {t('documents.de')} {doc.approval_request.total_steps}
                           </span>
                         </div>
                         {/* Current step info */}
@@ -1129,10 +1132,10 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>
                             <span style={{ fontWeight: 700 }}>{doc.approval_request.current_step_name}</span>
                             {doc.approval_request.current_approver_name && (
-                              <> — Pendiente de <span style={{ color: 'var(--accent)' }}>{doc.approval_request.current_approver_name}</span></>
+                              <> {t('documents.pendiente_de')} <span style={{ color: 'var(--accent)' }}>{doc.approval_request.current_approver_name}</span></>
                             )}
                             {!doc.approval_request.current_approver_name && doc.approval_request.current_approver_role && (
-                              <> — Pendiente de rol <span style={{ color: 'var(--accent)' }}>{doc.approval_request.current_approver_role}</span></>
+                              <> {t('documents.pendiente_de_rol')} <span style={{ color: 'var(--accent)' }}>{doc.approval_request.current_approver_role}</span></>
                             )}
                           </div>
                         )}
@@ -1145,7 +1148,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                         {/* Decisions trail */}
                         {(doc.approval_request.decisions?.length ?? 0) > 0 && (
                           <div style={{ marginTop: 10, borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
-                            <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Historial de decisiones</div>
+                            <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{t('documents.historial_de_decisiones')}</div>
                             {doc.approval_request.decisions.map((d: any, idx: number) => (
                               <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                                 <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: d.decision === 'approved' ? '#34d39920' : '#f8717120', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1165,29 +1168,29 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
               {tab === 'meta' && isEditingMeta && metaForm && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div>
-                    <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>Título *</label>
+                    <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>{t('documents.titulo')}</label>
                     <input value={metaForm.title} onChange={e => setMetaForm((f: any) => ({ ...f, title: e.target.value }))} style={fs} />
                   </div>
                   <div>
-                    <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>Descripción</label>
+                    <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>{t('documents.descripcion')}</label>
                     <textarea value={metaForm.description} onChange={e => setMetaForm((f: any) => ({ ...f, description: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>Categoría</label>
+                    <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>{t('documents.categoria')}</label>
                     <select value={metaForm.category} onChange={e => setMetaForm((f: any) => ({ ...f, category: e.target.value }))} style={fs}>
                       <option value="contract">Contrato</option>
                       <option value="deliverable">Entregable</option>
                       <option value="proposal">Propuesta</option>
                       <option value="sop">Procedimiento (SOP)</option>
                       <option value="requirements">Requisitos</option>
-                      <option value="meeting_notes">Notas de reunión</option>
+                      <option value="meeting_notes">{t('documents.notas_de_reunion')}</option>
                       <option value="legal">Legal</option>
                       <option value="other">Otro</option>
                     </select>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <input type="checkbox" id="meta-req-approval" checked={metaForm.requires_approval} onChange={e => setMetaForm((f: any) => ({ ...f, requires_approval: e.target.checked }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
-                    <label htmlFor="meta-req-approval" style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}>Requiere aprobación</label>
+                    <label htmlFor="meta-req-approval" style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}>{t('documents.requiere_aprobacion')}</label>
                   </div>
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 6, borderTop: '1px solid var(--surface-4)' }}>
                     <button onClick={() => setIsEditingMeta(false)} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
@@ -1219,6 +1222,7 @@ const SORT_OPTS = [
 ];
 
 export default function DocumentsPage(): JSX.Element {
+  const t = useAppT()
   const _t = useAppT()
   const toast = useToast();
   const qc = useQueryClient();
@@ -1312,8 +1316,8 @@ export default function DocumentsPage(): JSX.Element {
         <KpiCard icon={Files}      label="Total documentos" value={stats.total} color="var(--accent)" sub="en la plataforma" />
         <KpiCard icon={FileClock}  label="Pendientes" value={stats.pending} color="var(--warning)" sub="requieren revisión" />
         <KpiCard icon={FileCheck}  label="Aprobados" value={stats.approved} color="var(--success)" sub="documentos válidos" />
-        <KpiCard icon={FileMinus}  label="Sin aprobación" value={stats.noApproval} color="var(--text-3)" sub="no requieren revisión" />
-        <KpiCard icon={TrendingUp} label="Esta semana" value={stats.thisWeek} color="var(--purple)" sub="nuevos documentos" />
+        <KpiCard icon={FileMinus}  label={t('documents.sin_aprobacion')} value={stats.noApproval} color="var(--text-3)" sub="no requieren revisión" />
+        <KpiCard icon={TrendingUp} label={t('documents.esta_semana')} value={stats.thisWeek} color="var(--purple)" sub="nuevos documentos" />
       </div>
 
       {/* Filter bar — toolbar plana, sin caja contenedora (consistente con
@@ -1325,28 +1329,28 @@ export default function DocumentsPage(): JSX.Element {
             color: 'var(--text-3)', pointerEvents: 'none',
           }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por título, archivo o etiqueta"
+            placeholder={t('documents.buscar_por_titulo_archivo_o_etiqueta')}
             aria-label="Buscar documentos"
             className="ds-input"
             style={{ paddingLeft: 32 }} />
         </div>
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-          aria-label="Filtrar por categoría"
+          aria-label={t('documents.filtrar_por_categoria')}
           className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
-          <option value="">Todas las categorías</option>
+          <option value="">{t('documents.todas_las_categorias')}</option>
           {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          aria-label="Filtrar por estado de aprobación"
+          aria-label={t('documents.filtrar_por_estado_de_aprobacion')}
           className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
-          <option value="">Todos los estados</option>
-          <optgroup label="Estado de aprobación">
+          <option value="">{t('documents.todos_los_estados')}</option>
+          <optgroup label={t('documents.estado_de_aprobacion')}>
             <option value="pending">Pendientes</option>
             <option value="approved">Aprobados</option>
             <option value="rejected">Rechazados</option>
           </optgroup>
           <optgroup label="Otros">
-            <option value="no_approval">Sin aprobación requerida</option>
+            <option value="no_approval">{t('documents.sin_aprobacion_requerida')}</option>
           </optgroup>
         </select>
         <select value={sortBy} onChange={e => setSortBy(e.target.value)}
@@ -1422,7 +1426,7 @@ export default function DocumentsPage(): JSX.Element {
       ) : docs.length === 0 ? (
         <div className="ds-empty">
           <FolderOpen size={36} className="ds-empty__icon" />
-          <div className="ds-empty__title">Sin documentos</div>
+          <div className="ds-empty__title">{t('documents.sin_documentos')}</div>
           <div className="ds-empty__desc">
             {search || filterCat ? 'No hay resultados para los filtros aplicados.' : 'Sube tu primer documento con el botón “Nuevo documento”.'}
           </div>
