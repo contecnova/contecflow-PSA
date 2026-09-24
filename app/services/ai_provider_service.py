@@ -562,6 +562,86 @@ def get_stats(db: Session, *, is_superadmin: bool, organization_id) -> dict:
     }
 
 
+class ProveedorDeEntorno:
+    """El proveedor que describe el `.env`, sin pasar por la base de datos.
+
+    Es el último escalón de la resolución y existe para que un despliegue de un
+    solo cliente se configure entero por fichero, sin abrir la aplicación.
+
+    No hereda de `AIProvider` a propósito: no es una fila, no se persiste y no
+    debe poder acabar en la sesión por accidente. Lleva los mismos atributos que
+    `call_provider` y el registro de uso necesitan —`id` a `None`, que
+    `_registrar_uso` ya contempla— y los contadores en cero, que se mueven en
+    memoria y se descartan al acabar la petición.
+    """
+
+    __slots__ = ("id", "name", "provider", "status", "api_key", "api_base_url",
+                 "default_model", "max_tokens", "temperature", "total_requests",
+                 "total_tokens_in", "total_tokens_out", "total_cost_usd",
+                 "last_used_at", "last_error", "last_error_at", "organization_id",
+                 "is_default", "is_active")
+
+    def __init__(self, *, proveedor: str, api_key: str, modelo: str, base_url: str):
+        self.id = None
+        self.name = f"{proveedor} (.env)"
+        self.provider = proveedor
+        self.status = "active"
+        # Cifrada, porque `call_provider` descifra siempre. Así el camino de
+        # llamada es EL MISMO que el de un proveedor de base de datos: un solo
+        # sitio que descifra, y no dos ramas que puedan divergir.
+        self.api_key = encrypt_value(api_key) if api_key else None
+        self.api_base_url = base_url or None
+        self.default_model = modelo or None
+        self.max_tokens = 2000
+        self.temperature = 0.7
+        self.total_requests = 0
+        self.total_tokens_in = 0
+        self.total_tokens_out = 0
+        self.total_cost_usd = 0.0
+        self.last_used_at = None
+        self.last_error = None
+        self.last_error_at = None
+        self.organization_id = None
+        self.is_default = True
+        self.is_active = True
+
+
+#: Proveedores que no necesitan clave porque corren en la propia máquina.
+_SIN_CLAVE = {"ollama"}
+
+
+def proveedor_desde_entorno():
+    """El proveedor descrito por `.env`, o `None` si no hay ninguno.
+
+    `AI_PROVIDER` + `AI_API_KEY` es la forma agnóstica. `ANTHROPIC_API_KEY` se
+    sigue aceptando como alias heredado —era la única que existía— para que
+    ningún `.env` deje de funcionar por este cambio.
+    """
+    proveedor = (settings.AI_PROVIDER or "").strip().lower()
+    api_key = (settings.AI_API_KEY or "").strip()
+
+    if not proveedor and (settings.ANTHROPIC_API_KEY or "").strip():
+        proveedor, api_key = "anthropic", settings.ANTHROPIC_API_KEY.strip()
+
+    if not proveedor:
+        return None
+    if proveedor not in PROVIDER_CATALOG:
+        _logger.warning(
+            "AI_PROVIDER='%s' no es un proveedor conocido. Opciones: %s",
+            proveedor, ", ".join(sorted(PROVIDER_CATALOG)))
+        return None
+    if not api_key and proveedor not in _SIN_CLAVE:
+        _logger.warning("AI_PROVIDER='%s' sin AI_API_KEY: no se usa.", proveedor)
+        return None
+
+    return ProveedorDeEntorno(
+        proveedor=proveedor,
+        api_key=api_key,
+        modelo=(settings.AI_MODEL or "").strip(),
+        base_url=(settings.AI_BASE_URL or "").strip(),
+    )
+
+
 def get_default_provider(
     db: Session,
     *,
@@ -573,6 +653,13 @@ def get_default_provider(
     Resolution order for non-superadmin users:
     1) Org-specific provider
     2) Global shared provider (organization_id is NULL)
+    3) El proveedor del `.env` (ver `proveedor_desde_entorno`)
+
+    El tercer escalón es el mismo patrón que ya usaba el motor de voz en
+    `app/services/stt/__init__.py`: organización → global → entorno. La base de
+    datos no sobra —un despliegue multi-empresa necesita un proveedor por
+    organización, y eso un fichero de entorno no lo puede expresar—, pero uno de
+    un solo cliente tiene que poder configurarse sin abrir la aplicación.
     """
     base_q = db.query(AIProvider).filter(
         AIProvider.status != "error",
@@ -594,7 +681,7 @@ def get_default_provider(
         return p
 
     if is_superadmin:
-        return _pick(base_q)
+        return _pick(base_q) or proveedor_desde_entorno()
 
     if organization_id:
         org_q = base_q.filter(AIProvider.organization_id == organization_id)
@@ -603,7 +690,7 @@ def get_default_provider(
             return p
 
     shared_q = base_q.filter(AIProvider.organization_id.is_(None))
-    return _pick(shared_q)
+    return _pick(shared_q) or proveedor_desde_entorno()
 
 
 def _try_fallback_providers(

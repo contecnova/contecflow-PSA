@@ -1711,6 +1711,132 @@ OAuth. Los cinco `-ize` que quedan son exactamente esos.
 
 ---
 
+## 3.quintrigies El instalador de Windows no llegaba a arrancar
+
+Salió de una pregunta sencilla —«¿puedo lanzar esto desde Windows?»— y la
+respuesta honesta era «no, y por dos sitios distintos». Los dos estaban en el
+camino **documentado**: `setup.bat`.
+
+### Uno: el sembrado moría al imprimir un «✓»
+
+```
+UnicodeEncodeError: 'charmap' codec can't encode character '\u26a0'
+```
+
+La consola de Windows arranca en la página de códigos **850** —o 1252—, y el
+sembrado tiene **81 `print` con caracteres fuera de ASCII repartidos en 14
+ficheros**: los «✓» de cada paso, el «⚠️» que avisa de la contraseña.
+
+No era un adorno que se rompe. El proceso moría a mitad, la transacción se
+deshacía y la base quedaba **con cero usuarios**: instalación aparentemente
+terminada y sin forma de entrar en la aplicación.
+
+> El arreglo va en la **salida**, no en los 81 `print`: el problema no es el
+> texto, es el descriptor. `setup.bat` fija `PYTHONUTF8=1` para todo lo que
+> lanza, y `app/db/seed.py` reconfigura `stdout`/`stderr` con
+> `errors="replace"` para quien ejecute el módulo a mano. Arreglar print a
+> print habría sido perseguir el síntoma catorce veces.
+
+### Dos: `setup.bat` no aplicaba las migraciones. Nunca
+
+Cero apariciones de `alembic` en el fichero. Y no es que el proyecto no las
+tenga: **su gemelo de Linux sí lo hace** —`setup.sh` corre `alembic upgrade
+head` y aborta si falla, «la aplicación NO se arranca con un esquema a
+medias»—, `docker-compose` lo lleva como comando de arranque y el `Makefile`
+tiene `make migrate`. El único de los cuatro caminos que se lo saltaba era el de
+Windows.
+
+Medido en una máquina real: `clarive.db` no tenía ni tabla `alembic_version`,
+le faltaba `imputations.work_type` (revisión 096) y el sembrado moría con
+`no such column` a mitad.
+
+Se añade `:apply_migrations` a los **dos** caminos —instalación completa y
+«sólo arrancar»—, porque tras un `git pull` el segundo es el que se usa.
+
+### Verificado de punta a punta
+
+Borrando la base y ejecutando `setup.bat start` con el `.env` del repositorio:
+Alembic la reconstruye entera hasta la revisión 096, el sembrado termina, y
+quedan 9 usuarios y 5 proyectos. Backend en 8000 respondiendo `{"db":"ok"}`,
+frontend en 3000 sirviendo, y `POST /api/v1/auth/login` con `admin` devuelve
+200.
+
+> Un detalle de la máquina, no del código: Vite escucha en `[::1]:3000`, así que
+> `curl http://127.0.0.1:3000` da error de conexión y `http://localhost:3000`
+> funciona. Vale la pena saberlo antes de pensar que el frontend no arrancó.
+
+---
+
+## 3.sextrigies La IA sólo se podía configurar con Anthropic
+
+`.env` admitía **una** credencial de IA: `ANTHROPIC_API_KEY`. La aplicación
+soporta **ocho** proveedores —anthropic, openai, gemini, deepseek, ollama, groq,
+mistral, azure—, así que quien trabajara con cualquier otro no tenía forma de
+configurar el despliegue por fichero: o pasaba por la interfaz, o no había IA.
+
+### Lo que ya estaba bien, y conviene decirlo
+
+Al mirarlo de cerca el código estaba mejor de lo que el `.env` sugería: **15 de
+17 módulos** ya usan el despachador multi-proveedor, y los dos que parecían
+atados a Anthropic no lo estaban del todo. El chat usa `call_ai` —agnóstico— y
+Anthropic sólo añade *streaming* nativo token a token; el agente cae a un modo
+degradado que **avisa en el primer evento** de que no hay *tool-use* real, en
+vez de fallar en silencio. Alguien ya había corregido el mismo desajuste en el
+portal de cliente, con un comentario que lo dice: «hardcoded a
+ANTHROPIC_API_KEY — engañoso si la empresa usa Gemini/OpenAI/Mistral».
+
+El hueco real era sólo el fichero de entorno.
+
+### El patrón, que ya existía en el proyecto
+
+No se inventa uno nuevo: `app/services/stt/__init__.py` ya resolvía
+`organización → global → env` para el motor de voz. Se aplica el mismo a los
+proveedores de IA:
+
+```
+proveedor de la organización (BD) → proveedor global (BD) → .env
+```
+
+> **Y aquí está el matiz que importa, porque «todo lo configurable debe estar en
+> `.env`» no es del todo cierto.** Un `.env` es *por despliegue*: un único valor
+> para todo el proceso. La configuración de proveedores es **por organización**
+> —el modelo tiene `organization_id`—, y un fichero de entorno no puede expresar
+> «la empresa A usa Gemini y la B usa OpenAI». La base de datos no sobra. Lo que
+> sí tiene que poder hacerse por fichero, y no se podía, es configurar **entero**
+> un despliegue de un solo cliente sin abrir la aplicación. Eso es lo que
+> resuelve el tercer escalón.
+
+Cuatro variables, agnósticas:
+
+```
+AI_PROVIDER=gemini
+AI_API_KEY=...
+AI_MODEL=gemini-2.0-flash      (opcional)
+AI_BASE_URL=...                (sólo Ollama o Azure)
+```
+
+`ANTHROPIC_API_KEY` se mantiene como **alias heredado**: sin `AI_PROVIDER`, una
+clave ahí resuelve a Anthropic igual que antes. Ningún `.env` existente deja de
+funcionar.
+
+### Dos decisiones de implementación
+
+**El proveedor del entorno no hereda de `AIProvider`.** No es una fila, no se
+persiste y no debe poder acabar en la sesión por accidente. Lleva los mismos
+atributos que el despachador necesita y los contadores en memoria, que se
+descartan al acabar la petición. Hay un test que comprueba justo eso.
+
+**La clave del entorno se guarda cifrada en el objeto**, aunque venga en claro
+del fichero, porque `call_provider` descifra siempre. Así el camino de llamada
+es **el mismo** para un proveedor de base de datos y para uno de entorno: un
+solo sitio que descifra, y no dos ramas que puedan divergir.
+
+16 tests cubren los ocho proveedores, el alias heredado, Ollama sin clave, el
+proveedor desconocido, la precedencia de la base sobre el entorno y que el
+objeto virtual no acabe en la sesión.
+
+---
+
 ## 3.duovicies El barrido de duplicación: 31 parejas, cero defectos
 
 La duplicación ha sido **el detector más productivo de toda esta auditoría**, y
