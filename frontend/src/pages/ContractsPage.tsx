@@ -450,7 +450,7 @@ export default function ContractsPage(): JSX.Element {
               {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
             <ViewToggle view={view} onChange={setView} />
-            <Button onClick={() => setShowCreate(true)} icon="＋">{traducir('contracts.nuevo_contrato')}</Button>
+            <Button onClick={() => setShowCreate(true)} icon="＋">{traducir('contracts.new_contract')}</Button>
           </div>
         }
       />
@@ -502,7 +502,7 @@ export default function ContractsPage(): JSX.Element {
       </div>
 
       {isLoading ? <Spinner /> : contracts.length === 0 ? (
-        <EmptyState icon="📄" title={traducir('contracts.sin_contratos')} description="Crea el primer contrato para este entorno" />
+        <EmptyState icon="📄" title={traducir('contracts.no_contracts')} description="Crea el primer contrato para este entorno" />
       ) : view === 'list' ? (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>

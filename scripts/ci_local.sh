@@ -157,6 +157,14 @@ if [[ "$MODE" != "--info" ]]; then
   # «Tab details» con aspecto de estar bien y nadie lo reporta. Habia 174.
   run_gate bloqueante "sin claves i18n usadas y no definidas"     bash -c 'cd frontend && node scripts/check_i18n_claves_sin_definir.mjs'
 
+  # Las variables {x} de una clave son las mismas en los tres idiomas. Una de
+  # mas se lee tal cual en pantalla; una de menos hace desaparecer el dato sin
+  # que la frase deje de tener sentido, que es lo que hace que nadie lo reporte.
+  # Encontro cuatro: en `projects.subtitle` ingles y chino no llevaban las tres
+  # cifras que el codigo pasa, y los valores CASTELLANOS de `milestone_billing`
+  # y `m365` eran texto en ingles copiado de otros dos modulos.
+  run_gate bloqueante "variables {x} coherentes entre idiomas"     bash -c 'cd frontend && node scripts/check_i18n_variables.mjs'
+
   # Claves duplicadas en los ficheros de idioma (hallazgo 16). Encontrado al
   # intentar cerrar la traducción: `en.mjs` tenía el namespace `client_portal`
   # declarado DOS VECES, y en JavaScript gana la última — así que 73 traducciones

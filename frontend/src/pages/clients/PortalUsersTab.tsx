@@ -284,7 +284,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             <div style={{ marginBottom: 16 }}>
               <label style={lbl}>{t('portalusers.nueva_contrasena')}</label>
               <input type="password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                style={inp} placeholder={t('portalusers.nueva_contrasena_2')} aria-label={t('portalusers.nueva_contrasena_2')} />
+                style={inp} placeholder={t('portalusers.nueva_contrasena')} aria-label={t('portalusers.nueva_contrasena')} />
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button type="button" onClick={() => { setShowReset(null); setNewPassword('') }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>

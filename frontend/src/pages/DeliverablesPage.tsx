@@ -160,7 +160,7 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>{t('deliverables.criterios_de_aceptacion')}</label>
-          <textarea value={form.acceptance_criteria} onChange={set('acceptance_criteria')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('deliverables.criterios_de_aceptacion_2')} aria-label={t('deliverables.criterios_de_aceptacion_2')} />
+          <textarea value={form.acceptance_criteria} onChange={set('acceptance_criteria')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('deliverables.criterios_de_aceptacion')} aria-label={t('deliverables.criterios_de_aceptacion')} />
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -248,7 +248,7 @@ export default function DeliverablesPage(): JSX.Element {
               <option value="">Seleccionar proyecto...</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
-            {selectedProject && hasRole('admin', 'pm') && <Button onClick={() => setShowCreate(true)} icon="＋">{t('deliverables.nuevo_entregable')}</Button>}
+            {selectedProject && hasRole('admin', 'pm') && <Button onClick={() => setShowCreate(true)} icon="＋">{t('deliverables.new_deliverable')}</Button>}
           </div>
 
           {selectedProject && (summary.total ?? 0) > 0 && (
@@ -271,7 +271,7 @@ export default function DeliverablesPage(): JSX.Element {
           {!selectedProject ? (
             <EmptyState icon="📦" title={t('deliverables.selecciona_un_proyecto')} description="Elige un proyecto para consultar sus entregables" />
           ) : isLoading ? <Spinner /> : deliverables.length === 0 ? (
-            <EmptyState icon="📦" title={t('deliverables.sin_entregables')} description="Este proyecto todavia no tiene entregables definidos" />
+            <EmptyState icon="📦" title={t('deliverables.no_deliverables')} description="Este proyecto todavia no tiene entregables definidos" />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {deliverables.map(d => {

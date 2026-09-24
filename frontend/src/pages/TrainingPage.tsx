@@ -99,7 +99,7 @@ function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose:
         <div><label style={LS}>Proveedor</label>
           <input value={form.provider} onChange={e => setForm(f => ({ ...f, provider: e.target.value }))} style={IS} placeholder={t('training.nombre_del_proveedor')} aria-label={t('training.nombre_del_proveedor')} /></div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
-          <div><label style={LS}>{t('training.categoria')}</label>
+          <div><label style={LS}>{t('training.category')}</label>
             <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={IS} placeholder="Categoria" aria-label="Categoria" /></div>
           <div><label style={LS}>Horas</label>
             <input type="number" value={form.duration_h} onChange={e => setForm(f => ({ ...f, duration_h: e.target.value }))} style={IS} placeholder={t('training.horas_del_curso')} aria-label={t('training.horas_del_curso')} /></div>
@@ -331,7 +331,7 @@ export default function TrainingPage() {
                   <div style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginTop:2 }}>{c.user_name}{c.cert_id && <span style={{ marginLeft:8, fontFamily:'var(--font-mono)', fontSize: 'var(--text-xs)' }}>#{c.cert_id}</span>}{c.obtained_at && <span style={{ marginLeft:8 }}>· Obtenida: {c.obtained_at}</span>}</div>
                 </div>
                 <div style={{ textAlign:'right', flexShrink:0 }}>
-                  {c.expires_at ? <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color: c.is_expired ? 'var(--danger)' : c.expiring_soon ? 'var(--warning)' : 'var(--success)' }}>{c.is_expired ? '⚠ Caducada' : `Caduca ${c.expires_at}`}</div> : <div style={{ fontSize: 'var(--text-xs)', color:'var(--text-3)' }}>{t('training.sin_caducidad')}</div>}
+                  {c.expires_at ? <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color: c.is_expired ? 'var(--danger)' : c.expiring_soon ? 'var(--warning)' : 'var(--success)' }}>{c.is_expired ? '⚠ Caducada' : `Caduca ${c.expires_at}`}</div> : <div style={{ fontSize: 'var(--text-xs)', color:'var(--text-3)' }}>{t('training.no_expiry')}</div>}
                 </div>
                 {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 'var(--text-xs)', color:'var(--accent)', whiteSpace:'nowrap' }}>🔗 Verificar</a>}
                 <button onClick={() => { setEditingCert(c); setShowCertModal(true) }} style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'4px 8px', color:'var(--text-2)', cursor:'pointer', fontSize: 'var(--text-xs)' }}>✏</button>

@@ -342,7 +342,7 @@ export default function TimesheetsPage() {
       {tab === 'mine' && (
         <div>
           {loadingMine ? <Spinner /> : mySheets.length === 0 ? (
-            <EmptyState icon="📋" title={t('timesheets.sin_timesheets')} description="Aun no has generado ningun parte semanal" />
+            <EmptyState icon="📋" title={t('timesheets.no_timesheets')} description="Aun no has generado ningun parte semanal" />
           ) : (
             <div data-export-table="timesheets-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

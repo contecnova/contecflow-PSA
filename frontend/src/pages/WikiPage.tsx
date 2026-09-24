@@ -276,7 +276,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
             </div>
           )}
           <div>
-            <label style={ls}>{traducir('wiki.titulo')}</label>
+            <label style={ls}>{traducir('wiki.page_title')}</label>
             <input style={is} value={title} onChange={e=>{setTitle(e.target.value);if(!isEdit)setSlug(autoSlug(e.target.value))}} placeholder={traducir('wiki.titulo_de_la_pagina')} aria-label={traducir('wiki.titulo_de_la_pagina')}/>
           </div>
           <div>
@@ -598,7 +598,7 @@ export default function WikiPage() {
                 <button onClick={()=>{setParentId(null);setEditPage(null);setPageModal(true)}} style={{background:'none',border:'none',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-lg-em)",padding:0}}>+</button>
               </div>
               {lPages?<Spinner/>:pages.length===0
-                ?<div style={{color:'var(--text-3)',fontSize: "var(--text-sm)"}}>{traducir('wiki.sin_paginas')}</div>
+                ?<div style={{color:'var(--text-3)',fontSize: "var(--text-sm)"}}>{traducir('wiki.no_pages')}</div>
                 :<PageTree pages={pages} selectedId={page?.id} onSelect={openPage}
                     onNew={pid=>{setParentId(pid);setEditPage(null);setPageModal(true)}}/>
               }

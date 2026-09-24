@@ -1583,6 +1583,134 @@ cuatro en rojo.
 
 ---
 
+## 3.tertrigies Probar que la guarda deniega, no que está escrita
+
+`test_guardas_de_rol.py` comprueba una propiedad **sintáctica**: que toda ruta
+de escritura lleva guarda o una exención con motivo. Lee el código fuente. No
+dice nada sobre si el 403 llega.
+
+Y en este repositorio eso ya ha fallado dos veces, de formas distintas: el
+middleware ABAC que nunca se ejecutaba (hallazgo 1) y `enforce_abac`, que es
+fail-open y no comprueba nada sin políticas activas (§3.octovicies). Escribir el
+nombre de la dependencia no demuestra que la puerta cierre.
+
+`test_guardas_deniegan.py` lo demuestra: **para cada uno de los 979 pares
+(método, ruta) con guarda, lanza la petición con un rol que esa guarda tiene que
+rechazar y exige un 403.** Las 979 lo dan.
+
+### El rol con el que se sondea cada guarda
+
+| guarda | se sondea con | por qué |
+|---|---|---|
+| `require_admin`, `_or_pm`, `_or_hr`, `any_manager` | empleado | ninguno de esos conjuntos incluye a `employee` |
+| `require_internal_user` | **subcontratado** | es el único rol que excluye |
+| `require_superadmin` | admin de tenant | `admin` NO es superadmin |
+
+Hizo falta sembrar un usuario subcontratado en `conftest.py`. No es un detalle:
+sin él, la única sonda para `require_internal_user` era un empleado, que la
+guarda deja pasar — y un test que nunca puede ver el 403 no prueba nada.
+
+### Dos decisiones que costaron una reescritura
+
+**Una sola prueba, no 979 parametrizadas.** La fixture `db` es `autouse` y de
+ámbito de función: parametrizar reconstruía el escenario una vez por ruta y el
+fichero solo tardaba más de diez minutos — habría duplicado la suite entera por
+sí mismo (§3.novovicies). Recorriéndolas en un bucle se paga una vez: **31
+segundos**. Se pierde el detalle por caso del informe de pytest y se recupera
+con creces en el mensaje, que saca todos los fallos juntos.
+
+**Se manda el cuerpo vacío, y eso hay que comprobarlo.** En FastAPI las
+dependencias se resuelven antes de validar el cuerpo, así que una que lanza
+corta ahí. Comprobado sobre `POST /clients`, que tiene cuerpo obligatorio: con
+`{}` responde 403, no 422. Hay un test dedicado sólo a ese supuesto, porque si
+algún día cambiara, los 979 sondeos estarían midiendo otra cosa sin avisar.
+
+### Y un agujero del propio test, encontrado al romperlo
+
+Se validó comentando una guarda de `clients.py` — «escrita pero no corre», que
+es justo el caso que este fichero existe para cazar. **Y pasó en verde.**
+
+Porque al comentarla, `_sin_prosa` deja de verla y la ruta **desaparece de la
+lista a sondear** en vez de fallar: el bucle pasa porque ya no la mira. El
+umbral era `>= 929` y tenía holgura de sobra.
+
+Se cierra clavando el número exacto (979 pares, que no son las 929 funciones de
+`test_guardas_de_rol.py` porque `main.py` monta los routers en v1 y v2). Y
+conviene decir el reparto de papeles, porque no es redundancia: **quitar una
+guarda lo caza el guardián sintáctico** —comprobado, pone 2 de sus 4 en rojo—,
+y lo que caza éste es que la lista a sondear se quede coja.
+
+---
+
+## 3.quattuortrigies La traducción, por dentro
+
+Cerrado el «0 literales fuera de `t()`», quedaba la pregunta de si lo traducido
+está bien. La revisión por un hablante nativo no la puedo hacer; lo que sí se
+puede es comprobar por máquina tres cosas, y las tres dieron defectos reales.
+
+### Variables `{x}` que no cuadraban: cuatro, y ninguna era cosmética
+
+`t('clave', { total, active })` sustituye `{total}` y `{active}` en el texto del
+idioma activo. Si la traducción no lleva las mismas variables pasa una de dos
+cosas, y ninguna avisa: sobran y el usuario lee `{count}` tal cual, o faltan y
+el dato no aparece **sin que la frase deje de tener sentido** — que es
+exactamente lo que hace que nadie lo reporte.
+
+| clave | qué pasaba |
+|---|---|
+| `projects.subtitle` | el código pasa `{total} {active} {atRisk}`; inglés y chino tenían una frase genérica **sin las cifras**. La misma pantalla daba menos información según el idioma |
+| `milestone_billing.subtitle` | el valor **castellano** decía «Team capacity projection — {weeks} weeks»: texto en inglés, y del módulo de capacidad |
+| `m365.subtitle` | igual: «{total} people · Reporting structure · Approval chains», del organigrama |
+| `offline_indicator.pending_label` | `{count} pendiente{s}` esperaba que alguien pasara `s` valiendo `""` o `"s"`. No la llama nadie, así que de usarse mostraría «3 pendiente{s}» |
+
+> Los dos del medio son lo interesante: **el descuadre de variables no era el
+> defecto, era el síntoma** que destapó dos valores copiados de otro módulo en
+> el diccionario castellano. Inglés y chino tenían el texto correcto; sólo el
+> castellano estaba mal.
+
+`check_i18n_variables.mjs` lo vigila. Validado rompiéndolo.
+
+### 35 claves duplicadas que creé yo
+
+Al comparar términos por módulo salió que el mismo castellano tenía dos chinos
+distintos: «Sin páginas» era 无页面 y 暂无页面 según el sitio.
+
+La causa es un defecto de la extracción de §3.untrigies: genera la clave a
+partir del texto, y el insertor sólo saltaba las que ya existían **con ese
+nombre**. Cuando el módulo ya tenía ese texto con otro nombre —`wiki.no_pages`—
+se creaba `wiki.sin_paginas` con el mismo castellano, y cada una se tradujo por
+su cuenta.
+
+El arreglo no es igualar las dos traducciones: es **quedarse con la clave que ya
+existía, apuntar el código a ella y borrar la nueva**. 38 usos repuntados, 104
+entradas fuera de los tres diccionarios. Menos claves, y la divergencia deja de
+ser posible.
+
+Quedan 114 pares preexistentes con el mismo castellano en el mismo módulo, de
+los que sólo **6 divergen en chino y 7 en inglés**. De esos, la mitad es
+contexto legítimo y se deja escrito por qué: `alm.vendor_label_web` es el sitio
+web del proveedor y `licenses_platform_web` es la plataforma web; en
+`service_desk` «Resuelto» es un estado en un sitio y una fecha en otro.
+
+### El inglés mezclaba británico y americano
+
+Medido sobre las 5.711 claves, el británico ganaba en las cuatro familias, así
+que el producto habla inglés británico y había una minoría suelta:
+
+| | antes | ahora |
+|---|---|---|
+| `-ize` / `-ise` | 26 / 38 | **5** / 59 |
+| `license` / `licence` | 7 / 23 | **0** / 30 |
+| `center` / `centre` | 1 / 10 | **0** / 11 |
+| `color` / `colour` | 3 / 5 | **0** / 8 |
+
+Con una lista revisada a mano, **no con un reemplazo ciego**, porque hay
+palabras que en británico se escriben igual: `size`, `resize` y `batch size` no
+son alternables, y `Authorization flow` es el término de la especificación
+OAuth. Los cinco `-ize` que quedan son exactamente esos.
+
+---
+
 ## 3.duovicies El barrido de duplicación: 31 parejas, cero defectos
 
 La duplicación ha sido **el detector más productivo de toda esta auditoría**, y
