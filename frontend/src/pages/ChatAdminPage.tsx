@@ -463,7 +463,7 @@ function WebhooksTab() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 18 }}>
       <Card>
-        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>{t('chat_admin.webhooks')} ({data.length})</h3>
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>{t('chat_admin.tab_webhooks')} ({data.length})</h3>
         {data.length === 0 ? <Empty text={t('chat_admin.no_webhooks')} /> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {data.map((w) => (

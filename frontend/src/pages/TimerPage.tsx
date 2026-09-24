@@ -243,7 +243,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
           <label style={LS}>{traducir('timer.descripcion_del_trabajo')}</label>
           <textarea value={description} onChange={e => setDescription(e.target.value)}
             style={{ ...FS, resize: 'vertical' }} rows={3}
-            placeholder={traducir('timer.describe_el_trabajo_realizado')} aria-label={traducir('timer.descripcion_del_trabajo_2')} autoFocus />
+            placeholder={traducir('timer.describe_el_trabajo_realizado')} aria-label={traducir('timer.descripcion_del_trabajo')} autoFocus />
         </div>
         <div style={{ marginBottom: 14 }}>
           <label style={LS}>Tarea final</label>

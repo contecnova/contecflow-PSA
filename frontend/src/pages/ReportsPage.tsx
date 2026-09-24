@@ -707,7 +707,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <div style={{ display: 'flex', gap: 8 }}>
               {onSave && (
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <input value={reportName} onChange={e => setReportName(e.target.value)} placeholder={traducir('reports.nombre_del_informe')} style={{ ...fs, width: 200, fontSize: "var(--text-sm)" }} />
+                  <input value={reportName} onChange={e => setReportName(e.target.value)} placeholder={traducir('reports.report_name')} style={{ ...fs, width: 200, fontSize: "var(--text-sm)" }} />
                   <Button size="sm" onClick={() => onSave({ name: reportName || result.meta?.label, metric, chartType, color, dateFrom, dateTo, projectId, userId, department, topN })} disabled={!metric}>💾 Guardar</Button>
                 </div>
               )}
@@ -911,7 +911,7 @@ function ScheduledReportsTab() {
             <div>
               <label style={ls}>Nombre *</label>
               <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder={traducir('reports.nombre_del_informe')} style={is} />
+                placeholder={traducir('reports.report_name')} style={is} />
             </div>
             <div>
               <label style={ls}>{traducir('reports.metrica_2')}</label>

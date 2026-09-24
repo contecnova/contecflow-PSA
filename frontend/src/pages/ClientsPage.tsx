@@ -247,7 +247,7 @@ export default function ClientsPage(): JSX.Element {
           </select>
         </div>
         {isLoading ? <Spinner /> : clients.length === 0
-          ? <EmptyState icon="🏢" title={traducir('clients.sin_clientes')} description="Crea el primer cliente para empezar" />
+          ? <EmptyState icon="🏢" title={traducir('clients.no_clients')} description="Crea el primer cliente para empezar" />
           : clientView === 'grid' ? (sortedClients as Client[]).map(c => (
             <button key={c.id} type="button" onClick={() => { setSelected(c); setActiveTab('contacts') }}
               style={{ ...panel, padding: '14px 16px', marginBottom: 8, cursor: 'pointer', borderColor: selected?.id === c.id ? 'var(--accent)' : 'var(--surface-4)', background: selected?.id === c.id ? 'var(--accent-muted)' : 'var(--surface-2)', transition: 'all 0.12s' }}
@@ -504,7 +504,7 @@ export default function ClientsPage(): JSX.Element {
           <div style={{ color: 'var(--danger)', fontSize: 'var(--text-xs)', marginTop: 4 }}>{createValidation.errors[key]}</div>
         )
         return (
-        <Modal open title={traducir('clients.nuevo_cliente')} onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={600}>
+        <Modal open title={traducir('clients.new_client')} onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={600}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div><label style={lbl}>Nombre *</label><input value={newForm.name} onChange={setCreateField('name')} style={createValidation.inputStyle(inp, 'name')} />{errField('name')}</div>
             <div><label style={lbl}>Nombre corto</label><input value={newForm.short_name} onChange={setCreateField('short_name')} style={createValidation.inputStyle(inp, 'short_name')} />{errField('short_name')}</div>

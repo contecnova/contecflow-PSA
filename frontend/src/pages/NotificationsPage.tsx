@@ -375,7 +375,7 @@ export default function NotificationsPage() {
             </div>
             {unreadCount > 0 && (
               <Button variant="secondary" onClick={() => markAll()}>
-                {t('notifications.marcar_todas_como_leidas')}
+                {t('notifications.mark_all_read')}
               </Button>
             )}
           </div>

@@ -1237,7 +1237,7 @@ function ApprovalGroupsTab() {
               <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={traducir('approvals.ej_comite_financiero')} />
             </div>
             <div>
-              <label style={lbl}>{traducir('approvals.descripcion')}</label>
+              <label style={lbl}>{traducir('approvals.description')}</label>
               <input value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} />
             </div>
             <div>

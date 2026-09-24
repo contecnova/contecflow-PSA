@@ -370,14 +370,14 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
         <div>
           <label style={ls}>Departamento</label>
           <select value={form.department} onChange={set('department')} style={fs}>
-            <option value="">{traducir('projects.sin_departamento')}</option>
+            <option value="">{traducir('projects.no_department')}</option>
             {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>{traducir('projects.tipo_de_facturacion')}</label>
+          <label style={ls}>{traducir('projects.label_billing')}</label>
           <select value={form.billing_type} onChange={set('billing_type')} style={fs}>
-            <option value="">{traducir('projects.sin_especificar')}</option>
+            <option value="">{traducir('projects.no_billing')}</option>
             {(BILLING_TYPES as any[]).map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
@@ -393,7 +393,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
               <input type="number" value={form.retainer_amount} onChange={set('retainer_amount')} style={fs} placeholder="Importe mensual" aria-label="Importe mensual" />
             </div>
             <div>
-              <label style={ls}>{traducir('projects.dia_del_mes_1_28')}</label>
+              <label style={ls}>{traducir('projects.label_retainer_day')}</label>
               <input type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} style={fs} placeholder={traducir('projects.dia_de_corte')} aria-label={traducir('projects.dia_de_corte')} />
               {errors.retainer_day && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.retainer_day}</div>}
             </div>
@@ -409,7 +409,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
           {errors.end_date_planned && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.end_date_planned}</div>}
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
-          <label style={ls}>{traducir('projects.descripcion')}</label>
+          <label style={ls}>{traducir('projects.label_description')}</label>
           <textarea value={form.description} onChange={set('description')} rows={3}
             style={{ ...fs, resize: 'vertical' }} placeholder={traducir('projects.descripcion_del_proyecto')} aria-label={traducir('projects.descripcion_del_proyecto')} />
         </div>
@@ -656,7 +656,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
         ) : (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-2)' }}>
             <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 10 }}>📅</div>
-            <div>{traducir('projects.no_hay_fases_definidas_en_este_proyecto')}</div>
+            <div>{traducir('projects.no_phases')}</div>
           </div>
         )
       )}
@@ -862,7 +862,7 @@ function TemplatesTab() {
             <div><label style={ls}>{traducir('projects.nombre_del_proyecto_2')}</label><input value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
               <div><label style={ls}>Cliente</label><ClientSelect value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder={traducir('projects.selecciona_un_cliente')} style={fs} /></div>
-              <div><label style={ls}>{traducir('projects.fecha_de_inicio')}</label><input type="date" value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
+              <div><label style={ls}>{traducir('projects.label_start_date')}</label><input type="date" value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
               <div><label style={ls}>Presupuesto €</label><input type="number" value={instForm.budget_amount} onChange={e => setInstForm(f=>({...f,budget_amount:e.target.value}))} style={fs} /></div>
               <div><label style={ls}>Project Manager</label>
                 <select value={instForm.pm_id||''} onChange={e => setInstForm(f=>({...f,pm_id:e.target.value}))} style={fs}>
@@ -885,7 +885,7 @@ function TemplatesTab() {
         <Modal open title={traducir('projects.nueva_plantilla_2')} onClose={() => setShowCreate(false)} width={580}>
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
             <div><label style={ls}>Nombre *</label><input value={newTpl.name} onChange={e => setNewTpl(f=>({...f,name:e.target.value}))} style={fs} placeholder={traducir('projects.nombre_de_la_plantilla')} aria-label={traducir('projects.nombre_de_la_plantilla')} /></div>
-            <div><label style={ls}>{traducir('projects.descripcion')}</label><textarea value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} /></div>
+            <div><label style={ls}>{traducir('projects.label_description')}</label><textarea value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} /></div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
               <div><label style={ls}>Tipo</label>
                 <select value={newTpl.project_type} onChange={e => setNewTpl(f=>({...f,project_type:e.target.value}))} style={fs}>

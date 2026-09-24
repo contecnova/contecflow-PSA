@@ -229,7 +229,7 @@ export default function OrganizationsPage() {
       <div style={{ display:'grid', gridTemplateColumns: selected ? '1fr 360px' : '1fr', gap:20 }}>
         <div>
           {isLoading ? <Spinner /> : orgs.length === 0 ? (
-            <EmptyState icon="🏢" title={t('organizations.sin_organizaciones')} description="Crea la primera organizacion para gestionar entornos aislados" />
+            <EmptyState icon="🏢" title={t('organizations.no_orgs')} description="Crea la primera organizacion para gestionar entornos aislados" />
           ) : (
             <div data-export-table="organizations-list" style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {orgs.map(o => (

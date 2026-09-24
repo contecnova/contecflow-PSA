@@ -1426,7 +1426,7 @@ export default function DocumentsPage(): JSX.Element {
       ) : docs.length === 0 ? (
         <div className="ds-empty">
           <FolderOpen size={36} className="ds-empty__icon" />
-          <div className="ds-empty__title">{t('documents.sin_documentos')}</div>
+          <div className="ds-empty__title">{t('documents.no_documents')}</div>
           <div className="ds-empty__desc">
             {search || filterCat ? 'No hay resultados para los filtros aplicados.' : 'Sube tu primer documento con el botón “Nuevo documento”.'}
           </div>

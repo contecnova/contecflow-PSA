@@ -111,7 +111,7 @@ export default function ScenariosPage() {
       <div style={{ display:'grid', gridTemplateColumns:'340px 1fr', gap:20 }}>
         <div>
           {isLoading ? <Spinner /> : scenarios.length === 0 ? (
-            <EmptyState icon="🔮" title={t('scenarios.sin_escenarios')} description="Crea un escenario para simular el impacto en capacidad" />
+            <EmptyState icon="🔮" title={t('scenarios.no_scenarios')} description="Crea un escenario para simular el impacto en capacidad" />
           ) : scenarios.map(s => (
             <button key={s.id} type="button" onClick={()=>setSelected(s.id)}
               style={{ ...card, padding:'14px 18px', marginBottom:10, cursor:'pointer', border: selected===s.id ? '.5px solid rgba(0,212,255,0.25)' : '.5px solid var(--surface-4)', width:'100%', textAlign:'left', fontFamily:'inherit' }}>

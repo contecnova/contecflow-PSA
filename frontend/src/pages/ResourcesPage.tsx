@@ -241,7 +241,7 @@ function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Reso
       </div>
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>
-          <span>{t('resources.utilizacion')}</span>
+          <span>{t('resources.utilization')}</span>
           <span style={{ color: loadColor, fontWeight: 700 }}>{load.toFixed(0)}%</span>
         </div>
         <LoadBar value={load} label={undefined} />

@@ -470,7 +470,7 @@ export default function ChangesPage(): JSX.Element {
           {!selectedProject ? (
             <EmptyState icon="📋" title={t('changes.selecciona_un_proyecto')} description="Elige un proyecto para ver y gestionar sus solicitudes de cambio" />
           ) : isLoading ? <Spinner /> : crs.length === 0 ? (
-            <EmptyState icon="✅" title={t('changes.sin_solicitudes_de_cambio')} description="Este proyecto no tiene CRs registradas" />
+            <EmptyState icon="✅" title={t('changes.no_changes')} description="Este proyecto no tiene CRs registradas" />
           ) : (
             <div data-export-table="changes-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {crs.map((cr) => {

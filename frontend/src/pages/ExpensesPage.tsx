@@ -212,7 +212,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
           <input value={form.description} onChange={set('description')} style={fs} placeholder={traducir('expenses.descripcion_del_gasto')} aria-label={traducir('expenses.descripcion_del_gasto')} />
         </div>
         <div>
-          <label style={ls}>{traducir('expenses.categoria')}</label>
+          <label style={ls}>{traducir('expenses.category')}</label>
           <select value={form.category} onChange={set('category')} style={fs}>
             {Object.entries(CATEGORIES).map(([v, c]) => <option key={v} value={v}>{c.icon} {c.label}</option>)}
           </select>

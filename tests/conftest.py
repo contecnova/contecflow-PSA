@@ -313,6 +313,24 @@ def db():
         weekly_capacity_hours=40.0,
         currency="EUR"
     )
+    # Subcontratado: el unico rol que `require_internal_user` deja fuera.
+    #
+    # Hace falta para poder PROBAR esa guarda. Sin un usuario de este rol, el
+    # unico token con el que se podia sondear `require_internal_user` era el de
+    # un empleado, que la guarda deja pasar — y un test que no puede ver el 403
+    # no prueba nada. Ver `test_las_guardas_deniegan_de_verdad`.
+    sub = User(
+        id="sub-test-id",
+        username="sub_test",
+        email="sub@contecflow.com",
+        full_name="Subcontratado Test",
+        role=UserRole.subcontractor,
+        status=UserStatus.active,
+        is_active=True,
+        hashed_password=HASH_DE_PRUEBA,
+        weekly_capacity_hours=40.0,
+        currency="EUR"
+    )
     org = Organization(
         id=1,
         name="Test Organization",
@@ -325,7 +343,8 @@ def db():
     pm.organization_id = 1
     dev.organization_id = 1
     hr.organization_id = 1
-    session.add_all([admin, pm, dev, hr])
+    sub.organization_id = 1
+    session.add_all([admin, pm, dev, hr, sub])
     session.commit()
     session.close()
 
@@ -491,6 +510,21 @@ def dev_token(client, db):
 @pytest.fixture(scope="function")
 def hr_token(client, db):
     res = client.post("/api/v1/auth/login", json={"username": "hr_test", "password": _TEST_PASSWORD})
+    assert res.status_code == 200
+    token = res.cookies.get("access_token")
+    assert token
+    return token
+
+
+@pytest.fixture(scope="function")
+def sub_token(client, db):
+    """Token de un subcontratado: el único rol que `require_internal_user` rechaza.
+
+    Es la sonda de `test_guardas_deniegan.py`. Con un token de empleado no se
+    puede comprobar esa guarda —el empleado pasa— y un test que nunca puede ver
+    el 403 no demuestra nada.
+    """
+    res = client.post("/api/v1/auth/login", json={"username": "sub_test", "password": _TEST_PASSWORD})
     assert res.status_code == 200
     token = res.cookies.get("access_token")
     assert token

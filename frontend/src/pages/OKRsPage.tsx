@@ -336,7 +336,7 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
             </select>
           </div>
           <div className="ds-field">
-            <label className="ds-field__label">{t('okrs.ano')}</label>
+            <label className="ds-field__label">{t('okrs.year')}</label>
             <input type="number" value={form.year}
               onChange={e => setForm(f => ({ ...f, year: parseInt(e.target.value) || f.year }))}
               className="ds-input" />
@@ -443,7 +443,7 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => mutate()} disabled={isPending || !form.title} loading={isPending}>
-            <Plus size={13} /> {t('okrs.anadir_kr')}
+            <Plus size={13} /> {t('okrs.add_kr')}
           </Button>
         </div>
       </div>
@@ -501,7 +501,7 @@ export default function OKRsPage() {
             {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
           <Button onClick={() => { setEditingObj(null); setShowObjModal(true) }}>
-            <Plus size={13} /> {t('okrs.nuevo_objetivo')}
+            <Plus size={13} /> {t('okrs.new_objective')}
           </Button>
         </div>
       }
