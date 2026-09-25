@@ -11,6 +11,17 @@ setlocal EnableDelayedExpansion
 ::   setup.bat update   - actualiza dependencias
 ::   SETUP_INIT_MODE=demo^|clean setup.bat start  - modo no interactivo (CI/CD)
 
+:: La consola de Windows arranca en la pagina de codigos 850 o 1252, y el
+:: sembrado imprime «checks» y avisos con caracteres fuera de ASCII: 81 `print`
+:: en 14 ficheros. Sin esto, `setup.bat demo` moria con UnicodeEncodeError a
+:: mitad del sembrado y dejaba la base CON CERO USUARIOS — instalacion
+:: aparentemente hecha y sin forma de entrar.
+::
+:: `PYTHONUTF8=1` es el modo UTF-8 de Python 3.7+: afecta a todo lo que lanza
+:: este script, no solo al sembrado. Se fija aqui y no con `chcp` para no
+:: cambiarle la consola al usuario.
+set PYTHONUTF8=1
+
 set BACKEND_PORT=8000
 set FRONTEND_PORT=3000
 set SCRIPT_DIR=%~dp0
@@ -45,6 +56,8 @@ call :setup_backend
 if errorlevel 1 goto :error
 call :setup_frontend
 if errorlevel 1 goto :error
+call :apply_migrations
+if errorlevel 1 goto :error
 call :resolve_init_mode "%REQUESTED_MODE%"
 if errorlevel 1 goto :error
 call :apply_selected_data_mode
@@ -63,6 +76,8 @@ if not exist "%SCRIPT_DIR%\frontend\node_modules\vite\dist\node\cli.js" (
     call :setup_frontend
     if errorlevel 1 goto :error
 )
+call :apply_migrations
+if errorlevel 1 goto :error
 call :resolve_init_mode "%REQUESTED_MODE%"
 if errorlevel 1 goto :error
 call :apply_selected_data_mode
@@ -121,6 +136,30 @@ if /I "%INIT_MODE%"=="clean" goto :prepare_admin_only_database
 if /I "%INIT_MODE%"=="demo"  goto :prepare_demo_database
 echo [ERROR] INIT_MODE no soportado: %INIT_MODE%
 exit /b 1
+
+:: -----------------------------------------------------------------------
+:apply_migrations
+echo.
+echo [INFO] Aplicando migraciones con Alembic...
+cd /d "%SCRIPT_DIR%"
+:: Alembic es la UNICA fuente de verdad del esquema, igual que en setup.sh y en
+:: docker-compose. Este paso FALTABA aqui: `setup.bat` no tenia una sola
+:: aparicion de alembic, asi que tras un `git pull` la base se quedaba con el
+:: esquema viejo y el sembrado moria con «no such column» a mitad — dejando la
+:: instalacion aparentemente hecha y la base sin usuarios.
+::
+:: `upgrade head` es idempotente y barato cuando no hay revisiones pendientes,
+:: asi que se ejecuta siempre y no se intenta adivinar si hace falta.
+.venv\Scripts\python -m alembic upgrade head
+if errorlevel 1 (
+    echo [ERROR] Las migraciones han fallado.
+    echo [ERROR] NO se arranca con un esquema a medias: revisa el error de arriba.
+    echo [ERROR] Si la base local esta corrupta, borrala y vuelve a ejecutar
+    echo [ERROR] este script: Alembic la reconstruye entera desde cero.
+    exit /b 1
+)
+echo [OK] Esquema al dia
+exit /b 0
 
 :: -----------------------------------------------------------------------
 :prepare_demo_database

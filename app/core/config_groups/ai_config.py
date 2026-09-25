@@ -13,9 +13,39 @@ from pydantic import Field
 
 
 class AISettingsMixin:
+    # ── El proveedor de IA del despliegue, AGNÓSTICO ──────────────────────────
+    #
+    # Auditoría 2026-09. Antes la única credencial de IA que admitía `.env` era
+    # `ANTHROPIC_API_KEY`. Quien trabajara con Gemini, OpenAI o un Ollama local
+    # no tenía forma de configurar el despliegue por fichero: o pasaba por la
+    # interfaz, o no había IA. Y la aplicación soporta ocho proveedores.
+    #
+    # Estas cuatro variables son el ÚLTIMO escalón de la resolución
+    #
+    #     proveedor de la organización (BD) → proveedor global (BD) → .env
+    #
+    # que es el mismo patrón que ya usaba el motor de voz en
+    # `app/services/stt/__init__.py`. La base no sobra: un despliegue
+    # multi-empresa necesita un proveedor por organización, y eso un fichero de
+    # entorno no lo puede expresar. Lo que sí resuelve `.env` es el caso de un
+    # solo cliente: se configura entero sin abrir la aplicación.
+    #
+    #     AI_PROVIDER=gemini
+    #     AI_API_KEY=...
+    #     AI_MODEL=gemini-2.0-flash        (opcional)
+    #     AI_BASE_URL=http://localhost:11434   (sólo Ollama / Azure)
+    AI_PROVIDER: str = Field(default="", env="AI_PROVIDER")
+    AI_API_KEY: str = Field(default="", env="AI_API_KEY")
+    AI_MODEL: str = Field(default="", env="AI_MODEL")
+    AI_BASE_URL: str = Field(default="", env="AI_BASE_URL")
+
     # ── AI providers (opcionales) ─────────────────────────────────────────────
     # Fallback API keys — used only when no provider is configured in the database.
     # Prefer configuring providers via the AI Providers admin panel in the UI.
+    #
+    # `ANTHROPIC_API_KEY` se mantiene como ALIAS HEREDADO: si no hay
+    # `AI_PROVIDER` y sí esta clave, el despliegue resuelve a Anthropic como
+    # antes. Ningún `.env` existente deja de funcionar por este cambio.
     ANTHROPIC_API_KEY: str = Field(default="", env="ANTHROPIC_API_KEY")
     ANTHROPIC_API_URL: str = Field(default="https://api.anthropic.com/v1", env="ANTHROPIC_API_URL")
     ANTHROPIC_DOCS_URL: str = Field(default="https://www.anthropic.com/docs", env="ANTHROPIC_DOCS_URL")
