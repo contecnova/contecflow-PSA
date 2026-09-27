@@ -3,7 +3,7 @@
 Variables:
   COLLAB_S3_BUCKET     — nombre del bucket
   COLLAB_S3_REGION     — eu-west-1 (default)
-  COLLAB_S3_ENDPOINT   — opcional (MinIO: https://minio.local)
+  COLLAB_S3_ENDPOINT   — opcional (S3 compatible: http://127.0.0.1:9003)
   AWS_ACCESS_KEY_ID    — credenciales
   AWS_SECRET_ACCESS_KEY
   COLLAB_S3_PREFIX     — prefijo opcional (default: 'collaboration/')
@@ -35,6 +35,16 @@ class S3FileStorage(FileStorage):
             endpoint = os.environ.get("COLLAB_S3_ENDPOINT")
             if endpoint:
                 kwargs["endpoint_url"] = endpoint
+            # Lo mismo que `S3Service._build_client`: firma v4 también en las
+            # URLs firmadas (sin pedirla, boto3 presigna en v2 y versitygw o AWS
+            # en regiones nuevas la rechazan) y, con endpoint propio,
+            # direccionamiento por ruta, que es lo que entiende un servidor de
+            # un solo host.
+            from botocore.config import Config as BotoConfig
+            kwargs["config"] = BotoConfig(
+                signature_version="s3v4",
+                s3={"addressing_style": "path"} if endpoint else {},
+            )
             self._client = boto3.client("s3", **kwargs)
             if not self._bucket:
                 raise RuntimeError("COLLAB_S3_BUCKET no configurado")

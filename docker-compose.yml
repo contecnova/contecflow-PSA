@@ -1,7 +1,8 @@
 # ══════════════════════════════════════════════════════════════════════════════
 # CONTECFLOW PSA — stack completo
 #
-# Infra:  postgres · redis · minio (+ minio-init)
+# Infra:  postgres · redis
+# Opt-in: s3 (versitygw)   (--profile s3; también con --profile app)
 # App:    api · worker · beat · web (nginx + frontend construido)
 # Opt-in: prometheus · alertmanager · exporters   (--profile observability)
 #
@@ -61,7 +62,7 @@ x-app: &app
     REDIS_URL: redis://redis:6379/0
     CELERY_BROKER_URL: redis://redis:6379/1
     CELERY_RESULT_BACKEND: redis://redis:6379/2
-    AWS_S3_ENDPOINT_URL: http://minio:9000
+    AWS_S3_ENDPOINT_URL: http://s3:9000
     AWS_ACCESS_KEY: ${MINIO_ROOT_USER:?define MINIO_ROOT_USER}
     AWS_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?define MINIO_ROOT_PASSWORD}
     AWS_S3_BUCKET: ${MINIO_BUCKET:-contecflow-documents}
@@ -69,7 +70,7 @@ x-app: &app
   depends_on:
     postgres: {condition: service_healthy}
     redis: {condition: service_healthy}
-    minio: {condition: service_started}
+    s3: {condition: service_healthy}
   restart: unless-stopped
 
 services:
@@ -132,63 +133,67 @@ services:
       start_period: 5s
 
   # ── Almacenamiento de objetos compatible con S3 ─────────────────────────────
+  # ── Almacén S3: versitygw, bajo perfil ──────────────────────────────────────
+  #
   # Permite validar en local la misma ruta de código que en producción usa AWS
   # S3. Antes no era posible: S3Service no tenía `endpoint_url` configurable, así
   # que los documentos caían siempre al sistema de ficheros local
   # (`uploads/`) y el backend S3 nunca se ejercitaba fuera de AWS.
-  minio:
-    # ── Registro: quay.io, NO Docker Hub (2026-09-17) ──────────────────
-    #
-    # `docker compose up` fallaba aquí con:
-    #
-    #     pull access denied, repository does not exist or may require
-    #     authorization: insufficient_scope: authorization failed
-    #
-    # No era el digest ni la autenticación: el repositorio `minio/minio` de
-    # Docker Hub dejó de ser público — también `minio/minio:latest` por
-    # etiqueta devuelve `denied`. `quay.io/minio/*` sigue siendo público.
-    #
-    # Mismo fallo y mismo arreglo que en `contecmind`; `contecweb` ya usaba
-    # quay.io desde el principio.
-    #
-    # Pineado por digest, no por `:latest`: con un tag móvil dos despliegues del
-    # mismo commit pueden levantar imágenes distintas y un fallo deja de ser
-    # reproducible. Para subir versión: `docker buildx imagetools inspect <img>:<tag>`.
-    image: quay.io/minio/minio@sha256:1dce27c494a16bae114774f1cec295493f3613142713130c2d22dd5696be6ad3  # RELEASE.2024-12-18T13-15-44Z
-    container_name: contecflow-minio
+  #
+  # POR QUÉ BAJO PERFIL. En desarrollo la app corre en el host, sin
+  # `AWS_S3_BUCKET`, y guarda en `uploads/`: no usa S3. Aun así MinIO arrancaba
+  # con el `docker compose up` normal, y el día que su imagen dejó de
+  # descargarse el `up` entero falló — y `setup.sh`, al ver fallar el `up`, cae a
+  # SQLite en silencio. Una pieza que no se usa no puede tumbar las que sí. Arranca
+  # con `--profile s3` (solo el almacén) o con `--profile app`, que es donde la
+  # app en Docker sí lo usa: se lo inyecta `x-app-env`.
+  #
+  # POR QUÉ YA NO ES MINIO. MinIO cerró su distribución pública en dos pasos:
+  # Docker Hub el 17-09-2026 —y nos pasamos a quay.io— y quay.io el 27-09-2026,
+  # que desde entonces contesta «Requires authentication» hasta para `:latest`.
+  # No hay digest ni tag que valga: ya no hay imagen pública.
+  #
+  # versitygw (Versity S3 Gateway, Apache-2.0) es un servidor S3 de verdad, el
+  # mismo que usan contecmind y contecweb: el S3 compatible de la casa es uno. Con
+  # el backend `posix` cada objeto es un fichero normal en el volumen y cada
+  # bucket una carpeta, así que el bucket se crea con un `mkdir` al arrancar y el
+  # servicio `minio-init` desaparece. Se baja de ghcr.io, sin el límite de
+  # descargas anónimas de Docker Hub.
+  #
+  # Las variables siguen llamándose `MINIO_*` a propósito: son las que ya tiene
+  # el `.env` de cada máquina, y renombrarlas rompería el arranque de todas a
+  # cambio de nada.
+  s3:
+    image: ghcr.io/versity/versitygw@sha256:30292fc2eeacc67a36993b01f7a7a5e3361a19cced0e80c1d71cfa2a4b0a2499  # v1.8.0
+    container_name: contecflow-s3
+    profiles: ["s3", "app"]
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c", "mkdir -p /data/\"$$S3_BUCKET\" && exec versitygw posix /data"]
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?define MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?define MINIO_ROOT_PASSWORD}
-      MINIO_PROMETHEUS_AUTH_TYPE: ${MINIO_PROMETHEUS_AUTH_TYPE:-public}
-    command: server /data --console-address ":9001"
+      S3_BUCKET: ${MINIO_BUCKET:-contecflow-documents}
+      ROOT_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?define MINIO_ROOT_USER}
+      ROOT_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?define MINIO_ROOT_PASSWORD}
+      # Escucha en el 9000, el que la app ya espera (`http://s3:9000`).
+      VGW_PORT: ":9000"
+      # La raíz contesta 403 a quien no firma; `/health` contesta «OK» sin credenciales.
+      VGW_HEALTH: /health
+      # La región del servidor TIENE que ser la que firma el cliente: versitygw,
+      # igual que AWS, rechaza una URL firmada para otra («the region
+      # "eu-west-1" is wrong; expecting "us-east-1"»). MinIO no lo comprobaba.
+      # Sale de la misma variable que usa la app, con su mismo defecto.
+      VGW_REGION: ${AWS_REGION:-eu-west-1}
     volumes:
-      - minio_data:/data
+      - s3_data:/data
     ports:
-      - "${MINIO_PORT:-127.0.0.1:9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-127.0.0.1:9001}:9001"
+      # 9003 y no 9000: en esta máquina conviven los productos de la casa y
+      # contecweb ya publica el 9000 (contecmind, el 9002).
+      - "${MINIO_PORT:-127.0.0.1:9003}:9000"
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9000/health >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 10s
-
-  # One-shot: crea el bucket para que la primera subida no falle.
-  minio-init:
-    image: quay.io/minio/mc@sha256:993e8c454a7ec632923f7e3e61adf1d473261da6354cefd641aedd33a2cfe112  # RELEASE.2024-11-21T17-21-54Z
-    container_name: contecflow-minio-init
-    restart: "no"
-    depends_on:
-      minio: {condition: service_started}
-    entrypoint:
-      - /bin/sh
-      - -c
-      - |
-        until mc alias set local http://minio:9000 "${MINIO_ROOT_USER:?define MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD:?define MINIO_ROOT_PASSWORD}"; do
-          sleep 1
-        done
-        mc mb -p "local/${MINIO_BUCKET:-contecflow-documents}" || true
+      start_period: 5s
 
   # ── Migraciones: un paso propio, antes de la API ────────────────────────────
   # Auditoría 2026-08 (hallazgo 11): el esquema se creaba con
@@ -229,7 +234,7 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
-      minio: {condition: service_started}
+      s3: {condition: service_healthy}
       migrate: {condition: service_completed_successfully}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health', timeout=5).status==200 else 1)"]
@@ -260,7 +265,7 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
-      minio: {condition: service_started}
+      s3: {condition: service_healthy}
       migrate: {condition: service_completed_successfully}
 
   # ── Planificador de Celery, en proceso APARTE ───────────────────────────────
@@ -349,12 +354,15 @@ volumes:
   # los crea de forma idempotente, así que se obtiene la protección sin fricción.
   #
   # Para crearlos a mano (máquina nueva, sin usar setup.sh):
-  #   docker volume create contecflow_postgres_data contecflow_minio_data
+  #   docker volume create contecflow_postgres_data contecflow_s3_data
   postgres_data:
     name: contecflow_postgres_data
     external: true
-  minio_data:
-    name: contecflow_minio_data
+  # `s3_data` y no `minio_data`: un volumen de MinIO guarda los objetos en su
+  # formato (xl.meta), no como ficheros, y versitygw montado encima serviría
+  # basura en vez de fallar. Pasar datos de uno a otro: DOCS.md.
+  s3_data:
+    name: contecflow_s3_data
     external: true
 
   # ── Regenerables: se pueden perder sin consecuencias ───────────────────────

@@ -178,7 +178,7 @@ class Settings(
     # nunca fuera de producción y los documentos caían siempre al sistema de
     # ficheros local. Con este ajuste el MISMO código sirve contra MinIO en
     # local y contra AWS en producción: vacío = AWS.
-    #   local (docker compose): http://minio:9000
+    #   local (docker compose): http://s3:9000  (versitygw)
     #   AWS:                    dejar vacío
     #   otro proveedor S3:      su URL de endpoint
     AWS_S3_ENDPOINT_URL: Optional[str] = Field(default=None, env="AWS_S3_ENDPOINT_URL")

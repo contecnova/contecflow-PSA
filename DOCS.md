@@ -159,10 +159,13 @@ duplicados:
 
 ```bash
 ./setup.sh                              # crea .env, volúmenes y levanta la infra
-docker compose up -d                    # DESARROLLO: postgres + redis + minio.
-                                        # La app corre en local (uvicorn).
-docker compose --profile app up -d      # PRODUCCIÓN: + migrate, api, worker,
-                                        # beat y web (nginx)
+docker compose up -d                    # DESARROLLO: postgres + redis.
+                                        # La app corre en local (uvicorn) y
+                                        # guarda los ficheros en uploads/.
+docker compose --profile s3 up -d       # + el almacén S3 (versitygw), para
+                                        # probar el camino de S3 en local
+docker compose --profile app up -d      # PRODUCCIÓN: + s3, migrate, api,
+                                        # worker, beat y web (nginx)
 docker compose --profile observability up -d   # + prometheus y exporters
 docker compose down                     # apaga, conserva los datos
 docker compose down -v                  # borra SÓLO los volúmenes regenerables
@@ -172,7 +175,7 @@ docker compose down -v                  # borra SÓLO los volúmenes regenerable
 
 **Puertos siempre en `127.0.0.1`.** Con `"5434:5432"` Docker publica en 0.0.0.0.
 Este fichero se copia para demos y preproducciones, y ahí eso significa un
-Postgres, un Redis sin contraseña y un MinIO accesibles desde toda la red con
+Postgres, un Redis sin contraseña y un almacén S3 accesibles desde toda la red con
 credenciales de desarrollo.
 
 **Variables críticas con `${VAR:?}`.** Un valor por defecto silencioso en una
@@ -202,10 +205,80 @@ esquema a medias.
 **La API no publica puerto al host.** Quien entra es nginx; publicarla saltaría
 las cabeceras de seguridad y el tope de tamaño de cuerpo.
 
-**MinIO en el stack.** `S3Service` no tenía `endpoint_url` configurable, así que
-el backend de objetos nunca se ejercitaba fuera de AWS y los documentos caían
-siempre al sistema de ficheros local. Con `AWS_S3_ENDPOINT_URL` el mismo código
-sirve contra MinIO en local y contra AWS en producción.
+**Un almacén S3 en el stack.** `S3Service` no tenía `endpoint_url` configurable,
+así que el backend de objetos nunca se ejercitaba fuera de AWS y los documentos
+caían siempre al sistema de ficheros local. Con `AWS_S3_ENDPOINT_URL` el mismo
+código sirve contra el almacén local y contra AWS (o cualquier S3 compatible) en
+producción.
+
+**El almacén es versitygw, no MinIO, y va bajo perfil (27-09-2026).** MinIO
+cerró su distribución pública en dos pasos: Docker Hub el 17-09 y quay.io el
+27-09, que contesta «Requires authentication» hasta para `:latest`. Con MinIO en
+el `up` por defecto, eso tumbaba el arranque entero, y `setup.sh`, al ver fallar
+el `up`, caía a SQLite sin decir por qué. Dos cambios:
+
+- **El servidor es versitygw** (Versity S3 Gateway, Apache-2.0, de `ghcr.io`), el
+  mismo que usan contecmind y contecweb. Con su backend `posix` cada objeto es un
+  fichero normal del volumen y cada bucket una carpeta: el bucket se crea con un
+  `mkdir` al arrancar y el servicio `minio-init` ya no existe.
+- **Va bajo los perfiles `s3` y `app`.** En desarrollo la app no lo usa, así que
+  no puede tumbar lo que sí se usa. Con `--profile app` arranca solo, porque ahí
+  la API y el worker guardan los documentos en él.
+
+Las variables siguen llamándose `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`,
+`MINIO_BUCKET` y `MINIO_PORT`, para no romper ningún `.env` existente. El puerto
+por defecto pasa de `127.0.0.1:9000` a **`127.0.0.1:9003`**: en esta máquina
+conviven los productos de la casa y contecweb publica el 9000 (contecmind, el
+9002). La consola web de MinIO (9001) desaparece: versitygw no tiene.
+
+**Pasar datos de un MinIO antiguo.** El volumen nuevo es `contecflow_s3_data`, y
+no se reutiliza `contecflow_minio_data`, porque MinIO guarda los objetos en su
+formato (`xl.meta` y partes), no como ficheros. versitygw montado encima no
+fallaría: serviría eso como si fueran objetos. Si un despliegue tiene documentos
+en MinIO, se copian de servidor a servidor mientras el antiguo sigue levantado
+(la imagen en caché de esa máquina aún arranca):
+
+```bash
+docker compose --profile s3 up -d s3
+aws() { docker run --rm --network host -v "$PWD/copia-s3:/copia" \
+  -e AWS_ACCESS_KEY_ID="$1" -e AWS_SECRET_ACCESS_KEY="$2" \
+  public.ecr.aws/aws-cli/aws-cli "${@:3}"; }
+# 1) del MinIO antiguo (9000) a un directorio del host
+aws <usuario-minio> <secreto-minio> s3 sync s3://contecflow-documents /copia \
+  --endpoint-url http://127.0.0.1:9000
+# 2) del directorio al almacén nuevo (9003)
+aws "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" s3 sync /copia s3://contecflow-documents \
+  --endpoint-url http://127.0.0.1:9003
+```
+
+La copia va por la API de S3, no por el volumen: es lo único que lee bien los
+dos formatos.
+
+**Tres fallos de cliente que MinIO tapaba.** MinIO era permisivo; versitygw, como
+AWS, no lo es. Al probar el camino completo (subir, firmar la URL y descargarla)
+salieron tres, arreglados y con prueba en `tests/test_s3_clientes_firman_en_v4.py`:
+
+1. **`S3Service` presignaba con la firma v2** (`AWSAccessKeyId=…&Signature=…`).
+   boto3 solo usa la v4 en las URLs firmadas si se le pide; como las peticiones
+   normales sí iban en v4, subir funcionaba y descargar daba un 400 («Please use
+   AWS4-HMAC-SHA256»). AWS también rechaza la v2 en regiones y buckets nuevos.
+2. **El almacén de colaboración** (`COLLAB_S3_*`), lo mismo, y además sin
+   direccionamiento por ruta, que es lo único que entiende un servidor de un solo
+   host.
+3. **eSign leía el documento con un `boto3.client("s3")` sin configurar**: sin
+   endpoint ni credenciales, preguntaba a AWS, fallaba y caía al disco, donde el
+   documento no estaba. Firmar un documento guardado en S3 fallaba siempre fuera
+   de AWS. Ahora usa el cliente de `S3Service`.
+
+Y una de servidor: **versitygw comprueba la región de la firma** («the region
+"eu-west-1" is wrong; expecting "us-east-1"»), como AWS. El compose le da la
+misma variable que usa la app, `AWS_REGION` (defecto `eu-west-1`), para que no
+puedan divergir.
+
+**Sin métricas del almacén en Prometheus.** El job `minio` rascaba
+`/minio/v2/metrics/cluster`. versitygw no expone métricas en ese formato, y un
+objetivo que no contesta nunca es una alarma que se aprende a ignorar, así que se
+quitó. La salud del almacén la vigila el healthcheck del compose (`/health`).
 
 ### nginx
 

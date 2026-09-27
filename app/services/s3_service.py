@@ -139,8 +139,17 @@ class S3Service:
         forzar_ruta = settings.AWS_S3_FORCE_PATH_STYLE
         if forzar_ruta is None:
             forzar_ruta = bool(endpoint)
-        if forzar_ruta:
-            kwargs["config"] = BotoConfig(s3={"addressing_style": "path"})
+
+        # Firma v4 SIEMPRE, también en las URLs firmadas. Sin pedirla, boto3
+        # presigna con la v2 heredada (`AWSAccessKeyId=…&Signature=…`) aunque las
+        # peticiones normales vayan en v4. MinIO la aceptaba y lo tapaba;
+        # versitygw la rechaza («Please use AWS4-HMAC-SHA256») y AWS también en
+        # las regiones y buckets nuevos. El síntoma era un 400 al descargar un
+        # documento que se había subido bien.
+        kwargs["config"] = BotoConfig(
+            signature_version="s3v4",
+            s3={"addressing_style": "path"} if forzar_ruta else {},
+        )
 
         return boto3.client("s3", **kwargs)
 

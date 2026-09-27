@@ -55,7 +55,7 @@ def test_ningun_puerto_se_publica_en_todas_las_interfaces(compose):
     """Con `"5432:5432"` Docker publica en 0.0.0.0.
 
     Este fichero se copia para levantar demos y preproducciones, y ahí eso
-    significa un Postgres, un Redis sin contraseña y un MinIO accesibles desde
+    significa un Postgres, un Redis sin contraseña y un almacén S3 accesibles desde
     toda la red con credenciales de desarrollo.
     """
     infractores = []
@@ -117,7 +117,7 @@ def test_los_datos_irremplazables_estan_en_volumenes_externos(compose):
     y se perdieron los metadatos y el índice de golpe.
     """
     volumenes = compose.get("volumes", {})
-    for nombre in ("postgres_data", "minio_data"):
+    for nombre in ("postgres_data", "s3_data"):
         assert nombre in volumenes, f"falta el volumen {nombre}"
         assert volumenes[nombre].get("external") is True, (
             f"{nombre} contiene datos irremplazables y debe ser external: true"
@@ -129,7 +129,7 @@ def test_setup_crea_los_volumenes_externos():
     "external volume not found" en una máquina nueva. setup.sh los crea."""
     setup = (REPO / "setup.sh").read_text(encoding="utf-8")
     assert "ensure_persistent_volumes" in setup
-    for v in ("contecflow_postgres_data", "contecflow_minio_data"):
+    for v in ("contecflow_postgres_data", "contecflow_s3_data"):
         assert v in setup, f"setup.sh no crea el volumen {v}"
 
 
@@ -146,6 +146,36 @@ def test_ninguna_imagen_usa_latest(compose):
         and "${" not in svc["image"]
     ]
     assert not infractores, "imágenes sin versión fijada:\n  " + "\n  ".join(infractores)
+
+
+def test_ninguna_imagen_sale_de_minio(compose):
+    """MinIO cerró Docker Hub el 17-09-2026 y quay.io el 27-09-2026.
+
+    No hay tag ni digest que se descargue: una línea copiada de un tutorial
+    devolvería el `up` a un «pull access denied» que parece falta de
+    credenciales y no lo es.
+    """
+    infractores = [
+        f"{n}: {svc['image']}"
+        for n, svc in compose["services"].items()
+        if "minio/" in str(svc.get("image", ""))
+    ]
+    assert not infractores, "imágenes de MinIO, que ya no se sirven:\n  " + "\n  ".join(infractores)
+
+
+def test_el_almacen_s3_no_arranca_con_el_up_por_defecto(compose):
+    """En desarrollo la app guarda en `uploads/` y no usa S3.
+
+    Cuando el almacén arrancaba sin perfil, que su imagen dejara de descargarse
+    tumbó el `up` entero, y `setup.sh` cayó a SQLite en silencio. Tiene que
+    arrancar con `--profile s3` y con `--profile app`, que es donde la app en
+    Docker sí lo usa.
+    """
+    perfiles = set(compose["services"]["s3"].get("profiles") or [])
+    assert {"s3", "app"} <= perfiles, (
+        f"el almacén S3 tiene perfiles {sorted(perfiles)}: sin perfil arranca "
+        "siempre, y sin `app` la API en Docker se queda sin él"
+    )
 
 
 # ── Lo que hacía imposible que funcionara ─────────────────────────────────────

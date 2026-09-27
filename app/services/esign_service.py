@@ -353,11 +353,14 @@ def _read_document_bytes(doc: Document, db: Optional[Session]) -> tuple[bytes, s
 
     # Try S3
     try:
-        import boto3
-        bucket = getattr(settings, "AWS_S3_BUCKET", None) or os.environ.get("AWS_S3_BUCKET")
-        if bucket and file_key:
-            s3 = boto3.client("s3")
-            obj = s3.get_object(Bucket=bucket, Key=file_key)
+        # Con el cliente ya configurado, y no con un `boto3.client("s3")` nuevo:
+        # ese no sabía nada de `AWS_S3_ENDPOINT_URL` ni de las credenciales del
+        # `.env`, así que con el almacén del stack preguntaba a AWS, fallaba y
+        # caía al disco, donde el documento no está. Firmar un documento
+        # guardado en S3 fallaba siempre fuera de AWS.
+        from app.services.s3_service import S3Service, file_storage
+        if isinstance(file_storage, S3Service) and file_storage.is_available() and file_key:
+            obj = file_storage.client.get_object(Bucket=file_storage.bucket, Key=file_key)
             return obj["Body"].read(), file_name, ext
     except Exception as exc:
         _log.debug("[eSign] S3 read failed, trying local: %s", exc)

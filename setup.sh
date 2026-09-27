@@ -495,7 +495,7 @@ PYEOF
 # protección sin fricción de arranque.
 CONTECFLOW_PERSISTENT_VOLUMES=(
   contecflow_postgres_data
-  contecflow_minio_data
+  contecflow_s3_data
 )
 ensure_persistent_volumes() {
   local creados=0 v
@@ -538,10 +538,10 @@ ensure_compose_required_env() {
         actual="contecflow_dev"
         env_upsert "$key" "$actual"
         warn "${key} faltaba con el volumen de Postgres ya creado; se aplicó el valor local histórico para no romper la autenticación"
-      elif [ "$key" = "MINIO_ROOT_PASSWORD" ] && docker volume inspect contecflow_minio_data >/dev/null 2>&1; then
+      elif [ "$key" = "MINIO_ROOT_PASSWORD" ] && docker volume inspect contecflow_s3_data >/dev/null 2>&1; then
         actual="contecflow_dev"
         env_upsert "$key" "$actual"
-        warn "${key} faltaba con el volumen de MinIO ya creado; se aplicó el valor local histórico"
+        warn "${key} faltaba con el volumen del almacén S3 ya creado; se aplicó el valor local histórico"
       else
         actual="$(generate_local_secret)"
         env_upsert "$key" "$actual"
@@ -579,7 +579,9 @@ setup_docker_infra() {
   ensure_compose_required_env
   ensure_persistent_volumes
 
-  log "Docker detectado. Levantando la infraestructura (Postgres + Redis + MinIO)..."
+  log "Docker detectado. Levantando la infraestructura (Postgres + Redis)..."
+  # El almacén S3 (versitygw) va bajo perfil: en desarrollo la app guarda en
+  # `uploads/` y no lo usa. Se levanta con `docker compose --profile s3 up -d`.
   if ! docker_compose_cmd up -d --remove-orphans; then
     warn "No se pudo levantar la infraestructura Docker — usando SQLite como fallback."
     revert_env_to_sqlite

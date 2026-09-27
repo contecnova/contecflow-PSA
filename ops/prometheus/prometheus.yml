@@ -41,15 +41,10 @@ scrape_configs:
         labels:
           component: cache
 
-  # ── MinIO ───────────────────────────────────────────────────────────────────
-  # Con MINIO_PROMETHEUS_AUTH_TYPE=public (el defecto local) no hace falta token.
-  # En producción, ponerlo a `jwt` y añadir aquí el bearer_token correspondiente.
-  - job_name: minio
-    metrics_path: /minio/v2/metrics/cluster
-    static_configs:
-      - targets: ["minio:9000"]
-        labels:
-          component: storage
+  # ── Almacén S3 ──────────────────────────────────────────────────────────────
+  # Aquí se rascaba MinIO. versitygw, que lo sustituye, no expone métricas en
+  # formato Prometheus, y un objetivo que no contesta nunca es una alarma que se
+  # aprende a ignorar. Su salud la vigila el healthcheck del compose.
 
   # ── Prometheus vigilándose a sí mismo ───────────────────────────────────────
   - job_name: prometheus
