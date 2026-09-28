@@ -10,15 +10,12 @@ side-effects (emisión SSE, persistencia AIAgentStep) en callbacks.
 """
 from __future__ import annotations
 
-import json
 from typing import Any, Callable, Optional
 
 
 def run_tool_use_loop(
     *,
-    call_claude: Callable[..., dict],
     execute_tool: Callable[[str, dict, Any, Any], dict],
-    extract_text: Callable[[dict], str],
     instruction: str,
     system: str,
     tools: list,
@@ -28,12 +25,23 @@ def run_tool_use_loop(
     api_key: str,
     max_tokens: int = 4096,
     max_steps: int = 20,
+    provider: str = "anthropic",
+    base_url: str = "",
+
     auto_approve: bool = False,
     write_action_tools: frozenset[str] | None = None,
     on_step_start: Optional[Callable[[int, str, dict], None]] = None,
     on_step_done: Optional[Callable[[dict], None]] = None,
 ) -> tuple[str, list[dict], int]:
-    """Run an Anthropic tool-use loop.
+    """El bucle de uso de herramientas, con CUALQUIER proveedor.
+
+    Auditoría 2026-09. Se llamaba «Anthropic tool-use loop» y lo era: recibía
+    `call_claude` y leía `stop_reason` y bloques `tool_use`, que son el dialecto
+    de un proveedor concreto. Ahora la traducción vive en
+    `app.services.ai_tools` y aquí sólo queda el bucle, idéntico para los tres.
+
+    Ya no recibe `call_claude` ni `extract_text`: los sustituye el adaptador,
+    que además es el único sitio que sabe de formatos.
 
     Returns ``(result_text, steps_executed, step_count)``.
 
@@ -43,32 +51,28 @@ def run_tool_use_loop(
     ``on_step_done(step_dict)`` recibe ``{step, tool, input, output}`` después
     de ejecutar — el caller persiste en DB o envía SSE.
     """
-    messages: list[dict] = [{"role": "user", "content": instruction}]
+    from app.services import ai_tools as _herr
+
+    messages: list[dict] = _herr.primer_mensaje(provider, instruction)
     steps_done: list[dict] = []
     step_num = 0
 
     while step_num < max_steps:
-        resp = call_claude(
-            messages, system=system, tools=tools,
-            model=model, max_tokens=max_tokens, api_key=api_key,
+        turn = _herr.pedir_turno(
+            proveedor=provider, api_key=api_key, modelo=model, base_url=base_url,
+            mensajes=messages, system=system, herramientas=tools,
+            max_tokens=max_tokens,
         )
-        stop_reason = resp.get("stop_reason")
-        content = resp.get("content", [])
-        messages.append({"role": "assistant", "content": content})
 
-        if stop_reason == "end_turn":
-            return extract_text(resp), steps_done, step_num
-
-        if stop_reason != "tool_use":
-            return extract_text(resp), steps_done, step_num
+        if not turn.quiere_herramientas:
+            # Ni `tool_use`, ni `tool_calls`, ni `functionCall`: el agente ha
+            # terminado y lo que haya dicho es el resultado.
+            return turn.texto, steps_done, step_num
 
         tool_results_content = []
-        for block in content:
-            if block.get("type") != "tool_use":
-                continue
-            tool_name = block["name"]
-            tool_input = block.get("input", {})
-            tool_use_id = block["id"]
+        for llamada in turn.llamadas:
+            tool_name = llamada.nombre
+            tool_input = llamada.argumentos
             step_num += 1
 
             if on_step_start is not None:
@@ -103,12 +107,8 @@ def run_tool_use_loop(
             if on_step_done is not None:
                 on_step_done(step_data)
 
-            tool_results_content.append({
-                "type": "tool_result",
-                "tool_use_id": tool_use_id,
-                "content": json.dumps(tool_result),
-            })
+            tool_results_content.append((llamada, tool_result))
 
-        messages.append({"role": "user", "content": tool_results_content})
+        messages.extend(_herr.mensajes_del_turno(provider, turn, tool_results_content))
 
     return f"Agente completó {step_num} pasos.", steps_done, step_num

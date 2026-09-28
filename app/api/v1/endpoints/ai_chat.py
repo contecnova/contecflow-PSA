@@ -44,8 +44,6 @@ _logger = logging.getLogger("v16_core")
 # ── Service-layer delegation ──────────────────────────────────────────────────
 from app.services.ai_client import (
     get_api_key as _api_key,
-    call_claude as _call_claude,
-    extract_text as _extract_text,
     check_prompt_injection as _check_prompt_injection,
 )
 from app.schemas.ai_chat import (
@@ -53,6 +51,8 @@ from app.schemas.ai_chat import (
 )
 from app.services.ai_chat.context_service import build_tenant_context as _build_tenant_context
 import app.services.ai_chat_service as _svc
+import app.services.ai_tools as _herr
+from app.core.encryption import decrypt_value
 
 
 def _log_action(db: Session, user_id: str, module: str, action_type: str,
@@ -609,7 +609,7 @@ def _emitir_modo_degradado(_db, instruccion: str, system: str, usuario):
     yield _evento_sse({"type": "done", "result": texto, "steps": []})
 
 
-def _resolver_una_herramienta(bloque, auto_approve: bool, _db, usuario):
+def _resolver_una_herramienta(llamada, auto_approve: bool, _db, usuario):
     """Ejecuta una llamada a herramienta, o la deja pendiente de aprobación.
 
     Item #55: las acciones de escritura necesitan confirmación humana. Sin
@@ -618,8 +618,8 @@ def _resolver_una_herramienta(bloque, auto_approve: bool, _db, usuario):
     """
     from app.services.ai_chat.tool_execution_service import WRITE_ACTION_TOOLS
 
-    nombre = bloque["name"]
-    entrada = bloque.get("input", {})
+    nombre = llamada.nombre
+    entrada = llamada.argumentos
     if nombre in WRITE_ACTION_TOOLS and not auto_approve:
         return {
             "status": "pending_approval",
@@ -633,7 +633,7 @@ def _resolver_una_herramienta(bloque, auto_approve: bool, _db, usuario):
     return _execute_tool(nombre, entrada, _db, usuario)
 
 
-def _emitir_pasos_de_herramientas(contenido, paso: int, auto_approve: bool, _db, usuario,
+def _emitir_pasos_de_herramientas(llamadas, paso: int, auto_approve: bool, _db, usuario,
                                   pasos_hechos: list):
     """Emite un evento por cada herramienta del turno y acumula sus resultados.
 
@@ -644,34 +644,35 @@ def _emitir_pasos_de_herramientas(contenido, paso: int, auto_approve: bool, _db,
     es lo único que el cliente ve mientras una llamada larga está en curso.
     """
     resultados = []
-    for bloque in contenido:
-        if bloque.get("type") != "tool_use":
-            continue
+    for llamada in llamadas:
         paso += 1
         yield _evento_sse({
             "type": "step",
             "step": paso,
-            "tool": bloque["name"],
-            "input": bloque.get("input", {}),
-            "thinking": f"Ejecutando {bloque['name']}…",
+            "tool": llamada.nombre,
+            "input": llamada.argumentos,
+            "thinking": f"Ejecutando {llamada.nombre}…",
         })
 
-        resultado = _resolver_una_herramienta(bloque, auto_approve, _db, usuario)
+        resultado = _resolver_una_herramienta(llamada, auto_approve, _db, usuario)
         pasos_hechos.append({
-            "step": paso, "tool": bloque["name"],
-            "input": bloque.get("input", {}), "output": resultado,
+            "step": paso, "tool": llamada.nombre,
+            "input": llamada.argumentos, "output": resultado,
         })
-        resultados.append({
-            "type": "tool_result",
-            "tool_use_id": bloque["id"],
-            "content": json.dumps(resultado),
-        })
+        # Se devuelve la pareja (llamada, resultado): quien sabe darle forma de
+        # mensaje es el adaptador, porque esa forma cambia con el proveedor.
+        resultados.append((llamada, resultado))
     return paso, resultados
 
 
 def _emitir_bucle_del_agente(_db, instruccion: str, system: str, auto_approve: bool,
-                             usuario, api_key, modelo):
+                             usuario, api_key, modelo, proveedor="anthropic", base_url=""):
     """El bucle del agente: pedir, ejecutar herramientas, repetir.
+
+    Funciona con **cualquier** proveedor que soporte herramientas. Lo que cambia
+    entre uno y otro —el esquema que se les ofrece, cómo piden una llamada y
+    cómo se les devuelve el resultado— vive en `app.services.ai_tools`, y aquí
+    sólo queda el bucle, que es idéntico para los tres.
 
     NOTA: el bucle está aquí y no en `app.services.ai_chat.agent_loop` porque
     necesita `yield` **a mitad de iteración** para emitir los eventos SSE en
@@ -679,31 +680,29 @@ def _emitir_bucle_del_agente(_db, instruccion: str, system: str, auto_approve: b
     streaming, y actúa como referencia canónica: cualquier cambio de semántica
     del bucle hay que replicarlo en los dos sitios.
     """
-    mensajes = [{"role": "user", "content": instruccion}]
+    mensajes = _herr.primer_mensaje(proveedor, instruccion)
     pasos_hechos: list = []
     paso = 0
     MAX_PASOS = 20
 
     while paso < MAX_PASOS:
-        resp = _call_claude(
-            mensajes, system=system, tools=AGENT_TOOLS,
-            model=modelo, max_tokens=4096, api_key=api_key,
+        turno = _herr.pedir_turno(
+            proveedor=proveedor, api_key=api_key, modelo=modelo, base_url=base_url,
+            mensajes=mensajes, system=system, herramientas=AGENT_TOOLS,
         )
-        contenido = resp.get("content", [])
-        mensajes.append({"role": "assistant", "content": contenido})
 
-        if resp.get("stop_reason") != "tool_use":
-            # `end_turn` y cualquier otro motivo acaban igual: el agente ya no
+        if not turno.quiere_herramientas:
+            # Ni `tool_use`, ni `tool_calls`, ni `functionCall`: el agente ya no
             # quiere más herramientas y lo que haya dicho es el resultado.
             yield _evento_sse({
-                "type": "done", "result": _extract_text(resp), "steps": pasos_hechos,
+                "type": "done", "result": turno.texto, "steps": pasos_hechos,
             })
             return
 
         paso, resultados = yield from _emitir_pasos_de_herramientas(
-            contenido, paso, auto_approve, _db, usuario, pasos_hechos,
+            turno.llamadas, paso, auto_approve, _db, usuario, pasos_hechos,
         )
-        mensajes.append({"role": "user", "content": resultados})
+        mensajes.extend(_herr.mensajes_del_turno(proveedor, turno, resultados))
 
     yield _evento_sse({
         "type": "done", "result": f"Agente completó {paso} pasos.", "steps": pasos_hechos,
@@ -711,7 +710,8 @@ def _emitir_bucle_del_agente(_db, instruccion: str, system: str, auto_approve: b
 
 
 def _emitir_eventos_de_agente(*, instruccion: str, auto_approve: bool, usuario, system: str,
-                              hay_herramientas: bool, api_key, modelo):
+                              hay_herramientas: bool, api_key, modelo,
+                              proveedor="anthropic", base_url=""):
     """El flujo SSE completo, con su sesión propia y su manejo de errores.
 
     Auditoría 2026-09 (hallazgo 18): esto vivía anidado dentro del endpoint, y
@@ -735,6 +735,7 @@ def _emitir_eventos_de_agente(*, instruccion: str, auto_approve: bool, usuario, 
             return
         yield from _emitir_bucle_del_agente(
             _db, instruccion, system, auto_approve, usuario, api_key, modelo,
+            proveedor=proveedor, base_url=base_url,
         )
     except ValueError as e:
         yield _evento_sse({"type": "error", "message": f"Error de datos: {str(e)[:300]}"})
@@ -783,18 +784,36 @@ def run_agent_stream(
         is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
         organization_id=getattr(current_user, "organization_id", None),
     )
-    has_anthropic_tools = bool(
-        _api_key() or (active_prov and active_prov.provider == "anthropic" and active_prov.api_key)
-    )
+    # ── Qué proveedor ejecuta el agente, y si puede ejecutar algo ────────────
+    #
+    # Auditoría 2026-09. Esto preguntaba por la MARCA —«¿es anthropic?»— y con
+    # cualquier otro proveedor el agente caía en modo degradado: analizaba la
+    # instrucción y no hacía nada. Ahora pregunta por la CAPACIDAD, que es lo
+    # que de verdad importa, y la traducción de dialectos vive en
+    # `app.services.ai_tools`.
+    #
+    # Ollama queda fuera a propósito: su soporte de herramientas depende del
+    # modelo que cada cual tenga instalado, así que prometerlo sería mentir.
+    agent_proveedor = (active_prov.provider if active_prov else "anthropic")
+    agent_base_url = (getattr(active_prov, "api_base_url", "") or "") if active_prov else ""
+    if not agent_base_url and agent_proveedor in _herr.FAMILIA_OPENAI:
+        agent_base_url = _herr.base_url_por_defecto(agent_proveedor)
+
+    # La clave viaja cifrada tanto si viene de la base como del entorno, y
+    # `decrypt_value` deja intacto lo que no lo esté. Antes se pasaba el valor
+    # TAL CUAL al cliente de Anthropic: con un proveedor guardado desde la
+    # interfaz, eso mandaba el cifrado `v2:…` como API key.
     agent_api_key = (
-        active_prov.api_key
-        if (active_prov and active_prov.provider == "anthropic" and active_prov.api_key)
+        decrypt_value(active_prov.api_key) if (active_prov and active_prov.api_key)
         else _api_key()
     )
+    has_anthropic_tools = bool(
+        _herr.soporta_herramientas(agent_proveedor)
+        and (agent_api_key or agent_proveedor == "ollama")
+    )
     agent_model = (
-        active_prov.default_model
-        if (active_prov and active_prov.provider == "anthropic" and active_prov.default_model)
-        else settings.CONTECFLOW_AI_MODEL
+        (active_prov.default_model if active_prov else None)
+        or settings.CONTECFLOW_AI_MODEL
     )
 
     SYSTEM = f"""Eres NexusAgent, el agente autónomo de Contecflow.
@@ -811,6 +830,8 @@ Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
             hay_herramientas=has_anthropic_tools,
             api_key=agent_api_key,
             modelo=agent_model,
+            proveedor=agent_proveedor,
+            base_url=agent_base_url,
         ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},

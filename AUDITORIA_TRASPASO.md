@@ -1785,7 +1785,8 @@ vez de fallar en silencio. Alguien ya había corregido el mismo desajuste en el
 portal de cliente, con un comentario que lo dice: «hardcoded a
 ANTHROPIC_API_KEY — engañoso si la empresa usa Gemini/OpenAI/Mistral».
 
-El hueco real era sólo el fichero de entorno.
+El hueco real era sólo el fichero de entorno — y el *tool-use* del agente,
+que se cierra en §3.septtrigies.
 
 ### El patrón, que ya existía en el proyecto
 
@@ -1834,6 +1835,87 @@ solo sitio que descifra, y no dos ramas que puedan divergir.
 16 tests cubren los ocho proveedores, el alias heredado, Ollama sin clave, el
 proveedor desconocido, la precedencia de la base sobre el entorno y que el
 objeto virtual no acabe en la sesión.
+
+---
+
+## 3.septtrigies El agente ejecutaba acciones sólo con Anthropic
+
+Era lo que quedaba de §3.sextrigies. Con `.env` ya agnóstico, el chat funcionaba
+con cualquier proveedor —usa el despachador unificado— pero **el agente no**:
+con Gemini u OpenAI caía en «modo degradado», analizaba la instrucción y no
+ejecutaba nada.
+
+El motivo estaba en el bucle: recibía `call_claude`, leía `stop_reason` y
+buscaba bloques `tool_use`. Eso no es «llamar a la IA», es hablar el dialecto de
+un proveedor concreto. La función se llamaba, con toda honestidad,
+`run_tool_use_loop` con el docstring «Run an Anthropic tool-use loop».
+
+### Tres dialectos, y sólo tres cosas cambian
+
+`app/services/ai_tools.py` traduce lo que cambia y **nada más**:
+
+| | herramientas | el modelo pide | se le responde |
+|---|---|---|---|
+| Anthropic | `{name, description, input_schema}` | bloque `tool_use` | `tool_result` con `tool_use_id` |
+| OpenAI y compatibles | `{type:"function", function:{…}}` | `message.tool_calls[]` | mensaje `role:"tool"` con `tool_call_id` |
+| Gemini | `function_declarations[]` | `parts[].functionCall` | `parts[].functionResponse` |
+
+El bucle queda idéntico para los tres, y las herramientas se siguen declarando
+**una sola vez** en `AGENT_TOOLS` con la forma de Anthropic, que es la que ya
+había. Los dos bucles —el SSE del endpoint y el centralizado del worker— pasan
+por el mismo traductor, así que no pueden divergir.
+
+### Las cuatro asimetrías que había que resolver
+
+No es un mapeo uno a uno, y cada diferencia obligó a una decisión:
+
+- **Gemini no da identificador de llamada**: empareja la respuesta por *nombre*.
+  Se fabrica uno estable para que el resto del bucle, que sí trabaja con
+  identificadores, no tenga que enterarse.
+- **OpenAI manda los argumentos como cadena JSON**, no como objeto. Y puede
+  mandarlos mal formados: eso degrada a un diccionario vacío en vez de tumbar el
+  agente entero.
+- **OpenAI necesita un mensaje por resultado**; Anthropic y Gemini los agrupan en
+  uno. Por eso el traductor devuelve una *lista* de mensajes y no uno.
+- **El validador de Gemini es más estricto**: un `{"type":"object",
+  "properties":{}}` —que Anthropic acepta— devuelve 400. Una herramienta sin
+  argumentos se declara omitiendo `parameters`.
+
+Y el mensaje del asistente se devuelve **con su forma original**, no
+reconstruido desde los campos normalizados: cada proveedor guarda ahí lo que
+necesita para hilar el turno siguiente.
+
+### Ollama queda fuera, y es una decisión
+
+Su API admite herramientas sólo en algunos modelos y sin garantía. Decir que las
+soporta sería prometer algo que depende del modelo que cada cual tenga
+instalado, así que `soporta_herramientas` devuelve `False` y el agente entra en
+modo degradado **avisando**. Prefiero un aviso a un agente que dice que va a
+ejecutar y falla según la instalación.
+
+### Un defecto que salió de paso: la clave iba cifrada al proveedor
+
+El bucle pasaba `active_prov.api_key` **tal cual** al cliente de Anthropic. Pero
+esa columna se guarda cifrada —`create_provider` hace `encrypt_value`— y sólo
+`call_provider` descifraba. Con un proveedor dado de alta desde la interfaz, el
+agente mandaba el literal `v2:…` como API key: un 401 garantizado.
+
+Estaba en los **dos** caminos, el endpoint y el worker, y no lo vio nadie
+porque en la práctica casi siempre se caía antes al `.env`, que sí está en
+claro. Ahora los dos llaman a `decrypt_value`, que deja intacto lo que no esté
+cifrado y sirve igual para los dos orígenes.
+
+### La pregunta que ahora se hace
+
+Antes: «¿el proveedor es `anthropic`?». Ahora: «¿este proveedor soporta
+herramientas?». Preguntar por la **capacidad** y no por la marca es lo que hace
+que añadir un proveedor nuevo sea una entrada en un conjunto y no una rama más.
+
+32 tests cubren la traducción en los tres sentidos, los argumentos rotos, el
+identificador fabricado de Gemini, el bucle completo ejecutando una herramienta
+con cada uno de los tres, y que el permiso humano para acciones de escritura se
+respete con todos — porque una protección que dependa del proveedor es la peor
+forma de perderla.
 
 ---
 
