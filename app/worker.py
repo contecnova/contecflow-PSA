@@ -729,8 +729,6 @@ def run_agent_task(
         log_action as _log_action,
     )
     from app.services.ai_client import (
-        call_claude as _call_claude,
-        extract_text as _extract_text,
         get_api_key as _api_key,
     )
 
@@ -766,11 +764,29 @@ def run_agent_task(
             # Auditoria 2026-08.
             from app.services.ai_provider_service import get_default_provider as _gdp
             from app.services.ai_provider_service import call_ai
+            from app.services import ai_tools as _herr
+            from app.core.encryption import decrypt_value
+
             active_prov = _gdp(db)
+            # Auditoria 2026-09: esto preguntaba por la MARCA —«es anthropic?»—
+            # y con cualquier otro proveedor el agente no ejecutaba nada. Ahora
+            # pregunta por la CAPACIDAD; la traduccion de dialectos vive en
+            # `app.services.ai_tools`.
+            agent_proveedor = (active_prov.provider if active_prov else "anthropic")
+            # La clave viaja cifrada venga de la base o del entorno, y
+            # `decrypt_value` deja intacto lo que no lo este. Antes se pasaba
+            # TAL CUAL: con un proveedor guardado desde la interfaz, eso mandaba
+            # el cifrado `v2:...` como API key.
+            agent_clave = (
+                decrypt_value(active_prov.api_key) if (active_prov and active_prov.api_key)
+                else _api_key()
+            )
+            agent_base_url = (getattr(active_prov, "api_base_url", "") or "") if active_prov else ""
+            if not agent_base_url and agent_proveedor in _herr.FAMILIA_OPENAI:
+                agent_base_url = _herr.base_url_por_defecto(agent_proveedor)
+
             has_anthropic_tools = bool(
-                _api_key() or (
-                    active_prov and active_prov.provider == "anthropic" and active_prov.api_key
-                )
+                _herr.soporta_herramientas(agent_proveedor) and agent_clave
             )
 
             if not has_anthropic_tools:
@@ -794,15 +810,10 @@ def run_agent_task(
                 db.commit()
                 return {"ok": True}
 
-            agent_api_key = (
-                active_prov.api_key
-                if (active_prov and active_prov.provider == "anthropic" and active_prov.api_key)
-                else _api_key()
-            )
+            agent_api_key = agent_clave
             agent_model = (
-                active_prov.default_model
-                if (active_prov and active_prov.provider == "anthropic" and active_prov.default_model)
-                else settings.CONTECFLOW_AI_MODEL
+                (active_prov.default_model if active_prov else None)
+                or settings.CONTECFLOW_AI_MODEL
             )
 
             # Loop centralizado (item #54). Antes este loop estaba duplicado
@@ -826,9 +837,7 @@ def run_agent_task(
                 db.flush()
 
             result_summary, _steps, step_num = run_tool_use_loop(
-                call_claude=_call_claude,
                 execute_tool=_execute_tool,
-                extract_text=_extract_text,
                 instruction=instruction,
                 system=SYSTEM,
                 tools=AGENT_TOOLS,
@@ -841,6 +850,8 @@ def run_agent_task(
                 auto_approve=bool(auto_approve),
                 write_action_tools=WRITE_ACTION_TOOLS,
                 on_step_done=_persist_step,
+                provider=agent_proveedor,
+                base_url=agent_base_url,
             )
 
             latency = int((time.time() - t0) * 1000)
