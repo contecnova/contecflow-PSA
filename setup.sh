@@ -340,9 +340,30 @@ docker_compose_cmd() {
   fi
 }
 
+# Enciende el daemon de Docker si está apagado (Docker Desktop, OrbStack, Colima, systemd) y espera a que responda.
+docker_daemon_arrancar() {
+  docker info >/dev/null 2>&1 && return 0
+  command -v docker >/dev/null 2>&1 || return 1
+  echo "  ! El daemon de Docker no responde; intentando arrancarlo..." >&2
+  case "$(uname -s)" in
+    Darwin)
+      if [[ -d /Applications/Docker.app || -d "$HOME/Applications/Docker.app" ]]; then open -ga Docker
+      elif [[ -d /Applications/OrbStack.app ]]; then open -ga OrbStack
+      elif command -v colima >/dev/null 2>&1; then colima start
+      fi ;;
+    Linux)
+      command -v systemctl >/dev/null 2>&1 && { systemctl start docker 2>/dev/null || sudo systemctl start docker; } ;;
+  esac
+  local esperado=0
+  while ! docker info >/dev/null 2>&1; do
+    (( esperado >= 180 )) && return 1
+    sleep 3; esperado=$((esperado + 3))
+  done
+}
+
 detect_docker() {
   # Returns 0 (true) if Docker daemon is running and compose is available.
-  check_command docker && docker info > /dev/null 2>&1 && \
+  check_command docker && docker_daemon_arrancar && \
     (docker compose version > /dev/null 2>&1 || check_command docker-compose)
 }
 
