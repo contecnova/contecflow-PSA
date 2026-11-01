@@ -110,12 +110,12 @@ def upgrade() -> None:
                     "is_active",
                     sa.Boolean(),
                     nullable=False,
-                    server_default=sa.text("1"),
+                    server_default=sa.true(),
                 )
             )
         # Backfill explícito (server_default ya cubre las filas nuevas, pero
         # nos aseguramos de que no haya nulls residuales de algún motor).
-        conn.execute(sa.text(f"UPDATE {table} SET is_active = 1 WHERE is_active IS NULL"))
+        conn.execute(sa.text(f"UPDATE {table} SET is_active = true WHERE is_active IS NULL"))
         # Index para búsquedas de "solo activos".
         try:
             op.create_index(
@@ -155,6 +155,11 @@ def upgrade() -> None:
         if not _table_exists(conn, table):
             continue
         if not _column_exists(conn, table, column):
+            continue
+        # En una base vacía alguna tabla aún no tiene organization_id (llega
+        # en 080/082). En PostgreSQL el fallo aborta la transacción entera y
+        # el try/except de abajo no lo evita.
+        if not _column_exists(conn, table, "organization_id"):
             continue
 
         # 1) Intentar dropear índice unique existente sobre la columna sola.

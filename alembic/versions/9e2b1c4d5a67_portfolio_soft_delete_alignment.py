@@ -20,8 +20,8 @@ def upgrade() -> None:
     op.add_column("portfolios", sa.Column("is_active", sa.Boolean(), nullable=True))
     op.add_column("portfolio_projects", sa.Column("is_active", sa.Boolean(), nullable=True))
 
-    op.execute("UPDATE portfolios SET is_active = 1 WHERE is_active IS NULL")
-    op.execute("UPDATE portfolio_projects SET is_active = 1 WHERE is_active IS NULL")
+    op.execute("UPDATE portfolios SET is_active = true WHERE is_active IS NULL")
+    op.execute("UPDATE portfolio_projects SET is_active = true WHERE is_active IS NULL")
 
 
 def downgrade() -> None:

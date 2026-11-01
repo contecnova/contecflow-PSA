@@ -1,5 +1,5 @@
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 from alembic import context
 import os, sys
 
@@ -29,6 +29,24 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def _widen_version_table(connection) -> None:
+    # Alembic crea alembic_version.version_num como VARCHAR(32) y aquí hay
+    # revisiones de hasta 45 caracteres ("075_user_organization_memberships").
+    # SQLite no aplica la longitud; PostgreSQL sí, y la cadena se paraba en la
+    # 075. Se crea o ensancha la tabla antes de que Alembic la use.
+    if connection.dialect.name == "sqlite":
+        return
+    connection.execute(text(
+        "CREATE TABLE IF NOT EXISTS alembic_version ("
+        "version_num VARCHAR(255) NOT NULL, "
+        "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))"
+    ))
+    connection.execute(text(
+        "ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255)"
+    ))
+    connection.commit()
+
+
 def run_migrations_online() -> None:
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
@@ -36,6 +54,7 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
+        _widen_version_table(connection)
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()

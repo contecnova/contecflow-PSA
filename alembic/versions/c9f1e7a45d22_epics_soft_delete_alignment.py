@@ -26,13 +26,13 @@ def upgrade() -> None:
     op.add_column("saved_filters", sa.Column("is_active", sa.Boolean(), nullable=True))
     op.add_column("threaded_comments", sa.Column("is_active", sa.Boolean(), nullable=True))
 
-    op.execute("UPDATE wiki_spaces SET is_active = 1 WHERE is_active IS NULL")
-    op.execute("UPDATE wiki_pages SET is_active = 1 WHERE is_active IS NULL")
-    op.execute("UPDATE epics SET is_active = 1 WHERE is_active IS NULL")
-    op.execute("UPDATE epic_tasks SET is_active = 1 WHERE is_active IS NULL")
-    op.execute("UPDATE epic_dependencies SET is_active = 1 WHERE is_active IS NULL")
-    op.execute("UPDATE saved_filters SET is_active = 1 WHERE is_active IS NULL")
-    op.execute("UPDATE threaded_comments SET is_active = 1 WHERE is_active IS NULL")
+    op.execute("UPDATE wiki_spaces SET is_active = true WHERE is_active IS NULL")
+    op.execute("UPDATE wiki_pages SET is_active = true WHERE is_active IS NULL")
+    op.execute("UPDATE epics SET is_active = true WHERE is_active IS NULL")
+    op.execute("UPDATE epic_tasks SET is_active = true WHERE is_active IS NULL")
+    op.execute("UPDATE epic_dependencies SET is_active = true WHERE is_active IS NULL")
+    op.execute("UPDATE saved_filters SET is_active = true WHERE is_active IS NULL")
+    op.execute("UPDATE threaded_comments SET is_active = true WHERE is_active IS NULL")
 
 
 def downgrade() -> None:

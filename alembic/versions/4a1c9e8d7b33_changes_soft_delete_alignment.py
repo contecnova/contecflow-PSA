@@ -18,7 +18,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column("change_requests", sa.Column("is_active", sa.Boolean(), nullable=True))
-    op.execute("UPDATE change_requests SET is_active = 1 WHERE is_active IS NULL")
+    op.execute("UPDATE change_requests SET is_active = true WHERE is_active IS NULL")
 
 
 def downgrade() -> None:

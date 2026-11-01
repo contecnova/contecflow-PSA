@@ -69,12 +69,18 @@ def _alter(table: str, column: str, scale: int) -> None:
 
 
 def upgrade() -> None:
-    if op.get_bind().dialect.name != "postgresql":
+    bind = op.get_bind()
+    if bind.dialect.name != "postgresql":
         return  # SQLite/others: schema comes from models; nothing to alter
+    # En una base vacía algunas tablas (expenses, revenue_recognition_*…) aún
+    # no existen: las crea la 089 desde los modelos, ya con NUMERIC.
+    existing = set(sa.inspect(bind).get_table_names())
     for t, c in _AMOUNTS:
-        _alter(t, c, 2)
+        if t in existing:
+            _alter(t, c, 2)
     for t, c in _RATES:
-        _alter(t, c, 6)
+        if t in existing:
+            _alter(t, c, 6)
 
 
 def downgrade() -> None:

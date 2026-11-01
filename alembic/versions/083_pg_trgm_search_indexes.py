@@ -58,11 +58,11 @@ def upgrade() -> None:
 
     op.execute(
         "CREATE INDEX IF NOT EXISTS idx_tickets_title_trgm "
-        "ON tickets USING gin (title gin_trgm_ops)"
+        "ON sd_tickets USING gin (title gin_trgm_ops)"
     )
     op.execute(
         "CREATE INDEX IF NOT EXISTS idx_tickets_number_trgm "
-        "ON tickets USING gin (number gin_trgm_ops)"
+        "ON sd_tickets USING gin (number gin_trgm_ops)"
     )
 
 

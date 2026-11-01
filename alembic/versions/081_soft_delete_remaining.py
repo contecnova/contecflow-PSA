@@ -67,12 +67,12 @@ def upgrade() -> None:
                     "is_active",
                     sa.Boolean(),
                     nullable=False,
-                    server_default=sa.text("1"),
+                    server_default=sa.true(),
                 )
             )
         # Backfill — server_default cubre filas nuevas; nos aseguramos de que
         # no queden nulls residuales según el motor de BD.
-        conn.execute(sa.text(f"UPDATE {table} SET is_active = 1 WHERE is_active IS NULL"))
+        conn.execute(sa.text(f"UPDATE {table} SET is_active = true WHERE is_active IS NULL"))
         # Index para queries "solo activos".
         try:
             op.create_index(

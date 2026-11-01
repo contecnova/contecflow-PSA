@@ -16,47 +16,58 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+_UNIQUE_COLUMNS = (
+    ('custom_project_types', 'value'),
+    ('custom_project_statuses', 'value'),
+    ('custom_task_statuses', 'value'),
+    ('departments', 'name'),
+)
+
+
+def _drop_simple_unique(table: str, column: str) -> None:
+    # En SQLite la restricción es un autoindex que no se puede borrar; el
+    # try/except lo tolera porque allí un fallo no tumba la transacción. En
+    # PostgreSQL sí la tumba, así que se busca por inspección y se borra sólo
+    # si existe.
+    bind = op.get_bind()
+    if bind.dialect.name == 'sqlite':
+        try:
+            op.drop_constraint(f'sqlite_autoindex_{table}_1', table, type_='unique')
+        except Exception:
+            pass
+        return
+    for uc in sa.inspect(bind).get_unique_constraints(table):
+        if uc['column_names'] == [column]:
+            op.drop_constraint(uc['name'], table, type_='unique')
+
+
 def upgrade() -> None:
     # Drop old simple UNIQUE constraints on the main columns
     # (These will prevent creating new records with same name/value when old ones are soft-deleted)
-    try:
-        op.drop_constraint('sqlite_autoindex_custom_project_types_1', 'custom_project_types', type_='unique')
-    except Exception:
-        pass
-    try:
-        op.drop_constraint('sqlite_autoindex_custom_project_statuses_1', 'custom_project_statuses', type_='unique')
-    except Exception:
-        pass
-    try:
-        op.drop_constraint('sqlite_autoindex_custom_task_statuses_1', 'custom_task_statuses', type_='unique')
-    except Exception:
-        pass
-    try:
-        op.drop_constraint('sqlite_autoindex_departments_1', 'departments', type_='unique')
-    except Exception:
-        pass
-    
-    # Create new PARTIAL UNIQUE indices for soft-delete entities
-    # Using literal SQL for SQLite WHERE clause
+    for table, column in _UNIQUE_COLUMNS:
+        _drop_simple_unique(table, column)
+
+    # Create new PARTIAL UNIQUE indices for soft-delete entities.
+    # `= true` vale en SQLite y en PostgreSQL; `= 1` sólo en SQLite.
     op.execute("""
         CREATE UNIQUE INDEX IF NOT EXISTS uq_project_status_value_active 
         ON custom_project_statuses(value, is_active) 
-        WHERE is_active = 1
+        WHERE is_active = true
     """)
     op.execute("""
         CREATE UNIQUE INDEX IF NOT EXISTS uq_project_type_value_active 
         ON custom_project_types(value, is_active) 
-        WHERE is_active = 1
+        WHERE is_active = true
     """)
     op.execute("""
         CREATE UNIQUE INDEX IF NOT EXISTS uq_task_status_value_active 
         ON custom_task_statuses(value, is_active) 
-        WHERE is_active = 1
+        WHERE is_active = true
     """)
     op.execute("""
         CREATE UNIQUE INDEX IF NOT EXISTS uq_department_name_active 
         ON departments(name, is_active) 
-        WHERE is_active = 1
+        WHERE is_active = true
     """)
 
 
