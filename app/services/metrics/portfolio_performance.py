@@ -26,7 +26,7 @@ def metric_portfolio_budget_usage(
         from app.models.portfolio import Portfolio
 
         portfolios = db.query(Portfolio).filter(
-            Portfolio.status.notin_(["closed", "cancelled"])
+            Portfolio.status != "archived"
         ).limit(top_n).all()
 
         rows = []
@@ -66,7 +66,7 @@ def metric_performance_scores_by_person(
             PerformanceReview.reviewee_id,
             func.max(PerformanceReview.submitted_at).label("latest"),
         ).filter(
-            PerformanceReview.status == "completed",
+            PerformanceReview.status.in_(["submitted", "approved"]),
             PerformanceReview.submitted_at >= d_from,
             PerformanceReview.submitted_at <= d_to,
         ).group_by(PerformanceReview.reviewee_id).subquery()
@@ -124,7 +124,7 @@ def metric_performance_cycle_completion_rate(
             PerformanceReview.cycle_id, func.count(PerformanceReview.id)
         ).filter(
             PerformanceReview.cycle_id.in_(cycle_ids),
-            PerformanceReview.status == "completed",
+            PerformanceReview.status.in_(["submitted", "approved"]),
         ).group_by(PerformanceReview.cycle_id).all()}
 
         rows = []

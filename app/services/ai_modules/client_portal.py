@@ -274,7 +274,7 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
         q = q.join(Project, Task.project_id == Project.id).filter(
             Project.organization_id == user_org
         )
-    unscheduled = q.filter(Task.status.notin_(["done", "cancelled", "closed"])).limit(payload.max_tasks).all()
+    unscheduled = q.filter(Task.status.notin_(["done", "cancelled"])).limit(payload.max_tasks).all()
 
     if not unscheduled:
         return {"scheduled": [], "message": "No unscheduled tasks found"}

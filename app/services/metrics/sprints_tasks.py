@@ -28,7 +28,7 @@ def metric_sprint_velocity_trend(
         from app.models.sprints import Sprint
 
         q = db.query(Sprint).filter(
-            Sprint.status == "closed",
+            Sprint.status == "completed",
             Sprint.closed_at >= d_from,
             Sprint.closed_at <= d_to,
         )
@@ -67,7 +67,7 @@ def metric_sprint_completion_rate(
         from app.models.sprints import Sprint
 
         q = db.query(Sprint).filter(
-            Sprint.status == "closed",
+            Sprint.status == "completed",
             Sprint.closed_at >= d_from,
             Sprint.closed_at <= d_to,
         )
@@ -172,7 +172,7 @@ def metric_tasks_overdue_by_assignee(
         today = timeutil.today()
         q = db.query(Task.assignee_id, func.count(Task.id).label("cnt")).filter(
             Task.due_date < today,
-            Task.status.notin_(["done", "closed", "cancelled"]),
+            Task.status.notin_(["done", "cancelled"]),
         )
         if project_id:
             q = q.filter(Task.project_id == project_id)
@@ -213,7 +213,7 @@ def metric_task_completion_trend(
         q = db.query(Task.completed_at).filter(
             Task.completed_at >= d_from,
             Task.completed_at <= d_to,
-            Task.status.in_(["done", "closed"]),
+            Task.status == "done",
         )
         if project_id:
             q = q.filter(Task.project_id == project_id)
@@ -243,7 +243,7 @@ def metric_tasks_by_assignee(
         from app.models.user import User
 
         q = db.query(Task.assignee_id, func.count(Task.id).label("cnt")).filter(
-            Task.status.notin_(["done", "closed", "cancelled"]),
+            Task.status.notin_(["done", "cancelled"]),
         )
         if project_id:
             q = q.filter(Task.project_id == project_id)

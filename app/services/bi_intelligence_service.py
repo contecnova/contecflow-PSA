@@ -721,7 +721,7 @@ def _rasgos_del_proyecto(db: Session, proyecto, hoy) -> tuple[list, dict]:
 
     abiertas = db.query(Task).filter(
         Task.project_id == proyecto.id,
-        Task.status.notin_(["done", "closed", "completed"]),
+        Task.status.notin_(["done"]),
     ).count()
 
     presupuesto = float(proyecto.budget_amount or 0)

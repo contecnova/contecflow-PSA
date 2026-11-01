@@ -310,7 +310,7 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
         Project, user_org,
     ).all()
     open_tickets = _scope_query_by_org(
-        db.query(Ticket).filter(Ticket.status.in_(["open", "in_progress"])),
+        db.query(Ticket).filter(Ticket.status.in_(["new", "assigned", "in_progress"])),
         Ticket, user_org,
     ).all()
     active_users = _scope_query_by_org(

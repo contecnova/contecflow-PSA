@@ -241,6 +241,18 @@ def get_kpi_summary(org_id: Optional[str] = None) -> dict:
         conn.close()
 
 
+def _round(expr, digits: int):
+    """ROUND con decimales que vale en PostgreSQL y en SQLite.
+
+    PostgreSQL sólo tiene round(x, n) para NUMERIC: sobre una suma de columnas
+    Float falla con "function round(double precision, integer) does not exist"
+    y el respaldo devolvía vacío. Se redondea en NUMERIC y se vuelve a Float
+    para que quien opera con el resultado no reciba un Decimal.
+    """
+    from sqlalchemy import Float, Numeric, cast, func
+    return cast(func.round(cast(expr, Numeric), digits), Float)
+
+
 # ── PostgreSQL fallbacks ──────────────────────────────────────────────────────
 
 def _pg_margin_evolution(org_id: Optional[str], months: int) -> list[dict]:
@@ -335,7 +347,7 @@ def _pg_utilization_by_user(org_id: Optional[str]) -> list[dict]:
                     func.concat(User.first_name, " ", User.last_name).label("full_name"),
                     User.department.label("department"),
                     User.weekly_capacity_hours.label("weekly_capacity"),
-                    func.round(func.sum(Imputation.hours), 1).label("logged_hours"),
+                    _round(func.sum(Imputation.hours), 1).label("logged_hours"),
                 )
                 .join(Imputation, Imputation.user_id == User.id)
                 .filter(
@@ -396,8 +408,8 @@ def _pg_pipeline_funnel(org_id: Optional[str]) -> list[dict]:
                 db.query(
                     Opportunity.stage.label("stage"),
                     func.count(Opportunity.id).label("count"),
-                    func.round(func.sum(Opportunity.expected_revenue), 0).label("total_revenue"),
-                    func.round(
+                    _round(func.sum(Opportunity.expected_revenue), 0).label("total_revenue"),
+                    _round(
                         func.sum(
                             Opportunity.expected_revenue
                             * func.coalesce(Opportunity.probability, 0.0)
@@ -405,7 +417,7 @@ def _pg_pipeline_funnel(org_id: Optional[str]) -> list[dict]:
                         ),
                         0,
                     ).label("weighted_revenue"),
-                    func.round(func.avg(Opportunity.probability), 1).label("avg_probability"),
+                    _round(func.avg(Opportunity.probability), 1).label("avg_probability"),
                 )
                 .filter(*filters)
                 .group_by(Opportunity.stage)
@@ -552,12 +564,12 @@ def _pg_kpi_summary(org_id: Optional[str]) -> dict:
             open_opps = db.query(func.count(Opportunity.id)).filter(*opp_filters).scalar() or 0
 
             weighted_expr = Opportunity.expected_revenue * (func.coalesce(Opportunity.probability, 0.0) / 100.0)
-            pipeline_weighted = db.query(func.round(func.sum(weighted_expr), 0)).filter(*opp_filters).scalar() or 0
+            pipeline_weighted = db.query(_round(func.sum(weighted_expr), 0)).filter(*opp_filters).scalar() or 0
 
             won_filters = [Opportunity.stage == "won"]
             if org_id:
                 won_filters.append(Opportunity.organization_id == org_id)
-            won_revenue = db.query(func.round(func.sum(Opportunity.expected_revenue), 0)).filter(*won_filters).scalar() or 0
+            won_revenue = db.query(_round(func.sum(Opportunity.expected_revenue), 0)).filter(*won_filters).scalar() or 0
 
             today = timeutil.today()
             month_start = today.replace(day=1)
@@ -568,10 +580,10 @@ def _pg_kpi_summary(org_id: Optional[str]) -> dict:
                 imp_filters.append(false())
 
             imp_row = db.query(
-                func.round(func.sum(Imputation.hours), 1).label("hours_mtd"),
-                func.round(func.sum(Imputation.cost_amount), 0).label("cost_mtd"),
+                _round(func.sum(Imputation.hours), 1).label("hours_mtd"),
+                _round(func.sum(Imputation.cost_amount), 0).label("cost_mtd"),
                 func.count(func.distinct(Imputation.project_id)).label("active_projects_mtd"),
-                func.round(
+                _round(
                     func.sum(
                         case(
                             (Imputation.is_billable.is_(True), Imputation.hours),

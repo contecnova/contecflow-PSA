@@ -739,7 +739,7 @@ def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, cu
 
 
 def get_pipeline_revenue_forecast(db) -> dict:
-    opps = db.query(Opportunity).filter(Opportunity.stage.notin_(["closed_won", "closed_lost"])).all()
+    opps = db.query(Opportunity).filter(Opportunity.stage.notin_(["won", "lost", "cancelled"])).all()
     by_month: dict = {}
     total_weighted = 0
     total_pipeline = 0
@@ -782,7 +782,7 @@ def get_ticket_aging_report(db) -> dict:
         mini = {
             "id": t.id, "number": t.number, "title": t.title[:50],
             "priority": t.priority, "status": t.status,
-            "assignee": t.assignee.full_name if t.assignee else "Sin asignar",
+            "assignee": t.assigned_to.full_name if t.assigned_to else "Sin asignar",
             "age_hours": round(age_hours, 1),
             "age_label": f"{int(age_hours)}h" if age_hours < 48 else f"{int(age_hours/24)}d",
             "sla_due": str(t.sla_resolution_due)[:16] if t.sla_resolution_due else None,
@@ -824,7 +824,7 @@ def get_wallboard_data(db) -> dict:
     by_agent: dict = {}
     for t in tickets_open:
         if t.assigned_to_user_id:
-            name = t.assignee.full_name if t.assignee else t.assigned_to_user_id
+            name = t.assigned_to.full_name if t.assigned_to else t.assigned_to_user_id
             by_agent[name] = by_agent.get(name, 0) + 1
     return {
         "timestamp": now.isoformat(),

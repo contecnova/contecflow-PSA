@@ -323,7 +323,7 @@ def _risk_resource(db: Session, project: Project) -> float:
     """Compute resource risk (open high-priority risks)."""
     high_risks = db.query(func.count(Risk.id)).filter(
         Risk.project_id == project.id,
-        Risk.status == "open",
+        Risk.status.in_(["identified", "analyzing", "mitigating", "monitoring"]),
         Risk.probability.in_(["high", "very_high"]),
     ).scalar() if hasattr(Risk, 'project_id') else 0
     return min((high_risks or 0) * 25, 100)

@@ -850,13 +850,16 @@ def get_saml_health(db: Session):
         cert = (c.saml_certificate or "").strip()
         if cert and "BEGIN CERTIFICATE" not in cert:
             issues.append("certificate_not_pem")
-        if c.allowed_domains:
-            for domain in (c.allowed_domains or []):
-                if not isinstance(domain, str) or "." not in domain:
-                    issues.append(f"invalid_domain:{domain}")
+        # allowed_domains es texto separado por comas: recorrerlo tal cual
+        # iteraba letra a letra y daba cada una por dominio inválido.
+        for domain in (c.allowed_domains or "").split(","):
+            domain = domain.strip()
+            if domain and "." not in domain:
+                issues.append(f"invalid_domain:{domain}")
         out.append({
             "id":        c.id,
-            "name":      c.name,
+            # SSOConfig no tiene nombre; lo que la identifica es el proveedor.
+            "name":      getattr(c.provider, "value", c.provider),
             "is_active": c.is_active,
             "issues":    issues,
             "status":    "ok" if not issues else "warning",

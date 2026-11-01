@@ -233,7 +233,7 @@ def audit_change_management(db: Session, days: int = 30) -> dict:
         db.query(ITSMChangeRequest)
         .filter(
             ITSMChangeRequest.created_at >= since,
-            ITSMChangeRequest.status.in_(["implemented", "closed", "failed"]),
+            ITSMChangeRequest.status.in_(["implemented", "closed_success", "closed_failed"]),
         )
         .all()
     )
@@ -691,7 +691,7 @@ def get_executive_dashboard(db: Session, days: int = 30) -> dict:
 
     pending_changes = (
         db.query(func.count(ITSMChangeRequest.id))
-        .filter(ITSMChangeRequest.status.in_(["submitted", "reviewing", "approved"]))
+        .filter(ITSMChangeRequest.status.in_(["submitted", "cab_review", "approved"]))
         .scalar() or 0
     )
 

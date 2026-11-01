@@ -469,7 +469,7 @@ def run_autonomous_scan(db: Session) -> dict:
     open_tickets = (
         db.query(Ticket)
         .filter(
-            Ticket.status.in_(["new", "open"]),
+            Ticket.status.in_(["new", "assigned"]),
         )
         .limit(100)  # process in batches to avoid long lock times
         .all()

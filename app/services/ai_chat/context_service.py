@@ -152,7 +152,7 @@ def _seccion_proyectos(ctx: _Alcance):
 def _seccion_tickets(ctx: _Alcance):
     """Tickets abiertos, con su responsable resuelto."""
     can_see_org_wide, db, org_id, user = ctx.can_see_org_wide, ctx.db, ctx.org_id, ctx.user
-    q_ticket = db.query(Ticket).filter(Ticket.status.in_(["open", "in_progress"]))
+    q_ticket = db.query(Ticket).filter(Ticket.status.in_(["new", "assigned", "in_progress"]))
     q_ticket = _filter_by_org(q_ticket, Ticket, org_id)
     if user and not can_see_org_wide:
         q_ticket = q_ticket.filter(Ticket.assigned_to_user_id == user.id)
@@ -537,7 +537,7 @@ def _seccion_cambios(ctx: _Alcance, scope_project_ids):
         q_changes = q_changes.filter(ChangeRequest.project_id.in_(scope_project_ids))
     else:
         q_changes = q_changes.filter(ChangeRequest.project_id == "__none__")
-    changes_active = q_changes.filter(ChangeRequest.status.notin_(["implemented", "cancelled"])).order_by(
+    changes_active = q_changes.filter(ChangeRequest.status.notin_(["implemented", "rejected"])).order_by(
         ChangeRequest.created_at.desc()
     ).limit(30).all()
     return changes_active
