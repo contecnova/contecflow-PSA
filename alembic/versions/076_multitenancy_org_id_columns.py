@@ -177,7 +177,7 @@ def upgrade():
         if not result:
             conn.execute(
                 sa.text("INSERT INTO organizations (id, name, slug, plan, is_active) "
-                        "VALUES (:id, :name, :slug, :plan, 1)"),
+                        "VALUES (:id, :name, :slug, :plan, true)"),
                 {"id": default_org_id, "name": "Default Organization", "slug": "default", "plan": "starter"},
             )
     except Exception:

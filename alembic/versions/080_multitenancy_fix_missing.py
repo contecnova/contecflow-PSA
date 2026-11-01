@@ -75,7 +75,7 @@ def upgrade() -> None:
             conn.execute(
                 sa.text(
                     "INSERT INTO organizations (id, name, slug, plan, is_active) "
-                    "VALUES (:id, :name, :slug, :plan, 1)"
+                    "VALUES (:id, :name, :slug, :plan, true)"
                 ),
                 {
                     "id": DEFAULT_ORG_ID,

@@ -100,38 +100,39 @@ def upgrade() -> None:
     existing_tables = set(insp.get_table_names())
 
     # En Postgres usamos CONCURRENTLY para no bloquear writers en producción.
-    # CONCURRENTLY no funciona dentro de la transacción que Alembic abre, así
-    # que terminamos la transacción de la migración antes de cada CREATE.
-    if is_postgres:
-        op.execute("COMMIT")
-
-    for table, column in INDEXES:
-        if table not in existing_tables:
-            continue
-        existing_idx = {ix["name"] for ix in insp.get_indexes(table)}
-        idx_name = _index_name(table, column)
-        if idx_name in existing_idx:
-            continue
-        if is_postgres:
-            op.execute(
-                f'CREATE INDEX CONCURRENTLY IF NOT EXISTS '
-                f'"{idx_name}" ON "{table}" ("{column}")'
-            )
-        else:
-            # SQLite: CONCURRENTLY no soportado; IF NOT EXISTS sí.
-            op.execute(
-                f'CREATE INDEX IF NOT EXISTS "{idx_name}" ON "{table}" ("{column}")'
-            )
+    # CONCURRENTLY no funciona dentro de una transacción. Antes se lanzaba un
+    # COMMIT a pelo: el resto de la cadena corría sin transacción, un fallo
+    # dejaba la base guardada a medias (en la 074) y los errores que tragaba
+    # un try/except no abortaban nada, así que una pasada de principio a fin
+    # los escondía. autocommit_block() cierra la transacción, ejecuta fuera de
+    # ella y abre una nueva al salir.
+    with op.get_context().autocommit_block():
+        for table, column in INDEXES:
+            if table not in existing_tables:
+                continue
+            existing_idx = {ix["name"] for ix in insp.get_indexes(table)}
+            idx_name = _index_name(table, column)
+            if idx_name in existing_idx:
+                continue
+            if is_postgres:
+                op.execute(
+                    f'CREATE INDEX CONCURRENTLY IF NOT EXISTS '
+                    f'"{idx_name}" ON "{table}" ("{column}")'
+                )
+            else:
+                # SQLite: CONCURRENTLY no soportado; IF NOT EXISTS sí.
+                op.execute(
+                    f'CREATE INDEX IF NOT EXISTS "{idx_name}" ON "{table}" ("{column}")'
+                )
 
 
 def downgrade() -> None:
     bind = op.get_bind()
     is_postgres = bind.dialect.name == "postgresql"
-    if is_postgres:
-        op.execute("COMMIT")
-    for table, column in INDEXES:
-        idx_name = _index_name(table, column)
-        if is_postgres:
-            op.execute(f'DROP INDEX CONCURRENTLY IF EXISTS "{idx_name}"')
-        else:
-            op.execute(f'DROP INDEX IF EXISTS "{idx_name}"')
+    with op.get_context().autocommit_block():
+        for table, column in INDEXES:
+            idx_name = _index_name(table, column)
+            if is_postgres:
+                op.execute(f'DROP INDEX CONCURRENTLY IF EXISTS "{idx_name}"')
+            else:
+                op.execute(f'DROP INDEX IF EXISTS "{idx_name}"')
