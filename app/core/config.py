@@ -7,6 +7,7 @@ from app.core.config_groups import (
     SLASettingsMixin,
     HealthSettingsMixin,
     SemanticSettingsMixin,
+    ServiceDeskSettingsMixin,
 )
 
 
@@ -15,6 +16,7 @@ class Settings(
     SLASettingsMixin,
     HealthSettingsMixin,
     SemanticSettingsMixin,
+    ServiceDeskSettingsMixin,
     BaseSettings,
 ):
     """

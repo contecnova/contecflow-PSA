@@ -78,6 +78,8 @@ class SLAPolicy(Base):
     business_hours_only = Column(Boolean, default=True)
     business_start = Column(Integer, default=9)
     business_end = Column(Integer, default=18)
-    business_days = Column(String(20), default="1,2,3,4,5")
+    business_days = Column(String(20), default="1,2,3,4,5")  # ISO: 1 = lunes ... 7 = domingo
+    # Zona IANA de la jornada; NULL usa DEFAULT_TIMEZONE de la organización.
+    timezone = Column(String(64), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

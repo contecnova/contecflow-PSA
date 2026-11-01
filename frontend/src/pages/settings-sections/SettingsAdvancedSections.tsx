@@ -840,7 +840,8 @@ export function SystemStateSection() {
 // input per row and PUT back to /settings/runtime/{group}/{key}.
 
 const RUNTIME_GROUPS = [
-  { id: 'sla',             label: 'SLA',                description: 'Tiempos de respuesta y resolución por prioridad.' },
+  { id: 'sla',             label: 'SLA',                description: 'Tiempos por prioridad, jornada sin política y umbral de riesgo.' },
+  { id: 'service_desk',    label: 'Service Desk',       description: 'A quién se avisa de cada cambio de ticket y cómo se entrega.' },
   { id: 'health',          label: 'Health scoring',     description: 'Pesos y umbrales del scoring de salud de cliente y proyecto.' },
   { id: 'semantic',        label: 'Semantic',           description: 'Umbrales del clasificador semántico y motor de asignación.' },
   { id: 'password_policy', label: 'Política contraseñas', description: 'Reglas de validación y políticas de bloqueo.' },

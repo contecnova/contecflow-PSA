@@ -7,9 +7,12 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from datetime import time as dt_time
+from datetime import tzinfo
 from typing import TYPE_CHECKING, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import cast, func, Integer
 from sqlalchemy.orm import Session
@@ -134,22 +137,29 @@ def advisory_lock_key(name: str) -> int:
     return int(hashlib.md5(name.encode(), usedforsecurity=False).hexdigest()[:15], 16) % (2 ** 63)
 
 
-def _es_laborable(d: date, holidays: set) -> bool:
-    """Lunes a viernes que no sea festivo. Sábado es 5 y domingo 6."""
-    return d.weekday() < 5 and d not in holidays
+#: Lunes a viernes, en numeración ISO (1 = lunes ... 7 = domingo).
+DIAS_LABORABLES_POR_DEFECTO = frozenset({1, 2, 3, 4, 5})
+
+
+def _es_laborable(d: date, holidays: set, days: frozenset = DIAS_LABORABLES_POR_DEFECTO) -> bool:
+    """Día de la semana laborable (ISO) que no sea festivo."""
+    return d.isoweekday() in days and d not in holidays
 
 
 def _siguiente_momento_laborable(current: datetime, work_start: dt_time, work_end: dt_time,
-                                 holidays: set) -> datetime:
+                                 holidays: set,
+                                 days: frozenset = DIAS_LABORABLES_POR_DEFECTO) -> datetime:
     """Adelanta hasta el primer instante laborable a partir de `current`.
 
     Tres casos y ninguno más: el día no se trabaja, la jornada ya acabó, o
     todavía no ha empezado. El bucle es necesario porque saltar un viernes por
     la tarde cae en sábado, que tampoco vale.
     """
+    if not days:
+        raise ValueError("el calendario no tiene ningún día laborable")
     while True:
         dia = current.date()
-        if not _es_laborable(dia, holidays) or current.time() >= work_end:
+        if not _es_laborable(dia, holidays, days) or current.time() >= work_end:
             current = datetime.combine(dia + timedelta(days=1), work_start).replace(
                 tzinfo=current.tzinfo,
             )
@@ -165,13 +175,18 @@ def add_working_hours(
     work_start: dt_time = dt_time(8, 0),
     work_end: dt_time = dt_time(18, 0),
     holidays: Optional[set] = None,
+    days: frozenset = DIAS_LABORABLES_POR_DEFECTO,
 ) -> datetime:
     """Adelanta *start_dt* en *hours* horas **de trabajo**.
 
     Respeta:
     - la jornada (work_start..work_end),
-    - fines de semana (sábado=5, domingo=6),
+    - los días laborables (`days`, ISO; por defecto lunes a viernes),
     - los festivos que se pasen como conjunto de :class:`datetime.date`.
+
+    La aritmética es de reloj de pared en la zona de `start_dt`: quien quiera
+    la jornada de otra zona pasa `start_dt` ya convertido (ver
+    :func:`sumar_horas_sla`).
 
     Auditoría 2026-09 (hallazgo 18): eran dos bucles `while` con tres ayudantes
     anidados, complejidad 13. El primer bucle —«ponte en horario laborable»— es
@@ -186,7 +201,7 @@ def add_working_hours(
     if jornada <= 0:
         raise ValueError("work_end must be after work_start")
 
-    current = _siguiente_momento_laborable(start_dt, work_start, work_end, holidays)
+    current = _siguiente_momento_laborable(start_dt, work_start, work_end, holidays, days)
     restantes = hours
 
     while restantes > 0:
@@ -202,40 +217,196 @@ def add_working_hours(
             datetime.combine(current.date() + timedelta(days=1), work_start).replace(
                 tzinfo=current.tzinfo,
             ),
-            work_start, work_end, holidays,
+            work_start, work_end, holidays, days,
         )
 
     return current
 
 
-def compute_sla_status(
+@dataclass(frozen=True)
+class CalendarioSLA:
+    """Cuándo corre el reloj de un SLA.
+
+    `continuo` es el 24x7: corre siempre y el resto de campos no se mira. Si
+    no, corre de `inicio` a `fin` los `dias` laborables (ISO) que no sean
+    `festivos`, en la hora local de `zona`.
+    """
+    zona: tzinfo
+    continuo: bool = False
+    inicio: dt_time = dt_time(8, 0)
+    fin: dt_time = dt_time(18, 0)
+    dias: frozenset = DIAS_LABORABLES_POR_DEFECTO
+    festivos: frozenset = frozenset()
+
+
+def _zona(nombre: Optional[str]) -> tzinfo:
+    """La zona por nombre IANA; una desconocida es un error de configuración."""
+    try:
+        return ZoneInfo(nombre or settings.DEFAULT_TIMEZONE)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise ValueError(f"zona horaria desconocida: {nombre!r}") from exc
+
+
+def parse_dias_laborables(raw: Optional[str]) -> frozenset:
+    """'1,2,3,4,5' -> {1..5}. Rechaza lo que no sea un día ISO del 1 al 7."""
+    dias = set()
+    for trozo in (raw or "").split(","):
+        trozo = trozo.strip()
+        if not trozo:
+            continue
+        if not trozo.isdigit() or not 1 <= int(trozo) <= 7:
+            raise ValueError(f"día laborable inválido: {trozo!r} (1 = lunes ... 7 = domingo)")
+        dias.add(int(trozo))
+    if not dias:
+        raise ValueError("el calendario no tiene ningún día laborable")
+    return frozenset(dias)
+
+
+def _festivos(db: Session, policy: "Optional[SLAPolicy]", org_id: Optional[str]) -> frozenset:
+    """Los festivos de la política más los generales de la organización.
+
+    Un festivo sin política (`sla_policy_id` NULL) es de toda la organización:
+    antes sólo se leían cuando el ticket tenía política, así que sin ella no
+    contaba ningún festivo.
+    """
+    q = db.query(SDSLAHoliday)
+    if policy is not None:
+        q = q.filter((SDSLAHoliday.sla_policy_id == policy.id) | (SDSLAHoliday.sla_policy_id.is_(None)))
+    else:
+        q = q.filter(SDSLAHoliday.sla_policy_id.is_(None))
+    if org_id:
+        q = q.filter((SDSLAHoliday.organization_id == org_id) | (SDSLAHoliday.organization_id.is_(None)))
+    dias = set()
+    for r in q.all():
+        try:
+            dias.add(date.fromisoformat(r.holiday_date))
+        except (ValueError, TypeError):
+            logger.warning("festivo con fecha inválida ignorado: %s=%r", r.id, r.holiday_date)
+    return frozenset(dias)
+
+
+def calendario_sla(
+    db: Optional[Session],
+    policy: "Optional[SLAPolicy]" = None,
+    org_id: Optional[str] = None,
+) -> CalendarioSLA:
+    """El calendario de la política, o el de los ajustes si no hay política.
+
+    Antes la jornada era siempre 08-18 de lunes a viernes en UTC: la política
+    guardaba `business_start`, `business_end`, `business_days` y
+    `business_hours_only`, y nadie los leía.
+    """
+    from app.services import settings_service as _ss
+
+    org_id = org_id or getattr(policy, "organization_id", None)
+    if policy is not None:
+        zona = _zona(getattr(policy, "timezone", None)
+                     or (_ss.get_runtime_str(db, "DEFAULT_TIMEZONE", org_id) if db is not None else None))
+        if not policy.business_hours_only:
+            return CalendarioSLA(zona=zona, continuo=True)
+        inicio, fin = policy.business_start, policy.business_end
+        dias = parse_dias_laborables(policy.business_days)
+    elif db is not None:
+        zona = _zona(_ss.get_runtime_str(db, "DEFAULT_TIMEZONE", org_id))
+        if not _ss.get_runtime_bool(db, "SLA_BUSINESS_HOURS_ONLY", org_id):
+            return CalendarioSLA(zona=zona, continuo=True)
+        inicio = _ss.get_runtime_int(db, "SLA_BUSINESS_START_HOUR", org_id)
+        fin = _ss.get_runtime_int(db, "SLA_BUSINESS_END_HOUR", org_id)
+        dias = parse_dias_laborables(_ss.get_runtime_str(db, "SLA_BUSINESS_DAYS", org_id))
+    else:
+        zona = _zona(settings.DEFAULT_TIMEZONE)
+        if not settings.SLA_BUSINESS_HOURS_ONLY:
+            return CalendarioSLA(zona=zona, continuo=True)
+        inicio, fin = settings.SLA_BUSINESS_START_HOUR, settings.SLA_BUSINESS_END_HOUR
+        dias = parse_dias_laborables(settings.SLA_BUSINESS_DAYS)
+
+    if not (0 <= inicio < fin <= 24):
+        raise ValueError(f"jornada inválida: {inicio}-{fin}")
+    return CalendarioSLA(
+        zona=zona,
+        inicio=dt_time(inicio, 0),
+        # 24 es «hasta medianoche»; `time` no admite 24:00.
+        fin=dt_time(23, 59, 59, 999999) if fin == 24 else dt_time(fin, 0),
+        dias=dias,
+        festivos=_festivos(db, policy, org_id) if db is not None else frozenset(),
+    )
+
+
+def sumar_horas_sla(inicio: datetime, horas: float, cal: CalendarioSLA) -> datetime:
+    """`inicio` + `horas` de reloj de SLA. Entra y sale en UTC."""
+    inicio = aware(inicio)
+    if cal.continuo:
+        return inicio + timedelta(hours=horas)
+    local = inicio.astimezone(cal.zona)
+    fin = add_working_hours(local, horas, cal.inicio, cal.fin, set(cal.festivos), cal.dias)
+    return fin.astimezone(timezone.utc)
+
+
+def horas_sla_entre(desde: datetime, hasta: datetime, cal: CalendarioSLA) -> float:
+    """Horas de reloj de SLA entre dos instantes (0 si `hasta` no es posterior)."""
+    desde, hasta = aware(desde), aware(hasta)
+    if hasta <= desde:
+        return 0.0
+    if cal.continuo:
+        return (hasta - desde).total_seconds() / 3600.0
+    a = desde.astimezone(cal.zona)
+    b = hasta.astimezone(cal.zona)
+    total = 0.0
+    dia = a.date()
+    while dia <= b.date():
+        if _es_laborable(dia, set(cal.festivos), cal.dias):
+            ini = datetime.combine(dia, cal.inicio, tzinfo=cal.zona)
+            fin = datetime.combine(dia, cal.fin, tzinfo=cal.zona)
+            tramo_ini, tramo_fin = max(ini, a), min(fin, b)
+            if tramo_fin > tramo_ini:
+                total += (tramo_fin - tramo_ini).total_seconds() / 3600.0
+        dia += timedelta(days=1)
+    return total
+
+
+def vencimiento_efectivo(due: Optional[datetime], pause_minutes: Optional[int]) -> Optional[datetime]:
+    """El vencimiento más el tiempo en pausa: mientras se espera, no corre."""
+    if due is None:
+        return None
+    return aware(due) + timedelta(minutes=pause_minutes or 0)
+
+
+def estado_sla(
+    inicio: datetime,
     due: Optional[datetime],
-    pause_minutes: int = 0,
-    total_hours: Optional[float] = None,
+    pause_minutes: Optional[int],
+    cal: CalendarioSLA,
+    aviso_pct: float,
+    ahora: Optional[datetime] = None,
 ) -> str:
-    """Return 'breached', 'at_risk', or 'ok' based on remaining SLA time."""
-    if not due:
+    """'breached', 'at_risk' u 'ok' para un vencimiento.
+
+    En riesgo cuando se ha consumido `aviso_pct` (0-1) del tiempo de SLA,
+    medido en horas del calendario: un P1 abierto el viernes a última hora no
+    está en riesgo el domingo, porque su reloj no ha corrido.
+    """
+    efectivo = vencimiento_efectivo(due, pause_minutes)
+    if efectivo is None:
         return "ok"
-    now = datetime.now(timezone.utc)
-    due_aware = due.replace(tzinfo=timezone.utc) if due.tzinfo is None else due
-    effective_due = due_aware + timedelta(minutes=pause_minutes or 0)
-    if now > effective_due:
+    ahora = ahora or datetime.now(timezone.utc)
+    if ahora > efectivo:
         return "breached"
-    remaining = (effective_due - now).total_seconds()
-    if total_hours and total_hours > 0 and remaining < total_hours * 3600 * 0.25:
-        return "at_risk"
-    return "ok"
+    total = horas_sla_entre(inicio, efectivo, cal)
+    if total <= 0:
+        return "ok"
+    consumido = horas_sla_entre(inicio, ahora, cal) / total
+    return "at_risk" if consumido >= aviso_pct else "ok"
 
 
 # ── DB-coupled helpers ────────────────────────────────────────────────────────
 
-def calculate_sla_due(
+def horas_por_prioridad(
     priority: str,
     policy: "Optional[SLAPolicy]" = None,
     db: Optional[Session] = None,
-) -> tuple[datetime, datetime]:
-    """Return (response_due, resolution_due) using working-hours arithmetic."""
-    now = datetime.now(timezone.utc)
+    org_id: Optional[str] = None,
+) -> tuple[float, float]:
+    """(respuesta_h, resolución_h) de una prioridad, por política o por ajustes."""
     if policy:
         pmap = {
             "p1_critical": (policy.p1_response_hours, policy.p1_resolution_hours),
@@ -243,26 +414,29 @@ def calculate_sla_due(
             "p3_medium":   (policy.p3_response_hours, policy.p3_resolution_hours),
             "p4_low":      (policy.p4_response_hours, policy.p4_resolution_hours),
         }
-        resp_h, res_h = pmap.get(priority, (8, 24))
-    else:
-        resp_h, res_h = get_sla_hours(db).get(priority, (8, 24))
+        return pmap[priority]
+    return get_sla_hours(db, org_id)[priority]
 
-    holidays: set = set()
-    if db is not None and policy is not None:
-        rows = db.query(SDSLAHoliday).filter(
-            (SDSLAHoliday.sla_policy_id == policy.id)
-            | (SDSLAHoliday.sla_policy_id == None)
-        ).all()
-        for r in rows:
-            try:
-                holidays.add(date.fromisoformat(r.holiday_date))
-            # intentional: best-effort fallback, log noise outweighs diagnostic value
-            except (ValueError, TypeError):
-                pass
 
-    resp_due = add_working_hours(now, resp_h, holidays=holidays)
-    res_due = add_working_hours(now, res_h, holidays=holidays)
-    return resp_due, res_due
+def calculate_sla_due(
+    priority: str,
+    policy: "Optional[SLAPolicy]" = None,
+    db: Optional[Session] = None,
+    *,
+    org_id: Optional[str] = None,
+    start: Optional[datetime] = None,
+    hours: Optional[tuple[float, float]] = None,
+) -> tuple[datetime, datetime]:
+    """(vence_respuesta, vence_resolución) en el calendario de la política.
+
+    `hours` sustituye a las horas de la prioridad: lo usa el catálogo, cuyos
+    servicios declaran su propio SLA. Antes ese caso sumaba horas de reloj de
+    pared y se saltaba el calendario.
+    """
+    resp_h, res_h = hours or horas_por_prioridad(priority, policy, db, org_id)
+    cal = calendario_sla(db, policy, org_id)
+    inicio = start or datetime.now(timezone.utc)
+    return sumar_horas_sla(inicio, resp_h, cal), sumar_horas_sla(inicio, res_h, cal)
 
 
 def next_ticket_number(ticket_type: str, db: Session) -> str:
@@ -310,15 +484,24 @@ def next_ci_number(db: Session) -> str:
 def log_history(
     db: Session, ticket_id: str, field: str, old_val, new_val, user_id: str = None
 ) -> None:
-    """Add a TicketHistory row when a field value changes."""
-    if str(old_val or "") != str(new_val or ""):
+    """Add a TicketHistory row when a field value changes.
+
+    Los enums se guardan por su valor: `str()` de un enum de Python 3.12 da
+    «TicketStatus.resolved», y eso es lo que se guardaba y se enseñaba.
+    """
+    antes, despues = _texto_historial(old_val), _texto_historial(new_val)
+    if antes != despues:
         db.add(TicketHistory(
             ticket_id=ticket_id,
             field_name=field,
-            old_value=str(old_val or ""),
-            new_value=str(new_val or ""),
+            old_value=antes,
+            new_value=despues,
             changed_by_user_id=user_id,
         ))
+
+
+def _texto_historial(valor) -> str:
+    return str(getattr(valor, "value", valor) or "")[:500]
 
 
 def get_client_from_token(authorization: Optional[str], db: Session) -> "Optional[ClientUser]":
@@ -356,6 +539,23 @@ def get_client_from_token(authorization: Optional[str], db: Session) -> "Optiona
         raise
 
 
+def _estado_mostrado(due, pause_minutes, guardado, paused_at, now) -> str:
+    """El estado de SLA que se enseña.
+
+    El incumplimiento se calcula al leer, porque es exacto y no depende del
+    calendario: o ya pasó el vencimiento o no. «En riesgo» sí depende —son
+    horas de calendario consumidas— y lo escribe el escaneo periódico
+    (`sla_monitor_service`); aquí se lee lo que dejó.
+    """
+    if paused_at is not None:
+        return "paused"
+    efectivo = vencimiento_efectivo(due, pause_minutes)
+    if efectivo is not None and now > efectivo:
+        return "breached"
+    valor = getattr(guardado, "value", guardado)
+    return "at_risk" if valor == "at_risk" else "ok"
+
+
 def ticket_out(t: "Ticket", include_comments: bool = False) -> dict:
     """Serialize a Ticket ORM object to a response dict."""
     pri = PRIORITY_LABELS.get(t.priority, {"label": t.priority, "color": "#7a8aaa"})
@@ -363,14 +563,13 @@ def ticket_out(t: "Ticket", include_comments: bool = False) -> dict:
     typ = TYPE_LABELS.get(t.ticket_type, {"label": t.ticket_type, "icon": "📋"})
 
     now = datetime.now(timezone.utc)
-    _resp_h, _res_h = SLA_HOURS.get(t.priority, (8, 24))
     resp_sla = (
-        compute_sla_status(t.sla_response_due, t.sla_pause_minutes, _resp_h)
+        _estado_mostrado(t.sla_response_due, t.sla_pause_minutes, t.sla_response_status, t.sla_paused_at, now)
         if t.sla_response_due and not t.first_response_at
         else "ok"
     )
     res_sla = (
-        compute_sla_status(t.sla_resolution_due, t.sla_pause_minutes, _res_h)
+        _estado_mostrado(t.sla_resolution_due, t.sla_pause_minutes, t.sla_resolution_status, t.sla_paused_at, now)
         if t.sla_resolution_due and t.status not in ["resolved", "closed", "cancelled"]
         else "ok"
     )

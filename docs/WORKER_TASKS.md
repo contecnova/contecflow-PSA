@@ -24,7 +24,8 @@
 | 11 | `revenue_monthly_recognition` | Monthly (1st) | Revenue | 1h | Critical |
 | 12 | `olap_nightly_etl` | Nightly (2am) | BI/OLAP | 2h | Normal |
 | 13 | `ml_model_retrain` | Weekly (Sunday 11pm) | ML | 3h | Low |
-| 14 | `sla_breach_scan` | Every 10 mins | SLA | 2m | High |
+| 14 | `sla_breach_scan` | Every 5 mins | SLA: guarda estado, avisa riesgo/incumplimiento y escala | 2m | High |
+| 14b | `sd_procesar_eventos_de_ticket` | Al confirmar + cada minuto | Bandeja de eventos de ticket: avisos, correo, webhooks, flujos | 1m | High |
 | 15 | `problem_auto_detect` | Every 30 mins | Problems | 5m | Normal |
 | 16 | `kedb_expiry_scan` | Every hour | KEDB | 5m | Normal |
 | 17 | `kedb_effectiveness_scan` | Every hour | KEDB | 5m | Normal |
@@ -86,7 +87,8 @@
 
 ### **1. REAL-TIME ALERTS & MONITORING**
 - `run_alert_engine` (2 mins)
-- `sla_breach_scan` (10 mins)
+- `sla_breach_scan` (5 mins)
+- `sd_procesar_eventos_de_ticket` (1 min, y al confirmar cada cambio de ticket)
 - `alert_correlation_scan` (5 mins)
 - `problem_auto_detect` (30 mins)
 
@@ -306,7 +308,7 @@ Serialize event → Validate webhook URL → HTTP POST (3 retries)
        │
 04:00  ├─ predictive_model_eval_retrain (ends)
        ├─ (every 5 mins) run_scheduled_rotation, alert_correlation_scan, process_approval_timeouts
-       ├─ (every 10 mins) sla_breach_scan
+       ├─ (every 5 mins) sla_breach_scan
        ├─ (every 15 mins) routing_outcome_scan, run_agent_task (if enqueued)
        ├─ (every 30 mins) jira_periodic_sync, change_impact_batch_score, problem_auto_detect
        ├─ (hourly) kedb_expiry_scan, kedb_effectiveness_scan, cmdb_discovery_run, predictive_scan, run_scheduled_reports

@@ -151,6 +151,35 @@ class Ticket(Base):
     child_tickets = relationship("Ticket", foreign_keys=[parent_ticket_id])
     known_error_links = relationship("KnownErrorTicket", back_populates="ticket", cascade="all, delete-orphan")
 
+class TicketEvent(Base):
+    """Lo que le ha pasado a un ticket, pendiente de avisar.
+
+    Es una bandeja de salida: la fila se escribe en la MISMA transacción que el
+    cambio (ver `ticket_events.py`), así que no hay aviso de un cambio que no se
+    guardó ni cambio guardado que se quede sin aviso. Un trabajo de Celery la
+    procesa después —avisos, correo, webhooks, flujos— y sella
+    `processed_at`.
+    """
+    __tablename__ = "sd_ticket_events"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    # created | assigned | group_assigned | status_changed | priority_changed |
+    # commented | sla_warning | sla_breached | escalated | approval_requested |
+    # approval_decided
+    kind = Column(String(40), nullable=False)
+    data = Column(Text, nullable=True)  # JSON con el detalle de cada tipo
+    actor_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    actor_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    processed_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    attempts = Column(Integer, default=0, nullable=False)
+    last_error = Column(String(500), nullable=True)
+
+    ticket = relationship("Ticket")
+
+
 class TicketComment(Base):
     __tablename__ = "sd_ticket_comments"
 

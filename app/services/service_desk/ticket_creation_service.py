@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -198,6 +197,22 @@ def _auto_assign_ticket_on_create(db: Session, ticket: Ticket) -> None:
     _finalizar_asignacion(db, ticket)
 
 
+def _vencimientos(db: Session, priority, sla_policy, service_item) -> tuple:
+    """Vencimientos de respuesta y resolución en el calendario de la política.
+
+    Un servicio del catálogo declara sus propias horas y manda sobre las de la
+    prioridad; antes esas horas se sumaban como reloj de pared, saltándose la
+    jornada, los días laborables y los festivos.
+    """
+    horas = None
+    if service_item is not None and service_item.sla_response_hours and service_item.sla_resolution_hours:
+        horas = (service_item.sla_response_hours, service_item.sla_resolution_hours)
+    return _calculate_sla_due(
+        priority, sla_policy, db=db,
+        org_id=db.info.get("organization_id"), hours=horas,
+    )
+
+
 def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_id: str) -> Ticket:
     priority = payload.priority
     if not priority:
@@ -211,20 +226,17 @@ def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_i
         contract_id=payload.contract_id,
         client_id=payload.client_id,
     )
-    resp_due, res_due = _calculate_sla_due(priority, sla_policy, db=db)
 
     service_item = None
     if payload.service_item_id:
         service_item = db.query(ServiceItem).filter(ServiceItem.id == payload.service_item_id).first()
-        if service_item:
-            if not payload.priority:
-                priority = (
-                    service_item.default_priority.value
-                    if hasattr(service_item.default_priority, "value")
-                    else service_item.default_priority
-                )
-            resp_due = datetime.now(timezone.utc) + timedelta(hours=service_item.sla_response_hours)
-            res_due = datetime.now(timezone.utc) + timedelta(hours=service_item.sla_resolution_hours)
+        if service_item and not payload.priority:
+            priority = (
+                service_item.default_priority.value
+                if hasattr(service_item.default_priority, "value")
+                else service_item.default_priority
+            )
+    resp_due, res_due = _vencimientos(db, priority, sla_policy, service_item)
 
     ticket = Ticket(
         number=_next_ticket_number(payload.ticket_type, db),
@@ -279,13 +291,10 @@ def build_client_portal_ticket(db: Session, payload: TicketCreateIn, client: Cli
         contract_id=payload.contract_id,
         client_id=client.client_org_id,
     )
-    resp_due, res_due = _calculate_sla_due(priority, sla_policy, db=db)
-
+    service_item = None
     if payload.service_item_id:
         service_item = db.query(ServiceItem).filter(ServiceItem.id == payload.service_item_id).first()
-        if service_item:
-            resp_due = datetime.now(timezone.utc) + timedelta(hours=service_item.sla_response_hours)
-            res_due = datetime.now(timezone.utc) + timedelta(hours=service_item.sla_resolution_hours)
+    resp_due, res_due = _vencimientos(db, priority, sla_policy, service_item)
 
     if payload.project_id and payload.project_id != client.project_id:
         raise HTTPException(403, "No puedes crear tickets para proyectos a los que no perteneces")

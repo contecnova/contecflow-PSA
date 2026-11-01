@@ -535,12 +535,39 @@ def _nodo_fin(n: _Nodo) -> tuple[str, dict, int]:
     return "end", {}, 0
 
 
+def _ticket_objetivo(n: _Nodo):
+    if n.run.target_entity_type != "ticket" or not n.run.target_entity_id:
+        return None
+    from app.models.service_desk import Ticket
+    return n.db.get(Ticket, n.run.target_entity_id)
+
+
 def _nodo_estado(n: _Nodo) -> tuple[str, dict, int]:
-    """Aplica el cambio de estado al contexto, para que lo vea la siguiente decisión."""
+    """Cambia el estado: en el contexto y, si el flujo va sobre un ticket, en él.
+
+    Auditoria 2026-11: solo tocaba el contexto, asi que un flujo de ticket
+    nunca movia el ticket. Se aplica con `apply_ticket_update`, el mismo
+    camino que un agente: pausa y reanuda el SLA, sella la resolucion y deja
+    historial. Un estado que no es de ticket es un error del flujo.
+    """
     new_status = n.config.get("status")
     if new_status:
         n.ctx["status"] = new_status
         n.run.context_json = n.ctx
+        ticket = _ticket_objetivo(n)
+        if ticket is not None:
+            from app.models.service_desk import TicketStatus
+            from app.schemas.service_desk import TicketUpdateIn
+            from app.services.service_desk.ticket_update_service import apply_ticket_update
+            try:
+                TicketStatus(new_status)
+            except ValueError:
+                return "failure", {"status": new_status, "error": "estado de ticket desconocido"}, 0
+            apply_ticket_update(
+                n.db, ticket, ticket.id, TicketUpdateIn(status=new_status),
+                current_user_id=None, old_assigned_to=ticket.assigned_to_user_id,
+                old_support_level=ticket.support_level,
+            )
     return "next", {
         "status": new_status,
         "assignee_role": n.config.get("assignee_role"),
@@ -578,6 +605,33 @@ def _nodo_espera(n: _Nodo) -> tuple[str, dict, int]:
     }, seconds
 
 
+def _destinatarios_del_flujo(n: _Nodo, recipients) -> Optional[list]:
+    """Ids de usuario, o None si `recipients` es el nombre de un rol.
+
+    Sobre un ticket se entienden `$assignee` (el agente) y `$group` (su cola);
+    una lista son ids de usuario. Antes `$assignee` se tomaba por un rol y no
+    avisaba a nadie.
+    """
+    if isinstance(recipients, (list, tuple)):
+        return list(recipients)
+    if not isinstance(recipients, str) or not recipients.startswith("$"):
+        return None
+    ticket = _ticket_objetivo(n)
+    if ticket is None:
+        return []
+    ids: list = []
+    for clave in (r.strip() for r in recipients.split(",")):
+        if clave == "$assignee" and ticket.assigned_to_user_id:
+            ids.append(ticket.assigned_to_user_id)
+        elif clave == "$group" and ticket.assigned_group_id:
+            from app.models.service_desk import AgentGroupMember
+            ids += [r[0] for r in n.db.query(AgentGroupMember.user_id)
+                    .filter(AgentGroupMember.group_id == ticket.assigned_group_id).all()]
+        elif clave == "$requester" and ticket.requester_user_id:
+            ids.append(ticket.requester_user_id)
+    return list(dict.fromkeys(ids))
+
+
 def _nodo_notificar(n: _Nodo) -> tuple[str, dict, int]:
     """Notificacion real en la aplicacion.
 
@@ -595,15 +649,19 @@ def _nodo_notificar(n: _Nodo) -> tuple[str, dict, int]:
     resource_id = n.run.target_entity_id
     resource = n.run.target_entity_type or "workflow"
     delivered = 0
+    # Auditoria 2026-11: el tipo era "workflow", que el enum de avisos no
+    # tiene; en PostgreSQL el aviso no se podia guardar.
+    tipo = "automation"
     try:
-        if isinstance(recipients, str):
-            delivered = notify_role(n.db, recipients, "workflow", title, body,
-                                    resource=resource, resource_id=resource_id)
-        elif isinstance(recipients, (list, tuple)):
-            for uid in recipients:
-                notify_user(n.db, str(uid), "workflow", title, body,
+        ids = _destinatarios_del_flujo(n, recipients)
+        if ids is not None:
+            for uid in ids:
+                notify_user(n.db, str(uid), tipo, title, body,
                             resource=resource, resource_id=resource_id)
                 delivered += 1
+        elif isinstance(recipients, str):
+            delivered = notify_role(n.db, recipients, tipo, title, body,
+                                    resource=resource, resource_id=resource_id)
     except Exception as exc:
         return "failure", {
             "channel": n.config.get("channel"), "error": str(exc)[:300], "delivered": 0,

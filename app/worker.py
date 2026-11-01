@@ -82,10 +82,16 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=1, minute=0),
     },
     # ── Fase 1 ITSM tasks ──────────────────────────────────────────────────────
-    # SLA breach scan — every 15 minutes
+    # SLA: estado, avisos y escalado — cada 5 minutos. Con 15, un P1 de una
+    # hora podia pasar de «en riesgo» a incumplido sin aviso intermedio.
     "sla-breach-scan": {
         "task": "app.worker.sla_breach_scan",
-        "schedule": crontab(minute="*/15"),
+        "schedule": crontab(minute="*/5"),
+    },
+    # Bandeja de eventos de ticket: red de seguridad del encolado al confirmar.
+    "sd-ticket-events": {
+        "task": "app.worker.sd_procesar_eventos_de_ticket",
+        "schedule": crontab(minute="*"),
     },
     # Problem auto-detection — every hour at :05
     "problem-auto-detect": {
@@ -288,6 +294,10 @@ celery_app.conf.timezone = settings.DEFAULT_TIMEZONE
 
 import logging as _logging
 _worker_logger = _logging.getLogger(__name__)
+
+# Los cambios de ticket que hace el worker (escalado, flujos) tambien pasan por
+# la bandeja de eventos: registra sus escuchadores en la sesion.
+import app.services.service_desk.ticket_events  # noqa: F401,E402
 
 
 def _aplicar_cortacircuitos(hook) -> None:
@@ -1103,24 +1113,32 @@ def ml_model_retrain():
 
 @celery_app.task(name="app.worker.sla_breach_scan")
 def sla_breach_scan():
-    """Scan for tickets at risk of SLA breach and emit alert notifications.
+    """Vigila el SLA: guarda el estado, avisa del riesgo y del incumplimiento, y escala.
 
-    Runs every 15 minutes. Calls predict_sla_at_risk_tickets() and triggers
-    an alert notification for each at-risk ticket not already notified.
+    Auditoria 2026-11: antes solo contaba los tickets en riesgo y lo dejaba en
+    el log. Ver `sla_monitor_service`.
     """
     from app.db.session import worker_db_session
-    from app.services.service_desk.incident_intelligence_service import (
-        predict_sla_at_risk_tickets,
-    )
+    from app.services.service_desk.sla_monitor_service import escanear
 
     with worker_db_session() as db:
-        try:
-            at_risk = predict_sla_at_risk_tickets(db)
-            _worker_logger.info("SLA breach scan: %d tickets at risk", len(at_risk))
-            return {"at_risk_count": len(at_risk), "tickets": [t["ticket_id"] for t in at_risk]}
-        except Exception as exc:
-            _worker_logger.error("sla_breach_scan error: %s", exc)
-            return {"error": str(exc)}
+        resultado = escanear(db)
+        _worker_logger.info("SLA: %s", resultado)
+        return resultado
+
+
+@celery_app.task(name="app.worker.sd_procesar_eventos_de_ticket")
+def sd_procesar_eventos_de_ticket():
+    """Procesa la bandeja de eventos de ticket: avisos, correo, webhooks y flujos.
+
+    La encola cada `commit` que deja eventos (`ticket_events._tras_confirmar`);
+    la entrada del beat es la red para cuando el broker no estaba.
+    """
+    from app.db.session import worker_db_session
+    from app.services.service_desk.ticket_event_processor import procesar_pendientes
+
+    with worker_db_session() as db:
+        return procesar_pendientes(db)
 
 
 @celery_app.task(name="app.worker.problem_auto_detect")

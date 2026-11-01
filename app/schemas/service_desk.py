@@ -192,6 +192,39 @@ class SLAPolicyIn(BaseModel):
     p4_response_hours: float = Field(24, description="Horas de respuesta para P4 bajo")
     p4_resolution_hours: float = Field(72, description="Horas de resolución para P4 bajo")
     business_hours_only: bool = Field(True, description="Cuenta solo horas de la jornada laboral")
+    business_start: int = Field(settings.SLA_BUSINESS_START_HOUR, ge=0, le=23,
+                                description="Hora de inicio de la jornada (0-23)")
+    business_end: int = Field(settings.SLA_BUSINESS_END_HOUR, ge=1, le=24,
+                              description="Hora de fin de la jornada (1-24)")
+    business_days: str = Field(settings.SLA_BUSINESS_DAYS,
+                               description="Días laborables, ISO separados por comas (1 = lunes ... 7 = domingo)")
+    timezone: Optional[str] = Field(None, description="Zona horaria IANA; vacía usa la de la organización")
+
+    @field_validator("business_days")
+    @classmethod
+    def _dias_validos(cls, v: str) -> str:
+        from app.services.sla_service import parse_dias_laborables
+        return ",".join(str(d) for d in sorted(parse_dias_laborables(v)))
+
+    @field_validator("timezone")
+    @classmethod
+    def _zona_valida(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return None
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+        try:
+            ZoneInfo(v)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError(f"zona horaria desconocida: {v}") from exc
+        return v
+
+    @field_validator("business_end")
+    @classmethod
+    def _fin_tras_inicio(cls, v: int, info) -> int:
+        inicio = info.data.get("business_start")
+        if inicio is not None and v <= inicio:
+            raise ValueError("la jornada tiene que acabar después de empezar")
+        return v
 
 
 class HolidayIn(BaseModel):

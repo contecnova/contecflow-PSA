@@ -140,6 +140,12 @@ class EmailTemplate(Base):
     body_text   = Column(Text, nullable=True)     # Plain text fallback
     category    = Column(String(50), default="automation")  # automation|alert|report|invoice
     variables   = Column(Text, nullable=True)     # JSON: list of available {{variables}}
+    # Plantillas que el sistema busca por su papel, no por su nombre (que el
+    # usuario puede cambiar): p. ej. «sd.created.requester». Una fila con
+    # `code` sustituye, para su organización e idioma, al texto por defecto.
+    code        = Column(String(80), nullable=True, index=True)
+    language    = Column(String(10), nullable=True)   # NULL = cualquier idioma
+    is_active   = Column(Boolean, default=True, nullable=False)
     is_system   = Column(Boolean, default=False)
     created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())

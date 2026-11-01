@@ -180,7 +180,11 @@ def _recalcular_prioridad(db, ticket, payload) -> None:
         if ticket.sla_policy_id
         else None
     )
-    resp_due, res_due = _calculate_sla_due(new_priority, sla_policy, db=db)
+    # Se recalcula desde la apertura: cambiar la prioridad no reinicia el reloj.
+    resp_due, res_due = _calculate_sla_due(
+        new_priority, sla_policy, db=db,
+        org_id=ticket.organization_id, start=ticket.created_at,
+    )
     ticket.sla_response_due = resp_due
     ticket.sla_resolution_due = res_due
 

@@ -1,20 +1,25 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import (
+    AgentGroupMember,
     EscalationAction,
     EscalationLog,
     EscalationRule,
     EscalationTrigger,
     Ticket,
+    TicketHistory,
     TicketPriority,
     TicketStatus,
 )
 from app.schemas.service_desk import EscalationRuleIn
+from app.services.service_desk.ticket_events import registrar
+from app.services.sla_service import aware
 import logging
 
 logger = logging.getLogger(__name__)
@@ -101,76 +106,153 @@ def _parse_priority_filter(raw_priority_filter: Optional[str]):
         return [raw_priority_filter]
 
 
-def _ticket_is_open(ticket: Ticket) -> bool:
-    return ticket.status not in [TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled]
+_ABIERTOS = (
+    TicketStatus.new, TicketStatus.assigned, TicketStatus.in_progress,
+    TicketStatus.pending_client, TicketStatus.pending_third,
+)
+_CERRADOS = {"resolved", "closed"}
 
 
-def _should_fire_rule(rule: EscalationRule, ticket: Ticket, now: datetime) -> bool:
+def _v(x):
+    return getattr(x, "value", x)
+
+
+def _fue_reabierto(db: Session, ticket: Ticket) -> bool:
+    """Si alguna vez paso de resuelto o cerrado a otro estado.
+
+    El disparador `reopened` existia en el enum y en la pantalla, y nada lo
+    evaluaba: una regla «al reabrir, sube la prioridad» no saltaba nunca.
+    """
+    return db.query(TicketHistory.id).filter(
+        TicketHistory.ticket_id == ticket.id,
+        TicketHistory.field_name == "status",
+        TicketHistory.old_value.in_(list(_CERRADOS)),
+        TicketHistory.new_value.notin_(list(_CERRADOS) + ["cancelled"]),
+    ).first() is not None
+
+
+def _ultimo_disparo(db: Session, rule_id: str, ticket_id: str) -> Optional[datetime]:
+    return db.query(func.max(EscalationLog.triggered_at)).filter(
+        EscalationLog.rule_id == rule_id,
+        EscalationLog.ticket_id == ticket_id,
+    ).scalar()
+
+
+def _should_fire_rule(db: Session, rule: EscalationRule, ticket: Ticket, now: datetime) -> bool:
+    """Si la regla salta sobre el ticket en esta pasada.
+
+    Una vez por episodio: el SLA en riesgo o incumplido, el «sin asignar» y la
+    reapertura saltan una sola vez por ticket; la inactividad vuelve a saltar
+    solo si el ticket sigue parado otras `idle_hours_threshold` horas desde el
+    ultimo disparo. Antes cualquier regla repetia cada hora mientras durase la
+    condicion, y un SLA incumplido avisaba cada hora para siempre.
+    """
     priority_filter = _parse_priority_filter(rule.applies_to_priority)
-
-    if priority_filter and ticket.priority.value not in priority_filter:
+    if priority_filter and _v(ticket.priority) not in priority_filter:
         return False
     if rule.group_id and ticket.assigned_group_id != rule.group_id:
         return False
 
-    if rule.trigger == EscalationTrigger.sla_at_risk and ticket.sla_resolution_status == "at_risk":
-        return True
-    if rule.trigger == EscalationTrigger.sla_breached and ticket.sla_resolution_status == "breached":
-        return True
-    if rule.trigger == EscalationTrigger.idle_hours and rule.idle_hours_threshold:
-        last_activity = ticket.updated_at or ticket.created_at
-        if last_activity:
-            idle_hours = (now - last_activity).total_seconds() / 3600
-            return idle_hours >= rule.idle_hours_threshold
-    if rule.trigger == EscalationTrigger.priority and not ticket.assigned_to_user_id:
-        return True
-
+    ultimo = _ultimo_disparo(db, rule.id, ticket.id)
+    if rule.trigger == EscalationTrigger.idle_hours:
+        if not rule.idle_hours_threshold:
+            return False
+        desde = max(filter(None, [aware(ticket.updated_at), aware(ticket.created_at), aware(ultimo)]))
+        return (now - desde).total_seconds() / 3600 >= rule.idle_hours_threshold
+    if ultimo is not None:
+        return False
+    if rule.trigger == EscalationTrigger.sla_at_risk:
+        return _v(ticket.sla_resolution_status) == "at_risk"
+    if rule.trigger == EscalationTrigger.sla_breached:
+        return _v(ticket.sla_resolution_status) == "breached" or bool(ticket.sla_response_breached)
+    if rule.trigger == EscalationTrigger.priority:
+        return not ticket.assigned_to_user_id
+    if rule.trigger == EscalationTrigger.reopened:
+        return _fue_reabierto(db, ticket)
     return False
 
 
-def _already_fired_recently(db: Session, rule_id: str, ticket_id: str, now: datetime) -> bool:
-    recent = db.query(EscalationLog).filter(
-        EscalationLog.rule_id == rule_id,
-        EscalationLog.ticket_id == ticket_id,
-        EscalationLog.triggered_at >= now - timedelta(hours=1),
-    ).first()
-    return recent is not None
+def _destinatarios_de_la_regla(db: Session, rule: EscalationRule, ticket: Ticket) -> list[str]:
+    if rule.action == EscalationAction.notify_manager:
+        if ticket.assigned_to is not None and ticket.assigned_to.manager_id:
+            return [ticket.assigned_to.manager_id]
+        return []
+    if rule.action == EscalationAction.notify_group_lead:
+        group_id = ticket.assigned_group_id or rule.group_id
+        if not group_id:
+            return []
+        return [r[0] for r in db.query(AgentGroupMember.user_id).filter(
+            AgentGroupMember.group_id == group_id, AgentGroupMember.is_lead == True,  # noqa: E712
+        ).all()]
+    if rule.action == EscalationAction.notify_custom:
+        try:
+            ids = json.loads(rule.notify_user_ids or "[]")
+        except ValueError:
+            logger.warning("regla de escalado %s con notify_user_ids ilegible", rule.id)
+            return []
+        return [str(i) for i in ids if i]
+    return []
 
 
-def _apply_rule_action(rule: EscalationRule, ticket: Ticket) -> str:
-    action_desc = f"Rule '{rule.name}' fired: {rule.action}"
+def _apply_rule_action(db: Session, rule: EscalationRule, ticket: Ticket) -> str:
+    """Aplica la accion y anota el evento `escalated`, que avisa y emite el webhook.
+
+    Las tres acciones de aviso no hacian nada: el motor solo reasignaba o
+    subia la prioridad, y para el resto dejaba una linea en el registro.
+    """
+    action_desc = f"{rule.name}: {_v(rule.action)}"
     if rule.action == EscalationAction.reassign_group and rule.target_group_id:
         ticket.assigned_group_id = rule.target_group_id
-        action_desc += f" -> group {rule.target_group_id}"
+        action_desc += f" -> {rule.target_group.name if rule.target_group else rule.target_group_id}"
     elif rule.action == EscalationAction.elevate_priority and rule.target_priority:
-        old_priority = ticket.priority.value
+        old_priority = _v(ticket.priority)
         ticket.priority = TicketPriority(rule.target_priority)
         action_desc += f" {old_priority} -> {rule.target_priority}"
-    return action_desc
+    destinatarios = _destinatarios_de_la_regla(db, rule, ticket)
+    registrar(db, ticket, "escalated",
+              {"rule": rule.name, "action": action_desc, "recipients": destinatarios},
+              actor_user_id=None)
+    return action_desc[:255]
 
 
-def run_escalation_rules_engine(db: Session) -> dict:
-    now = datetime.now(timezone.utc)
+def run_escalation_rules_engine(db: Session, ahora: Optional[datetime] = None) -> dict:
+    """Evalua las reglas activas sobre los tickets abiertos. No confirma.
+
+    Cada regla solo mira los tickets de su organizacion: la sesion del worker
+    no tiene filtro de tenant, y antes una regla de un cliente podia reasignar
+    tickets de otro.
+    """
+    now = ahora or datetime.now(timezone.utc)
     rules = (
         db.query(EscalationRule)
-        .filter(EscalationRule.is_active == True)
+        .filter(EscalationRule.is_active == True)  # noqa: E712
         .order_by(EscalationRule.sort_order)
         .all()
     )
-    open_tickets = db.query(Ticket).all()
-    open_tickets = [t for t in open_tickets if _ticket_is_open(t)]
+    open_tickets = db.query(Ticket).filter(Ticket.status.in_(_ABIERTOS)).all()
 
     fired = 0
-    for rule in rules:
-        for ticket in open_tickets:
-            if not _should_fire_rule(rule, ticket, now):
-                continue
-            if _already_fired_recently(db, rule.id, ticket.id, now):
-                continue
-
-            action_desc = _apply_rule_action(rule, ticket)
-            db.add(EscalationLog(rule_id=rule.id, ticket_id=ticket.id, action_taken=action_desc))
-            fired += 1
+    previo = db.info.get("sd_origen")
+    db.info["sd_origen"] = "escalation"
+    try:
+        for rule in rules:
+            for ticket in open_tickets:
+                if ticket.organization_id != rule.organization_id:
+                    continue
+                if not _should_fire_rule(db, rule, ticket, now):
+                    continue
+                action_desc = _apply_rule_action(db, rule, ticket)
+                db.add(EscalationLog(
+                    organization_id=ticket.organization_id, rule_id=rule.id,
+                    ticket_id=ticket.id, action_taken=action_desc, triggered_at=now,
+                ))
+                db.flush()
+                fired += 1
+    finally:
+        if previo is None:
+            db.info.pop("sd_origen", None)
+        else:
+            db.info["sd_origen"] = previo
 
     return {
         "ok": True,

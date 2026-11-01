@@ -21,6 +21,14 @@ class SLASettingsMixin:
     SLA_P4_RESPONSE_HOURS: float = Field(default=24.0, env="SLA_P4_RESPONSE_HOURS")
     SLA_P4_RESOLUTION_HOURS: float = Field(default=72.0, env="SLA_P4_RESOLUTION_HOURS")
 
+    # ── Calendario cuando el ticket no tiene política ────────────────────────
+    # Con política manda la suya (`SLAPolicy.business_*` y `timezone`); la zona
+    # sale de DEFAULT_TIMEZONE. Días en ISO: 1 = lunes ... 7 = domingo.
+    SLA_BUSINESS_HOURS_ONLY: bool = Field(default=True, env="SLA_BUSINESS_HOURS_ONLY")
+    SLA_BUSINESS_START_HOUR: int = Field(default=8, env="SLA_BUSINESS_START_HOUR")
+    SLA_BUSINESS_END_HOUR: int = Field(default=18, env="SLA_BUSINESS_END_HOUR")
+    SLA_BUSINESS_DAYS: str = Field(default="1,2,3,4,5", env="SLA_BUSINESS_DAYS")
+
     # ── SLA breach prediction thresholds ─────────────────────────────────────
     SLA_PREDICTION_HOURS_CRITICAL: int = Field(default=4, env="SLA_PREDICTION_HOURS_CRITICAL")
     SLA_PREDICTION_HOURS_HIGH: int = Field(default=8, env="SLA_PREDICTION_HOURS_HIGH")
