@@ -85,7 +85,10 @@ import PortalAIChatWidget from './portal-client/PortalAIChatWidget'
 function PortalApp({ changeLang }: { changeLang: ChangeLangFn }) {
   const qc = useQueryClient()
   const { client } = (useClientAuth() ?? { client: null }) as ClientAuthValue
-  const [section, setSection] = useState('dashboard')
+  // Un enlace con `?ticket=` viene de un correo del Service Desk: se abre en
+  // Soporte, que es donde vive el ticket.
+  const [section, setSection] = useState(
+    () => new URLSearchParams(window.location.search).has('ticket') ? 'support' : 'dashboard')
 
   const { data: branding } = useQuery({
     queryKey: ['portal-branding'],

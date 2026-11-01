@@ -67,6 +67,9 @@ router.include_router(analytics.router)
 # manda a buscar un CR que falta. Es el unico caso de tapado ENTRE MODULOS, y
 # por eso no se arregla reordenando dentro de un fichero sino aqui.
 router.include_router(change_rollout.router)
+# `change_impact` cuelga de `/changes` y declara `/changes/cab-dashboard`, de un
+# solo segmento: detras de `misc` lo atraparia `/changes/{change_id}`.
+router.include_router(change_impact.router)
 router.include_router(misc.router)
 router.include_router(workflow_designer.router)
 router.include_router(connectors_marketplace.router)
@@ -77,7 +80,6 @@ router.include_router(smart_catalog.router)
 router.include_router(predictive.router)
 router.include_router(autonomous.router)
 router.include_router(multichannel.router)
-router.include_router(change_impact.router)
 router.include_router(sd_reports.router)
 router.include_router(capacity_planning.router)
 router.include_router(problem_management.router)

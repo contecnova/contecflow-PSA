@@ -134,7 +134,9 @@ export function PortalSupportDesk() {
   const _t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  // `?ticket=<id>` abre ese ticket: es a donde lleva el enlace de los correos.
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get('ticket'))
   const [showCreate, setShowCreate] = useState(false)
   const [searchKB, setSearchKB] = useState('')
   const [tab, setTab] = useState('tickets')

@@ -4,7 +4,8 @@
  *          KB · Metrics · Routing · Templates · Config
  * CMDB: sección independiente en /cmdb
  */
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAppT } from '../i18n/AppLangContext'
 import { MessageSquare } from 'lucide-react'
 import { Button, Spinner, Tabs } from '../components/ui'
@@ -29,11 +30,16 @@ const Loading = () => <div style={{ padding: 40, textAlign: 'center' }}><Spinner
 
 export default function ServiceDeskPage() {
   const t = useAppT()
-  const [tab, setTab] = useState('queue')
+  // `?ticket=<id>` abre ese ticket: es a donde llevan los avisos (campana y
+  // correo). Se abre en «Todos» porque la cola solo muestra los sin asignar.
+  const [searchParams] = useSearchParams()
+  const ticketEnlazado = searchParams.get('ticket')
+  const [tab, setTab] = useState(ticketEnlazado ? 'all' : 'queue')
   // `TicketDetail` pide `string | null`: los ids de ticket son cadenas en
   // toda la aplicacion, y el tablero kanban es el unico sitio que los saca
   // como `string | number`. Se normalizan aqui, en la frontera.
-  const [selId, setSelId] = useState<string | null>(null)
+  const [selId, setSelId] = useState<string | null>(ticketEnlazado)
+  const primeraPestana = useRef(true)
   const [showCreate, setShowCreate] = useState(false)
   const [mobileView, setMobileView] = useState('list') // 'list' | 'detail'
   const windowWidth = useWindowWidth()
@@ -45,9 +51,15 @@ export default function ServiceDeskPage() {
   }, [selId, isMobile])
 
   useEffect(() => {
+    // Al montar no se limpia: borraria el ticket que trae el enlace.
+    if (primeraPestana.current) { primeraPestana.current = false; return }
     setMobileView('list')
     setSelId(null)
   }, [tab])
+
+  useEffect(() => {
+    if (ticketEnlazado) { setTab('all'); setSelId(ticketEnlazado) }
+  }, [ticketEnlazado])
 
   const TABS = [
     { id: 'queue',    label: `${t('service_desk.tab_queue')}` },

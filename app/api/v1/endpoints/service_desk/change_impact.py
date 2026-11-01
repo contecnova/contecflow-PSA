@@ -49,7 +49,7 @@ class WhatIfIn(BaseModel):
     scheduled_dow: Optional[int] = Field(None, ge=0, le=6, description="Evaluate specific day-of-week (0=Monday)")
 
 
-router = APIRouter(prefix="/sd/changes", tags=["change-impact"])
+router = APIRouter(prefix="/changes", tags=["change-impact"])
 
 
 @router.post("/{change_id}/impact-analysis", summary="Run automated change impact analysis")

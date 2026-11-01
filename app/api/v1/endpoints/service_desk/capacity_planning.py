@@ -26,7 +26,7 @@ from app.services.service_desk.capacity_planning_service import (
 )
 from app.core.deps import require_admin
 
-router = APIRouter(prefix="/sd/capacity", tags=["capacity-planning"])
+router = APIRouter(prefix="/capacity", tags=["capacity-planning"])
 
 
 @router.get("/forecast", summary="Ticket volume forecast")

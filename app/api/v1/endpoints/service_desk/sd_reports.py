@@ -25,7 +25,7 @@ from app.services.service_desk.sd_reporting_service import (
 )
 from app.core.deps import require_internal_user
 
-router = APIRouter(prefix="/sd/reports", tags=["sd-reports"])
+router = APIRouter(prefix="/reports", tags=["sd-reports"])
 
 
 @router.get("/types", summary="Available report types")

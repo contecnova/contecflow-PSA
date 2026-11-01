@@ -21,6 +21,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.settings import AppSetting
 from app.services.notification_service import NotificationService
 from app.services.service_desk.sms_service import (
@@ -158,7 +159,8 @@ def process_inbound_sms(db: Session, from_phone: str, body: str) -> dict:
     try:
         send_sms(
             from_phone,
-            f"[ContecFlow] Ticket {ticket.number} creado. Seguimiento: https://app.contecflow.com/portal/tickets/{ticket.id}",
+            f"[ContecFlow] Ticket {ticket.number} creado. Seguimiento: "
+            f"{settings.FRONTEND_URL.rstrip('/')}/portal?ticket={ticket.id}",
         )
     except Exception as exc:
         logger.warning("Could not send SMS confirmation to %s: %s", from_phone, exc)

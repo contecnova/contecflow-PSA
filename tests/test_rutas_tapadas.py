@@ -126,15 +126,19 @@ def test_ningun_router_esta_registrado_dos_veces():
 #: SÍ rompió seis rutas: `issue_types` registrado dos veces producía
 #: `/issue-types/issue-types/{project_id}`. Si la cifra sube, conviene mirar si
 #: es otra duplicación.
-PREFIJOS_REPETIDOS = 32
+PREFIJOS_REPETIDOS = 15
 
 
 def test_los_caminos_con_prefijo_repetido_no_aumentan():
     """Feos pero funcionales; se vigila que no crezcan.
 
-    Hoy son 32, repartidos en cuatro prefijos: `sd` (17), `conversations` (12),
+    Hoy son 15, repartidos en tres prefijos: `conversations` (12),
     `activity` (2) y `pipeline` (1). Arreglarlos es cambiar URLs públicas, o sea
     romper a cualquier cliente que las use, así que **no se toca**: se anota.
+
+    Los 17 de `sd` (informes, impacto de cambios y capacidad) sí se quitaron
+    en 2026-11: ninguna pantalla ni cliente los llamaba —se midió en el
+    frontend— y pasaban a tenerla.
     """
     from app.main import app
 
