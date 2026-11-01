@@ -176,7 +176,7 @@ class UATSession(Base):
     test_credentials = Column(String(255), nullable=True)  # Access info
     test_guide_url = Column(String(500), nullable=True)
 
-    status = Column(Enum(UATStatus), default=UATStatus.pending, index=True)
+    status = Column(Enum(UATStatus, name='uat_session_status'), default=UATStatus.pending, index=True)
 
     # Dates
     available_from = Column(Date, nullable=True)
@@ -184,7 +184,7 @@ class UATSession(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Client result
-    client_result = Column(Enum(UATStatus), nullable=True)
+    client_result = Column(Enum(UATStatus, name='uat_session_status'), nullable=True)
     client_notes = Column(Text, nullable=True)
     client_signed_by = Column(String(36), ForeignKey("client_users.id"), nullable=True)
     client_signed_at = Column(DateTime(timezone=True), nullable=True)

@@ -186,3 +186,128 @@ def test_la_exclusion_de_modelos_de_test_no_tapa_modelos_reales():
         f"{PREFIJO_MODELOS_DE_TEST!r}, así que el test de paridad los ignora: "
         f"{culpables}"
     )
+
+
+# ── La misma cadena sobre PostgreSQL ─────────────────────────────────────────
+# El test de arriba corre sobre SQLite, que no valida claves ajenas al crear
+# tablas, no limita la longitud de VARCHAR, acepta 1/0 como booleanos y no
+# tiene tipos enum. Por eso la cadena estuvo rota en Postgres sin que nadie lo
+# viera: el setup se paraba en la 001 sobre una base vacía (2026-11).
+#
+# Índices que la base tiene y los modelos no: los crean a propósito la 073
+# (claves ajenas), la 083 (trigram) y la 2f165b37fe82 (únicos parciales). No
+# cambian ningún resultado, así que no cuentan como diferencia.
+DIFERENCIAS_ADMITIDAS = {"remove_index"}
+
+
+def _servidor_postgres() -> str | None:
+    url = os.environ.get("PARITY_POSTGRES_URL")
+    if not url:
+        env = REPO / ".env"
+        if env.exists():
+            for linea in env.read_text(encoding="utf-8").splitlines():
+                if linea.startswith("DATABASE_URL="):
+                    url = linea.split("=", 1)[1].strip()
+    if not url or not url.startswith("postgresql"):
+        return None
+    return url
+
+
+def _diferencias_de_enum(conn, metadata) -> list[str]:
+    from sqlalchemy import Enum, text
+
+    tipo_de = {
+        (t, c): u for t, c, u in conn.execute(text(
+            "SELECT table_name, column_name, udt_name FROM information_schema.columns "
+            "WHERE table_schema = current_schema()"
+        ))
+    }
+    valores: dict[str, set[str]] = {}
+    for nombre, valor in conn.execute(text(
+        "SELECT t.typname, e.enumlabel FROM pg_type t JOIN pg_enum e ON e.enumtypid = t.oid"
+    )):
+        valores.setdefault(nombre, set()).add(valor)
+
+    malas, recorridas = [], 0
+    for tabla in metadata.sorted_tables:
+        if tabla.name.startswith(PREFIJO_MODELOS_DE_TEST):
+            continue
+        for col in tabla.columns:
+            if not (isinstance(col.type, Enum) and col.type.native_enum):
+                continue
+            recorridas += 1
+            tipo = tipo_de.get((tabla.name, col.name))
+            faltan = set(col.type.enums) - valores.get(tipo, set())
+            if tipo != col.type.name or faltan:
+                malas.append(f"{tabla.name}.{col.name}: base={tipo} modelo={col.type.name} faltan={sorted(faltan)}")
+    assert recorridas > 100, f"sólo se recorrieron {recorridas} columnas enum: la comprobación no está mirando"
+    return malas
+
+
+@pytest.mark.slow
+def test_alembic_upgrade_head_sobre_postgres_coincide_con_los_modelos():
+    import uuid
+
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+    from sqlalchemy.engine import make_url
+
+    servidor = _servidor_postgres()
+    if servidor is None:
+        pytest.skip("sin Postgres: ni PARITY_POSTGRES_URL ni un DATABASE_URL postgresql en .env")
+
+    nombre = f"parity_{uuid.uuid4().hex[:12]}"
+    admin = create_engine(make_url(servidor).set(database="postgres"), isolation_level="AUTOCOMMIT")
+    try:
+        with admin.connect() as c:
+            c.exec_driver_sql(f'CREATE DATABASE "{nombre}"')
+    except Exception as exc:  # noqa: BLE001
+        admin.dispose()
+        pytest.skip(f"Postgres configurado pero no responde: {exc.__class__.__name__}")
+
+    url = make_url(servidor).set(database=nombre).render_as_string(hide_password=False)
+    try:
+        env = dict(os.environ)
+        env["DATABASE_URL"] = url
+        env.setdefault("SECRET_KEY", "parity-test-secret-2f9c41ab7de6035849bc12ef")
+        env.setdefault("CLIENT_PORTAL_SECRET", "parity-test-portal-8a13cd52be97640f2e1b")
+        env["TESTING"] = "1"
+        proc = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            cwd=REPO, env=env, capture_output=True, text=True, timeout=900,
+        )
+        assert proc.returncode == 0, (
+            "`alembic upgrade head` falló sobre un PostgreSQL vacío.\n"
+            f"stdout:\n{proc.stdout[-3000:]}\nstderr:\n{proc.stderr[-3000:]}"
+        )
+
+        from app.db.base import Base
+        import app.models  # noqa: F401
+
+        eng = create_engine(url)
+        try:
+            with eng.connect() as conn:
+                ctx = MigrationContext.configure(conn, opts={"compare_type": True})
+                diffs = compare_metadata(ctx, Base.metadata)
+                enums = _diferencias_de_enum(conn, Base.metadata)
+        finally:
+            eng.dispose()
+    finally:
+        with admin.connect() as c:
+            c.exec_driver_sql(f'DROP DATABASE IF EXISTS "{nombre}" WITH (FORCE)')
+        admin.dispose()
+
+    def tipo(d):
+        return (d[0] if isinstance(d, list) else d)[0]
+
+    def es_de_test(d):
+        x = d[0] if isinstance(d, list) else d
+        objeto = x[1] if x[0] in ("add_table", "remove_table") else None
+        return objeto is not None and objeto.name.startswith(PREFIJO_MODELOS_DE_TEST)
+
+    reales = [d for d in diffs if tipo(d) not in DIFERENCIAS_ADMITIDAS and not es_de_test(d)]
+    assert not reales, (
+        f"{len(reales)} diferencias entre el esquema de Postgres y los modelos "
+        f"(de {len(diffs)} encontradas):\n" + "\n".join(str(d)[:300] for d in reales[:40])
+    )
+    assert not enums, "enums que no casan con los modelos:\n" + "\n".join(enums)

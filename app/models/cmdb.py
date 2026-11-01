@@ -28,7 +28,7 @@ class WikiTag(Base):
                         nullable=False, index=True)
     name       = Column(String(80),  nullable=False)
     color      = Column(String(20),  default="#7a8aaa")
-    is_active  = Column(Boolean, default=True)
+    is_active  = Column(Boolean, default=True, nullable=False)
     created_by = Column(String(36),  ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     page_tags  = relationship("WikiPageTag", back_populates="tag",
@@ -85,7 +85,7 @@ class CMDBItem(Base):
                             ondelete="SET NULL"), nullable=True, index=True)
     name         = Column(String(200), nullable=False)
     ci_type      = Column(String(50),  nullable=False, index=True)   # server, app, db, network, service…
-    is_active    = Column(Boolean, default=True)
+    is_active    = Column(Boolean, default=True, nullable=False)
     status       = Column(String(30),  default="active")             # active, maintenance, decommissioned
     environment  = Column(String(20),  default="production")         # production, staging, dev
     owner_id     = Column(String(36),  ForeignKey("users.id"), nullable=True)
@@ -123,7 +123,7 @@ class CMDBRelation(Base):
     to_item_id   = Column(String(36), ForeignKey("cmdb_items.id", ondelete="CASCADE"),
                           nullable=False)
     rel_type     = Column(String(50),  default="depends_on")   # depends_on, runs_on, connects_to, hosts
-    is_active    = Column(Boolean, default=True)
+    is_active    = Column(Boolean, default=True, nullable=False)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
     from_item    = relationship("CMDBItem", foreign_keys=[from_item_id],
                                 back_populates="relations_from")
@@ -194,7 +194,7 @@ class KanbanColumn(Base):
     label       = Column(String(100), nullable=True)     # etiqueta personalizada
     wip_limit   = Column(Integer, nullable=True)         # None = sin límite
     color       = Column(String(20),  nullable=True)
-    is_active   = Column(Boolean, default=True)
+    is_active   = Column(Boolean, default=True, nullable=False)
     sort_order  = Column(Integer, default=0)
     config      = relationship("KanbanConfig", back_populates="columns")
 
@@ -214,7 +214,7 @@ class SprintPlan(Base):
     total_points   = Column(Integer,  default=0)
     team_capacity  = Column(Integer,  default=0)      # story points disponibles del equipo
     ai_reasoning   = Column(Text,     nullable=True)  # explicación de la IA
-    is_active      = Column(Boolean, default=True)
+    is_active      = Column(Boolean, default=True, nullable=False)
     status         = Column(String(20), default="draft")   # draft, accepted, rejected
     created_by     = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
@@ -247,7 +247,7 @@ class SLACalendar(Base):
     timezone      = Column(String(50),  default=settings.DEFAULT_TIMEZONE)
     work_start    = Column(String(5),   default="09:00")   # HH:MM
     work_end      = Column(String(5),   default="18:00")
-    is_active     = Column(Boolean, default=True)
+    is_active     = Column(Boolean, default=True, nullable=False)
     work_days     = Column(String(20),  default="1,2,3,4,5")  # CSV: 1=lun … 7=dom
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     holidays      = relationship("V21SLAHoliday", back_populates="calendar",
@@ -262,7 +262,7 @@ class V21SLAHoliday(Base):
     calendar_id = Column(String(36), ForeignKey("sla_calendars.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     holiday_date= Column(String(10), nullable=False)   # YYYY-MM-DD
-    is_active   = Column(Boolean, default=True)
+    is_active   = Column(Boolean, default=True, nullable=False)
     name        = Column(String(100), nullable=True)
     calendar    = relationship("SLACalendar", back_populates="holidays")
 

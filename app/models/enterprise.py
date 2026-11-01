@@ -78,7 +78,7 @@ class ProjectPermission(Base):
     project_id   = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id      = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     level        = Column(Enum(ProjectPermissionLevel), nullable=False, default=ProjectPermissionLevel.member)
-    is_active    = Column(Boolean, default=True)
+    is_active    = Column(Boolean, default=True, nullable=False)
     can_see_financials = Column(Boolean, default=False)   # Costs, rates, budgets
     can_see_rates      = Column(Boolean, default=False)   # Hourly rates of teammates
     can_export         = Column(Boolean, default=True)
@@ -182,7 +182,7 @@ class SSOConfig(Base):
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     provider    = Column(Enum(SSOProvider), nullable=False)
     is_active   = Column(Boolean, default=False)
-    is_deleted  = Column(Boolean, default=False)
+    is_deleted  = Column(Boolean, default=False, nullable=False)
     is_default  = Column(Boolean, default=False)   # Auto-redirect to SSO on login page
 
     # SAML
@@ -257,7 +257,7 @@ class Notification(Base):
     resource_id   = Column(String(36), nullable=True)
     action_url    = Column(String(500), nullable=True)   # frontend route
 
-    is_active     = Column(Boolean, default=True, index=True)
+    is_active     = Column(Boolean, default=True, nullable=False, index=True)
     is_read       = Column(Boolean, default=False, index=True)
     read_at       = Column(DateTime(timezone=True), nullable=True)
     created_at    = Column(DateTime(timezone=True), server_default=func.now(), index=True)
@@ -304,7 +304,7 @@ class SubcontractorRate(Base):
     cost_rate        = Column(Float, nullable=False)          # What we pay them €/h
     sell_rate        = Column(Float, nullable=True)           # What we charge client €/h
     currency         = Column(String(3), default=settings.DEFAULT_CURRENCY)
-    is_active        = Column(Boolean, default=True)
+    is_active        = Column(Boolean, default=True, nullable=False)
     valid_from       = Column(Date, nullable=True)
     valid_until      = Column(Date, nullable=True)
 
@@ -353,7 +353,7 @@ class SubcontractorWorkerSkill(Base):
     level            = Column(String(20), nullable=False, default="intermediate")  # basic/intermediate/advanced/expert
     years_experience = Column(Float, nullable=True)
     certified        = Column(Boolean, default=False)
-    is_active        = Column(Boolean, default=True)
+    is_active        = Column(Boolean, default=True, nullable=False)
     cert_name        = Column(String(255), nullable=True)
     notes            = Column(String(255), nullable=True)
     created_at       = Column(DateTime(timezone=True), server_default=func.now())
@@ -426,7 +426,7 @@ class SubcontractorTimeLog(Base):
     description      = Column(String(500), nullable=True)
     task_reference   = Column(String(100), nullable=True)     # referencia a tarea o entregable
     cost_amount      = Column(Float, nullable=True)           # horas × coste_tarifa
-    is_active        = Column(Boolean, default=True)
+    is_active        = Column(Boolean, default=True, nullable=False)
     is_invoiced      = Column(Boolean, default=False)         # incluido en alguna factura
     invoice_id       = Column(String(36), ForeignKey("subcontractor_invoices.id"), nullable=True)
     created_at       = Column(DateTime(timezone=True), server_default=func.now())

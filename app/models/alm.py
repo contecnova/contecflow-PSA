@@ -165,7 +165,7 @@ class ALMContract(Base):
     reference        = Column(String(100), nullable=True)   # Nº contrato interno
     type             = Column(Enum(ALMContractType), nullable=False)
     status           = Column(Enum(ALMContractStatus), default=ALMContractStatus.active)
-    is_active        = Column(Boolean, default=True)
+    is_active        = Column(Boolean, default=True, nullable=False)
 
     # Fechas
     start_date       = Column(Date, nullable=True)
@@ -220,7 +220,7 @@ class ALMLicense(Base):
     type                 = Column(Enum(LicenseType), nullable=False)
     platform             = Column(Enum(LicensePlatform), default=LicensePlatform.any)
     status               = Column(Enum(LicenseStatus), default=LicenseStatus.active)
-    is_active            = Column(Boolean, default=True)
+    is_active            = Column(Boolean, default=True, nullable=False)
 
     # Seats / tokens
     total_seats          = Column(Integer, nullable=True)    # null = ilimitado
@@ -279,7 +279,7 @@ class ALMAsset(Base):
     id                  = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name                = Column(String(200), nullable=False)
-    type                = Column(Enum(AssetType), nullable=False)
+    type                = Column(Enum(AssetType, name='alm_assettype'), nullable=False)
     brand               = Column(String(100), nullable=True)
     model               = Column(String(200), nullable=True)
     serial_number       = Column(String(200), nullable=True, unique=True)
@@ -287,7 +287,7 @@ class ALMAsset(Base):
 
     status              = Column(Enum(ALMAssetStatus, name='alm_assetstatus'), default=ALMAssetStatus.available)
     condition           = Column(Enum(AssetCondition), default=AssetCondition.good)
-    is_active           = Column(Boolean, default=True)
+    is_active           = Column(Boolean, default=True, nullable=False)
 
     # Asignación
     assigned_to_id      = Column(String(36), ForeignKey("users.id",        ondelete="SET NULL"), nullable=True)
@@ -333,7 +333,7 @@ class ALMSoftwareInstall(Base):
     installed_at = Column(DateTime(timezone=True), server_default=func.now())
     installed_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     version      = Column(String(50), nullable=True)
-    is_active    = Column(Boolean, default=True)
+    is_active    = Column(Boolean, default=True, nullable=False)
     notes        = Column(String(500), nullable=True)
 
     license      = relationship("ALMLicense", back_populates="installs")

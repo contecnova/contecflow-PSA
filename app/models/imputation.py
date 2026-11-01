@@ -66,7 +66,7 @@ class Imputation(Base):
     timer_session_id = Column(String(36), nullable=True, index=True)
 
     # Soft delete
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True, nullable=False)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
