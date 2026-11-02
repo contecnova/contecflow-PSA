@@ -455,7 +455,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
         {form.client_id && contactos.length > 0 && (
           <div>
             <label htmlFor={`${idPrefix}-contact`} style={LS}>{traducir('sd_cfg.req_contact')}</label>
-            <select id={`${idPrefix}-contact`} defaultValue="" style={IS}
+            <select id={`${idPrefix}-contact`} aria-label={traducir('sd_cfg.req_contact')} defaultValue="" style={IS}
               onChange={e => { const c = contactos.find(x => x.id === e.target.value); if (c) setSolicitante({ nombre: c.full_name, correo: c.email ?? '' }) }}>
               <option value="">{traducir('sd_cfg.req_contact_none')}</option>
               {contactos.map(c => <option key={c.id} value={c.id}>{c.full_name}{c.email ? ` · ${c.email}` : ''}</option>)}
@@ -464,11 +464,11 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
         )}
         <div>
           <label htmlFor={`${idPrefix}-req-name`} style={LS}>{traducir('sd_cfg.req_name')}</label>
-          <input id={`${idPrefix}-req-name`} value={solicitante.nombre} onChange={e => setSolicitante(s => ({ ...s, nombre: e.target.value }))} style={IS} />
+          <input id={`${idPrefix}-req-name`} aria-label={traducir('sd_cfg.req_name')} value={solicitante.nombre} onChange={e => setSolicitante(s => ({ ...s, nombre: e.target.value }))} style={IS} />
         </div>
         <div>
           <label htmlFor={`${idPrefix}-req-email`} style={LS}>{traducir('sd_cfg.req_email')}</label>
-          <input id={`${idPrefix}-req-email`} type="email" value={solicitante.correo} onChange={e => setSolicitante(s => ({ ...s, correo: e.target.value }))} style={IS} />
+          <input id={`${idPrefix}-req-email`} aria-label={traducir('sd_cfg.req_email')} type="email" value={solicitante.correo} onChange={e => setSolicitante(s => ({ ...s, correo: e.target.value }))} style={IS} />
         </div>
         {!solicitante.correo.trim() && (
           <div style={{ gridColumn: '1/-1', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('sd_cfg.req_hint')}</div>
