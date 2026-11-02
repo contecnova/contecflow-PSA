@@ -31,8 +31,25 @@ def serialize_sla_policy(policy: SLAPolicy) -> dict:
 
 
 def list_sla_policies_payload(db: Session) -> list[dict]:
+    """Las politicas activas, cada una con los clientes y contratos que la usan.
+
+    Sin eso la asignacion por cliente o contrato (que manda sobre la politica
+    por defecto) no se veia en ninguna pantalla.
+    """
+    from app.models.clients import Client
+    from app.models.pipeline import Contract
+
     policies = db.query(SLAPolicy).filter(SLAPolicy.is_active == True).all()
-    return [serialize_sla_policy(policy) for policy in policies]
+    ids = [p.id for p in policies]
+    clientes: dict = {}
+    for c in db.query(Client.id, Client.name, Client.sla_policy_id).filter(Client.sla_policy_id.in_(ids)).all():
+        clientes.setdefault(c.sla_policy_id, []).append({"id": c.id, "name": c.name})
+    contratos: dict = {}
+    for c in db.query(Contract).filter(Contract.sla_policy_id.in_(ids)).all():
+        contratos.setdefault(c.sla_policy_id, []).append(
+            {"id": c.id, "name": getattr(c, "title", None) or getattr(c, "name", None) or c.id})
+    return [{**serialize_sla_policy(p), "clients": clientes.get(p.id, []), "contracts": contratos.get(p.id, [])}
+            for p in policies]
 
 
 def _exigir_calendario(db: Session, calendar_id) -> None:

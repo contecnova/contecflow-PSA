@@ -656,6 +656,10 @@ export const vendorsApi = {
 
 // ── Service Desk ──────────────────────────────────────────────────────────────
 export const ticketsApi = {
+  watchers:  (id: any)      => api.get(`/sd/tickets/${id}/watchers`),
+  watch:     (id: any)      => api.post(`/sd/tickets/${id}/watch`),
+  unwatch:   (id: any)      => api.delete(`/sd/tickets/${id}/watch`),
+  mergeInto: (id: any, data: unknown) => api.post(`/sd/tickets/${id}/merge`, data),
   list:    (params?: any)   => api.get('/sd/tickets', { params }),
   myQueue: ()         => api.get('/sd/tickets/my-queue'),
   get:     (id: any)       => api.get(`/sd/tickets/${id}`),
@@ -1337,6 +1341,8 @@ export const sdCatalogApi = {
 }
 
 export const sdSlaPoliciesApi = {
+  assign: (tipo: 'client' | 'contract', id: string, slaPolicyId: string | null) =>
+    api.patch(`/sd/sla-policies/assign/${tipo}/${id}`, { sla_policy_id: slaPolicyId }),
   list:   ()         => api.get('/sd/sla-policies'),
   create: (data: unknown)     => api.post('/sd/sla-policies', data),
   update: (id: any, data: unknown) => api.patch(`/sd/sla-policies/${id}`, data),
@@ -1383,6 +1389,15 @@ export const sdOnCallApi = {
 
 export const sdMonitoringApi = {
   alerts: (limit = 30) => api.get('/sd/events/alerts', { params: { limit } }),
+}
+
+export const sdStatusPageApi = {
+  link:            ()                    => api.get('/sd/status-page/link'),
+  components:      ()                    => api.get('/sd/status-page/components'),
+  createComponent: (data: unknown)       => api.post('/sd/status-page/components', data),
+  updateComponent: (id: string, data: unknown) => api.patch(`/sd/status-page/components/${id}`, data),
+  deleteComponent: (id: string)          => api.delete(`/sd/status-page/components/${id}`),
+  declare:         (id: string, data: unknown) => api.post(`/sd/status-page/components/${id}/incidents`, data),
 }
 
 export const sdApprovalsApi = {

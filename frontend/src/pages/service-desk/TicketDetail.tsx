@@ -592,6 +592,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
             </Button>
           </div>
 
+          <SeguirYFusionar ticketId={ticketId} />
           <div style={{ marginBottom: 20 }}><DocumentsPanel ticketId={ticketId} /></div>
 
           {(ticket.history || []).length > 0 && (
@@ -732,6 +733,57 @@ function ApoyoDeLaSugerencia({ s }: { s: Sugerencia }) {
             ))}
         </div>
       )}
+    </div>
+  )
+}
+
+
+/** Seguir el ticket (recibir sus avisos sin ser el agente) y fusionar duplicados. */
+function SeguirYFusionar({ ticketId }: { ticketId: string }) {
+  const t = useAppT()
+  const toast = useToast()
+  const qc = useQueryClient()
+  const { user } = useAuth()
+  const [numero, setNumero] = useState('')
+  const [motivo, setMotivo] = useState('')
+  const { data: seguidores = [] } = useQuery<{ user_id: string; user_name?: string }[]>({
+    queryKey: ['sd-ticket-watchers', ticketId],
+    queryFn: () => ticketsApi.watchers(ticketId).then(r => r.data as { user_id: string; user_name?: string }[]),
+  })
+  const sigo = seguidores.some(s => s.user_id === user?.id)
+  const err = (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+  const alternar = useMutation({
+    mutationFn: () => sigo ? ticketsApi.unwatch(ticketId) : ticketsApi.watch(ticketId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sd-ticket-watchers', ticketId] }), onError: err,
+  })
+  const fusionar = useMutation({
+    mutationFn: async () => {
+      const buscado = numero.trim().toUpperCase()
+      const lista = await ticketsApi.list({ search: buscado, page_size: 5 }).then(r => r.data as { id: string; number: string }[])
+      const duplicado = lista.find(x => x.number === buscado && x.id !== ticketId)
+      if (!duplicado) throw new Error(t('sd_cfg.m_not_found'))
+      await ticketsApi.mergeInto(ticketId, { merged_ticket_id: duplicado.id, reason: motivo || null })
+      return buscado
+    },
+    onSuccess: (n: string) => { setNumero(''); setMotivo(''); qc.invalidateQueries({ queryKey: ['sd-ticket', ticketId] }); toast.success(t('sd_cfg.m_done', { n })) },
+    onError: (e: unknown) => toast.error(e instanceof Error && e.message ? e.message : extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  return (
+    <div className="ds-card" style={{ padding: 12, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 'var(--text-sm)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ flex: 1, color: 'var(--text-2)' }}>
+          <strong>{t('sd_cfg.w_followers')}:</strong> {seguidores.length ? seguidores.map(s => s.user_name).join(', ') : t('sd_cfg.w_nobody')}
+        </span>
+        <Button variant="secondary" onClick={() => alternar.mutate()} loading={alternar.isPending}>{sigo ? t('sd_cfg.w_unfollow') : t('sd_cfg.w_follow')}</Button>
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontWeight: 600 }}>{t('sd_cfg.m_title')}</span>
+        <input aria-label={t('sd_cfg.m_number')} placeholder={t('sd_cfg.m_number')} value={numero} onChange={e => setNumero(e.target.value)}
+          style={{ ...(INPUT_STYLE as CSSProperties), flex: '1 1 160px' }} />
+        <input aria-label={t('sd_cfg.m_reason')} placeholder={t('sd_cfg.m_reason')} value={motivo} onChange={e => setMotivo(e.target.value)}
+          style={{ ...(INPUT_STYLE as CSSProperties), flex: '2 1 200px' }} />
+        <Button variant="secondary" disabled={!numero.trim()} loading={fusionar.isPending} onClick={() => fusionar.mutate()}>{t('sd_cfg.m_do')}</Button>
+      </div>
     </div>
   )
 }

@@ -8,17 +8,19 @@ import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
-import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, slaCalendarsApi } from '../../services/api'
+import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, slaCalendarsApi, clientsApi, contractsApi } from '../../services/api'
 import { EscalationConfig, NotificationsConfig } from './ConfigEscaladoYAvisos'
 import ConfigCorreoEntrante from './ConfigCorreoEntrante'
 import { GuardiasConfig, MonitorizacionConfig } from './ConfigGuardiasYMonitor'
+import ConfigPaginaDeEstado from './ConfigPaginaDeEstado'
 import { PRIORITY_LABEL, PBadge } from './sdUtils'
 import { RoutingRules } from './QueueAndRoutingSections'
 
 // ── Local types ─────────────────────────────────────────────────────────────
 type Svc = { [k: string]: unknown; id: string; name: string; category_id?: string; ticket_type?: string; default_priority?: string; sla_response_hours?: number; sla_resolution_hours?: number; requires_approval?: boolean; approval_user_id?: string | null; is_visible_to_clients?: boolean }
 type Cat = { [k: string]: unknown; id: string; name: string; description?: string; icon?: string; color?: string; services?: Svc[] }
-type Policy = { [k: string]: unknown; id: string; name: string; description?: string; is_default?: boolean; business_hours_only?: boolean; business_start?: number; business_end?: number; business_days?: string; timezone?: string | null; calendar_id?: string | null }
+type Asignada = { id: string; name: string }
+type Policy = { [k: string]: unknown; id: string; name: string; description?: string; is_default?: boolean; business_hours_only?: boolean; clients?: Asignada[]; contracts?: Asignada[]; business_start?: number; business_end?: number; business_days?: string; timezone?: string | null; calendar_id?: string | null }
 type Calendario = { id: string; name: string; timezone?: string; work_start?: string; work_end?: string; work_days?: string }
 type Member = { [k: string]: unknown; id: string; full_name?: string; is_lead?: boolean }
 type Group = { [k: string]: unknown; id: string; name: string; description?: string; support_level?: string; members?: Member[] }
@@ -275,6 +277,7 @@ function SLAConfig() {
     queryFn: () => slaCalendarsApi.list().then(r => r.data as Calendario[]),
   })
   const [editing, setEditing] = useState<Policy | null>(null)
+  const [asignando, setAsignando] = useState<Policy | null>(null)
   const { mutate: create, isPending } = useMutation({
     mutationFn: (d: Record<string, unknown>) => sdSlaPoliciesApi.create(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setShowNew(false); toast.success(t('service_desk.sla_created')) },
@@ -323,6 +326,10 @@ function SLAConfig() {
                   style={{ padding:'3px 10px', borderRadius:6, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
               </div>
             </div>
+            <div style={{ fontSize:'var(--text-sm)', color:'var(--text-2)', marginBottom:12, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+              <span><strong>{t('sd_cfg.sla_used_by')}:</strong> {[...(p.clients ?? []), ...(p.contracts ?? [])].map(x => x.name).join(', ') || t('sd_cfg.sla_nobody')}</span>
+              <Button variant="secondary" onClick={() => setAsignando(p)}>{t('sd_cfg.sla_assign')}</Button>
+            </div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
               {[['P1 Crítico', 'p1', COLOR.danger], ['P2 Alto', 'p2', 'var(--orange)'], ['P3 Medio', 'p3', COLOR.warning], ['P4 Bajo', 'p4', COLOR.text2]].map(([label, key, color]) => (
                 <div key={key} style={{ background:'var(--surface-1)', borderRadius:8, padding:12, borderTop:`3px solid ${color}` }}>
@@ -343,6 +350,11 @@ function SLAConfig() {
           <NewSLAForm IS={IS} LS={LS} onSave={d => create(d)} isPending={isPending} onClose={() => setShowNew(false)} />
         </Modal>
       )}
+      {asignando && (
+        <Modal open title={`${t('sd_cfg.sla_assign')} · ${asignando.name}`} onClose={() => setAsignando(null)}>
+          <AsignarPolitica politica={asignando} IS={IS} LS={LS} onHecho={() => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setAsignando(null) }} />
+        </Modal>
+      )}
       {editing && (
         <Modal open title={t('service_desk.sla_edit_title')} onClose={() => setEditing(null)} size="lg">
           <NewSLAForm IS={IS} LS={LS} initial={editing}
@@ -350,6 +362,40 @@ function SLAConfig() {
             isPending={false} onClose={() => setEditing(null)} />
         </Modal>
       )}
+    </div>
+  )
+}
+
+function AsignarPolitica({ politica, IS, LS, onHecho }: { politica: Policy; IS: CSSProperties; LS: CSSProperties; onHecho: () => void }) {
+  const t = useAppT()
+  const toast = useToast()
+  const [tipo, setTipo] = useState<'client' | 'contract'>('client')
+  const [destino, setDestino] = useState('')
+  const { data: opciones = [] } = useQuery<{ id: string; name?: string; title?: string }[]>({
+    queryKey: ['sla-assign-targets', tipo],
+    queryFn: () => (tipo === 'client' ? clientsApi.list({ page_size: 200 }) : contractsApi.list({ page_size: 200 }))
+      .then(r => r.data as { id: string; name?: string; title?: string }[]),
+  })
+  const asignar = useMutation({
+    mutationFn: () => sdSlaPoliciesApi.assign(tipo, destino, politica.id),
+    onSuccess: onHecho,
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      <div><label style={LS} htmlFor="sla-asig-tipo">{t('sd_cfg.sla_target_type')}</label>
+        <select id="sla-asig-tipo" aria-label={t('sd_cfg.sla_target_type')} value={tipo} onChange={e => { setTipo(e.target.value as 'client' | 'contract'); setDestino('') }} style={IS}>
+          <option value="client">{t('sd_cfg.sla_target_client')}</option>
+          <option value="contract">{t('sd_cfg.sla_target_contract')}</option>
+        </select></div>
+      <div><label style={LS} htmlFor="sla-asig-destino">{tipo === 'client' ? t('sd_cfg.sla_target_client') : t('sd_cfg.sla_target_contract')}</label>
+        <select id="sla-asig-destino" aria-label={t('sd_cfg.sla_target_client')} value={destino} onChange={e => setDestino(e.target.value)} style={IS}>
+          <option value="">—</option>
+          {opciones.map(o => <option key={o.id} value={o.id}>{o.name ?? o.title ?? o.id}</option>)}
+        </select></div>
+      <div style={{ display:'flex', justifyContent:'flex-end' }}>
+        <Button disabled={!destino || asignar.isPending} loading={asignar.isPending} onClick={() => asignar.mutate()}>{t('common.save')}</Button>
+      </div>
     </div>
   )
 }
@@ -973,6 +1019,7 @@ export default function Config() {
     {id:'mail', label:t('sd_cfg.tab_mail')},
     {id:'monitoring', label:t('sd_cfg.tab_monitoring')},
     {id:'oncall', label:t('sd_cfg.tab_oncall')},
+    {id:'status_page', label:t('sd_cfg.tab_status_page')},
     {id:'templates',label:`${t('service_desk.tab_templates')}`},
     {id:'canned',   label:`${t('service_desk.tab_canned')}`},
     {id:'announcements', label:`${t('service_desk.tab_announcements')}`},
@@ -999,6 +1046,7 @@ export default function Config() {
       {sub === 'mail'          && <ConfigCorreoEntrante />}
       {sub === 'monitoring'    && <MonitorizacionConfig />}
       {sub === 'oncall'        && <GuardiasConfig />}
+      {sub === 'status_page'   && <ConfigPaginaDeEstado />}
       {sub === 'templates'     && <TemplatesConfig />}
       {sub === 'canned'        && <CannedResponsesManager />}
       {sub === 'announcements' && <AnnouncementsConfig />}

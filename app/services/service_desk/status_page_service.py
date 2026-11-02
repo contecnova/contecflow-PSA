@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
@@ -15,10 +16,32 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def build_public_status_page_payload(db: Session) -> dict:
-    components = db.query(StatusPageComponent).filter(
-        StatusPageComponent.is_public == True
-    ).order_by(StatusPageComponent.sort_order, StatusPageComponent.name).all()
+def organizacion_de_la_pagina(db: Session, slug: Optional[str]) -> Optional[str]:
+    """La organizacion de una pagina de estado publica, por su slug.
+
+    Auditoria 2026-11: la pagina publica mezclaba los componentes de TODAS las
+    organizaciones (es anonima: no hay filtro de tenant). Ahora va por
+    organizacion: `?org=<slug>`. Sin slug solo se sirve si hay una sola.
+    """
+    from fastapi import HTTPException
+    from app.models.mfa import Organization
+
+    if slug:
+        org = db.query(Organization).filter(Organization.slug == slug, Organization.is_active == True).first()  # noqa: E712
+        if org is None:
+            raise HTTPException(404, "Página de estado no encontrada")
+        return org.id
+    ids = [r[0] for r in db.query(Organization.id).limit(2).all()]
+    if len(ids) == 1:
+        return ids[0]
+    raise HTTPException(422, "Indica la organización: ?org=<slug>")
+
+
+def build_public_status_page_payload(db: Session, org_id: Optional[str] = None) -> dict:
+    q = db.query(StatusPageComponent).filter(StatusPageComponent.is_public == True)  # noqa: E712
+    if org_id is not None:
+        q = q.filter(StatusPageComponent.organization_id == org_id)
+    components = q.order_by(StatusPageComponent.sort_order, StatusPageComponent.name).all()
 
     status_severity = {
         "operational": 0,
@@ -92,7 +115,8 @@ def build_status_page_embed_script() -> str:
         mount.id = targetId;
         document.body.appendChild(mount);
     }
-    fetch(api + '/api/v1/sd/status-page')
+    var org = (scriptTag && scriptTag.getAttribute('data-org')) || '';
+    fetch(api + '/api/v1/sd/status-page' + (org ? '?org=' + encodeURIComponent(org) : ''))
         .then(function(r){ return r.json(); })
         .then(function(data){
             var html = '<div style="font-family:system-ui,sans-serif;border:1px solid #d0d7de;border-radius:8px;padding:12px;max-width:760px">'
@@ -249,3 +273,16 @@ def add_status_incident_update_record(db: Session, incident_id: str, payload: St
     updates_count = add_incident_update(incident, payload)
     resolve_incident_if_needed(db, incident, payload.status)
     return updates_count
+
+
+def enlace_publico(db: Session, org_id: Optional[str]) -> dict:
+    """La direccion de la pagina publica de la organizacion (va por su slug)."""
+    from app.core.config import settings
+    from app.models.mfa import Organization
+
+    org = db.get(Organization, org_id) if org_id else None
+    if org is None:
+        return {"slug": None, "url": None}
+    base = settings.BASE_URL.rstrip("/")
+    return {"slug": org.slug, "url": f"{base}/status?org={org.slug}",
+            "embed": f'<script src="{base}/status/embed.js" data-org="{org.slug}"></script>'}

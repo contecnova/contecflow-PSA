@@ -781,7 +781,9 @@ def public_status_page():
         <div id=\"foot\" class=\"foot\"></div>
     </div>
     <script>
-        const api = {api_path!r};
+        // La pagina es de una organizacion: ?org=<slug> (auditoria 2026-11).
+        const org = new URLSearchParams(window.location.search).get('org');
+        const api = {api_path!r} + (org ? '?org=' + encodeURIComponent(org) : '');
         const $content = document.getElementById('content');
         const $overall = document.getElementById('overall');
         const $foot = document.getElementById('foot');
@@ -840,7 +842,8 @@ def status_embed_js():
     target.style.maxWidth = "420px";
     target.innerHTML = "<div style='font-weight:700;margin-bottom:6px'>Service Status</div><div style='font-size:12px;color:#6b7280'>Loading...</div>";
 
-    fetch(apiBase + '/sd/status-page')
+    var org = (script && script.getAttribute('data-org')) || '';
+    fetch(apiBase + '/sd/status-page' + (org ? '?org=' + encodeURIComponent(org) : ''))
         .then(function(r) {{ return r.json(); }})
         .then(function(data) {{
             var groups = data.groups || {{}};

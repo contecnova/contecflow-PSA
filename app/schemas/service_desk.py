@@ -337,6 +337,14 @@ class StatusComponentIn(BaseModel):
     is_public: bool = Field(True, description="Indica si es público en el status page")
     ci_id: Optional[str] = Field(None, description="ID del CI vinculado")
 
+    @field_validator("status")
+    @classmethod
+    def _estado_valido(cls, v: str) -> str:
+        # Un estado mal escrito llegaba al enum de la columna y daba un 500.
+        from app.models.service_desk import StatusPageComponentStatus
+        StatusPageComponentStatus(v)
+        return v
+
 
 class StatusIncidentIn(BaseModel):
     title: str = Field(..., description="Título del incidente del status page")

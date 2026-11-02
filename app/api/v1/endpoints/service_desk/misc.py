@@ -480,13 +480,20 @@ def update_asset(asset_id: str, payload: AssetUpdate, db: Session = Depends(get_
 
 # ── Status Page ───────────────────────────────────────────────────────────────
 
-@router.get("/status-page", summary="Estado público del servicio (status page)")
-def get_status_page(db: Session = Depends(get_db)):
-    return APIResponse.ok(data=build_public_status_page_payload(db))
+@router.get("/status-page", summary="Estado público del servicio de una organización (?org=<slug>)")
+def get_status_page(org: Optional[str] = Query(None, max_length=100), db: Session = Depends(get_db)):
+    from app.services.service_desk.status_page_service import organizacion_de_la_pagina
+    return APIResponse.ok(data=build_public_status_page_payload(db, organizacion_de_la_pagina(db, org)))
 
 @router.get("/status-page/embed.js", summary="Snippet JS embebible de status page", response_class=PlainTextResponse)
 def status_page_embed_js():
     return build_status_page_embed_script()
+
+@router.get("/status-page/link", summary="Dirección pública de la página de estado de la organización")
+def status_page_link(db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+    from app.services.service_desk.status_page_service import enlace_publico
+    return APIResponse.ok(data=enlace_publico(db, current_user.organization_id))
+
 
 @router.get("/status-page/components", summary="Listar componentes del status page (admin)")
 def list_status_components(db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
