@@ -466,6 +466,14 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                 {textoSla(ticket.sla_resolution_status)} · {fmtDate(ticket.sla_resolution_due)}
               </div>
             </div>
+            {ticket.ola_due && (
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{t('sd_cfg.ola_of_queue', { group: ticket.assigned_group_name ?? '' })}</div>
+                <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: colorSla(ticket.ola_breached ? 'breached' : 'ok') }}>
+                  {textoSla(ticket.ola_breached ? 'breached' : 'ok')} · {fmtDate(ticket.ola_due)}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Info grid */}

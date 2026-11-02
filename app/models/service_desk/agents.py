@@ -1,6 +1,6 @@
 """service_desk.agents models — split from the former 1385-LOC god-file."""
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean, Enum
+from sqlalchemy import Column, String, DateTime, Float, ForeignKey, Boolean, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -17,6 +17,9 @@ class AgentGroup(Base):
     name = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
     support_level = Column(Enum(SupportLevel), nullable=False)
+    # OLA: horas de calendario que tiene la cola para resolver o pasar el
+    # ticket desde que le llega. Vacio: la cola no tiene OLA.
+    ola_hours = Column(Float, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

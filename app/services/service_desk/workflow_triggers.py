@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 #: Eventos que un nodo de inicio puede declarar como disparador.
 DISPARADORES = (
     "created", "assigned", "group_assigned", "status_changed",
-    "priority_changed", "commented", "sla_warning", "sla_breached", "escalated",
+    "priority_changed", "commented", "sla_warning", "sla_breached", "ola_breached", "escalated",
 )
 
 ORIGEN_FLUJO = "workflow"

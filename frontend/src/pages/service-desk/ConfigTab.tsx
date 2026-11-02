@@ -23,7 +23,7 @@ type Asignada = { id: string; name: string }
 type Policy = { [k: string]: unknown; id: string; name: string; description?: string; is_default?: boolean; business_hours_only?: boolean; clients?: Asignada[]; contracts?: Asignada[]; business_start?: number; business_end?: number; business_days?: string; timezone?: string | null; calendar_id?: string | null }
 type Calendario = { id: string; name: string; timezone?: string; work_start?: string; work_end?: string; work_days?: string }
 type Member = { [k: string]: unknown; id: string; full_name?: string; is_lead?: boolean }
-type Group = { [k: string]: unknown; id: string; name: string; description?: string; support_level?: string; members?: Member[] }
+type Group = { [k: string]: unknown; id: string; name: string; description?: string; support_level?: string; ola_hours?: number | null; members?: Member[] }
 type User = { [k: string]: unknown; id: string; full_name?: string }
 type Template = { [k: string]: unknown; id: string; name: string; ticket_type?: string; default_priority?: string; description_template?: string; is_active?: boolean }
 type Canned = { [k: string]: unknown; id: string; title?: string; body?: string; category?: string; shortcut?: string }
@@ -609,6 +609,7 @@ function GroupsConfig() {
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                   <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>{g.name}</span>
                   <span style={{ fontSize: "var(--text-xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>{g.support_level?.toUpperCase() || 'L1'}</span>
+                  {g.ola_hours != null && <span style={{ fontSize: "var(--text-xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>OLA {g.ola_hours} h</span>}
                 </div>
                 <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                   {available.length > 0 && (
@@ -668,8 +669,10 @@ function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSS
   const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '', description: initial?.description || '',
-    support_level: initial?.support_level || 'l1'
+    support_level: initial?.support_level || 'l1', ola_hours: initial?.ola_hours != null ? String(initial.ola_hours) : '',
   })
+  const ola = form.ola_hours.trim() === '' ? null : Number(form.ola_hours)
+  const olaValido = ola === null || (Number.isFinite(ola) && ola > 0)
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({...f, [k]: e.target.value}))
   return (
     <>
@@ -681,9 +684,14 @@ function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSS
         </select>
       </div>
       <div><label style={LS}>{t('common.description')}</label><input value={form.description} onChange={set('description')} style={IS} /></div>
+      <div><label style={LS} htmlFor="grp-ola">{t('sd_cfg.ola_hours')}</label>
+        <input id="grp-ola" type="number" min={0} step={0.5} value={form.ola_hours} onChange={set('ola_hours')} style={IS}
+          aria-invalid={!olaValido} aria-describedby="grp-ola-hint" />
+        <div id="grp-ola-hint" style={{ fontSize: "var(--text-xs)", color: olaValido ? 'var(--text-3)' : COLOR.danger, marginTop: 4 }}>{t('sd_cfg.ola_hint')}</div>
+      </div>
       <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-        <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('service_desk.groups_new_title')}</Button>
+        <Button onClick={() => onSave({ ...form, ola_hours: ola })} disabled={isPending || !form.name || !olaValido} loading={isPending}>{initial ? t('common.save') : t('service_desk.groups_new_title')}</Button>
       </div>
     </>
   )

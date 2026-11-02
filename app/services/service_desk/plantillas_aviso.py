@@ -123,6 +123,14 @@ POR_DEFECTO: dict[str, dict[str, tuple[str, str]]] = {
                "<p><strong>{{ticket_number}}</strong> ({{ticket_priority}}, {{assignee_name}}) "
                "missed its SLA, due {{sla_due}}.</p>" + _BOTON_EN),
     },
+    "sd.ola_breached.agent": {
+        "es": ("OLA incumplido en {{group_name}}: {{ticket_number}}",
+               "<p><strong>{{ticket_number}}</strong> ({{ticket_priority}}, {{assignee_name}}) "
+               "ha superado el tiempo interno de la cola {{group_name}}, que vencía {{sla_due}}.</p>" + _BOTON_ES),
+        "en": ("OLA breached in {{group_name}}: {{ticket_number}}",
+               "<p><strong>{{ticket_number}}</strong> ({{ticket_priority}}, {{assignee_name}}) "
+               "missed the internal target of the {{group_name}} queue, due {{sla_due}}.</p>" + _BOTON_EN),
+    },
     "sd.escalated.agent": {
         "es": ("Escalado: {{ticket_number}} {{ticket_title}}",
                "<p>Se ha escalado <strong>{{ticket_number}}</strong> ({{ticket_priority}}, "

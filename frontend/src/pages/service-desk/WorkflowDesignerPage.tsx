@@ -978,7 +978,7 @@ function Palette({ onAdd }: { onAdd: (type: string) => void }) {
 
 // Los mismos que `workflow_triggers.DISPARADORES` y `TicketStatus` del servidor.
 const DISPARADORES_DE_FLUJO = ['created', 'assigned', 'group_assigned', 'status_changed', 'priority_changed',
-  'commented', 'sla_warning', 'sla_breached', 'escalated']
+  'commented', 'sla_warning', 'sla_breached', 'ola_breached', 'escalated']
 const ESTADOS_DE_TICKET = ['new', 'assigned', 'in_progress', 'pending_client', 'pending_third', 'resolved', 'closed', 'cancelled']
 
 function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (patch: any) => void; onDelete: () => void }) {

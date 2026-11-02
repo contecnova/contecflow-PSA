@@ -14,6 +14,7 @@ def serialize_group(group: AgentGroup) -> dict:
         "name": group.name,
         "description": group.description,
         "support_level": group.support_level,
+        "ola_hours": group.ola_hours,
         "members": [
             {
                 "id": member.user_id,

@@ -71,6 +71,26 @@ viernes a última hora no está en riesgo el domingo. Cada paso a *en riesgo* o 
 la política por defecto. En cada política se ve qué clientes y contratos la
 usan, y desde ahí se asigna.
 
+**OLA de cada cola.** El SLA mide lo que se le promete al cliente. El OLA mide
+lo que tarda **cada cola** con el ticket, y sirve para saber qué equipo lo
+retiene. Se fija en *Configuración → Grupos*, en el campo *OLA (horas)*; si se
+deja vacío, la cola no tiene OLA.
+
+- El reloj arranca cuando el ticket entra en la cola, venga de donde venga: al
+  abrirlo, por una regla de enrutado, por el escalado o porque alguien lo
+  mueve. Si pasa a otra cola, el reloj vuelve a empezar con el OLA de la nueva.
+- Corre en el calendario del SLA del ticket y no cuenta el tiempo en pausa
+  dentro de esa cola.
+- Al vencer, avisa **una sola vez** al agente y a los responsables (★) de la
+  cola que lo tenía, aunque el ticket ya se haya movido. La plantilla del aviso
+  es *OLA de la cola incumplido* (*Configuración → Avisos*), y el mismo evento
+  puede arrancar un flujo (*Se incumple el OLA de su cola*).
+- En el ticket se ve como *OLA · cola*, con su vencimiento.
+- Cambiar las horas de una cola se aplica en la siguiente revisión, cada 5
+  minutos, a los tickets que ya están en ella.
+- Los tickets que ya estaban abiertos y en una cola al instalar la migración
+  108 empiezan a contar desde ese momento, porque no se sabe cuándo entraron.
+
 ### 3. Escalado
 
 *Configuración → Escalado.* Cada regla dice **cuándo** (SLA en riesgo, SLA
@@ -277,6 +297,16 @@ vectores no se pueden guardar.
   contecmind reales: las pruebas los sustituyen.
 - Hay dos inventarios de activos: ALM (con pantalla) y los activos del Service
   Desk (`sd_assets`, sin pantalla). Falta decidir si se consolidan en ALM.
+- Hay dos CMDB. La pantalla *CMDB* edita `cmdb_items`, que tiene diez clases
+  con sus propios atributos (servidor, aplicación, base de datos…). Los
+  tickets, problemas, cambios y errores conocidos apuntan a otra tabla,
+  `sd_configuration_items`, que solo tiene tipo, sin atributos por clase. Por
+  eso lo que se edita en la pantalla no es lo que se elige en el ticket. Las
+  clases de la pantalla, además, están fijas en el código. Falta decidir cuál
+  de las dos manda antes de hacer configurables las clases.
+- El OLA tiene un único objetivo por cola, igual para todas las prioridades.
+- No hay contratos de soporte (UC) con proveedores: no existe un modelo de
+  proveedor al que colgarlos.
 - La búsqueda por vectores compara en Python contra todos los artículos
   publicados. Con decenas de miles de artículos haría falta un índice
   vectorial (pgvector).

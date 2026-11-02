@@ -11,6 +11,11 @@ solo corrian si alguien llamaba al endpoint a mano. Ahora, cada pasada:
 2. en cada transicion a «en riesgo» o «incumplido» escribe el `SLAEvent` y un
    evento de ticket, que avisa al agente y a los responsables de la cola;
 3. ejecuta las reglas de escalado sobre el estado recien guardado.
+
+Tambien vigila el OLA de cada cola (`AgentGroup.ola_hours`): el tiempo que
+tiene la cola desde que le llega el ticket hasta que lo resuelve o lo pasa,
+en el calendario del ticket y sin contar la pausa. Al incumplirse avisa una
+vez al agente y a los responsables de esa cola.
 """
 from __future__ import annotations
 
@@ -22,6 +27,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import (
+    AgentGroup,
     SLAEvent,
     SLAEventType,
     SLAPolicy,
@@ -31,7 +37,7 @@ from app.models.service_desk import (
 )
 from app.services import settings_service as _ss
 from app.services.service_desk.ticket_events import registrar
-from app.services.sla_service import calendario_sla, estado_sla, vencimiento_efectivo
+from app.services.sla_service import aware, calendario_sla, estado_sla, sumar_horas_sla, vencimiento_efectivo
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +114,50 @@ def evaluar_ticket(db: Session, ticket: Ticket, cal, aviso_pct: float, ahora: da
     return cambios
 
 
+def evaluar_ola(db: Session, ticket: Ticket, grupo: AgentGroup, cal, ahora: datetime) -> bool:
+    """Pone el vencimiento del OLA y anota el incumplimiento. True si incumple ahora."""
+    due = sumar_horas_sla(ticket.group_assigned_at, grupo.ola_hours, cal)
+    if ticket.ola_due is None or aware(ticket.ola_due) != due:
+        ticket.ola_due = due
+    if ticket.sla_paused_at is not None:
+        return False
+    pausa_en_cola = max(0, (ticket.sla_pause_minutes or 0) - (ticket.ola_pause_base or 0))
+    efectivo = vencimiento_efectivo(due, pausa_en_cola)
+    if ahora <= efectivo:
+        return False
+    ticket.ola_breached = True
+    db.add(SLAEvent(
+        organization_id=ticket.organization_id, ticket_id=ticket.id,
+        event_type=SLAEventType.breached, sla_type="ola",
+    ))
+    registrar(db, ticket, "ola_breached",
+              {"group_id": grupo.id, "group": grupo.name, "due": efectivo.isoformat()}, actor_user_id=None)
+    return True
+
+
+def _escanear_olas(db: Session, calendarios: "_Calendarios", ahora: datetime) -> tuple[int, int]:
+    filas = (
+        db.query(Ticket, AgentGroup)
+        .join(AgentGroup, AgentGroup.id == Ticket.assigned_group_id)
+        .filter(
+            Ticket.status.in_(ESTADOS_ABIERTOS),
+            Ticket.group_assigned_at.isnot(None),
+            Ticket.ola_breached == False,  # noqa: E712
+            AgentGroup.ola_hours.isnot(None),
+            AgentGroup.ola_hours > 0,
+        )
+        .all()
+    )
+    incumplidos = errores = 0
+    for ticket, grupo in filas:
+        try:
+            incumplidos += evaluar_ola(db, ticket, grupo, calendarios.de(ticket), ahora)
+        except ValueError:
+            logger.exception("OLA de %s no evaluado: calendario invalido", ticket.number)
+            errores += 1
+    return incumplidos, errores
+
+
 def escanear(db: Session, ahora: Optional[datetime] = None) -> dict:
     """Una pasada sobre los tickets abiertos con vencimiento. Confirma al final."""
     from app.services.service_desk.escalation_service import run_escalation_rules_engine
@@ -136,8 +186,10 @@ def escanear(db: Session, ahora: Optional[datetime] = None) -> dict:
             logger.exception("SLA de %s no evaluado: calendario invalido", ticket.number)
             errores += 1
         revisados += 1
+    olas, errores_ola = _escanear_olas(db, calendarios, ahora)
     db.flush()
     escalado = run_escalation_rules_engine(db, ahora=ahora)
     db.commit()
-    return {"revisados": revisados, "cambiados": cambiados, "errores": errores,
+    return {"revisados": revisados, "cambiados": cambiados, "errores": errores + errores_ola,
+            "ola_incumplidos": olas,
             "escalados": escalado["escalations_fired"]}

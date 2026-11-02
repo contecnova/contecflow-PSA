@@ -262,6 +262,7 @@ class AgentGroupIn(BaseModel):
     name: str = Field(..., description="Nombre del grupo de agentes")
     description: Optional[str] = Field(None, description="Descripción del grupo")
     support_level: str = Field("l1", description="Nivel de soporte del grupo (l1, l2, l3)")
+    ola_hours: Optional[float] = Field(None, gt=0, description="OLA: horas de calendario que tiene la cola para resolver o pasar el ticket; vacío, sin OLA")
 
 
 # ── Announcements ─────────────────────────────────────────────────────────────

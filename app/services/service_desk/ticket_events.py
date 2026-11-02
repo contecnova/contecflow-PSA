@@ -21,6 +21,7 @@ import json
 import logging
 import uuid
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from typing import Any, Iterator, Optional
 
 from sqlalchemy import event, inspect
@@ -128,8 +129,25 @@ def _al_comentar(session, comment: TicketComment) -> None:
     )
 
 
+def _sellar_cola(ticket: Ticket) -> None:
+    """Arranca el reloj del OLA de la cola en la que entra el ticket.
+
+    Aqui y no en quien asigna: el grupo lo cambian el alta, el agente, las
+    reglas de enrutado, el escalado, los formularios y la vuelta atras, y el
+    reloj tiene que arrancar en todos. El vencimiento lo pone el monitor, que
+    es quien tiene el calendario.
+    """
+    ticket.group_assigned_at = datetime.now(timezone.utc) if ticket.assigned_group_id else None
+    ticket.ola_due = None
+    ticket.ola_pause_base = ticket.sla_pause_minutes or 0
+    ticket.ola_breached = False
+
+
 def _al_cambiar_ticket(session, ticket: Ticket) -> None:
     estado = inspect(ticket)
+    grupo = estado.attrs["assigned_group_id"].history
+    if grupo.has_changes() and (grupo.deleted[:1] or [None])[0] != (grupo.added[:1] or [None])[0]:
+        _sellar_cola(ticket)
     for campo, kind in CAMPOS_VIGILADOS.items():
         hist = estado.attrs[campo].history
         if not hist.has_changes():
@@ -144,6 +162,8 @@ def _al_cambiar_ticket(session, ticket: Ticket) -> None:
 def _antes_de_guardar(session, flush_context, instances) -> None:
     for obj in list(session.new):
         if isinstance(obj, Ticket):
+            if obj.assigned_group_id and obj.group_assigned_at is None:
+                _sellar_cola(obj)
             _al_crear_ticket(session, obj)
         elif isinstance(obj, TicketComment):
             _al_comentar(session, obj)

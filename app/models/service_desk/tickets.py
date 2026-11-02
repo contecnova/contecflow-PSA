@@ -2,7 +2,7 @@
 
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum, UniqueConstraint
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from sqlalchemy.sql import false as sa_false, func
 import uuid
 from app.db.base import Base
 
@@ -104,6 +104,13 @@ class Ticket(Base):
     resolution_minutes = Column(Integer, nullable=True)
     sla_response_breached = Column(Boolean, default=False)
     sla_resolution_breached = Column(Boolean, default=False)
+    # OLA de la cola: lo sella `ticket_events` al entrar en el grupo y lo
+    # vigila `sla_monitor_service`. `ola_pause_base` son los minutos de pausa
+    # que ya llevaba el ticket al entrar: solo cuenta la pausa en esta cola.
+    group_assigned_at = Column(DateTime(timezone=True), nullable=True)
+    ola_due = Column(DateTime(timezone=True), nullable=True)
+    ola_pause_base = Column(Integer, nullable=True)
+    ola_breached = Column(Boolean, default=False, nullable=False, server_default=sa_false())
 
     # Phase 2 — Predictive Intelligence
     predicted_severity = Column(String(20), nullable=True)
