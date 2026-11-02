@@ -608,6 +608,12 @@ def set_manager_record(user_id: str, manager_id: Optional[str], current_user, db
 
 # ── Preferences ────────────────────────────────────────────────────────────────
 
+#: Los temas de `index.css` (`dark` es el de `:root`) y `system`, que sigue al
+#: sistema operativo. Auditoria 2026-11: la columna era `String(10)` y en
+#: Postgres `high-contrast` y la densidad `comfortable` no se podian guardar.
+TEMAS = ("freight", "dark", "light", "high-contrast", "midnight", "slate", "system")
+DENSIDADES = ("compact", "normal", "comfortable")
+
 def get_preferences_payload(user_id: str, db: Session) -> dict:
     pref = db.query(UserPreference).filter(UserPreference.user_id == user_id).first()
     if not pref:
@@ -721,6 +727,10 @@ def update_preferences_record(user_id: str, payload: dict, db: Session) -> dict:
     if "dashboard_widgets" in payload:
         pref.dashboard_widgets = json.dumps(payload["dashboard_widgets"]) if payload["dashboard_widgets"] is not None else None
     if "accent_color"      in payload: pref.accent_color      = payload["accent_color"]
+    if payload.get("theme_mode") is not None and payload["theme_mode"] not in TEMAS:
+        raise HTTPException(422, f"Tema desconocido: {payload['theme_mode']}")
+    if payload.get("ui_density") is not None and payload["ui_density"] not in DENSIDADES:
+        raise HTTPException(422, f"Densidad desconocida: {payload['ui_density']}")
     if "theme_mode"        in payload: pref.theme_mode        = payload["theme_mode"]
     if "sidebar_collapsed" in payload: pref.sidebar_collapsed = payload["sidebar_collapsed"]
     if "language"          in payload: pref.language          = payload["language"]

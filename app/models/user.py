@@ -164,12 +164,12 @@ class UserPreference(Base):
     dashboard_widgets  = Column(Text, nullable=True)   # JSON: lista ordenada de widgets con size/visible
     # Theming
     accent_color       = Column(String(20), default="#4f8ef7")  # CSS hex
-    theme_mode         = Column(String(10), default="freight")  # freight | dark | light | system
+    theme_mode         = Column(String(20), default="freight")  # uno de user_service.TEMAS
     sidebar_collapsed  = Column(Boolean, default=False)
     # Idioma
     language           = Column(String(10), default=settings.DEFAULT_LANGUAGE)
     # Densidad UI
-    ui_density         = Column(String(10), default="normal")   # compact | normal | comfortable
+    ui_density         = Column(String(20), default="normal")   # uno de user_service.DENSIDADES
     # Otros
     extra              = Column(Text, nullable=True)            # JSON libre para futuras prefs
 
