@@ -17,14 +17,15 @@ from app.services.service_desk.scoping import (  # noqa: E402,F401
 )
 
 
-def _to_minutes(value: int, unit: str) -> int:
+def _to_minutes(value: int, unit: str, horas_por_dia: float = 8.0) -> int:
     unit_l = (unit or "minutes").strip().lower()
     if unit_l in {"minute", "minutes", "min", "m"}:
         return max(0, int(value))
     if unit_l in {"hour", "hours", "h"}:
         return max(0, int(value) * 60)
     if unit_l in {"day", "days", "d"}:
-        return max(0, int(value) * 60 * 8)
+        # La jornada es un ajuste (DEFAULT_WORKING_HOURS_PER_DAY), no 8 fijas.
+        return max(0, int(round(value * 60 * horas_por_dia)))
     return max(0, int(value))
 
 
@@ -32,16 +33,61 @@ def add_ticket_time(
     db: Session,
     ticket: Ticket,
     ticket_id: str,
-    user_id: str,
+    user,
     minutes: int,
     description: Optional[str] = None,
     unit: str = "minutes",
+    billable: bool = False,
 ) -> dict:
-    minutes_norm = _to_minutes(minutes, unit)
-    time_log = TicketTimeLog(ticket_id=ticket_id, user_id=user_id, minutes=minutes_norm, description=description)
+    """Registra tiempo en el ticket y, si tiene proyecto, en los partes del agente.
+
+    Auditoria 2026-11: `billable` venia en el formulario y no se pasaba (todo
+    quedaba no facturable), y el tiempo de ticket no llegaba ni a partes ni a
+    factura: el PSA no sabia del Service Desk.
+    """
+    from app.services import settings_service as _ss
+
+    horas_dia = _ss.get_runtime_float(db, "DEFAULT_WORKING_HOURS_PER_DAY", ticket.organization_id) or 8.0
+    minutes_norm = _to_minutes(minutes, unit, horas_dia)
+    time_log = TicketTimeLog(ticket_id=ticket_id, user_id=user.id, minutes=minutes_norm,
+                             description=description, billable=billable)
     db.add(time_log)
     ticket.time_spent_minutes = (ticket.time_spent_minutes or 0) + minutes_norm
-    return {"ok": True, "total_minutes": ticket.time_spent_minutes, "logged_minutes": minutes_norm}
+    db.flush()
+    partes = _a_partes(db, ticket, user, minutes_norm, description, billable)
+    if partes.get("imputation_id"):
+        time_log.imputation_id = partes["imputation_id"]
+    return {"ok": True, "total_minutes": ticket.time_spent_minutes, "logged_minutes": minutes_norm, **partes}
+
+
+def _a_partes(db: Session, ticket: Ticket, user, minutos: int, descripcion: Optional[str],
+              facturable: bool) -> dict:
+    """Lleva el tiempo a los partes del agente si el ticket tiene proyecto.
+
+    Por `validate_and_create_imputation`, con todas sus reglas (pertenecer al
+    proyecto, fechas bloqueadas, topes, redondeo a medias horas). Si una lo
+    impide, el tiempo se queda en el ticket y se dice por que.
+    """
+    from fastapi import HTTPException
+    from app.core import timeutil
+    from app.schemas.imputations import ImputationCreate
+    from app.services import settings_service as _ss
+    from app.services.imputation_service import validate_and_create_imputation
+
+    if not _ss.get_runtime_bool(db, "SD_TIME_TO_TIMESHEET", ticket.organization_id):
+        return {"timesheet": "off"}
+    if not ticket.project_id:
+        return {"timesheet": "skipped", "reason": "El ticket no tiene proyecto: el tiempo queda en el ticket"}
+    entrada = ImputationCreate(project_id=ticket.project_id, date=timeutil.today(), hours=minutos / 60,
+                               description=f"{ticket.number} · {descripcion or ticket.title}"[:2000],
+                               is_billable=facturable)
+    if entrada.hours <= 0:
+        return {"timesheet": "skipped", "reason": "Menos de un cuarto de hora: no llega al mínimo de los partes"}
+    try:
+        imputacion = validate_and_create_imputation(entrada, user, db)
+    except HTTPException as exc:
+        return {"timesheet": "skipped", "reason": str(exc.detail)}
+    return {"timesheet": "created", "imputation_id": imputacion.id, "hours": imputacion.hours}
 
 
 def _pending_snapshot_key(ticket_id: str) -> str:

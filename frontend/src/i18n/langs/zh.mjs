@@ -6310,6 +6310,9 @@ const zh = {
     subtitle: '{projectName}',
   },
   sd_cfg: {
+    time_billable: '可计费',
+    time_to_timesheet: '已加入你的工时表（{h} 小时）',
+    time_not_to_timesheet: '已记录在工单中，未进入工时表：{reason}',
     ai_suggest: '建议回复',
     kb_status_draft: '草稿',
     kb_status_in_review: '审核中',

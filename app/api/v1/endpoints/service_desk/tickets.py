@@ -250,7 +250,8 @@ def log_time(ticket_id: str, payload: TimeLogIn, db: Session = Depends(get_db), 
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
-    result = add_ticket_time(db, ticket, ticket_id, current_user.id, payload.minutes, payload.description, payload.unit)
+    result = add_ticket_time(db, ticket, ticket_id, current_user, payload.minutes, payload.description,
+                             payload.unit, billable=payload.billable)
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
 

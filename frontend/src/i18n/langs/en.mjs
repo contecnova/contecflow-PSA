@@ -6303,6 +6303,9 @@ const en = {
     subtitle: '{projectName}',
   },
   sd_cfg: {
+    time_billable: 'Billable',
+    time_to_timesheet: 'Added to your timesheet ({h} h)',
+    time_not_to_timesheet: 'Logged on the ticket. Not in the timesheet: {reason}',
     ai_suggest: 'Suggest a reply',
     kb_status_draft: 'Draft',
     kb_status_in_review: 'In review',

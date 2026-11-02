@@ -56,6 +56,11 @@ class ServiceDeskSettingsMixin:
     SD_KB_REQUIRE_REVIEW: bool = Field(default=False, env="SD_KB_REQUIRE_REVIEW")
     SD_KB_REVIEWER_GROUP_ID: str = Field(default="", env="SD_KB_REVIEWER_GROUP_ID")
 
+    # ── Tiempo ───────────────────────────────────────────────────────────────
+    # El tiempo de un ticket con proyecto pasa a los partes del agente (y de
+    # ahi a la factura si es facturable), con las reglas de imputacion.
+    SD_TIME_TO_TIMESHEET: bool = Field(default=True, env="SD_TIME_TO_TIMESHEET")
+
     # ── Bandeja de eventos ───────────────────────────────────────────────────
     SD_EVENT_MAX_ATTEMPTS: int = Field(default=5, env="SD_EVENT_MAX_ATTEMPTS")
     SD_EVENT_BATCH_SIZE: int = Field(default=200, env="SD_EVENT_BATCH_SIZE")

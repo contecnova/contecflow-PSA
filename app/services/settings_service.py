@@ -211,6 +211,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("SD_ONCALL_SMS", "bool", "On-call — also page by SMS"),
         ("SD_KB_REQUIRE_REVIEW", "bool", "Knowledge — articles need a reviewer to be published"),
         ("SD_KB_REVIEWER_GROUP_ID", "str", "Knowledge — queue (group id) of reviewers; empty: admins"),
+        ("SD_TIME_TO_TIMESHEET", "bool", "Time on tickets with a project goes to the agent's timesheet"),
         ("SD_EVENT_MAX_ATTEMPTS", "int", "Event delivery — max attempts"),
         ("SD_EVENT_BATCH_SIZE", "int", "Event delivery — events per run"),
     ],

@@ -5629,6 +5629,9 @@ const es = {
     subtitle: '{projectName}',
   },
   sd_cfg: {
+    time_billable: 'Facturable',
+    time_to_timesheet: 'Añadido a tus partes ({h} h)',
+    time_not_to_timesheet: 'Registrado en el ticket. No pasa a partes: {reason}',
     ai_suggest: 'Sugerir respuesta',
     kb_status_draft: 'Borrador',
     kb_status_in_review: 'En revisión',

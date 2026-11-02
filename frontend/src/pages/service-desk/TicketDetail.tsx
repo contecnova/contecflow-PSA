@@ -271,6 +271,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
   const [showCanned, setShowCanned] = useState(false)
   const [timeMin, setTimeMin] = useState('')
   const [timeUnit, setTimeUnit] = useState('minutes')
+  const [facturable, setFacturable] = useState(false)
   const [editAssign, setEditAssign] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showSplit, setShowSplit] = useState(false)
@@ -321,8 +322,16 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
     onError: e => toast.error(extractErr(e, 'Error al sugerir respuesta IA')),
   })
   const { mutate: logTime, isPending: loggingTime } = useMutation({
-    mutationFn: () => ticketsApi.timelog(ticketId, { minutes: Number(timeMin), unit: timeUnit }),
-    onSuccess: () => { invalidate(); setTimeMin(''); toast.success(`${timeMin} min`) },
+    mutationFn: () => ticketsApi.timelog(ticketId, { minutes: Number(timeMin), unit: timeUnit, billable: facturable }),
+    onSuccess: res => {
+      invalidate(); setTimeMin('')
+      // Dice si el tiempo llegó a los partes o por qué no: sin eso, el agente
+      // daba por imputado lo que se había quedado en el ticket.
+      const r = res?.data as { timesheet?: string; hours?: number; reason?: string } | undefined
+      if (r?.timesheet === 'created') toast.success(t('sd_cfg.time_to_timesheet', { h: r.hours ?? 0 }))
+      else if (r?.timesheet === 'skipped') toast.info(t('sd_cfg.time_not_to_timesheet', { reason: r.reason ?? '' }))
+      else toast.success(`${timeMin} min`)
+    },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: restorePending, isPending: restoringPending } = useMutation({
@@ -533,6 +542,10 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                 <option value="hours">h</option>
                 <option value="days">d (8h)</option>
               </select>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-sm)', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
+                <input type="checkbox" checked={facturable} onChange={e => setFacturable(e.target.checked)} aria-label={t('sd_cfg.time_billable')} />
+                {t('sd_cfg.time_billable')}
+              </label>
               <Button onClick={() => logTime()} disabled={loggingTime || !timeMin} loading={loggingTime}>{t('service_desk.detail_add_btn')}</Button>
             </div>
           </div>

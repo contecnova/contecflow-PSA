@@ -277,6 +277,9 @@ class TicketTimeLog(Base):
     description = Column(String(255), nullable=True)
     billable = Column(Boolean, default=False)
     logged_at = Column(DateTime(timezone=True), server_default=func.now())
+    # La imputacion (parte de horas) que genero, si el ticket tiene proyecto:
+    # es lo que lleva el tiempo del ticket a los partes y a la factura.
+    imputation_id = Column(String(36), ForeignKey("imputations.id", ondelete="SET NULL"), nullable=True, index=True)
 
     ticket = relationship("Ticket", back_populates="time_logs")
     user = relationship("User", foreign_keys=[user_id])
