@@ -27,7 +27,6 @@ import AlertCorrelationPanel from '../components/servicedesk/AlertCorrelationPan
 
 const LazyChangeManagementTab = lazy(() => import('./service-desk/ChangeManagementTab'))
 const LazyITSMKnowledgeTab    = lazy(() => import('./service-desk/ITSMKnowledgeTab'))
-const LazyAnnouncements       = lazy(() => import('./service-desk/ConfigTab').then(m => ({ default: m.AnnouncementsConfig })))
 const Loading = () => <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>
 
 export default function ServiceDeskPage() {
@@ -37,6 +36,7 @@ export default function ServiceDeskPage() {
   const [searchParams] = useSearchParams()
   const ticketEnlazado = searchParams.get('ticket')
   const [tab, setTab] = useState(ticketEnlazado ? 'all' : 'queue')
+  const [herramienta, setHerramienta] = useState('assign')
   // `TicketDetail` pide `string | null`: los ids de ticket son cadenas en
   // toda la aplicacion, y el tablero kanban es el unico sitio que los saca
   // como `string | number`. Se normalizan aqui, en la frontera.
@@ -80,13 +80,17 @@ export default function ServiceDeskPage() {
     { id: 'problems', label: `${t('service_desk.tab_problems')}` },
     { id: 'kedb',     label: `${t('service_desk.tab_kedb')}` },
     { id: 'kb',       label: `${t('service_desk.tab_kb')}` },
-    { id: 'announcements', label: `${t('service_desk.tab_announcements')}` },
+    // Las herramientas avanzadas van juntas: eran cinco pestañas de primer
+    // nivel al lado del trabajo diario, y los anuncios viven en Configuración.
+    { id: 'tools',    label: t('sd_cfg.tab_tools') },
     { id: 'config',   label: `${t('service_desk.tab_config')}` },
-    { id: 'voice',       label: t('service_desk.tab_voice') },
+  ]
+  const HERRAMIENTAS = [
     { id: 'assign',      label: t('service_desk.tab_assign') },
-    { id: 'rollout',     label: t('service_desk.tab_rollout') },
     { id: 'autoresolve', label: t('service_desk.tab_autoresolve') },
     { id: 'alertcorr',   label: t('service_desk.tab_alertcorr') },
+    { id: 'rollout',     label: t('service_desk.tab_rollout') },
+    { id: 'voice',       label: t('service_desk.tab_voice') },
   ]
 
   return (
@@ -172,17 +176,23 @@ export default function ServiceDeskPage() {
                 <LazyITSMKnowledgeTab mode="kb" />
               </Suspense></div>
             )}
-            {tab === 'announcements' && (
-              <div id="sd-panel-announcements" role="tabpanel" aria-labelledby="sd-tab-announcements"><Suspense fallback={<Loading />}>
-                <LazyAnnouncements />
-              </Suspense></div>
+            {tab === 'tools' && (
+              <div role="tablist" aria-label={t('sd_cfg.tab_tools')} style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+                {HERRAMIENTAS.map(h => (
+                  <button key={h.id} type="button" role="tab" aria-selected={herramienta === h.id} onClick={() => setHerramienta(h.id)}
+                    style={{ padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 600,
+                      border: `1px solid ${herramienta === h.id ? 'var(--accent)' : 'var(--surface-4)'}`,
+                      background: herramienta === h.id ? 'var(--accent-muted)' : 'transparent',
+                      color: herramienta === h.id ? 'var(--accent)' : 'var(--text-2)' }}>{h.label}</button>
+                ))}
+              </div>
             )}
             {tab === 'config'   && <div id="sd-panel-config" role="tabpanel" aria-labelledby="sd-tab-config"><Config /></div>}
-            {tab === 'voice'    && <div id="sd-panel-voice" role="tabpanel" aria-labelledby="sd-tab-voice"><VoiceAgentPanel /></div>}
-            {tab === 'assign'   && <div id="sd-panel-assign" role="tabpanel" aria-labelledby="sd-tab-assign"><IncidentAssignmentPanel /></div>}
-            {tab === 'rollout'     && <div id="sd-panel-rollout" role="tabpanel" aria-labelledby="sd-tab-rollout"><ChangeRolloutPanel /></div>}
-            {tab === 'autoresolve' && <div id="sd-panel-autoresolve" role="tabpanel" aria-labelledby="sd-tab-autoresolve"><AutoResolutionPanel /></div>}
-            {tab === 'alertcorr'   && <div id="sd-panel-alertcorr" role="tabpanel" aria-labelledby="sd-tab-alertcorr"><AlertCorrelationPanel /></div>}
+            {tab === 'tools' && herramienta === 'voice'    && <div id="sd-panel-voice" role="tabpanel" aria-labelledby="sd-tab-voice"><VoiceAgentPanel /></div>}
+            {tab === 'tools' && herramienta === 'assign'   && <div id="sd-panel-assign" role="tabpanel" aria-labelledby="sd-tab-assign"><IncidentAssignmentPanel /></div>}
+            {tab === 'tools' && herramienta === 'rollout'     && <div id="sd-panel-rollout" role="tabpanel" aria-labelledby="sd-tab-rollout"><ChangeRolloutPanel /></div>}
+            {tab === 'tools' && herramienta === 'autoresolve' && <div id="sd-panel-autoresolve" role="tabpanel" aria-labelledby="sd-tab-autoresolve"><AutoResolutionPanel /></div>}
+            {tab === 'tools' && herramienta === 'alertcorr'   && <div id="sd-panel-alertcorr" role="tabpanel" aria-labelledby="sd-tab-alertcorr"><AlertCorrelationPanel /></div>}
           </div>
         )}
         {/* Detail panel — inline on desktop split, full-width on mobile */}

@@ -1,16 +1,18 @@
 """
-incident_assignment_service.py — ML-enhanced incident assignment.
+incident_assignment_service.py — recomendacion de agente o cola por reglas ponderadas.
 
-Uses a scoring model to recommend the best agent/group for an incoming ticket
-based on:
-  - Historical assignment patterns by category/keywords
-  - Agent current workload and capacity
-  - Skill matching (from skills.py)
-  - Priority urgency balancing
-  - On-call schedule
+Puntua a cada candidato por:
+  - patrones historicos de asignacion por categoria y palabras clave
+  - carga de trabajo y capacidad actuales
+  - coincidencia de habilidades (skills.py)
+  - urgencia de la prioridad
+  - guardias
 
-When LightGBM is available, uses a trained classifier. Otherwise falls back
-to rule-based weighted scoring.
+Auditoria 2026-11: decia usar «un clasificador LightGBM entrenado cuando esta
+disponible». No habia ninguno: solo se comprobaba si la libreria se podia
+importar, y la pantalla enseñaba «LightGBM ON» por tenerla instalada. Es un
+puntuador por reglas y asi se declara (`lgbm_available` queda en falso por
+compatibilidad con quien lo lea).
 """
 from __future__ import annotations
 
@@ -25,11 +27,8 @@ from sqlalchemy.orm import joinedload
 
 from app.models.settings import AppSetting
 
-try:
-    import lightgbm as lgb  # type: ignore  # noqa: F401  (availability probe; sets _LGBM_AVAILABLE)
-    _LGBM_AVAILABLE = True
-except (ImportError, OSError):
-    _LGBM_AVAILABLE = False
+# Ningun modelo entrenado: el metodo es por reglas (ver la cabecera).
+_LGBM_AVAILABLE = False
 
 _KEY_ASSIGNMENT_STATS = "sd.ml_assignment.stats"
 _KEY_ASSIGNMENT_MODEL = "sd.ml_assignment.model_meta"

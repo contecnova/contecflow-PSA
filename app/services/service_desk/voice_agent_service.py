@@ -3,10 +3,14 @@ voice_agent_service.py — IVR / Voice Agent service for Service Desk.
 
 Provides:
   - Session management for voice calls (create, update, close)
-  - Intent classification (rule-based + LLM-optional fallback)
+  - Intent classification by keyword rules
   - Entity extraction from transcripts
   - Auto-ticket creation from voice sessions
   - DTMF menu tree configuration
+
+Auditoria 2026-11: no hay telefonia ni reconocimiento de voz: los turnos llegan
+ya transcritos por la API (de una centralita externa o del simulador de la
+pantalla). Decia tener un respaldo con LLM que no existia.
 
 All state stored as AppSetting JSON blobs (no new DB tables).
 """

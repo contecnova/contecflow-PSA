@@ -1,5 +1,5 @@
 /**
- * IncidentAssignmentPanel.jsx — ML-powered incident assignment recommendations.
+ * IncidentAssignmentPanel — recomendación de agente o cola por reglas ponderadas (sin modelo entrenado).
  *
  * Backend endpoints:
  *   GET  /sd/assignment/stats
@@ -165,7 +165,7 @@ export default function IncidentAssignmentPanel() {
             borderRadius: 'var(--radius-full, 999px)',
             padding: '2px 9px',
           }}>
-            {lgbmAvailable ? 'LightGBM ON' : 'rule-based'}
+            {t('sd_cfg.assign_rules')}
           </span>
           {stats?.total_recommendations != null && (
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
@@ -178,7 +178,7 @@ export default function IncidentAssignmentPanel() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18 }}>
         {/* Recommendation column */}
         <div>
-          <div style={fieldLabel}>{t('sd.assign.get_recommendations', 'Pedir recomendación ML')}</div>
+          <div style={fieldLabel}>{t('sd.assign.get_recommendations', 'Pedir recomendación')}</div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
             <input

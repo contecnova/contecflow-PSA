@@ -975,6 +975,7 @@ export default function Config() {
     {id:'oncall', label:t('sd_cfg.tab_oncall')},
     {id:'templates',label:`${t('service_desk.tab_templates')}`},
     {id:'canned',   label:`${t('service_desk.tab_canned')}`},
+    {id:'announcements', label:`${t('service_desk.tab_announcements')}`},
   ]
   return (
     <div>
@@ -1000,6 +1001,7 @@ export default function Config() {
       {sub === 'oncall'        && <GuardiasConfig />}
       {sub === 'templates'     && <TemplatesConfig />}
       {sub === 'canned'        && <CannedResponsesManager />}
+      {sub === 'announcements' && <AnnouncementsConfig />}
     </div>
   )
 }

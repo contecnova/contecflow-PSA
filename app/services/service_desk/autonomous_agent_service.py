@@ -224,6 +224,18 @@ def match_playbook(ticket: Ticket, custom_playbooks: Optional[list[dict]] = None
 
 # ── Playbook execution ────────────────────────────────────────────────────────
 
+def _destinatarios_del_paso(db, ticket) -> list:
+    """El agente del ticket y los responsables de su cola."""
+    from app.models.service_desk import AgentGroupMember
+    ids = [ticket.assigned_to_user_id] if ticket.assigned_to_user_id else []
+    if ticket.assigned_group_id:
+        ids += [r[0] for r in db.query(AgentGroupMember.user_id).filter(
+            AgentGroupMember.group_id == ticket.assigned_group_id,
+            AgentGroupMember.is_lead == True,  # noqa: E712
+        ).all()]
+    return list(dict.fromkeys(ids))
+
+
 def _add_ticket_comment(db: Session, ticket: Ticket, content: str, acting_user_id: Optional[str]) -> None:
     """Add a public comment to the ticket."""
     try:
@@ -288,31 +300,23 @@ def execute_playbook(
                 else:
                     steps_executed.append({"type": step_type, "status": "skipped_no_auto_resolve"})
 
-            elif step_type == "notify":
-                # Notification is logged as a history note; actual push handled by notification service
-                history = TicketHistory(
-                    id=str(uuid4()),
-                    ticket_id=ticket.id,
-                    field_name="autonomous_note",
-                    old_value=None,
-                    new_value=content[:500],
-                    changed_by_user_id=acting_user_id,
-                )
-                db.add(history)
-                steps_executed.append({"type": step_type, "status": "logged"})
-
-            elif step_type == "escalate":
-                # Log escalation intent — actual routing handled by workload_service
-                history = TicketHistory(
-                    id=str(uuid4()),
-                    ticket_id=ticket.id,
-                    field_name="autonomous_escalate",
-                    old_value=None,
-                    new_value=content[:500],
-                    changed_by_user_id=acting_user_id,
-                )
-                db.add(history)
-                steps_executed.append({"type": step_type, "status": "logged"})
+            elif step_type in ("notify", "escalate"):
+                # Auditoria 2026-11: «avisar» y «escalar» solo dejaban una nota
+                # en el historial; nadie se enteraba. Ahora pasan por la bandeja
+                # de eventos como un escalado: avisa al agente y a los
+                # responsables de la cola (campana, correo y guardia).
+                from app.services.service_desk.ticket_events import registrar
+                destinatarios = _destinatarios_del_paso(db, ticket)
+                registrar(db, ticket, "escalated",
+                          {"rule": playbook.get("name") or "Agente autónomo", "action": content[:500],
+                           "recipients": destinatarios},
+                          actor_user_id=acting_user_id)
+                db.add(TicketHistory(
+                    id=str(uuid4()), ticket_id=ticket.id,
+                    field_name="autonomous_note" if step_type == "notify" else "autonomous_escalate",
+                    old_value=None, new_value=content[:500], changed_by_user_id=acting_user_id,
+                ))
+                steps_executed.append({"type": step_type, "status": "ok", "notified": len(destinatarios)})
 
             else:
                 steps_executed.append({"type": step_type, "status": "unknown_step_type"})

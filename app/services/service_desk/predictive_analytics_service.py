@@ -4,10 +4,10 @@ Predictive Analytics Service — Fase 2 ITSM Intelligence
 Sprint 9-10: Predicción de severidad, tiempo de resolución y riesgo de escalado.
 
 Metodología:
-  - Sin dependencias ML externas (scikit-learn opcional).
-  - Baseline estadístico (percentiles históricos + reglas heurísticas).
-  - Si scikit-learn está disponible, entrena un Ridge regressor en memoria
-    con datos históricos de la organización para mejorar estimaciones.
+  - Estadistica sobre el historico de la organizacion (percentiles) y reglas
+    heuristicas. Sin modelos entrenados.
+  - Auditoria 2026-11: decia entrenar un regresor Ridge con scikit-learn si
+    estaba instalado; este fichero no importa scikit-learn ni entrena nada.
   - Almacena predicciones en columnas del ticket para auditoría.
 
 Funciones públicas:
