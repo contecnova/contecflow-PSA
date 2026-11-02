@@ -348,12 +348,15 @@ Endpoints relevantes:
 - Portal cliente
 
 ### 9.5 Service Desk ITSM
-- Tickets y SLA
-- Knowledge base
-- Problem management
-- Change management
-- CMDB y topología
-- Sugerencias IA y auto-resolución
+Manual completo, de uso y de operación: [docs/SERVICE_DESK.md](docs/SERVICE_DESK.md).
+- Tickets con avisos en cada paso (campana, correo y webhooks) y SLA con
+  calendario por política, aviso de riesgo e incumplimiento, y escalado
+- Correo entrante con hilo (IMAP, Microsoft 365 o pasarela), SMS firmado
+- Catálogo con aprobación; tiempo de ticket a partes y factura
+- Cambios con CAB, calendario, congelaciones y versiones
+- Alertas de monitorización a incidencias y guardias
+- Base de conocimiento con revisión, desvío en el portal y documentos de contecmind
+- Problemas y KEDB, CMDB y topología, página de estado por organización
 
 ### 9.6 BI
 - Dashboards
