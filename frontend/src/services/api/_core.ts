@@ -1343,6 +1343,21 @@ export const sdSlaPoliciesApi = {
   delete: (id: any)       => api.delete(`/sd/sla-policies/${id}`),
 }
 
+export const sdEscalationApi = {
+  list:   ()         => api.get('/sd/escalation-rules'),
+  create: (data: unknown)     => api.post('/sd/escalation-rules', data),
+  update: (id: string, data: unknown) => api.patch(`/sd/escalation-rules/${id}`, data),
+  delete: (id: string)       => api.delete(`/sd/escalation-rules/${id}`),
+  logs:   (limit = 20)       => api.get('/sd/escalation-rules/logs', { params: { limit } }),
+}
+
+export const sdNotificationTemplatesApi = {
+  list:    ()                                   => api.get('/sd/notification-templates'),
+  save:    (code: string, lang: string, data: unknown) => api.put(`/sd/notification-templates/${code}/${lang}`, data),
+  restore: (code: string, lang: string)         => api.delete(`/sd/notification-templates/${code}/${lang}`),
+  preview: (data: unknown)                      => api.post('/sd/notification-templates/preview', data),
+}
+
 export const sdGroupsApi = {
   list:         ()         => api.get('/sd/groups'),
   create:       (data: unknown)     => api.post('/sd/groups', data),

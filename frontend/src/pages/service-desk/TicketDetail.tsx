@@ -273,6 +273,9 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
   const [editAssign, setEditAssign] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showSplit, setShowSplit] = useState(false)
+  // Resolver pide el texto: es lo que recibe el solicitante en el correo.
+  const [resolviendo, setResolviendo] = useState(false)
+  const [textoResolucion, setTextoResolucion] = useState('')
 
   const { data: ticket, isLoading } = useQuery({
     queryKey: ['sd-ticket', ticketId],
@@ -344,8 +347,10 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
   if (!ticketId) return null
 
   const IS = IS_STYLE
-  const slaColor = ticket?.sla_resolution_status === 'breached' ? COLOR.danger
-    : ticket?.sla_resolution_status === 'at_risk' ? COLOR.warning : COLOR.success
+  const colorSla = (estado?: string) => estado === 'breached' ? COLOR.danger
+    : estado === 'at_risk' ? COLOR.warning : estado === 'paused' ? 'var(--text-2)' : COLOR.success
+  const textoSla = (estado?: string) => estado ? t(`sd_cfg.sla_${estado}`) : ''
+  const slaColor = colorSla(ticket?.sla_resolution_status)
 
   return (
     <div style={embedded ? {
@@ -384,9 +389,11 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
         {ticket && (
           <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
             {!['resolved', 'closed', 'cancelled'].includes(ticket.status) && <>
-              <button onClick={() => updateTicket({ status: 'in_progress' })} style={{ ...qaBtnStyle, background: `${COLOR.accent}20`, color: COLOR.accent }}>▶ {t('service_desk.ticket_status')}</button>
-              <button onClick={() => updateTicket({ status: 'resolved', resolution: 'Resuelto' })} style={{ ...qaBtnStyle, background: `${COLOR.success}20`, color: COLOR.success }}>✓ {t('service_desk.ticket_status')}</button>
-              <button onClick={() => escalate()} style={{ ...qaBtnStyle, background: `${COLOR.warning}20`, color: COLOR.warning }}>↑ {t('service_desk.ticket_escalated')}</button>
+              {ticket.status !== 'in_progress' && (
+                <button onClick={() => updateTicket({ status: 'in_progress' })} style={{ ...qaBtnStyle, background: `${COLOR.accent}20`, color: COLOR.accent }}>▶ {t('sd_cfg.qa_start')}</button>
+              )}
+              <button onClick={() => { setTextoResolucion(ticket.resolution || ''); setResolviendo(true) }} style={{ ...qaBtnStyle, background: `${COLOR.success}20`, color: COLOR.success }}>✓ {t('sd_cfg.qa_resolve')}</button>
+              <button onClick={() => escalate()} style={{ ...qaBtnStyle, background: `${COLOR.warning}20`, color: COLOR.warning }}>↑ {t('sd_cfg.qa_escalate')}</button>
               {(ticket.status === 'pending_client' || ticket.status === 'pending_third') && (
                 <button onClick={() => restorePending()} disabled={restoringPending} style={qaBtnStyle}>↺ Restaurar pendiente</button>
               )}
@@ -409,14 +416,14 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           <div style={{ background: 'var(--surface-2)', border: `1px solid ${slaColor}40`, borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{t('service_desk.detail_sla_response')}</div>
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: ticket.sla_response_status === 'breached' ? COLOR.danger : COLOR.success }}>
-                {ticket.sla_response_status?.replace(/_/g, ' ')} · {fmtDate(ticket.sla_response_due)}
+              <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: colorSla(ticket.sla_response_status) }}>
+                {textoSla(ticket.sla_response_status)} · {fmtDate(ticket.sla_response_due)}
               </div>
             </div>
             <div>
               <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{t('service_desk.detail_sla_resolution')}</div>
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: slaColor }}>
-                {ticket.sla_resolution_status?.replace(/_/g, ' ')} · {fmtDate(ticket.sla_resolution_due)}
+                {textoSla(ticket.sla_resolution_status)} · {fmtDate(ticket.sla_resolution_due)}
               </div>
             </div>
           </div>
@@ -583,6 +590,23 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           onClose={() => setShowEdit(false)}
           onSaved={() => { invalidate(); setShowEdit(false); toast.success(t('service_desk.ticket_updated')) }}
         />
+      )}
+      {resolviendo && ticket && (
+        <Modal open title={`${t('sd_cfg.qa_resolve')} ${ticket.number}`} onClose={() => setResolviendo(false)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <label htmlFor="sd-resolucion" style={LABEL_STYLE}>{t('sd_cfg.qa_resolution')}</label>
+            <textarea id="sd-resolucion" value={textoResolucion} onChange={e => setTextoResolucion(e.target.value)}
+              rows={5} style={{ ...(INPUT_STYLE as CSSProperties), resize: 'vertical' }} autoFocus />
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('sd_cfg.qa_resolution_hint')}</div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <Button variant="secondary" onClick={() => setResolviendo(false)}>{t('common.cancel')}</Button>
+              <Button disabled={!textoResolucion.trim()} onClick={() => {
+                updateTicket({ status: 'resolved', resolution: textoResolucion.trim() })
+                setResolviendo(false)
+              }}>✓ {t('sd_cfg.qa_resolve')}</Button>
+            </div>
+          </div>
+        </Modal>
       )}
       {showSplit && ticket && (
         <SplitTicketModal

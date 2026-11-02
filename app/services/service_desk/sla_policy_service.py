@@ -26,6 +26,7 @@ def serialize_sla_policy(policy: SLAPolicy) -> dict:
         "business_end": policy.business_end,
         "business_days": policy.business_days,
         "timezone": policy.timezone,
+        "calendar_id": policy.calendar_id,
     }
 
 
@@ -34,7 +35,17 @@ def list_sla_policies_payload(db: Session) -> list[dict]:
     return [serialize_sla_policy(policy) for policy in policies]
 
 
+def _exigir_calendario(db: Session, calendar_id) -> None:
+    if not calendar_id:
+        return
+    from app.models.cmdb import SLACalendar
+    cal = db.get(SLACalendar, calendar_id)
+    if cal is None or not cal.is_active:
+        raise HTTPException(422, "El calendario elegido no existe")
+
+
 def create_sla_policy_record(db: Session, payload) -> SLAPolicy:
+    _exigir_calendario(db, payload.calendar_id)
     p = SLAPolicy(**payload.model_dump())
     db.add(p)
     if payload.is_default:
@@ -65,6 +76,7 @@ def get_sla_policy_or_404(db: Session, policy_id: str) -> SLAPolicy:
 
 def update_sla_policy_record(db: Session, policy_id: str, payload) -> SLAPolicy:
     policy = get_sla_policy_or_404(db, policy_id)
+    _exigir_calendario(db, payload.calendar_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(policy, key, value)
     if payload.is_default:

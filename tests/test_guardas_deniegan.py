@@ -97,7 +97,7 @@ RUTAS = _rutas_guardadas()
 
 #: Pares (método, ruta) con guarda. **Exacto**, no un mínimo.
 #:
-#: Son 979 y no las 929 de `test_guardas_de_rol.py` porque ahí se cuentan
+#: Son 982 y no las 929 de `test_guardas_de_rol.py` porque ahí se cuentan
 #: FUNCIONES —`main.py` monta los routers en v1 y en v2, así que la misma
 #: función aparece con dos paths— y aquí se sondea cada par, que es lo que un
 #: cliente puede llamar de verdad.
@@ -106,7 +106,7 @@ RUTAS = _rutas_guardadas()
 #: hace que su ruta **desaparezca** de la lista en vez de fallar: el bucle pasa
 #: en verde porque ya no la mira. Es el modo de fallo silencioso de este
 #: fichero, y se cierra exigiendo el número exacto.
-RUTAS_ESPERADAS = 979
+RUTAS_ESPERADAS = 982
 
 
 def test_se_sondean_todas_las_rutas_con_guarda():

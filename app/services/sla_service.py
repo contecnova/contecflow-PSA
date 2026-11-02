@@ -262,6 +262,50 @@ def parse_dias_laborables(raw: Optional[str]) -> frozenset:
     return frozenset(dias)
 
 
+def parse_hora(raw: str) -> dt_time:
+    """'09:00' -> time(9, 0); '24:00' es el final del dia."""
+    try:
+        hh, mm = (int(x) for x in str(raw).strip().split(":"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"hora inválida: {raw!r} (usa HH:MM)") from exc
+    if (hh, mm) == (24, 0):
+        return dt_time(23, 59, 59, 999999)
+    if not (0 <= hh <= 23 and 0 <= mm <= 59):
+        raise ValueError(f"hora inválida: {raw!r} (usa HH:MM)")
+    return dt_time(hh, mm)
+
+
+def _festivos_del_calendario(db: Session, calendar_id: str) -> set:
+    from app.models.cmdb import V21SLAHoliday
+    dias = set()
+    for r in db.query(V21SLAHoliday).filter(
+        V21SLAHoliday.calendar_id == calendar_id, V21SLAHoliday.is_active == True,  # noqa: E712
+    ).all():
+        try:
+            dias.add(date.fromisoformat(r.holiday_date))
+        except (ValueError, TypeError):
+            logger.warning("festivo de calendario con fecha inválida ignorado: %s", r.id)
+    return dias
+
+
+def _calendario_de_servicio(db: Session, policy: "SLAPolicy", org_id: Optional[str]) -> Optional[CalendarioSLA]:
+    """El calendario de servicio que la política tiene elegido, si sigue activo."""
+    from app.models.cmdb import SLACalendar
+    cal = db.get(SLACalendar, policy.calendar_id)
+    if cal is None or not cal.is_active:
+        logger.warning("la política SLA %s apunta a un calendario que ya no existe; usa su propio horario",
+                       policy.id)
+        return None
+    inicio, fin = parse_hora(cal.work_start), parse_hora(cal.work_end)
+    if fin <= inicio:
+        raise ValueError(f"jornada inválida en el calendario {cal.name}: {cal.work_start}-{cal.work_end}")
+    return CalendarioSLA(
+        zona=_zona(cal.timezone), inicio=inicio, fin=fin,
+        dias=parse_dias_laborables(cal.work_days),
+        festivos=frozenset(_festivos_del_calendario(db, cal.id) | _festivos(db, policy, org_id)),
+    )
+
+
 def _festivos(db: Session, policy: "Optional[SLAPolicy]", org_id: Optional[str]) -> frozenset:
     """Los festivos de la política más los generales de la organización.
 
@@ -292,6 +336,10 @@ def calendario_sla(
 ) -> CalendarioSLA:
     """El calendario de la política, o el de los ajustes si no hay política.
 
+    Por orden: 24x7 si la política no es de horario laboral; el calendario de
+    servicio que tenga elegido (los de la página «Calendarios SLA», que hasta
+    2026-11 no los leía ningún cálculo); y si no, su propio horario.
+
     Antes la jornada era siempre 08-18 de lunes a viernes en UTC: la política
     guardaba `business_start`, `business_end`, `business_days` y
     `business_hours_only`, y nadie los leía.
@@ -304,6 +352,10 @@ def calendario_sla(
                      or (_ss.get_runtime_str(db, "DEFAULT_TIMEZONE", org_id) if db is not None else None))
         if not policy.business_hours_only:
             return CalendarioSLA(zona=zona, continuo=True)
+        if getattr(policy, "calendar_id", None) and db is not None:
+            de_servicio = _calendario_de_servicio(db, policy, org_id)
+            if de_servicio is not None:
+                return de_servicio
         inicio, fin = policy.business_start, policy.business_end
         dias = parse_dias_laborables(policy.business_days)
     elif db is not None:

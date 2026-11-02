@@ -858,7 +858,7 @@ const RUNTIME_GROUPS = [
 ]
 
 
-function RuntimeGroupEditor({ groupId, description }: { groupId: string; description?: string }) {
+export function RuntimeGroupEditor({ groupId, description }: { groupId: string; description?: string }) {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()

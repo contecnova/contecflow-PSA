@@ -8,14 +8,16 @@ import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
-import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi } from '../../services/api'
+import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, slaCalendarsApi } from '../../services/api'
+import { EscalationConfig, NotificationsConfig } from './ConfigEscaladoYAvisos'
 import { PRIORITY_LABEL, PBadge } from './sdUtils'
 import { RoutingRules } from './QueueAndRoutingSections'
 
 // ── Local types ─────────────────────────────────────────────────────────────
 type Svc = { [k: string]: unknown; id: string; name: string; category_id?: string; ticket_type?: string; default_priority?: string; sla_response_hours?: number; sla_resolution_hours?: number; requires_approval?: boolean; is_visible_to_clients?: boolean }
 type Cat = { [k: string]: unknown; id: string; name: string; description?: string; icon?: string; color?: string; services?: Svc[] }
-type Policy = { [k: string]: unknown; id: string; name: string; description?: string; is_default?: boolean; business_hours_only?: boolean }
+type Policy = { [k: string]: unknown; id: string; name: string; description?: string; is_default?: boolean; business_hours_only?: boolean; business_start?: number; business_end?: number; business_days?: string; timezone?: string | null; calendar_id?: string | null }
+type Calendario = { id: string; name: string; timezone?: string; work_start?: string; work_end?: string; work_days?: string }
 type Member = { [k: string]: unknown; id: string; full_name?: string; is_lead?: boolean }
 type Group = { [k: string]: unknown; id: string; name: string; description?: string; support_level?: string; members?: Member[] }
 type User = { [k: string]: unknown; id: string; full_name?: string }
@@ -171,9 +173,9 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onC
       <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
         <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:10 }}>
           <div><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
-        </div>
           <div><label style={LS}>Icon</label><input value={form.icon} onChange={set('icon')} style={{...IS, width:60, textAlign:'center'}} /></div>
           <div><label style={LS}>Color</label><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#4f8ef7'} onChange={set('color')} style={{...IS, width:60, padding:'4px'}} /></div>
+        </div>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('common.new')}</Button>
@@ -201,7 +203,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
         <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
         <div>
-          <label style={LS}>{t('service_desk.svc_ticket_type')}</label>
+          <label style={LS}>{t('service_desk.tab_catalog')}</label>
           <select value={form.category_id} onChange={set('category_id')} style={IS}>
             {catalog.map((c: Cat) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -246,6 +248,10 @@ function SLAConfig() {
     queryKey: ['sd-sla-policies'],
     queryFn: () => sdSlaPoliciesApi.list().then(r => r.data),
   })
+  const { data: calendarios = [] } = useQuery<Calendario[]>({
+    queryKey: ['sla-calendars'],
+    queryFn: () => slaCalendarsApi.list().then(r => r.data as Calendario[]),
+  })
   const [editing, setEditing] = useState<Policy | null>(null)
   const { mutate: create, isPending } = useMutation({
     mutationFn: (d: Record<string, unknown>) => sdSlaPoliciesApi.create(d),
@@ -283,7 +289,11 @@ function SLAConfig() {
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
               <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>{p.name}</span>
               {p.is_default && <span style={{ fontSize: "var(--text-2xs)", background:'var(--accent-muted)', color:'var(--accent)', padding:'2px 8px', borderRadius:4, fontWeight: 600 }}>{t('service_desk.sla_default_policy').toUpperCase()}</span>}
-              {p.business_hours_only && <span style={{ fontSize: "var(--text-2xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>{t('service_desk.sla_business_hours')}</span>}
+              <span style={{ fontSize: "var(--text-2xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>
+                {p.business_hours_only === false ? '24x7'
+                  : p.calendar_id ? `📅 ${calendarios.find(c => c.id === p.calendar_id)?.name ?? t('sd_cfg.schedule_calendars')}`
+                  : `${p.business_start ?? ''}–${p.business_end ?? ''} h${p.timezone ? ` · ${p.timezone}` : ''}`}
+              </span>
               <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
                 <button onClick={() => setEditing(p)}
                   style={{ padding:'3px 10px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏ Editar</button>
@@ -322,18 +332,56 @@ function SLAConfig() {
   )
 }
 
+const ZONAS: string[] = (() => {
+  try { return (Intl as unknown as { supportedValuesOf: (k: string) => string[] }).supportedValuesOf('timeZone') } catch { return [] }
+})()
+
+function horarioDe(p?: Policy | null): string {
+  if (!p) return 'own'
+  if (p.business_hours_only === false) return '247'
+  return p.calendar_id ? `cal:${p.calendar_id}` : 'own'
+}
+
 function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSProperties; LS: CSSProperties; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Policy | null }) {
   const t = useAppT()
+  const { data: calendarios = [] } = useQuery<Calendario[]>({
+    queryKey: ['sla-calendars'],
+    queryFn: () => slaCalendarsApi.list().then(r => r.data as Calendario[]),
+  })
   const [form, setForm] = useState({
     name: initial?.name || '', description: initial?.description || '',
-    is_default: initial?.is_default || false, business_hours_only: initial?.business_hours_only || false,
+    is_default: initial?.is_default || false,
     p1_response_hours: initial?.p1_response_hours ?? 1, p1_resolution_hours: initial?.p1_resolution_hours ?? 4,
     p2_response_hours: initial?.p2_response_hours ?? 4, p2_resolution_hours: initial?.p2_resolution_hours ?? 8,
     p3_response_hours: initial?.p3_response_hours ?? 8, p3_resolution_hours: initial?.p3_resolution_hours ?? 24,
     p4_response_hours: initial?.p4_response_hours ?? 24, p4_resolution_hours: initial?.p4_resolution_hours ?? 72,
+    business_start: initial?.business_start ?? 9, business_end: initial?.business_end ?? 18,
+    timezone: initial?.timezone || '',
   })
-  const set = (k: string) => (e: ChangeEvent<HTMLInputElement>) => setForm(f => ({...f, [k]: e.target.type==='checkbox' ? e.target.checked : e.target.value}))
+  const [horario, setHorario] = useState(horarioDe(initial))
+  const [dias, setDias] = useState<number[]>(
+    (initial?.business_days || '1,2,3,4,5').split(',').map(Number).filter(Boolean))
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm(f => ({...f, [k]: (e.target as HTMLInputElement).type==='checkbox' ? (e.target as HTMLInputElement).checked : e.target.value}))
   const formRec = form as Record<string, unknown>
+  const nombresDias = t('sd_cfg.days_short').split(',')
+  const propio = horario === 'own'
+  const valido = !!form.name && (!propio || (dias.length > 0 && Number(form.business_end) > Number(form.business_start)))
+
+  const enviar = () => {
+    const horas = Object.fromEntries(['p1','p2','p3','p4'].flatMap(k => [
+      [`${k}_response_hours`, Number(formRec[`${k}_response_hours`])],
+      [`${k}_resolution_hours`, Number(formRec[`${k}_resolution_hours`])],
+    ]))
+    onSave({
+      name: form.name, description: form.description, is_default: form.is_default, ...horas,
+      business_hours_only: horario !== '247',
+      calendar_id: horario.startsWith('cal:') ? horario.slice(4) : null,
+      business_start: Number(form.business_start), business_end: Number(form.business_end),
+      business_days: [...dias].sort().join(','), timezone: form.timezone || null,
+    })
+  }
+
   return (
     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
       <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
@@ -341,24 +389,64 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
         <div key={key} style={{ background:'var(--surface-1)', borderRadius:10, padding:14 }}>
           <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--text-2)', marginBottom:10 }}>{label}</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-            <div><label style={LS}>{t('service_desk.sla_response_h')}</label><input type="number" value={formRec[`${key}_response_hours`] as number} onChange={set(`${key}_response_hours`)} style={IS} /></div>
-            <div><label style={LS}>{t('service_desk.sla_resolution_h')}</label><input type="number" value={formRec[`${key}_resolution_hours`] as number} onChange={set(`${key}_resolution_hours`)} style={IS} /></div>
+            <div><label style={LS}>{t('service_desk.sla_response_h')}</label><input type="number" min={0} step="0.25" value={formRec[`${key}_response_hours`] as number} onChange={set(`${key}_response_hours`)} style={IS} /></div>
+            <div><label style={LS}>{t('service_desk.sla_resolution_h')}</label><input type="number" min={0} step="0.25" value={formRec[`${key}_resolution_hours`] as number} onChange={set(`${key}_resolution_hours`)} style={IS} /></div>
           </div>
         </div>
       ))}
+      <div style={{ gridColumn:'1/-1', background:'var(--surface-1)', borderRadius:10, padding:14, display:'flex', flexDirection:'column', gap:12 }}>
+        <div>
+          <label style={LS} htmlFor="sla-horario">{t('sd_cfg.schedule')}</label>
+          <select id="sla-horario" value={horario} onChange={e => setHorario(e.target.value)} style={IS}>
+            <option value="247">{t('sd_cfg.schedule_247')}</option>
+            {calendarios.length > 0 && (
+              <optgroup label={t('sd_cfg.schedule_calendars')}>
+                {calendarios.map(c => <option key={c.id} value={`cal:${c.id}`}>{c.name} · {c.work_start}–{c.work_end} · {c.timezone}</option>)}
+              </optgroup>
+            )}
+            <option value="own">{t('sd_cfg.schedule_own')}</option>
+          </select>
+          <div style={{ fontSize:'var(--text-xs)', color:'var(--text-3)', marginTop:6 }}>
+            {t('sd_cfg.schedule_hint')} <a href="/sla-calendars" style={{ color:'var(--accent)' }}>{t('sd_cfg.manage_calendars')}</a>
+          </div>
+        </div>
+        {propio && (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:10 }}>
+            <div><label style={LS} htmlFor="sla-ini">{t('sd_cfg.start_hour')}</label>
+              <input id="sla-ini" type="number" min={0} max={23} value={form.business_start} onChange={set('business_start')} style={IS} /></div>
+            <div><label style={LS} htmlFor="sla-fin">{t('sd_cfg.end_hour')}</label>
+              <input id="sla-fin" type="number" min={1} max={24} value={form.business_end} onChange={set('business_end')} style={IS} /></div>
+            <div style={{ gridColumn:'span 2' }}><label style={LS} htmlFor="sla-zona">{t('sd_cfg.timezone')}</label>
+              <input id="sla-zona" list="sla-zonas" value={form.timezone} placeholder={t('sd_cfg.timezone_org')} onChange={set('timezone')} style={IS} />
+              <datalist id="sla-zonas">{ZONAS.map(z => <option key={z} value={z} />)}</datalist></div>
+            <div style={{ gridColumn:'1/-1' }}>
+              <span style={LS}>{t('sd_cfg.workdays')}</span>
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                {nombresDias.map((nombre, i) => {
+                  const d = i + 1
+                  const on = dias.includes(d)
+                  return (
+                    <button key={d} type="button" aria-pressed={on}
+                      onClick={() => setDias(on ? dias.filter(x => x !== d) : [...dias, d])}
+                      style={{ minWidth:40, padding:'6px 10px', borderRadius:8, cursor:'pointer', fontFamily:'inherit',
+                        border:`1px solid ${on ? 'var(--accent)' : 'var(--surface-4)'}`,
+                        background: on ? 'var(--accent-muted)' : 'transparent', color: on ? 'var(--accent)' : 'var(--text-2)' }}>{nombre}</button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
       <div style={{ gridColumn:'1/-1', display:'flex', gap:20, alignItems:'center' }}>
         <label style={{ display:'flex', gap:8, alignItems:'center', fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>
           <input type="checkbox" checked={form.is_default} onChange={set('is_default')} />
           {t('service_desk.sla_default_policy')}
         </label>
-        <label style={{ display:'flex', gap:8, alignItems:'center', fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>
-          <input type="checkbox" checked={form.business_hours_only} onChange={set('business_hours_only')} />
-          {t('service_desk.sla_business_only')}
-        </label>
       </div>
       <div style={{ gridColumn:'1/-1', display:'flex', justifyContent:'flex-end', gap:10 }}>
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-        <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('service_desk.sla_new_title')}</Button>
+        <Button onClick={enviar} disabled={isPending || !valido} loading={isPending}>{initial ? t('common.save') : t('service_desk.sla_new_title')}</Button>
       </div>
     </div>
   )
@@ -858,6 +946,8 @@ export default function Config() {
     {id:'sla',      label:`⏱ ${t('service_desk.tab_sla')}`},
     {id:'groups',   label:`${t('service_desk.tab_groups')}`},
     {id:'routing',  label:`${t('service_desk.tab_routing')}`},
+    {id:'escalation', label:t('sd_cfg.tab_escalation')},
+    {id:'notifications', label:t('sd_cfg.tab_notifications')},
     {id:'templates',label:`${t('service_desk.tab_templates')}`},
     {id:'canned',   label:`${t('service_desk.tab_canned')}`},
   ]
@@ -878,6 +968,8 @@ export default function Config() {
       {sub === 'sla'           && <SLAConfig />}
       {sub === 'groups'        && <GroupsConfig />}
       {sub === 'routing'       && <RoutingRules />}
+      {sub === 'escalation'    && <EscalationConfig />}
+      {sub === 'notifications' && <NotificationsConfig />}
       {sub === 'templates'     && <TemplatesConfig />}
       {sub === 'canned'        && <CannedResponsesManager />}
     </div>

@@ -40,8 +40,8 @@ def serialize_escalation_rule(rule: EscalationRule) -> dict:
         "name": rule.name,
         "is_active": rule.is_active,
         "sort_order": rule.sort_order,
-        "trigger": rule.trigger,
-        "action": rule.action,
+        "trigger": _v(rule.trigger),
+        "action": _v(rule.action),
         "applies_to_priority": rule.applies_to_priority,
         "idle_hours_threshold": rule.idle_hours_threshold,
         "group_id": rule.group_id,
@@ -52,11 +52,39 @@ def serialize_escalation_rule(rule: EscalationRule) -> dict:
 
 
 def validate_escalation_rule(payload: EscalationRuleIn) -> None:
+    """Una regla que se guarda tiene que poder ejecutarse.
+
+    Antes solo se miraban el disparador y la accion, y solo al crear: «mover a
+    otra cola» sin cola, «subir prioridad» sin prioridad o «avisar a estas
+    personas» sin nadie se guardaban y luego no hacian nada.
+    """
     try:
-        EscalationTrigger(payload.trigger)
-        EscalationAction(payload.action)
+        trigger = EscalationTrigger(payload.trigger)
+        action = EscalationAction(payload.action)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+    if trigger == EscalationTrigger.idle_hours and not (payload.idle_hours_threshold or 0) > 0:
+        raise HTTPException(422, "La regla de inactividad necesita las horas")
+    if action == EscalationAction.reassign_group and not payload.target_group_id:
+        raise HTTPException(422, "Falta la cola de destino")
+    if action == EscalationAction.elevate_priority:
+        try:
+            TicketPriority(payload.target_priority or "")
+        except ValueError:
+            raise HTTPException(422, "Falta la prioridad nueva")
+    if action == EscalationAction.notify_custom:
+        try:
+            ids = json.loads(payload.notify_user_ids or "[]")
+        except ValueError:
+            ids = None
+        if not isinstance(ids, list) or not ids:
+            raise HTTPException(422, "Falta a quién avisar")
+    if payload.applies_to_priority:
+        try:
+            prioridades = json.loads(payload.applies_to_priority)
+            [TicketPriority(p) for p in prioridades]
+        except (ValueError, TypeError):
+            raise HTTPException(422, "Prioridades inválidas")
 
 
 def build_escalation_rule(payload: EscalationRuleIn) -> EscalationRule:
@@ -83,6 +111,7 @@ def apply_escalation_rule_update(rule: EscalationRule, payload: EscalationRuleIn
 
 
 def update_escalation_rule_record(db: Session, rule_id: str, payload: EscalationRuleIn) -> EscalationRule:
+    validate_escalation_rule(payload)
     rule = get_escalation_rule_by_id(db, rule_id)
     apply_escalation_rule_update(rule, payload)
     return rule

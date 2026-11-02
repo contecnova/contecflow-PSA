@@ -199,6 +199,7 @@ class SLAPolicyIn(BaseModel):
     business_days: str = Field(settings.SLA_BUSINESS_DAYS,
                                description="Días laborables, ISO separados por comas (1 = lunes ... 7 = domingo)")
     timezone: Optional[str] = Field(None, description="Zona horaria IANA; vacía usa la de la organización")
+    calendar_id: Optional[str] = Field(None, description="Calendario de servicio; manda sobre el horario propio")
 
     @field_validator("business_days")
     @classmethod

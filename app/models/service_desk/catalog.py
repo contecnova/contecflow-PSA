@@ -81,5 +81,8 @@ class SLAPolicy(Base):
     business_days = Column(String(20), default="1,2,3,4,5")  # ISO: 1 = lunes ... 7 = domingo
     # Zona IANA de la jornada; NULL usa DEFAULT_TIMEZONE de la organización.
     timezone = Column(String(64), nullable=True)
+    # Calendario de servicio (jornada, zona y festivos) que manda sobre los
+    # `business_*` de arriba. NULL: se usan los de la propia política.
+    calendar_id = Column(String(36), ForeignKey("sla_calendars.id", ondelete="SET NULL"), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

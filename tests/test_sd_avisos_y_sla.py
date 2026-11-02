@@ -420,3 +420,142 @@ def test_un_flujo_que_cambia_el_estado_no_se_dispara_a_si_mismo(db, gente):
     for _ in range(3):
         _procesar(db)
     assert db.query(WorkflowRun).count() == 1
+
+
+# ── Calendarios de servicio ──────────────────────────────────────────────────
+
+def test_una_politica_con_calendario_cuenta_en_el_calendario(db):
+    from app.models.cmdb import SLACalendar, V21SLAHoliday
+    from app.models.service_desk import SLAPolicy
+    from app.services.sla_service import calculate_sla_due
+
+    cal = SLACalendar(name="Soporte Mexico", timezone="America/Mexico_City", work_start="09:30",
+                      work_end="13:30", work_days="1,2,3,4,5", organization_id=ORG)
+    db.add(cal)
+    db.flush()
+    db.add(V21SLAHoliday(calendar_id=cal.id, holiday_date="2026-03-17", name="Asueto", organization_id=ORG))
+    p = SLAPolicy(name="MX", calendar_id=cal.id, p3_response_hours=4, p3_resolution_hours=8,
+                  business_start=8, business_end=18, organization_id=ORG)
+    db.add(p)
+    db.commit()
+    # Lunes 16-03-2026 12:30 en CDMX (18:30 UTC): queda 1 h de jornada, el
+    # martes es festivo y el miercoles empieza a las 09:30.
+    resp, res = calculate_sla_due("p3_medium", p, db, start=datetime(2026, 3, 16, 18, 30, tzinfo=timezone.utc))
+    cdmx = ZoneInfo("America/Mexico_City")
+    assert resp.astimezone(cdmx).replace(tzinfo=None) == datetime(2026, 3, 18, 12, 30)
+    assert res.astimezone(cdmx).replace(tzinfo=None) == datetime(2026, 3, 19, 12, 30)
+
+
+def test_no_se_borra_un_calendario_que_usa_una_politica(db):
+    from fastapi import HTTPException
+    from app.models.cmdb import SLACalendar
+    from app.models.service_desk import SLAPolicy
+    from app.services.cmdb_service import delete_sla_calendar
+
+    cal = SLACalendar(name="Oficina", organization_id=ORG)
+    db.add(cal)
+    db.flush()
+    db.add(SLAPolicy(name="Estandar", calendar_id=cal.id, organization_id=ORG))
+    db.commit()
+    with pytest.raises(HTTPException) as e:
+        delete_sla_calendar(cal.id, db)
+    assert "Estandar" in e.value.detail
+
+
+@pytest.mark.parametrize("campo,valor", [
+    ("timezone", "Europe/Madird"), ("work_start", "9h"), ("work_days", "0,8"),
+    ("work_end", "08:00"),
+])
+def test_un_calendario_mal_escrito_se_rechaza_al_guardar(campo, valor):
+    from pydantic import ValidationError
+    from app.api.v1.endpoints.cmdb import SLACalendarIn
+
+    with pytest.raises(ValidationError):
+        SLACalendarIn(**{"name": "x", "work_start": "09:00", campo: valor})
+
+
+# ── Los textos de los avisos, desde la API ───────────────────────────────────
+
+def test_un_administrador_personaliza_previsualiza_y_restaura_un_aviso(client, admin_token, db, correos):
+    from tests.conftest import auth
+
+    base = "/api/v1/sd/notification-templates"
+    lista = client.get(base, headers=auth(admin_token)).json()["items"]
+    acuse = next(p for p in lista if p["code"] == "sd.created.requester")
+    assert acuse["event"] == "created" and acuse["role"] == "requester"
+    assert acuse["languages"]["es"]["customized"] is False
+
+    r = client.put(f"{base}/sd.created.requester/es", headers=auth(admin_token),
+                   json={"subject": "Recibido: {{ticket_title}}", "body_html": "<p>Hola {{requester_name}}</p>"})
+    assert r.status_code == 200, r.text
+    vista = client.post(f"{base}/preview", headers=auth(admin_token),
+                        json={"subject": "Recibido: {{ticket_title}}", "body_html": "<p>{{comment_body}}</p>"}).json()["data"]
+    assert vista["subject"] == "Recibido: La VPN no conecta desde casa"
+
+    _ticket(db, number="INC-0140", organization_id="1")
+    _procesar(db)
+    assert any(c["asunto"] == "[INC-0140] Recibido: La VPN no conecta" for c in correos)
+
+    assert client.delete(f"{base}/sd.created.requester/es", headers=auth(admin_token)).status_code == 200
+    lista = client.get(base, headers=auth(admin_token)).json()["items"]
+    assert next(p for p in lista if p["code"] == "sd.created.requester")["languages"]["es"]["customized"] is False
+
+
+def test_un_aviso_o_idioma_inexistente_se_rechaza(client, admin_token):
+    from tests.conftest import auth
+
+    base = "/api/v1/sd/notification-templates"
+    cuerpo = {"subject": "x", "body_html": "y"}
+    assert client.put(f"{base}/sd.inventado.agent/es", headers=auth(admin_token), json=cuerpo).status_code == 404
+    assert client.put(f"{base}/sd.created.requester/fr", headers=auth(admin_token), json=cuerpo).status_code == 422
+
+
+def test_el_nodo_notificar_por_correo_avisa_al_agente_del_ticket(db, gente, correos):
+    from app.models.enterprise import Notification
+    from app.models.workflow_designer import (
+        WorkflowBlueprint, WorkflowBlueprintStatus, WorkflowBlueprintVersion,
+    )
+    from app.services.service_desk.workflow_engine import start_run
+
+    bp = WorkflowBlueprint(name="Aviso P1", process_type="ticket",
+                           status=WorkflowBlueprintStatus.published, organization_id=ORG)
+    db.add(bp)
+    db.flush()
+    grafo = {"nodes": [
+        {"id": "s", "type": "start"},
+        {"id": "n", "type": "notify", "config": {"channel": "email", "recipients": "$assignee",
+                                                 "title": "P1 sin atender: {number}", "body": "Míralo"}},
+        {"id": "f", "type": "end"}],
+        "edges": [{"source": "s", "target": "n"}, {"source": "n", "target": "f"}]}
+    db.add(WorkflowBlueprintVersion(blueprint_id=bp.id, version=1, graph_json=json.dumps(grafo),
+                                    is_published=True, organization_id=ORG))
+    t = _ticket(db, number="INC-0150", assigned_to_user_id=gente["agente"].id)
+    run = start_run(db, blueprint_id=bp.id, target_entity_type="ticket", target_entity_id=t.id,
+                    context={"number": t.number}, organization_id=ORG)
+    db.commit()
+    assert run.status.value == "completed", run.last_error
+    assert [c["para"] for c in correos] == ["agente@example.com"]
+    assert correos[0]["asunto"] == "P1 sin atender: INC-0150"
+    aviso = db.query(Notification).filter(Notification.user_id == gente["agente"].id,
+                                          Notification.title == "P1 sin atender: INC-0150").one()
+    assert aviso.type.value == "automation"
+
+
+@pytest.mark.parametrize("cambio", [
+    {"action": "reassign_group"},
+    {"action": "elevate_priority", "target_priority": None},
+    {"action": "notify_custom", "notify_user_ids": "[]"},
+    {"trigger": "idle_hours", "idle_hours_threshold": None},
+    {"applies_to_priority": '["p9"]'},
+])
+def test_una_regla_incompleta_no_se_guarda_ni_al_crear_ni_al_editar(client, admin_token, cambio):
+    from tests.conftest import auth
+
+    base = {"name": "r", "trigger": "sla_breached", "action": "notify_group_lead"}
+    ok = client.post("/api/v1/sd/escalation-rules", headers=auth(admin_token), json=base)
+    assert ok.status_code == 201, ok.text
+    regla = ok.json()["data"]["id"]
+    assert client.post("/api/v1/sd/escalation-rules", headers=auth(admin_token),
+                       json={**base, **cambio}).status_code == 422
+    assert client.patch(f"/api/v1/sd/escalation-rules/{regla}", headers=auth(admin_token),
+                        json={**base, **cambio}).status_code == 422

@@ -749,6 +749,13 @@ def delete_sla_calendar(cal_id: str, db: Session) -> dict:
     ).scalar() or 0
     if holiday_count > 0:
         raise HTTPException(400, f"No se puede eliminar: el calendario tiene {holiday_count} festivo(s) activos")
+    from app.models.service_desk import SLAPolicy
+    en_uso = db.query(SLAPolicy.name).filter(
+        SLAPolicy.calendar_id == cal_id, SLAPolicy.is_active == True,  # noqa: E712
+    ).all()
+    if en_uso:
+        raise HTTPException(400, "No se puede eliminar: lo usan las políticas SLA "
+                                 + ", ".join(n for (n,) in en_uso))
     c.is_active = False
     db.commit()
     return {"ok": True, "message": "Calendario eliminado correctamente"}

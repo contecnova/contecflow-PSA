@@ -976,6 +976,11 @@ function Palette({ onAdd }: { onAdd: (type: string) => void }) {
   )
 }
 
+// Los mismos que `workflow_triggers.DISPARADORES` y `TicketStatus` del servidor.
+const DISPARADORES_DE_FLUJO = ['created', 'assigned', 'group_assigned', 'status_changed', 'priority_changed',
+  'commented', 'sla_warning', 'sla_breached', 'escalated']
+const ESTADOS_DE_TICKET = ['new', 'assigned', 'in_progress', 'pending_client', 'pending_third', 'resolved', 'closed', 'cancelled']
+
 function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (patch: any) => void; onDelete: () => void }) {
   const { t: traducir } = useAppLang()
   if (!node) {
@@ -1012,8 +1017,21 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (p
       </div>
 
       {/* Campos por tipo */}
+      {t === 'start' && <>
+        <FieldSelect label={traducir('sd_cfg.wf_trigger')} value={config.trigger || ''} onChange={v => setConfig('trigger', v || null)} options={[
+          { v: '', l: traducir('sd_cfg.wf_trigger_manual') },
+          ...DISPARADORES_DE_FLUJO.map(d => ({ v: d, l: traducir(`sd_cfg.ev_${d}`) })),
+        ]} />
+        {config.trigger && <>
+          <FieldText label={traducir('sd_cfg.wf_condition')} value={config.condition} onChange={v => setConfig('condition', v)} placeholder={traducir('sd_cfg.wf_condition_hint')} />
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('sd_cfg.wf_condition_help')}</div>
+        </>}
+      </>}
       {t === 'state' && <>
-        <FieldText label="Status" value={config.status} onChange={v => setConfig('status', v)} placeholder="open / in_progress / done" />
+        <FieldSelect label="Status" value={config.status || ''} onChange={v => setConfig('status', v)} options={[
+          { v: '', l: '—' },
+          ...ESTADOS_DE_TICKET.map(e => ({ v: e, l: e.replace(/_/g, ' ') })),
+        ]} />
         <FieldText label={traducir('workflowdesigner.asignar_al_rol')} value={config.assignee_role} onChange={v => setConfig('assignee_role', v)} placeholder="support_l1" />
         <FieldNumber label="SLA (horas)" value={config.sla_hours} onChange={v => setConfig('sla_hours', v)} />
       </>}
@@ -1029,11 +1047,12 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (p
         <FieldText label={traducir('workflowdesigner.o_hasta_el_campo')} value={config.until_field} onChange={v => setConfig('until_field', v)} placeholder="due_date" />
       </>}
       {t === 'notify' && <>
-        <FieldSelect label="Canal" value={config.channel || 'email'} onChange={v => setConfig('channel', v)} options={[
-          { v: 'email', l: 'Email' }, { v: 'in_app', l: 'In-app' }, { v: 'slack', l: 'Slack' }, { v: 'sms', l: 'SMS' },
+        <FieldSelect label="Canal" value={config.channel || 'in_app'} onChange={v => setConfig('channel', v)} options={[
+          { v: 'in_app', l: 'Campana' }, { v: 'email', l: 'Campana + correo' },
         ]} />
-        <FieldText label="Plantilla" value={config.template_id} onChange={v => setConfig('template_id', v)} placeholder="ticket_assigned" />
-        <FieldText label="Destinatarios" value={config.recipients} onChange={v => setConfig('recipients', v)} placeholder="$assignee" />
+        <FieldText label="Título" value={config.title ?? config.template_id} onChange={v => setConfig('title', v)} placeholder="P1 sin atender: {number}" />
+        <FieldTextarea label="Mensaje" value={config.body} onChange={v => setConfig('body', v)} />
+        <FieldText label="Destinatarios" value={config.recipients} onChange={v => setConfig('recipients', v)} placeholder="$assignee, $group" />
       </>}
       {t === 'http_call' && <>
         <FieldSelect label={traducir('workflowdesigner.metodo')} value={config.method || 'POST'} onChange={v => setConfig('method', v)} options={[

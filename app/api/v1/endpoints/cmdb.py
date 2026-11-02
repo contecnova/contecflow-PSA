@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.db.session import get_db
 from app.core.config import settings
@@ -453,16 +453,63 @@ def delete_sprint_plan(plan_id: str, db: Session = Depends(get_db),
 # ══════════════════════════════════════════════════════════════════════════════
 
 class SLACalendarIn(BaseModel):
+    """Calendario de servicio. Las politicas de SLA lo usan para contar horas.
+
+    Auditoria 2026-11: se aceptaba cualquier texto. Mientras ningun SLA leia
+    el calendario daba igual; ahora una zona o una hora mal escrita romperia el
+    calculo de los vencimientos, asi que se rechaza al guardar.
+    """
     name: str
     timezone: str = settings.DEFAULT_TIMEZONE
     work_start: str = "09:00"
     work_end: str = "18:00"
     work_days: str = "1,2,3,4,5"
 
+    @field_validator("timezone")
+    @classmethod
+    def _zona(cls, v: str) -> str:
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+        try:
+            ZoneInfo(v)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError(f"zona horaria desconocida: {v}") from exc
+        return v
+
+    @field_validator("work_start", "work_end")
+    @classmethod
+    def _hora(cls, v: str) -> str:
+        from app.services.sla_service import parse_hora
+        parse_hora(v)
+        return v
+
+    @field_validator("work_days")
+    @classmethod
+    def _dias(cls, v: str) -> str:
+        from app.services.sla_service import parse_dias_laborables
+        return ",".join(str(d) for d in sorted(parse_dias_laborables(v)))
+
+    @field_validator("work_end")
+    @classmethod
+    def _fin_tras_inicio(cls, v: str, info) -> str:
+        from app.services.sla_service import parse_hora
+        inicio = info.data.get("work_start")
+        if inicio and parse_hora(v) <= parse_hora(inicio):
+            raise ValueError("la jornada tiene que acabar después de empezar")
+        return v
+
 
 class SLAHolidayIn(BaseModel):
     holiday_date: str
     name: Optional[str] = None
+
+    @field_validator("holiday_date")
+    @classmethod
+    def _fecha(cls, v: str) -> str:
+        from datetime import date as _date
+        try:
+            return _date.fromisoformat(v).isoformat()
+        except ValueError as exc:
+            raise ValueError("fecha inválida: usa AAAA-MM-DD") from exc
 
 
 @router.get("/sla-calendars", response_model=APIListResponse[dict])

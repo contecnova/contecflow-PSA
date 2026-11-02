@@ -632,6 +632,32 @@ def _destinatarios_del_flujo(n: _Nodo, recipients) -> Optional[list]:
     return list(dict.fromkeys(ids))
 
 
+def _enviar_correos_del_flujo(n: _Nodo, ids: list, title: str, body: str) -> None:
+    """Canal «correo» del nodo: ademas de la campana, un correo a cada usuario.
+
+    Antes la pantalla ofrecia email, Slack y SMS y el motor solo avisaba en la
+    campana. Se envia con el SMTP de la organizacion y queda en `email_logs`.
+    """
+    import html as _html
+    from datetime import datetime as _dt, timezone as _tz
+    from app.models.cab import EmailLog
+    from app.models.user import User
+    from app.services.service_desk import correo
+
+    org = n.run.organization_id
+    cuerpo = f"<p>{_html.escape(body or '')}</p>"
+    for u in n.db.query(User).filter(User.id.in_([str(i) for i in ids]), User.is_active == True).all():  # noqa: E712
+        if not u.email:
+            continue
+        r = correo.enviar(n.db, org, u.email, title, cuerpo, body or title)
+        n.db.add(EmailLog(
+            organization_id=org, to_address=u.email, subject=title[:500], body_preview=(body or "")[:500],
+            status="sent" if r.enviado else "failed", error=r.error,
+            sent_at=_dt.now(_tz.utc) if r.enviado else None,
+            source="workflow", source_id=n.run.id,
+        ))
+
+
 def _nodo_notificar(n: _Nodo) -> tuple[str, dict, int]:
     """Notificacion real en la aplicacion.
 
@@ -662,6 +688,11 @@ def _nodo_notificar(n: _Nodo) -> tuple[str, dict, int]:
         elif isinstance(recipients, str):
             delivered = notify_role(n.db, recipients, tipo, title, body,
                                     resource=resource, resource_id=resource_id)
+            from app.models.user import User
+            ids = [r[0] for r in n.db.query(User.id).filter(
+                User.role == recipients, User.is_active == True).all()]  # noqa: E712
+        if n.config.get("channel") == "email" and ids:
+            _enviar_correos_del_flujo(n, ids, title, body)
     except Exception as exc:
         return "failure", {
             "channel": n.config.get("channel"), "error": str(exc)[:300], "delivered": 0,
