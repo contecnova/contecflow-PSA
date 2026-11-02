@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Date
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Date, UniqueConstraint
 from app.models.money import Rate
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -276,10 +276,16 @@ class Office(Base):
 
 class NumberingSequence(Base):
     __tablename__ = "numbering_sequences"
+    # Una secuencia por organizacion y entidad. Con `entity` unico en toda la
+    # base, la segunda organizacion no podia crear la suya y cualquier
+    # numeracion (proyecto, tarea, factura...) reventaba con RuntimeError.
+    __table_args__ = (
+        UniqueConstraint("organization_id", "entity", name="uq_numbering_sequences_org_entity"),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    entity = Column(String(50), unique=True, nullable=False)  # project, task, contract, etc.
+    entity = Column(String(50), nullable=False)  # project, task, contract, etc.
     prefix = Column(String(20), default="")
     suffix = Column(String(20), default="")
     separator = Column(String(5), default="-")

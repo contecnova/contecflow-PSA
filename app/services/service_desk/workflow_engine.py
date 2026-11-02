@@ -688,9 +688,10 @@ def _nodo_notificar(n: _Nodo) -> tuple[str, dict, int]:
         elif isinstance(recipients, str):
             delivered = notify_role(n.db, recipients, tipo, title, body,
                                     resource=resource, resource_id=resource_id)
-            from app.models.user import User
-            ids = [r[0] for r in n.db.query(User.id).filter(
-                User.role == recipients, User.is_active == True).all()]  # noqa: E712
+            if n.config.get("channel") == "email":
+                from app.models.user import User
+                ids = [r[0] for r in n.db.query(User.id).filter(
+                    User.role == recipients, User.is_active == True).all()]  # noqa: E712
         if n.config.get("channel") == "email" and ids:
             _enviar_correos_del_flujo(n, ids, title, body)
     except Exception as exc:
@@ -771,7 +772,7 @@ def _nodo_crear_ticket(n: _Nodo) -> tuple[str, dict, int]:
     ) or title
     try:
         ticket = Ticket(
-            number=next_ticket_number(ttype.value, n.db),
+            number=next_ticket_number(ttype.value, n.db, n.run.organization_id),
             ticket_type=ttype,
             title=title[:500],
             description=description,

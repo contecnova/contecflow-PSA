@@ -1,6 +1,6 @@
 """service_desk.tickets models — split from the former 1385-LOC god-file."""
 
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -11,10 +11,14 @@ from app.models.service_desk._enums import SLAStatus, SupportLevel, TicketImpact
 
 class Ticket(Base):
     __tablename__ = "sd_tickets"
+    # El numero es unico dentro de la organizacion: cada cliente tiene su
+    # INC-0001. Unico en toda la base, la segunda organizacion chocaba con la
+    # primera en cuanto coincidian numeros.
+    __table_args__ = (UniqueConstraint("organization_id", "number", name="uq_sd_tickets_org_number"),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    number = Column(String(20), unique=True, nullable=False, index=True)
+    number = Column(String(20), nullable=False, index=True)
 
     ticket_type = Column(Enum(TicketType), nullable=False, index=True)
     title = Column(String(500), nullable=False)

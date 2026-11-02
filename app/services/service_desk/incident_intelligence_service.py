@@ -462,8 +462,13 @@ def detect_recurring_incidents(db: Session) -> list[dict]:
     # lectura de la intencion, no un renombrado**: si el concepto que se queria
     # agrupar era otro —las etiquetas, por ejemplo— hay que cambiarlo aqui. La
     # clave `category` de la respuesta se conserva para no romper el contrato.
+    abiertos = Ticket.status.not_in([TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled])
+    # Auditoria 2026-11: se agrupa tambien por organizacion. La tarea corre sin
+    # filtro de tenant, y los tickets sin servicio de clientes distintos
+    # acababan en el mismo problema.
     rows = (
         db.query(
+            Ticket.organization_id,
             Ticket.service_item_id.label("category"),
             Ticket.priority,
             func.count(Ticket.id).label("cnt"),
@@ -471,15 +476,17 @@ def detect_recurring_incidents(db: Session) -> list[dict]:
         .filter(
             Ticket.ticket_type == "incident",
             Ticket.created_at >= since,
-            Ticket.status.not_in(
-                [TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled]
-            ),
+            abiertos,
             Ticket.problem_id.is_(None),  # not already linked to a problem
         )
-        .group_by(Ticket.service_item_id, Ticket.priority)
+        .group_by(Ticket.organization_id, Ticket.service_item_id, Ticket.priority)
         .having(func.count(Ticket.id) >= PROBLEM_DETECTION_THRESHOLD)
         .all()
     )
+
+    def _igual(col, valor):
+        # `= NULL` no casa con nada: sin servicio, la lista salia vacia.
+        return col.is_(None) if valor is None else col == valor
 
     result = []
     for row in rows:
@@ -487,20 +494,21 @@ def detect_recurring_incidents(db: Session) -> list[dict]:
             t.id
             for t in db.query(Ticket.id)
             .filter(
-                Ticket.service_item_id == row.category,
+                _igual(Ticket.organization_id, row.organization_id),
+                _igual(Ticket.service_item_id, row.category),
                 Ticket.priority == row.priority,
                 Ticket.ticket_type == "incident",
                 Ticket.created_at >= since,
-                Ticket.status.not_in(
-                    [TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled]
-                ),
+                abiertos,
                 Ticket.problem_id.is_(None),
             )
             .all()
         ]
         result.append({
+            "organization_id": row.organization_id,
             "category": row.category,
-            "priority": str(row.priority),
+            # El valor del enum: `str()` daba «TicketPriority.p2_high».
+            "priority": getattr(row.priority, "value", row.priority),
             "ticket_count": row.cnt,
             "ticket_ids": ticket_ids,
         })

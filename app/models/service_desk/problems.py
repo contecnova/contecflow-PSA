@@ -11,10 +11,11 @@ from app.models.service_desk._enums import MajorIncidentStatus, ProblemStatus, T
 
 class Problem(Base):
     __tablename__ = "sd_problems"
+    __table_args__ = (UniqueConstraint("organization_id", "number", name="uq_sd_problems_org_number"),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    number = Column(String(20), unique=True, nullable=False)
+    number = Column(String(20), nullable=False)
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=False)
     status = Column(Enum(ProblemStatus), default=ProblemStatus.open, index=True)
@@ -174,10 +175,11 @@ class IncidentToProblem(Base):
 class MajorIncident(Base):
     """War-room para incidentes P1/P2. Agrupa tickets, coordina respuesta."""
     __tablename__ = "sd_major_incidents"
+    __table_args__ = (UniqueConstraint("organization_id", "number", name="uq_sd_major_incidents_org_number"),)
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    number      = Column(String(20), unique=True, nullable=False)
+    number      = Column(String(20), nullable=False)
     title       = Column(String(500), nullable=False)
     status      = Column(Enum(MajorIncidentStatus), default=MajorIncidentStatus.active, index=True)
     severity    = Column(String(10), default="P1")  # P1 | P2

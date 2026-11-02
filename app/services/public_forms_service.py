@@ -5,7 +5,6 @@ import secrets
 import uuid
 from typing import Optional
 
-from sqlalchemy import func, cast, Integer
 from sqlalchemy.orm import Session
 
 from app.models.public_forms import PublicForm, PublicFormSubmission
@@ -21,14 +20,6 @@ _PRIORITY_MAP = {
     "medium": TicketPriority.p3_medium,
     "low": TicketPriority.p4_low,
 }
-
-_TICKET_PREFIXES = {
-    "incident": "INC",
-    "service_request": "REQ",
-    "change": "CHG",
-    "problem": "PRB",
-}
-
 
 def map_priority(p: str) -> TicketPriority:
     return _PRIORITY_MAP.get(p, TicketPriority.p3_medium)
@@ -121,17 +112,10 @@ def get_active_form_by_token(db: Session, token: str) -> Optional[PublicForm]:
     )
 
 
-def _next_ticket_number(ticket_type: str, db: Session) -> str:
-    prefix = _TICKET_PREFIXES.get(ticket_type, "TKT")
-    last_num = (
-        db.query(
-            func.max(cast(func.substr(Ticket.number, len(prefix) + 2), Integer))
-        )
-        .filter(Ticket.ticket_type == ticket_type)
-        .scalar()
-        or 0
-    )
-    return f"{prefix}-{(last_num + 1):04d}"
+def _next_ticket_number(ticket_type: str, db: Session, org_id: Optional[str] = None) -> str:
+    """El numerador comun: antes esta copia no bloqueaba ni miraba la organizacion."""
+    from app.services.sla_service import next_ticket_number
+    return next_ticket_number(ticket_type, db, org_id)
 
 
 def submit_form(
@@ -158,7 +142,7 @@ def submit_form(
         sp = db.begin_nested()
         try:
             ticket = Ticket(
-                number=_next_ticket_number("incident", db),
+                number=_next_ticket_number("incident", db, form.organization_id),
                 ticket_type=TicketType.incident,
                 title=subject[:255],
                 description=description or "",

@@ -263,8 +263,12 @@ def create_problem_from_correlation(
         + "\n".join(f"- [{t.number}] {t.title}" for t in tickets)
     )
 
+    # La deteccion corre en el worker, sin organizacion en la sesion: el
+    # problema es de la organizacion de sus tickets.
+    org_id = tickets[0].organization_id
     problem = Problem(
-        number=next_problem_number(db),
+        organization_id=org_id,
+        number=next_problem_number(db, org_id),
         title=title,
         description=description,
         priority=priority,

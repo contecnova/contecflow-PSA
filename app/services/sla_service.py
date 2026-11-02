@@ -491,41 +491,46 @@ def calculate_sla_due(
     return sumar_horas_sla(inicio, resp_h, cal), sumar_horas_sla(inicio, res_h, cal)
 
 
-def next_ticket_number(ticket_type: str, db: Session) -> str:
-    """Generate the next sequential ticket number (advisory-locked on PostgreSQL)."""
-    prefix = TICKET_PREFIXES.get(ticket_type, "TKT")
+def _siguiente_numero(db: Session, modelo, prefijo: str, org_id: Optional[str]) -> str:
+    """`PREFIJO-0001` siguiente dentro de la organizacion.
+
+    El numero es unico por organizacion (`uq_*_org_number`). El maximo se
+    busca con el filtro de organizacion EXPLICITO: en una sesion de worker no
+    hay filtro de tenant y saldria el maximo de toda la base; y en PostgreSQL
+    el cerrojo es por organizacion y prefijo, para que dos tickets a la vez no
+    saquen el mismo numero.
+    """
+    from app.db.session import sin_filtro_de_tenant
+
     try:
-        lock_key = advisory_lock_key(f"ticket_number_{ticket_type}")
-        db.execute(func.pg_advisory_xact_lock(lock_key))
+        db.execute(func.pg_advisory_xact_lock(advisory_lock_key(f"{modelo.__tablename__}:{org_id}:{prefijo}")))
     # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
-        logger.debug("next_ticket_number: SQLite / non-PG — best-effort", exc_info=True)
-    last_num = (
-        db.query(func.max(cast(func.substr(Ticket.number, len(prefix) + 2), Integer)))
-        .filter(Ticket.number.like(f"{prefix}-%"))
-        .scalar()
-    ) or 0
-    return f"{prefix}-{(last_num + 1):04d}"
+        logger.debug("numeracion %s: SQLite / non-PG — best-effort", prefijo, exc_info=True)
+    with sin_filtro_de_tenant(db):
+        ultimo = (
+            db.query(func.max(cast(func.substr(modelo.number, len(prefijo) + 2), Integer)))
+            .filter(
+                modelo.number.like(f"{prefijo}-%"),
+                modelo.organization_id.is_(None) if org_id is None else modelo.organization_id == org_id,
+            )
+            .scalar()
+        ) or 0
+    return f"{prefijo}-{(ultimo + 1):04d}"
 
 
-def next_problem_number(db: Session) -> str:
-    try:
-        db.execute(func.pg_advisory_xact_lock(advisory_lock_key("problem_number")))
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
-        logger.debug("next_problem_number: fallo best-effort ignorado", exc_info=True)
-    last = db.query(func.max(cast(func.substr(Problem.number, 5), Integer))).scalar() or 0
-    return f"PRB-{(last + 1):04d}"
+def next_ticket_number(ticket_type: str, db: Session, org_id: Optional[str] = None) -> str:
+    """Siguiente numero de ticket del tipo, en la organizacion indicada o en la de la sesion."""
+    prefix = TICKET_PREFIXES.get(_texto_historial(ticket_type), "TKT")
+    return _siguiente_numero(db, Ticket, prefix, org_id or db.info.get("organization_id"))
 
 
-def next_kb_number(db: Session) -> str:
-    try:
-        db.execute(func.pg_advisory_xact_lock(advisory_lock_key("kb_number")))
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
-        logger.debug("next_kb_number: fallo best-effort ignorado", exc_info=True)
-    last = db.query(func.max(cast(func.substr(KBArticle.number, 4), Integer))).scalar() or 0
-    return f"KB-{(last + 1):04d}"
+def next_problem_number(db: Session, org_id: Optional[str] = None) -> str:
+    return _siguiente_numero(db, Problem, "PRB", org_id or db.info.get("organization_id"))
+
+
+def next_kb_number(db: Session, org_id: Optional[str] = None) -> str:
+    return _siguiente_numero(db, KBArticle, "KB", org_id or db.info.get("organization_id"))
 
 
 def next_ci_number(db: Session) -> str:
