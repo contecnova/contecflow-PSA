@@ -1441,6 +1441,8 @@ export const sdKbApi = {
   create:      (data: unknown)     => api.post('/sd/kb', data),
   update:      (id: any, data: unknown) => api.patch(`/sd/kb/${id}`, data),
   delete:      (id: any)       => api.delete(`/sd/kb/${id}`),
+  submit:      (id: any)       => api.post(`/sd/kb/${id}/submit`),
+  review:      (id: any, data: unknown) => api.post(`/sd/kb/${id}/review`, data),
   knownErrors:        ()     => api.get('/sd/known-errors'),
   knownErrorTickets:  (id: any)   => api.get(`/sd/known-errors/${id}/tickets`),
 }

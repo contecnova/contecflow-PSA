@@ -2,7 +2,7 @@
  * PortalSupportDesk — service desk del cliente con el lenguaje del backoffice.
  * Tickets, KB y comunicados.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -664,6 +664,7 @@ export function PortalSupportDesk() {
           <PortalField label={traducir('portalsupportdesk.titulo')} required>
             <PortalInput value={createForm.title} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, title: e.target.value }))} placeholder={traducir('portalsupportdesk.resumen_claro_del_problema')} />
           </PortalField>
+          <SugerenciasDeLaKb texto={createForm.title} onResuelto={() => { setDynamicValues({}); setShowCreate(false) }} />
           <PortalField label={traducir('portalsupportdesk.descripcion')} required hint="Cuanto más contexto añadas, antes te resolveremos">
             <PortalTextarea rows={4} value={createForm.description} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder={traducir('portalsupportdesk.describe_el_problema_o_solicitud')} />
           </PortalField>
@@ -733,6 +734,59 @@ export function PortalSupportDesk() {
           ))}
         </div>
       </PortalModal>
+    </div>
+  )
+}
+
+
+/**
+ * Mientras el cliente escribe el título, los artículos públicos que podrían
+ * resolverle el problema. Si uno se lo resuelve, no abre la petición y queda
+ * contado como desvío en el artículo.
+ */
+function SugerenciasDeLaKb({ texto, onResuelto }: { texto: string; onResuelto: () => void }) {
+  const { t: traducir } = useAppLang()
+  const toast = useToast()
+  const [consulta, setConsulta] = useState('')
+  const [abierto, setAbierto] = useState<string | null>(null)
+  useEffect(() => {
+    const h = setTimeout(() => setConsulta(texto.trim()), 400)
+    return () => clearTimeout(h)
+  }, [texto])
+  const { data: sugerencias = [] } = useQuery<{ id: string; title: string; summary?: string | null }[]>({
+    queryKey: ['portal-kb-suggest', consulta],
+    queryFn: () => CLIENT_API.get('/sd/kb/suggest', { params: { q: consulta } }).then(r => r.data as { id: string; title: string; summary?: string | null }[]),
+    enabled: consulta.length >= 4,
+  })
+  const { data: detalle } = useQuery<{ body?: string }>({
+    queryKey: ['portal-kb-article', abierto],
+    queryFn: () => CLIENT_API.get(`/sd/kb/${abierto}`).then(r => r.data as { body?: string }),
+    enabled: !!abierto,
+  })
+  const resuelto = useMutation({
+    mutationFn: (id: string) => CLIENT_API.post(`/sd/kb/${id}/deflected`),
+    onSuccess: () => { toast.success(traducir('sd_cfg.kb_solved_thanks')); onResuelto() },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  if (consulta.length < 4 || sugerencias.length === 0) return null
+  return (
+    <div role="region" aria-label={traducir('sd_cfg.kb_suggest_title')}
+      style={{ border: '1px solid var(--accent)', background: 'var(--accent-muted)', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <strong style={{ fontSize: 'var(--text-sm)' }}>{traducir('sd_cfg.kb_suggest_title')}</strong>
+      {sugerencias.slice(0, 3).map(a => (
+        <div key={a.id} style={{ background: 'var(--surface-1)', borderRadius: 8, padding: '8px 10px' }}>
+          <button type="button" onClick={() => setAbierto(abierto === a.id ? null : a.id)} aria-expanded={abierto === a.id}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--accent)', fontWeight: 600, textAlign: 'left' }}>
+            {a.title}
+          </button>
+          {abierto === a.id && (
+            <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', whiteSpace: 'pre-wrap' }}>{detalle?.body ?? a.summary ?? ''}</div>
+              <div><PortalButton onClick={() => resuelto.mutate(a.id)} loading={resuelto.isPending}>{traducir('sd_cfg.kb_solved')}</PortalButton></div>
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   )
 }

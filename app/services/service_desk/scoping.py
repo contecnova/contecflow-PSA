@@ -173,9 +173,18 @@ def scope_ci_query(q, db: Session, current_user: User):
 
 
 def scope_kb_query(q, db: Session, current_user: User):
+    """Articulos de la organizacion del usuario.
+
+    Auditoria 2026-11: se acotaba por el autor, asi que un articulo sin autor
+    (importado, o creado por el sistema) no lo veia nadie. Manda la
+    organizacion del articulo; el autor queda para filas viejas sin ella.
+    """
     if current_user.is_superadmin:
         return q
     org_user_ids = _org_user_ids_subquery(db, current_user)
     if org_user_ids is None:
         return q.filter(False)
-    return q.filter(KBArticle.author_id.in_(org_user_ids))
+    return q.filter(or_(
+        KBArticle.organization_id == current_user.organization_id,
+        and_(KBArticle.organization_id.is_(None), KBArticle.author_id.in_(org_user_ids)),
+    ))

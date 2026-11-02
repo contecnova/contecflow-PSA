@@ -209,6 +209,8 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("SD_EVENT_AUTO_RESOLVE", "bool", "Monitoring — resolve the incident when the alert recovers, if untouched"),
         ("SD_ONCALL_PRIORITIES", "str", "On-call — priorities that page the on-call agent"),
         ("SD_ONCALL_SMS", "bool", "On-call — also page by SMS"),
+        ("SD_KB_REQUIRE_REVIEW", "bool", "Knowledge — articles need a reviewer to be published"),
+        ("SD_KB_REVIEWER_GROUP_ID", "str", "Knowledge — queue (group id) of reviewers; empty: admins"),
         ("SD_EVENT_MAX_ATTEMPTS", "int", "Event delivery — max attempts"),
         ("SD_EVENT_BATCH_SIZE", "int", "Event delivery — events per run"),
     ],

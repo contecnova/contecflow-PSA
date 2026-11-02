@@ -278,6 +278,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
   const [resolviendo, setResolviendo] = useState(false)
   const [textoResolucion, setTextoResolucion] = useState('')
   const { user: yo } = useAuth()
+  const [sugerencia, setSugerencia] = useState<Sugerencia | null>(null)
   const [rechazando, setRechazando] = useState(false)
   const [motivo, setMotivo] = useState('')
 
@@ -310,10 +311,12 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
   const { mutate: suggestReply, isPending: suggestingReply } = useMutation({
     mutationFn: () => ticketsApi.aiSuggest(ticketId, { content: commentText }),
     onSuccess: res => {
-      const draft = res?.data?.draft || ''
-      if (!draft) { toast.error(t('common.error')); return }
+      const datos = res?.data as Sugerencia | undefined
+      setSugerencia(datos ?? null)
+      const draft = datos?.draft || ''
+      // Sin IA se dice, y los articulos y documentos se ensenan igual.
+      if (!draft) { toast.error(datos?.ai_error || t('common.error')); return }
       setCommentText(prev => prev ? `${prev}\n\n${draft}` : draft)
-      toast.success(t('service_desk.detail_ai_generating'))
     },
     onError: e => toast.error(extractErr(e, 'Error al sugerir respuesta IA')),
   })
@@ -567,9 +570,10 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               </button>
               <button onClick={() => suggestReply()} disabled={suggestingReply}
                 style={{ fontSize: "var(--text-xs)", padding: '5px 10px', borderRadius: 7, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: suggestingReply ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
-                {suggestingReply ? t('service_desk.detail_ai_generating') : `✨ ${t('service_desk.detail_send_comment')}`}
+                {suggestingReply ? t('service_desk.detail_ai_generating') : `✨ ${t('sd_cfg.ai_suggest')}`}
               </button>
             </div>
+            {sugerencia && <ApoyoDeLaSugerencia s={sugerencia} />}
             <Button onClick={() => addComment()} disabled={commenting || !commentText} loading={commenting} style={{ width: '100%' }}>
               {t('service_desk.detail_send_comment')}
             </Button>
@@ -675,6 +679,44 @@ function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, se
             <Button disabled={!motivo.trim()} loading={decidir.isPending}
               onClick={() => decidir.mutate({ decision: 'rejected', comment: motivo.trim() })}>{t('sd_cfg.apr_reject')}</Button>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+type Sugerencia = {
+  draft?: string | null; ai_error?: string | null
+  kb_matches?: { id: string; number: string; title: string; summary?: string | null }[]
+  documents?: { document_id: string; title: string; snippet: string }[]
+  documents_configured?: boolean; documents_error?: string | null
+}
+
+/** Lo que acompaña al borrador: artículos y documentos en que apoyarse. */
+function ApoyoDeLaSugerencia({ s }: { s: Sugerencia }) {
+  const t = useAppT()
+  const titulo: CSSProperties = { fontSize: 'var(--text-2xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }
+  return (
+    <div className="ds-card" style={{ padding: 12, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 'var(--text-sm)' }}>
+      {s.ai_error && <div role="status" style={{ color: COLOR.warning }}>{s.ai_error}</div>}
+      {(s.kb_matches ?? []).length > 0 && (
+        <div>
+          <div style={titulo}>{t('sd_cfg.ai_related')}</div>
+          {(s.kb_matches ?? []).map(k => <div key={k.id}><strong>{k.number}</strong> {k.title}</div>)}
+        </div>
+      )}
+      {s.documents_configured && (
+        <div>
+          <div style={titulo}>{t('sd_cfg.ai_documents')}</div>
+          {s.documents_error ? <div style={{ color: COLOR.warning }}>{s.documents_error}</div>
+            : (s.documents ?? []).length === 0 ? <div style={{ color: 'var(--text-3)' }}>{t('sd_cfg.ai_no_documents')}</div>
+            : (s.documents ?? []).map(d => (
+              <div key={d.document_id} style={{ marginBottom: 4 }}>
+                <strong>{d.title}</strong>
+                <div style={{ color: 'var(--text-2)' }}>{d.snippet}</div>
+              </div>
+            ))}
         </div>
       )}
     </div>

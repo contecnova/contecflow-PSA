@@ -1,5 +1,6 @@
 import { useAppT } from "../../hooks/useAppT";
 import { useId, useState } from 'react'
+import { useAppT as useAppTSimple } from '../../i18n/AppLangContext'
 import type { ChangeEvent, CSSProperties } from 'react'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -41,6 +42,8 @@ type KbArticle = {
   is_public?: boolean
   helpful_count?: number
   view_count?: number
+  deflection_count?: number
+  review_comment?: string | null
 }
 
 type LinkedTicket = {
@@ -441,6 +444,19 @@ function KB() {
   const [search, setSearch] = useState('')
   const [showNew, setShowNew] = useState(false)
   const [editing, setEditing] = useState<KbArticle | null>(null)
+  const ts = useAppTSimple()
+  const [devolviendo, setDevolviendo] = useState<KbArticle | null>(null)
+  const [nota, setNota] = useState('')
+  const refrescarKb = () => qc.invalidateQueries({ queryKey: ['sd-kb'] })
+  const { mutate: enviarARevision } = useMutation({
+    mutationFn: (id: string | number) => sdKbApi.submit(id),
+    onSuccess: refrescarKb, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  const { mutate: revisar } = useMutation({
+    mutationFn: ({ id, publish, comment }: { id: string | number; publish: boolean; comment?: string }) => sdKbApi.review(id, { publish, comment }),
+    onSuccess: () => { refrescarKb(); setDevolviendo(null); setNota('') },
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
 
   const { data: articles = [], isLoading } = useQuery<KbArticle[]>({
     queryKey: ['sd-kb', search],
@@ -460,7 +476,7 @@ function KB() {
 
   const IS: InputStyles = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 
-  const STATUS_COLOR: Record<string, string> = { published: COLOR.success, draft: COLOR.warning, archived: COLOR.text2 }
+  const STATUS_COLOR: Record<string, string> = { published: COLOR.success, draft: COLOR.warning, in_review: 'var(--accent)', archived: COLOR.text2 }
 
   return (
     <div>
@@ -476,24 +492,43 @@ function KB() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
               <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-1)', flex: 1, marginRight: 8 }}>{a.title}</div>
               <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap', background: `${STATUS_COLOR[a.status ?? ''] || COLOR.text2}15`, color: STATUS_COLOR[a.status ?? ''] || COLOR.text2 }}>
-                {a.status}
+                {a.status ? ts(`sd_cfg.kb_status_${a.status}`) : ''}
               </span>
             </div>
             {a.summary && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>{a.summary}</div>}
+            {a.review_comment && a.status === 'draft' && <div style={{ fontSize: "var(--text-xs)", color: COLOR.warning, marginBottom: 10 }}>{ts('sd_cfg.kb_review_note', { note: a.review_comment })}</div>}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 12 }}>
               <span>👍 {a.helpful_count || 0}</span>
               <span>👁 {a.view_count || 0}</span>
+              {(a.deflection_count ?? 0) > 0 && <span>{ts('sd_cfg.kb_deflections', { n: a.deflection_count ?? 0 })}</span>}
               {a.tags && <span>🏷 {a.tags.split(',').slice(0, 2).join(', ')}</span>}
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => { setEditing(a); setShowNew(true) }} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
-              <button onClick={() => toggleStatus({ id: a.id, status: a.status === 'published' ? 'draft' : 'published' })} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>{a.status === 'published' ? '⏸ Despublicar' : '▶ Publicar'}</button>
+              {a.status === 'in_review' ? <>
+                <button onClick={() => revisar({ id: a.id, publish: true })} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: COLOR.success, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>▶ {ts('sd_cfg.kb_publish')}</button>
+                <button onClick={() => setDevolviendo(a)} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: COLOR.warning, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>↩ {ts('sd_cfg.kb_return')}</button>
+              </> : <>
+                <button onClick={() => toggleStatus({ id: a.id, status: a.status === 'published' ? 'draft' : 'published' })} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>{a.status === 'published' ? `⏸ ${ts('sd_cfg.kb_unpublish')}` : `▶ ${ts('sd_cfg.kb_publish')}`}</button>
+                {a.status === 'draft' && <button onClick={() => enviarARevision(a.id)} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>{ts('sd_cfg.kb_submit')}</button>}
+              </>}
               <button onClick={() => { openConfirmGlobal({ message: 'Eliminar articulo?', onConfirm: () => deleteArticle(a.id), danger: true }) }} style={{ padding: '5px 8px', borderRadius: 6, border: `1px solid ${COLOR.danger}30`, background: 'transparent', color: COLOR.danger, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
             </div>
           </div>
         ))}
       </div>}
 
+      {devolviendo && (
+        <Modal open title={`${ts('sd_cfg.kb_return')} · ${devolviendo.title}`} onClose={() => setDevolviendo(null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <textarea aria-label={ts('sd_cfg.kb_return_note')} placeholder={ts('sd_cfg.kb_return_note')} rows={4} value={nota} onChange={e => setNota(e.target.value)} style={{ ...IS, resize: 'vertical' }} />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button variant="secondary" onClick={() => setDevolviendo(null)}>{ts('common.cancel')}</Button>
+              <Button disabled={!nota.trim()} onClick={() => revisar({ id: devolviendo.id, publish: false, comment: nota.trim() })}>{ts('sd_cfg.kb_return')}</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
       {showNew && <KBArticleModal article={editing} onClose={() => { setShowNew(false); setEditing(null) }} onSaved={() => { qc.invalidateQueries({ queryKey: ['sd-kb'] }); setShowNew(false); setEditing(null) }} />}
     </div>
   )

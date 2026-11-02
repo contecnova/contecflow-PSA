@@ -1,74 +1,16 @@
 import logging
 from typing import Optional
 
-from fastapi import HTTPException
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.models.service_desk import KBArticle, KBStatus, Ticket
 from app.models.service_desk import CannedResponse
 from app.models.user import User
 
 
-def _get_ticket_or_404(db: Session, ticket_id: str) -> Ticket:
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(404, "Ticket no encontrado")
-    return ticket
-
-
 def _compute_kb_matches(db: Session, query_text: str):
-    kb_matches = []
-    try:
-        from app.services.semantic_classifier import _get_model, _cosine
-
-        model, _ = _get_model()
-        q_emb = model.encode([query_text], show_progress_bar=False)[0]
-        if hasattr(q_emb, "tolist"):
-            q_emb = q_emb.tolist()
-
-        arts = db.query(KBArticle).filter(KBArticle.status == KBStatus.published).all()
-        scored = []
-        for article in arts:
-            text = f"{article.title or ''}\n{article.summary or ''}\n{article.body or ''}".strip()
-            if not text:
-                continue
-            a_emb = model.encode([text], show_progress_bar=False)[0]
-            if hasattr(a_emb, "tolist"):
-                a_emb = a_emb.tolist()
-            sim = _cosine(q_emb, a_emb)
-            scored.append((sim, article))
-        scored.sort(key=lambda x: x[0], reverse=True)
-        kb_matches = [
-            {
-                "id": a.id,
-                "number": a.number,
-                "title": a.title,
-                "summary": a.summary,
-                "score": round(float(s), 4),
-            }
-            for s, a in scored[:5]
-            if s > 0
-        ]
-    except Exception:
-        like = db.query(KBArticle).filter(
-            KBArticle.status == KBStatus.published,
-            or_(
-                KBArticle.title.ilike(f"%{query_text[:80]}%"),
-                KBArticle.body.ilike(f"%{query_text[:80]}%"),
-            ),
-        ).limit(5).all()
-        kb_matches = [
-            {
-                "id": a.id,
-                "number": a.number,
-                "title": a.title,
-                "summary": a.summary,
-                "score": None,
-            }
-            for a in like
-        ]
-    return kb_matches
+    """Articulos parecidos, con el vector guardado de cada uno (ver `kb_sugerencias`)."""
+    from app.services.service_desk.kb_sugerencias import sugerir
+    return sugerir(db, query_text, solo_publico=False, limite=5)
 
 
 def _compute_canned_matches(db: Session, query_text: str):
@@ -94,7 +36,10 @@ def _compute_canned_matches(db: Session, query_text: str):
 
 
 def build_ai_ticket_suggestion(db: Session, ticket_id: str, payload: Optional[dict], current_user: User) -> dict:
-    ticket = _get_ticket_or_404(db, ticket_id)
+    # Con el acotado de tickets: sin el, un empleado leia por aqui el
+    # contenido de un ticket que no puede abrir.
+    from app.services.service_desk.scoping import get_scoped_ticket_or_404
+    ticket = get_scoped_ticket_or_404(db, current_user, ticket_id)
 
     req = payload or {}
     user_content = (req.get("content") or "").strip()
@@ -102,6 +47,9 @@ def build_ai_ticket_suggestion(db: Session, ticket_id: str, payload: Optional[di
 
     kb_matches = _compute_kb_matches(db, query_text)
     canned_matches = _compute_canned_matches(db, query_text)
+    from app.services.service_desk.contecmind import buscar_documentos
+    docs = buscar_documentos(db, ticket.organization_id, current_user.email, query_text)
+    doc_context = "\n\n".join(f"[{d['title']}] {d['snippet']}" for d in docs.documentos) or "(sin documentos)"
 
     kb_context = "\n\n".join(
         [f"[{k['number']}] {k['title']}\n{k.get('summary') or ''}" for k in kb_matches]
@@ -119,12 +67,13 @@ def build_ai_ticket_suggestion(db: Session, ticket_id: str, payload: Optional[di
         {
             "role": "user",
             "content": (
-                f"Ticket: {ticket.number}\\n"
-                f"Título: {ticket.title}\\n"
-                f"Descripción: {ticket.description}\\n\\n"
-                f"Contenido adicional del agente: {user_content or '(ninguno)'}\\n\\n"
-                f"Artículos KB similares:\\n{kb_context}\\n\\n"
-                f"Canned responses sugeridas:\\n{canned_context}\\n\\n"
+                f"Ticket: {ticket.number}\n"
+                f"Título: {ticket.title}\n"
+                f"Descripción: {ticket.description}\n\n"
+                f"Contenido adicional del agente: {user_content or '(ninguno)'}\n\n"
+                f"Artículos KB similares:\n{kb_context}\n\n"
+                f"Documentos (contecmind):\n{doc_context}\n\n"
+                f"Canned responses sugeridas:\n{canned_context}\n\n"
                 "Devuélveme SOLO un borrador de respuesta listo para enviar al cliente."
             ),
         }
@@ -141,20 +90,22 @@ def build_ai_ticket_suggestion(db: Session, ticket_id: str, payload: Optional[di
             user_id=current_user.id,
             max_tokens=500,
         )
+        ai_error = None
     except Exception as exc:
-        log = logging.getLogger(__name__)
-        log.warning("AI suggest fallback for ticket %s: %s", ticket_id, exc)
-        kb_hint = kb_matches[0]["title"] if kb_matches else "la base de conocimiento"
-        draft = (
-            "Gracias por contactar con soporte. Estamos revisando tu incidencia y ya hemos iniciado diagnóstico. "
-            f"Como primer paso, vamos a contrastarlo con {kb_hint}. "
-            "¿Podrías confirmarnos los pasos exactos para reproducirlo y, si es posible, adjuntar captura del error y hora aproximada?"
-        )
+        # Auditoria 2026-11: aqui se devolvia un texto generico («Estamos
+        # revisando tu incidencia...») como si lo hubiera redactado la IA. Si la
+        # IA no responde se dice; los articulos y documentos siguen sirviendo.
+        logging.getLogger(__name__).warning("AI suggest no disponible para %s: %s", ticket_id, exc)
+        draft, ai_error = None, "La IA no está disponible: revisa el proveedor en IA & Conectores."
 
     return {
         "ticket_id": ticket.id,
         "ticket_number": ticket.number,
         "draft": draft,
+        "ai_error": ai_error,
         "kb_matches": kb_matches,
         "canned_matches": canned_matches,
+        "documents": docs.documentos,
+        "documents_configured": docs.configurado,
+        "documents_error": docs.error,
     }

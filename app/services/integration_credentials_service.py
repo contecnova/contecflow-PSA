@@ -64,6 +64,14 @@ PROVIDER_REGISTRY: dict[str, dict[str, Any]] = {
             ("mailbox",  "str",  False, "Microsoft 365 mailbox (graph)", None),
         ],
     },
+    "contecmind": {
+        "label": "contecmind (document search)",
+        "fields": [
+            ("base_url",      "str", False, "Base URL",      None),
+            ("client_id",     "str", False, "Client ID",     None),
+            ("client_secret", "str", True,  "Client secret", None),
+        ],
+    },
     "monitoring": {
         "label": "Monitoring alerts (inbound)",
         "fields": [

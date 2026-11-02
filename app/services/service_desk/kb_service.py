@@ -25,10 +25,21 @@ def list_kb_articles_scoped(
     page_size: int,
     response: Optional[Response],
     authorization: Optional[str],
+    status: Optional[str] = None,
 ):
-    q = db.query(KBArticle).options(joinedload(KBArticle.author)).filter(KBArticle.status == KBStatus.published)
+    """Articulos para el portal (publicados y publicos) o para los agentes.
+
+    Auditoria 2026-11: tambien a los agentes se les daban solo los publicados,
+    asi que un articulo «despublicado» o en revision desaparecia de su lista.
+    Ahora ven todos menos los archivados, o el estado que pidan.
+    """
+    q = db.query(KBArticle).options(joinedload(KBArticle.author))
     if public_only:
-        q = q.filter(KBArticle.is_public == True)
+        q = q.filter(KBArticle.status == KBStatus.published, KBArticle.is_public == True)  # noqa: E712
+    elif status:
+        q = q.filter(KBArticle.status == status)
+    else:
+        q = q.filter(KBArticle.status != KBStatus.archived)
     if category_id:
         q = q.filter(KBArticle.category_id == category_id)
     if search:
@@ -57,25 +68,47 @@ def list_kb_articles_scoped(
 
 
 def serialize_kb_articles(articles: list[KBArticle], public_only: bool) -> list[dict]:
-    return [{
-        "id": a.id,
-        "number": a.number,
-        "title": a.title,
-        "summary": a.summary,
-        "body": a.body if not public_only else None,
-        "tags": a.tags,
-        "is_public": a.is_public,
-        "view_count": a.view_count,
-        "helpful_count": a.helpful_count,
-        "author_name": a.author.full_name if a.author else None,
-        "published_at": str(a.published_at)[:10] if a.published_at else None,
-    } for a in articles]
+    salida = []
+    for a in articles:
+        datos = {
+            "id": a.id,
+            "number": a.number,
+            "title": a.title,
+            "summary": a.summary,
+            "body": a.body if not public_only else None,
+            "tags": a.tags,
+            "is_public": a.is_public,
+            "view_count": a.view_count,
+            "helpful_count": a.helpful_count,
+            "author_name": a.author.full_name if a.author else None,
+            "published_at": str(a.published_at)[:10] if a.published_at else None,
+        }
+        if not public_only:
+            # Sin `status` la pantalla no sabia si un articulo estaba publicado.
+            datos.update({
+                "status": getattr(a.status, "value", a.status),
+                "not_helpful_count": a.not_helpful_count,
+                "deflection_count": a.deflection_count or 0,
+                "review_comment": a.review_comment,
+                "author_id": a.author_id,
+            })
+        salida.append(datos)
+    return salida
 
 
-def get_kb_article_and_increment_view(db: Session, article_id: str) -> KBArticle:
-    article = db.query(KBArticle).filter(KBArticle.id == article_id).first()
+def _articulo_visible(db: Session, article_id: str, solo_publico: bool) -> KBArticle:
+    """El articulo si quien lee puede verlo: un cliente solo lo publicado y publico."""
+    q = db.query(KBArticle).filter(KBArticle.id == article_id)
+    if solo_publico:
+        q = q.filter(KBArticle.status == KBStatus.published, KBArticle.is_public == True)  # noqa: E712
+    article = q.first()
     if not article:
         raise HTTPException(404)
+    return article
+
+
+def get_kb_article_and_increment_view(db: Session, article_id: str, solo_publico: bool = False) -> KBArticle:
+    article = _articulo_visible(db, article_id, solo_publico)
     article.view_count = (article.view_count or 0) + 1
     return article
 
@@ -94,9 +127,12 @@ def serialize_kb_article_detail(article: KBArticle) -> dict:
 
 
 def build_kb_article(db: Session, payload, author_id: str) -> KBArticle:
+    from app.services.service_desk.kb_sugerencias import refrescar_vector
+
     article = KBArticle(number=_next_kb_number(db), author_id=author_id, **payload.model_dump())
     if payload.status == "published":
         article.published_at = datetime.now(timezone.utc)
+        refrescar_vector(article)
     db.add(article)
     db.flush()
     _snapshot_kb_version(db, article, author_id, change_note="initial version")
@@ -144,6 +180,9 @@ def apply_kb_article_update(
         "tags": article.tags,
         "status": article.status,
     }
+    if before != after and getattr(article.status, "value", article.status) == KBStatus.published.value:
+        from app.services.service_desk.kb_sugerencias import refrescar_vector
+        refrescar_vector(article)
     if before != after:
         _snapshot_kb_version(
             db=db,
@@ -153,10 +192,8 @@ def apply_kb_article_update(
         )
 
 
-def update_kb_helpful_vote(db: Session, article_id: str, helpful: bool) -> None:
-    article = db.query(KBArticle).filter(KBArticle.id == article_id).first()
-    if not article:
-        raise HTTPException(404)
+def update_kb_helpful_vote(db: Session, article_id: str, helpful: bool, solo_publico: bool = False) -> None:
+    article = _articulo_visible(db, article_id, solo_publico)
     if helpful:
         article.helpful_count = (article.helpful_count or 0) + 1
     else:
@@ -274,3 +311,84 @@ def rollback_kb_to_version(
         changed_by_user_id,
         change_note=f"rollback to v{version}",
     )
+
+
+# ── Revision y publicacion ───────────────────────────────────────────────────
+#
+# Auditoria 2026-11: `reviewer_id` existia y no habia flujo; cualquiera
+# publicaba. Con `SD_KB_REQUIRE_REVIEW`, el autor envia a revision y publica un
+# revisor: un miembro de la cola `SD_KB_REVIEWER_GROUP_ID` o un administrador.
+
+def puede_publicar(db: Session, user: User) -> bool:
+    from app.models.service_desk import AgentGroupMember
+    from app.services import settings_service as _ss
+
+    org = user.organization_id
+    if not _ss.get_runtime_bool(db, "SD_KB_REQUIRE_REVIEW", org):
+        return True
+    if user.is_superadmin or getattr(user.role, "value", user.role) == "admin":
+        return True
+    grupo = _ss.get_runtime_str(db, "SD_KB_REVIEWER_GROUP_ID", org)
+    return bool(grupo) and db.query(AgentGroupMember.id).filter(
+        AgentGroupMember.group_id == grupo, AgentGroupMember.user_id == user.id).first() is not None
+
+
+def exigir_que_pueda_publicar(db: Session, user: User, nuevo_estado) -> None:
+    if getattr(nuevo_estado, "value", nuevo_estado) == KBStatus.published.value and not puede_publicar(db, user):
+        raise HTTPException(403, "Este artículo necesita revisión: envíalo a revisar")
+
+
+def revisores(db: Session, user: User) -> list[str]:
+    from app.models.service_desk import AgentGroupMember
+    from app.models.user import UserRole
+    from app.services import settings_service as _ss
+
+    grupo = _ss.get_runtime_str(db, "SD_KB_REVIEWER_GROUP_ID", user.organization_id)
+    if grupo:
+        return [r[0] for r in db.query(AgentGroupMember.user_id).filter(AgentGroupMember.group_id == grupo).all()]
+    return [r[0] for r in db.query(User.id).filter(User.role == UserRole.admin, User.is_active == True).all()]  # noqa: E712
+
+
+def enviar_a_revision(db: Session, article: KBArticle, user: User) -> None:
+    from app.services.notifications import notify_user
+
+    if article.status not in (KBStatus.draft, KBStatus.draft.value):
+        raise HTTPException(409, "Solo se envía a revisión un borrador")
+    article.status = KBStatus.in_review
+    article.review_comment = None
+    for uid in revisores(db, user):
+        if uid != user.id:
+            notify_user(db, uid, "approval_requested", f"Revisar {article.number}: {article.title}"[:255],
+                        "Un artículo de la base de conocimiento espera tu revisión.",
+                        resource="kb", resource_id=article.id, action_url="/service-desk")
+
+
+def revisar(db: Session, article: KBArticle, user: User, publicar: bool, comentario: Optional[str]) -> None:
+    from app.services.notifications import notify_user
+    from app.services.service_desk.kb_sugerencias import refrescar_vector
+
+    if article.status not in (KBStatus.in_review, KBStatus.in_review.value):
+        raise HTTPException(409, "El artículo no está en revisión")
+    if not puede_publicar(db, user):
+        raise HTTPException(403, "Solo un revisor puede publicar")
+    if not publicar and not (comentario or "").strip():
+        raise HTTPException(422, "Devolver un artículo pide decir qué cambiar")
+    article.reviewer_id = user.id
+    article.review_comment = (comentario or "").strip() or None
+    if publicar:
+        article.status = KBStatus.published
+        article.published_at = article.published_at or datetime.now(timezone.utc)
+        refrescar_vector(article)
+    else:
+        article.status = KBStatus.draft
+    if article.author_id and article.author_id != user.id:
+        notify_user(db, article.author_id, "system",
+                    f"{article.number} {'publicado' if publicar else 'devuelto'}: {article.title}"[:255],
+                    article.review_comment, resource="kb", resource_id=article.id, action_url="/service-desk")
+
+
+def registrar_desvio(db: Session, article_id: str) -> None:
+    """Un cliente dijo que el articulo le resolvio el problema sin abrir ticket."""
+    article = _articulo_visible(db, article_id, solo_publico=True)
+    article.deflection_count = (article.deflection_count or 0) + 1
+    article.helpful_count = (article.helpful_count or 0) + 1

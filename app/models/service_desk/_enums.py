@@ -83,6 +83,7 @@ class ProblemStatus(str, enum.Enum):
 
 class KBStatus(str, enum.Enum):
     draft = "draft"
+    in_review = "in_review"   # enviado a revision; lo publica un revisor
     published = "published"
     archived = "archived"
 

@@ -29,6 +29,13 @@ class KBArticle(Base):
     service_item_id = Column(String(36), ForeignKey("sd_service_items.id"), nullable=True)
 
     view_count = Column(Integer, default=0)
+    # Veces que un cliente dijo «esto me lo resuelve» antes de abrir un ticket.
+    deflection_count = Column(Integer, default=0, nullable=False)
+    # Vector del titulo y el texto para la busqueda semantica (JSON). Se
+    # calcula al guardar: antes se recalculaba el de cada articulo en cada
+    # sugerencia.
+    embedding = Column(Text, nullable=True)
+    review_comment = Column(Text, nullable=True)
     helpful_count = Column(Integer, default=0)
     not_helpful_count = Column(Integer, default=0)
 

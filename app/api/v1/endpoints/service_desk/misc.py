@@ -1,6 +1,6 @@
 """Service Desk — Miscellaneous subdomain router (catalog, groups, problems, announcements, routing, changes, major incidents, assets, status page)."""
-from fastapi import APIRouter, Depends, Query, Header, Body, Response, HTTPException, Request, Cookie
-from fastapi.security import HTTPAuthorizationCredentials
+from fastapi import APIRouter, Depends, Query, Body, Response, HTTPException, Request
+from app.services.service_desk.portal_auth_service import get_portal_client_or_user
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -8,7 +8,7 @@ import json
 import logging
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_any_manager, security as _bearer
+from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.core.ratelimit import limiter
@@ -79,30 +79,10 @@ def _json_default_serializer(value):
 # ── Service Catalog ───────────────────────────────────────────────────────────
 
 @router.get("/catalog", summary="Catálogo de servicios")
-def get_catalog(
-    request: Request,
-    public_only: bool = False,
-    db: Session = Depends(get_db),
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
-    authorization: Optional[str] = Header(None),
-    portal_access_token: Optional[str] = Cookie(None),
-):
-    """Catalogo para un agente (todo) o para un cliente del portal (lo visible).
-
-    Auditoria 2026-11: no pedia autenticacion y `public_only` lo decidia quien
-    llamaba. Sin sesion no hay filtro de organizacion, asi que sin login se
-    leia el catalogo interno de todas las organizaciones. Ahora el cliente del
-    portal ve solo lo visible de la suya, y el resto tiene que ser un usuario.
-    """
-    from app.db.session import publicar_contexto_de_tenant
-    from app.services.service_desk.portal_auth_service import resolve_portal_client
-
-    cliente = resolve_portal_client(authorization, portal_access_token, db)
-    if cliente is not None:
-        publicar_contexto_de_tenant(db, cliente, es_cliente=True)
-        return APIListResponse.ok(items=list_catalog_payload(db, public_only=True))
-    get_current_user(request, credentials, db)
-    return APIListResponse.ok(items=list_catalog_payload(db, public_only))
+def get_catalog(public_only: bool = False, db: Session = Depends(get_db),
+                lector=Depends(get_portal_client_or_user)):
+    """Catalogo para un agente (todo) o para un cliente del portal (lo visible de su organizacion)."""
+    return APIListResponse.ok(items=list_catalog_payload(db, public_only or lector.solo_publico))
 
 @router.post("/catalog/categories", summary="Crear categoría")
 def create_category(payload: ServiceCategoryIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):

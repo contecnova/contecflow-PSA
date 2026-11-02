@@ -33,6 +33,8 @@ AUTH_DEPENDENCY_NAMES = frozenset({
     # Clientes del portal
     "get_current_client",
     "get_current_portal_client",
+    # Cliente del portal o usuario interno (catalogo y base de conocimiento).
+    "get_portal_client_or_user",
     # Tokens de máquina / integraciones
     "_require_scim_token",
     "get_bi_token",
@@ -95,11 +97,7 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     # ── Contenido deliberadamente público (portal/status page) ───────────────
     ("GET", "/api/v1/sd/status-page"): "página de estado pública",
     ("GET", "/api/v1/sd/status-page/embed.js"): "widget embebible de la página de estado",
-    ("GET", "/api/v1/sd/catalog"): "catálogo de servicios visible sin login",
     ("GET", "/api/v1/sd/announcements"): "avisos públicos",
-    ("GET", "/api/v1/sd/kb"): "base de conocimiento pública",
-    ("GET", "/api/v1/sd/kb/{article_id}"): "artículo de KB público",
-    ("POST", "/api/v1/sd/kb/{article_id}/helpful"): "voto anónimo de utilidad",
     ("GET", "/api/v1/collaboration/push/public-key"): "clave pública VAPID",
     ("GET", "/api/v1/collaboration/slash/help"): "ayuda estática de comandos",
     ("GET", "/api/v1/ai-governance/pii-types"): "catálogo estático de tipos de PII",

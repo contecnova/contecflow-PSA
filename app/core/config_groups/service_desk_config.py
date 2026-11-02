@@ -50,6 +50,12 @@ class ServiceDeskSettingsMixin:
     SD_ONCALL_PRIORITIES: str = Field(default="p1_critical,p2_high", env="SD_ONCALL_PRIORITIES")
     SD_ONCALL_SMS: bool = Field(default=True, env="SD_ONCALL_SMS")
 
+    # ── Base de conocimiento ─────────────────────────────────────────────────
+    # Con revision, el autor envia y publica un revisor (la cola indicada, o un
+    # administrador).
+    SD_KB_REQUIRE_REVIEW: bool = Field(default=False, env="SD_KB_REQUIRE_REVIEW")
+    SD_KB_REVIEWER_GROUP_ID: str = Field(default="", env="SD_KB_REVIEWER_GROUP_ID")
+
     # ── Bandeja de eventos ───────────────────────────────────────────────────
     SD_EVENT_MAX_ATTEMPTS: int = Field(default=5, env="SD_EVENT_MAX_ATTEMPTS")
     SD_EVENT_BATCH_SIZE: int = Field(default=200, env="SD_EVENT_BATCH_SIZE")
