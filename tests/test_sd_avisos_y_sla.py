@@ -559,3 +559,16 @@ def test_una_regla_incompleta_no_se_guarda_ni_al_crear_ni_al_editar(client, admi
                        json={**base, **cambio}).status_code == 422
     assert client.patch(f"/api/v1/sd/escalation-rules/{regla}", headers=auth(admin_token),
                         json={**base, **cambio}).status_code == 422
+
+
+def test_el_ticket_que_abre_un_agente_por_telefono_avisa_al_cliente_y_no_al_agente(db, gente, correos):
+    from app.models.service_desk import Ticket
+    t = Ticket(number="INC-0160", ticket_type="incident", title="Llamada", description="d",
+               priority="p3_medium", organization_id=ORG, requester_user_id=gente["agente"].id,
+               created_by_user_id=gente["agente"].id, requester_name="Cliente Telefono",
+               requester_email="tel@cliente.com")
+    db.add(t)
+    db.commit()
+    db.info["current_user"] = None
+    _procesar(db)
+    assert [c["para"] for c in correos] == ["tel@cliente.com"]

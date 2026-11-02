@@ -10,6 +10,7 @@ import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
 import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, slaCalendarsApi } from '../../services/api'
 import { EscalationConfig, NotificationsConfig } from './ConfigEscaladoYAvisos'
+import ConfigCorreoEntrante from './ConfigCorreoEntrante'
 import { PRIORITY_LABEL, PBadge } from './sdUtils'
 import { RoutingRules } from './QueueAndRoutingSections'
 
@@ -948,6 +949,7 @@ export default function Config() {
     {id:'routing',  label:`${t('service_desk.tab_routing')}`},
     {id:'escalation', label:t('sd_cfg.tab_escalation')},
     {id:'notifications', label:t('sd_cfg.tab_notifications')},
+    {id:'mail', label:t('sd_cfg.tab_mail')},
     {id:'templates',label:`${t('service_desk.tab_templates')}`},
     {id:'canned',   label:`${t('service_desk.tab_canned')}`},
   ]
@@ -970,6 +972,7 @@ export default function Config() {
       {sub === 'routing'       && <RoutingRules />}
       {sub === 'escalation'    && <EscalationConfig />}
       {sub === 'notifications' && <NotificationsConfig />}
+      {sub === 'mail'          && <ConfigCorreoEntrante />}
       {sub === 'templates'     && <TemplatesConfig />}
       {sub === 'canned'        && <CannedResponsesManager />}
     </div>

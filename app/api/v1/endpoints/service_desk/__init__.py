@@ -49,6 +49,7 @@ from app.api.v1.endpoints.service_desk import (
     voice_agent,
     dynamic_forms,
     notification_templates,
+    canal_correo,
 )
 
 router = APIRouter()
@@ -91,3 +92,4 @@ router.include_router(cmdb_3d.router)
 router.include_router(voice_agent.router)
 router.include_router(dynamic_forms.router)
 router.include_router(notification_templates.router)
+router.include_router(canal_correo.router)

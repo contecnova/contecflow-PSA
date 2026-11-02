@@ -184,6 +184,26 @@ class TicketEvent(Base):
     ticket = relationship("Ticket")
 
 
+class InboundMessage(Base):
+    """Un correo (o mensaje de otro canal) ya procesado.
+
+    El buzon se lee periodicamente y los webhooks se reintentan: sin esto, el
+    mismo correo abriria dos tickets o dejaria dos comentarios.
+    """
+    __tablename__ = "sd_inbound_messages"
+    __table_args__ = (UniqueConstraint("organization_id", "message_id", name="uq_sd_inbound_org_message"),)
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    message_id = Column(String(255), nullable=False)
+    channel = Column(String(20), default="email", nullable=False)
+    sender = Column(String(255), nullable=True)
+    ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"), nullable=True, index=True)
+    outcome = Column(String(20), nullable=False)  # created | commented | ignored
+    reason = Column(String(255), nullable=True)
+    received_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
 class TicketComment(Base):
     __tablename__ = "sd_ticket_comments"
 

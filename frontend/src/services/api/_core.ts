@@ -1358,6 +1358,12 @@ export const sdNotificationTemplatesApi = {
   preview: (data: unknown)                      => api.post('/sd/notification-templates/preview', data),
 }
 
+export const sdInboundApi = {
+  messages: (limit = 30) => api.get('/sd/inbound/messages', { params: { limit } }),
+  test:     ()           => api.post('/sd/inbound/test'),
+  run:      ()           => api.post('/sd/inbound/run'),
+}
+
 export const sdGroupsApi = {
   list:         ()         => api.get('/sd/groups'),
   create:       (data: unknown)     => api.post('/sd/groups', data),

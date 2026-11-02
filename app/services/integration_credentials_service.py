@@ -52,6 +52,18 @@ PROVIDER_REGISTRY: dict[str, dict[str, Any]] = {
             ("from",     "str",  False, "From address","SMTP_FROM"),
         ],
     },
+    "sd_mailbox": {
+        "label": "Service Desk mailbox (inbound email)",
+        "fields": [
+            ("protocol", "str",  False, "Protocol: imap or graph", None),
+            ("host",     "str",  False, "IMAP host",               None),
+            ("port",     "int",  False, "IMAP port (993)",         None),
+            ("user",     "str",  False, "IMAP user",               None),
+            ("password", "str",  True,  "IMAP password",           None),
+            ("folder",   "str",  False, "Folder (INBOX)",          None),
+            ("mailbox",  "str",  False, "Microsoft 365 mailbox (graph)", None),
+        ],
+    },
     "aws_s3": {
         "label": "AWS S3 (documents)",
         "fields": [

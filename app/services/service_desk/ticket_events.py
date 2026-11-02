@@ -20,7 +20,8 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from typing import Any, Optional
+from contextlib import contextmanager
+from typing import Any, Iterator, Optional
 
 from sqlalchemy import event, inspect
 
@@ -38,6 +39,28 @@ CAMPOS_VIGILADOS = {
 }
 
 _PENDIENTES = "sd_eventos_pendientes"
+
+
+@contextmanager
+def como_organizacion(db, org_id: Optional[str]) -> Iterator[None]:
+    """Trabaja como la organizacion `org_id` y devuelve la sesion como estaba.
+
+    Para el codigo que corre sin peticion (worker, webhooks): con la
+    organizacion publicada el filtro de tenant acota las lecturas y el sellado
+    pone la organizacion a las filas nuevas.
+    """
+    previo = {k: db.info.get(k) for k in ("organization_id", "is_superadmin")}
+    if org_id:
+        db.info["organization_id"] = org_id
+        db.info["is_superadmin"] = False
+    try:
+        yield
+    finally:
+        for k, v in previo.items():
+            if v is None:
+                db.info.pop(k, None)
+            else:
+                db.info[k] = v
 
 
 def _valor(v: Any) -> Any:

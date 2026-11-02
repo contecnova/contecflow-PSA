@@ -52,58 +52,64 @@ def agente(db):
 
 # -- Correo entrante ---------------------------------------------------------
 
-def test_EL_HALLAZGO_un_correo_entrante_crea_su_ticket(db, agente):
-    """Antes: `AttributeError` y ni un ticket por cada correo recibido."""
-    from app.models.service_desk import TicketStatus
+def test_EL_HALLAZGO_un_correo_entrante_crea_su_ticket(db, agente, monkeypatch):
+    """Antes: `AttributeError` y ni un ticket por cada correo recibido.
+
+    Desde 2026-11 el ticket entra por la numeracion comun (`INC-0001`, no
+    `EML-xxxx`) y por la misma logica que la lectura del buzon.
+    """
+    from app.core.config import settings
+    from app.models.service_desk import Ticket, TicketStatus
     from app.services.service_desk import inbound_email_service as svc
 
-    # Devuelve `(ticket, correo_del_solicitante)`.
-    ticket, correo = svc.build_inbound_ticket(
+    monkeypatch.setattr(settings, "INBOUND_EMAIL_SECRET", SECRETO)
+    r = svc.process_inbound_email(
         db,
         {
             "from": "Cliente Ejemplo <cliente@example.com>",
             "subject": "No puedo entrar en el portal",
             "body-plain": "Desde ayer me da error 500.",
         },
-        configured_secret=SECRETO,
         provided_secret=SECRETO,
     )
     db.commit()
-    assert correo == "cliente@example.com"
+    assert r.accion == "created"
+    ticket = db.get(Ticket, r.ticket_id)
 
-    assert ticket.status == TicketStatus.new, (
-        f"el estado inicial es {ticket.status!r}: `open` no existe en el "
-        "enumerado y `new` es el default de la columna")
+    assert ticket.status in (TicketStatus.new, TicketStatus.assigned), (
+        f"el estado inicial es {ticket.status!r}: `open` no existe en el enumerado")
     assert ticket.title == "No puedo entrar en el portal"
     assert ticket.requester_email == "cliente@example.com"
     assert ticket.source == "email"
-    assert ticket.number.startswith("EML-")
+    assert ticket.number == "INC-0001"
 
 
-def test_un_correo_sin_asunto_ni_cuerpo_tambien_crea_ticket(db, agente):
+def test_un_correo_sin_asunto_ni_cuerpo_tambien_crea_ticket(db, agente, monkeypatch):
     """Los respaldos del parser, que ahora se pueden comprobar."""
-    from app.services.service_desk import inbound_email_service as svc
-
-    ticket, _ = svc.build_inbound_ticket(
-        db, {"from": "x@example.com"},
-        configured_secret=SECRETO, provided_secret=SECRETO)
-    db.commit()
-
-    assert ticket.title == "(Sin asunto)"
-    assert ticket.description == "(Sin cuerpo)"
-
-
-def test_un_secreto_que_no_cuadra_no_crea_nada(db, agente):
-    """La puerta de la pasarela: se comprueba antes de tocar la base."""
-    from fastapi import HTTPException
-
+    from app.core.config import settings
     from app.models.service_desk import Ticket
     from app.services.service_desk import inbound_email_service as svc
 
+    monkeypatch.setattr(settings, "INBOUND_EMAIL_SECRET", SECRETO)
+    r = svc.process_inbound_email(db, {"from": "x@example.com"}, provided_secret=SECRETO)
+    db.commit()
+    ticket = db.get(Ticket, r.ticket_id)
+
+    assert ticket.title == "(sin asunto)"
+    assert ticket.description == "(sin texto)"
+
+
+def test_un_secreto_que_no_cuadra_no_crea_nada(db, agente, monkeypatch):
+    """La puerta de la pasarela: se comprueba antes de tocar la base."""
+    from fastapi import HTTPException
+
+    from app.core.config import settings
+    from app.models.service_desk import Ticket
+    from app.services.service_desk import inbound_email_service as svc
+
+    monkeypatch.setattr(settings, "INBOUND_EMAIL_SECRET", SECRETO)
     with pytest.raises(HTTPException) as exc:
-        svc.build_inbound_ticket(
-            db, {"from": "x@example.com", "subject": "hola"},
-            configured_secret=SECRETO, provided_secret="otro")
+        svc.process_inbound_email(db, {"from": "x@example.com", "subject": "hola"}, provided_secret="otro")
     assert exc.value.status_code in (401, 403)
     assert db.query(Ticket).count() == 0
 
@@ -121,9 +127,9 @@ def test_EL_HALLAZGO_un_sms_entrante_crea_su_ticket(db, agente):
     assert resultado, "el SMS no ha devuelto nada"
     ticket = db.query(Ticket).first()
     assert ticket is not None, "no se ha creado el ticket del SMS"
-    assert ticket.status == TicketStatus.new
+    assert ticket.status in (TicketStatus.new, TicketStatus.assigned)
     assert ticket.source == "sms"
-    assert ticket.number.startswith("SMS-")
+    assert ticket.number == "INC-0001", "fuera de la numeracion comun (antes SMS-xxxx)"
     assert "+34600111222" in ticket.description
 
 

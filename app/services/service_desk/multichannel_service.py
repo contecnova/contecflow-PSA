@@ -15,8 +15,6 @@ from __future__ import annotations
 
 import json
 import logging
-import uuid
-from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -82,78 +80,50 @@ def _default_config() -> dict:
 
 # ── Inbound SMS → ticket ──────────────────────────────────────────────────────
 
-def process_inbound_sms(db: Session, from_phone: str, body: str) -> dict:
-    """Convert an inbound SMS into a new service desk ticket.
+def _organizacion_por_numero(db: Session, to_phone: Optional[str]) -> Optional[str]:
+    """La organizacion cuyo numero de Twilio (`from_number`) recibio el SMS."""
+    from app.db.session import sin_filtro_de_tenant
+    from app.models.settings import IntegrationCredential
 
-    Looks up the sender in users/clients; creates ticket assigned to first
-    available agent. Returns ticket summary dict.
+    if not to_phone:
+        return None
+    with sin_filtro_de_tenant(db):
+        fila = db.query(IntegrationCredential).filter(
+            IntegrationCredential.provider == "twilio",
+            IntegrationCredential.key == "from_number",
+            IntegrationCredential.value == to_phone.strip(),
+        ).first()
+    return fila.organization_id if fila else None
+
+
+def process_inbound_sms(db: Session, from_phone: str, body: str, to_phone: Optional[str] = None) -> dict:
+    """Un SMS entrante abre un ticket, con las mismas reglas que el resto de canales.
+
+    Auditoria 2026-11: el ticket se montaba a mano (`SMS-xxxx` fuera de la
+    numeracion, el primer administrador como agente, sin organizacion). Ahora
+    la organizacion sale del numero que lo recibio y quien escribe se reconoce
+    por su telefono si es contacto del portal o usuario.
     """
-    from app.models.service_desk import (
-        Ticket, TicketImpact, TicketPriority,
-        TicketStatus, TicketType, TicketUrgency,
-    )
-    from app.models.user import User, UserRole
+    from app.models.client_portal import ClientUser
+    from app.models.user import User
+    from app.services.service_desk.ticket_creation_service import build_channel_ticket
+    from app.services.service_desk.ticket_events import como_organizacion
 
-    now = datetime.now(timezone.utc)
-    subject = body.strip()[:100] or "(SMS sin cuerpo)"
-    description = f"Ticket creado vía SMS desde {from_phone}:\n\n{body[:2000]}"
+    org_id = _organizacion_por_numero(db, to_phone)
+    with como_organizacion(db, org_id):
+        cliente = db.query(ClientUser).filter(ClientUser.phone == from_phone,
+                                              ClientUser.is_active == True).first()  # noqa: E712
+        usuario = None if cliente else db.query(User).filter(
+            User.phone == from_phone, User.is_active == True).first()  # noqa: E712
+        nombre = (cliente.full_name if cliente else usuario.full_name if usuario else from_phone)
+        ticket = build_channel_ticket(
+            db, org_id=org_id, titulo=body.strip()[:100] or "(SMS sin cuerpo)",
+            descripcion=f"SMS de {nombre} ({from_phone}):\n\n{body[:2000]}", source="sms",
+            requester_user=usuario, requester_client=cliente, requester_name=nombre,
+            requester_email=cliente.email if cliente else (usuario.email if usuario else None),
+            requester_phone=from_phone,
+        )
 
-    # First available agent
-    agents = (
-        db.query(User)
-        .filter(User.role.in_([UserRole.admin, UserRole.pm]), User.is_active.is_(True))
-        .order_by(User.created_at)
-        .all()
-    )
-    assigned_to = agents[0].id if agents else None
-
-    # Ver la nota de `inbound_email_service`: `SLAPolicy.response_hours` no
-    # existe —son cuatro columnas, una por prioridad— y el vencimiento se
-    # calculaba a mano ignorando el horario laboral. Aqui ademas la aritmetica
-    # se hacia con un `datetime(...).__class__.fromtimestamp(...)`, que es la
-    # misma suma de segundos escrita de forma mas rara.
-    from app.services.service_desk.scoping import resolve_sla_policy_for_ticket
-    from app.services.sla_service import calculate_sla_due
-
-    sla = resolve_sla_policy_for_ticket(db)
-    prioridad = TicketPriority.p3_medium
-    respuesta_due, resolucion_due = calculate_sla_due(
-        prioridad.value, policy=sla, db=db)
-
-    ticket = Ticket(
-        id=str(uuid.uuid4()),
-        number=f"SMS-{uuid.uuid4().hex[:8].upper()}",
-        ticket_type=TicketType.service_request,
-        title=subject,
-        description=description,
-        # Ver la nota de `inbound_email_service`: `open` no existe.
-        status=TicketStatus.new,
-        priority=TicketPriority.p3_medium,
-        urgency=TicketUrgency.medium,
-        impact=TicketImpact.user,
-        source="sms",
-        requester_name=from_phone,
-        # Auditoria 2026-08/09. Aqui habia
-        #     requester_phone=from_phone if hasattr(Ticket, "requester_phone") else None
-        # y `Ticket` **no tenia** esa columna. El `hasattr` protegia el VALOR y
-        # no la palabra clave: SQLAlchemy recibia igual `requester_phone=None` y
-        # respondia `TypeError`. Es la forma mas daniña del `hasattr` defensivo
-        # —parece que hace el campo opcional y lo que hace es reventar siempre—
-        # y por eso crear un ticket desde un SMS fallaba en todos los casos.
-        #
-        # La columna existe desde la revision 096: en un ticket abierto por SMS
-        # el telefono **es** la identidad de quien lo abre, asi que tiene campo
-        # propio y no se queda de rebote en `requester_name`.
-        requester_phone=from_phone,
-        assigned_to_user_id=assigned_to,
-        sla_policy_id=sla.id if sla else None,
-        sla_response_due=respuesta_due,
-        sla_resolution_due=resolucion_due,
-        created_at=now,
-    )
-
-    db.add(ticket)
-    db.flush()
 
     # Confirm receipt via SMS
     try:

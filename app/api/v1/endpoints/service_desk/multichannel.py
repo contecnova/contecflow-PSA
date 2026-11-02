@@ -102,17 +102,13 @@ async def inbound_email(
     secret = x_inbound_secret or payload.get("token") or payload.get("signature")
 
     def _process_and_commit():
-        ticket, requester_email = process_inbound_email(db, dict(payload), provided_secret=secret)
+        r = process_inbound_email(db, dict(payload), provided_secret=secret)
         db.commit()
-        return ticket, requester_email
+        return r
 
-    ticket, requester_email = await run_db(_process_and_commit)
-    return {
-        "ticket_id": ticket.id,
-        "ticket_number": ticket.number,
-        "requester_email": requester_email,
-        "source": "email",
-    }
+    r = await run_db(_process_and_commit)
+    return {"ticket_id": r.ticket_id, "ticket_number": r.numero, "status": r.accion,
+            "reason": r.motivo, "source": "email"}
 
 
 @router.post(
@@ -135,17 +131,17 @@ async def inbound_sms(
 
     form = dict(await request.form())
     from_phone = form.get("From", "")
+    to_phone = form.get("To", "")
     body = form.get("Body", "")
 
-    # Validate Twilio signature (non-blocking in dev if token not configured)
-    if x_twilio_signature:
-        is_valid = validate_twilio_signature(str(request.url), form, x_twilio_signature)
-        if not is_valid:
-            from fastapi import HTTPException
-            raise HTTPException(403, "Invalid Twilio signature")
+    # Auditoria 2026-11: la firma solo se miraba si venia la cabecera, asi que
+    # sin ella cualquiera abria tickets. Ahora es obligatoria.
+    if not validate_twilio_signature(str(request.url), form, x_twilio_signature):
+        from fastapi import HTTPException
+        raise HTTPException(403, "Firma de Twilio ausente o inválida")
 
     def _process_and_commit():
-        result = process_inbound_sms(db, from_phone=from_phone, body=body)
+        result = process_inbound_sms(db, from_phone=from_phone, body=body, to_phone=to_phone)
         db.commit()
         return result
 

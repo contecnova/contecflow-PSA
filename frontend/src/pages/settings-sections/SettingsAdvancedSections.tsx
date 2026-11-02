@@ -1,3 +1,4 @@
+import ConfigCorreoEntrante from '../service-desk/ConfigCorreoEntrante'
 import type { CSSProperties, ReactNode } from 'react'
 import { Fragment, useState, useEffect, useMemo } from 'react'
 import { useToast } from '../../context/ToastContext'
@@ -505,96 +506,10 @@ export function LogLevelSection() {
 }
 
 export function EmailInboundSection() {
-  const { t } = useAppLang()
-  const webhookUrl = `${window.location.origin}/api/v1/service-desk/inbound-email`
-
+  // La misma pantalla que Service Desk → Configuración → Correo entrante.
   return (
-    <Section icon="📧" title="Email a ticket" description="Configura la entrada de correos al Service Desk">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Pasos + URL/Header en grid 2 columnas para aprovechar el ancho */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
-          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', fontSize: "var(--text-sm)" }}>
-            <div style={{ fontWeight: 700, marginBottom: 10, color: 'var(--text-1)' }}>{t('settingsadvanced.como_funciona')}</div>
-            <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7, color: 'var(--text-2)' }}>
-              <li>{t('settingsadvanced.configura_tu_proveedor_de_email_mailgun_sendgrid')}</li>
-              <li>{t('settingsadvanced.el_proveedor_envia_el_email_parseado_como')}</li>
-              <li>{t('settingsadvanced.contecflow_crea_el_ticket_automaticamente_con_asunto')}</li>
-              <li>{t('settingsadvanced.el_ticket_se_asigna_al_primer_agente')}</li>
-            </ol>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 6 }}>
-                {t('settingsadvanced.url_del_webhook')}
-              </label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input readOnly value={webhookUrl}
-                  style={{ flex: 1, minWidth: 0, padding: '9px 13px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)', fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', textOverflow: 'ellipsis' }} />
-                <button onClick={() => { navigator.clipboard.writeText(webhookUrl) }}
-                  style={{ padding: '9px 16px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 700, flexShrink: 0 }}>
-                  Copiar
-                </button>
-              </div>
-              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
-                {t('settingsadvanced.configura_esta_url_en_tu_proveedor_de')}
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 6 }}>
-                {t('settingsadvanced.autenticacion_x_contecflow_email_secret')}
-              </label>
-              <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)', lineHeight: 1.6 }}>
-                {t('settingsadvanced.configura_la_variable_de_entorno')} <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>INBOUND_EMAIL_SECRET</code> {t('settingsadvanced.en_el_servidor_con_un_valor_secreto')} <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>X-Contecflow-Email-Secret</code> {t('settingsadvanced.con_cada_peticion')}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Guías por proveedor */}
-        <div>
-          <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 8 }}>
-            {t('settingsadvanced.guias_de_configuracion_por_proveedor')}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-            {[
-              { name: 'Mailgun',  url: 'https://documentation.mailgun.com/docs/mailgun/user-manual/receive-forward-store/', note: 'Routes → Forward → URL' },
-              { name: 'SendGrid', url: 'https://docs.sendgrid.com/for-developers/parsing-email/setting-up-the-inbound-parse-webhook', note: 'Inbound Parse Webhook' },
-              { name: 'Postmark', url: 'https://postmarkapp.com/developer/user-guide/inbound/how-it-works', note: 'Inbound Message Webhook' },
-            ].map(p => (
-              <a key={p.name} href={p.url} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'block', padding: '12px 16px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, textDecoration: 'none', color: 'var(--text-1)', transition: 'border-color .15s' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)' }}
-              >
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>{p.name} ↗</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{p.note}</div>
-              </a>
-            ))}
-          </div>
-        </div>
-
-        {/* Formato JSON esperado */}
-        <div>
-          <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 6 }}>
-            Formato JSON esperado <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{t('settingsadvanced.superset_compatible_con_todos_los_proveedores')}</span>
-          </div>
-          <pre style={{
-            background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-            borderRadius: 8, padding: '12px 16px',
-            fontSize: "var(--text-xs)", color: 'var(--text-2)',
-            margin: 0, overflowX: 'auto', whiteSpace: 'pre',
-            fontFamily: 'var(--font-mono)',
-          }}>{`{
-  "from": "Cliente <cliente@empresa.com>",
-  "subject": "Mi impresora no funciona",
-  "body-plain": "Texto del email...",
-  "text": "Texto del email...",
-  "stripped-text": "..."
-}`}</pre>
-        </div>
-      </div>
+    <Section icon="📧" title="Email a ticket" description="Correo entrante al Service Desk: buzón, pasarela y últimos mensajes">
+      <ConfigCorreoEntrante />
     </Section>
   )
 }

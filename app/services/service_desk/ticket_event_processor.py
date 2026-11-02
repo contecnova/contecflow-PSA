@@ -20,10 +20,9 @@ import html
 import json
 import logging
 import re
-from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Iterator, Optional
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -77,21 +76,7 @@ class Destinatario:
 
 # ── Contexto de organizacion ──────────────────────────────────────────────────
 
-@contextmanager
-def _como_organizacion(db: Session, org_id: Optional[str]) -> Iterator[None]:
-    """Publica la organizacion del evento mientras se procesa, y la retira."""
-    previo = {k: db.info.get(k) for k in ("organization_id", "is_superadmin")}
-    if org_id:
-        db.info["organization_id"] = org_id
-        db.info["is_superadmin"] = False
-    try:
-        yield
-    finally:
-        for k, v in previo.items():
-            if v is None:
-                db.info.pop(k, None)
-            else:
-                db.info[k] = v
+from app.services.service_desk.ticket_events import como_organizacion as _como_organizacion  # noqa: E402
 
 
 # ── Idioma, plantillas y textos ──────────────────────────────────────────────
@@ -226,15 +211,22 @@ def _nombre_solicitante(ticket: Ticket) -> Optional[str]:
 
 
 def _solicitante(db: Session, ticket: Ticket, org_id: Optional[str]) -> Optional[Destinatario]:
+    """Quien pidio el ticket.
+
+    Un agente que abre un ticket por telefono queda como `requester_user` y el
+    correo del cliente va en `requester_email`: cuando los dos no coinciden,
+    el solicitante es ese correo, no el agente.
+    """
     if ticket.requester_client is not None:
         c: ClientUser = ticket.requester_client
         return Destinatario("requester", c.email, c.full_name, _idioma(db, c.language, org_id), es_cliente=True)
+    externo = (ticket.requester_email or "").strip().lower()
+    if externo and (ticket.requester_user is None or (ticket.requester_user.email or "").lower() != externo):
+        return Destinatario("requester", ticket.requester_email, ticket.requester_name or ticket.requester_email,
+                            _idioma(db, None, org_id))
     if ticket.requester_user is not None:
         u: User = ticket.requester_user
         return Destinatario("requester", u.email, u.full_name, _idioma_de_usuario(db, u, org_id), user_id=u.id)
-    if ticket.requester_email:
-        return Destinatario("requester", ticket.requester_email, ticket.requester_name or ticket.requester_email,
-                            _idioma(db, None, org_id))
     return None
 
 
@@ -337,16 +329,19 @@ def destinatarios(db: Session, ev: TicketEvent, ticket: Ticket, data: dict) -> l
         if d:
             salida.append(("sd.approval_decided.requester", d))
 
-    # Nadie recibe aviso de lo que ha hecho el mismo, ni dos veces del mismo evento.
+    # Nadie recibe aviso de lo que ha hecho el mismo, ni dos veces del mismo
+    # evento. Salvo el acuse de recibo: lo pide quien abre el ticket, y es
+    # justo para el (le da el numero con el que seguirlo).
     vistos: set = set()
     unicos = []
     for code, d in salida:
         clave = d.user_id or (d.email or "").lower()
         if not clave or clave in vistos:
             continue
-        if d.user_id and d.user_id == ev.actor_user_id:
-            continue
-        if d.es_cliente and ev.actor_client_id and ticket.requester_client_id == ev.actor_client_id:
+        propio = (d.user_id and d.user_id == ev.actor_user_id) or (
+            d.es_cliente and ev.actor_client_id and ticket.requester_client_id == ev.actor_client_id)
+        # Un usuario interno que se abre un ticket a si mismo no necesita acuse.
+        if propio and (code != "sd.created.requester" or d.user_id):
             continue
         vistos.add(clave)
         unicos.append((code, d))
@@ -380,7 +375,7 @@ def _avisar(db: Session, ev: TicketEvent, ticket: Ticket, data: dict) -> dict:
 
     org = ev.organization_id
     por_correo_a_agentes = _ss.get_runtime_bool(db, "SD_NOTIFY_AGENTS_BY_EMAIL", org)
-    responder_a = _ss.get_runtime_str(db, "SD_REPLY_TO_ADDRESS", org) or None
+    responder_a = _ss.get_runtime_str(db, "SD_INBOUND_ADDRESS", org) or None
     cuenta = {"campana": 0, "correos": 0, "fallidos": 0}
     pendientes_de_correo = []
 

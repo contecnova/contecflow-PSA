@@ -10,6 +10,9 @@ Configuration via AppSetting or environment variables:
 """
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import logging
 from typing import Optional
 
@@ -17,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 try:
     from twilio.rest import Client as TwilioClient  # type: ignore
-    from twilio.request_validator import RequestValidator  # type: ignore
     _TWILIO_AVAILABLE = True
 except ImportError:
     _TWILIO_AVAILABLE = False
@@ -68,25 +70,21 @@ def send_sms(to: str, body: str) -> bool:
         return False
 
 
-def validate_twilio_signature(url: str, params: dict, signature: str) -> bool:
-    """Validate that an inbound request is genuinely from Twilio.
+def validate_twilio_signature(url: str, params: dict, signature: Optional[str]) -> bool:
+    """Si la peticion viene de Twilio de verdad.
 
-    Should be called on every inbound Twilio webhook to prevent spoofing.
+    Auditoria 2026-11: fallaba ABIERTA —sin la libreria de Twilio, sin token o
+    sin cabecera de firma se aceptaba—, asi que cualquiera podia abrir tickets
+    por SMS. Ahora sin token o sin firma se rechaza. El algoritmo es el
+    documentado por Twilio (HMAC-SHA1 de la URL y los parametros ordenados, en
+    base64) y no necesita la libreria.
     """
-    if not _TWILIO_AVAILABLE:
-        return True  # Can't validate without library — allow in dev
-
     _, token, _ = _get_twilio_config()
-    if not token:
-        logger.warning("Cannot validate Twilio signature — AUTH_TOKEN not configured")
-        return True  # Fail open in dev; override in production
-
-    try:
-        validator = RequestValidator(token)
-        return validator.validate(url, params, signature)
-    except Exception as exc:
-        logger.error("Twilio signature validation error: %s", exc)
+    if not token or not signature:
         return False
+    datos = url + "".join(f"{k}{params[k]}" for k in sorted(params))
+    esperada = base64.b64encode(hmac.new(token.encode(), datos.encode(), hashlib.sha1).digest()).decode()
+    return hmac.compare_digest(esperada, signature)
 
 
 def build_sms_ticket_notification(ticket_number: str, title: str, status: str) -> str:

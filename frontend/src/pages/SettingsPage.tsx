@@ -74,7 +74,10 @@ export default function SettingsPage() {
   // `includes(undefined)`: devolver falso.
   const rol = user?.role ?? ''
   const visibleTabs = TABS.filter(tab => tab.roles.includes(rol))
-  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id || 'general')
+  // `?tab=<id>` abre esa pestaña: desde el Service Desk se llega a Credenciales.
+  const pedida = new URLSearchParams(window.location.search).get('tab')
+  const [activeTab, setActiveTab] = useState(
+    visibleTabs.some(tab => tab.id === pedida) ? (pedida as string) : (visibleTabs[0]?.id || 'general'))
 
   return (
     <Page

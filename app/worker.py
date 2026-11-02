@@ -88,6 +88,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.sla_breach_scan",
         "schedule": crontab(minute="*/5"),
     },
+    # Correo entrante: buzon de soporte de cada organizacion.
+    "sd-leer-buzones": {
+        "task": "app.worker.sd_leer_buzones",
+        "schedule": crontab(minute="*/2"),
+    },
     # Bandeja de eventos de ticket: red de seguridad del encolado al confirmar.
     "sd-ticket-events": {
         "task": "app.worker.sd_procesar_eventos_de_ticket",
@@ -1124,6 +1129,18 @@ def sla_breach_scan():
     with worker_db_session() as db:
         resultado = escanear(db)
         _worker_logger.info("SLA: %s", resultado)
+        return resultado
+
+
+@celery_app.task(name="app.worker.sd_leer_buzones")
+def sd_leer_buzones():
+    """Lee el buzon de soporte de cada organizacion (IMAP o Microsoft 365)."""
+    from app.db.session import worker_db_session
+    from app.services.service_desk.buzones import leer_todos
+
+    with worker_db_session() as db:
+        resultado = leer_todos(db)
+        _worker_logger.info("Buzones de soporte: %s", resultado)
         return resultado
 
 
