@@ -63,6 +63,11 @@ class CIType(str, enum.Enum):
     service = "service"
     module = "module"
     integration = "integration"
+    virtual_machine = "virtual_machine"
+    container = "container"
+    cloud = "cloud"
+    endpoint = "endpoint"
+    storage = "storage"
     other = "other"
 
 

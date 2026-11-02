@@ -72,10 +72,10 @@ def seed_service_desk():
     db.add_all(services); db.flush()
 
     # CMDB
-    ci1 = ConfigurationItem(code="CI-0001",name="Portal Cliente Acme",    ci_type=CIType.application,status=CIStatus.operational,criticality="high",    environment="prod",version="v1.2")
-    ci2 = ConfigurationItem(code="CI-0002",name="API Backend Contecflow",    ci_type=CIType.application,status=CIStatus.operational,criticality="critical",environment="prod",version="v8.0")
-    ci3 = ConfigurationItem(code="CI-0003",name="Base de Datos Principal", ci_type=CIType.database,   status=CIStatus.operational,criticality="critical",environment="prod")
-    ci4 = ConfigurationItem(code="CI-0004",name="Infraestructura AWS",     ci_type=CIType.server,     status=CIStatus.operational,criticality="high",    environment="prod")
+    ci1 = ConfigurationItem(code="CI-0001",name="Portal Cliente Acme",    ci_type=CIType.application,status=CIStatus.operational,criticality="high",    environment="production",version="v1.2",organization_id=admin.organization_id if admin else None)
+    ci2 = ConfigurationItem(code="CI-0002",name="API Backend Contecflow",    ci_type=CIType.application,status=CIStatus.operational,criticality="critical",environment="production",version="v8.0",organization_id=admin.organization_id if admin else None)
+    ci3 = ConfigurationItem(code="CI-0003",name="Base de Datos Principal", ci_type=CIType.database,   status=CIStatus.operational,criticality="critical",environment="production",organization_id=admin.organization_id if admin else None)
+    ci4 = ConfigurationItem(code="CI-0004",name="Infraestructura AWS",     ci_type=CIType.server,     status=CIStatus.operational,criticality="high",    environment="production",organization_id=admin.organization_id if admin else None)
     db.add_all([ci1,ci2,ci3,ci4]); db.flush()
 
     # Demo tickets

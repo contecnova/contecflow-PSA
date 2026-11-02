@@ -89,7 +89,7 @@ Apply to (priority order):
 4. `tickets` (title, number, requester_name)
 5. `projects` (name, code, client_name)
 6. `wiki_pages` (title, content_text) — but consider Option B for `content_text`.
-7. `cmdb_items` (name, hostname)
+7. `sd_configuration_items` (name, hostname, ip_address)
 
 ### Option B — Full-text search (`tsvector` + GIN)
 

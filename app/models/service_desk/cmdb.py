@@ -1,6 +1,6 @@
 """service_desk.cmdb models — split from the former 1385-LOC god-file."""
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, Enum, UniqueConstraint
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, Enum, UniqueConstraint, false
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -33,6 +33,21 @@ class ConfigurationItem(Base):
 
     criticality = Column(String(20), default="medium")
     notes = Column(Text, nullable=True)
+
+    # Red y atributos por clase (JSON). Antes vivian en `cmdb_items`.
+    ip_address = Column(String(45), nullable=True)
+    hostname = Column(String(200), nullable=True)
+    attributes = Column(Text, nullable=True)
+
+    # Descubrimiento y deriva: lo escribe la reconciliacion (services/cmdb).
+    external_id = Column(String(255), nullable=True, index=True)
+    discovery_provider = Column(String(50), nullable=True)  # tipo: aws | kubernetes | agent...
+    discovery_provider_id = Column(String(36), ForeignKey("cmdb_discovery_providers.id", ondelete="SET NULL"), nullable=True)
+    last_discovered_at = Column(DateTime(timezone=True), nullable=True)
+    is_discovered = Column(Boolean, default=False, nullable=False, server_default=false())
+    config_hash = Column(String(64), nullable=True)
+    drift_detected_at = Column(DateTime(timezone=True), nullable=True)
+    baseline_attributes = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -254,6 +254,9 @@ class CIIn(BaseModel):
     vendor: Optional[str] = Field(None, description="Proveedor o fabricante del CI")
     criticality: str = Field("medium", description="Criticidad del CI (low, medium, high, critical)")
     sla_policy_id: Optional[str] = Field(None, description="Política SLA aplicada al CI")
+    ip_address: Optional[str] = Field(None, max_length=45, description="Dirección IP")
+    hostname: Optional[str] = Field(None, max_length=200, description="Nombre de host")
+    attributes: Optional[dict] = Field(None, description="Atributos propios de la clase (SO, puerto, URL...)")
 
 
 # ── Agent Groups ──────────────────────────────────────────────────────────────

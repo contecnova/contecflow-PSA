@@ -190,20 +190,20 @@ def _expand_ci_dependencies(db: Session, ci_ids: list[str]) -> list[str]:
     if not ci_ids:
         return []
     try:
-        # Auditoria 2026-08: ninguna de las tres columnas existe con ese
-        # nombre. Son `from_item_id`, `to_item_id` y `rel_type`. Reventaba con
-        # `AttributeError`, lo atrapaba el `except` de abajo, y la correlacion
-        # de alertas devolvia SIEMPRE cero CIs raiz.
-        from app.models.cmdb import CMDBRelation
-        rows = (
-            db.query(CMDBRelation.to_item_id)
-            .filter(
-                CMDBRelation.from_item_id.in_(ci_ids),
-                CMDBRelation.rel_type.in_(["depends_on", "runs_on"]),
-            )
-            .all()
+        # Auditoria 2026-11: leia `cmdb_relations`, la CMDB que no veian los
+        # tickets; los ids que llegan aqui son de `sd_configuration_items`, asi
+        # que no casaba nunca. Raiz de A: aquello de lo que A depende, y el
+        # servidor que lo aloja (`hosts` va del anfitrion al alojado).
+        from app.models.service_desk import CIRelation, CIRelationType
+        depende = db.query(CIRelation.target_ci_id).filter(
+            CIRelation.source_ci_id.in_(ci_ids),
+            CIRelation.relation_type == CIRelationType.depends_on,
         )
-        return [r[0] for r in rows if r[0]]
+        aloja = db.query(CIRelation.source_ci_id).filter(
+            CIRelation.target_ci_id.in_(ci_ids),
+            CIRelation.relation_type == CIRelationType.hosts,
+        )
+        return [r[0] for r in depende.union(aloja).all() if r[0]]
     except Exception as exc:
         logger.debug("CI dependency expansion failed: %s", exc)
         return []

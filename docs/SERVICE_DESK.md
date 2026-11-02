@@ -209,11 +209,46 @@ asistente de llamadas. Lo que hacen, sin adornos:
   ya transcritos. No hay telefonía ni reconocimiento de voz.
 - **Analítica predictiva:** estadística sobre el histórico y reglas.
 
+### 13. CMDB y descubrimiento
+
+Hay **una sola CMDB** (*Soporte → CMDB*). Es la misma en la que se elige el CI
+de un ticket, un problema, un cambio o un error conocido, y la que alimentan el
+descubrimiento automático y los agentes. Hasta noviembre de 2026 había dos y lo
+que se editaba en la pantalla no se podía elegir en un ticket.
+
+- **Inventario.** Cada CI tiene código (`CI-0001`), clase, estado (operativo,
+  degradado, mantenimiento, retirado), entorno, criticidad, host, IP y versión.
+  Además, los **datos propios de su clase**: sistema operativo y RAM en un
+  servidor, motor y puerto en una base de datos, imagen y clúster en un
+  contenedor… Al cambiar de clase solo se guardan los datos de la nueva.
+  Se busca por nombre, código, host o IP.
+- **Relaciones.** Desde 🔗: *depende de*, *aloja a*, *conecta con*, *tiene
+  copia en*, *lo monitoriza* y *forma parte de*. Se leen desde el CI que las
+  tiene («web-01 aloja a Portal»). Alimentan el análisis de impacto, la
+  topología, el grafo 3D y la correlación de alertas, que busca la causa en
+  aquello de lo que depende el CI afectado y en el servidor que lo aloja.
+- **Historial.** Desde 📋: cada campo que cambia, quién lo cambió y cuándo; lo
+  que cambia el descubrimiento aparece como «por el descubrimiento».
+- **Borrar** un CI lo oculta del inventario; los tickets, problemas y cambios
+  que lo citan lo conservan.
+- **Descubrimiento.** Los proveedores (AWS, Azure, GCP, Kubernetes, vSphere,
+  SNMP) crean y actualizan CIs en la organización del proveedor, marcados como
+  *Descubierto*. Un escaneo completo retira lo que el proveedor ya no
+  encuentra; un escaneo SNMP puntual no retira nada. Dos proveedores del mismo
+  tipo (dos cuentas AWS) ya no se pisan. Si cambia la configuración de un CI
+  se marca **Deriva** hasta que se aprueba la línea base.
+- **Agentes.** En la pestaña *Agentes* se registra un agente por servidor y se
+  copia su token (solo se enseña una vez). Cada envío del agente actualiza su
+  CI, y la tabla dice cuándo fue el último y qué CI le corresponde. Revocar un
+  agente rechaza sus envíos siguientes.
+- **Quién ve qué.** Cada organización ve sus CIs, sus agentes, su deriva y sus
+  duplicados; la deduplicación nunca compara CIs de organizaciones distintas.
+
 ---
 
 ## Parte II — Instalación y operación
 
-### 13. Lo que corre en segundo plano (Celery beat)
+### 14. Lo que corre en segundo plano (Celery beat)
 
 | Tarea | Cada | Qué hace |
 |---|---|---|
@@ -225,7 +260,7 @@ Si el broker no responde al confirmar, la tarea periódica recoge los eventos.
 Un evento que falla se reintenta hasta `SD_EVENT_MAX_ATTEMPTS` veces y se queda
 con su último error en `sd_ticket_events.last_error`.
 
-### 14. Credenciales (Ajustes → Credenciales)
+### 15. Credenciales (Ajustes → Credenciales)
 
 | Proveedor | Para qué |
 |---|---|
@@ -237,7 +272,7 @@ con su último error en `sd_ticket_events.last_error`.
 | Twilio | SMS: la firma de Twilio es **obligatoria**; sin `auth_token` no entra ningún SMS. La organización sale del número que lo recibe (`from_number`). |
 | contecmind | `base_url`, `client_id`, `client_secret`. La organización de Contecflow tiene que estar dada de alta como tenant de esta aplicación en contecmind. |
 
-### 15. Ajustes (Ajustes → Config. dinámica)
+### 16. Ajustes (Ajustes → Config. dinámica)
 
 **SLA:** `SLA_BUSINESS_HOURS_ONLY`, `SLA_BUSINESS_START_HOUR`,
 `SLA_BUSINESS_END_HOUR`, `SLA_BUSINESS_DAYS` (jornada sin política; días ISO,
@@ -268,7 +303,7 @@ con `SEMANTIC_EMBEDDINGS_BACKEND=transformer`. Con el respaldo TF-IDF busca por
 palabras, porque ese codificador fija su vocabulario en cada proceso y sus
 vectores no se pueden guardar.
 
-### 16. Monitorización: formato
+### 17. Monitorización: formato
 
 `POST /api/v1/sd/events/{origen}` con la cabecera `X-Contecflow-Event-Token`.
 
@@ -277,7 +312,7 @@ vectores no se pueden guardar.
 - **Genérico:** un objeto o una lista con `key` y `title` obligatorios, más
   `status` (firing/resolved), `severity`, `description` y `ci`.
 
-### 17. Seguridad y organizaciones (cambios de 2026-11)
+### 18. Seguridad y organizaciones (cambios de 2026-11)
 
 - `GET /sd/catalog`, `GET /sd/kb`, `GET /sd/kb/{id}` y `POST /sd/kb/{id}/helpful`
   piden un cliente del portal o un usuario. Antes respondían sin login con el
@@ -290,23 +325,44 @@ vectores no se pueden guardar.
 - Un administrador o PM ve los tickets de su organización, también los del
   portal o el correo sin agente. Un empleado ve los suyos, los que tiene
   asignados y los que debe aprobar.
+- **Una sola CMDB (migración 110).** `cmdb_items`, `cmdb_relations` y
+  `cmdb_categories` desaparecen; sus filas pasan a `sd_configuration_items` y
+  `sd_ci_relations` conservando el id. Un CI con el mismo nombre en la misma
+  organización se funde con el que ya había en vez de duplicarse; `runs_on`
+  A→B pasa a `hosts` B→A; el historial (`cmdb_changelog`) y los agentes
+  (`cmdb_agent_registrations`) apuntan ya a la CMDB que queda. La API vieja
+  `/cmdb/items`, `/cmdb/relations` y `/cmdb/categories` ya no existe: todo va
+  por `/sd/cmdb` (añade `DELETE /sd/cmdb/{id}`, `GET /sd/cmdb/{id}/changelog` y
+  `DELETE /sd/cmdb/relations/{id}`; el listado acepta `q`, `ci_type` y
+  `status`).
+- **Los CIs se ven por organización.** Antes se acotaban solo por responsable o
+  proyecto, así que un CI sin ninguno —todos los descubiertos— no lo veía nadie
+  salvo el superadministrador. La migración 110 rellena la organización que
+  falta desde el responsable, el proyecto, los tickets que citan el CI (si son
+  de una sola organización) o, si la instalación tiene una sola organización,
+  esa. Si nada de eso la da, se queda sin ella.
+- **Descubrimiento y agentes.** El check-in de un agente retiraba los CIs de
+  todos los demás agentes, y un escaneo SNMP puntual los de todos los demás
+  dispositivos SNMP. Ya no. Los CIs descubiertos nacen en la organización del
+  proveedor (antes, sin organización), y la deriva, la salud de la
+  reconciliación, los duplicados y los agentes se acotan por organización.
 
-### 18. Límites conocidos
+### 19. Límites conocidos
 
 - Sin probar contra un IMAP, un Microsoft 365, un Alertmanager, un Twilio o un
   contecmind reales: las pruebas los sustituyen.
 - Hay dos inventarios de activos: ALM (con pantalla) y los activos del Service
   Desk (`sd_assets`, sin pantalla). Falta decidir si se consolidan en ALM.
-- Hay dos CMDB. La pantalla *CMDB* edita `cmdb_items`, que tiene diez clases
-  con sus propios atributos (servidor, aplicación, base de datos…). Los
-  tickets, problemas, cambios y errores conocidos apuntan a otra tabla,
-  `sd_configuration_items`, que solo tiene tipo, sin atributos por clase. Por
-  eso lo que se edita en la pantalla no es lo que se elige en el ticket. Las
-  clases de la pantalla, además, están fijas en el código. Falta decidir cuál
-  de las dos manda antes de hacer configurables las clases.
+- Las clases de CI y sus datos propios están fijas en el código
+  (`CIType` en el servidor y `CI_TYPE_FIELDS` en la pantalla); no se pueden
+  crear clases desde Administración.
+- Un CI que llegó sin organización, responsable ni proyecto, en una instalación
+  con varias organizaciones, solo lo ve el superadministrador: la migración 110
+  no adivina de quién es (véase el apartado 18).
 - El OLA tiene un único objetivo por cola, igual para todas las prioridades.
-- No hay contratos de soporte (UC) con proveedores: no existe un modelo de
-  proveedor al que colgarlos.
+- No hay contratos de soporte (UC). Los proveedores y sus contratos existen en
+  ALM (`alm_vendors`, `alm_contracts`), pero un contrato no tiene objetivos de
+  respuesta ni de resolución y no se enlaza con los tickets.
 - La búsqueda por vectores compara en Python contra todos los artículos
   publicados. Con decenas de miles de artículos haría falta un índice
   vectorial (pgvector).

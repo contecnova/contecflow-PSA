@@ -795,7 +795,7 @@ def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> 
         else:
             raise ValueError(f"Proveedor no soportado: {provider.provider_type}")
 
-        stats = reconcile_cis(db, discovered, provider.provider_type)
+        stats = reconcile_cis(db, discovered, provider.provider_type, provider=provider)
 
         job.status = "ok"
         job.cis_created = stats["created"]

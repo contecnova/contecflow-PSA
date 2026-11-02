@@ -186,11 +186,6 @@ MIGRATIONS = [
     ("sd_problems", "rca_wizard_state",      "TEXT"),
     ("sd_problems", "auto_detected",         "BOOLEAN DEFAULT 0"),
     ("sd_problems", "affected_services_json","TEXT"),
-    # CMDB auto-discovery fields
-    ("cmdb_items",  "external_id",           "VARCHAR(255)"),
-    ("cmdb_items",  "discovery_provider",    "VARCHAR(50)"),
-    ("cmdb_items",  "last_discovered_at",     "DATETIME"),
-    ("cmdb_items",  "is_discovered",          "BOOLEAN DEFAULT 0"),
     # cmdb_discovery_providers and cmdb_discovery_jobs are new tables
     # — created automatically via Base.metadata.create_all above
 

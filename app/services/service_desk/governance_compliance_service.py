@@ -517,12 +517,11 @@ def _puntuacion_de_cmdb(db: Session) -> int:
     penalizaría a quien no usa CMDB y 100 premiaría no tener datos.
     """
     try:
-        from app.models.cmdb import CMDBItem
+        from app.models.service_desk import ConfigurationItem as CI
 
-        total = db.query(func.count(CMDBItem.id)).scalar() or 0
-        descubiertos = db.query(func.count(CMDBItem.id)).filter(
-            CMDBItem.is_discovered.is_(True)
-        ).scalar() or 0
+        activos = db.query(func.count(CI.id)).filter(CI.is_active.is_(True))
+        total = activos.scalar() or 0
+        descubiertos = activos.filter(CI.is_discovered.is_(True)).scalar() or 0
         return round(descubiertos / total * 100) if total else 50
     except Exception:
         return 50

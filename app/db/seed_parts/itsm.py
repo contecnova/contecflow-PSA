@@ -187,44 +187,45 @@ def seed_itsm_v2():
         db.add(CIRelation(source_ci_id=cis["CI-0002"].id, target_ci_id=cis["CI-0004"].id,
                           relation_type=CIRelationType.hosts, notes="API alojada en AWS"))
 
-    # ── CMDB — datos demo con campos específicos por tipo ─────────────────────
-    from app.models.cmdb import CMDBItem as _CMDBItem
-    if db.query(_CMDBItem).count() == 0:
-        cmdb_items = [
-            _CMDBItem(name='web-prod-01', ci_type='server', status='active',
-                environment='production', hostname='web-prod-01.empresa.com',
-                ip_address='10.0.1.10', version='Ubuntu 22.04',
-                description='Servidor web principal de producción',
-                attributes=json.dumps({'os':'Ubuntu 22.04 LTS','cpu_cores':'8',
-                    'ram_gb':'32','serial_number':'DELL-SRV-001','location':'CPD Madrid Rack A-01'}),
-                owner_id=admin.id if admin else None),
-            _CMDBItem(name='Contecflow PSA', ci_type='application', status='active',
-                attributes=json.dumps({'url':'https://contecflow.empresa.com',
-                    'repo_url':'https://github.com/empresa/contecflow'}),
-                owner_id=ana.id if ana else None),
-            _CMDBItem(name='db-prod-01', ci_type='database', status='active',
-                environment='production', hostname='db-prod-01.empresa.com',
-                ip_address='10.0.2.10', version='PostgreSQL 15.4',
-                description='Base de datos principal de producción',
-                attributes=json.dumps({'db_engine':'PostgreSQL 15.4','port':'5432',
-                    'size_gb':'500','backup_schedule':'Diario 02:00h UTC'}),
-                owner_id=admin.id if admin else None),
-            _CMDBItem(name='fw-edge-01', ci_type='network', status='active',
-                environment='production', hostname='fw-edge-01',
-                ip_address='203.0.113.1', version='FortiOS 7.2',
-                description='Firewall perimetral principal',
-                attributes=json.dumps({'vendor':'Fortinet','model':'FortiGate 200F',
-                    'serial_number':'FGT-SN-12345','location':'CPD Madrid Rack B-01'}),
-                owner_id=admin.id if admin else None),
-            _CMDBItem(name='API Gateway', ci_type='service', status='active',
-                attributes=json.dumps({'url':'https://api.empresa.com',
-                    'sla_tier':'Platinum','owner_team':'DevOps',
-                    'dependencies':'auth-service, db-primary'}),
-                owner_id=ana.id if ana else None),
-        ]
-        db.add_all(cmdb_items)
+    # ── CMDB — datos demo con red y atributos por clase ───────────────────────
+    from app.models.service_desk import CIStatus, CIType
+    from app.services.sla_service import next_ci_number
+    org_demo = admin.organization_id if admin else None
+    demo = [
+        dict(name='web-prod-01', ci_type=CIType.server, environment='production',
+             hostname='web-prod-01.empresa.com', ip_address='10.0.1.10', version='Ubuntu 22.04',
+             description='Servidor web principal de producción',
+             attributes={'os': 'Ubuntu 22.04 LTS', 'cpu_cores': '8', 'ram_gb': '32',
+                         'serial_number': 'DELL-SRV-001', 'location': 'CPD Madrid Rack A-01'},
+             owner_user_id=admin.id if admin else None),
+        dict(name='db-prod-01', ci_type=CIType.database, environment='production',
+             hostname='db-prod-01.empresa.com', ip_address='10.0.2.10', version='PostgreSQL 15.4',
+             description='Base de datos principal de producción',
+             attributes={'db_engine': 'PostgreSQL 15.4', 'port': '5432', 'size_gb': '500',
+                         'backup_schedule': 'Diario 02:00h UTC'},
+             owner_user_id=admin.id if admin else None),
+        dict(name='fw-edge-01', ci_type=CIType.network, environment='production',
+             hostname='fw-edge-01', ip_address='203.0.113.1', version='FortiOS 7.2',
+             description='Firewall perimetral principal',
+             attributes={'vendor': 'Fortinet', 'model': 'FortiGate 200F',
+                         'serial_number': 'FGT-SN-12345', 'location': 'CPD Madrid Rack B-01'},
+             owner_user_id=admin.id if admin else None),
+        dict(name='API Gateway', ci_type=CIType.service, environment='production',
+             attributes={'url': 'https://api.empresa.com', 'sla_tier': 'Platinum', 'owner_team': 'DevOps'},
+             owner_user_id=ana.id if ana else None),
+    ]
+    nombres = {n for (n,) in db.query(ConfigurationItem.name)}
+    nuevos = 0
+    for d in demo:
+        if d['name'] in nombres:
+            continue
+        d['attributes'] = json.dumps(d['attributes'])
+        db.add(ConfigurationItem(code=next_ci_number(db), status=CIStatus.operational,
+                                 organization_id=org_demo, **d))
         db.flush()
-        print("    ✓ CMDB: 5 activos IT demo creados")
+        nuevos += 1
+    if nuevos:
+        print(f"    ✓ CMDB: {nuevos} CIs demo con red y atributos")
 
     db.commit()
     db.close()

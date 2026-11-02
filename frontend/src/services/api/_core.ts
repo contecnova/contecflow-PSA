@@ -821,23 +821,17 @@ export const revenueRecognitionApi = {
 
 // ── CMDB ──────────────────────────────────────────────────────────────────────
 export const cmdbApi = {
-  items:          (params?: any)   => api.get('/cmdb/items', { params }),
-  createItem:     (data: unknown)     => api.post('/cmdb/items', data),
-  updateItem:     (id: any, data: unknown) => api.patch(`/cmdb/items/${id}`, data),
-  deleteItem:     (id: any)       => api.delete(`/cmdb/items/${id}`),
-  changelog:      (id: any)       => api.get(`/cmdb/items/${id}/changelog`),
-  categories:     ()         => api.get('/cmdb/categories'),
-  relations:      (id: any)       => api.get(`/cmdb/items/${id}/relations`),
-  createRelation: (data: unknown)     => api.post('/cmdb/relations', data),
-  deleteRelation: (id: any)       => api.delete(`/cmdb/relations/${id}`),
-  topology:       (id: any, r: any)    => api.get(`/sd/cmdb/${id}/topology`, { params: { radius: r } }),
-  topologyItems:  ()         => api.get('/sd/cmdb'),
-  // SD CMDB
+  // Una sola CMDB (auditoría 2026-11): la del service desk, `/sd/cmdb`.
   sdList:         (params?: any)   => api.get('/sd/cmdb', { params }),
   sdCreate:       (data: unknown)     => api.post('/sd/cmdb', data),
   sdUpdate:       (id: any, data: unknown) => api.patch(`/sd/cmdb/${id}`, data),
+  sdDelete:       (id: any)       => api.delete(`/sd/cmdb/${id}`),
+  sdChangelog:    (id: any)       => api.get(`/sd/cmdb/${id}/changelog`),
   sdRelations:    (id: any)       => api.get(`/sd/cmdb/${id}/relations`),
+  sdCreateRelation: (data: unknown)   => api.post('/sd/cmdb/relations', data),
+  sdDeleteRelation: (id: any)     => api.delete(`/sd/cmdb/relations/${id}`),
   sdImpact:       (id: any)       => api.get(`/sd/cmdb/${id}/impact`),
+  topology:       (id: any, r: any)    => api.get(`/sd/cmdb/${id}/topology`, { params: { radius: r } }),
   // Agents
   agents:         ()         => api.get('/sd/cmdb/agents'),
   registerAgent:  (data: unknown)     => api.post('/sd/cmdb/agents/register', data),

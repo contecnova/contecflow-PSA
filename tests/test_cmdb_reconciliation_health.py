@@ -31,7 +31,7 @@ def test_cmdb_reconciliation_candidates_endpoint(client, admin_token, monkeypatc
 
     captured = {}
 
-    def _fake_candidates(db, provider_type=None, min_confidence=0.85):
+    def _fake_candidates(db, provider_type=None, min_confidence=0.85, org_id=None):
         captured["provider_type"] = provider_type
         captured["min_confidence"] = min_confidence
         return [
@@ -63,7 +63,7 @@ def test_cmdb_reconciliation_merge_endpoint(client, admin_token, monkeypatch):
 
     captured = {}
 
-    def _fake_merge(db, provider_type=None, min_confidence=0.9, limit=100):
+    def _fake_merge(db, provider_type=None, min_confidence=0.9, limit=100, org_id=None):
         captured["provider_type"] = provider_type
         captured["min_confidence"] = min_confidence
         captured["limit"] = limit

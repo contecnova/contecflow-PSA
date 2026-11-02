@@ -254,27 +254,27 @@ def test_EL_HALLAZGO_el_listado_de_CMDB_vuelve_a_filtrar_por_organizacion(db):
     Se tomaba siempre la rama `else`, que registra un aviso y **no filtra**. El
     aviso parecía informar de una limitación temporal del despliegue y lo que
     describía era la ausencia del filtro de tenant.
+
+    Auditoria 2026-11: aquella CMDB (`cmdb_items`) se fundio con la del
+    service desk. El aislamiento se comprueba ahora en la que queda, y con CIs
+    sin responsable ni proyecto, que antes no veia nadie.
     """
-    from app.models.cmdb import CMDBItem
-    from app.services import cmdb_service as svc
+    from types import SimpleNamespace
+
+    from app.models.service_desk import CIType, ConfigurationItem
+    from app.services.service_desk.cmdb_service import list_cmdb_items
 
     for org in ("org-ci-mia", "org-ci-ajena"):
-        db.add(CMDBItem(
-            id=f"ci-{org}", name=f"Servidor de {org}", ci_type="server",
-            organization_id=org))
+        db.add(ConfigurationItem(
+            id=f"ci-{org}", code=f"CI-{org}", name=f"Servidor de {org}",
+            ci_type=CIType.server, organization_id=org))
     db.commit()
 
-    # Devuelve diccionarios serializados, no filas: se comprueba por id.
-    filas = svc.list_cmdb_items(
-        ci_type=None, status=None, category_id=None, q=None,
-        organization_id="org-ci-mia", db=db)
-    ids = {f["id"] for f in filas}
-    assert ids == {"ci-org-ci-mia"}, (
-        f"el listado de CMDB devuelve elementos de otras organizaciones: {ids}")
+    def _ids(usuario):
+        return {c.id for c in list_cmdb_items(db, usuario, 1, 50)}
 
-    # Y sin organizacion no filtra, que es el comportamiento declarado del
-    # parametro: la guarda del endpoint es la que lo exige.
-    todos = svc.list_cmdb_items(
-        ci_type=None, status=None, category_id=None, q=None,
-        organization_id=None, db=db)
-    assert len(todos) == 2
+    mio = SimpleNamespace(id="u-ci", organization_id="org-ci-mia", is_superadmin=False)
+    assert _ids(mio) == {"ci-org-ci-mia"}, "el listado de CMDB enseña CIs de otra organización"
+    assert _ids(SimpleNamespace(id="u-x", organization_id=None, is_superadmin=False)) == set()
+    assert _ids(SimpleNamespace(id="root", organization_id=None, is_superadmin=True)) == {
+        "ci-org-ci-mia", "ci-org-ci-ajena"}

@@ -47,13 +47,15 @@ type DistMap = Record<string, number>
 const CI_ICONS: Record<string, string> = {
   server: '🖥️', application: '📱', database: '🗄️', network: '🌐',
   service: '⚙️', container: '📦', cloud: '☁️', endpoint: '💻',
-  storage: '💾', other: '📌',
+  storage: '💾', virtual_machine: '🧊', module: '🧩', integration: '🔌', other: '📌',
 }
 
+// Estados de `CIStatus` (una sola CMDB desde 2026-11).
 const STATUS_COLORS: Record<string, string> = {
-  active: '#34d399',
+  operational: '#34d399',
+  degraded: '#fb923c',
   maintenance: '#f59e0b',
-  decommissioned: '#f87171',
+  retired: '#f87171',
 }
 
 // Color por criticidad (cuando el payload viene del endpoint SD CMDB)
@@ -68,7 +70,7 @@ function normalizeNode(n: RawNode): GraphNode {
   return {
     ...n,
     is_center: (n.is_center ?? n.is_root ?? false) as boolean,
-    status: (n.status ?? n.criticality ?? 'active') as string,
+    status: (n.status ?? n.criticality ?? 'operational') as string,
   }
 }
 
@@ -82,7 +84,7 @@ function normalizeEdge(e: RawEdge): GraphEdge {
 function pickNodeColor(n: GraphNode): string {
   // Prioriza criticality si está presente; fallback a status
   if (n.criticality && CRITICALITY_COLORS[n.criticality]) return CRITICALITY_COLORS[n.criticality]
-  return STATUS_COLORS[n.status] || STATUS_COLORS.active
+  return STATUS_COLORS[n.status] || STATUS_COLORS.operational
 }
 
 const REL_COLORS: Record<string, string> = {

@@ -56,7 +56,8 @@ def dos_nubes(db):
     """Un proveedor AWS y un CI descubierto en cada organización."""
     from datetime import datetime, timezone
 
-    from app.models.cmdb import CMDBDiscoveryProvider, CMDBItem
+    from app.models.cmdb import CMDBDiscoveryProvider
+    from app.models.service_desk import CIType, ConfigurationItem
 
     creados = {}
     for org in (ORG, OTRA):
@@ -65,9 +66,9 @@ def dos_nubes(db):
             organization_id=org, is_active=True)
         db.add(prov)
         db.flush()
-        ci = CMDBItem(
-            id=f"ci-{org}", name=f"i-{org}", ci_type="server",
-            discovery_provider="aws", is_discovered=True,
+        ci = ConfigurationItem(
+            id=f"ci-{org}", code=f"CI-{org}", name=f"i-{org}", ci_type=CIType.server,
+            discovery_provider="aws", discovery_provider_id=prov.id, is_discovered=True,
             attributes=json.dumps({"instance_type": "t3.micro"}),
             # Hay deriva detectada: aprobar la línea base la debe limpiar.
             drift_detected_at=datetime.now(timezone.utc),
@@ -83,7 +84,7 @@ def dos_nubes(db):
 
 def test_EL_ESCENARIO_la_consulta_de_antes_no_encontraba_ni_un_CI(db, dos_nubes):
     """Que el defecto era real, medido y no contado."""
-    from app.models.cmdb import CMDBItem
+    from app.models.service_desk import ConfigurationItem as CMDBItem
 
     prov = dos_nubes[ORG]["proveedor"]
     assert prov.id != prov.provider_type
@@ -193,8 +194,39 @@ def test_un_superadmin_si_aprueba_los_de_cualquiera(db, dos_nubes):
 
     datos = aprobar_linea_base(
         db, _Usuario(None, superadmin=True), dos_nubes[OTRA]["proveedor"].id)
-    # Los dos CIs son de tipo `aws`, y un superadmin no filtra por organización.
-    assert datos["approved"] == 2
+    # Un superadmin no filtra por organizacion; desde la migracion 110 el CI
+    # sabe que proveedor lo descubrio, asi que solo se aprueba el de ese.
+    assert datos["approved"] == 1
+    db.refresh(dos_nubes[ORG]["ci"])
+    assert dos_nubes[ORG]["ci"].baseline_attributes is None
+
+
+def test_dos_proveedores_del_mismo_tipo_ya_no_se_pisan(db, dos_nubes):
+    """La limitacion que documentaba el arreglo de 2026-08, cerrada en 2026-11."""
+    from app.models.cmdb import CMDBDiscoveryProvider
+    from app.models.service_desk import CIType, ConfigurationItem
+    from app.services.cmdb.models import aprobar_linea_base
+
+    otro = CMDBDiscoveryProvider(id="prov-segundo", name="AWS 2", provider_type="aws",
+                                 organization_id=ORG, is_active=True)
+    db.add(otro)
+    db.add(ConfigurationItem(id="ci-segundo", code="CI-segundo", name="i-2", ci_type=CIType.server,
+                             discovery_provider="aws", discovery_provider_id="prov-segundo",
+                             is_discovered=True, organization_id=ORG, attributes="{}"))
+    db.commit()
+
+    assert aprobar_linea_base(db, _Usuario(ORG), "prov-segundo") == {"ok": True, "approved": 1}
+    db.refresh(dos_nubes[ORG]["ci"])
+    assert dos_nubes[ORG]["ci"].baseline_attributes is None
+
+
+def test_un_CI_descubierto_antes_de_saber_su_proveedor_se_casa_por_el_tipo(db, dos_nubes):
+    from app.services.cmdb.models import aprobar_linea_base
+
+    ci = dos_nubes[ORG]["ci"]
+    ci.discovery_provider_id = None
+    db.commit()
+    assert aprobar_linea_base(db, _Usuario(ORG), dos_nubes[ORG]["proveedor"].id)["approved"] == 1
 
 
 # -- Los proveedores y sus jobs ---------------------------------------------

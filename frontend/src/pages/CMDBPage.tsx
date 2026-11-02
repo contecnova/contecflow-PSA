@@ -5,7 +5,7 @@ import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { cmdbApi } from '../services/api'
+import { cmdbApi } from '../services/api'
 import { Button, Spinner, Modal, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -33,129 +33,168 @@ const CMDBTopologyGraph = lazy(() => import('../components/cmdb/CMDBTopologyGrap
 // `vendor-d3` (130 kB) al chunk de la ruta.
 const Cmdb3dGraph = lazy(() => import('../components/servicedesk/Cmdb3dGraph'))
 
+// Auditoría 2026-11: esta pantalla editaba `cmdb_items`, una segunda CMDB que
+// los tickets no veían. Ahora trabaja sobre `/sd/cmdb`, la misma que eligen
+// tickets, problemas y cambios, y que alimenta el descubrimiento.
+
 const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", fontFamily:'inherit', boxSizing:'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const chip = (color: string): CSSProperties => ({
+  fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, color,
+  background: `color-mix(in srgb, ${color} 14%, transparent)`,
+})
+// Texto solo para lectores de pantalla (la aplicación no tiene clase para ello).
+const srOnly: CSSProperties = { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }
+const iconBtn: CSSProperties = { background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'4px 8px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)" }
 
-type CI = { [k: string]: any; id: string; name?: string; ci_type?: string; status?: string; environment?: string; description?: string; attributes?: Record<string, any> }
-
-const CI_TYPES = ['server','application','database','network','service','container','cloud','endpoint','storage','other']
-const CI_TYPE_ICONS: Record<string, string> = {server:'🖥️',application:'📱',database:'🗄️',network:'🌐',service:'⚙️',container:'📦',cloud:'☁️',endpoint:'💻',storage:'💾',other:'📌'}
-
-// Campos específicos por tipo de CI
-const CI_TYPE_FIELDS: Record<string, {k:string;l:string;ph:string;type?:string}[]> = {
-  server:      [{k:'hostname',l:'Hostname',ph:'web-01.interno.com'},{k:'ip_address',l:'IP Address',ph:'192.168.1.10'},{k:'os',l:'Sistema Operativo',ph:'Ubuntu 22.04'},{k:'cpu_cores',l:'CPU Cores',ph:'8',type:'number'},{k:'ram_gb',l:'RAM (GB)',ph:'32',type:'number'},{k:'serial_number',l:'Número de serie',ph:'SN12345'},{k:'location',l:'Ubicación física',ph:'CPD Rack A-12'}],
-  application: [{k:'url',l:'URL',ph:'https://app.empresa.com'},{k:'version',l:'Versión',ph:'v2.4.1'},{k:'tech_stack',l:'Stack tecnológico',ph:'React / Python / PostgreSQL'},{k:'repo_url',l:'Repositorio',ph:'https://github.com/org/repo'},{k:'owner_team',l:'Equipo responsable',ph:'Equipo Plataforma'},{k:'sla_tier',l:'Tier SLA',ph:'Gold'}],
-  database:    [{k:'db_engine',l:'Motor BD',ph:'PostgreSQL 15'},{k:'hostname',l:'Host',ph:'db-prod-01'},{k:'ip_address',l:'IP',ph:'10.0.1.5'},{k:'port',l:'Puerto',ph:'5432'},{k:'size_gb',l:'Tamaño (GB)',ph:'500',type:'number'},{k:'backup_schedule',l:'Backup',ph:'Diario 02:00h'}],
-  network:     [{k:'ip_address',l:'IP/Rango',ph:'10.0.0.0/24'},{k:'hostname',l:'Hostname',ph:'fw-prod-01'},{k:'vendor',l:'Fabricante',ph:'Cisco'},{k:'model',l:'Modelo',ph:'ASA 5505'},{k:'serial_number',l:'Serie',ph:'FCH1234'},{k:'location',l:'Ubicación',ph:'CPD Rack B-01'}],
-  service:     [{k:'url',l:'Endpoint/URL',ph:'https://api.empresa.com'},{k:'version',l:'Versión',ph:'v1.0'},{k:'sla_tier',l:'Tier SLA',ph:'Platinum'},{k:'owner_team',l:'Equipo',ph:'DevOps'},{k:'dependencies',l:'Dependencias',ph:'auth-service, db-primary'}],
-  container:   [{k:'image',l:'Imagen Docker',ph:'nginx:1.24-alpine'},{k:'version',l:'Tag/Versión',ph:'1.24-alpine'},{k:'cluster',l:'Cluster',ph:'k8s-prod'},{k:'namespace',l:'Namespace',ph:'production'},{k:'replicas',l:'Réplicas',ph:'3',type:'number'}],
-  cloud:       [{k:'cloud_provider',l:'Proveedor',ph:'AWS / Azure / GCP'},{k:'region',l:'Región',ph:'eu-west-1'},{k:'resource_id',l:'Resource ID',ph:'i-1234567890abcdef0'},{k:'instance_type',l:'Tipo instancia',ph:'t3.large'},{k:'monthly_cost',l:'Coste mensual (€)',ph:'120',type:'number'}],
-  endpoint:    [{k:'hostname',l:'Hostname',ph:'laptop-user01'},{k:'ip_address',l:'IP',ph:'192.168.10.25'},{k:'os',l:'Sistema Operativo',ph:'Windows 11 Pro'},{k:'serial_number',l:'Número de serie',ph:'SN98765'},{k:'assigned_to',l:'Asignado a',ph:'usuario@empresa.com'},{k:'warranty_date',l:'Garantía hasta',ph:'2026-12-31',type:'date'}],
-  storage:     [{k:'hostname',l:'Host/NAS',ph:'nas-prod-01'},{k:'ip_address',l:'IP',ph:'10.0.2.10'},{k:'capacity_tb',l:'Capacidad (TB)',ph:'20',type:'number'},{k:'used_tb',l:'Usado (TB)',ph:'8',type:'number'},{k:'protocol',l:'Protocolo',ph:'NFS / iSCSI / SMB'},{k:'vendor',l:'Fabricante',ph:'NetApp'}],
-  other:       [{k:'hostname',l:'Hostname',ph:''},{k:'ip_address',l:'IP',ph:''},{k:'version',l:'Versión',ph:''},{k:'serial_number',l:'Serie',ph:''},{k:'location',l:'Ubicación',ph:''}],
+type CI = {
+  [k: string]: any; id: string; code?: string; name?: string; ci_type?: string; status?: string
+  environment?: string; description?: string; hostname?: string; ip_address?: string; version?: string
+  criticality?: string; attributes?: Record<string, any>; is_discovered?: boolean
+  discovery_provider?: string; drift_detected_at?: string
 }
-const STATUS_CFG: Record<string, {label:string;color:string}> = {active:{label:'Activo',color:'var(--success)'},maintenance:{label:'Mantenimiento',color:'var(--warning)'},decommissioned:{label:'Retirado',color:'var(--danger)'}}
-const ENV_CFG: Record<string, {label:string;color:string}>   = {production:{label:'Producción',color:'var(--danger)'},staging:{label:'Staging',color:'var(--warning)'},dev:{label:'Dev',color:'var(--accent)'}}
-const REL_TYPES = ['depends_on','runs_on','connects_to','hosts','monitors','backs_up']
 
-function CMDBItemForm({ item, categories, onClose }: { item: CI | null; categories: CI[]; onClose: () => void }) {
-  const traducir = useAppT()
+// Las clases de `CIType` en el servidor (app/models/service_desk/_enums.py).
+const CI_TYPES = ['server','virtual_machine','application','database','network','service','container','cloud','endpoint','storage','module','integration','other']
+const CI_TYPE_ICONS: Record<string, string> = {server:'🖥️',virtual_machine:'🧊',application:'📱',database:'🗄️',network:'🌐',service:'⚙️',container:'📦',cloud:'☁️',endpoint:'💻',storage:'💾',module:'🧩',integration:'🔌',other:'📌'}
+
+// Atributos propios de cada clase; se guardan en `attributes`. Host, IP y
+// versión son columnas comunes a todas y van aparte.
+type Campo = { k: string; type?: string }
+const CI_TYPE_FIELDS: Record<string, Campo[]> = {
+  server:          [{k:'os'},{k:'cpu_cores',type:'number'},{k:'ram_gb',type:'number'},{k:'serial_number'},{k:'location'}],
+  virtual_machine: [{k:'os'},{k:'cpu_cores',type:'number'},{k:'ram_gb',type:'number'},{k:'cluster'},{k:'resource_id'}],
+  application:     [{k:'url'},{k:'tech_stack'},{k:'repo_url'},{k:'owner_team'},{k:'sla_tier'}],
+  database:        [{k:'db_engine'},{k:'port'},{k:'size_gb',type:'number'},{k:'backup_schedule'}],
+  network:         [{k:'vendor'},{k:'model'},{k:'serial_number'},{k:'location'}],
+  service:         [{k:'url'},{k:'sla_tier'},{k:'owner_team'},{k:'dependencies'}],
+  container:       [{k:'image'},{k:'cluster'},{k:'namespace'},{k:'replicas',type:'number'}],
+  cloud:           [{k:'cloud_provider'},{k:'region'},{k:'resource_id'},{k:'instance_type'},{k:'monthly_cost',type:'number'}],
+  endpoint:        [{k:'os'},{k:'serial_number'},{k:'assigned_to'},{k:'warranty_date',type:'date'}],
+  storage:         [{k:'capacity_tb',type:'number'},{k:'used_tb',type:'number'},{k:'protocol'},{k:'vendor'}],
+  module:          [{k:'repo_url'},{k:'owner_team'}],
+  integration:     [{k:'url'},{k:'owner_team'}],
+  other:           [{k:'serial_number'},{k:'location'}],
+}
+const STATUS_COLOR: Record<string, string> = { operational:'var(--success)', degraded:'var(--orange)', maintenance:'var(--warning)', retired:'var(--text-2)' }
+const ENV_COLOR: Record<string, string> = { production:'var(--danger)', staging:'var(--warning)', test:'var(--purple)', development:'var(--accent)' }
+const CRITICALITIES = ['low','medium','high','critical']
+const REL_TYPES = ['depends_on','hosts','connects_to','backed_up_by','monitored_by','part_of']
+
+/** Una clave de i18n que puede no existir: si no, el valor tal cual. */
+function useEtiqueta() {
+  const t = useAppT()
+  return (prefijo: string, valor?: string) => {
+    if (!valor) return '—'
+    const clave = `cmdb.${prefijo}${valor}`
+    const texto = t(clave)
+    return texto === clave ? valor : texto
+  }
+}
+
+function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!item?.id
-  // Extraer campos específicos desde item.attributes al editar
-  const existingAttrs = item?.attributes || {}
-  const [form, setForm] = useState<Record<string, unknown>>({
+  const [form, setForm] = useState<Record<string, string>>({
     name:        item?.name        || '',
     ci_type:     item?.ci_type     || 'server',
-    category_id: item?.category_id || '',
-    status:      item?.status      || 'active',
+    status:      item?.status      || 'operational',
     environment: item?.environment || 'production',
+    criticality: item?.criticality || 'medium',
     description: item?.description || '',
     ip_address:  item?.ip_address  || '',
     hostname:    item?.hostname    || '',
     version:     item?.version     || '',
-    attributes:  existingAttrs,
-    // Campos específicos por tipo — inicializados desde attributes
-    ...existingAttrs,
   })
-  const set = (k: string) => (v: unknown) => setForm((f: Record<string, unknown>) => ({...f, [k]: v}))
+  const [attrs, setAttrs] = useState<Record<string, string>>(
+    Object.fromEntries(Object.entries(item?.attributes || {}).map(([k, v]) => [k, String(v ?? '')])))
+  const set = (k: string) => (v: string) => setForm(f => ({ ...f, [k]: v }))
+  const campos = CI_TYPE_FIELDS[form.ci_type] || CI_TYPE_FIELDS.other
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (d: Record<string, unknown>) => isEdit
-      ? cmdbApi.updateItem(item.id, d).then(r => r.data)
-      : cmdbApi.createItem(d).then(r => r.data),
+    mutationFn: () => {
+      // Se envían solo los atributos de la clase elegida y con valor: cambiar
+      // de clase no arrastra los de la anterior.
+      const propios = Object.fromEntries(campos.map(c => [c.k, attrs[c.k]]).filter(([, v]) => v))
+      const vacio = (v: string) => v.trim() || null
+      const d = { ...form, description: vacio(form.description), ip_address: vacio(form.ip_address),
+        hostname: vacio(form.hostname), version: vacio(form.version), attributes: propios }
+      return isEdit ? cmdbApi.sdUpdate(item.id, d) : cmdbApi.sdCreate(d)
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['cmdb-items'] }); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onError: e => toast.error(extractErr(e, t('cmdb.save_error'))),
   })
 
+  const etiqueta = useEtiqueta()
+  const id = (k: string) => `ci-form-${k}`
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Editar activo' : 'Nuevo activo IT'}>
+    <Modal open onClose={onClose} title={isEdit ? t('cmdb.edit_ci') : t('cmdb.new_ci')}>
       <div style={{display:'flex',flexDirection:'column',gap:14}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12}}>
           <div>
-            <label style={ls}>Nombre</label>
-            <input style={is} value={String(form.name ?? '')} onChange={e => set('name')(e.target.value)} placeholder="Ej: Servidor Web 01" />
+            <label style={ls} htmlFor={id('name')}>{t('cmdb.ci_name')}</label>
+            <input id={id('name')} style={is} value={form.name} onChange={e => set('name')(e.target.value)} />
           </div>
           <div>
-            <label style={ls}>Tipo</label>
-            <select style={is} value={String(form.ci_type ?? '')} onChange={e => set('ci_type')(e.target.value)}>
-              {CI_TYPES.map(t => <option key={t} value={t}>{CI_TYPE_ICONS[t]} {t}</option>)}
+            <label style={ls} htmlFor={id('type')}>{t('cmdb.ci_type')}</label>
+            <select id={id('type')} style={is} value={form.ci_type} onChange={e => set('ci_type')(e.target.value)}>
+              {CI_TYPES.map(c => <option key={c} value={c}>{CI_TYPE_ICONS[c]} {etiqueta('type_', c)}</option>)}
             </select>
           </div>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:12}}>
           <div>
-            <label style={ls}>Estado</label>
-            <select style={is} value={String(form.status ?? '')} onChange={e => set('status')(e.target.value)}>
-              {Object.entries(STATUS_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
+            <label style={ls} htmlFor={id('status')}>{t('cmdb.status')}</label>
+            <select id={id('status')} style={is} value={form.status} onChange={e => set('status')(e.target.value)}>
+              {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{etiqueta('st_', v)}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>Entorno</label>
-            <select style={is} value={String(form.environment ?? '')} onChange={e => set('environment')(e.target.value)}>
-              {Object.entries(ENV_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
+            <label style={ls} htmlFor={id('env')}>{t('cmdb.environment')}</label>
+            <select id={id('env')} style={is} value={form.environment} onChange={e => set('environment')(e.target.value)}>
+              {Object.keys(ENV_COLOR).map(v => <option key={v} value={v}>{etiqueta('env_', v)}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>{traducir('cmdb.categoria')}</label>
-            <select style={is} value={String(form.category_id ?? '')} onChange={e => set('category_id')(e.target.value)}>
-              <option value="">{traducir('cmdb.sin_categoria')}</option>
-              {categories.map((c: CI) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <label style={ls} htmlFor={id('crit')}>{t('cmdb.criticality')}</label>
+            <select id={id('crit')} style={is} value={form.criticality} onChange={e => set('criticality')(e.target.value)}>
+              {CRITICALITIES.map(v => <option key={v} value={v}>{etiqueta('crit_', v)}</option>)}
             </select>
           </div>
         </div>
-        {/* Campos específicos por tipo */}
-        {(CI_TYPE_FIELDS[String(form.ci_type ?? '')] || CI_TYPE_FIELDS.other).length > 0 && (
-          <div>
-            <div style={{fontSize: "var(--text-xs)",fontWeight:700,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10}}>
-              {CI_TYPE_ICONS[String(form.ci_type ?? '')]} {traducir('cmdb.campos_especificos')} {String(form.ci_type ?? '')}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:12}}>
+          {(['hostname','ip_address','version'] as const).map(k => (
+            <div key={k}>
+              <label style={ls} htmlFor={id(k)}>{t(`cmdb.f_${k}`)}</label>
+              <input id={id(k)} style={is} value={form[k]} onChange={e => set(k)(e.target.value)} />
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-              {(CI_TYPE_FIELDS[String(form.ci_type ?? '')] || CI_TYPE_FIELDS.other).map((field: {k:string;l:string;ph:string;type?:string}) => (
-                <div key={field.k}>
-                  <label style={ls}>{field.l}</label>
-                  <input
-                    style={is}
-                    type={field.type || 'text'}
-                    value={String(form[field.k] ?? '')}
-                    onChange={e => set(field.k)(e.target.value)}
-                    placeholder={field.ph || ''}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          ))}
+        </div>
         <div>
-          <label style={ls}>{traducir('cmdb.descripcion')}</label>
-          <textarea style={{...is, height:70, resize:'vertical'}} value={String(form.description ?? '')} onChange={e => set('description')(e.target.value)} />
+          <div style={{fontSize: "var(--text-xs)",fontWeight:700,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10}}>
+            {CI_TYPE_ICONS[form.ci_type]} {t('cmdb.class_fields', { type: etiqueta('type_', form.ci_type) })}
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
+            {campos.map(c => (
+              <div key={c.k}>
+                <label style={ls} htmlFor={id(c.k)}>{t(`cmdb.f_${c.k}`)}</label>
+                <input id={id(c.k)} style={is} type={c.type || 'text'} value={attrs[c.k] ?? ''}
+                  onChange={e => setAttrs(a => ({ ...a, [c.k]: e.target.value }))} />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label style={ls} htmlFor={id('descr')}>{t('cmdb.descripcion')}</label>
+          <textarea id={id('descr')} style={{...is, height:70, resize:'vertical'}} value={form.description} onChange={e => set('description')(e.target.value)} />
         </div>
         <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate(form)} disabled={isPending || !String(form.name ?? '').trim()} loading={isPending}>
-            {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear activo'}
+          <Button variant="secondary" onClick={onClose}>{t('cmdb.cancel')}</Button>
+          <Button onClick={() => mutate()} disabled={isPending || !form.name.trim()} loading={isPending}>
+            {isEdit ? t('cmdb.save') : t('cmdb.create')}
           </Button>
         </div>
       </div>
@@ -163,89 +202,88 @@ function CMDBItemForm({ item, categories, onClose }: { item: CI | null; categori
   )
 }
 
-type Rel = { id: string; rel_type?: string; to_item?: CI; from_item?: CI }
+type Rel = { id: string; relation_type: string; source: { id: string; name: string; type: string }; target: { id: string; name: string; type: string } }
+
+/** Una relación leída desde un CI: `hosts` de A a B se lee «A aloja a B». */
+function RelLinea({ r, ciId }: { r: Rel; ciId: string }) {
+  const t = useAppT()
+  const etiqueta = useEtiqueta()
+  const sale = r.source.id === ciId
+  const otro = sale ? r.target : r.source
+  return (
+    <span style={{ color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      {sale
+        ? <>{etiqueta('rel_', r.relation_type)} <strong style={{ color: 'var(--text-1)' }}>{CI_TYPE_ICONS[otro.type] || '📌'} {otro.name}</strong></>
+        : <><strong style={{ color: 'var(--text-1)' }}>{CI_TYPE_ICONS[otro.type] || '📌'} {otro.name}</strong> {etiqueta('rel_', r.relation_type)} {t('cmdb.this_ci')}</>}
+    </span>
+  )
+}
+
+function useRelaciones(ciId?: string) {
+  return useQuery<Rel[]>({
+    queryKey: ['item-rels', ciId],
+    queryFn: () => cmdbApi.sdRelations(ciId).then(r => r.data ?? []),
+    enabled: !!ciId,
+  })
+}
 
 function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[]; onClose: () => void }) {
-  const traducir = useAppT()
+  const t = useAppT()
+  const etiqueta = useEtiqueta()
   const toast = useToast()
   const qc = useQueryClient()
-  const [fromId, _setFromId] = useState(item.id)
   const [toId, setToId] = useState('')
   const [relType, setRelType] = useState('depends_on')
-
-  const { data: rels, isLoading } = useQuery<{ outgoing: Rel[]; incoming: Rel[] }>({
-    queryKey: ['item-rels', item.id],
-    queryFn: () => cmdbApi.relations(item.id).then(r => r.data).catch(() => ({outgoing:[],incoming:[]})),
-  })
+  const { data: rels = [], isLoading } = useRelaciones(item.id)
+  const refrescar = () => qc.invalidateQueries({ queryKey: ['item-rels'] })
 
   const { mutate: createRel, isPending } = useMutation({
-    mutationFn: () => cmdbApi.createRelation({from_item_id: fromId, to_item_id: toId, rel_type: relType}).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['item-rels', item.id] }); setToId('') },
+    mutationFn: () => cmdbApi.sdCreateRelation({ source_ci_id: item.id, target_ci_id: toId, relation_type: relType }),
+    onSuccess: () => { refrescar(); setToId('') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-
   const { mutate: deleteRel } = useMutation({
-    mutationFn: (id: string) => cmdbApi.deleteRelation(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['item-rels', item.id] }),
+    mutationFn: (id: string) => cmdbApi.sdDeleteRelation(id),
+    onSuccess: refrescar,
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
-    <Modal open onClose={onClose} title={`Relaciones — ${item.name}`}>
+    <Modal open onClose={onClose} title={t('cmdb.relations_of', { name: item.name ?? '' })}>
       <div style={{display:'flex',flexDirection:'column',gap:16}}>
-        {isLoading ? <Spinner /> : (
-          <div>
-            {(rels?.outgoing||[]).length > 0 && (
-              <div style={{marginBottom:16}}>
-                <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>{traducir('cmdb.sale_de_este_activo')}</div>
-                {(rels?.outgoing||[]).map((r: Rel) => (
-                  <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:6,marginBottom:4,fontSize: "var(--text-sm)"}}>
-                    <span style={{color:'var(--accent)'}}>{CI_TYPE_ICONS[r.to_item?.ci_type ?? '']||'📌'} {r.to_item?.name}</span>
-                    <span style={{color:'var(--text-3)',margin:'0 6px'}}>←</span>
-                    <span style={{color:'var(--text-2)'}}>{r.rel_type}</span>
-                    <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta relación?', onConfirm: () => deleteRel(r.id), danger: true }) }} style={{marginLeft:'auto',background:'none',border:'none',color:'var(--danger)',cursor:'pointer'}}>✕</button>
-                  </div>
-                ))}
+        {isLoading ? <Spinner /> : rels.length === 0 ? (
+          <div style={{textAlign:'center',padding:'20px',color:'var(--text-2)',fontSize: "var(--text-base)"}}>{t('cmdb.sin_relaciones_definidas')}</div>
+        ) : (
+          <div style={{display:'flex',flexDirection:'column',gap:4}}>
+            {rels.map(r => (
+              <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:6,fontSize: "var(--text-sm)"}}>
+                <RelLinea r={r} ciId={item.id} />
+                <button aria-label={t('cmdb.delete_relation')}
+                  onClick={() => openConfirmGlobal({ message: t('cmdb.delete_relation_q'), onConfirm: () => deleteRel(r.id), danger: true })}
+                  style={{marginLeft:'auto',background:'none',border:'none',color:'var(--danger)',cursor:'pointer'}}>✕</button>
               </div>
-            )}
-            {(rels?.incoming||[]).length > 0 && (
-              <div style={{marginBottom:16}}>
-                <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>{traducir('cmdb.apunta_a_este_activo')}</div>
-                {(rels?.incoming||[]).map((r: Rel) => (
-                  <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:6,marginBottom:4,fontSize: "var(--text-sm)"}}>
-                    <span style={{color:'var(--warning)'}}>{CI_TYPE_ICONS[r.from_item?.ci_type ?? '']||'📌'} {r.from_item?.name}</span>
-                    <span style={{color:'var(--text-3)',margin:'0 6px'}}>→</span>
-                    <span style={{color:'var(--text-2)'}}>{r.rel_type}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {(rels?.outgoing||[]).length === 0 && (rels?.incoming||[]).length === 0 && (
-              <div style={{textAlign:'center',padding:'20px',color:'var(--text-3)',fontSize: "var(--text-base)"}}>{traducir('cmdb.sin_relaciones_definidas')}</div>
-            )}
+            ))}
           </div>
         )}
         <div style={{borderTop:'1px solid var(--surface-4)',paddingTop:14}}>
-          <div style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--text-2)',marginBottom:10}}>{traducir('cmdb.anadir_relacion')}</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:8,alignItems:'center'}}>
-            <select style={is} value={toId} onChange={e => setToId(e.target.value)}>
-              <option value="">Activo destino...</option>
-              {allItems.filter((i: CI) => i.id !== item.id).map((i: CI) => (
-                <option key={i.id} value={i.id}>{CI_TYPE_ICONS[i.ci_type ?? '']||'📌'} {i.name}</option>
-              ))}
+          <div style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--text-2)',marginBottom:10}}>{t('cmdb.anadir_relacion')}</div>
+          <div style={{display:'grid',gridTemplateColumns:'auto 1fr',gap:8,alignItems:'center'}}>
+            <select aria-label={t('cmdb.relation_type')} style={{...is,width:180}} value={relType} onChange={e => setRelType(e.target.value)}>
+              {REL_TYPES.map(r => <option key={r} value={r}>{etiqueta('rel_', r)}</option>)}
             </select>
-            <select style={{...is,width:140}} value={relType} onChange={e => setRelType(e.target.value)}>
-              {REL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            <select aria-label={t('cmdb.target_ci')} style={is} value={toId} onChange={e => setToId(e.target.value)}>
+              <option value="">{t('cmdb.target_ci')}</option>
+              {allItems.filter(i => i.id !== item.id).map(i => (
+                <option key={i.id} value={i.id}>{CI_TYPE_ICONS[i.ci_type ?? ''] || '📌'} {i.name}</option>
+              ))}
             </select>
           </div>
           <div style={{marginTop:10}}>
-            <Button onClick={() => createRel()} disabled={isPending || !toId}>
-              {isPending ? '...' : 'Añadir relación'}
-            </Button>
+            <Button onClick={() => createRel()} disabled={isPending || !toId} loading={isPending}>{t('cmdb.add_relation')}</Button>
           </div>
         </div>
         <div style={{display:'flex',justifyContent:'flex-end'}}>
-          <Button variant="secondary" onClick={onClose}>Cerrar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('cmdb.close')}</Button>
         </div>
       </div>
     </Modal>
@@ -255,52 +293,44 @@ function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[];
 type ChangelogEntry = { id: string; action?: string; created_at?: string; user_name?: string; summary?: string; field?: string; old_value?: string; new_value?: string }
 
 function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
-  const traducir = useAppT()
+  const t = useAppT()
+  const etiqueta = useEtiqueta()
   const { data: entries = [], isLoading } = useQuery<ChangelogEntry[]>({
     queryKey: ['cmdb-changelog', item.id],
-    queryFn: () => cmdbApi.changelog(item.id).then(r => r.data).catch(() => []),
+    queryFn: () => cmdbApi.sdChangelog(item.id).then(r => r.data ?? []),
   })
-
   const ACTION_COLOR: Record<string, string> = { created: 'var(--success)', updated: 'var(--accent)', deleted: 'var(--danger)' }
-  const ACTION_LABEL: Record<string, string> = { created: 'Creado', updated: 'Actualizado', deleted: 'Eliminado' }
 
   return (
-    <Modal open onClose={onClose} title={`Historial — ${item.name}`} width={580}>
+    <Modal open onClose={onClose} title={t('cmdb.history_of', { name: item.name ?? '' })} width={580}>
       {isLoading ? <Spinner /> : entries.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
-          {traducir('cmdb.sin_cambios_registrados')}
+        <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>
+          {t('cmdb.sin_cambios_registrados')}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 480, overflowY: 'auto' }}>
-          {entries.map((e: ChangelogEntry) => (
-            <div key={e.id} style={{ display: 'flex', gap: 14, padding: '10px 14px',
-              background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
-              {/* Línea de tiempo */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-                  background: ACTION_COLOR[e.action ?? ''] || 'var(--text-3)' }} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '1px 7px', borderRadius: 20,
-                    background: `${ACTION_COLOR[e.action ?? ''] || 'var(--text-3)'}20`,
-                    color: ACTION_COLOR[e.action ?? ''] || 'var(--text-3)' }}>
-                    {ACTION_LABEL[e.action ?? ''] || e.action}
+          {entries.map(e => {
+            const color = ACTION_COLOR[e.action ?? ''] || 'var(--text-2)'
+            return (
+              <div key={e.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                  <span style={{ ...chip(color), fontWeight: 700 }}>{etiqueta('action_', e.action)}</span>
+                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                    {e.created_at ? new Date(e.created_at).toLocaleString() : ''}
+                    {e.user_name ? ` · ${t('cmdb.por')} ${e.user_name}` : ` · ${t('cmdb.by_discovery')}`}
                   </span>
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{e.created_at?.slice(0, 16)}</span>
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{traducir('cmdb.por')} {e.user_name}</span>
                 </div>
                 <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{e.summary}</div>
                 {e.field && (
-                  <div style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-                    Campo: <code style={{ background: 'var(--surface-3)', padding: '1px 5px', borderRadius: 4 }}>{e.field}</code>
+                  <div style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-2)', wordBreak: 'break-word' }}>
+                    <code style={{ background: 'var(--surface-3)', padding: '1px 5px', borderRadius: 4 }}>{e.field}</code>
                     {e.old_value && <span> · <span style={{ color: 'var(--danger)' }}>−{e.old_value}</span></span>}
                     {e.new_value && <span> → <span style={{ color: 'var(--success)' }}>+{e.new_value}</span></span>}
                   </div>
                 )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </Modal>
@@ -310,176 +340,180 @@ function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
 
 // ── Linked assets for a CI (drill-down panel) ────────────────────────────────
 function CILinkedAssets({ ciId }: { ciId: string }) {
-  const traducir = useAppT()
-  const { data: assets, isLoading } = useQuery<CI[]>({
+  const t = useAppT()
+  const { data: assets = [], isLoading } = useQuery<CI[]>({
     queryKey: ['ci-assets', ciId],
-    queryFn: () => cmdbApi.assetsByCI(ciId).then(r => r.data?.assets || []).catch(() => []),
+    queryFn: () => cmdbApi.assetsByCI(ciId).then(r => r.data?.assets ?? r.data ?? []),
     staleTime: 30000,
   })
   if (isLoading) return null
-  if (!assets?.length) return (
-    <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12, marginBottom: 8 }}>
-      <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>Activos vinculados</div>
-      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{traducir('cmdb.ningun_activo_vinculado_a_este_ci')}</div>
-    </div>
-  )
   return (
     <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12, marginBottom: 8 }}>
-      <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
-        Activos vinculados ({assets.length})
+      <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+        {t('cmdb.linked_assets', { n: assets.length })}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {assets.map((a: CI) => (
-          <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-4)', borderRadius: 6, padding: '6px 10px' }}>
-            <span style={{ fontSize: "var(--text-base)" }}>{CI_TYPE_ICONS[String(a.asset_type ?? '')] || '📦'}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
-              {a.serial_number ? <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>S/N: {String(a.serial_number)}</div> : null}
+      {assets.length === 0 ? (
+        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('cmdb.ningun_activo_vinculado_a_este_ci')}</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {assets.map(a => (
+            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
+                {a.serial_number ? <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>S/N {String(a.serial_number)}</div> : null}
+              </div>
+              {a.status ? <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', background: 'var(--surface-4)', padding: '2px 6px', borderRadius: 3, whiteSpace: 'nowrap' }}>{String(a.status)}</span> : null}
             </div>
-            <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', background: 'var(--surface-3)', padding: '2px 6px', borderRadius: 3, whiteSpace: 'nowrap' }}>{String(a.status || 'activo')}</span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 // ── CMDB Agents on-prem tab ──────────────────────────────────────────────────
-function CMDBAgentsTab() {
-  const traducir = useAppT()
+type Agente = { id: string; name: string; os_type?: string; is_active: boolean; last_checkin_at?: string; last_hostname?: string; ci_id?: string; token_prefix?: string }
+
+function CMDBAgentsTab({ items }: { items: CI[] }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [agentName, setAgentName] = useState('')
-  const [platform, setPlatform] = useState('linux')
+  const [osType, setOsType] = useState('linux')
   const [newToken, setNewToken] = useState<string | null>(null)
 
-  const { data: agentsData, isLoading } = useQuery<any>({
+  const { data: agents = [], isLoading } = useQuery<Agente[]>({
     queryKey: ['cmdb-agents'],
-    queryFn: () => api.get('/sd/cmdb/agents').then(r => r.data).catch(() => []),
+    queryFn: () => cmdbApi.agents().then(r => r.data ?? []),
     refetchInterval: 15000,
   })
-  const agents = Array.isArray(agentsData)
-    ? agentsData
-    : (agentsData?.agents || agentsData?.items || [])
+  const nombreCI = (id?: string) => items.find(i => i.id === id)?.name
 
   const { mutate: registerAgent, isPending } = useMutation({
-    mutationFn: () => api.post('/sd/cmdb/agents/register', { name: agentName.trim(), platform }),
+    mutationFn: () => cmdbApi.registerAgent({ name: agentName.trim(), os_type: osType }),
     onSuccess: (res) => {
-      toast.success('Agente registrado')
-      setNewToken(res.data?.token ?? res.data?.registration_token ?? null)
+      toast.success(t('cmdb.agent_registered'))
+      setNewToken(res.data?.token ?? null)
       setAgentName('')
       qc.invalidateQueries({ queryKey: ['cmdb-agents'] })
     },
-    onError: () => toast.error('Error al registrar agente'),
+    onError: e => toast.error(extractErr(e, t('cmdb.agent_register_error'))),
   })
 
-  const { mutate: deleteAgent } = useMutation({
-    mutationFn: (id: string) => api.delete(`/sd/cmdb/agents/${id}`),
-    onSuccess: () => { toast.success('Agente eliminado'); qc.invalidateQueries({ queryKey: ['cmdb-agents'] }) },
-    onError: () => toast.error('Error al eliminar agente'),
+  const { mutate: revokeAgent } = useMutation({
+    mutationFn: (id: string) => cmdbApi.deleteAgent(id),
+    onSuccess: () => { toast.success(t('cmdb.agent_revoked')); qc.invalidateQueries({ queryKey: ['cmdb-agents'] }) },
+    onError: e => toast.error(extractErr(e, t('cmdb.agent_revoke_error'))),
   })
 
-  const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', display: 'block', marginBottom: 5 }
+  const th: CSSProperties = { padding: '8px 10px', textAlign: 'left', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }
+  const td: CSSProperties = { padding: '10px 10px', color: 'var(--text-2)' }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Registration form */}
       <div style={{ ...ps }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
-          {traducir('cmdb.registrar_nuevo_agente_on_prem')}
+          {t('cmdb.registrar_nuevo_agente_on_prem')}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, alignItems: 'flex-end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto', gap: 12, alignItems: 'flex-end' }}>
           <div>
-            <label style={labelStyle}>{traducir('cmdb.nombre_del_agente')}</label>
-            <input value={agentName} onChange={e => setAgentName(e.target.value)} style={inputStyle} placeholder="agent-datacenter-01" />
+            <label style={ls} htmlFor="agent-name">{t('cmdb.nombre_del_agente')}</label>
+            <input id="agent-name" value={agentName} onChange={e => setAgentName(e.target.value)} style={is} placeholder="agent-datacenter-01" />
           </div>
           <div>
-            <label style={labelStyle}>Plataforma</label>
-            <select value={platform} onChange={e => setPlatform(e.target.value)} style={{ ...inputStyle, width: 120 }}>
-              <option value="linux">🐧 Linux</option>
-              <option value="windows">🪟 Windows</option>
-              <option value="macos">🍎 macOS</option>
+            <label style={ls} htmlFor="agent-os">{t('cmdb.platform')}</label>
+            <select id="agent-os" value={osType} onChange={e => setOsType(e.target.value)} style={{ ...is, width: 130 }}>
+              <option value="linux">Linux</option>
+              <option value="windows">Windows</option>
             </select>
           </div>
-          <Button onClick={() => registerAgent()} loading={isPending} disabled={!agentName.trim()}>
-            Registrar
-          </Button>
+          <Button onClick={() => registerAgent()} loading={isPending} disabled={!agentName.trim()}>{t('cmdb.register')}</Button>
         </div>
 
-        {/* Show token after registration */}
         {newToken && (
-          <div style={{ marginTop: 16, background: 'rgba(99,179,237,0.08)', border: '1px solid rgba(99,179,237,0.3)', borderRadius: 10, padding: '14px 18px' }}>
-            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--info)', textTransform: 'uppercase', marginBottom: 8 }}>
-              {traducir('cmdb.token_de_registro_usalo_una_sola_vez')}
+          <div style={{ marginTop: 16, background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: 10, padding: '14px 18px' }}>
+            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-1)', textTransform: 'uppercase', marginBottom: 8 }}>
+              {t('cmdb.token_de_registro_usalo_una_sola_vez')}
             </div>
             <code style={{ display: 'block', fontSize: "var(--text-sm)", color: 'var(--text-1)', wordBreak: 'break-all', fontFamily: 'var(--font-mono)', background: 'var(--surface-4)', padding: '8px 12px', borderRadius: 6 }}>
               {newToken}
             </code>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 8 }}>
-              {traducir('cmdb.ejecuta_el_agente_con')} <code style={{ fontFamily: 'var(--font-mono)' }}>CMDB_TOKEN={newToken} ./cmdb-agent</code>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 8 }}>
+              {t('cmdb.ejecuta_el_agente_con')} <code style={{ fontFamily: 'var(--font-mono)' }}>CMDB_TOKEN={newToken} ./cmdb-agent</code>
             </div>
-            <button onClick={() => setNewToken(null)} style={{ marginTop: 10, background: 'none', border: 'none', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
-              Ocultar token
-            </button>
+            <Button variant="ghost" size="sm" onClick={() => setNewToken(null)} style={{ marginTop: 10 }}>{t('cmdb.hide_token')}</Button>
           </div>
         )}
       </div>
 
-      {/* Registered agents list */}
-      <div style={{ ...ps }}>
+      <div style={{ ...ps, overflowX: 'auto' }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
-          📋 Agentes registrados ({agents.length})
+          {t('cmdb.registered_agents', { n: agents.length })}
         </div>
-        {isLoading ? <Spinner /> :
-         agents.length === 0 ? (
-           <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
-             {traducir('cmdb.no_hay_agentes_registrados_registra_el_primero')}
-           </div>
-         ) : (
-           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
-             <thead>
-               <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                 {['Nombre', 'Plataforma', 'Estado', 'Último ping', 'CIs descubiertos', ''].map(h => (
-                   <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase' }}>{h}</th>
-                 ))}
-               </tr>
-             </thead>
-             <tbody>
-               {agents.map((ag: any) => (
-                 <tr key={ag.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                   <td style={{ padding: '10px 10px', fontWeight: 600, color: 'var(--text-1)' }}>{ag.name}</td>
-                   <td style={{ padding: '10px 10px', color: 'var(--text-2)' }}>
-                     {ag.platform === 'linux' ? '🐧' : ag.platform === 'windows' ? '🪟' : '🍎'} {ag.platform}
-                   </td>
-                   <td style={{ padding: '10px 10px' }}>
-                     <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: ag.status === 'active' ? 'rgba(72,187,120,0.15)' : 'rgba(160,174,192,0.15)', color: ag.status === 'active' ? '#48bb78' : 'var(--text-2)' }}>
-                       {ag.status || 'pendiente'}
-                     </span>
-                   </td>
-                   <td style={{ padding: '10px 10px', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>
-                     {ag.last_ping ? new Date(ag.last_ping).toLocaleString() : '—'}
-                   </td>
-                   <td style={{ padding: '10px 10px', color: 'var(--text-2)', textAlign: 'center' }}>
-                     {ag.discovered_count ?? '—'}
-                   </td>
-                   <td style={{ padding: '10px 10px' }}>
-                     <button onClick={() => openConfirmGlobal({ message: `¿Eliminar agente "${ag.name}"?`, onConfirm: () => deleteAgent(ag.id), danger: true })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
-                   </td>
-                 </tr>
-               ))}
-             </tbody>
-           </table>
-         )
-        }
+        {isLoading ? <Spinner /> : agents.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-2)', fontSize: "var(--text-base)" }}>
+            {t('cmdb.no_hay_agentes_registrados_registra_el_primero')}
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                <th style={th}>{t('cmdb.nombre_del_agente')}</th>
+                <th style={th}>{t('cmdb.platform')}</th>
+                <th style={th}>{t('cmdb.status')}</th>
+                <th style={th}>{t('cmdb.last_checkin')}</th>
+                <th style={th}>{t('cmdb.its_ci')}</th>
+                <th style={th}><span style={srOnly}>{t('cmdb.actions')}</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {agents.map(ag => (
+                <tr key={ag.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                  <td style={{ ...td, fontWeight: 600, color: 'var(--text-1)' }}>{ag.name}</td>
+                  <td style={td}>{ag.os_type || '—'}</td>
+                  <td style={td}>
+                    <span style={chip(ag.is_active ? 'var(--success)' : 'var(--text-2)')}>
+                      {ag.is_active ? t('cmdb.agent_active') : t('cmdb.agent_revoked_state')}
+                    </span>
+                  </td>
+                  <td style={{ ...td, fontSize: "var(--text-sm)" }}>
+                    {ag.last_checkin_at ? new Date(ag.last_checkin_at).toLocaleString() : t('cmdb.never')}
+                  </td>
+                  <td style={td}>{nombreCI(ag.ci_id) || ag.last_hostname || '—'}</td>
+                  <td style={td}>
+                    {ag.is_active && (
+                      <button aria-label={t('cmdb.revoke_agent')} title={t('cmdb.revoke_agent')}
+                        onClick={() => openConfirmGlobal({ message: t('cmdb.revoke_agent_q', { name: ag.name }), onConfirm: () => revokeAgent(ag.id), danger: true })}
+                        style={{ ...iconBtn, color: 'var(--danger)', borderColor: 'var(--danger-border)' }}>🗑</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   )
 }
 
+/** Lo que se enseña en la columna de red: host, IP y el atributo que más dice de la clase. */
+function Red({ item }: { item: CI }) {
+  const a = item.attributes || {}
+  const extra = a.os || a.db_engine || a.url || a.image || a.cloud_provider || a.region
+  return (
+    <>
+      {item.hostname && <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}}>{item.hostname}{a.port ? `:${a.port}` : ''}</div>}
+      {item.ip_address && <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{item.ip_address}</div>}
+      {extra && <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',overflow:'hidden',textOverflow:'ellipsis',maxWidth:200}}>{String(extra)}</div>}
+      {!item.hostname && !item.ip_address && !extra && '—'}
+    </>
+  )
+}
+
 export default function CMDBPage(): JSX.Element {
-  const traducir = useAppT()
   const t = useAppT()
+  const etiqueta = useEtiqueta()
   const toast = useToast()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -491,55 +525,44 @@ export default function CMDBPage(): JSX.Element {
   const [searchQ, setSearchQ] = useState('')
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState('asc')
-  const [tab, setTab] = useState('list')  // 'list' | 'topology'
-  const [topoCI, setTopoCI] = useState<CI | null>(null)  // CI selected for topology
+  const [tab, setTab] = useState('list')  // 'list' | 'topology' | '3d' | 'agents'
+  const [topoCI, setTopoCI] = useState<CI | null>(null)
   const [topoRadius, setTopoRadius] = useState(2)
-  const [drillCI, setDrillCI] = useState<CI | null>(null)  // CI selected for drill-down panel
+  const [drillCI, setDrillCI] = useState<CI | null>(null)
 
   const toggleSort = (key: string) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('asc') }
   }
 
-  // ─── Drill-down: relations data for the panel ──────────────────────────────
-  const { data: drillRels } = useQuery<{ outgoing: Rel[]; incoming: Rel[] }>({
-    queryKey: ['item-rels', drillCI?.id],
-    queryFn: () => drillCI
-      ? cmdbApi.relations(drillCI.id).then(r => r.data).catch(() => ({ outgoing: [], incoming: [] }))
-      : Promise.resolve({ outgoing: [], incoming: [] }),
-    enabled: !!drillCI,
-  })
+  const { data: drillRels = [] } = useRelaciones(drillCI?.id)
 
-  const { data: categories = [] } = useQuery<CI[]>({
-    queryKey: ['cmdb-categories'],
-    queryFn: () => cmdbApi.categories().then(r => r.data?.items ?? r.data ?? []).catch(() => []),
+  // Todos los CIs, sin filtros: alimentan los contadores, los selectores de
+  // relación y de topología, y el nombre del CI de cada agente.
+  const { data: todos = [] } = useQuery<CI[]>({
+    queryKey: ['cmdb-items', 'todos'],
+    queryFn: () => cmdbApi.sdList({ page_size: 500 }).then(r => r.data ?? []),
   })
   const { data: items = [], isLoading } = useQuery<CI[]>({
     queryKey: ['cmdb-items', filterType, filterStatus, searchQ],
     queryFn: () => {
-      const p: Record<string, string> = {}
+      const p: Record<string, string | number> = { page_size: 500 }
       if (filterType)   p.ci_type = filterType
       if (filterStatus) p.status  = filterStatus
       if (searchQ)      p.q       = searchQ
-      return cmdbApi.items(p).then(r => r.data?.items ?? r.data ?? []).catch(() => [])
+      return cmdbApi.sdList(p).then(r => r.data ?? [])
     },
   })
 
-  const { data: sdTopologyItems = [] } = useQuery<CI[]>({
-    queryKey: ['sd-cmdb-topology-items'],
-    queryFn: () => cmdbApi.topologyItems().then(r => r.data).catch(() => []),
-    enabled: tab === 'topology',
-  })
-
   const { mutate: deleteItem } = useMutation({
-    mutationFn: (id: string) => cmdbApi.deleteItem(id),
+    mutationFn: (id: string) => cmdbApi.sdDelete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cmdb-items'] }),
-    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+    onError: e => toast.error(extractErr(e, t('cmdb.delete_error'))),
   })
 
-  const typeCounts = CI_TYPES.reduce((acc: Record<string, number>, t) => ({...acc, [t]: items.filter((i: CI) => i.ci_type === t).length}), {})
+  const typeCounts = CI_TYPES.reduce((acc: Record<string, number>, c) => ({...acc, [c]: todos.filter(i => i.ci_type === c).length}), {})
 
-  const sortedItems = [...items].sort((a: CI, b: CI) => {
+  const sortedItems = [...items].sort((a, b) => {
     const va = a[sortKey] ?? ''
     const vb = b[sortKey] ?? ''
     const cmp = typeof va === 'number' ? va - (vb as number) : String(va).localeCompare(String(vb))
@@ -549,22 +572,24 @@ export default function CMDBPage(): JSX.Element {
   const { data: topoData, isFetching: topoLoading } = useQuery<{ nodes: any[]; edges: any[] }>({
     queryKey: ['cmdb-topology', topoCI?.id, topoRadius],
     queryFn: () => topoCI
-      ? cmdbApi.topology(topoCI.id, topoRadius).then(r => r.data).catch(() => ({ nodes: [], edges: [] }))
+      ? cmdbApi.topology(topoCI.id, topoRadius).then(r => r.data)
       : Promise.resolve({ nodes: [], edges: [] }),
     enabled: tab === 'topology' && !!topoCI,
   })
 
+  const columnas: [string, string][] = [['name','ci_name'],['ci_type','ci_type'],['status','status'],['environment','environment'],['hostname','network'],['version','f_version']]
+
   return (
     <PageShell>
       <PageHeader icon={<Database size={18} />} title={t('cmdb.title')} subtitle={t('cmdb.subtitle')}
-        actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>{traducir('cmdb.nuevo_activo')}</Button>} />
+        actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('cmdb.new_ci')}</Button>} />
 
       <Tabs
         items={[
-          { id: 'list',     label: '📋 Inventario' },
-          { id: 'topology', label: '🔗 Topología' },
-          { id: '3d',       label: '🌐 3D / Blast Radius' },
-          { id: 'agents',   label: '🤖 Agentes on-prem' },
+          { id: 'list',     label: t('cmdb.tab_inventory') },
+          { id: 'topology', label: t('cmdb.tab_topology') },
+          { id: '3d',       label: t('cmdb.tab_3d') },
+          { id: 'agents',   label: t('cmdb.tab_agents') },
         ]}
         active={tab}
         onChange={setTab}
@@ -573,34 +598,27 @@ export default function CMDBPage(): JSX.Element {
 
       {/* ─── TOPOLOGÍA ─────────────────────────────────────────────── */}
       {tab === 'topology' && (
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-          {/* Graph panel */}
-          <div style={{ ...ps, flex: 1, minWidth: 0 }}>
-            {/* Selector de CI */}
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div style={{ ...ps, flex: '1 1 480px', minWidth: 0 }}>
             <div style={{display:'flex',gap:12,alignItems:'flex-end',marginBottom:20,flexWrap:'wrap'}}>
               <div style={{flex:'1 1 280px'}}>
-                <label style={ls}>CI central</label>
-                <select style={is} value={topoCI?.id || ''} onChange={e => {
-                  const ci = sdTopologyItems.find((i: CI) => i.id === e.target.value)
-                  setTopoCI(ci || null)
+                <label style={ls} htmlFor="topo-ci">{t('cmdb.central_ci')}</label>
+                <select id="topo-ci" style={is} value={topoCI?.id || ''} onChange={e => {
+                  setTopoCI(todos.find(i => i.id === e.target.value) || null)
                   setDrillCI(null)
                 }}>
-                  <option value="">Seleccionar CI…</option>
-                  {sdTopologyItems.map((ci: CI) => <option key={ci.id} value={ci.id}>{CI_TYPE_ICONS[ci.ci_type ?? '']||'📌'} {ci.name}</option>)}
+                  <option value="">{t('cmdb.select_ci')}</option>
+                  {todos.map(ci => <option key={ci.id} value={ci.id}>{CI_TYPE_ICONS[ci.ci_type ?? '']||'📌'} {ci.name}</option>)}
                 </select>
               </div>
               <div>
-                <label style={ls}>{traducir('cmdb.radio_de_expansion')}</label>
-                <select style={{...is,width:120}} value={topoRadius} onChange={e => setTopoRadius(Number(e.target.value))}>
-                  {[1,2,3].map(r => <option key={r} value={r}>{r} {r===1?'nivel':'niveles'}</option>)}
+                <label style={ls} htmlFor="topo-radius">{t('cmdb.radio_de_expansion')}</label>
+                <select id="topo-radius" style={{...is,width:120}} value={topoRadius} onChange={e => setTopoRadius(Number(e.target.value))}>
+                  {[1,2,3].map(r => <option key={r} value={r}>{t('cmdb.levels', { n: r })}</option>)}
                 </select>
               </div>
               {topoCI && (
-                <button onClick={() => { setTopoCI(null); setDrillCI(null) }}
-                  style={{alignSelf:'flex-end',padding:'8px 14px',borderRadius:8,border:'1px solid var(--surface-4)',
-                    background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>
-                  ✕ Limpiar
-                </button>
+                <Button variant="secondary" onClick={() => { setTopoCI(null); setDrillCI(null) }}>{t('cmdb.clear')}</Button>
               )}
             </div>
             {topoLoading
@@ -610,141 +628,83 @@ export default function CMDBPage(): JSX.Element {
                     nodes={topoData?.nodes || []}
                     edges={topoData?.edges || []}
                     centerName={topoCI?.name}
-                    onNodeClick={(n: CI) => {
-                      const ci = sdTopologyItems.find((i: CI) => i.id === n.id) || n
-                      setDrillCI(ci)
-                    }}
+                    onNodeClick={(n: CI) => setDrillCI(todos.find(i => i.id === n.id) || n)}
                   />
                 </Suspense>
             }
           </div>
 
-          {/* Drill-down panel */}
           {drillCI && (
             <div style={{
-              width: 310, flexShrink: 0, background: 'var(--surface-2)',
+              flex: '0 1 310px', background: 'var(--surface-2)',
               border: '1px solid var(--surface-4)', borderRadius: 12,
               padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14,
               maxHeight: 660, overflowY: 'auto',
             }}>
-              {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: "var(--text-xl-em)" }}>{CI_TYPE_ICONS[drillCI.ci_type ?? ''] || '📌'}</span>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: "var(--text-md)", color: 'var(--text-1)' }}>{drillCI.name}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{drillCI.ci_type}</div>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{drillCI.code} · {etiqueta('type_', drillCI.ci_type)}</div>
                   </div>
                 </div>
                 <button
                   onClick={() => setDrillCI(null)}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-lg)", padding: 0 }}
-                  aria-label={traducir('cmdb.cerrar_panel_de_detalle')}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-lg)", padding: 0 }}
+                  aria-label={t('cmdb.cerrar_panel_de_detalle')}
                 >✕</button>
               </div>
 
-              {/* Status + environment badges */}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {drillCI.status && (
-                  <span style={{
-                    fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20,
-                    background: (STATUS_CFG[drillCI.status ?? '']?.color || 'var(--text-3)') + '20',
-                    color: STATUS_CFG[drillCI.status ?? '']?.color || 'var(--text-3)',
-                  }}>
-                    {STATUS_CFG[drillCI.status ?? '']?.label || drillCI.status}
-                  </span>
-                )}
-                {drillCI.environment && (
-                  <span style={{
-                    fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20,
-                    background: (ENV_CFG[drillCI.environment ?? '']?.color || 'var(--text-3)') + '20',
-                    color: ENV_CFG[drillCI.environment ?? '']?.color || 'var(--text-3)',
-                  }}>
-                    {ENV_CFG[drillCI.environment ?? '']?.label || drillCI.environment}
-                  </span>
-                )}
+                {drillCI.status && <span style={chip(STATUS_COLOR[drillCI.status] || 'var(--text-2)')}>{etiqueta('st_', drillCI.status)}</span>}
+                {drillCI.environment && <span style={chip(ENV_COLOR[drillCI.environment] || 'var(--text-2)')}>{etiqueta('env_', drillCI.environment)}</span>}
+                {drillCI.is_discovered && <span style={chip('var(--accent)')}>{t('cmdb.discovered', { provider: drillCI.discovery_provider ?? '' })}</span>}
+                {drillCI.drift_detected_at && <span style={chip('var(--warning)')}>{t('cmdb.drift')}</span>}
               </div>
 
-              {/* Description */}
               {drillCI.description && (
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>
-                  {drillCI.description}
-                </div>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{drillCI.description}</div>
               )}
 
-              {/* Key attributes */}
               <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
-                <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
-                  Atributos
+                <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                  {t('cmdb.attributes')}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  {[
-                    ['Hostname', drillCI.hostname],
-                    ['IP', drillCI.ip_address || drillCI.attributes?.ip_address],
-                    ['Versión', drillCI.version],
-                    ['OS', drillCI.attributes?.os],
-                    ['Stack', drillCI.attributes?.tech_stack],
-                    ['URL', drillCI.attributes?.url],
-                    ['Proveedor cloud', drillCI.attributes?.cloud_provider],
-                    ['Región', drillCI.attributes?.region],
-                    ['Imagen', drillCI.attributes?.image],
-                    ['Cluster', drillCI.attributes?.cluster],
-                    ['RAM (GB)', drillCI.attributes?.ram_gb],
-                    ['CPU cores', drillCI.attributes?.cpu_cores],
-                  ].filter(([, v]) => v).map(([label, value]) => (
-                    <div key={String(label)} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: "var(--text-sm)" }}>
-                      <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>{String(label)}</span>
-                      <span style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={String(value)}>{String(value)}</span>
-                    </div>
-                  ))}
+                  {([
+                    ['f_hostname', drillCI.hostname], ['f_ip_address', drillCI.ip_address], ['f_version', drillCI.version],
+                    ...Object.entries(drillCI.attributes || {}).filter(([, v]) => typeof v !== 'object').map(([k, v]) => [`f_${k}`, v]),
+                  ] as [string, unknown][]).filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, value]) => {
+                    const texto = t(`cmdb.${k}`)
+                    return (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: "var(--text-sm)" }}>
+                        <span style={{ color: 'var(--text-2)', flexShrink: 0 }}>{texto === `cmdb.${k}` ? k.slice(2) : texto}</span>
+                        <span style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={String(value)}>{String(value)}</span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 
-              {/* Relations */}
-              {drillRels && ((drillRels.outgoing?.length > 0) || (drillRels.incoming?.length > 0)) && (
+              {drillRels.length > 0 && (
                 <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
-                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
-                    Relaciones
+                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                    {t('cmdb.relationships')}
                   </div>
-                  {(drillRels.outgoing || []).map((r: Rel) => (
-                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: "var(--text-xs)", marginBottom: 4 }}>
-                      <span style={{ color: 'var(--accent)' }}>↗</span>
-                      <span style={{ color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {r.rel_type} → {r.to_item?.name}
-                      </span>
-                    </div>
-                  ))}
-                  {(drillRels.incoming || []).map((r: Rel) => (
-                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: "var(--text-xs)", marginBottom: 4 }}>
-                      <span style={{ color: 'var(--warning)' }}>↙</span>
-                      <span style={{ color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {r.from_item?.name} → {r.rel_type}
-                      </span>
+                  {drillRels.map(r => (
+                    <div key={r.id} style={{ display: 'flex', fontSize: "var(--text-xs)", marginBottom: 4 }}>
+                      <RelLinea r={r} ciId={drillCI.id} />
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Linked Assets */}
               <CILinkedAssets ciId={drillCI.id} />
 
-              {/* Actions */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
-                <Button
-                  onClick={() => {
-                    const ci = sdTopologyItems.find((i: CI) => i.id === drillCI.id) || drillCI
-                    setTopoCI(ci)
-                    setDrillCI(null)
-                  }}
-                >
-                  {traducir('cmdb.ver_como_ci_central')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => { setEditing(drillCI); setShowForm(true) }}
-                >
-                  ✏ Editar activo
-                </Button>
+                <Button onClick={() => { setTopoCI(drillCI); setDrillCI(null) }}>{t('cmdb.ver_como_ci_central')}</Button>
+                <Button variant="secondary" onClick={() => { setEditing(drillCI); setShowForm(true) }}>{t('cmdb.edit_ci')}</Button>
               </div>
             </div>
           )}
@@ -753,13 +713,10 @@ export default function CMDBPage(): JSX.Element {
 
       {/* ─── INVENTARIO ─────────────────────────────────────────────── */}
       {tab === 'list' && <>
-      {/* KPIs */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:12,marginBottom:20}}>
         {([
-          ['Total activos', items.length, 'var(--text-1)'],
-          ['Activos', items.filter((i: CI)=>i.status==='active').length, 'var(--success)'],
-          ['Mantenimiento', items.filter((i: CI)=>i.status==='maintenance').length, 'var(--warning)'],
-          ['Retirados', items.filter((i: CI)=>i.status==='decommissioned').length, 'var(--danger)'],
+          [t('cmdb.kpi_total'), todos.length, 'var(--text-1)'],
+          ...Object.keys(STATUS_COLOR).map(s => [etiqueta('st_', s), todos.filter(i => i.status === s).length, STATUS_COLOR[s]]),
         ] as [string, number, string][]).map(([label,val,color]) => (
           <div key={label} style={{...ps,padding:'14px 16px'}}>
             <div style={{fontSize: "var(--text-2xl)",fontWeight:700,color}}>{val}</div>
@@ -768,165 +725,110 @@ export default function CMDBPage(): JSX.Element {
         ))}
       </div>
 
-      {/* Filtros */}
       <div style={{...ps,marginBottom:20}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr auto auto auto',gap:12,alignItems:'flex-end'}}>
-          <div>
-            <label style={ls}>Buscar</label>
-            <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
-              placeholder="Buscar activos..." style={is} />
+        <div style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'flex-end'}}>
+          <div style={{flex:'1 1 240px'}}>
+            <label style={ls} htmlFor="cmdb-q">{t('cmdb.search')}</label>
+            <input id="cmdb-q" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={t('cmdb.search_ph')} style={is} />
           </div>
           <div>
-            <label style={ls}>Tipo</label>
-            <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{...is,width:160}}>
-              <option value="">{traducir('cmdb.todos_los_tipos')}</option>
-              {CI_TYPES.map(t => <option key={t} value={t}>{CI_TYPE_ICONS[t]} {t} ({typeCounts[t]||0})</option>)}
+            <label style={ls} htmlFor="cmdb-type">{t('cmdb.ci_type')}</label>
+            <select id="cmdb-type" value={filterType} onChange={e => setFilterType(e.target.value)} style={{...is,width:200}}>
+              <option value="">{t('cmdb.todos_los_tipos')}</option>
+              {CI_TYPES.map(c => <option key={c} value={c}>{CI_TYPE_ICONS[c]} {etiqueta('type_', c)} ({typeCounts[c]||0})</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>Estado</label>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{...is,width:160}}>
-              <option value="">{traducir('cmdb.todos')}</option>
-              {Object.entries(STATUS_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
+            <label style={ls} htmlFor="cmdb-status">{t('cmdb.status')}</label>
+            <select id="cmdb-status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{...is,width:160}}>
+              <option value="">{t('cmdb.todos')}</option>
+              {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{etiqueta('st_', v)}</option>)}
             </select>
           </div>
           {(filterType||filterStatus||searchQ) && (
-            <button onClick={() => {setFilterType('');setFilterStatus('');setSearchQ('')}}
-              style={{alignSelf:'flex-end',padding:'8px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>
-              ✕ Limpiar
-            </button>
+            <Button variant="secondary" onClick={() => {setFilterType('');setFilterStatus('');setSearchQ('')}}>{t('cmdb.clear')}</Button>
           )}
         </div>
       </div>
 
       {isLoading ? <Spinner /> : items.length === 0 ? (
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
-          <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>🖥️</div>
-          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{traducir('cmdb.sin_activos_it')}</div>
-          <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>{traducir('cmdb.registra_servidores_aplicaciones_bases_de_datos_y')}</div>
-          <Button onClick={() => { setEditing(null); setShowForm(true) }}>{traducir('cmdb.anadir_primer_activo')}</Button>
+          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{todos.length ? t('cmdb.no_match') : t('cmdb.no_cis')}</div>
+          {!todos.length && <>
+            <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>{t('cmdb.registra_servidores_aplicaciones_bases_de_datos_y')}</div>
+            <Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('cmdb.new_ci')}</Button>
+          </>}
         </div>
       ) : (
-        <div style={ps}>
+        <div style={{...ps, overflowX:'auto'}}>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize: "var(--text-base)"}}>
             <thead>
               <tr style={{borderBottom:'1px solid var(--surface-4)'}}>
-              {[['name','Activo'],['ci_type','Tipo'],['status','Estado'],['environment','Entorno'],['hostname','Hostname / IP'],['version','Versión']].map(([key, label]) => (
-                <th key={key} onClick={() => toggleSort(key)}
-                  style={{textAlign:'left',padding:'8px 12px',fontSize: "var(--text-xs)",cursor:'pointer',userSelect:'none',whiteSpace:'nowrap',
-                    color: sortKey === key ? 'var(--accent)' : 'var(--text-2)',
-                    textTransform:'uppercase',letterSpacing:'.06em'}}>
-                  {label}{sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+              {columnas.map(([key, label]) => (
+                <th key={key} aria-sort={sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  style={{textAlign:'left',padding:0,whiteSpace:'nowrap'}}>
+                  <button onClick={() => toggleSort(key)}
+                    style={{background:'none',border:'none',padding:'8px 12px',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-xs)",
+                      color: sortKey === key ? 'var(--accent)' : 'var(--text-2)', textTransform:'uppercase',letterSpacing:'.06em'}}>
+                    {t(`cmdb.${label}`)}{sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+                  </button>
                 </th>
               ))}
-              <th style={{padding:'8px 12px'}}></th>
+              <th style={{padding:'8px 12px'}}><span style={srOnly}>{t('cmdb.actions')}</span></th>
               </tr>
             </thead>
             <tbody>
-              {sortedItems.map((item: CI, i: number) => {
-                const sc = STATUS_CFG[item.status ?? ''] || STATUS_CFG.active
-                const ec = ENV_CFG[item.environment ?? ''] || ENV_CFG.production
-                return (
-                  <tr key={item.id} style={{borderBottom:'1px solid var(--surface-4)',background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
+              {sortedItems.map(item => (
+                  <tr key={item.id} style={{borderBottom:'1px solid var(--surface-4)'}}>
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
-                        <span style={{fontSize: "var(--text-lg)"}}>{CI_TYPE_ICONS[item.ci_type ?? '']||'📌'}</span>
-                        <div>
+                        <span style={{fontSize: "var(--text-lg)"}} aria-hidden>{CI_TYPE_ICONS[item.ci_type ?? '']||'📌'}</span>
+                        <div style={{minWidth:0}}>
                           <div style={{fontWeight:600}}>{item.name}</div>
-                          {item.description && <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:200}}>{item.description}</div>}
+                          <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>
+                            {item.code}{item.is_discovered ? ` · ${t('cmdb.discovered', { provider: item.discovery_provider ?? '' })}` : ''}
+                          </div>
                         </div>
                       </div>
                     </td>
-                    <td style={{padding:'10px 12px',color:'var(--text-2)',fontSize: "var(--text-sm)"}}>{item.ci_type}</td>
+                    <td style={{padding:'10px 12px',color:'var(--text-2)',fontSize: "var(--text-sm)"}}>{etiqueta('type_', item.ci_type)}</td>
                     <td style={{padding:'10px 12px'}}>
-                      <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,
-                        background:sc.color+'20',color:sc.color}}>{sc.label}</span>
+                      <span style={chip(STATUS_COLOR[item.status ?? ''] || 'var(--text-2)')}>{etiqueta('st_', item.status)}</span>
+                      {item.drift_detected_at && <span style={{...chip('var(--warning)'), marginLeft: 6}}>{t('cmdb.drift')}</span>}
                     </td>
                     <td style={{padding:'10px 12px'}}>
-                      <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,
-                        background:ec.color+'20',color:ec.color}}>{ec.label}</span>
+                      {item.environment ? <span style={chip(ENV_COLOR[item.environment] || 'var(--text-2)')}>{etiqueta('env_', item.environment)}</span> : '—'}
                     </td>
-                    <td style={{padding:'10px 12px',fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
-                      {/* Mostrar info relevante según el tipo de CI */}
-                      {(item.ci_type === 'server' || item.ci_type === 'network' || item.ci_type === 'endpoint' || item.ci_type === 'storage') && (
-                        <>
-                          {item.hostname && <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}}>{item.hostname}</div>}
-                          {(item.ip_address || (item.attributes||{}).ip_address) && (
-                            <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-xs)",color:'var(--text-3)'}}>
-                              {item.ip_address || (item.attributes||{}).ip_address}
-                            </div>
-                          )}
-                          {(item.attributes||{}).os && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{(item.attributes||{}).os}</div>}
-                        </>
-                      )}
-                      {item.ci_type === 'application' && (
-                        <>
-                          {(item.attributes||{}).url && <div style={{fontSize: "var(--text-xs)",color:'var(--accent)',overflow:'hidden',textOverflow:'ellipsis',maxWidth:180}}>{(item.attributes||{}).url}</div>}
-                          {(item.attributes||{}).tech_stack && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{(item.attributes||{}).tech_stack}</div>}
-                          {(item.attributes||{}).sla_tier && <span style={{fontSize: "var(--text-2xs)",background:'var(--accent-muted)',color:'var(--accent)',padding:'1px 6px',borderRadius:4}}>{(item.attributes||{}).sla_tier}</span>}
-                        </>
-                      )}
-                      {item.ci_type === 'database' && (
-                        <>
-                          {(item.attributes||{}).db_engine && <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}}>{(item.attributes||{}).db_engine}</div>}
-                          {item.hostname && <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{item.hostname}{(item.attributes||{}).port ? ':' + (item.attributes||{}).port : ''}</div>}
-                        </>
-                      )}
-                      {item.ci_type === 'cloud' && (
-                        <>
-                          {(item.attributes||{}).cloud_provider && <div style={{fontSize: "var(--text-sm)"}}>{(item.attributes||{}).cloud_provider}</div>}
-                          {(item.attributes||{}).region && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{(item.attributes||{}).region}</div>}
-                          {(item.attributes||{}).instance_type && <div style={{fontSize: "var(--text-xs)",fontFamily:'var(--font-mono)'}}>{(item.attributes||{}).instance_type}</div>}
-                        </>
-                      )}
-                      {item.ci_type === 'container' && (
-                        <>
-                          {(item.attributes||{}).image && <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-xs)"}}>{(item.attributes||{}).image}</div>}
-                          {(item.attributes||{}).cluster && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{(item.attributes||{}).cluster}{(item.attributes||{}).namespace ? ' / ' + (item.attributes||{}).namespace : ''}</div>}
-                        </>
-                      )}
-                      {item.ci_type === 'service' && (
-                        <>
-                          {(item.attributes||{}).url && <div style={{fontSize: "var(--text-xs)",color:'var(--accent)'}}>{(item.attributes||{}).url}</div>}
-                          {(item.attributes||{}).owner_team && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{(item.attributes||{}).owner_team}</div>}
-                        </>
-                      )}
-                    </td>
+                    <td style={{padding:'10px 12px',fontSize: "var(--text-sm)",color:'var(--text-2)'}}><Red item={item} /></td>
                     <td style={{padding:'10px 12px',fontSize: "var(--text-sm)",color:'var(--text-2)',fontFamily:'var(--font-mono)'}}>{item.version||'—'}</td>
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex',gap:6}}>
-                        <button onClick={() => setHistoryItem(item)}
-                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}} title={traducir('cmdb.ver_historial_de_cambios')}>📋</button>
-                        <button onClick={() => setRelItem(item)}
-                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>🔗</button>
-                        <button onClick={() => { setEditing(item); setShowForm(true) }}
-                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>✏</button>
-                        <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar "${item.name}"?`, onConfirm: () => deleteItem(item.id), danger: true }) }}
-                          style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:6,padding:'4px 8px',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-xs)"}}>🗑</button>
+                        <button onClick={() => setHistoryItem(item)} style={iconBtn} aria-label={t('cmdb.ver_historial_de_cambios')} title={t('cmdb.ver_historial_de_cambios')}>📋</button>
+                        <button onClick={() => setRelItem(item)} style={iconBtn} aria-label={t('cmdb.relationships')} title={t('cmdb.relationships')}>🔗</button>
+                        <button onClick={() => { setEditing(item); setShowForm(true) }} style={iconBtn} aria-label={t('cmdb.edit_ci')} title={t('cmdb.edit_ci')}>✏</button>
+                        <button onClick={() => openConfirmGlobal({ message: t('cmdb.delete_ci_q', { name: item.name ?? '' }), onConfirm: () => deleteItem(item.id), danger: true })}
+                          style={{...iconBtn, borderColor:'var(--danger-border)', color:'var(--danger)'}} aria-label={t('cmdb.delete_ci')} title={t('cmdb.delete_ci')}>🗑</button>
                       </div>
                     </td>
                   </tr>
-                )
-              })}
+              ))}
             </tbody>
           </table>
         </div>
       )}
       </>}
 
-      {showForm && <CMDBItemForm item={editing} categories={categories} onClose={() => { setShowForm(false); setEditing(null) }} />}
-      {relItem && <RelationsModal item={relItem} allItems={items} onClose={() => setRelItem(null)} />}
+      {showForm && <CMDBItemForm item={editing} onClose={() => { setShowForm(false); setEditing(null) }} />}
+      {relItem && <RelationsModal item={relItem} allItems={todos} onClose={() => setRelItem(null)} />}
       {historyItem && <ChangelogModal item={historyItem} onClose={() => setHistoryItem(null)} />}
 
-      {/* ── CMDB 3D Graph + Blast Radius ── */}
       {tab === '3d' && (
         <Suspense fallback={<Spinner />}>
           <Cmdb3dGraph />
         </Suspense>
       )}
 
-      {/* ─── AGENTES ON-PREM ─────────────────────────────────────────────── */}
-      {tab === 'agents' && <CMDBAgentsTab />}
+      {tab === 'agents' && <CMDBAgentsTab items={todos} />}
     </PageShell>
   )
 }

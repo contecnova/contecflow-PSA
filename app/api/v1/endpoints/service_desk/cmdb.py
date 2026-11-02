@@ -19,9 +19,10 @@ from app.schemas.service_desk import CIIn
 from app.services.service_desk.cmdb_service import (
     list_cmdb_items, serialize_cmdb_items, enforce_ci_org_constraints,
     build_ci, get_scoped_ci_or_404, apply_ci_update, get_ci_deprecation_impact_payload,
+    delete_ci, ci_changelog,
 )
 from app.services.service_desk.cmdb_relation_service import (
-    get_ci_relations_payload, build_ci_relation, get_ci_impact_payload,
+    get_ci_relations_payload, build_ci_relation, delete_ci_relation, get_ci_impact_payload,
     get_ci_topology_graph_payload, get_dependency_graph_d3, get_blast_radius_summary,
 )
 from app.services.service_desk.cmdb_discovery_service import (
@@ -38,6 +39,14 @@ from app.services.service_desk.cmdb_discovery_service import (
 )
 
 router = APIRouter()
+
+
+def _org(user: User) -> Optional[str]:
+    """La organizacion a la que se acota; `None` solo para el superadministrador.
+
+    Un usuario sin organizacion no ve nada: "-" no casa con ninguna.
+    """
+    return None if user.is_superadmin else (user.organization_id or "-")
 
 
 class DiscoveryProviderIn(BaseModel):
@@ -87,11 +96,14 @@ def _serialize_discovery_job(j: CMDBDiscoveryJob) -> dict:
 
 @router.get("/cmdb", summary="Inventario CMDB")
 def list_cmdb(
-    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=500),
+    q: Optional[str] = Query(None, description="Busca en nombre, codigo, host e IP"),
+    ci_type: Optional[str] = Query(None), status: Optional[str] = Query(None),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     return APIListResponse.ok(
-        items=serialize_cmdb_items(list_cmdb_items(db, current_user, page, page_size)),
+        items=serialize_cmdb_items(list_cmdb_items(db, current_user, page, page_size,
+                                                   q=q, ci_type=ci_type, status=status)),
         page=page, page_size=page_size,
     )
 
@@ -99,7 +111,7 @@ def list_cmdb(
 @router.post("/cmdb", summary="Crear CI")
 def create_ci(payload: CIIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     enforce_ci_org_constraints(db, current_user, payload, is_update=False)
-    ci = build_ci(db, payload)
+    ci = build_ci(db, payload, current_user)
     _commit_or_rollback(db); db.refresh(ci)
     return APIResponse.ok(data={"id": ci.id, "code": ci.code})
 
@@ -108,9 +120,22 @@ def create_ci(payload: CIIn, db: Session = Depends(get_db), current_user: User =
 def update_ci(ci_id: str, payload: CIIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     ci = get_scoped_ci_or_404(db, current_user, ci_id)
     enforce_ci_org_constraints(db, current_user, payload, is_update=True)
-    apply_ci_update(ci, payload)
+    apply_ci_update(db, ci, payload, current_user)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
+
+
+@router.delete("/cmdb/{ci_id}", summary="Borrar CI (logico: lo que lo cita lo conserva)")
+def remove_ci(ci_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    delete_ci(db, get_scoped_ci_or_404(db, current_user, ci_id), current_user)
+    _commit_or_rollback(db)
+    return APIResponse.ok(data={"ok": True})
+
+
+@router.get("/cmdb/{ci_id}/changelog", summary="Historial de cambios del CI")
+def get_ci_changelog(ci_id: str, limit: int = Query(100, ge=1, le=500),
+                     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return APIListResponse.ok(items=ci_changelog(db, get_scoped_ci_or_404(db, current_user, ci_id), limit))
 
 
 @router.get("/cmdb/{ci_id}/relations", summary="Relaciones del CI (impacto)")
@@ -123,6 +148,13 @@ def create_ci_relation(payload: dict = Body(...), db: Session = Depends(get_db),
     rel = build_ci_relation(db, current_user, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"id": rel.id, "ok": True})
+
+
+@router.delete("/cmdb/relations/{relation_id}", summary="Quitar una relación entre CIs")
+def remove_ci_relation(relation_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    delete_ci_relation(db, current_user, relation_id)
+    _commit_or_rollback(db)
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.get("/cmdb/{ci_id}/impact", summary="Análisis de impacto — CIs afectados si este falla")
@@ -235,7 +267,7 @@ def reconciliation_health(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return APIResponse.ok(data=get_reconciliation_health(db, provider_type=provider_type))
+    return APIResponse.ok(data=get_reconciliation_health(db, provider_type=provider_type, org_id=_org(current_user)))
 
 
 @router.get('/cmdb/discovery/reconciliation-candidates', summary='Preview deduplicación CMDB con confidence score')
@@ -245,8 +277,8 @@ def reconciliation_candidates(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    _ = current_user
-    items = deduplicate_candidates(db, provider_type=provider_type, min_confidence=min_confidence)
+    items = deduplicate_candidates(db, provider_type=provider_type, min_confidence=min_confidence,
+                                   org_id=_org(current_user))
     return APIResponse.ok(data={"items": items, "count": len(items), "min_confidence": min_confidence})
 
 
@@ -258,12 +290,12 @@ def reconciliation_merge(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    _ = current_user
     result = auto_merge_duplicates(
         db,
         provider_type=provider_type,
         min_confidence=min_confidence,
         limit=limit,
+        org_id=_org(current_user),
     )
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True, **result})
@@ -333,8 +365,7 @@ def cmdb_drift_report(
     Para cada CI drifted incluye los últimos cambios del changelog, la IP actual
     y el proveedor de discovery que lo detectó.
     """
-    _ = current_user
-    return APIResponse.ok(data=get_drift_report(db, hours=hours))
+    return APIResponse.ok(data=get_drift_report(db, hours=hours, org_id=_org(current_user)))
 
 
 @router.post(
@@ -433,6 +464,7 @@ def register_agent(
         description=payload.description,
         os_type=payload.os_type,
         created_by=str(current_user.id),
+        organization_id=current_user.organization_id,
     )
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
@@ -466,10 +498,10 @@ def agent_checkin(
 @router.get("/cmdb/agents", summary="Listar agentes on-premise registrados (admin)")
 def list_agents(
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
-    """Return all registered agents with last check-in metadata."""
-    return APIListResponse.ok(items=list_agent_registrations(db))
+    """Los agentes registrados de la organizacion, con su ultimo check-in."""
+    return APIListResponse.ok(items=list_agent_registrations(db, _org(current_user)))
 
 
 @router.delete("/cmdb/agents/{agent_id}", summary="Revocar token de agente on-premise (admin)")
@@ -480,7 +512,7 @@ def revoke_agent(
 ):
     """Revoke an agent's token (soft-disable).  The agent will be rejected at next check-in."""
     enforce_abac(db, current_user, "sd_cmdb_agent", agent_id, action="delete")
-    revoke_agent_token(db, agent_id)
+    revoke_agent_token(db, agent_id, _org(current_user))
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True, "agent_id": agent_id, "revoked": True})
 
@@ -489,10 +521,10 @@ def revoke_agent(
 def rotate_agent(
     agent_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
     """Invalidate the current token and generate a new one.  Returned once only."""
-    result = rotate_agent_token(db, agent_id)
+    result = rotate_agent_token(db, agent_id, _org(current_user))
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
 
@@ -517,7 +549,7 @@ def snmp_network_scan(
     payload: SNMPScanIn,
     persist: bool = Query(True, description="Reconcile discovered devices into CMDB"),
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
     """Ad-hoc SNMP scan of a list of hosts or CIDR ranges.
 
@@ -540,7 +572,9 @@ def snmp_network_scan(
 
     stats: dict = {}
     if persist and discovered:
-        stats = reconcile_cis(db, discovered, "snmp")
+        # Un escaneo puntual no ve la red entera: no retira lo que no encuentra.
+        stats = reconcile_cis(db, discovered, "snmp", organization_id=current_user.organization_id,
+                              retirar_ausentes=False)
         _commit_or_rollback(db)
 
     return APIResponse.ok(data={

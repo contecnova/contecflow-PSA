@@ -166,10 +166,20 @@ def scope_ci_query(q, db: Session, current_user: User):
     org_project_ids = _org_project_ids_subquery(db, current_user)
     if org_user_ids is None or org_project_ids is None:
         return q.filter(False)
+    # Auditoria 2026-11: se acotaba solo por responsable o proyecto, asi que un
+    # CI sin ninguno de los dos —todos los descubiertos— no lo veia nadie.
+    # Manda la organizacion del CI; responsable y proyecto quedan para filas
+    # viejas sin ella.
     return q.filter(
         or_(
-            ConfigurationItem.owner_user_id.in_(org_user_ids),
-            ConfigurationItem.project_id.in_(org_project_ids),
+            ConfigurationItem.organization_id == current_user.organization_id,
+            and_(
+                ConfigurationItem.organization_id.is_(None),
+                or_(
+                    ConfigurationItem.owner_user_id.in_(org_user_ids),
+                    ConfigurationItem.project_id.in_(org_project_ids),
+                ),
+            ),
         )
     )
 

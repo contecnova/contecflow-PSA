@@ -2,7 +2,7 @@
 Contecflow v21 — Modelos:
   1. Etiquetas wiki (WikiTag, WikiPageTag)
   2. Comentarios internos en tickets (campo is_internal en TicketInternalComment)
-  3. CMDB completo (CMDBItem, CMDBRelation, CMDBCategory)
+  3. CMDB: historial, descubrimiento y agentes (los CIs, en service_desk)
   4. Dashboard de agente (AgentMetricSnapshot)
   5. Wiki PDF export job (WikiExportJob)
   6. Kanban avanzado: WIP limits, swimlanes (KanbanConfig, KanbanColumn)
@@ -63,72 +63,11 @@ class TicketInternalComment(Base):
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
 
-# ─── 3. CMDB COMPLETO ────────────────────────────────────────────────────────
-
-class CMDBCategory(Base):
-    __tablename__ = "cmdb_categories"
-    id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    name       = Column(String(100), nullable=False)
-    icon       = Column(String(10),  nullable=True)
-    color      = Column(String(20),  default="#7a8aaa")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    items      = relationship("CMDBItem", back_populates="category")
-
-
-class CMDBItem(Base):
-    """Elemento del inventario de activos IT."""
-    __tablename__ = "cmdb_items"
-    id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    category_id  = Column(String(36), ForeignKey("cmdb_categories.id",
-                            ondelete="SET NULL"), nullable=True, index=True)
-    name         = Column(String(200), nullable=False)
-    ci_type      = Column(String(50),  nullable=False, index=True)   # server, app, db, network, service…
-    is_active    = Column(Boolean, default=True, nullable=False)
-    status       = Column(String(30),  default="active")             # active, maintenance, decommissioned
-    environment  = Column(String(20),  default="production")         # production, staging, dev
-    owner_id     = Column(String(36),  ForeignKey("users.id"), nullable=True)
-    description  = Column(Text,        nullable=True)
-    attributes   = Column(Text,        nullable=True)                # JSON con atributos custom
-    ip_address   = Column(String(45),  nullable=True)
-    hostname     = Column(String(200), nullable=True)
-    version      = Column(String(50),  nullable=True)
-    # Discovery fields (Fase 1 — CMDB auto-discovery)
-    external_id       = Column(String(255), nullable=True, index=True)  # ID en el sistema origen
-    discovery_provider = Column(String(50),  nullable=True)            # aws | kubernetes | vmware
-    last_discovered_at = Column(DateTime(timezone=True), nullable=True) # última vez visto en scan
-    is_discovered     = Column(Boolean, default=False)                  # True = gestionado por discovery
-    # Drift detection fields (ITSM-P04)
-    config_hash          = Column(String(64),  nullable=True)           # SHA-256 of attributes JSON
-    drift_detected_at    = Column(DateTime(timezone=True), nullable=True)  # last drift timestamp
-    baseline_attributes  = Column(Text, nullable=True)                  # approved baseline snapshot
-    created_at   = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at   = Column(DateTime(timezone=True), server_default=func.now(),
-                          onupdate=func.now())
-    category     = relationship("CMDBCategory", back_populates="items")
-    relations_from = relationship("CMDBRelation", foreign_keys="CMDBRelation.from_item_id",
-                                  back_populates="from_item", cascade="all, delete-orphan")
-    relations_to   = relationship("CMDBRelation", foreign_keys="CMDBRelation.to_item_id",
-                                  back_populates="to_item")
-
-
-class CMDBRelation(Base):
-    """Relación entre elementos CMDB (depende de, hospedado en, conectado a…)."""
-    __tablename__ = "cmdb_relations"
-    id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    from_item_id = Column(String(36), ForeignKey("cmdb_items.id", ondelete="CASCADE"),
-                          nullable=False, index=True)
-    to_item_id   = Column(String(36), ForeignKey("cmdb_items.id", ondelete="CASCADE"),
-                          nullable=False)
-    rel_type     = Column(String(50),  default="depends_on")   # depends_on, runs_on, connects_to, hosts
-    is_active    = Column(Boolean, default=True, nullable=False)
-    created_at   = Column(DateTime(timezone=True), server_default=func.now())
-    from_item    = relationship("CMDBItem", foreign_keys=[from_item_id],
-                                back_populates="relations_from")
-    to_item      = relationship("CMDBItem", foreign_keys=[to_item_id],
-                                back_populates="relations_to")
+# ─── 3. CMDB ─────────────────────────────────────────────────────────────────
+# Los CIs y sus relaciones viven en `sd_configuration_items` / `sd_ci_relations`
+# (app/models/service_desk/cmdb.py). Auditoria 2026-11: aqui habia una segunda
+# CMDB (`cmdb_items`) que no podia elegirse en un ticket; la migracion 110 la
+# fundio con la del service desk.
 
 
 # ─── 4. DASHBOARD DE AGENTE ───────────────────────────────────────────────────
@@ -271,7 +210,7 @@ class CMDBChangelog(Base):
     __tablename__ = "cmdb_changelog"
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    item_id    = Column(String(36), ForeignKey("cmdb_items.id", ondelete="CASCADE"),
+    item_id    = Column(String(36), ForeignKey("sd_configuration_items.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     user_id    = Column(String(36), ForeignKey("users.id"), nullable=True)
     action     = Column(String(30), nullable=False)   # created | updated | deleted
@@ -280,7 +219,7 @@ class CMDBChangelog(Base):
     new_value  = Column(Text, nullable=True)
     summary    = Column(String(500), nullable=True)   # resumen legible
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    item = relationship("CMDBItem", foreign_keys=[item_id])
+    item = relationship("ConfigurationItem", foreign_keys=[item_id])
     user = relationship("User",     foreign_keys=[user_id])
 
 
@@ -352,11 +291,11 @@ class CMDBAgentRegistration(Base):
     last_checkin_at = Column(DateTime(timezone=True), nullable=True)
     last_checkin_ip = Column(String(45), nullable=True)
     last_hostname   = Column(String(255), nullable=True)
-    ci_id         = Column(String(36),  ForeignKey("cmdb_items.id", ondelete="SET NULL"), nullable=True)
+    ci_id         = Column(String(36),  ForeignKey("sd_configuration_items.id", ondelete="SET NULL"), nullable=True)
     created_by    = Column(String(36),  ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     updated_at    = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    ci         = relationship("CMDBItem",  foreign_keys=[ci_id])
+    ci         = relationship("ConfigurationItem", foreign_keys=[ci_id])
     creator    = relationship("User",      foreign_keys=[created_by])
 

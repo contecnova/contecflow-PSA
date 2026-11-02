@@ -12,9 +12,38 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.models.cmdb import CMDBChangelog, CMDBItem
+from app.models.cmdb import CMDBChangelog
+from app.models.service_desk import CIStatus, CIType, ConfigurationItem
 from app.services.cmdb.parser import compute_config_hash, string_similarity
 from app.services.cmdb.utils import utcnow, PROVIDER_AGENT
+
+#: Lo que el descubrimiento dice del estado, en el estado de la CMDB.
+ESTADO_DESCUBIERTO = {
+    "active": CIStatus.operational,
+    "maintenance": CIStatus.maintenance,
+    "decommissioned": CIStatus.retired,
+}
+_RETIRADO = CIStatus.retired
+
+
+def _tipo(valor: str | None) -> CIType:
+    try:
+        return CIType((valor or "other").lower())
+    except ValueError:
+        return CIType.other
+
+
+def _estado(valor) -> CIStatus:
+    if isinstance(valor, CIStatus):
+        return valor
+    return ESTADO_DESCUBIERTO.get((valor or "active").lower(), CIStatus.operational)
+
+
+def _de_la_organizacion(q, org_id: str | None):
+    """Acota a una organizacion; `None` es el superadministrador: todo."""
+    if org_id is None:
+        return q
+    return q.filter(ConfigurationItem.organization_id == org_id)
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 def write_changelog(
     db: Session,
-    item: CMDBItem,
+    item: ConfigurationItem,
     action: str,
     field: str | None,
     old_value: str | None,
@@ -35,6 +64,7 @@ def write_changelog(
     """Append a CMDBChangelog record for a CI change detected during discovery."""
     entry = CMDBChangelog(
         id=str(uuid4()),
+        organization_id=item.organization_id,
         item_id=item.id,
         user_id=None,  # system/scheduler — no human user
         action=action,
@@ -54,40 +84,54 @@ def reconcile_cis(
     db: Session,
     discovered_cis: list[dict],
     provider_type: str,
+    *,
+    provider=None,
+    organization_id: str | None = None,
+    retirar_ausentes: bool = True,
 ) -> dict[str, int]:
-    """Compara CIs descubiertos con los existentes en la BD y aplica cambios.
+    """Compara los CIs descubiertos con la CMDB y aplica los cambios.
 
-    Estrategia de matching: external_id + discovery_provider (únicos juntos).
-    - Si no existe → CREATE.
-    - Si existe y hay cambios → UPDATE (name, status, ip, hostname, version, attributes).
-    - CIs que pertenecen al proveedor pero no aparecen en el scan → deactivate (status="decommissioned").
+    Se casa por `external_id` dentro del proveedor: el concreto si se pasa
+    `provider` (dos proveedores AWS ya no se pisan) y, si no, el tipo.
 
-    Returns:
-        dict con contadores: {"created": N, "updated": N, "deactivated": N}
+    - No existe -> se crea, con codigo y en la organizacion del proveedor.
+    - Existe y cambia -> se actualiza y queda en el historial; si cambia el
+      hash de `attributes`, se marca la deriva.
+    - Del mismo proveedor y no aparece -> se retira, salvo con
+      `retirar_ausentes=False`.
+
+    Auditoria 2026-11: escribia en `cmdb_items`, una CMDB que los tickets no
+    veian, y sin organizacion. Y el check-in de un agente pasaba un solo host
+    con el tipo `agent`: retiraba los CIs de **todos los demas agentes**. El
+    check-in llama ahora con `retirar_ausentes=False`.
     """
+    from app.services.sla_service import next_ci_number
+
     created = updated = deactivated = 0
     now = utcnow()
+    org_id = organization_id if organization_id is not None else getattr(provider, "organization_id", None)
+
+    def _del_proveedor(q):
+        q = q.filter(ConfigurationItem.discovery_provider == provider_type)
+        if provider is not None:
+            q = q.filter(ConfigurationItem.discovery_provider_id == provider.id)
+        return q.filter(ConfigurationItem.organization_id == org_id) if org_id else q
 
     discovered_ext_ids = {ci["external_id"] for ci in discovered_cis}
 
     for ci_data in discovered_cis:
         ext_id = ci_data["external_id"]
-        existing: CMDBItem | None = (
-            db.query(CMDBItem)
-            .filter(
-                CMDBItem.external_id == ext_id,
-                CMDBItem.discovery_provider == provider_type,
-            )
-            .first()
-        )
+        existing: ConfigurationItem | None = _del_proveedor(
+            db.query(ConfigurationItem).filter(ConfigurationItem.external_id == ext_id)).first()
 
         if existing is None:
-            # CREATE
-            new_ci = CMDBItem(
+            new_ci = ConfigurationItem(
                 id=str(uuid4()),
+                organization_id=org_id,
+                code=next_ci_number(db),
                 name=ci_data.get("name", ext_id),
-                ci_type=ci_data.get("ci_type", "server"),
-                status=ci_data.get("status", "active"),
+                ci_type=_tipo(ci_data.get("ci_type", "server")),
+                status=_estado(ci_data.get("status")),
                 environment=ci_data.get("environment", "production"),
                 ip_address=ci_data.get("ip_address"),
                 hostname=ci_data.get("hostname"),
@@ -96,11 +140,13 @@ def reconcile_cis(
                 attributes=ci_data.get("attributes"),
                 external_id=ext_id,
                 discovery_provider=provider_type,
+                discovery_provider_id=getattr(provider, "id", None),
                 is_discovered=True,
                 last_discovered_at=now,
                 config_hash=compute_config_hash(ci_data.get("attributes")),
             )
             db.add(new_ci)
+            db.flush()  # el siguiente codigo tiene que ver este
             write_changelog(
                 db, new_ci, "created", None, None,
                 ci_data.get("name", ext_id),
@@ -108,22 +154,26 @@ def reconcile_cis(
             )
             created += 1
         else:
-            # UPDATE if any field changed; detect attribute/config drift separately
             changed = False
             for field in ("name", "status", "ip_address", "hostname", "version",
                           "description", "attributes", "environment"):
                 new_val = ci_data.get(field)
-                if new_val is not None and getattr(existing, field) != new_val:
+                if new_val is None:
+                    continue
+                if field == "status":
+                    new_val = _estado(new_val)
+                if getattr(existing, field) != new_val:
+                    antes = getattr(existing, field, "")
                     write_changelog(
                         db, existing, "updated", field,
-                        str(getattr(existing, field, "")),
-                        str(new_val),
+                        str(getattr(antes, "value", antes)),
+                        str(getattr(new_val, "value", new_val)),
                         f"[discovery:{provider_type}] Campo '{field}' actualizado",
                     )
                     setattr(existing, field, new_val)
                     changed = True
 
-            # Drift detection: compare config hash of attributes
+            # Deriva: cambia el hash de los atributos.
             new_hash = compute_config_hash(ci_data.get("attributes"))
             if new_hash and existing.config_hash and new_hash != existing.config_hash:
                 existing.drift_detected_at = now
@@ -134,28 +184,25 @@ def reconcile_cis(
             existing.config_hash = new_hash
             existing.last_discovered_at = now
             existing.is_discovered = True
+            if provider is not None:
+                existing.discovery_provider_id = provider.id
             if changed:
                 updated += 1
 
-    # Deactivate stale CIs (visible to this provider but not seen in current scan)
-    stale = (
-        db.query(CMDBItem)
-        .filter(
-            CMDBItem.discovery_provider == provider_type,
-            CMDBItem.is_discovered.is_(True),
-            CMDBItem.status != "decommissioned",
-        )
-        .all()
-    )
-    for ci in stale:
-        if ci.external_id not in discovered_ext_ids:
-            write_changelog(
-                db, ci, "updated", "status",
-                ci.status, "decommissioned",
-                f"[discovery:{provider_type}] CI no encontrado en scan — marcado como decommissioned",
-            )
-            ci.status = "decommissioned"
-            deactivated += 1
+    if retirar_ausentes:
+        stale = _del_proveedor(db.query(ConfigurationItem)).filter(
+            ConfigurationItem.is_discovered.is_(True),
+            ConfigurationItem.status != _RETIRADO,
+        ).all()
+        for ci in stale:
+            if ci.external_id not in discovered_ext_ids:
+                write_changelog(
+                    db, ci, "updated", "status",
+                    str(getattr(ci.status, "value", ci.status)), _RETIRADO.value,
+                    f"[discovery:{provider_type}] CI no encontrado en scan — retirado",
+                )
+                ci.status = _RETIRADO
+                deactivated += 1
 
     db.flush()
     logger.info(
@@ -216,13 +263,12 @@ def aprobar_linea_base(
     `app/core/tenancy.py`: una fila con `organization_id` a NULL es dato
     legacy/global y se considera accesible.
 
-    ## Una limitacion que hay que saber, y no es un defecto de este arreglo
+    ## Dos proveedores del mismo tipo
 
-    El CI solo guarda el **tipo** de proveedor, no cual de ellos lo descubrio.
-    Asi que si una organizacion tiene dos proveedores AWS, aprobar la linea base
-    de uno aprueba tambien los CIs del otro. Distinguirlos exige una columna
-    nueva en `cmdb_items` y volver a poblarla desde el descubrimiento: es un
-    cambio de esquema con migracion, no algo que se cuele en esta tanda.
+    Desde la migracion 110 el CI guarda tambien **cual** proveedor lo
+    descubrio (`discovery_provider_id`), y se aprueba solo lo suyo. Los CIs
+    descubiertos antes, sin ese dato, se siguen casando por el tipo hasta que
+    el siguiente escaneo lo rellene.
     """
     from app.core.tenancy import org_scoped_or_404
     from app.models.cmdb import CMDBDiscoveryProvider
@@ -231,8 +277,10 @@ def aprobar_linea_base(
         db, CMDBDiscoveryProvider, provider_id, current_user,
         detail="Provider not found")
 
-    q = db.query(CMDBItem).filter(
-        CMDBItem.discovery_provider == proveedor.provider_type)
+    q = db.query(ConfigurationItem).filter(
+        ConfigurationItem.discovery_provider == proveedor.provider_type,
+        (ConfigurationItem.discovery_provider_id == proveedor.id)
+        | (ConfigurationItem.discovery_provider_id.is_(None)))
 
     if not getattr(current_user, "is_superadmin", False):
         org_id = getattr(current_user, "organization_id", None)
@@ -240,12 +288,12 @@ def aprobar_linea_base(
             # Sin organizacion, sin acceso: la misma politica que `_can_access`.
             return {"ok": False, "error": "No CIs found for provider/ci_id combination"}
         q = q.filter(
-            (CMDBItem.organization_id == org_id)
-            | (CMDBItem.organization_id.is_(None))
+            (ConfigurationItem.organization_id == org_id)
+            | (ConfigurationItem.organization_id.is_(None))
         )
 
     if ci_id:
-        q = q.filter(CMDBItem.id == ci_id)
+        q = q.filter(ConfigurationItem.id == ci_id)
 
     cis = q.all()
     if not cis:
@@ -258,7 +306,7 @@ def aprobar_linea_base(
     return {"ok": True, "approved": len(cis)}
 
 
-def get_drift_report(db: Session, hours: int = 24) -> dict:
+def get_drift_report(db: Session, hours: int = 24, org_id: str | None = None) -> dict:
     """Return CIs where config drift was detected in the last `hours` hours.
 
     For each drifted CI, include the most recent changelog entries for that CI.
@@ -268,12 +316,12 @@ def get_drift_report(db: Session, hours: int = 24) -> dict:
     cutoff = utcnow() - timedelta(hours=max(1, hours))
 
     drifted = (
-        db.query(CMDBItem)
+        _de_la_organizacion(db.query(ConfigurationItem), org_id)
         .filter(
-            CMDBItem.drift_detected_at >= cutoff,
-            CMDBItem.is_discovered.is_(True),
+            ConfigurationItem.drift_detected_at >= cutoff,
+            ConfigurationItem.is_discovered.is_(True),
         )
-        .order_by(CMDBItem.drift_detected_at.desc())
+        .order_by(ConfigurationItem.drift_detected_at.desc())
         .all()
     )
 
@@ -301,7 +349,7 @@ def get_drift_report(db: Session, hours: int = 24) -> dict:
             {
                 "ci_id": ci.id,
                 "name": ci.name,
-                "ci_type": ci.ci_type,
+                "ci_type": ci.ci_type.value if ci.ci_type else None,
                 "environment": ci.environment,
                 "provider": ci.discovery_provider,
                 "drift_detected_at": ci.drift_detected_at,
@@ -320,37 +368,39 @@ def get_drift_report(db: Session, hours: int = 24) -> dict:
     }
 
 
-def get_reconciliation_health(db: Session, provider_type: str | None = None) -> dict:
+def get_reconciliation_health(db: Session, provider_type: str | None = None,
+                              org_id: str | None = None) -> dict:
     """Build reconciliation health metrics for discovered CIs.
 
     Metrics:
       - total_discovered: discovered CIs in CMDB
       - active_discovered: discovered CIs currently active/maintenance
-      - stale_discovered: discovered CIs decommissioned by reconciliation
+      - stale_discovered: discovered CIs retired by reconciliation
       - duplicate_external_ids: repeated (provider, external_id) pairs
       - by_provider: per-provider counts
     """
-    q = db.query(CMDBItem).filter(CMDBItem.is_discovered.is_(True))
+    q = _de_la_organizacion(db.query(ConfigurationItem), org_id).filter(
+        ConfigurationItem.is_discovered.is_(True))
     if provider_type:
-        q = q.filter(CMDBItem.discovery_provider == provider_type)
+        q = q.filter(ConfigurationItem.discovery_provider == provider_type)
 
     rows = q.all()
     total_discovered = len(rows)
-    stale_discovered = sum(1 for r in rows if r.status == "decommissioned")
+    stale_discovered = sum(1 for r in rows if r.status == _RETIRADO)
     active_discovered = total_discovered - stale_discovered
 
     dup_q = (
-        db.query(
-            CMDBItem.discovery_provider,
-            CMDBItem.external_id,
-            func.count(CMDBItem.id).label("n"),
-        )
-        .filter(CMDBItem.is_discovered.is_(True), CMDBItem.external_id.isnot(None))
-        .group_by(CMDBItem.discovery_provider, CMDBItem.external_id)
-        .having(func.count(CMDBItem.id) > 1)
+        _de_la_organizacion(db.query(
+            ConfigurationItem.discovery_provider,
+            ConfigurationItem.external_id,
+            func.count(ConfigurationItem.id).label("n"),
+        ), org_id)
+        .filter(ConfigurationItem.is_discovered.is_(True), ConfigurationItem.external_id.isnot(None))
+        .group_by(ConfigurationItem.discovery_provider, ConfigurationItem.external_id)
+        .having(func.count(ConfigurationItem.id) > 1)
     )
     if provider_type:
-        dup_q = dup_q.filter(CMDBItem.discovery_provider == provider_type)
+        dup_q = dup_q.filter(ConfigurationItem.discovery_provider == provider_type)
 
     duplicate_external_ids = dup_q.count()
 
@@ -361,11 +411,11 @@ def get_reconciliation_health(db: Session, provider_type: str | None = None) -> 
             provider_counts[key] = {
                 "total": 0,
                 "active": 0,
-                "decommissioned": 0,
+                "retired": 0,
             }
         provider_counts[key]["total"] += 1
-        if r.status == "decommissioned":
-            provider_counts[key]["decommissioned"] += 1
+        if r.status == _RETIRADO:
+            provider_counts[key]["retired"] += 1
         else:
             provider_counts[key]["active"] += 1
 
@@ -391,7 +441,7 @@ def get_reconciliation_health(db: Session, provider_type: str | None = None) -> 
 # DEDUPLICATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def ci_similarity_score(ci_a: CMDBItem, ci_b: CMDBItem) -> float:
+def ci_similarity_score(ci_a: ConfigurationItem, ci_b: ConfigurationItem) -> float:
     """Similarity score in [0,1] for duplicate candidate detection."""
     name_score = string_similarity(ci_a.name, ci_b.name)
     host_score = string_similarity(ci_a.hostname, ci_b.hostname)
@@ -406,12 +456,14 @@ def deduplicate_candidates(
     *,
     provider_type: str | None = None,
     min_confidence: float = 0.85,
+    org_id: str | None = None,
 ) -> list[dict]:
-    """Find possible duplicates and return merge candidates with confidence score."""
-    q = db.query(CMDBItem).filter(CMDBItem.is_discovered.is_(True), CMDBItem.status != "decommissioned")
+    """Posibles duplicados con su confianza. Nunca entre organizaciones."""
+    q = _de_la_organizacion(db.query(ConfigurationItem), org_id).filter(
+        ConfigurationItem.is_discovered.is_(True), ConfigurationItem.status != _RETIRADO)
     if provider_type:
-        q = q.filter(CMDBItem.discovery_provider == provider_type)
-    rows = q.order_by(CMDBItem.discovery_provider.asc(), CMDBItem.name.asc()).all()
+        q = q.filter(ConfigurationItem.discovery_provider == provider_type)
+    rows = q.order_by(ConfigurationItem.discovery_provider.asc(), ConfigurationItem.name.asc()).all()
 
     candidates: list[dict] = []
     for i in range(len(rows)):
@@ -419,6 +471,8 @@ def deduplicate_candidates(
         for j in range(i + 1, len(rows)):
             b = rows[j]
             if provider_type and (a.discovery_provider != b.discovery_provider):
+                continue
+            if a.organization_id != b.organization_id:
                 continue
             score = ci_similarity_score(a, b)
             if score < min_confidence:
@@ -455,23 +509,25 @@ def auto_merge_duplicates(
     provider_type: str | None = None,
     min_confidence: float = 0.85,
     limit: int = 100,
+    org_id: str | None = None,
 ) -> dict:
-    """Apply automatic deduplication by decommissioning likely duplicate CIs."""
+    """Retira los duplicados probables, dentro de una misma organizacion."""
     candidates = deduplicate_candidates(
         db,
         provider_type=provider_type,
         min_confidence=min_confidence,
+        org_id=org_id,
     )[: max(1, limit)]
 
     merged = 0
     applied: list[dict] = []
     for c in candidates:
-        dup = db.query(CMDBItem).filter(CMDBItem.id == c["duplicate"]["id"]).first()
-        keep = db.query(CMDBItem).filter(CMDBItem.id == c["keeper"]["id"]).first()
-        if not dup or not keep or dup.status == "decommissioned":
+        dup = db.get(ConfigurationItem, c["duplicate"]["id"])
+        keep = db.get(ConfigurationItem, c["keeper"]["id"])
+        if not dup or not keep or dup.status == _RETIRADO:
             continue
 
-        dup.status = "decommissioned"
+        dup.status = _RETIRADO
         note = f"[auto-merge] merged_into={keep.id} confidence={c['confidence']}"
         dup.description = f"{dup.description or ''}\n{note}".strip()
         merged += 1
@@ -497,6 +553,7 @@ def generate_agent_token(
     description: str | None = None,
     os_type: str | None = None,
     created_by: str | None = None,
+    organization_id: str | None = None,
 ) -> dict:
     """Register a new on-premise agent and return a one-time bearer token.
 
@@ -526,6 +583,7 @@ def generate_agent_token(
         os_type=os_type,
         is_active=True,
         created_by=created_by,
+        organization_id=organization_id,
     )
     db.add(reg)
     db.flush()
@@ -540,11 +598,19 @@ def generate_agent_token(
     }
 
 
-def list_agent_registrations(db: Session) -> list[dict]:
-    """Return all agent registrations with last check-in info."""
+def _agentes(db: Session, org_id: str | None):
+    """Los agentes de una organizacion; `None` es el superadministrador."""
     from app.models.cmdb import CMDBAgentRegistration
 
-    rows = db.query(CMDBAgentRegistration).order_by(CMDBAgentRegistration.created_at.desc()).all()
+    q = db.query(CMDBAgentRegistration)
+    return q if org_id is None else q.filter(CMDBAgentRegistration.organization_id == org_id)
+
+
+def list_agent_registrations(db: Session, org_id: str | None = None) -> list[dict]:
+    """Return agent registrations with last check-in info."""
+    from app.models.cmdb import CMDBAgentRegistration
+
+    rows = _agentes(db, org_id).order_by(CMDBAgentRegistration.created_at.desc()).all()
     return [
         {
             "id": r.id,
@@ -563,19 +629,19 @@ def list_agent_registrations(db: Session) -> list[dict]:
     ]
 
 
-def revoke_agent_token(db: Session, agent_id: str) -> None:
+def revoke_agent_token(db: Session, agent_id: str, org_id: str | None = None) -> None:
     """Deactivate an agent registration (revoke its token)."""
     from fastapi import HTTPException
     from app.models.cmdb import CMDBAgentRegistration
 
-    reg = db.query(CMDBAgentRegistration).filter(CMDBAgentRegistration.id == agent_id).first()
+    reg = _agentes(db, org_id).filter(CMDBAgentRegistration.id == agent_id).first()
     if not reg:
         raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
     reg.is_active = False
     db.flush()
 
 
-def rotate_agent_token(db: Session, agent_id: str) -> dict:
+def rotate_agent_token(db: Session, agent_id: str, org_id: str | None = None) -> dict:
     """Generate a new token for an agent registration.
 
     The old token is immediately invalidated.  Returns the new raw token once.
@@ -583,7 +649,7 @@ def rotate_agent_token(db: Session, agent_id: str) -> dict:
     from fastapi import HTTPException
     from app.models.cmdb import CMDBAgentRegistration
 
-    reg = db.query(CMDBAgentRegistration).filter(CMDBAgentRegistration.id == agent_id).first()
+    reg = _agentes(db, org_id).filter(CMDBAgentRegistration.id == agent_id).first()
     if not reg:
         raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
 
@@ -625,15 +691,16 @@ def process_agent_checkin(
 
     ci_dict = normalize_agent_payload(payload, reg.id)
 
-    # Reconcile just this single agent's CI
-    stats = reconcile_cis(db, [ci_dict], PROVIDER_AGENT)
+    # Solo este host: los demas agentes no estan ausentes, simplemente no
+    # les toca ahora.
+    stats = reconcile_cis(db, [ci_dict], PROVIDER_AGENT,
+                          organization_id=reg.organization_id, retirar_ausentes=False)
 
-    # Find the CI that was created/updated
     ci = (
-        db.query(CMDBItem)
+        db.query(ConfigurationItem)
         .filter(
-            CMDBItem.external_id == ci_dict["external_id"],
-            CMDBItem.discovery_provider == PROVIDER_AGENT,
+            ConfigurationItem.external_id == ci_dict["external_id"],
+            ConfigurationItem.discovery_provider == PROVIDER_AGENT,
         )
         .first()
     )

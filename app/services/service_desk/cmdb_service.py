@@ -1,8 +1,11 @@
+import json
 from typing import Optional
 
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.cmdb import CMDBChangelog
 from app.models.project import Project
 from app.models.service_desk import Asset, ConfigurationItem
 from app.models.user import User
@@ -20,38 +23,77 @@ def list_cmdb_items(
     current_user: User,
     page: int,
     page_size: int,
+    *,
+    q: Optional[str] = None,
+    ci_type: Optional[str] = None,
+    status: Optional[str] = None,
 ) -> list[ConfigurationItem]:
-    q = db.query(ConfigurationItem).options(
+    """Los CIs activos (no borrados) que ve el usuario, con filtros."""
+    consulta = db.query(ConfigurationItem).options(
         joinedload(ConfigurationItem.project),
         joinedload(ConfigurationItem.owner),
-    )
-    q = _scope_ci_query(q, db, current_user)
+    ).filter(ConfigurationItem.is_active.is_(True))
+    consulta = _scope_ci_query(consulta, db, current_user)
+    if ci_type:
+        consulta = consulta.filter(ConfigurationItem.ci_type == ci_type)
+    if status:
+        consulta = consulta.filter(ConfigurationItem.status == status)
+    if q and q.strip():
+        patron = f"%{q.strip()}%"
+        consulta = consulta.filter(or_(
+            ConfigurationItem.name.ilike(patron), ConfigurationItem.code.ilike(patron),
+            ConfigurationItem.hostname.ilike(patron), ConfigurationItem.ip_address.ilike(patron),
+        ))
     return (
-        q.order_by(ConfigurationItem.name)
+        consulta.order_by(ConfigurationItem.name)
         .offset((page - 1) * page_size)
         .limit(page_size)
         .all()
     )
 
 
+def _atributos(ci: ConfigurationItem) -> dict:
+    try:
+        datos = json.loads(ci.attributes) if ci.attributes else {}
+    except (TypeError, ValueError):
+        return {}
+    return datos if isinstance(datos, dict) else {}
+
+
+def _valor(v):
+    return getattr(v, "value", v)
+
+
+def serialize_ci(ci: ConfigurationItem) -> dict:
+    return {
+        "id": ci.id,
+        "code": ci.code,
+        "name": ci.name,
+        "ci_type": _valor(ci.ci_type),
+        "status": _valor(ci.status),
+        "criticality": ci.criticality,
+        "environment": ci.environment,
+        "version": ci.version,
+        "description": ci.description,
+        "location": ci.location,
+        "vendor": ci.vendor,
+        "ip_address": ci.ip_address,
+        "hostname": ci.hostname,
+        "attributes": _atributos(ci),
+        "project_id": ci.project_id,
+        "project_name": ci.project.name if ci.project else None,
+        "owner_user_id": ci.owner_user_id,
+        "owner_name": ci.owner.full_name if ci.owner else None,
+        "sla_policy_id": ci.sla_policy_id,
+        "is_discovered": bool(ci.is_discovered),
+        "discovery_provider": ci.discovery_provider,
+        "last_discovered_at": ci.last_discovered_at.isoformat() if ci.last_discovered_at else None,
+        "drift_detected_at": ci.drift_detected_at.isoformat() if ci.drift_detected_at else None,
+    }
+
+
 def serialize_cmdb_items(items: list[ConfigurationItem]) -> list[dict]:
-    return [
-        {
-            "id": ci.id,
-            "code": ci.code,
-            "name": ci.name,
-            "ci_type": ci.ci_type,
-            "status": ci.status,
-            "criticality": ci.criticality,
-            "environment": ci.environment,
-            "version": ci.version,
-            "project_id": ci.project_id,
-            "project_name": ci.project.name if ci.project else None,
-            "owner_name": ci.owner.full_name if ci.owner else None,
-            "open_tickets": len([]),
-        }
-        for ci in items
-    ]
+    return [serialize_ci(ci) for ci in items]
 
 
 def enforce_ci_org_constraints(db: Session, current_user: User, payload: CIIn, *, is_update: bool) -> None:
@@ -74,9 +116,19 @@ def enforce_ci_org_constraints(db: Session, current_user: User, payload: CIIn, *
             raise HTTPException(403, "No puedes asignar owner fuera de tu organización")
 
 
-def build_ci(db: Session, payload: CIIn) -> ConfigurationItem:
-    ci = ConfigurationItem(code=_next_ci_number(db), **payload.model_dump())
+def _columnas(payload: CIIn) -> dict:
+    datos = payload.model_dump()
+    datos["attributes"] = json.dumps(datos["attributes"]) if datos.get("attributes") else None
+    return datos
+
+
+def build_ci(db: Session, payload: CIIn, current_user: User) -> ConfigurationItem:
+    """Nace en la organizacion de quien lo crea: sin ella, nadie mas lo veria."""
+    ci = ConfigurationItem(code=_next_ci_number(db), organization_id=current_user.organization_id,
+                           **_columnas(payload))
     db.add(ci)
+    db.flush()
+    _historial(db, ci, current_user, "created", None, None, None, f"CI {ci.code} creado")
     return ci
 
 
@@ -99,9 +151,42 @@ def get_scoped_ci_or_404(
     return ci
 
 
-def apply_ci_update(ci: ConfigurationItem, payload: CIIn) -> None:
-    for k, v in payload.model_dump().items():
+def _historial(db: Session, ci: ConfigurationItem, user: Optional[User], accion: str,
+               campo: Optional[str], antes, despues, resumen: str) -> None:
+    db.add(CMDBChangelog(
+        organization_id=ci.organization_id, item_id=ci.id,
+        user_id=user.id if user else None, action=accion, field=campo,
+        old_value=None if antes is None else str(_valor(antes))[:4000],
+        new_value=None if despues is None else str(_valor(despues))[:4000],
+        summary=resumen[:500],
+    ))
+
+
+def apply_ci_update(db: Session, ci: ConfigurationItem, payload: CIIn, current_user: User) -> None:
+    """Aplica el cambio y deja en el historial cada campo que cambia."""
+    for k, v in _columnas(payload).items():
+        antes = getattr(ci, k)
+        if _valor(antes) == _valor(v):
+            continue
         setattr(ci, k, v)
+        _historial(db, ci, current_user, "updated", k, antes, v, f"Campo '{k}' actualizado")
+
+
+def delete_ci(db: Session, ci: ConfigurationItem, current_user: User) -> None:
+    """Borrado logico: los tickets, problemas y cambios que lo citan lo conservan."""
+    ci.is_active = False
+    _historial(db, ci, current_user, "deleted", None, None, None, f"CI {ci.code} borrado")
+
+
+def ci_changelog(db: Session, ci: ConfigurationItem, limit: int = 100) -> list[dict]:
+    filas = (db.query(CMDBChangelog).filter(CMDBChangelog.item_id == ci.id)
+             .order_by(CMDBChangelog.created_at.desc()).limit(limit).all())
+    return [{
+        "id": f.id, "action": f.action, "field": f.field,
+        "old_value": f.old_value, "new_value": f.new_value, "summary": f.summary,
+        "user_name": f.user.full_name if f.user else None,
+        "created_at": f.created_at.isoformat() if f.created_at else None,
+    } for f in filas]
 
 
 def get_ci_deprecation_impact_payload(

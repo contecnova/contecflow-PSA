@@ -94,13 +94,15 @@ def metric_cmdb_items_by_status(
 ) -> tuple[list[dict], dict]:
     """Distribución de ítems CMDB por estado."""
     try:
-        from app.models.cmdb import CMDBItem
+        from app.models.service_desk import ConfigurationItem as CI
 
-        q = db.query(CMDBItem.status, func.count(CMDBItem.id).label("cnt")).group_by(
-            CMDBItem.status
-        ).order_by(func.count(CMDBItem.id).desc())
+        q = db.query(CI.status, func.count(CI.id).label("cnt")).filter(
+            CI.is_active.is_(True)
+        ).group_by(
+            CI.status
+        ).order_by(func.count(CI.id).desc())
 
-        rows = [{"label": r.status or "Sin estado", "value": r.cnt} for r in q.all()]
+        rows = [{"label": getattr(r.status, "value", r.status) or "Sin estado", "value": r.cnt} for r in q.all()]
     except Exception:
         rows = []
     return rows, {}
@@ -119,11 +121,11 @@ def metric_cmdb_items_by_environment(
 ) -> tuple[list[dict], dict]:
     """Distribución de ítems CMDB por entorno (production, staging, etc.)."""
     try:
-        from app.models.cmdb import CMDBItem
+        from app.models.service_desk import ConfigurationItem as CI
 
-        q = db.query(CMDBItem.environment, func.count(CMDBItem.id).label("cnt")).filter(
-            CMDBItem.environment.isnot(None)
-        ).group_by(CMDBItem.environment).order_by(func.count(CMDBItem.id).desc())
+        q = db.query(CI.environment, func.count(CI.id).label("cnt")).filter(
+            CI.environment.isnot(None), CI.is_active.is_(True)
+        ).group_by(CI.environment).order_by(func.count(CI.id).desc())
 
         rows = [{"label": r.environment, "value": r.cnt} for r in q.all()]
     except Exception:
@@ -144,13 +146,15 @@ def metric_cmdb_items_by_type(
 ) -> tuple[list[dict], dict]:
     """Distribución de ítems CMDB por tipo de CI."""
     try:
-        from app.models.cmdb import CMDBItem
+        from app.models.service_desk import ConfigurationItem as CI
 
-        q = db.query(CMDBItem.ci_type, func.count(CMDBItem.id).label("cnt")).group_by(
-            CMDBItem.ci_type
-        ).order_by(func.count(CMDBItem.id).desc()).limit(top_n)
+        q = db.query(CI.ci_type, func.count(CI.id).label("cnt")).filter(
+            CI.is_active.is_(True)
+        ).group_by(
+            CI.ci_type
+        ).order_by(func.count(CI.id).desc()).limit(top_n)
 
-        rows = [{"label": r.ci_type or "Sin tipo", "value": r.cnt} for r in q.all()]
+        rows = [{"label": getattr(r.ci_type, "value", r.ci_type) or "Sin tipo", "value": r.cnt} for r in q.all()]
     except Exception:
         rows = []
     return rows, {}

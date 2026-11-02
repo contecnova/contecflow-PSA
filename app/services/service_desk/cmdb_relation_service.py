@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.service_desk import CIRelation, ConfigurationItem
+from app.models.service_desk import CIRelation, CIRelationType, ConfigurationItem
 from app.models.user import User
 from app.services.service_desk.scoping import scope_ci_query as _scope_ci_query
 import logging
@@ -62,17 +62,33 @@ def build_ci_relation(db: Session, current_user: User, payload: dict) -> CIRelat
     if not src_id or not tgt_id:
         raise HTTPException(422, "source_ci_id y target_ci_id son obligatorios")
 
-    _get_scoped_ci_or_404(db, current_user, src_id, "CI origen no encontrado")
+    origen = _get_scoped_ci_or_404(db, current_user, src_id, "CI origen no encontrado")
     _get_scoped_ci_or_404(db, current_user, tgt_id, "CI destino no encontrado")
+    if src_id == tgt_id:
+        raise HTTPException(422, "Un CI no se relaciona consigo mismo")
+    tipo = payload.get("relation_type", "depends_on")
+    if tipo not in {t.value for t in CIRelationType}:
+        raise HTTPException(422, f"Tipo de relación desconocido: {tipo}")
 
     rel = CIRelation(
+        organization_id=origen.organization_id,
         source_ci_id=src_id,
         target_ci_id=tgt_id,
-        relation_type=payload.get("relation_type", "depends_on"),
+        relation_type=tipo,
         notes=payload.get("notes"),
     )
     db.add(rel)
     return rel
+
+
+def delete_ci_relation(db: Session, current_user: User, relation_id: str) -> None:
+    """Quita una relacion; hay que ver los dos extremos."""
+    rel = db.get(CIRelation, relation_id)
+    if rel is None:
+        raise HTTPException(404, "Relación no encontrada")
+    _get_scoped_ci_or_404(db, current_user, rel.source_ci_id, "Relación no encontrada")
+    _get_scoped_ci_or_404(db, current_user, rel.target_ci_id, "Relación no encontrada")
+    db.delete(rel)
 
 
 def get_ci_impact_payload(
