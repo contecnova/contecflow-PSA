@@ -72,6 +72,8 @@ class Destinatario:
     idioma: str
     user_id: Optional[str] = None   # usuario interno: recibe tambien la campana
     es_cliente: bool = False        # usuario del portal: su enlace va al portal
+    guardia: bool = False           # de guardia: ademas, SMS si lo permite SD_ONCALL_SMS
+    telefono: Optional[str] = None
 
 
 # ── Contexto de organizacion ──────────────────────────────────────────────────
@@ -264,6 +266,25 @@ def _quien_atiende(db: Session, ticket: Ticket) -> list[User]:
     return _miembros_del_grupo(db, ticket.assigned_group_id)
 
 
+def _de_guardia(db: Session, ticket: Ticket, org: Optional[str]) -> list[User]:
+    """Quien esta de guardia ahora en la cola del ticket, si su prioridad lo pide.
+
+    Auditoria 2026-11: las guardias se podian definir y nadie las consultaba;
+    un P1 de madrugada no avisaba a quien estaba de guardia.
+    """
+    from app.models.service_desk import OnCallEntry, OnCallSchedule
+
+    prioridades = {p.strip() for p in (_ss.get_runtime_str(db, "SD_ONCALL_PRIORITIES", org) or "").split(",")}
+    if not ticket.assigned_group_id or getattr(ticket.priority, "value", ticket.priority) not in prioridades:
+        return []
+    ahora = datetime.now(timezone.utc)
+    ids = [r[0] for r in db.query(OnCallEntry.user_id).join(OnCallSchedule).filter(
+        OnCallSchedule.group_id == ticket.assigned_group_id, OnCallSchedule.is_active == True,  # noqa: E712
+        OnCallEntry.start_dt <= ahora, OnCallEntry.end_dt > ahora,
+    ).all()]
+    return _usuarios(db, ids)
+
+
 def _es_del_solicitante(ticket: Ticket, ev: TicketEvent) -> bool:
     if ev.actor_client_id and ev.actor_client_id == ticket.requester_client_id:
         return True
@@ -288,7 +309,19 @@ def destinatarios(db: Session, ev: TicketEvent, ticket: Ticket, data: dict) -> l
             if d:
                 salida.append((code, d))
 
+    def guardias(code: str) -> None:
+        # Van delante: si la persona de guardia es tambien el agente, cuenta
+        # como guardia (y recibe el SMS).
+        for u in _de_guardia(db, ticket, org):
+            d = _agente(db, u, org)
+            if d:
+                d.guardia, d.telefono = True, u.phone
+                salida.append((code, d))
+
     kind = ev.kind
+    if kind in ("created", "sla_breached", "escalated"):
+        guardias({"created": "sd.created.agent", "sla_breached": "sd.sla_breached.agent",
+                  "escalated": "sd.escalated.agent"}[kind])
     if kind == "created":
         solicitante("sd.created.requester", "SD_NOTIFY_REQUESTER_ON_CREATE")
         if ticket.assigned_to is not None:
@@ -375,6 +408,7 @@ def _avisar(db: Session, ev: TicketEvent, ticket: Ticket, data: dict) -> dict:
 
     org = ev.organization_id
     por_correo_a_agentes = _ss.get_runtime_bool(db, "SD_NOTIFY_AGENTS_BY_EMAIL", org)
+    sms_de_guardia = _ss.get_runtime_bool(db, "SD_ONCALL_SMS", org)
     responder_a = _ss.get_runtime_str(db, "SD_INBOUND_ADDRESS", org) or None
     cuenta = {"campana": 0, "correos": 0, "fallidos": 0}
     pendientes_de_correo = []
@@ -397,6 +431,10 @@ def _avisar(db: Session, ev: TicketEvent, ticket: Ticket, data: dict) -> dict:
             dest.papel != "agent" or por_correo_a_agentes)
         if quiere_correo:
             pendientes_de_correo.append((dest, asunto, cuerpo))
+        if dest.guardia and sms_de_guardia and dest.telefono:
+            from app.services.service_desk.sms_service import send_sms
+            send_sms(dest.telefono, f"{asunto[:120]} {_enlace(ticket, dest)}")
+            cuenta["sms"] = cuenta.get("sms", 0) + 1
 
     # El correo va al final: lo que ya salio no se puede deshacer si otra cosa
     # del evento falla y se reintenta.

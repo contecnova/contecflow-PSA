@@ -82,3 +82,28 @@ class StatusPageIncident(Base):
 
     component = relationship("StatusPageComponent", back_populates="incidents")
     ticket    = relationship("Ticket")
+
+
+class MonitoringAlert(Base):
+    """Una alerta de monitorizacion y la incidencia que abrio.
+
+    `dedupe_key` identifica la alerta en su origen (la huella de Alertmanager,
+    o la clave que mande el sistema): mientras siga abierta, las repeticiones
+    suman en `occurrences` y no abren otra incidencia.
+    """
+    __tablename__ = "sd_monitoring_alerts"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    source = Column(String(50), nullable=False)
+    dedupe_key = Column(String(255), nullable=False, index=True)
+    status = Column(String(20), default="firing", nullable=False, index=True)  # firing | resolved
+    severity = Column(String(30), nullable=True)
+    title = Column(String(500), nullable=False)
+    description = Column(Text, nullable=True)
+    ci_id = Column(String(36), ForeignKey("sd_configuration_items.id", ondelete="SET NULL"), nullable=True)
+    ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"), nullable=True, index=True)
+    occurrences = Column(Integer, default=1, nullable=False)
+    first_seen_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_seen_at = Column(DateTime(timezone=True), server_default=func.now())
+    resolved_at = Column(DateTime(timezone=True), nullable=True)

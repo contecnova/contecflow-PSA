@@ -79,6 +79,7 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/sd/voice/webhook/twilio/gather"): "firma de Twilio",
     ("POST", "/api/v1/sd/inbound-email"): "secreto de email entrante",
     ("POST", "/api/v1/sd/multichannel/inbound/email"): "secreto de email entrante",
+    ("POST", "/api/v1/sd/events/{source}"): "token de monitorización de la organización (X-Contecflow-Event-Token)",
     ("POST", "/api/v1/sd/multichannel/inbound/sms"): "secreto de SMS entrante",
     ("POST", "/api/v1/collaboration/webhooks/incoming/{token}"): "token de capacidad en la URL",
     ("POST", "/api/v1/sd/cmdb/agents/checkin"): "token de registro del agente CMDB",

@@ -345,6 +345,9 @@ def build_channel_ticket(
     requester_name: str | None = None,
     requester_email: str | None = None,
     requester_phone: str | None = None,
+    priority: str | None = None,
+    ticket_type: str | None = None,
+    ci_id: str | None = None,
 ) -> Ticket:
     """Ticket que llega por un canal (correo, SMS...), con las mismas reglas que el resto.
 
@@ -358,11 +361,11 @@ def build_channel_ticket(
     from app.services import settings_service as _ss
 
     try:
-        tipo = TicketType(_ss.get_runtime_str(db, "SD_CHANNEL_TICKET_TYPE", org_id) or "incident")
+        tipo = TicketType(ticket_type or _ss.get_runtime_str(db, "SD_CHANNEL_TICKET_TYPE", org_id) or "incident")
     except ValueError:
         logger.warning("SD_CHANNEL_TICKET_TYPE inválido; se usa incident")
         tipo = TicketType.incident
-    priority = PRIORITY_MATRIX[(TicketUrgency.medium.value, TicketImpact.user.value)]
+    priority = priority or PRIORITY_MATRIX[(TicketUrgency.medium.value, TicketImpact.user.value)]
     client_id = requester_client.client_org_id if requester_client is not None else None
     sla_policy = _resolve_sla_policy_for_ticket(db, client_id=client_id)
     resp_due, res_due = _calculate_sla_due(priority, sla_policy, db=db, org_id=org_id)
@@ -383,6 +386,7 @@ def build_channel_ticket(
         requester_name=requester_name,
         requester_email=requester_email,
         requester_phone=requester_phone,
+        ci_id=ci_id,
         sla_policy_id=sla_policy.id if sla_policy else None,
         sla_response_due=resp_due,
         sla_resolution_due=res_due,

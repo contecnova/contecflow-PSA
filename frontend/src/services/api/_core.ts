@@ -1372,6 +1372,19 @@ export const sdChangePlanningApi = {
   vote:            (changeId: string | number, data: unknown) => api.post(`/sd/changes/${changeId}/cab/vote`, data),
 }
 
+export const sdOnCallApi = {
+  schedules:      ()                          => api.get('/sd/oncall/schedules'),
+  createSchedule: (data: unknown)             => api.post('/sd/oncall/schedules', data),
+  deleteSchedule: (id: string)                => api.delete(`/sd/oncall/schedules/${id}`),
+  addShift:       (scheduleId: string, data: unknown) => api.post(`/sd/oncall/schedules/${scheduleId}/entries`, data),
+  deleteShift:    (id: string)                => api.delete(`/sd/oncall/entries/${id}`),
+  current:        ()                          => api.get('/sd/oncall/current'),
+}
+
+export const sdMonitoringApi = {
+  alerts: (limit = 30) => api.get('/sd/events/alerts', { params: { limit } }),
+}
+
 export const sdApprovalsApi = {
   mine:   ()                                  => api.get('/sd/approvals/mine'),
   decide: (ticketId: string, data: unknown)   => api.post(`/sd/tickets/${ticketId}/approval`, data),

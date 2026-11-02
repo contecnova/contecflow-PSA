@@ -64,6 +64,12 @@ PROVIDER_REGISTRY: dict[str, dict[str, Any]] = {
             ("mailbox",  "str",  False, "Microsoft 365 mailbox (graph)", None),
         ],
     },
+    "monitoring": {
+        "label": "Monitoring alerts (inbound)",
+        "fields": [
+            ("ingest_token", "str", True, "Ingest token (X-Contecflow-Event-Token)", None),
+        ],
+    },
     "aws_s3": {
         "label": "AWS S3 (documents)",
         "fields": [

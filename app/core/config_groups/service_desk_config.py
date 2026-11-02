@@ -38,6 +38,18 @@ class ServiceDeskSettingsMixin:
     # Un cambio estandar con riesgo calculado hasta aqui se aprueba solo.
     SD_CHANGE_AUTO_APPROVE_MAX_RISK: int = Field(default=30, env="SD_CHANGE_AUTO_APPROVE_MAX_RISK")
 
+    # ── Monitorizacion y guardias ────────────────────────────────────────────
+    # Gravedad de la alerta -> prioridad del ticket (JSON). Lo que no este, P3.
+    SD_EVENT_SEVERITY_MAP: str = Field(
+        default='{"critical": "p1_critical", "high": "p2_high", "error": "p2_high", '
+                '"warning": "p3_medium", "info": "p4_low"}',
+        env="SD_EVENT_SEVERITY_MAP")
+    # Al recuperarse la alerta, resolver su incidencia si nadie la ha tocado.
+    SD_EVENT_AUTO_RESOLVE: bool = Field(default=True, env="SD_EVENT_AUTO_RESOLVE")
+    # Prioridades que avisan a quien esta de guardia en la cola del ticket.
+    SD_ONCALL_PRIORITIES: str = Field(default="p1_critical,p2_high", env="SD_ONCALL_PRIORITIES")
+    SD_ONCALL_SMS: bool = Field(default=True, env="SD_ONCALL_SMS")
+
     # ── Bandeja de eventos ───────────────────────────────────────────────────
     SD_EVENT_MAX_ATTEMPTS: int = Field(default=5, env="SD_EVENT_MAX_ATTEMPTS")
     SD_EVENT_BATCH_SIZE: int = Field(default=200, env="SD_EVENT_BATCH_SIZE")
