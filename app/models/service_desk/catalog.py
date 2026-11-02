@@ -47,6 +47,9 @@ class ServiceItem(Base):
     auto_assign_group = Column(String(100), nullable=True)
     requires_approval = Column(Boolean, default=False)
     approval_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    # Tareas de cumplimiento (JSON): [{"title": ..., "group_id": ...}]. Cada una
+    # nace como ticket hijo en su cola al pedirse el servicio (o al aprobarse).
+    fulfillment_tasks = Column(Text, nullable=True)
 
     is_active = Column(Boolean, default=True)
     is_visible_to_clients = Column(Boolean, default=True)

@@ -6303,6 +6303,11 @@ const en = {
     subtitle: '{projectName}',
   },
   sd_cfg: {
+    ff_tasks: 'Fulfilment tasks',
+    ff_help: 'When requested (or approved) each task becomes a ticket in its queue; once all are done the request resolves itself.',
+    ff_add: 'Add task',
+    ff_title: 'What needs doing',
+    ff_parent: 'Task of request {n}',
     req_contact: 'Contact',
     req_contact_none: '— type it in —',
     req_name: 'Requester name',

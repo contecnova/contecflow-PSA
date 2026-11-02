@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def _servicio(service, interno: bool) -> dict:
+    from app.services.service_desk.fulfillment_service import tareas_de
     datos = {
         "id": service.id,
         "name": service.name,
@@ -24,6 +25,7 @@ def _servicio(service, interno: bool) -> dict:
         # No van al portal: el id del aprobador es interno.
         datos.update({
             "approval_user_id": service.approval_user_id,
+            "fulfillment_tasks": tareas_de(service),
             "is_visible_to_clients": service.is_visible_to_clients,
             "default_support_level": getattr(service.default_support_level, "value",
                                              service.default_support_level),
@@ -94,8 +96,11 @@ def deactivate_category_record(db: Session, cat_id: str) -> None:
 
 def create_service_record(db: Session, payload) -> ServiceItem:
     from app.services.service_desk.catalog_approval_service import exigir_aprobador
+    from app.services.service_desk.fulfillment_service import validar_tareas
     exigir_aprobador(db, payload.requires_approval, payload.approval_user_id)
-    s = ServiceItem(**payload.model_dump())
+    datos = payload.model_dump()
+    datos["fulfillment_tasks"] = validar_tareas(db, datos.get("fulfillment_tasks"))
+    s = ServiceItem(**datos)
     db.add(s)
     return s
 
@@ -109,8 +114,11 @@ def get_service_or_404(db: Session, service_id: str) -> ServiceItem:
 
 def update_service_record(db: Session, service_id: str, payload) -> ServiceItem:
     from app.services.service_desk.catalog_approval_service import exigir_aprobador
+    from app.services.service_desk.fulfillment_service import validar_tareas
     service = get_service_or_404(db, service_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
+        if key == "fulfillment_tasks":
+            value = validar_tareas(db, value)
         setattr(service, key, value)
     exigir_aprobador(db, service.requires_approval, service.approval_user_id)
     return service

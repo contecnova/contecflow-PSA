@@ -5629,6 +5629,11 @@ const es = {
     subtitle: '{projectName}',
   },
   sd_cfg: {
+    ff_tasks: 'Tareas de cumplimiento',
+    ff_help: 'Al pedirse (o al aprobarse) cada tarea nace como ticket en su cola; con todas hechas, la petición se resuelve sola.',
+    ff_add: 'Añadir tarea',
+    ff_title: 'Qué hay que hacer',
+    ff_parent: 'Tarea de la petición {n}',
     req_contact: 'Contacto',
     req_contact_none: '— escribir a mano —',
     req_name: 'Nombre del solicitante',

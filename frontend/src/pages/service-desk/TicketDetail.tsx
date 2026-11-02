@@ -428,6 +428,25 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
       {/* Body */}
       <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
         {isLoading ? <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div> : ticket && <>
+          {/* Petición madre y tareas de cumplimiento */}
+          {ticket.parent && (
+            <div style={{ fontSize: 'var(--text-sm)', marginBottom: 12 }}>
+              <a href={`/service-desk?ticket=${ticket.parent.id}`} style={{ color: 'var(--accent)' }}>{t('sd_cfg.ff_parent', { n: ticket.parent.number })}</a>
+            </div>
+          )}
+          {(ticket.fulfillment_tasks ?? []).length > 0 && (
+            <div className="ds-card" style={{ padding: 12, marginBottom: 16, fontSize: 'var(--text-sm)' }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>{t('sd_cfg.ff_tasks')}</div>
+              {(ticket.fulfillment_tasks as { id: string; number: string; title: string; status: string; group_name?: string; assignee_name?: string }[]).map(ft => (
+                <div key={ft.id} style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
+                  <a href={`/service-desk?ticket=${ft.id}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>{ft.number}</a>
+                  <span style={{ flex: 1 }}>{ft.title.split(' · ').slice(1).join(' · ') || ft.title}</span>
+                  <span style={{ color: 'var(--text-3)' }}>{ft.group_name}{ft.assignee_name ? ` · ${ft.assignee_name}` : ''}</span>
+                  <SBadge v={ft.status} />
+                </div>
+              ))}
+            </div>
+          )}
           {/* Aprobación del catálogo */}
           {ticket.approval && (
             <AprobacionDelTicket ticket={ticket} yo={yo} rechazando={rechazando} motivo={motivo}

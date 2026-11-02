@@ -17,7 +17,7 @@ import { PRIORITY_LABEL, PBadge } from './sdUtils'
 import { RoutingRules } from './QueueAndRoutingSections'
 
 // ── Local types ─────────────────────────────────────────────────────────────
-type Svc = { [k: string]: unknown; id: string; name: string; category_id?: string; ticket_type?: string; default_priority?: string; sla_response_hours?: number; sla_resolution_hours?: number; requires_approval?: boolean; approval_user_id?: string | null; is_visible_to_clients?: boolean }
+type Svc = { [k: string]: unknown; id: string; name: string; category_id?: string; ticket_type?: string; default_priority?: string; sla_response_hours?: number; sla_resolution_hours?: number; requires_approval?: boolean; approval_user_id?: string | null; is_visible_to_clients?: boolean; fulfillment_tasks?: { title: string; group_id: string }[] }
 type Cat = { [k: string]: unknown; id: string; name: string; description?: string; icon?: string; color?: string; services?: Svc[] }
 type Asignada = { id: string; name: string }
 type Policy = { [k: string]: unknown; id: string; name: string; description?: string; is_default?: boolean; business_hours_only?: boolean; clients?: Asignada[]; contracts?: Asignada[]; business_start?: number; business_end?: number; business_days?: string; timezone?: string | null; calendar_id?: string | null }
@@ -207,6 +207,11 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
     is_visible_to_clients: initial?.is_visible_to_clients ?? true,
   })
   const faltaAprobador = form.requires_approval && !form.approval_user_id
+  const [tareas, setTareas] = useState<{ title: string; group_id: string }[]>(initial?.fulfillment_tasks ?? [])
+  const { data: colas = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['sd-groups'], queryFn: () => sdGroupsApi.list().then(r => r.data as { id: string; name: string }[]),
+  })
+  const tareasValidas = tareas.every(x => x.title.trim() && x.group_id)
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({...f, [k]: (e.target as HTMLInputElement).type==='checkbox' ? (e.target as HTMLInputElement).checked : e.target.value}))
   return (
     <Modal open title={initial ? t('service_desk.svc_edit_title') : t('service_desk.svc_new_title')} onClose={onClose}>
@@ -251,10 +256,28 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
             </select>
           </div>
         )}
+        <div style={{ gridColumn:'1/-1', display:'flex', flexDirection:'column', gap:8 }}>
+          <span style={LS}>{t('sd_cfg.ff_tasks')}</span>
+          <span style={{ fontSize:'var(--text-xs)', color:'var(--text-3)' }}>{t('sd_cfg.ff_help')}</span>
+          {tareas.map((tarea, i) => (
+            <div key={i} style={{ display:'flex', gap:8 }}>
+              <input aria-label={t('sd_cfg.ff_title')} placeholder={t('sd_cfg.ff_title')} value={tarea.title} style={{ ...IS, flex:2 }}
+                onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} />
+              <select aria-label={t('sd_cfg.oc_queue')} value={tarea.group_id} style={{ ...IS, flex:1 }}
+                onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, group_id: e.target.value } : x))}>
+                <option value="">—</option>
+                {colas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <button type="button" aria-label={t('common.delete')} onClick={() => setTareas(ts => ts.filter((_, j) => j !== i))}
+                style={{ background:'none', border:'none', color:COLOR.danger, cursor:'pointer' }}>✕</button>
+            </div>
+          ))}
+          <div><Button variant="secondary" onClick={() => setTareas(ts => [...ts, { title: '', group_id: '' }])}>+ {t('sd_cfg.ff_add')}</Button></div>
+        </div>
         <div style={{ gridColumn:'1/-1', display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={() => onSave({ ...form, approval_user_id: form.requires_approval ? form.approval_user_id : null })}
-            disabled={isPending || !form.name || faltaAprobador} loading={isPending}>{initial ? t('common.save') : t('service_desk.svc_new_title')}</Button>
+          <Button onClick={() => onSave({ ...form, approval_user_id: form.requires_approval ? form.approval_user_id : null, fulfillment_tasks: tareas })}
+            disabled={isPending || !form.name || faltaAprobador || !tareasValidas} loading={isPending}>{initial ? t('common.save') : t('service_desk.svc_new_title')}</Button>
         </div>
       </div>
     </Modal>

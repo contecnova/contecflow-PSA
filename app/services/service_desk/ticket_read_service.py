@@ -227,6 +227,16 @@ def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticke
         **ticket_out(ticket, include_comments=True),
         "dynamic_fields": get_ticket_dynamic_fields(db, ticket.id),
         "approval": _aprobacion.serializar(_aprobacion.ultima(db, ticket.id)),
+        "fulfillment_tasks": [{
+            "id": h.id, "number": h.number, "title": h.title,
+            "status": getattr(h.status, "value", h.status),
+            "group_name": h.assigned_group.name if h.assigned_group else None,
+            "assignee_name": h.assigned_to.full_name if h.assigned_to else None,
+        } for h in db.query(Ticket).filter(Ticket.parent_ticket_id == ticket.id, Ticket.source == "fulfillment")
+            .order_by(Ticket.created_at).all()],
+        "parent": ({"id": ticket.parent_ticket_id,
+                    "number": db.query(Ticket.number).filter(Ticket.id == ticket.parent_ticket_id).scalar()}
+                   if ticket.parent_ticket_id else None),
     }
 
     # Merge threaded comments (Mentions page) so ticket detail shows the same

@@ -300,7 +300,9 @@ def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_i
     _auto_assign_ticket_on_create(db, ticket)
     db.flush()
     save_ticket_dynamic_fields(db, ticket.id, payload.dynamic_fields)
-    solicitar_aprobacion_si_hace_falta(db, ticket, service_item)
+    if solicitar_aprobacion_si_hace_falta(db, ticket, service_item) is None:
+        from app.services.service_desk.fulfillment_service import crear_tareas
+        crear_tareas(db, ticket, service_item)
     _emit_ticket_created_metric(ticket)
     return ticket
 
@@ -351,7 +353,9 @@ def build_client_portal_ticket(db: Session, payload: TicketCreateIn, client: Cli
     _auto_assign_ticket_on_create(db, ticket)
     db.flush()
     save_ticket_dynamic_fields(db, ticket.id, payload.dynamic_fields)
-    solicitar_aprobacion_si_hace_falta(db, ticket, service_item)
+    if solicitar_aprobacion_si_hace_falta(db, ticket, service_item) is None:
+        from app.services.service_desk.fulfillment_service import crear_tareas
+        crear_tareas(db, ticket, service_item)
     _emit_ticket_created_metric(ticket)
     return ticket
 
@@ -420,3 +424,37 @@ def build_channel_ticket(
     db.flush()
     _emit_ticket_created_metric(ticket)
     return ticket
+
+
+def build_fulfillment_task(db: Session, peticion: Ticket, titulo: str, group_id: str) -> Ticket:
+    """Una tarea de cumplimiento: ticket hijo de la peticion, en la cola indicada.
+
+    Hereda solicitante, cliente, organizacion y politica de SLA de la peticion;
+    la cola es la de la tarea y el agente lo elige la asignacion automatica
+    dentro de ella.
+    """
+    from app.models.service_desk import ServiceItem, SLAPolicy, TicketType
+    from app.services.service_desk.fulfillment_service import ORIGEN
+
+    politica = db.get(SLAPolicy, peticion.sla_policy_id) if peticion.sla_policy_id else None
+    prioridad = getattr(peticion.priority, "value", peticion.priority)
+    item = db.get(ServiceItem, peticion.service_item_id) if peticion.service_item_id else None
+    resp_due, res_due = _vencimientos(db, prioridad, politica, item)
+    tarea = Ticket(
+        organization_id=peticion.organization_id,
+        number=_next_ticket_number(TicketType.service_request.value, db, peticion.organization_id),
+        ticket_type=TicketType.service_request,
+        title=f"{peticion.number} · {titulo}"[:500],
+        description=f"Tarea de la petición {peticion.number}: {peticion.title}\n\n{peticion.description}",
+        priority=prioridad, urgency=peticion.urgency, impact=peticion.impact,
+        source=ORIGEN, parent_ticket_id=peticion.id, assigned_group_id=group_id,
+        requester_user_id=peticion.requester_user_id, requester_client_id=peticion.requester_client_id,
+        requester_name=peticion.requester_name, requester_email=peticion.requester_email,
+        client_id=peticion.client_id, project_id=peticion.project_id, service_item_id=peticion.service_item_id,
+        sla_policy_id=peticion.sla_policy_id, sla_response_due=resp_due, sla_resolution_due=res_due,
+        created_by_user_id=peticion.created_by_user_id,
+    )
+    db.add(tarea)
+    _auto_assign_ticket_on_create(db, tarea)
+    db.flush()
+    return tarea

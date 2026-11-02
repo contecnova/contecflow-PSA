@@ -461,6 +461,9 @@ def procesar_evento(db: Session, ev: TicketEvent) -> dict:
         _emitir_webhook(db, ev, ticket, data)
         from app.services.service_desk.workflow_triggers import lanzar_flujos_del_evento
         cuenta["flujos"] = lanzar_flujos_del_evento(db, ev, ticket, data)
+        if ev.kind == "status_changed" and data.get("new") in ("resolved", "closed", "cancelled"):
+            from app.services.service_desk.fulfillment_service import al_terminar_una_tarea
+            cuenta["peticion_resuelta"] = al_terminar_una_tarea(db, ticket)
     return cuenta
 
 

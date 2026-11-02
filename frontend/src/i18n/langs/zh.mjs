@@ -6310,6 +6310,11 @@ const zh = {
     subtitle: '{projectName}',
   },
   sd_cfg: {
+    ff_tasks: '履行任务',
+    ff_help: '提交（或批准）后，每项任务都会在其队列中生成工单；全部完成后请求自动解决。',
+    ff_add: '添加任务',
+    ff_title: '需要做什么',
+    ff_parent: '请求 {n} 的任务',
     req_contact: '联系人',
     req_contact_none: '— 手动填写 —',
     req_name: '请求人姓名',

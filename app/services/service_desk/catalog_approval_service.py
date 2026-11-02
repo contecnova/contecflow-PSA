@@ -96,6 +96,9 @@ def decidir(db: Session, ticket: Ticket, usuario: User, decision: str, comentari
                             old_support_level=ticket.support_level)
     registrar(db, ticket, "approval_decided", {"decision": decision, "note": aprobacion.comment},
               actor_user_id=usuario.id)
+    if decision == APROBADO:
+        from app.services.service_desk.fulfillment_service import crear_tareas
+        crear_tareas(db, ticket, db.get(ServiceItem, ticket.service_item_id) if ticket.service_item_id else None)
     return aprobacion
 
 

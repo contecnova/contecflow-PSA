@@ -161,6 +161,7 @@ class ServiceItemIn(BaseModel):
     sla_resolution_hours: float = Field(24, description="Horas máximas para resolución")
     requires_approval: bool = Field(False, description="Indica si requiere aprobación previa")
     approval_user_id: Optional[str] = Field(None, description="Quién aprueba; obligatorio si requiere aprobación")
+    fulfillment_tasks: Optional[list[dict]] = Field(None, description="Tareas de cumplimiento: [{title, group_id}]")
     is_visible_to_clients: bool = Field(True, description="Indica si es visible en el portal de clientes")
     sort_order: int = Field(0, description="Orden de visualización del servicio")
 
@@ -176,6 +177,7 @@ class ServiceItemUpdate(BaseModel):
     sla_resolution_hours: Optional[float] = Field(None, description="Nuevas horas SLA de resolución")
     requires_approval: Optional[bool] = Field(None, description="Actualiza si requiere aprobación")
     approval_user_id: Optional[str] = Field(None, description="Quién aprueba")
+    fulfillment_tasks: Optional[list[dict]] = Field(None, description="Tareas de cumplimiento: [{title, group_id}]")
     is_visible_to_clients: Optional[bool] = Field(None, description="Actualiza la visibilidad para clientes")
     sort_order: Optional[int] = Field(None, description="Nuevo orden de visualización")
 
