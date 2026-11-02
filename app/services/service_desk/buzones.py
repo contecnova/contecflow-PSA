@@ -193,3 +193,17 @@ def probar_buzon(db: Session, org_id: Optional[str]) -> dict:
         return {"ok": False, "protocol": protocolo or None, "error": "Buzón sin configurar"}
     except (imaplib.IMAP4.error, OSError, KeyError, httpx.HTTPError, RuntimeError) as exc:
         return {"ok": False, "protocol": protocolo, "error": str(exc)[:300]}
+
+
+def ultimos_mensajes(db: Session, limite: int) -> list[dict]:
+    """Los ultimos correos recibidos y que se hizo con cada uno."""
+    from app.models.service_desk import Ticket
+
+    filas = (db.query(InboundMessage, Ticket.number)
+             .outerjoin(Ticket, Ticket.id == InboundMessage.ticket_id)
+             .order_by(InboundMessage.received_at.desc()).limit(limite).all())
+    return [{
+        "id": m.id, "received_at": m.received_at.isoformat() if m.received_at else None,
+        "sender": m.sender, "outcome": m.outcome, "reason": m.reason,
+        "ticket_id": m.ticket_id, "ticket_number": numero, "channel": m.channel,
+    } for m, numero in filas]

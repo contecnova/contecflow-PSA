@@ -7,6 +7,30 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _servicio(service, interno: bool) -> dict:
+    datos = {
+        "id": service.id,
+        "name": service.name,
+        "description": service.description,
+        "ticket_type": service.ticket_type,
+        "default_priority": service.default_priority,
+        "sla_response_hours": service.sla_response_hours,
+        "sla_resolution_hours": service.sla_resolution_hours,
+        "requires_approval": service.requires_approval,
+    }
+    if interno:
+        # Sin estos campos el formulario de edicion arrancaba con «visible» y
+        # sin aprobador: guardar un servicio oculto lo publicaba en el portal.
+        # No van al portal: el id del aprobador es interno.
+        datos.update({
+            "approval_user_id": service.approval_user_id,
+            "is_visible_to_clients": service.is_visible_to_clients,
+            "default_support_level": getattr(service.default_support_level, "value",
+                                             service.default_support_level),
+        })
+    return datos
+
+
 def list_catalog_payload(db: Session, public_only: bool = False) -> list[dict]:
     categories = (
         db.query(ServiceCategory)
@@ -34,16 +58,7 @@ def list_catalog_payload(db: Session, public_only: bool = False) -> list[dict]:
                 "icon": category.icon,
                 "color": category.color,
                 "services": [
-                    {
-                        "id": service.id,
-                        "name": service.name,
-                        "description": service.description,
-                        "ticket_type": service.ticket_type,
-                        "default_priority": service.default_priority,
-                        "sla_response_hours": service.sla_response_hours,
-                        "sla_resolution_hours": service.sla_resolution_hours,
-                        "requires_approval": service.requires_approval,
-                    }
+                    _servicio(service, interno=not public_only)
                     for service in sorted(services, key=lambda item: item.sort_order)
                 ],
             }
@@ -78,6 +93,8 @@ def deactivate_category_record(db: Session, cat_id: str) -> None:
 
 
 def create_service_record(db: Session, payload) -> ServiceItem:
+    from app.services.service_desk.catalog_approval_service import exigir_aprobador
+    exigir_aprobador(db, payload.requires_approval, payload.approval_user_id)
     s = ServiceItem(**payload.model_dump())
     db.add(s)
     return s
@@ -91,9 +108,11 @@ def get_service_or_404(db: Session, service_id: str) -> ServiceItem:
 
 
 def update_service_record(db: Session, service_id: str, payload) -> ServiceItem:
+    from app.services.service_desk.catalog_approval_service import exigir_aprobador
     service = get_service_or_404(db, service_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(service, key, value)
+    exigir_aprobador(db, service.requires_approval, service.approval_user_id)
     return service
 
 

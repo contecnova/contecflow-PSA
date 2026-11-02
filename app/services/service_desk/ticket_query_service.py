@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import Ticket
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.services.service_desk.status_compat import normalize_ticket_status
 import logging
 
@@ -31,25 +31,14 @@ _FILTROS_DE_IGUALDAD: tuple[tuple[str, str], ...] = (
 def _acotar_a_lo_visible(q, db: Session, current_user: User):
     """Reduce la consulta a los tickets que este usuario puede ver.
 
-    Tres ámbitos, y el orden importa: superadmin lo ve todo; empleado y
-    subcontratista, **sólo los suyos** —no los de su organización, los suyos—;
-    el resto, los de cualquiera de su organización, como solicitante o como
-    asignado.
+    Auditoria 2026-11: era una segunda copia del acotado, distinta del de
+    `scoping.scope_ticket_query` —aqui un empleado no veia ni los tickets que
+    tenia asignados, y un administrador no veia los del portal o del correo
+    sin agente—. El listado y el detalle tienen que decir lo mismo: una sola
+    regla.
     """
-    if current_user.is_superadmin:
-        return q
-    if current_user.role in (UserRole.employee, UserRole.subcontractor):
-        return q.filter(Ticket.requester_user_id == current_user.id)
-    if not current_user.organization_id:
-        return q
-
-    de_la_organizacion = db.query(User.id).filter(
-        User.organization_id == current_user.organization_id
-    ).scalar_subquery()
-    return q.filter(or_(
-        Ticket.requester_user_id.in_(de_la_organizacion),
-        Ticket.assigned_to_user_id.in_(de_la_organizacion),
-    ))
+    from app.services.service_desk.scoping import scope_ticket_query
+    return scope_ticket_query(q, db, current_user)
 
 
 def build_ticket_list_query(

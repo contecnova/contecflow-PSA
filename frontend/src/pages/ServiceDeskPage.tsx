@@ -6,6 +6,8 @@
  */
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { sdApprovalsApi } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
 import { MessageSquare } from 'lucide-react'
 import { Button, Spinner, Tabs } from '../components/ui'
@@ -44,7 +46,12 @@ export default function ServiceDeskPage() {
   const [mobileView, setMobileView] = useState('list') // 'list' | 'detail'
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth < 768
-  const splitMode = selId && (tab === 'queue' || tab === 'all' || tab === 'kanban')
+  const splitMode = selId && (tab === 'queue' || tab === 'all' || tab === 'kanban' || tab === 'approvals')
+  const { data: porAprobar = [] } = useQuery<PorAprobar[]>({
+    queryKey: ['sd-approvals-mine'],
+    queryFn: () => sdApprovalsApi.mine().then(r => r.data as PorAprobar[]),
+    refetchInterval: 60000,
+  })
 
   useEffect(() => {
     if (isMobile && selId) setMobileView('detail')
@@ -65,6 +72,9 @@ export default function ServiceDeskPage() {
     { id: 'queue',    label: `${t('service_desk.tab_queue')}` },
     { id: 'all',      label: `${t('service_desk.tab_all')}` },
     { id: 'kanban',   label: `${t('service_desk.tab_kanban')}` },
+    // Solo si hay algo que aprobar: para el resto seria una pestaña siempre vacia.
+    ...(porAprobar.length > 0 || tab === 'approvals'
+      ? [{ id: 'approvals', label: `${t('sd_cfg.apr_tab')} (${porAprobar.length})` }] : []),
     { id: 'changes',  label: `${t('service_desk.tab_changes')}` },
     { id: 'mi',       label: `${t('service_desk.tab_mi')}` },
     { id: 'problems', label: `${t('service_desk.tab_problems')}` },
@@ -136,6 +146,11 @@ export default function ServiceDeskPage() {
             {tab === 'queue'    && <div id="sd-panel-queue" role="tabpanel" aria-labelledby="sd-tab-queue"><TicketList queueOnly={true}  onSelect={tk => setSelId(String(tk.id))} /></div>}
             {tab === 'all'      && <div id="sd-panel-all" role="tabpanel" aria-labelledby="sd-tab-all"><TicketList queueOnly={false} onSelect={tk => setSelId(String(tk.id))} /></div>}
             {tab === 'kanban'   && <div id="sd-panel-kanban" role="tabpanel" aria-labelledby="sd-tab-kanban"><KanbanTicketsTab onSelect={tk => setSelId(String(tk.id))} /></div>}
+            {tab === 'approvals' && (
+              <div id="sd-panel-approvals" role="tabpanel" aria-labelledby="sd-tab-approvals">
+                <ListaPorAprobar items={porAprobar} seleccionado={selId} onSelect={setSelId} />
+              </div>
+            )}
             {tab === 'changes'  && (
               <div id="sd-panel-changes" role="tabpanel" aria-labelledby="sd-tab-changes"><Suspense fallback={<Loading />}>
                 <LazyChangeManagementTab />
@@ -194,5 +209,37 @@ export default function ServiceDeskPage() {
         />
       )}
     </PageShell>
+  )
+}
+
+
+type PorAprobar = { approval_id: string; ticket_id: string; number: string; title: string; requester_name?: string; service_item_name?: string; created_at?: string }
+
+function ListaPorAprobar({ items, seleccionado, onSelect }: { items: PorAprobar[]; seleccionado: string | null; onSelect: (id: string) => void }) {
+  const t = useAppT()
+  if (items.length === 0) {
+    return <div style={{ padding: 24, color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>{t('sd_cfg.apr_empty')}</div>
+  }
+  return (
+    <div className="ds-card" style={{ padding: 0, overflow: 'hidden' }}>
+      {items.map((a, i) => (
+        <button key={a.approval_id} type="button" onClick={() => onSelect(a.ticket_id)}
+          aria-pressed={seleccionado === a.ticket_id}
+          style={{ display: 'flex', width: '100%', textAlign: 'left', gap: 12, alignItems: 'center', padding: '12px 16px',
+            border: 'none', borderTop: i ? '1px solid var(--surface-4)' : 'none', cursor: 'pointer', fontFamily: 'inherit',
+            background: seleccionado === a.ticket_id ? 'var(--accent-muted)' : 'transparent', color: 'var(--text-1)' }}>
+          <span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: 'var(--text-sm)' }}>{a.number}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontWeight: 600 }}>{a.title}</span>
+            <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+              {[a.requester_name, a.service_item_name].filter(Boolean).join(' · ')}
+            </span>
+          </span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>
+            {a.created_at ? new Date(a.created_at).toLocaleDateString() : ''}
+          </span>
+        </button>
+      ))}
+    </div>
   )
 }

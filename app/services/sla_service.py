@@ -717,6 +717,7 @@ def ticket_out(t: "Ticket", include_comments: bool = False) -> dict:
         "updated_at": str(t.updated_at)[:16] if t.updated_at else None,
         "first_response_at": str(t.first_response_at)[:16] if t.first_response_at else None,
         "resolved_at": str(t.resolved_at)[:16] if t.resolved_at else None,
+        "approval_status": t.approval_status,
     }
 
     if include_comments:

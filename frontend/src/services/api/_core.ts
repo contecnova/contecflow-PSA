@@ -1358,6 +1358,11 @@ export const sdNotificationTemplatesApi = {
   preview: (data: unknown)                      => api.post('/sd/notification-templates/preview', data),
 }
 
+export const sdApprovalsApi = {
+  mine:   ()                                  => api.get('/sd/approvals/mine'),
+  decide: (ticketId: string, data: unknown)   => api.post(`/sd/tickets/${ticketId}/approval`, data),
+}
+
 export const sdInboundApi = {
   messages: (limit = 30) => api.get('/sd/inbound/messages', { params: { limit } }),
   test:     ()           => api.post('/sd/inbound/test'),

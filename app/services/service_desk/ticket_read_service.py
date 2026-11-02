@@ -222,9 +222,11 @@ def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticke
     if not ticket:
         raise HTTPException(404, "Ticket no encontrado")
 
+    from app.services.service_desk import catalog_approval_service as _aprobacion
     payload = {
         **ticket_out(ticket, include_comments=True),
         "dynamic_fields": get_ticket_dynamic_fields(db, ticket.id),
+        "approval": _aprobacion.serializar(_aprobacion.ultima(db, ticket.id)),
     }
 
     # Merge threaded comments (Mentions page) so ticket detail shows the same

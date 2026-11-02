@@ -69,6 +69,7 @@ interface Ticket {
   ticket_type?: string
   status?: string
   status_label?: string
+  approval_status?: string | null
   priority?: string
   priority_label?: string
   created_at?: string
@@ -287,7 +288,7 @@ export function PortalSupportDesk() {
         ) : (
           <>
             <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-              <PortalBadge tone={STATUS_TONE[ticketDetail.status || ""] || 'default'}>{ticketDetail.status_label || ticketDetail.status}</PortalBadge>
+              <PortalBadge tone={ticketDetail.approval_status === 'pending' ? 'warning' : (STATUS_TONE[ticketDetail.status || ""] || 'default')}>{ticketDetail.approval_status === 'pending' ? traducir('sd_cfg.apr_portal_pending') : (ticketDetail.status_label || ticketDetail.status)}</PortalBadge>
               <PortalBadge tone={PRIORITY_TONE[ticketDetail.priority || ""] || 'default'}>{ticketDetail.priority_label}</PortalBadge>
             </div>
 
@@ -514,7 +515,7 @@ export function PortalSupportDesk() {
                         fontSize: 'var(--text-xs)', fontWeight: 700,
                         color: PRIORITY_COLORS[tk.priority || ""] || 'var(--text-2)',
                       }}>{tk.priority_label}</span>
-                      <PortalBadge tone={STATUS_TONE[tk.status || ""] || 'default'}>{tk.status_label || tk.status}</PortalBadge>
+                      <PortalBadge tone={tk.approval_status === 'pending' ? 'warning' : (STATUS_TONE[tk.status || ""] || 'default')}>{tk.approval_status === 'pending' ? traducir('sd_cfg.apr_portal_pending') : (tk.status_label || tk.status)}</PortalBadge>
                     </div>
                   </div>
                   {tk.status === 'pending_client' && (

@@ -8,6 +8,9 @@ from app.schemas.service_desk import TicketCreateIn
 from app.services.service_desk.routing_rule_service import apply_routing_rules
 from app.services.service_desk.scoping import resolve_sla_policy_for_ticket as _resolve_sla_policy_for_ticket
 from app.services.service_desk.dynamic_ticket_fields_service import save_ticket_dynamic_fields
+from app.services.service_desk.catalog_approval_service import (
+    solicitar_si_hace_falta as solicitar_aprobacion_si_hace_falta,
+)
 from app.services.sla_service import (
     PRIORITY_MATRIX,
     calculate_sla_due as _calculate_sla_due,
@@ -274,6 +277,7 @@ def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_i
     _auto_assign_ticket_on_create(db, ticket)
     db.flush()
     save_ticket_dynamic_fields(db, ticket.id, payload.dynamic_fields)
+    solicitar_aprobacion_si_hace_falta(db, ticket, service_item)
     _emit_ticket_created_metric(ticket)
     return ticket
 
@@ -324,6 +328,7 @@ def build_client_portal_ticket(db: Session, payload: TicketCreateIn, client: Cli
     _auto_assign_ticket_on_create(db, ticket)
     db.flush()
     save_ticket_dynamic_fields(db, ticket.id, payload.dynamic_fields)
+    solicitar_aprobacion_si_hace_falta(db, ticket, service_item)
     _emit_ticket_created_metric(ticket)
     return ticket
 

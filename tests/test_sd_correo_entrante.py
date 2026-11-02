@@ -233,8 +233,10 @@ def test_los_avisos_piden_respuesta_a_la_direccion_de_soporte(db, contacto, monk
     salidos = []
     monkeypatch.setattr(correo, "enviar", lambda db, org, para, asunto, html, texto, *, responder_a=None:
                         salidos.append((para, asunto, responder_a)) or correo.ResultadoEnvio(True))
+    from app.services.settings_service import invalidate_cache
     db.add(AppSetting(key="SD_INBOUND_ADDRESS", value="soporte@empresa.com", organization_id=ORG))
     db.commit()
+    invalidate_cache("SD_INBOUND_ADDRESS")  # como hace el endpoint de ajustes
     _procesar(db, _correo(message_id="<1@x>"))
     procesar_pendientes(db)
     acuse = next(s for s in salidos if s[0] == "ana@cliente.com")

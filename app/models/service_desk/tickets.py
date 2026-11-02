@@ -123,6 +123,10 @@ class Ticket(Base):
     source = Column(String(20), default="portal")
     tags = Column(String(500), nullable=True)
 
+    # Aprobacion del catalogo: NULL si el servicio no la pide; pending mientras
+    # no se decide (no se puede trabajar), approved o rejected despues.
+    approval_status = Column(String(20), nullable=True, index=True)
+
     # FIX: Use server_default so SQLite sets this correctly
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -182,6 +186,25 @@ class TicketEvent(Base):
     last_error = Column(String(500), nullable=True)
 
     ticket = relationship("Ticket")
+
+
+class TicketApproval(Base):
+    """La aprobacion que pide un servicio del catalogo antes de atenderse."""
+    __tablename__ = "sd_ticket_approvals"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    approver_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    status = Column(String(20), default="pending", nullable=False, index=True)  # pending | approved | rejected
+    comment = Column(Text, nullable=True)
+    decided_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    ticket = relationship("Ticket")
+    approver = relationship("User", foreign_keys=[approver_user_id])
+    decided_by = relationship("User", foreign_keys=[decided_by_user_id])
 
 
 class InboundMessage(Base):

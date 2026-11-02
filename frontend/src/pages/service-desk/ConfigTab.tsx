@@ -15,7 +15,7 @@ import { PRIORITY_LABEL, PBadge } from './sdUtils'
 import { RoutingRules } from './QueueAndRoutingSections'
 
 // ── Local types ─────────────────────────────────────────────────────────────
-type Svc = { [k: string]: unknown; id: string; name: string; category_id?: string; ticket_type?: string; default_priority?: string; sla_response_hours?: number; sla_resolution_hours?: number; requires_approval?: boolean; is_visible_to_clients?: boolean }
+type Svc = { [k: string]: unknown; id: string; name: string; category_id?: string; ticket_type?: string; default_priority?: string; sla_response_hours?: number; sla_resolution_hours?: number; requires_approval?: boolean; approval_user_id?: string | null; is_visible_to_clients?: boolean }
 type Cat = { [k: string]: unknown; id: string; name: string; description?: string; icon?: string; color?: string; services?: Svc[] }
 type Policy = { [k: string]: unknown; id: string; name: string; description?: string; is_default?: boolean; business_hours_only?: boolean; business_start?: number; business_end?: number; business_days?: string; timezone?: string | null; calendar_id?: string | null }
 type Calendario = { id: string; name: string; timezone?: string; work_start?: string; work_end?: string; work_days?: string }
@@ -188,6 +188,10 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onC
 
 function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial }: { catalog: Cat[]; onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: CSSProperties; LS: CSSProperties; initial?: Svc | null }) {
   const t = useAppT()
+  const { data: usuarios = [] } = useQuery<User[]>({
+    queryKey: ['users'],
+    queryFn: () => usersApi.list().then(r => r.data as unknown as User[]),
+  })
   const [form, setForm] = useState({
     name: initial?.name || '',
     category_id: initial?.category_id || catalog[0]?.id || '',
@@ -196,8 +200,10 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
     sla_response_hours: initial?.sla_response_hours || 4,
     sla_resolution_hours: initial?.sla_resolution_hours || 24,
     requires_approval: initial?.requires_approval || false,
+    approval_user_id: initial?.approval_user_id || '',
     is_visible_to_clients: initial?.is_visible_to_clients ?? true,
   })
+  const faltaAprobador = form.requires_approval && !form.approval_user_id
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({...f, [k]: (e.target as HTMLInputElement).type==='checkbox' ? (e.target as HTMLInputElement).checked : e.target.value}))
   return (
     <Modal open title={initial ? t('service_desk.svc_edit_title') : t('service_desk.svc_new_title')} onClose={onClose}>
@@ -226,12 +232,26 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
           <div><label style={LS}>{t('service_desk.sla_resolution_h')}</label><input type="number" value={form.sla_resolution_hours} onChange={set('sla_resolution_hours')} style={IS} /></div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <input type="checkbox" id="svc_visible" aria-label={t('sd_cfg.svc_visible')} checked={form.is_visible_to_clients} onChange={set('is_visible_to_clients')} />
+          <label htmlFor="svc_visible" style={{ fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>{t('sd_cfg.svc_visible')}</label>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <input type="checkbox" id="req_appr" checked={form.requires_approval} onChange={set('requires_approval')} />
           <label htmlFor="req_appr" style={{ fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.svc_requires_approval')}</label>
         </div>
+        {form.requires_approval && (
+          <div style={{ gridColumn:'1/-1' }}>
+            <label style={LS} htmlFor="svc_approver">{t('sd_cfg.svc_approver')} *</label>
+            <select id="svc_approver" aria-label={t('sd_cfg.svc_approver')} value={form.approval_user_id} onChange={set('approval_user_id')} style={IS}>
+              <option value="">—</option>
+              {usuarios.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+            </select>
+          </div>
+        )}
         <div style={{ gridColumn:'1/-1', display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('service_desk.svc_new_title')}</Button>
+          <Button onClick={() => onSave({ ...form, approval_user_id: form.requires_approval ? form.approval_user_id : null })}
+            disabled={isPending || !form.name || faltaAprobador} loading={isPending}>{initial ? t('common.save') : t('service_desk.svc_new_title')}</Button>
         </div>
       </div>
     </Modal>

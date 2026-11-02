@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, Query, Header, Body, BackgroundTasks, Re
 from sqlalchemy.orm import Session
 from typing import Optional
 
+from pydantic import BaseModel, Field
+
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.models.user import User
@@ -216,6 +218,31 @@ def add_client_comment(
     comment = add_client_comment_svc(db, ticket, ticket_id, payload.body, client.id)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"id": comment.id, "created_at": str(comment.created_at)[:16]})
+
+
+class AprobacionIn(BaseModel):
+    decision: str = Field(..., pattern="^(approved|rejected)$")
+    comment: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/tickets/{ticket_id}/approval", summary="Aprobar o rechazar la petición del catálogo")
+def decide_approval(
+    ticket_id: str, payload: AprobacionIn,
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_internal_user),  # auditoria 2026-11: decide el aprobador, que es un usuario
+):
+    from app.services.service_desk import catalog_approval_service as aprobacion
+    ticket = get_scoped_ticket_or_404(db, current_user, ticket_id)
+    a = aprobacion.decidir(db, ticket, current_user, payload.decision, payload.comment)
+    _commit_or_rollback(db)
+    return APIResponse.ok(data=aprobacion.serializar(a))
+
+
+@router.get("/approvals/mine", summary="Peticiones del catálogo pendientes de mi aprobación")
+def my_pending_approvals(db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+                         _rol: User = Depends(require_internal_user)):
+    from app.services.service_desk import catalog_approval_service as aprobacion
+    return APIListResponse.ok(items=aprobacion.mis_pendientes(db, current_user))
 
 
 @router.post("/tickets/{ticket_id}/time-log", summary="Registrar tiempo")

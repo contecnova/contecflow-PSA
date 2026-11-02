@@ -2,7 +2,7 @@ from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 
 from app.models.clients import Client
 from app.models.pipeline import Contract
@@ -64,13 +64,31 @@ def _org_project_ids_subquery(db: Session, current_user: User):
 
 
 def scope_ticket_query(q, db: Session, current_user: User):
+    """Los tickets que el usuario puede ver.
+
+    Auditoria 2026-11 (medido): para un administrador o PM, un ticket solo era
+    visible si su solicitante, su agente o su creador era un usuario de la
+    organizacion. Un ticket del portal o del correo sin agente no tiene
+    ninguno de los tres, asi que no salia en ningun listado — tampoco en la
+    cola, que es donde tienen que estar los sin asignar. Ahora manda la
+    organizacion del ticket; la regla por usuarios queda para las filas
+    antiguas sin organizacion.
+
+    Un empleado ve ademas los tickets cuya aprobacion le toca: sin eso no
+    podia abrir el que le pedian aprobar.
+    """
     if current_user.is_superadmin:
         return q
     if current_user.role in (UserRole.employee, UserRole.subcontractor):
+        from app.models.service_desk import TicketApproval
+        por_aprobar = db.query(TicketApproval.ticket_id).filter(
+            TicketApproval.approver_user_id == current_user.id,
+        ).scalar_subquery()
         return q.filter(
             or_(
                 Ticket.requester_user_id == current_user.id,
                 Ticket.assigned_to_user_id == current_user.id,
+                Ticket.id.in_(por_aprobar),
             )
         )
     if current_user.organization_id:
@@ -79,9 +97,15 @@ def scope_ticket_query(q, db: Session, current_user: User):
         ).scalar_subquery()
         return q.filter(
             or_(
-                Ticket.requester_user_id.in_(org_user_ids),
-                Ticket.assigned_to_user_id.in_(org_user_ids),
-                Ticket.created_by_user_id.in_(org_user_ids),
+                Ticket.organization_id == current_user.organization_id,
+                and_(
+                    Ticket.organization_id.is_(None),
+                    or_(
+                        Ticket.requester_user_id.in_(org_user_ids),
+                        Ticket.assigned_to_user_id.in_(org_user_ids),
+                        Ticket.created_by_user_id.in_(org_user_ids),
+                    ),
+                ),
             )
         )
     return q

@@ -9,7 +9,8 @@ import { Button, Spinner, Modal } from '../../components/ui'
 import AIInlineEditorRaw from '../../components/AIInlineEditor'
 import DocumentsPanelRaw from '../../components/DocumentsPanel'
 import { COLOR } from '../../constants/theme'
-import { sdCannedApi, ticketsApi, usersApi } from '../../services/api'
+import { sdApprovalsApi, sdCannedApi, ticketsApi, usersApi } from '../../services/api'
+import { useAuth } from '../../context/AuthContext'
 import { PBadge, SBadge, fmtDate, fmtMinutes, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
 
 // Loosely-typed aliases: these components still infer their props as required.
@@ -276,6 +277,9 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
   // Resolver pide el texto: es lo que recibe el solicitante en el correo.
   const [resolviendo, setResolviendo] = useState(false)
   const [textoResolucion, setTextoResolucion] = useState('')
+  const { user: yo } = useAuth()
+  const [rechazando, setRechazando] = useState(false)
+  const [motivo, setMotivo] = useState('')
 
   const { data: ticket, isLoading } = useQuery({
     queryKey: ['sd-ticket', ticketId],
@@ -412,6 +416,11 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
       {/* Body */}
       <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
         {isLoading ? <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div> : ticket && <>
+          {/* Aprobación del catálogo */}
+          {ticket.approval && (
+            <AprobacionDelTicket ticket={ticket} yo={yo} rechazando={rechazando} motivo={motivo}
+              setRechazando={setRechazando} setMotivo={setMotivo} />
+          )}
           {/* SLA status */}
           <div style={{ background: 'var(--surface-2)', border: `1px solid ${slaColor}40`, borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
@@ -595,7 +604,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
         <Modal open title={`${t('sd_cfg.qa_resolve')} ${ticket.number}`} onClose={() => setResolviendo(false)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <label htmlFor="sd-resolucion" style={LABEL_STYLE}>{t('sd_cfg.qa_resolution')}</label>
-            <textarea id="sd-resolucion" value={textoResolucion} onChange={e => setTextoResolucion(e.target.value)}
+            <textarea id="sd-resolucion" aria-label={t('sd_cfg.qa_resolution')} value={textoResolucion} onChange={e => setTextoResolucion(e.target.value)}
               rows={5} style={{ ...(INPUT_STYLE as CSSProperties), resize: 'vertical' }} autoFocus />
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('sd_cfg.qa_resolution_hint')}</div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -614,6 +623,59 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           onClose={() => setShowSplit(false)}
           onCreated={() => { invalidate(); qc.invalidateQueries({ queryKey: ['sd-tickets'] }) }}
         />
+      )}
+    </div>
+  )
+}
+
+
+type Aprobacion = { status: string; comment?: string | null; approver_user_id?: string | null; approver_name?: string | null; decided_by_name?: string | null }
+
+/** Estado de la aprobación y, para quien la tiene que dar, los botones. */
+function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, setMotivo }: {
+  ticket: { id: string; approval: Aprobacion }; yo: { id?: string; role?: string } | null
+  rechazando: boolean; motivo: string; setRechazando: (v: boolean) => void; setMotivo: (v: string) => void
+}) {
+  const t = useAppT()
+  const toast = useToast()
+  const qc = useQueryClient()
+  const a = ticket.approval
+  const decidir = useMutation({
+    mutationFn: (d: { decision: string; comment?: string }) => sdApprovalsApi.decide(ticket.id, d),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sd-ticket', ticket.id] })
+      qc.invalidateQueries({ queryKey: ['sd-approvals-mine'] })
+      setRechazando(false); setMotivo('')
+      toast.success(t('sd_cfg.apr_done'))
+    },
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  const puedeDecidir = a.status === 'pending' && (a.approver_user_id === yo?.id || yo?.role === 'admin')
+  const color = a.status === 'approved' ? COLOR.success : a.status === 'rejected' ? COLOR.danger : COLOR.warning
+  const texto = a.status === 'pending' ? t('sd_cfg.apr_pending', { name: a.approver_name ?? '—' })
+    : t(a.status === 'approved' ? 'sd_cfg.apr_approved' : 'sd_cfg.apr_rejected', { name: a.decided_by_name ?? '—' })
+  return (
+    <div role="status" style={{ border: `1px solid ${color}60`, background: `${color}12`, borderRadius: 10,
+      padding: '12px 16px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color }}>{texto}</div>
+      {a.comment && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{a.comment}</div>}
+      {puedeDecidir && !rechazando && (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button onClick={() => decidir.mutate({ decision: 'approved' })} loading={decidir.isPending}>{t('sd_cfg.apr_approve')}</Button>
+          <Button variant="secondary" onClick={() => setRechazando(true)}>{t('sd_cfg.apr_reject')}</Button>
+        </div>
+      )}
+      {puedeDecidir && rechazando && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label htmlFor="apr-motivo" style={LABEL_STYLE}>{t('sd_cfg.apr_reason')}</label>
+          <textarea id="apr-motivo" aria-label={t('sd_cfg.apr_reason')} value={motivo} onChange={e => setMotivo(e.target.value)} rows={3}
+            style={{ ...(INPUT_STYLE as CSSProperties), resize: 'vertical' }} autoFocus />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="secondary" onClick={() => setRechazando(false)}>{t('common.cancel')}</Button>
+            <Button disabled={!motivo.trim()} loading={decidir.isPending}
+              onClick={() => decidir.mutate({ decision: 'rejected', comment: motivo.trim() })}>{t('sd_cfg.apr_reject')}</Button>
+          </div>
+        </div>
       )}
     </div>
   )

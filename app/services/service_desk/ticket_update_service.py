@@ -202,6 +202,8 @@ def apply_ticket_update(
     changes = payload.model_dump(exclude_unset=True)
     dynamic_fields = changes.pop("dynamic_fields", None)
     normalized_status = normalize_ticket_status(payload.status)
+    from app.services.service_desk.catalog_approval_service import exigir_aprobado
+    exigir_aprobado(ticket, normalized_status)
     if "status" in changes:
         changes["status"] = normalized_status
 
