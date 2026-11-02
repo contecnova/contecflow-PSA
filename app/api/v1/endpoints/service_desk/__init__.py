@@ -50,6 +50,7 @@ from app.api.v1.endpoints.service_desk import (
     dynamic_forms,
     notification_templates,
     canal_correo,
+    change_calendar,
 )
 
 router = APIRouter()
@@ -93,3 +94,4 @@ router.include_router(voice_agent.router)
 router.include_router(dynamic_forms.router)
 router.include_router(notification_templates.router)
 router.include_router(canal_correo.router)
+router.include_router(change_calendar.router)

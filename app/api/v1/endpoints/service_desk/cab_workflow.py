@@ -17,8 +17,9 @@ router = APIRouter()
 
 
 class CABStartIn(BaseModel):
-    manager_user_id: str = Field(..., min_length=1, max_length=120)
-    cab_members: list[str] = Field(..., min_length=1)
+    manager_user_id: Optional[str] = Field(None, max_length=120)
+    # Vacio: los miembros de la cola CAB de la organizacion (SD_CAB_GROUP_ID).
+    cab_members: Optional[list[str]] = None
     quorum: Optional[int] = Field(None, ge=1)
 
 

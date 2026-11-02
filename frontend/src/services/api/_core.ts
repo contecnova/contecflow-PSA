@@ -1358,6 +1358,20 @@ export const sdNotificationTemplatesApi = {
   preview: (data: unknown)                      => api.post('/sd/notification-templates/preview', data),
 }
 
+export const sdChangePlanningApi = {
+  calendar:        (desde: string, hasta: string) => api.get('/sd/change-calendar', { params: { desde, hasta } }),
+  blackouts:       ()                       => api.get('/sd/change-blackouts'),
+  createBlackout:  (data: unknown)          => api.post('/sd/change-blackouts', data),
+  updateBlackout:  (id: string, data: unknown) => api.put(`/sd/change-blackouts/${id}`, data),
+  deleteBlackout:  (id: string)             => api.delete(`/sd/change-blackouts/${id}`),
+  releases:        ()                       => api.get('/sd/releases'),
+  createRelease:   (data: unknown)          => api.post('/sd/releases', data),
+  updateRelease:   (id: string, data: unknown) => api.put(`/sd/releases/${id}`, data),
+  deleteRelease:   (id: string)             => api.delete(`/sd/releases/${id}`),
+  cab:             (changeId: string | number) => api.get(`/sd/changes/${changeId}/cab/workflow`),
+  vote:            (changeId: string | number, data: unknown) => api.post(`/sd/changes/${changeId}/cab/vote`, data),
+}
+
 export const sdApprovalsApi = {
   mine:   ()                                  => api.get('/sd/approvals/mine'),
   decide: (ticketId: string, data: unknown)   => api.post(`/sd/tickets/${ticketId}/approval`, data),

@@ -5,7 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
-import { changesApi } from '../../services/api'
+import { changesApi, cmdbApi, sdChangePlanningApi } from '../../services/api'
+import { CalendarioCambios, Congelaciones, PanelCab, Versiones } from './CambiosPlanificacion'
+import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -48,6 +50,9 @@ interface ChangeItem {
   test_plan?: string
   impact_description?: string
   priority?: string
+  affected_cis?: string[]
+  release_id?: string | null
+  rejected_reason?: string | null
 }
 
 interface ChangeFormData {
@@ -64,13 +69,15 @@ interface ChangeFormData {
   planned_start: string
   planned_end: string
   downtime_minutes?: number
+  affected_cis?: string[]
+  release_id?: string | null
 }
 
 interface StatusAction {
   label: string
   color: string
   next?: ChangeStatus
-  action?: 'approve' | 'reject'
+  action?: 'approve' | 'reject' | 'open'
 }
 
 const CHANGE_STATUS_COLOR: Record<string, string> = {
@@ -153,6 +160,10 @@ function ChangeDetailPanel({
 
       <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
         {isLoading ? <Spinner /> : <>
+          {c.rejected_reason && (
+            <div role="status" style={{ border: `1px solid ${COLOR.danger}50`, background: `${COLOR.danger}10`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 'var(--text-sm)', color: COLOR.danger }}>{c.rejected_reason}</div>
+          )}
+          <PanelCab changeId={c.id} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
             {[
               ['Solicitante', c.requester || '—'],
@@ -200,7 +211,18 @@ function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onC
     planned_start: change.planned_start ? change.planned_start.replace(' ', 'T').slice(0, 16) : '',
     planned_end: change.planned_end ? change.planned_end.replace(' ', 'T').slice(0, 16) : '',
     downtime_minutes: change.downtime_minutes || 0,
+    affected_cis: change.affected_cis ?? [],
+    release_id: change.release_id ?? null,
   })
+  const ts = useAppT()
+  const { data: cis = [] } = useQuery<{ id: string; name: string; code?: string }[]>({
+    queryKey: ['sd-cmdb-items'], queryFn: () => cmdbApi.sdList({ page_size: 200 }).then(r => r.data as { id: string; name: string; code?: string }[]),
+  })
+  const { data: versiones = [] } = useQuery<{ id: string; name: string; version?: string | null; status: string }[]>({
+    queryKey: ['sd-releases'], queryFn: () => sdChangePlanningApi.releases().then(r => r.data as { id: string; name: string; version?: string | null; status: string }[]),
+  })
+  const alternarCi = (id: string) => setForm(f => ({ ...f, affected_cis: (f.affected_cis ?? []).includes(id)
+    ? (f.affected_cis ?? []).filter(x => x !== id) : [...(f.affected_cis ?? []), id] }))
   const { mutate, isPending } = useMutation({
     mutationFn: (data: ChangeFormData) => changesApi.update(change.id, data),
     onSuccess: onSaved,
@@ -223,6 +245,18 @@ function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onC
         <div><label htmlFor={`${idPrefix}-planned-start`} style={LS}>Inicio planificado</label><input id={`${idPrefix}-planned-start`} type="datetime-local" value={form.planned_start} onChange={set('planned_start')} style={IS} /></div>
         <div><label htmlFor={`${idPrefix}-planned-end`} style={LS}>Fin planificado</label><input id={`${idPrefix}-planned-end`} type="datetime-local" value={form.planned_end} onChange={set('planned_end')} style={IS} /></div>
         <div><label htmlFor={`${idPrefix}-downtime`} style={LS}>Downtime estimado (min)</label><input id={`${idPrefix}-downtime`} type="number" value={form.downtime_minutes} onChange={set('downtime_minutes')} style={IS} min="0" /></div>
+        <div><label htmlFor={`${idPrefix}-release`} style={LS}>{ts('sd_cfg.chg_release')}</label>
+          <select id={`${idPrefix}-release`} value={form.release_id ?? ''} onChange={e => setForm(f => ({ ...f, release_id: e.target.value || null }))} style={IS}>
+            <option value="">{ts('sd_cfg.chg_none')}</option>
+            {versiones.filter(v => v.status !== 'released' && v.status !== 'cancelled').map(v => <option key={v.id} value={v.id}>{v.name}{v.version ? ` ${v.version}` : ''}</option>)}
+          </select></div>
+        <div style={{ gridColumn: '1/-1' }}><span style={LS}>{ts('sd_cfg.chg_affected_cis')}</span>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', maxHeight: 140, overflowY: 'auto' }}>
+            {cis.map(ci => {
+              const on = (form.affected_cis ?? []).includes(ci.id)
+              return <button key={ci.id} type="button" aria-pressed={on} onClick={() => alternarCi(ci.id)} style={{ padding: '4px 10px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-xs)', border: `1px solid ${on ? 'var(--accent)' : 'var(--surface-4)'}`, background: on ? 'var(--accent-muted)' : 'transparent', color: on ? 'var(--accent)' : 'var(--text-2)' }}>{ci.code ? `${ci.code} · ` : ''}{ci.name}</button>
+            })}
+          </div></div>
         <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-description`} style={LS}>{t('changemanagement.descripcion_2')}</label><textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
         <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-business-justification`} style={LS}>{t('changemanagement.justificacion_de_negocio')}</label><textarea id={`${idPrefix}-business-justification`} value={form.business_justification} onChange={set('business_justification')} rows={2} style={{ ...IS, resize: 'vertical' }} /></div>
         <div><label htmlFor={`${idPrefix}-implementation-plan`} style={LS}>{t('changemanagement.plan_de_implementacion')}</label><textarea id={`${idPrefix}-implementation-plan`} value={form.implementation_plan} onChange={set('implementation_plan')} rows={4} style={{ ...IS, resize: 'vertical' }} /></div>
@@ -281,6 +315,9 @@ export default function ChangeManagementTab() {
   const [editing, setEditing] = useState<ChangeItem | null>(null)
   const [detail, setDetail] = useState<ChangeItem | null>(null)
   const [filterStatus, setFilterStatus] = useState('')
+  const ts = useAppT()
+  const [vista, setVista] = useState<'list' | 'calendar' | 'releases' | 'blackouts'>('list')
+  const abrir = (id: string) => setDetail({ id } as ChangeItem)
 
   const { data: changesRaw = [], isLoading } = useQuery({
     queryKey: ['sd-changes', filterStatus],
@@ -302,7 +339,8 @@ export default function ChangeManagementTab() {
   const STATUS_ACTIONS: Record<string, StatusAction[]> = {
     draft: [{ label: 'Enviar a revisión', next: 'submitted', color: COLOR.accent }],
     submitted: [{ label: 'Enviar a CAB', next: 'cab_review', color: COLOR.warning }],
-    cab_review: [{ label: 'Aprobar', action: 'approve', color: COLOR.success }, { label: 'Rechazar', action: 'reject', color: COLOR.danger }],
+    // Se vota en el panel del cambio: cada miembro del CAB, con motivo si es en contra.
+    cab_review: [{ label: ts('sd_cfg.chg_cab'), action: 'open', color: COLOR.warning }],
     approved: [{ label: 'Programar', next: 'scheduled', color: COLOR.accent }],
     scheduled: [{ label: 'Iniciar', next: 'in_progress', color: COLOR.accent }],
     in_progress: [{ label: 'Implementado', next: 'implemented', color: COLOR.success }],
@@ -310,6 +348,7 @@ export default function ChangeManagementTab() {
   }
 
   const handleAction = (c: ChangeItem, action: StatusAction) => {
+    if (action.action === 'open') { setDetail(c); return }
     if (action.action === 'approve') { approve({ id: c.id, approved: true }); return }
     if (action.action === 'reject') { approve({ id: c.id, approved: false }); return }
     changesApi.update(c.id, { status: action.next })
@@ -319,6 +358,18 @@ export default function ChangeManagementTab() {
 
   return (
     <div>
+      <div role="tablist" aria-label={ts('sd_cfg.chg_calendar')} style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+        {(['list', 'calendar', 'releases', 'blackouts'] as const).map(v => (
+          <button key={v} type="button" role="tab" aria-selected={vista === v} onClick={() => setVista(v)}
+            style={{ padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 600,
+              border: `1px solid ${vista === v ? 'var(--accent)' : 'var(--surface-4)'}`, background: vista === v ? 'var(--accent-muted)' : 'transparent',
+              color: vista === v ? 'var(--accent)' : 'var(--text-2)' }}>{ts(`sd_cfg.chg_${v}`)}</button>
+        ))}
+      </div>
+      {vista === 'calendar' && <CalendarioCambios onOpen={abrir} />}
+      {vista === 'releases' && <Versiones onOpen={abrir} />}
+      {vista === 'blackouts' && <Congelaciones />}
+      {vista === 'list' && <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 10 }}><select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={IS}><option value="">{t('changemanagement.todos_los_estados')}</option>{['draft', 'submitted', 'cab_review', 'approved', 'scheduled', 'in_progress', 'implemented', 'post_review', 'closed_success', 'closed_failed'].map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}</select></div>
         <Button onClick={() => setShowNew(true)}>{t('changemanagement.nuevo_change_request_2')}</Button>
@@ -350,6 +401,7 @@ export default function ChangeManagementTab() {
           </table>
         </div>}
 
+      </>}
       {showNew && <NewChangeModal onClose={() => setShowNew(false)} onSaved={() => { qc.invalidateQueries({ queryKey: ['sd-changes'] }); setShowNew(false); toast.success('Change request creado') }} />}
       {editing && <ChangeEditModal change={editing} onClose={() => setEditing(null)} onSaved={() => { qc.invalidateQueries({ queryKey: ['sd-changes'] }); setEditing(null); toast.success('Change request actualizado') }} />}
       {detail && <ChangeDetailPanel change={detail} onClose={() => setDetail(null)} onEdit={() => { setEditing(detail); setDetail(null) }} onAction={handleAction} statusActions={STATUS_ACTIONS} />}

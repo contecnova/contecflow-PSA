@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone as tz
 from typing import Optional
 
@@ -156,6 +157,10 @@ def serialize_change(change: ITSMChangeRequest, full: bool = False) -> dict:
         "pir_date": str(change.pir_date) if change.pir_date else None,
         "downtime_minutes": change.downtime_minutes,
         "created_at": str(change.created_at),
+        "affected_cis": _lista_json(change.affected_cis),
+        "release_id": change.release_id,
+        "implementer_id": change.implementer_id,
+        "rejected_reason": change.rejected_reason,
         # ITSM-P05: automated risk score always visible in list
         "auto_risk_score": change.auto_risk_score,
         "auto_risk_label": _score_to_label(change.auto_risk_score),
@@ -175,6 +180,14 @@ def serialize_change(change: ITSMChangeRequest, full: bool = False) -> dict:
             }
         )
     return base
+
+
+def _lista_json(raw) -> list:
+    try:
+        valor = json.loads(raw or "[]")
+    except (ValueError, TypeError):
+        return []
+    return valor if isinstance(valor, list) else []
 
 
 def _score_to_label(score) -> str | None:
@@ -239,7 +252,6 @@ def apply_change_update(change: ITSMChangeRequest, payload: dict, current_user_i
         "change_type",
         "risk",
         "priority",
-        "status",
         "implementation_plan",
         "rollback_plan",
         "test_plan",
@@ -249,17 +261,58 @@ def apply_change_update(change: ITSMChangeRequest, payload: dict, current_user_i
         "pir_notes",
         "pir_success",
         "owner_id",
+        "release_id",
     ):
         if field in payload:
             setattr(change, field, payload[field])
+    if "affected_cis" in payload:
+        cis = payload["affected_cis"]
+        change.affected_cis = json.dumps(list(cis)) if isinstance(cis, (list, tuple)) else cis
 
     for dt_field in ("planned_start", "planned_end", "actual_start", "actual_end", "pir_date"):
         if dt_field in payload and payload[dt_field]:
             setattr(change, dt_field, datetime.fromisoformat(payload[dt_field]).replace(tzinfo=tz.utc))
 
-    if payload.get("status") == "approved":
-        change.approved_at = datetime.now(tz.utc)
-        change.approved_by = current_user_id
+
+# Estados a los que no se llega con un PATCH: los decide el CAB.
+_SOLO_POR_EL_CAB = {"approved"}
+_A_REVISION = {"submitted", "cab_review"}
+
+
+def _pasar_a_revision(db: Session, change: ITSMChangeRequest, current_user: User) -> None:
+    """Estandar de bajo riesgo: se aprueba sola. El resto, al CAB."""
+    from app.services.service_desk import cab_workflow_service as cab
+
+    db.flush()
+    _auto_score_change(db, change)
+    if _maybe_auto_approve(db, change):
+        return
+    try:
+        cab.start_cab_workflow(db, change_id=change.id, requester=current_user)
+    except ValueError as exc:
+        raise HTTPException(409, "No hay comité de cambios configurado (Service Desk → ajustes, "
+                                 "SD_CAB_GROUP_ID): un cambio normal o de emergencia necesita su aprobación") from exc
+
+
+def _aplicar_estado(db: Session, change: ITSMChangeRequest, nuevo: str, current_user: User) -> None:
+    """Las transiciones con reglas: aprobar es del CAB y programar mira el calendario.
+
+    Auditoria 2026-11: cualquiera con acceso al cambio lo ponia en `approved`
+    con un PATCH, sin pasar por el comite.
+    """
+    from app.services.service_desk.change_calendar_service import exigir_ventana_libre
+
+    if nuevo in _SOLO_POR_EL_CAB:
+        raise HTTPException(409, "Un cambio se aprueba votando en el CAB, no editándolo")
+    if nuevo in _A_REVISION:
+        _pasar_a_revision(db, change, current_user)
+        return
+    if nuevo == "scheduled":
+        estado = getattr(change.status, "value", change.status)
+        if estado != "approved":
+            raise HTTPException(409, "Solo se programa un cambio aprobado")
+        exigir_ventana_libre(db, change)
+    change.status = nuevo
 
 
 def approve_change_request(change: ITSMChangeRequest, approved: bool, approver_id: str, reason: Optional[str]) -> None:
@@ -286,10 +339,6 @@ def _auto_score_change(db: Session, change: ITSMChangeRequest) -> None:
         )
 
 
-# Risk score threshold for auto-approving standard changes
-_AUTO_APPROVE_MAX_SCORE = 30   # ≤ 30 = "low" risk
-
-
 def _maybe_auto_approve(
     db: Session,
     change: ITSMChangeRequest,
@@ -308,12 +357,16 @@ def _maybe_auto_approve(
     if change_type_val != "standard":
         return False
     score = change.auto_risk_score
-    if score is None or score > _AUTO_APPROVE_MAX_SCORE:
+    from app.services import settings_service as _ss
+    maximo = _ss.get_runtime_int(db, "SD_CHANGE_AUTO_APPROVE_MAX_RISK", change.organization_id)
+    if score is None or score > maximo:
         return False
 
     change.status = ChangeStatus.approved
     change.approved_at = datetime.now(tz.utc)
-    change.approved_by = system_user_id or "system-auto-approve"
+    # Lo aprueba la regla, no una persona: `approved_by` es una clave a usuarios
+    # y antes recibia el texto "system-auto-approve".
+    change.approved_by = system_user_id
     return True
 
 
@@ -324,7 +377,7 @@ def create_change_record(db: Session, current_user: User, payload: dict) -> ITSM
     db.add(change)
     db.flush()  # assign id before scoring
     _auto_score_change(db, change)
-    _maybe_auto_approve(db, change, system_user_id=current_user.id)
+    _maybe_auto_approve(db, change)
     return change
 
 
@@ -336,23 +389,9 @@ def update_change_record(db: Session, current_user: User, change_id: str, payloa
     prev_status = change.status.value if hasattr(change.status, "value") else change.status
     apply_change_update(change, payload, current_user.id)
     enforce_change_org_constraints(db, current_user, change)
-
-    # Re-score when the change enters a state pending CAB decision (ITSM-P05).
-    #
-    # Auditoria 2026-08: la comparacion era contra `("submitted", "in_approval")`
-    # y `in_approval` no es un valor del enum de la columna, asi que esa mitad
-    # de la condicion nunca se cumplia. El estado de espera del CAB es
-    # `cab_review`. Ver `ESTADOS_PENDIENTES_DE_CAB`.
-    new_status = payload.get("status", "")
-    from app.services.service_desk.change_impact_service import (
-        ESTADOS_PENDIENTES_DE_CAB,
-    )
-
-    if new_status in ESTADOS_PENDIENTES_DE_CAB and prev_status != new_status:
-        db.flush()
-        _auto_score_change(db, change)
-        _maybe_auto_approve(db, change, system_user_id=current_user.id)
-
+    nuevo = payload.get("status")
+    if nuevo and nuevo != prev_status:
+        _aplicar_estado(db, change, nuevo, current_user)
     return change
 
 
@@ -361,12 +400,20 @@ def approve_change_record(db: Session, current_user: User, change_id: str, paylo
     if not change:
         raise HTTPException(404)
 
-    approve_change_request(
-        change,
-        approved=payload.get("approved", True),
-        approver_id=current_user.id,
-        reason=payload.get("reason"),
-    )
+    # Un miembro del CAB vota; un administrador fuera del comite decide por
+    # encima (queda como quien lo aprobo o rechazo).
+    from app.services.service_desk import cab_workflow_service as cab
+    aprobar = payload.get("approved", True)
+    try:
+        cab.cast_cab_vote(db, change_id=change.id, voter=current_user, approve=aprobar,
+                          note=payload.get("reason") or "")
+        return change
+    except ValueError as exc:
+        if str(exc) != "user_not_in_cab":
+            raise HTTPException(422, str(exc)) from exc
+        if getattr(current_user.role, "value", current_user.role) != "admin" and not current_user.is_superadmin:
+            raise HTTPException(403, "Solo vota un miembro del CAB")
+    approve_change_request(change, approved=aprobar, approver_id=current_user.id, reason=payload.get("reason"))
     return change
 
 

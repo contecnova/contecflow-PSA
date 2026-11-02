@@ -60,6 +60,14 @@ class ITSMChangeRequest(Base):
     suggested_window_json = Column(Text, nullable=True)
 
     related_ticket_id  = Column(String(36), ForeignKey("sd_tickets.id"), nullable=True)
+
+    # Comite de cambios (CAB): sus votos viven en `sd_change_approvals`. Antes
+    # el CAB era un JSON en `app_settings`, sin pantalla.
+    cab_quorum     = Column(Integer, nullable=True)
+    cab_meeting_at = Column(DateTime(timezone=True), nullable=True)
+    cab_agenda     = Column(Text, nullable=True)
+    implementer_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    release_id     = Column(String(36), ForeignKey("sd_releases.id", ondelete="SET NULL"), nullable=True, index=True)
     related_problem_id = Column(String(36), ForeignKey("sd_problems.id"), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -85,3 +93,52 @@ class ITSMChangeRequest(Base):
         super().__init__(**kwargs)
 
 ChangeRequest = ITSMChangeRequest
+
+
+class ChangeApproval(Base):
+    """El voto de un miembro del comite sobre un cambio."""
+    __tablename__ = "sd_change_approvals"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    change_id = Column(String(36), ForeignKey("sd_change_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    approver_user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    decision = Column(String(20), default="pending", nullable=False)  # pending | approved | rejected
+    note = Column(Text, nullable=True)
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    approver = relationship("User", foreign_keys=[approver_user_id])
+
+
+class ChangeBlackout(Base):
+    """Ventana de congelacion: en ella no se programan cambios salvo de emergencia."""
+    __tablename__ = "sd_change_blackouts"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    name = Column(String(200), nullable=False)
+    reason = Column(Text, nullable=True)
+    start_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    end_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Release(Base):
+    """Una version que agrupa cambios que salen juntos."""
+    __tablename__ = "sd_releases"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    name = Column(String(200), nullable=False)
+    version = Column(String(50), nullable=True)
+    status = Column(String(20), default="planned", nullable=False)  # planned | in_progress | released | cancelled
+    planned_date = Column(DateTime(timezone=True), nullable=True, index=True)
+    released_at = Column(DateTime(timezone=True), nullable=True)
+    notes = Column(Text, nullable=True)
+    owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    owner = relationship("User", foreign_keys=[owner_id])

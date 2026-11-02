@@ -30,6 +30,14 @@ class ServiceDeskSettingsMixin:
     SD_MAIL_MAX_PER_RUN: int = Field(default=50, env="SD_MAIL_MAX_PER_RUN")
     SD_MAIL_MAX_ATTACHMENT_MB: int = Field(default=15, env="SD_MAIL_MAX_ATTACHMENT_MB")
 
+    # ── Cambios ──────────────────────────────────────────────────────────────
+    # Cola (AgentGroup) que hace de comite de cambios; en emergencias votan
+    # solo sus responsables. Regla: majority, all o any.
+    SD_CAB_GROUP_ID: str = Field(default="", env="SD_CAB_GROUP_ID")
+    SD_CAB_APPROVAL_RULE: str = Field(default="majority", env="SD_CAB_APPROVAL_RULE")
+    # Un cambio estandar con riesgo calculado hasta aqui se aprueba solo.
+    SD_CHANGE_AUTO_APPROVE_MAX_RISK: int = Field(default=30, env="SD_CHANGE_AUTO_APPROVE_MAX_RISK")
+
     # ── Bandeja de eventos ───────────────────────────────────────────────────
     SD_EVENT_MAX_ATTEMPTS: int = Field(default=5, env="SD_EVENT_MAX_ATTEMPTS")
     SD_EVENT_BATCH_SIZE: int = Field(default=200, env="SD_EVENT_BATCH_SIZE")
