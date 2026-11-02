@@ -392,6 +392,10 @@ Endpoint backend: `GET /api/v1/settings/org-defaults` devuelve los valores actua
 Hook frontend: `useOrgSettings` (`frontend/src/hooks/useOrgSettings.js`) — TanStack Query con `staleTime` de 5min y fallback a defaults.
 
 ## 11. Estándares UI
+Guía de diseño completa —tokens, temas con su contraste medido, componentes,
+patrones, idiomas, accesibilidad y lo que no se debe copiar—, pensada también
+para las otras soluciones: [docs/GUIA_DE_DISENO.md](docs/GUIA_DE_DISENO.md).
+
 ### Modales y drawers
 - Contenedor `position: fixed` (drawer: `top: 12, right: 12`; modal centrado: `inset: 0`).
 - Altura por contenido; si excede el viewport, el cuerpo interno scrollea con `flex: 1; overflow-y: auto`. Cabecera y footer permanecen visibles (`flex-shrink: 0`).

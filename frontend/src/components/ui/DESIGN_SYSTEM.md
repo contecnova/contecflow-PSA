@@ -1,5 +1,9 @@
 # Design System v2 — guía rápida
 
+> La guía completa, medida y pensada para reutilizar en otras soluciones, es
+> [docs/GUIA_DE_DISENO.md](../../../../docs/GUIA_DE_DISENO.md). Incluye lo que
+> no se debe copiar (contraste, foco, densidad) y los arreglos medidos.
+
 **Objetivo**: una sola identidad visual y experiencia consistente en todas las
 pantallas. Cuando construyas una página nueva o toques una existente, **usa
 estos primitivos y clases** en lugar de re-inventar con estilos inline.
@@ -191,7 +195,7 @@ valor que ya existe como token.
 ### Espaciado (4pt scale)
 
 `--space-1` (4) · `--space-2` (8) · `--space-3` (12) · `--space-4` (16) ·
-`--space-5` (20) · `--space-6` (24) · `--space-7` (32) · `--space-8` (40) · ...
+`--space-5` (20) · `--space-6` (24) · `--space-8` (32) · `--space-10` (40) · `--space-12` (48)
 
 ### Radios
 
@@ -200,8 +204,8 @@ valor que ya existe como token.
 
 ### Shadows / motion
 
-`--shadow-sm/md/lg/xl` · `--shadow-accent`
-`--easing` · `--easing-spring` (transiciones standard)
+`--shadow-sm/md/lg` · `--shadow-accent`
+`--easing` se usa en `.ds-card` y `.ds-input` pero **no está definida** (véase la guía completa, apartado 15)
 
 ---
 
