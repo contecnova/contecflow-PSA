@@ -6303,6 +6303,11 @@ const en = {
     subtitle: '{projectName}',
   },
   sd_cfg: {
+    req_contact: 'Contact',
+    req_contact_none: '— type it in —',
+    req_name: 'Requester name',
+    req_email: 'Requester email',
+    req_hint: 'Without an email the requester is you, and the customer gets no notifications.',
     sla_target_type: 'Assign to',
     sla_used_by: 'Used by',
     sla_nobody: 'no client or contract (applies by default or by hand)',

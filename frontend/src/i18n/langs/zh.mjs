@@ -6310,6 +6310,11 @@ const zh = {
     subtitle: '{projectName}',
   },
   sd_cfg: {
+    req_contact: '联系人',
+    req_contact_none: '— 手动填写 —',
+    req_name: '请求人姓名',
+    req_email: '请求人邮箱',
+    req_hint: '不填邮箱时请求人是你，客户不会收到通知。',
     sla_target_type: '分配给',
     sla_used_by: '使用者',
     sla_nobody: '没有客户或合同（作为默认或手动应用）',

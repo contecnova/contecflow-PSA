@@ -5629,6 +5629,11 @@ const es = {
     subtitle: '{projectName}',
   },
   sd_cfg: {
+    req_contact: 'Contacto',
+    req_contact_none: '— escribir a mano —',
+    req_name: 'Nombre del solicitante',
+    req_email: 'Correo del solicitante',
+    req_hint: 'Sin correo, el solicitante eres tú y el cliente no recibe avisos.',
     sla_target_type: 'Asignar a',
     sla_used_by: 'La usan',
     sla_nobody: 'ningún cliente ni contrato (se aplica por defecto o a mano)',

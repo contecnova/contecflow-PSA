@@ -88,6 +88,8 @@ def scope_ticket_query(q, db: Session, current_user: User):
             or_(
                 Ticket.requester_user_id == current_user.id,
                 Ticket.assigned_to_user_id == current_user.id,
+                # Lo que abrio en nombre de otro (el solicitante es el cliente).
+                Ticket.created_by_user_id == current_user.id,
                 Ticket.id.in_(por_aprobar),
             )
         )

@@ -572,3 +572,20 @@ def test_el_ticket_que_abre_un_agente_por_telefono_avisa_al_cliente_y_no_al_agen
     db.info["current_user"] = None
     _procesar(db)
     assert [c["para"] for c in correos] == ["tel@cliente.com"]
+
+
+def test_un_ticket_abierto_por_el_agente_para_un_contacto_es_del_contacto(client, admin_token, db, correos):
+    from app.models.client_portal import ClientUser
+    from app.models.service_desk import Ticket
+    from tests.conftest import auth
+
+    db.add(ClientUser(id="cli-tel", full_name="Pedro Cliente", email="pedro@cliente.com", organization_id="1", is_active=True))
+    db.commit()
+    r = client.post("/api/v1/sd/tickets", headers=auth(admin_token), json={
+        "title": "Llamada: no imprime", "description": "Por teléfono", "ticket_type": "incident",
+        "urgency": "medium", "impact": "user", "requester_name": "Pedro Cliente", "requester_email": "Pedro@Cliente.com"})
+    assert r.status_code == 200, r.text
+    t = db.get(Ticket, r.json()["data"]["id"])
+    assert (t.requester_client_id, t.requester_user_id, t.created_by_user_id) == ("cli-tel", None, "admin-test-id")
+    _procesar(db)
+    assert "pedro@cliente.com" in [c["para"] for c in correos], "el contacto recibe el acuse"

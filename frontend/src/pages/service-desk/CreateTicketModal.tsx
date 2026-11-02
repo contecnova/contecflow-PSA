@@ -85,6 +85,8 @@ type CreateTicketPayload = {
   assigned_to_user_id?: string
   client_id?: string
   service_item_id?: string
+  requester_name?: string
+  requester_email?: string
 }
 
 function getCreateTicketSchema(t: (key: string) => string) {
@@ -112,6 +114,14 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
     ticket_type: 'incident', title: '', description: '',
     priority: 'p3_medium', urgency: 'medium', impact: 'user',
     assigned_to_user_id: '', client_id: '', service_item_id: '',
+  })
+  // Quien pide el ticket: sin correo seria el agente, y el cliente no
+  // recibiria ningun aviso (auditoria 2026-11).
+  const [solicitante, setSolicitante] = useState({ nombre: '', correo: '' })
+  const { data: contactos = [] } = useQuery<{ id: string; full_name: string; email?: string | null }[]>({
+    queryKey: ['client-contacts', form.client_id],
+    queryFn: () => clientsApi.contacts(form.client_id).then(r => r.data as { id: string; full_name: string; email?: string | null }[]),
+    enabled: !!form.client_id,
   })
 
   const { data: catalog = [] } = useQuery<CatalogGroup[]>({
@@ -221,6 +231,10 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
     if (raw.assigned_to_user_id) payload.assigned_to_user_id = raw.assigned_to_user_id
     if (raw.client_id) payload.client_id = raw.client_id
     if (raw.service_item_id) payload.service_item_id = raw.service_item_id
+    if (solicitante.correo.trim()) {
+      payload.requester_email = solicitante.correo.trim()
+      payload.requester_name = solicitante.nombre.trim() || solicitante.correo.trim()
+    }
     return payload
   }
 
@@ -438,6 +452,27 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               <option key={c.id} value={String(c.id)}>{c.name}</option>)}
           </select>
         </div>
+        {form.client_id && contactos.length > 0 && (
+          <div>
+            <label htmlFor={`${idPrefix}-contact`} style={LS}>{traducir('sd_cfg.req_contact')}</label>
+            <select id={`${idPrefix}-contact`} defaultValue="" style={IS}
+              onChange={e => { const c = contactos.find(x => x.id === e.target.value); if (c) setSolicitante({ nombre: c.full_name, correo: c.email ?? '' }) }}>
+              <option value="">{traducir('sd_cfg.req_contact_none')}</option>
+              {contactos.map(c => <option key={c.id} value={c.id}>{c.full_name}{c.email ? ` · ${c.email}` : ''}</option>)}
+            </select>
+          </div>
+        )}
+        <div>
+          <label htmlFor={`${idPrefix}-req-name`} style={LS}>{traducir('sd_cfg.req_name')}</label>
+          <input id={`${idPrefix}-req-name`} value={solicitante.nombre} onChange={e => setSolicitante(s => ({ ...s, nombre: e.target.value }))} style={IS} />
+        </div>
+        <div>
+          <label htmlFor={`${idPrefix}-req-email`} style={LS}>{traducir('sd_cfg.req_email')}</label>
+          <input id={`${idPrefix}-req-email`} type="email" value={solicitante.correo} onChange={e => setSolicitante(s => ({ ...s, correo: e.target.value }))} style={IS} />
+        </div>
+        {!solicitante.correo.trim() && (
+          <div style={{ gridColumn: '1/-1', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('sd_cfg.req_hint')}</div>
+        )}
 
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={() => setWizardOpen(true)}>Wizard campos</Button>

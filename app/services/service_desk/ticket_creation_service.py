@@ -216,6 +216,29 @@ def _vencimientos(db: Session, priority, sla_policy, service_item) -> tuple:
     )
 
 
+def _solicitante_externo(db: Session, payload: TicketCreateIn, agente_id: str) -> dict:
+    """Quien pide el ticket cuando el agente lo abre en su nombre.
+
+    Auditoria 2026-11: el formulario no dejaba indicar al solicitante y se
+    guardaba siempre al agente: en un ticket abierto por telefono el cliente no
+    recibia ningun aviso. Con un correo, el solicitante es esa persona: su
+    usuario del portal si lo tiene (asi lo ve tambien alli), o un usuario
+    interno; si no, queda el nombre y el correo.
+    """
+    from sqlalchemy import func
+    from app.models.user import User
+
+    correo = (payload.requester_email or "").strip().lower()
+    if not correo:
+        return {"requester_user_id": agente_id}
+    cliente = db.query(ClientUser).filter(func.lower(ClientUser.email) == correo,
+                                          ClientUser.is_active == True).first()  # noqa: E712
+    if cliente is not None:
+        return {"requester_user_id": None, "requester_client_id": cliente.id}
+    usuario = db.query(User).filter(func.lower(User.email) == correo, User.is_active == True).first()  # noqa: E712
+    return {"requester_user_id": usuario.id if usuario else None}
+
+
 def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_id: str) -> Ticket:
     priority = payload.priority
     if not priority:
@@ -261,7 +284,7 @@ def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_i
         service_item_id=payload.service_item_id,
         assigned_to_user_id=payload.assigned_to_user_id,
         assigned_group_id=payload.assigned_group_id,
-        requester_user_id=requester_user_id,
+        **_solicitante_externo(db, payload, requester_user_id),
         requester_name=payload.requester_name,
         requester_email=payload.requester_email,
         tags=payload.tags,
