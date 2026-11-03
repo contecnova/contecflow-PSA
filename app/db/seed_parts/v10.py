@@ -127,51 +127,53 @@ def seed_v10():
         print("    ✓ 6 gastos de ejemplo creados")
 
     # ── AUTOMATIONS ────────────────────────────────────────────────────────
+    # Con la organizacion: una regla sin ella no salta nunca.
+    _org_reglas = getattr(admin, "organization_id", None) or getattr(ana, "organization_id", None)
     rules = [
         AutomationRule(
             name="Alerta presupuesto al 85%",
             description="Crea una alerta cuando el gasto supera el 85% del presupuesto del proyecto",
-            is_global=True, is_active=True,
-            trigger_type=TriggerType.budget_threshold,
+            is_global=True, is_active=True, organization_id=_org_reglas,
+            trigger_type=TriggerType.budget_threshold.value,
             trigger_conditions=json.dumps({"field": "budget_pct", "operator": "greater_than", "value": "85"}),
-            actions=json.dumps([{"type": "create_alert", "params": {"alert_type": "budget_warning", "message": "⚠ Presupuesto superado al 85% — revisar consumo", "severity": "warning"}}]),
-            run_count=3, created_by=admin.id if admin else None,
+            actions=json.dumps([{"type": "create_alert", "params": {"message": "⚠ Presupuesto superado al 85% — revisar consumo", "severity": "warning"}}]),
+            run_count=0, created_by=admin.id if admin else None,
         ),
         AutomationRule(
             name="Notificar equipo al iniciar sprint",
             description="Avisa a todos los empleados cuando se inicia un nuevo sprint",
-            is_global=True, is_active=True,
-            trigger_type=TriggerType.sprint_started,
+            is_global=True, is_active=True, organization_id=_org_reglas,
+            trigger_type=TriggerType.sprint_started.value,
             trigger_conditions=None,
             actions=json.dumps([{"type": "notify_role", "params": {"role": "employee", "message": "🚀 Nuevo sprint iniciado — revisa el backlog y tus tareas asignadas", "severity": "info"}}]),
-            run_count=2, created_by=admin.id if admin else None,
+            run_count=0, created_by=admin.id if admin else None,
         ),
         AutomationRule(
             name="Recordatorio timesheet viernes",
             description="Recuerda enviar el timesheet cada viernes al equipo",
-            is_global=True, is_active=True,
-            trigger_type=TriggerType.timesheet_not_submitted,
+            is_global=True, is_active=True, organization_id=_org_reglas,
+            trigger_type=TriggerType.timesheet_not_submitted.value,
             trigger_conditions=None,
             actions=json.dumps([{"type": "notify_role", "params": {"role": "employee", "message": "📋 Viernes: recuerda enviar tu timesheet semanal antes de las 18h", "severity": "info"}}]),
-            run_count=8, created_by=admin.id if admin else None,
+            run_count=0, created_by=admin.id if admin else None,
         ),
         AutomationRule(
             name="Escalar ticket P1 a L2",
             description="Escala automáticamente los tickets P1 al nivel L2 cuando se crean",
-            is_global=True, is_active=True,
-            trigger_type=TriggerType.ticket_created,
+            is_global=True, is_active=True, organization_id=_org_reglas,
+            trigger_type=TriggerType.ticket_created.value,
             trigger_conditions=json.dumps({"field": "priority", "operator": "equals", "value": "p1_critical"}),
             actions=json.dumps([
                 {"type": "escalate_ticket", "params": {"to_level": "l2"}},
                 {"type": "notify_role", "params": {"role": "admin", "message": "🚨 Ticket P1 creado — requiere atención inmediata", "severity": "critical"}},
             ]),
-            run_count=1, created_by=admin.id if admin else None,
+            run_count=0, created_by=admin.id if admin else None,
         ),
         AutomationRule(
             name="Alertar tarea vencida (pausada)",
             description="PAUSADA — Notificar al PM cuando una tarea vence sin completar",
-            is_global=True, is_active=False,
-            trigger_type=TriggerType.task_overdue,
+            is_global=True, is_active=False, organization_id=_org_reglas,
+            trigger_type=TriggerType.task_overdue.value,
             trigger_conditions=None,
             actions=json.dumps([{"type": "notify_role", "params": {"role": "pm", "message": "⏰ Tarea vencida sin completar en el proyecto", "severity": "warning"}}]),
             run_count=0, created_by=ana.id if ana else None,
@@ -179,11 +181,11 @@ def seed_v10():
         AutomationRule(
             name="Notificar gasto pendiente de aprobación",
             description="Avisa al PM cuando un empleado envía un gasto para aprobar",
-            is_global=True, is_active=True,
-            trigger_type=TriggerType.expense_submitted,
+            is_global=True, is_active=True, organization_id=_org_reglas,
+            trigger_type=TriggerType.expense_submitted.value,
             trigger_conditions=None,
             actions=json.dumps([{"type": "notify_role", "params": {"role": "pm", "message": "💸 Gasto enviado pendiente de aprobación — revísalo en Gastos > Pendientes", "severity": "info"}}]),
-            run_count=4, created_by=admin.id if admin else None,
+            run_count=0, created_by=admin.id if admin else None,
         ),
     ]
     db.add_all(rules); db.flush()

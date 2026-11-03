@@ -4,7 +4,7 @@ from tests.conftest import auth
 
 def make_rule(client, token, name="Test Rule", trigger="task_overdue", actions=None):
     if actions is None:
-        actions = [{"type": "create_alert", "params": {"title": "Triggered", "severity": "warning"}}]
+        actions = [{"type": "create_alert", "params": {"message": "Triggered", "severity": "warning"}}]
     res = client.post("/api/v1/automations", json={
         "name": name,
         "trigger_type": trigger,
@@ -40,7 +40,7 @@ def test_run_scheduled_admin(client, admin_token, db):
     assert res.status_code == 200
     data = res.json()["data"]
     assert "executed" in data
-    assert "errors" in data
+    assert "by_trigger" in data
 
 
 def test_run_scheduled_requires_admin(client, pm_token, db):
@@ -55,8 +55,9 @@ def test_test_rule(client, pm_token, db):
     res = client.post(f"/api/v1/automations/{rule['id']}/test", headers=auth(pm_token))
     assert res.status_code == 200
     data = res.json()["data"]
-    assert data["ok"] is True
-    assert "results" in data
+    # Auditoria 2026-11: «Probar» simula; no ejecuta ni anota ejecuciones.
+    assert data["simulated"] is True
+    assert data["results"][0]["ok"] is True and "would" in data["results"][0]
 
 
 def test_test_rule_not_found(client, pm_token, db):
@@ -70,7 +71,7 @@ def test_test_rule_with_notify_role_action(client, pm_token, db):
     ])
     res = client.post(f"/api/v1/automations/{rule['id']}/test", headers=auth(pm_token))
     assert res.status_code == 200
-    assert res.json()["data"]["ok"] is True
+    assert res.json()["data"]["results"][0]["ok"] is True
 
 
 def test_test_rule_with_notify_user_action(client, pm_token, db):
@@ -97,15 +98,12 @@ def test_automation_templates_structure(client, pm_token, db):
 
 # ── Executions ─────────────────────────────────────────────────────────────
 
-def test_executions_after_test(client, pm_token, db):
+def test_simular_no_anota_ejecuciones(client, pm_token, db):
     rule = make_rule(client, pm_token, name="Rule With Exec")
     client.post(f"/api/v1/automations/{rule['id']}/test", headers=auth(pm_token))
     res = client.get(f"/api/v1/automations/{rule['id']}/executions", headers=auth(pm_token))
     assert res.status_code == 200
-    data = res.json()["items"]
-    assert len(data) >= 1
-    assert "executed_at" in data[0]
-    assert "success" in data[0]
+    assert res.json()["items"] == []
 
 
 def test_executions_limit(client, pm_token, db):
@@ -130,7 +128,7 @@ def test_create_automation_with_project(client, pm_token, db):
         "name": "Project-scoped rule",
         "trigger_type": "task_overdue",
         "project_id": project["id"],
-        "actions": [{"type": "create_alert", "params": {"title": "Overdue"}}],
+        "actions": [{"type": "create_alert", "params": {"message": "Overdue"}}],
     }, headers=auth(pm_token))
     assert res.status_code in (200, 201)
     assert res.json()["data"]["project_id"] == project["id"]
@@ -146,7 +144,7 @@ def test_list_automations_by_project(client, pm_token, db):
         "name": "Scoped",
         "trigger_type": "task_overdue",
         "project_id": project["id"],
-        "actions": [{"type": "create_alert"}],
+        "actions": [{"type": "create_alert", "params": {"message": "x"}}],
     }, headers=auth(pm_token))
 
     res = client.get(f"/api/v1/automations?project_id={project['id']}", headers=auth(pm_token))

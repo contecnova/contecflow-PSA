@@ -158,7 +158,7 @@ from app.models.cab import (  # noqa: F401
     CalendarEvent, RevenueRecognitionRule, RevenueRecognitionEntry,
     DashboardWidget, OnboardingState, ProjectRiskScore,
 )
-from app.models.automations import AutomationRule, AutomationExecution  # noqa: F401
+from app.models.automations import AutomationRule, AutomationExecution, AutomationEvent  # noqa: F401
 from app.models.expenses import Expense  # noqa: F401
 from app.models.collaboration import (  # noqa: F401
     ConversationKind, ChannelType, TeamRole, ChannelRole,

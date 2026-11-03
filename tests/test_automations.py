@@ -15,9 +15,9 @@ def test_create_automation(client, admin_token, db):
     res = client.post("/api/v1/automations", json={
         "name": "Notificación tarea vencida",
         "trigger_type": "task_overdue",
-        "trigger_conditions": {"days_overdue": 3},
+        "trigger_conditions": {"field": "days_overdue", "operator": "greater_than", "value": "3"},
         "actions": [
-            {"type": "notify_assignee", "message": "Tu tarea lleva {days} días vencida"}
+            {"type": "notify_user", "params": {"message": "Tu tarea lleva días vencida"}}
         ],
         "is_active": True,
     }, headers=auth(admin_token))
@@ -31,7 +31,7 @@ def test_update_automation(client, admin_token, db):
     rule = client.post("/api/v1/automations", json={
         "name": "Regla a Editar",
         "trigger_type": "task_overdue",
-        "actions": [{"type": "notify_assignee"}],
+        "actions": [{"type": "notify_user", "params": {"message": "Vencida"}}],
     }, headers=auth(admin_token)).json()["data"]
     res = client.patch(f"/api/v1/automations/{rule['id']}",
         json={"is_active": False, "name": "Regla Desactivada"},
@@ -43,7 +43,7 @@ def test_delete_automation(client, admin_token, db):
     rule = client.post("/api/v1/automations", json={
         "name": "Regla a Borrar",
         "trigger_type": "task_overdue",
-        "actions": [{"type": "notify_assignee"}],
+        "actions": [{"type": "notify_user", "params": {"message": "Vencida"}}],
     }, headers=auth(admin_token)).json()["data"]
     res = client.delete(f"/api/v1/automations/{rule['id']}", headers=auth(admin_token))
     assert res.status_code == 200
@@ -56,9 +56,8 @@ def test_delete_automation(client, admin_token, db):
     listed_items = listed_payload.get("items") if isinstance(listed_payload, dict) else listed_payload
     assert all(r["id"] != rule["id"] for r in listed_items)
 
-    row = db.query(AutomationRule).filter(AutomationRule.id == rule["id"]).first()
-    assert row is not None
-    assert row.is_active is False
+    # Auditoria 2026-11: borrar borra; pausar (is_active=False) es otra cosa.
+    assert db.query(AutomationRule).filter(AutomationRule.id == rule["id"]).first() is None
 
 
 def test_automation_templates(client, admin_token, db):
@@ -71,7 +70,7 @@ def test_automation_executions(client, admin_token, db):
     rule = client.post("/api/v1/automations", json={
         "name": "Regla con historial",
         "trigger_type": "task_overdue",
-        "actions": [{"type": "notify_assignee"}],
+        "actions": [{"type": "notify_user", "params": {"message": "Vencida"}}],
     }, headers=auth(admin_token)).json()["data"]
     res = client.get(f"/api/v1/automations/{rule['id']}/executions",
         headers=auth(admin_token))

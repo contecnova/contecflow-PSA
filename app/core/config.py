@@ -8,6 +8,7 @@ from app.core.config_groups import (
     HealthSettingsMixin,
     SemanticSettingsMixin,
     ServiceDeskSettingsMixin,
+    AutomationsSettingsMixin,
 )
 
 
@@ -17,6 +18,7 @@ class Settings(
     HealthSettingsMixin,
     SemanticSettingsMixin,
     ServiceDeskSettingsMixin,
+    AutomationsSettingsMixin,
     BaseSettings,
 ):
     """

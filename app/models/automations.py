@@ -11,45 +11,69 @@ from app.db.base import Base
 
 
 class TriggerType(str, enum.Enum):
+    """Disparadores con origen real.
+
+    Auditoria 2026-11: la pantalla ofrecia 64 y la columna era un enum de
+    Postgres con 14, asi que 52 no se podian guardar; y de los 14 ninguno se
+    emitia. Ahora la columna es texto y aqui solo estan los que algo emite:
+    los de cambio de un registro salen de `automation_events` (al guardar,
+    venga de la via que venga) y los de fecha o umbral, del barrido periodico.
+    """
+    # Tareas
+    task_created          = "task_created"
     task_status_changed   = "task_status_changed"
-    task_overdue          = "task_overdue"
-    budget_threshold      = "budget_threshold"
+    task_assigned         = "task_assigned"
+    task_completed        = "task_completed"
+    task_blocked          = "task_blocked"
+    task_overdue          = "task_overdue"            # barrido
+    task_deadline_approaching = "task_deadline_approaching"  # barrido
+    # Proyectos
+    project_created       = "project_created"
+    project_status_changed = "project_status_changed"
+    budget_threshold      = "budget_threshold"        # barrido
+    risk_score_high       = "risk_score_high"
+    # Sprints
     sprint_started        = "sprint_started"
     sprint_ended          = "sprint_ended"
-    timesheet_not_submitted = "timesheet_not_submitted"
+    # Tiempo y equipo
+    timesheet_submitted   = "timesheet_submitted"
+    timesheet_rejected    = "timesheet_rejected"
+    timesheet_not_submitted = "timesheet_not_submitted"  # barrido
+    absence_requested     = "absence_requested"
+    absence_approved      = "absence_approved"
+    absence_rejected      = "absence_rejected"
+    # Service Desk
     ticket_created        = "ticket_created"
+    ticket_resolved       = "ticket_resolved"
+    ticket_reopened       = "ticket_reopened"
+    ticket_escalated      = "ticket_escalated"
     ticket_sla_at_risk    = "ticket_sla_at_risk"
-    risk_score_high       = "risk_score_high"
+    ticket_sla_breached   = "ticket_sla_breached"
+    # Finanzas y CRM
     expense_submitted     = "expense_submitted"
-    project_status_changed = "project_status_changed"
-    date_reached          = "date_reached"
-    custom_field_changed  = "custom_field_changed"   # v23.8: custom field value change trigger
-    opportunity_stage_changed = "opportunity_stage_changed"  # v23.8: pipeline stage change
+    expense_approved      = "expense_approved"
+    expense_rejected      = "expense_rejected"
+    opportunity_stage_changed = "opportunity_stage_changed"
 
 
 class ActionType(str, enum.Enum):
-    send_alert            = "send_alert"
+    """Acciones con ejecutor (`automations_service._ACCIONES`)."""
     create_alert          = "create_alert"
-    change_task_status    = "change_task_status"
-    assign_task           = "assign_task"
-    create_task           = "create_task"
-    escalate_ticket       = "escalate_ticket"
-    change_ticket_status  = "change_ticket_status"
+    send_alert            = "send_alert"           # alias historico de create_alert
     notify_user           = "notify_user"
     notify_role           = "notify_role"
-    # New action types (v24)
     send_email            = "send_email"
     call_webhook          = "call_webhook"
+    send_webhook          = "send_webhook"         # alias historico de call_webhook
     send_slack_message    = "send_slack_message"
     send_teams_message    = "send_teams_message"
-    # v23.8: third-party integrations
-    create_jira_issue     = "create_jira_issue"
-    update_jira_issue     = "update_jira_issue"
-    create_hubspot_deal   = "create_hubspot_deal"
-    update_hubspot_deal   = "update_hubspot_deal"
-    # v24: workflow steps
-    wait_step             = "wait_step"           # Delay execution — requires re-trigger via scheduler
-    conditional_branch    = "conditional_branch"  # Evaluate condition → execute if_true or if_false actions
+    change_task_status    = "change_task_status"
+    change_task_priority  = "change_task_priority"
+    create_task           = "create_task"
+    change_project_status = "change_project_status"
+    escalate_ticket       = "escalate_ticket"
+    change_ticket_status  = "change_ticket_status"
+    conditional_branch    = "conditional_branch"
 
 
 class AutomationRule(Base):
@@ -67,7 +91,7 @@ class AutomationRule(Base):
     is_global   = Column(Boolean, default=False)  # Applies to all projects
 
     # Trigger
-    trigger_type       = Column(Enum(TriggerType), nullable=False, index=True)
+    trigger_type       = Column(String(64), nullable=False, index=True)
     trigger_conditions = Column(Text, nullable=True)   # JSON: {"field": "status", "operator": "equals", "value": "done"}
 
     # Actions (JSON array)
@@ -103,9 +127,33 @@ class AutomationExecution(Base):
     actions_taken   = Column(Text, nullable=True)   # JSON: what was done
     success     = Column(Boolean, default=True)
     error       = Column(String(500), nullable=True)
+    # Los disparadores del barrido se repiten en cada pasada; esta clave
+    # (p. ej. «task_overdue:<id>:<fecha>») hace que una regla actue una vez.
+    dedupe_key  = Column(String(255), nullable=True, index=True)
     executed_at = Column(DateTime(timezone=True), server_default=func.now())
 
     rule = relationship("AutomationRule", back_populates="executions")
 
     def __repr__(self) -> str:
         return f"<AutomationExecution id={self.id!r} rule_id={self.rule_id!r}>"
+
+
+class AutomationEvent(Base):
+    """Bandeja de salida: un registro cambio y alguna regla puede querer saberlo.
+
+    Lo anota `automation_events` en el flush de la misma transaccion que el
+    cambio, y lo procesa el worker despues del commit: si el cambio se deshace,
+    el evento tambien; y las acciones (correo, webhooks) no alargan la peticion.
+    """
+    __tablename__ = "automation_events"
+
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    trigger_type    = Column(String(64), nullable=False)
+    context         = Column(Text, nullable=True)       # JSON
+    depth           = Column(Integer, nullable=False, default=0)
+    status          = Column(String(20), nullable=False, default="pending", index=True)  # pending | done | failed
+    attempts        = Column(Integer, nullable=False, default=0)
+    error           = Column(String(500), nullable=True)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    processed_at    = Column(DateTime(timezone=True), nullable=True)

@@ -6,12 +6,11 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.deps import require_any_manager, require_admin
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.automations_service as _svc
-from app.models.automations import TriggerType, ActionType
 
 router = APIRouter()
 
@@ -34,17 +33,17 @@ class RuleCreate(BaseModel):
     name: str
     description: Optional[str] = None
     project_id: Optional[str] = None
-    is_global: bool = False
+    is_global: bool = False   # se ignora: global es «sin proyecto»
+    is_active: bool = True
     trigger_type: str
     trigger_conditions: Optional[dict] = None
     actions: List[dict]
-
-# ── Schemas ───────────────────────────────────────────────────────────────────
 
 
 class RuleUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    project_id: Optional[str] = None
     is_active: Optional[bool] = None
     trigger_type: Optional[str] = None
     trigger_conditions: Optional[dict] = None
@@ -72,17 +71,17 @@ def create_rule(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return APIResponse.ok(data=_svc.create_rule_db(payload, db, current_user.id))
+    return APIResponse.ok(data=_svc.create_rule_db(payload, db, current_user))
 
 
-@router.patch("/{rule_id}", summary="Actualizar regla")
+@router.patch("/{rule_id}", summary="Actualizar regla (también pausar/activar)")
 def update_rule(
     rule_id: str,
     payload: RuleUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return APIResponse.ok(data=_svc.update_rule_db(rule_id, payload, db))
+    return APIResponse.ok(data=_svc.update_rule_db(rule_id, payload, db, current_user))
 
 
 @router.delete("/{rule_id}", summary="Eliminar regla")
@@ -92,29 +91,35 @@ def delete_rule(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "automation_rule", rule_id, action="delete")
-    return APIResponse.ok(data=_svc.delete_rule_db(rule_id, db))
+    return APIResponse.ok(data=_svc.delete_rule_db(rule_id, db, current_user))
 
 
-@router.post("/run-scheduled", summary="Ejecutar automatizaciones programadas (cron)")
+@router.post("/run-scheduled", summary="Ejecutar ahora el barrido periódico (fechas y umbrales)")
 def run_scheduled(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return APIResponse.ok(data=_svc.run_scheduled_automations(db))
+    org = None if current_user.is_superadmin else current_user.organization_id
+    return APIResponse.ok(data=_svc.run_scheduled_automations(db, org))
 
 
-@router.post("/{rule_id}/test", summary="Probar regla manualmente")
+@router.post("/{rule_id}/test", summary="Simular la regla (no ejecuta nada)")
 def test_rule(
     rule_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return APIResponse.ok(data=_svc.test_rule_by_id(rule_id, current_user.id, db))
+    return APIResponse.ok(data=_svc.test_rule_by_id(rule_id, db, current_user))
 
 
 @router.get("/templates/list", summary="Plantillas de automatización predefinidas")
-def get_templates(current_user: User = Depends(get_current_user)):
+def get_templates(current_user: User = Depends(require_any_manager)):
     return APIListResponse.ok(items=_svc.get_automation_templates())
+
+
+@router.get("/catalog", summary="Disparadores, acciones y operadores que el motor sabe ejecutar")
+def get_catalog(current_user: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=_svc.catalogo())
 
 
 @router.get("/{rule_id}/executions", summary="Historial de ejecuciones")
@@ -124,23 +129,18 @@ def get_executions(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return APIListResponse.ok(items=_svc.get_executions_db(rule_id, limit, db))
+    return APIListResponse.ok(items=_svc.get_executions_db(rule_id, limit, db, current_user))
 
-
-# --- New endpoints for trigger/action types ---
 
 @router.get("/trigger-types", summary="Listar tipos de trigger disponibles")
-def list_trigger_types(current_user: User = Depends(get_current_user)):
-    """Devuelve todos los tipos de trigger soportados por el sistema."""
+def list_trigger_types(current_user: User = Depends(require_any_manager)):
     return APIListResponse.ok(items=[
-        {"type": t.value, "label": t.name.replace('_', ' ').title(), "value": t.value}
-        for t in TriggerType
+        {"type": k, "label": k.replace('_', ' ').title(), "value": k} for k in _svc.CATALOGO_DISPARADORES
     ])
 
+
 @router.get("/action-types", summary="Listar tipos de acción disponibles")
-def list_action_types(current_user: User = Depends(get_current_user)):
-    """Devuelve todos los tipos de acción soportados por el sistema."""
+def list_action_types(current_user: User = Depends(require_any_manager)):
     return APIListResponse.ok(items=[
-        {"type": a.value, "label": a.name.replace('_', ' ').title(), "value": a.value}
-        for a in ActionType
+        {"type": k, "label": k.replace('_', ' ').title(), "value": k} for k in _svc.CATALOGO_ACCIONES
     ])

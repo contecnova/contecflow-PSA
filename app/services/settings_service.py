@@ -220,6 +220,15 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("SD_EVENT_MAX_ATTEMPTS", "int", "Event delivery — max attempts"),
         ("SD_EVENT_BATCH_SIZE", "int", "Event delivery — events per run"),
     ],
+    "automations": [
+        ("AUTOMATIONS_ENABLED", "bool", "Rules run on events and on the periodic scan (off: only the simulation)"),
+        ("AUTOMATIONS_MAX_CHAIN_DEPTH", "int", "A rule may trigger another one up to this depth"),
+        ("AUTOMATIONS_EVENT_BATCH_SIZE", "int", "Events processed per run"),
+        ("AUTOMATIONS_EVENT_MAX_ATTEMPTS", "int", "Attempts per event before it is left as failed"),
+        ("AUTOMATIONS_DEADLINE_DAYS", "int", "\"Task due soon\": days before the due date"),
+        ("AUTOMATIONS_TIMESHEET_WEEKDAY", "int", "\"Timesheet not submitted\": from this weekday (ISO, 1=Mon … 7=Sun)"),
+        ("AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS", "int", "Webhook action — timeout (s)"),
+    ],
     "health": [
         ("HEALTH_NPS_LOOKBACK_DAYS", "int", "NPS lookback (days)"),
         ("HEALTH_TICKET_LOOKBACK_DAYS", "int", "Ticket lookback (days)"),

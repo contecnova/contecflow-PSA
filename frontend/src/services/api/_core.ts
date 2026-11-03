@@ -1283,6 +1283,7 @@ export const automationsApi = {
   delete:     (id: any)       => api.delete(`/automations/${id}`),
   test:       (id: any)       => api.post(`/automations/${id}/test`),
   executions: (id: any)       => api.get(`/automations/${id}/executions`),
+  catalog:    ()         => api.get('/automations/catalog'),
 }
 
 export const autoWorkflowsApi = {

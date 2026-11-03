@@ -21,7 +21,7 @@ const SEVERITY_CFG: Record<string, SeverityCfg> = {
 }
 
 const TYPE_ICONS: Record<string, string> = {
-  overload: '🔥', burnout_risk: '⚠️', budget_exceeded: '💰', budget_critical: '🚨',
+  overload: '🔥', burnout_risk: '⚠️', budget_exceeded: '💰', budget_critical: '🚨', automation: '⚙️',
   deadline_risk: '📅', task_blocked: '🔒', hours_deviation: '⏱️', no_imputation: '📋',
 }
 

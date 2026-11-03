@@ -1,171 +1,65 @@
 /**
- * AutomationsPage — Visual no-code rule builder + Workflows multi-paso + RPA
- * SI [trigger] [condiciones] ENTONCES [acciones]
+ * AutomationsPage — reglas SI [disparador] [condición] ENTONCES [acciones].
+ *
+ * Auditoría 2026-11: los disparadores, las acciones y sus parámetros vienen
+ * del catálogo del motor (`GET /automations/catalog`). Antes la pantalla
+ * ofrecía 64 disparadores y 23 acciones escritos aquí, y el motor conocía 14
+ * y 11. «Probar» es una simulación: no ejecuta nada.
  */
 import { useId, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr, fmtDate } from '../utils/helpers'
+import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, automationsApi, autoWorkflowsApi, workflowsLegacyApi } from '../services/api'
-import { Button, Modal, Spinner, EmptyState, Tabs, Page } from '../components/ui'
+import { projectsApi, automationsApi } from '../services/api'
+import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
 import {
   Bot, FileStack, Plus, Zap, Pause, Play, Settings as SettingsIcon, Search,
 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
 
-
-
-// ── Triggers — exhaustive catalog ────────────────────────────────────────────
-// Todas las categorías y labels se traducen en tiempo de renderizado usando t() y claves de traducción.
-const TRIGGERS: Record<string, { icon: string; category: string; label?: string }> = {
-  task_status_changed:      { icon: '🔄', category: 'tasks' },
-  task_created:             { icon: '🆕', category: 'tasks' },
-  task_deleted:             { icon: '🗑️', category: 'tasks' },
-  task_assigned:            { icon: '👤', category: 'tasks' },
-  task_unassigned:          { icon: '👤', category: 'tasks' },
-  task_completed:           { icon: '✅', category: 'tasks' },
-  task_overdue:             { icon: '⏰', category: 'tasks' },
-  task_deadline_approaching:{ icon: '📅', category: 'tasks' },
-  task_priority_changed:    { icon: '🔺', category: 'tasks' },
-  task_blocked:             { icon: '🚫', category: 'tasks' },
-  task_comment_added:       { icon: '💬', category: 'tasks' },
-  task_moved_to_sprint:     { icon: '⚡', category: 'tasks' },
-  project_status_changed:   { icon: '📁', category: 'projects' },
-  project_created:          { icon: '🆕', category: 'projects' },
-  project_deadline_approaching: { icon: '📅', category: 'projects' },
-  budget_threshold:         { icon: '💰', category: 'projects' },
-  budget_overspent:         { icon: '🚨', category: 'projects' },
-  risk_score_high:          { icon: '⚠️', category: 'projects' },
-  risk_created:             { icon: '⚠️', category: 'projects' },
-  phase_completed:          { icon: '🏁', category: 'projects' },
-  deliverable_overdue:      { icon: '📦', category: 'projects' },
-  change_request_created:   { icon: '⇄',  category: 'projects' },
-  member_added:             { icon: '➕', category: 'projects' },
-  member_removed:           { icon: '➖', category: 'projects' },
-  sprint_started:           { icon: '⚡', category: 'sprints' },
-  sprint_ended:             { icon: '🏁', category: 'sprints' },
-  sprint_goal_missed:       { icon: '❌', category: 'sprints' },
-  sprint_capacity_exceeded: { icon: '📈', category: 'sprints' },
-  timesheet_not_submitted:  { icon: '📋', category: 'time' },
-  timesheet_submitted:      { icon: '✅', category: 'time' },
-  timesheet_rejected:       { icon: '❌', category: 'time' },
-  overtime_detected:        { icon: '⏱', category: 'time' },
-  imputation_lockout_warning:{ icon: '🔒', category: 'time' },
-  date_reached:             { icon: '📅', category: 'time' },
-  end_of_week:              { icon: '📆', category: 'time' },
-  end_of_month:             { icon: '📆', category: 'time' },
-  absence_requested:        { icon: '🌴', category: 'team' },
-  absence_approved:         { icon: '✅', category: 'team' },
-  absence_rejected:         { icon: '❌', category: 'team' },
-  user_created:             { icon: '👤', category: 'team' },
-  capacity_threshold:       { icon: '📈', category: 'team' },
-  performance_review_due:   { icon: '🌟', category: 'team' },
-  certification_expiring:   { icon: '🎒', category: 'team' },
-  okr_deadline_approaching: { icon: '🏆', category: 'team' },
-  ticket_created:           { icon: '🎫', category: 'service_desk' },
-  ticket_sla_at_risk:       { icon: '🚨', category: 'service_desk' },
-  ticket_sla_breached:      { icon: '🔴', category: 'service_desk' },
-  ticket_escalated:         { icon: '↑',  category: 'service_desk' },
-  ticket_resolved:          { icon: '✅', category: 'service_desk' },
-  ticket_reopened:          { icon: '🔄', category: 'service_desk' },
-  ticket_no_response:       { icon: '⏰', category: 'service_desk' },
-  cmdb_asset_expiring:      { icon: '🖥️', category: 'service_desk' },
-  expense_submitted:        { icon: '💸', category: 'finance' },
-  expense_approved:         { icon: '✅', category: 'finance' },
-  invoice_created:          { icon: '🧾', category: 'finance' },
-  invoice_overdue:          { icon: '💳', category: 'finance' },
-  contract_expiring:        { icon: '📝', category: 'finance' },
-  milestone_reached:        { icon: '◎',  category: 'finance' },
-  nps_score_low:            { icon: '⭐', category: 'finance' },
-  webhook_received:         { icon: '🔗', category: 'integrations' },
-  git_pr_merged:            { icon: '⎇',  category: 'integrations' },
-  git_pipeline_failed:      { icon: '❌', category: 'integrations' },
-  email_received:           { icon: '📧', category: 'integrations' },
-  form_submitted:           { icon: '📝', category: 'integrations' },
-  api_event:                { icon: '🔌', category: 'integrations' },
+// Solo iconos: qué disparadores y acciones hay lo dice el catálogo del motor.
+const TRIGGER_ICONS: Record<string, string> = {
+  task_created: '🆕', task_status_changed: '🔄', task_assigned: '👤', task_completed: '✅',
+  task_blocked: '🚫', task_overdue: '⏰', task_deadline_approaching: '📅',
+  project_created: '🆕', project_status_changed: '📁', budget_threshold: '💰', risk_score_high: '⚠️',
+  sprint_started: '⚡', sprint_ended: '🏁',
+  timesheet_submitted: '✅', timesheet_rejected: '❌', timesheet_not_submitted: '📋',
+  absence_requested: '🌴', absence_approved: '✅', absence_rejected: '❌',
+  ticket_created: '🎫', ticket_resolved: '✅', ticket_reopened: '🔄', ticket_escalated: '↑',
+  ticket_sla_at_risk: '🚨', ticket_sla_breached: '🔴',
+  expense_submitted: '💸', expense_approved: '✅', expense_rejected: '❌', opportunity_stage_changed: '📈',
+}
+const ACTION_ICONS: Record<string, string> = {
+  create_alert: '🔔', notify_user: '👤', notify_role: '👥', send_email: '📧', call_webhook: '🔗',
+  send_webhook: '🔗', send_slack_message: '💬', send_teams_message: 'Ⓜ', change_task_status: '🔄',
+  change_task_priority: '🔺', create_task: '🆕', change_project_status: '📁', escalate_ticket: '↑',
+  change_ticket_status: '🎫', send_alert: '🔔',
 }
 
-
-// Todas las categorías y labels se traducen en tiempo de renderizado usando t() y claves de traducción.
-const ACTIONS: Record<string, { icon: string; category: string; label?: string }> = {
-  create_alert:           { icon: '🔔', category: 'notifications' },
-  notify_role:            { icon: '👥', category: 'notifications' },
-  notify_user:            { icon: '👤', category: 'notifications' },
-  send_email:             { icon: '📧', category: 'notifications' },
-  send_webhook:           { icon: '🔗', category: 'integrations' },
-  send_teams_message:     { icon: 'Ⓜ',  category: 'integrations' },
-  send_slack_message:     { icon: '💬', category: 'integrations' },
-  create_jira_issue:      { icon: '🔵', category: 'integrations' },
-  change_task_status:     { icon: '🔄', category: 'tasks' },
-  change_task_priority:   { icon: '🔺', category: 'tasks' },
-  assign_task:            { icon: '👤', category: 'tasks' },
-  create_task:            { icon: '🆕', category: 'tasks' },
-  change_project_status:  { icon: '📁', category: 'projects' },
-  escalate_ticket:        { icon: '↑',  category: 'service_desk' },
-  change_ticket_status:   { icon: '🎫', category: 'service_desk' },
-  assign_ticket:          { icon: '👤', category: 'service_desk' },
-  approve_expense:        { icon: '💸', category: 'finance' },
-  rpa_power_automate:     { icon: '🔵', category: 'rpa' },
-  rpa_uipath:             { icon: '🤖', category: 'rpa' },
-  rpa_zapier:             { icon: '⚡', category: 'rpa' },
-  rpa_make:               { icon: '🔧', category: 'rpa' },
-  rpa_n8n:                { icon: '🔀', category: 'rpa' },
-  rpa_custom_http:        { icon: '🌐', category: 'rpa' },
+type ParamDef = { key: string; type: string; options?: string[] | null; required?: boolean }
+type Catalog = {
+  triggers: Array<{ type: string; category: string; fields: string[]; scan?: boolean }>
+  actions: Array<{ type: string; category: string; params: ParamDef[] }>
+  operators: string[]
 }
 
-// All operator labels are now translated at render time using t() and translation keys.
-const OPERATORS: Array<{ value: string; label?: string }> = [
-  { value: 'equals' },
-  { value: 'not_equals' },
-  { value: 'greater_than' },
-  { value: 'less_than' },
-  { value: 'contains' },
-]
-
-const TRIGGER_FIELDS: Record<string, string[]> = {
-  task_status_changed:    ['status', 'priority', 'project_id'],
-  budget_threshold:       ['budget_pct', 'project_id'],
-  risk_score_high:        ['risk_score', 'project_id'],
-  ticket_created:         ['priority', 'ticket_type', 'support_level'],
-  project_status_changed: ['status'],
+function useCatalog() {
+  return useQuery<Catalog>({
+    queryKey: ['automations-catalog'],
+    queryFn: () => automationsApi.catalog().then(r => r.data as Catalog),
+    staleTime: Infinity,
+  })
 }
 
-// All param labels are now translated at render time using t() and translation keys.
-const ACTION_PARAMS: Record<string, Array<{ key: string; type: string; options?: string[]; label?: string }>> = {
-  create_alert:         [{ key: 'message', type: 'text' }, { key: 'severity', type: 'select', options: ['info','warning','critical'] }],
-  notify_role:          [{ key: 'role', type: 'select', options: ['admin','pm','employee','hr','team_lead'] }, { key: 'message', type: 'text' }, { key: 'severity', type: 'select', options: ['info','warning','critical'] }],
-  notify_user:          [{ key: 'message', type: 'text' }],
-  send_email:           [{ key: 'to_role', type: 'select', options: ['admin','pm','employee','hr'] }, { key: 'subject', type: 'text' }, { key: 'body', type: 'text' }],
-  send_webhook:         [{ key: 'url', type: 'text' }, { key: 'payload_template', type: 'text' }],
-  send_teams_message:   [{ key: 'teams_webhook_url', type: 'text' }, { key: 'message', type: 'text' }],
-  send_slack_message:   [{ key: 'slack_webhook_url', type: 'text' }, { key: 'channel', type: 'text' }, { key: 'message', type: 'text' }],
-  create_jira_issue:    [{ key: 'jira_project_key', type: 'text' }, { key: 'issue_type', type: 'select', options: ['Bug','Task','Story','Epic'] }, { key: 'summary', type: 'text' }],
-  change_task_status:   [{ key: 'status', type: 'select', options: ['todo','in_progress','in_review','done','blocked'] }],
-  change_task_priority: [{ key: 'priority', type: 'select', options: ['critical','high','medium','low'] }],
-  assign_task:          [{ key: 'assign_to_role', type: 'select', options: ['pm','team_lead','employee'] }],
-  create_task:          [{ key: 'task_title', type: 'text' }, { key: 'priority', type: 'select', options: ['critical','high','medium','low'] }, { key: 'assign_to_role', type: 'select', options: ['pm','team_lead','employee'] }],
-  change_project_status:[{ key: 'status', type: 'select', options: ['active','on_hold','completed','cancelled'] }],
-  escalate_ticket:      [{ key: 'to_level', type: 'select', options: ['l2','l3'] }],
-  change_ticket_status: [{ key: 'status', type: 'select', options: ['assigned','in_progress','resolved','closed'] }],
-  assign_ticket:        [{ key: 'to_role', type: 'select', options: ['l1','l2','l3'] }],
-  approve_expense:      [{ key: 'decision', type: 'select', options: ['approved','rejected'] }, { key: 'comment', type: 'text' }],
-  rpa_power_automate:   [{ key: 'flow_url', type: 'text' }, { key: 'payload', type: 'text' }],
-  rpa_uipath:           [{ key: 'orchestrator_url', type: 'text' }, { key: 'process_key', type: 'text' }, { key: 'robot_name', type: 'text' }],
-  rpa_zapier:           [{ key: 'zap_webhook_url', type: 'text' }, { key: 'payload', type: 'text' }],
-  rpa_make:             [{ key: 'make_webhook_url', type: 'text' }, { key: 'payload', type: 'text' }],
-  rpa_n8n:              [{ key: 'n8n_webhook_url', type: 'text' }, { key: 'payload', type: 'text' }],
-  rpa_custom_http:      [{ key: 'url', type: 'text' }, { key: 'method', type: 'select', options: ['POST','GET','PUT','PATCH'] }, { key: 'headers', type: 'text' }, { key: 'body', type: 'text' }],
+function byCategory<T extends { category: string }>(items: T[]): Array<[string, T[]]> {
+  const groups = new Map<string, T[]>()
+  items.forEach(i => groups.set(i.category, [...(groups.get(i.category) || []), i]))
+  return [...groups.entries()]
 }
 
-// Derived category lists (referenced by both RuleModal and WorkflowModal)
-const TRIGGER_CATEGORIES = [...new Set(Object.values(TRIGGERS).map(t => t.category))]
-const ACTION_CATEGORIES  = [...new Set(Object.values(ACTIONS).map(a => a.category))]
-
-const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
@@ -198,9 +92,9 @@ function highlightText(text: any, term: any) {
 }
 
 // ── Rule card ─────────────────────────────────────────────────────────────────
-function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, highlightTerm }: { rule: any; onEdit: (r: any) => void; onDelete: (id: any) => void; onTest: (r: any) => void; onToggle: (r: any) => void; highlightTerm: any }) {
+function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlightTerm }: { rule: any; onEdit: (r: any) => void; onDelete: (id: any) => void; onTest: (r: any) => void; onToggle: (r: any) => void; onHistory: (r: any) => void; highlightTerm: any }) {
   const t = useAppT()
-  const trigger = TRIGGERS[rule.trigger_type] || { label: rule.trigger_type, icon: '⚙️' }
+  const trigger = { icon: TRIGGER_ICONS[rule.trigger_type] || '⚙️', label: rule.trigger_type }
   const actions = Array.isArray(rule.actions) ? rule.actions : []
 
   return (
@@ -224,6 +118,10 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, highlightTerm }: {
             style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border-strong)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
             {t('automations.try_btn')}
           </button>
+          <button aria-label={`${t('automations.history_btn')} ${rule.name}`} onClick={() => onHistory(rule)}
+            style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+            {t('automations.history_btn')}
+          </button>
           <button aria-label={`${t('common.edit')} ${rule.name}`} onClick={() => onEdit(rule)}
             style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
           <button aria-label={`${t('common.delete')} ${rule.name}`} onClick={() => { openConfirmGlobal({ message: t('common.are_you_sure'), onConfirm: () => onDelete(rule.id), danger: true }) }}
@@ -245,7 +143,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, highlightTerm }: {
         <span style={{ fontSize: "var(--text-lg-em)", color: 'var(--text-3)' }}>→</span>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {actions.map((a: any, i: number) => {
-            const aCfg = ACTIONS[a.type] || { label: a.type, icon: '⚙️' }
+            const aCfg = { icon: ACTION_ICONS[a.type] || '⚙️', label: a.type }
             return (
               <div key={i} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 8, padding: '6px 12px', fontSize: "var(--text-sm)" }}>
                 <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{t('automations.entonces_label')}</span>
@@ -287,6 +185,9 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
 
   const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => (r.data as any)?.items ?? r.data ?? []) })
   const projects = Array.isArray(projRaw) ? projRaw : []
+  const { data: catalog, isError: catalogError } = useCatalog()
+  const triggerDefs = catalog?.triggers ?? []
+  const actionDefs = catalog?.actions ?? []
 
   const { mutate, isPending } = useMutation({
     mutationFn: (d: any) => isEdit ? automationsApi.update(rule.id, d) : automationsApi.create(d as any),
@@ -305,7 +206,8 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
     return { ...f, actions }
   })
 
-  const fields = TRIGGER_FIELDS[form.trigger_type] || []
+  const fields = triggerDefs.find(d => d.type === form.trigger_type)?.fields ?? []
+  const isScan = !!triggerDefs.find(d => d.type === form.trigger_type)?.scan
 
   const handleSave = () => {
     const payload = {
@@ -346,14 +248,16 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
             <div>
               <label htmlFor={`${idPrefix}-trigger`} style={ls}>{t('automations.trigger_lbl')}</label>
               <select id={`${idPrefix}-trigger`} value={form.trigger_type} onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value }))} style={fs}>
-                {TRIGGER_CATEGORIES.map(cat => (
-                  <optgroup key={cat} label={t('automations.cat_' + cat.toLowerCase().replace(/ /g, '_'), cat)}>
-                    {Object.entries(TRIGGERS).filter(([, v]) => v.category === cat).map(([k, v]) => (
-                      <option key={k} value={k}>{v.icon} {t('automations.trig_' + k, v.label)}</option>
+                {byCategory(triggerDefs).map(([cat, defs]) => (
+                  <optgroup key={cat} label={t('automations.cat_' + cat, cat)}>
+                    {defs.map(d => (
+                      <option key={d.type} value={d.type}>{TRIGGER_ICONS[d.type] || '⚙️'} {t('automations.trig_' + d.type, d.type)}</option>
                     ))}
                   </optgroup>
                 ))}
               </select>
+              {catalogError && <div role="alert" style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)', marginTop: 4 }}>{t('automations.catalog_unavailable')}</div>}
+              {isScan && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>{t('automations.simulation_scan')}</div>}
             </div>
 
             {/* Condition */}
@@ -370,16 +274,12 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
                   <select id={`${idPrefix}-condition-field`} value={condition.field} onChange={e => setCondition((c: any) => ({ ...c, field: e.target.value }))} style={fs}>
                     <option value="">{t('automations.select_lbl')}</option>
                     {fields.map((f: string) => <option key={f} value={f}>{f}</option>)}
-                    <option value="budget_pct">budget_pct (%)</option>
-                    <option value="risk_score">risk_score</option>
-                    <option value="priority">priority</option>
-                    <option value="status">status</option>
                   </select>
                 </div>
                 <div>
                   <label htmlFor={`${idPrefix}-condition-operator`} style={ls}>{t('automations.operator_lbl')}</label>
                   <select id={`${idPrefix}-condition-operator`} value={condition.operator} onChange={e => setCondition((c: any) => ({ ...c, operator: e.target.value }))} style={fs}>
-                    {OPERATORS.map(o => <option key={o.value} value={o.value}>{t('automations.op_' + o.value, o.label)}</option>)}
+                    {(catalog?.operators ?? []).map(o => <option key={o} value={o}>{t('automations.op_' + o, o)}</option>)}
                   </select>
                 </div>
                 <div>
@@ -397,17 +297,17 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
             {t('automations.entonces_label')}
           </div>
           {form.actions.map((action: any, i: number) => {
-            const paramDefs = ACTION_PARAMS[action.type] || []
+            const paramDefs = actionDefs.find(d => d.type === action.type)?.params ?? []
             return (
               <div key={i} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, marginBottom: paramDefs.length > 0 ? 10 : 0 }}>
                   <div>
                     <label style={ls}>{t('automations.action_lbl')} {i + 1}</label>
                     <select value={action.type} onChange={e => updateAction(i, 'type', e.target.value)} style={fs}>
-                      {ACTION_CATEGORIES.map(cat => (
-                        <optgroup key={cat} label={t('automations.cat_' + cat.toLowerCase().replace(/ /g, '_'), cat)}>
-                          {Object.entries(ACTIONS).filter(([,v]) => v.category === cat).map(([k, v]) => (
-                            <option key={k} value={k}>{v.icon} {t('automations.act_' + k, v.label)}</option>
+                      {byCategory(actionDefs).map(([cat, defs]) => (
+                        <optgroup key={cat} label={t('automations.cat_' + cat, cat)}>
+                          {defs.map(d => (
+                            <option key={d.type} value={d.type}>{ACTION_ICONS[d.type] || '⚙️'} {t('automations.act_' + d.type, d.type)}</option>
                           ))}
                         </optgroup>
                       ))}
@@ -422,14 +322,14 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
                   <div style={{ display: 'grid', gridTemplateColumns: paramDefs.length > 1 ? `repeat(${Math.min(paramDefs.length, 3)}, 1fr)` : '1fr', gap: 10 }}>
                     {paramDefs.map(param => (
                       <div key={param.key}>
-                        <label style={ls}>{t('automations.param_' + param.key, param.label)}</label>
+                        <label style={ls}>{t('automations.param_' + param.key, param.key)}{param.required ? ' *' : ''}</label>
                         {param.type === 'select' ? (
                           <select value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} style={fs}>
                             <option value="">{t('automations.select_lbl')}</option>
                             {param.options?.map((o: string) => <option key={o} value={o}>{o}</option>)}
                           </select>
                         ) : (
-                          <input value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} style={fs} placeholder={t('automations.param_' + param.key, param.label)} />
+                          <input type={param.type === 'number' ? 'number' : 'text'} value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} style={fs} placeholder={t('automations.param_' + param.key, param.key)} />
                         )}
                       </div>
                     ))}
@@ -459,15 +359,17 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
 // ── Executions modal ──────────────────────────────────────────────────────────
 function ExecutionsModal({ rule, onClose }: { rule: any; onClose: () => void }) {
   const t = useAppT()
-  const { data, isLoading } = useQuery({
+  const { data = [], isLoading } = useQuery({
     queryKey: ['automation_executions', rule.id],
-    queryFn: () => automationsApi.executions(rule.id).then(r => r.data),
+    queryFn: () => automationsApi.executions(rule.id).then(r => (Array.isArray(r.data) ? r.data : [])),
     enabled: !!rule?.id,
   })
   return (
-    <Modal open title={t('automations.executions_title')} onClose={onClose} width={700}>
-      <div style={{ minHeight: 200 }}>
-        {isLoading ? <Spinner /> : (
+    <Modal open title={`${t('automations.executions_title')} — ${rule.name}`} onClose={onClose} width={700}>
+      <div style={{ minHeight: 120 }}>
+        {isLoading ? <Spinner /> : data.length === 0 ? (
+          <div style={{ color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>{t('automations.no_executions')}</div>
+        ) : (
           <table className="table">
             <thead>
               <tr>
@@ -477,11 +379,17 @@ function ExecutionsModal({ rule, onClose }: { rule: any; onClose: () => void }) 
               </tr>
             </thead>
             <tbody>
-              {data?.map((exec: any) => (
+              {data.map((exec: any) => (
                 <tr key={exec.id}>
-                  <td>{fmtDate(exec.created_at)}</td>
-                  <td>{t('automations.exec_status_' + exec.status, exec.status)}</td>
-                  <td>{exec.result}</td>
+                  <td>{exec.executed_at}</td>
+                  <td style={{ color: exec.success ? 'var(--success)' : 'var(--danger)' }}>
+                    {exec.success ? t('automations.exec_status_success') : t('automations.exec_status_error')}
+                  </td>
+                  <td style={{ fontSize: 'var(--text-xs)' }}>
+                    {(exec.actions_taken || []).map((a: any, i: number) => (
+                      <div key={i}>{a.ok === false ? '✗' : '✓'} {t('automations.act_' + a.action, a.action)}{a.error ? `: ${a.error}` : ''}</div>
+                    ))}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -492,244 +400,11 @@ function ExecutionsModal({ rule, onClose }: { rule: any; onClose: () => void }) 
   )
 }
 
-// ── WorkflowModal (create + edit) ─────────────────────────────────────────────
-const STEP_ICONS: Record<string, string> = { action:'⚡', condition:'🔀', wait:'⏱', webhook:'🔗', notify:'🔔', rpa:'🤖' }
-
-function StepConfig({ step, onChange }: { step: any; onChange: (field: any, value: any) => void }) {
-  const t = useAppT()
-  const paramDefs = ACTION_PARAMS[step.type] || []
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: paramDefs.length > 1 ? `repeat(${Math.min(paramDefs.length, 3)}, 1fr)` : '1fr', gap: 10 }}>
-      {paramDefs.map(param => (
-        <div key={param.key}>
-          <label style={ls}>{t('automations.param_' + param.key, param.label)}</label>
-          {param.type === 'select' ? (
-            <select value={step.params?.[param.key] || ''} onChange={e => onChange(param.key, e.target.value)} style={fs}>
-              <option value="">{t('automations.select_lbl')}</option>
-              {param.options?.map((o: string) => <option key={o} value={o}>{o}</option>)}
-            </select>
-          ) : (
-            <input value={step.params?.[param.key] || ''} onChange={e => onChange(param.key, e.target.value)} style={fs} placeholder={t('automations.param_' + param.key, param.label)} />
-          )}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function WorkflowModal({ workflow, onClose }: { workflow?: any; onClose: () => void }) {
-  const t = useAppT()
-  const toast = useToast()
-  const isEdit = !!workflow
-  const [form, setForm] = useState({
-    name: workflow?.name || '',
-    description: workflow?.description || '',
-    steps: workflow?.steps || [{ type: 'create_alert', params: { message: '', severity: 'warning' } }],
-  })
-  const { mutate, isPending } = useMutation({
-    mutationFn: (d: any) => isEdit ? workflowsLegacyApi.update(workflow.id, d) : workflowsLegacyApi.create(d as any),
-    onSuccess: onClose,
-    onError: e => toast.error(extractErr(e, t('common.error'))),
-  })
-  const addStep = () => setForm(f => ({ ...f, steps: [...f.steps, { type: 'create_alert', params: { message: '', severity: 'info' } }] }))
-  const removeStep = (i: number) => setForm(f => ({ ...f, steps: f.steps.filter((_: any, idx: number) => idx !== i) }))
-  const updateStep = (i: number, field: any, value: any) => setForm(f => {
-    const steps = [...f.steps]
-    if (field === 'type') steps[i] = { type: value, params: {} }
-    else {
-      steps[i] = { ...steps[i], params: { ...steps[i].params, [field]: value } }
-    }
-    return { ...f, steps }
-  })
-  const handleSave = () => mutate(form as any)
-  return (
-    <Modal open title={isEdit ? t('automations.edit_workflow_title') : t('automations.new_workflow_title')} onClose={onClose} width={680}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          <div style={{ gridColumn: '1/-1' }}>
-            <label style={ls}>{t('automations.workflow_name_lbl')}</label>
-            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('automations.workflow_name_lbl')} />
-          </div>
-          <div>
-            <label style={ls}>{t('automations.description')}</label>
-            <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} />
-          </div>
-        </div>
-        <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 10, padding: '14px 16px' }}>
-          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            {t('automations.steps_label')}
-          </div>
-          {form.steps.map((step: any, i: number) => (
-            <div key={i} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, marginBottom: 10 }}>
-                <div>
-                  <label style={ls}>{t('automations.step_lbl')} {i + 1}</label>
-                  <select value={step.type} onChange={e => updateStep(i, 'type', e.target.value)} style={fs}>
-                    {ACTION_CATEGORIES.map(cat => (
-                      <optgroup key={cat} label={t('automations.cat_' + cat.toLowerCase().replace(/ /g, '_'), cat)}>
-                        {Object.entries(ACTIONS).filter(([,v]) => v.category === cat).map(([k, v]) => (
-                          <option key={k} value={k}>{v.icon} {t('automations.act_' + k, v.label)}</option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </div>
-                {form.steps.length > 1 && (
-                  <button aria-label={`${t('common.delete')} ${i + 1}`} onClick={() => removeStep(i)}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-lg)", alignSelf: 'flex-end', paddingBottom: 8 }}>×</button>
-                )}
-              </div>
-              <StepConfig step={step} onChange={(field, value) => updateStep(i, field, value)} />
-            </div>
-          ))}
-          <button aria-label={t('automations.add_step')} onClick={addStep}
-            style={{ background: 'transparent', border: '1px dashed var(--accent-border-strong)', borderRadius: 8, padding: '7px 16px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', width: '100%' }}>
-            {t('automations.add_step')}
-          </button>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={handleSave} loading={isPending} disabled={isPending || !form.name || form.steps.length === 0}>
-            {isPending ? t('common.saving') : isEdit ? t('automations.save_workflow_btn') : t('automations.create_workflow_btn')}
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  )
-}
-
-// ── Workflows Tab ─────────────────────────────────────────────────────────────
-function WorkflowsTab() {
-  const t = useAppT()
-  const toast = useToast()
-  const qc = useQueryClient()
-  const [showModal, setShowModal] = useState(false)
-  const [editingWf, setEditingWf] = useState(null)
-  const [searchTerm, setSearchTerm] = useState('')
-
-  const { data: workflows = [], isLoading } = useQuery({
-    queryKey: ['workflows'],
-    queryFn: () => autoWorkflowsApi.list().then(r => r.data),
-  })
-
-  const { mutate: update } = useMutation({
-    mutationFn: ({ id, data }: { id: any; data: any }) => autoWorkflowsApi.update(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['workflows'] }),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
-  })
-  const { mutate: del } = useMutation({
-    mutationFn: (id: any) => autoWorkflowsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['workflows'] }),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
-  })
-
-  const searchedWorkflows = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase()
-    if (!q) return workflows
-    return workflows.filter((wf: any) => {
-      const inSteps = (Array.isArray(wf.steps) ? wf.steps : []).some((s: any) => (
-        String(s?.name || '').toLowerCase().includes(q) ||
-        String(s?.step_type || '').toLowerCase().includes(q)
-      ))
-      return (
-        String(wf.name || '').toLowerCase().includes(q) ||
-        String(wf.description || '').toLowerCase().includes(q) ||
-        String(wf.trigger_type || '').toLowerCase().includes(q) ||
-        String(wf.status || '').toLowerCase().includes(q) ||
-        inSteps
-      )
-    })
-  }, [workflows, searchTerm])
-
-  const STATUS_CFG: Record<string, { label: string; color: string }> = { draft:{ label:'Borrador', color:'var(--text-2)' }, active:{ label:'Activo', color:'var(--success)' }, paused:{ label:'Pausado', color:'var(--warning)' }, archived:{ label:'Archivado', color:'var(--text-3)' } }
-
-  return (
-    <div>
-      <div style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 10, padding: '14px 18px', marginBottom: 20, fontSize: "var(--text-base)" }}>
-        <div style={{ fontWeight: 700, color: 'var(--purple)', marginBottom: 4 }}>⚡ {t('automations.workflows_rpa_title')}</div>
-        <div style={{ color: 'var(--text-2)' }}>
-          {t('automations.workflows_rpa_desc', {
-            strong: (chunks: any) => <strong style={{ color: 'var(--text-1)' }}>{chunks}</strong>,
-            em: (chunks: any) => <em>{chunks}</em>,
-          })}
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, marginBottom: 16 }}>
-        <input
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder={t('automations.search_workflows_placeholder', 'Buscar workflows (nombre, trigger, estado, paso...)')}
-          aria-label={t('automations.search_workflows_aria', 'Buscar workflows')}
-          style={fs}
-        />
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button onClick={() => setShowModal(true)}>+ {t('automations.new_workflow_btn')}</Button>
-        </div>
-      </div>
-
-      {isLoading ? <Spinner /> : searchedWorkflows.length === 0 ? (
-        <EmptyState svgIcon={<Zap size={36} />} title={t('automations.no_workflows_title')} description={t('automations.no_workflows_desc')} />
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {searchedWorkflows.map((wf: any) => {
-            const cfg = STATUS_CFG[wf.status] || { label: wf.status, color: 'var(--text-2)' }
-            const triggerCfg = TRIGGERS[wf.trigger_type] || { icon: '⚙️', label: wf.trigger_type }
-            return (
-              <div key={wf.id} style={{ ...card, padding: '18px 22px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                  <div>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4 }}>
-                      <span style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{highlightText(wf.name, searchTerm)}</span>
-                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color }}>{t('automations.status_' + wf.status, cfg.label)}</span>
-                      {wf.is_global && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', background: 'var(--purple-bg)', color: 'var(--purple)', borderRadius: 4 }}>GLOBAL</span>}
-                    </div>
-                    {wf.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{highlightText(wf.description, searchTerm)}</div>}
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 4 }}>
-                      {triggerCfg.icon} {highlightText(triggerCfg.label, searchTerm)} · {wf.steps?.length || 0} pasos · {wf.run_count || 0} ejecuciones
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button aria-pressed={wf.status === 'active'} aria-label={`${wf.status === 'active' ? t('automations.pause_workflow_btn') : t('automations.activate_workflow_btn')} ${wf.name}`} onClick={() => update({ id: wf.id, data: { status: wf.status === 'active' ? 'paused' : 'active' } })}
-                      style={{ background: wf.status === 'active' ? 'var(--warning-bg)' : 'var(--success-bg)', border: `1px solid ${wf.status === 'active' ? 'rgba(245,158,11,0.25)' : 'rgba(52,211,153,0.25)'}`, borderRadius: 6, padding: '4px 10px', color: wf.status === 'active' ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
-                      {wf.status === 'active' ? '⏸ ' + t('automations.pause_workflow_btn') : '▶ ' + t('automations.activate_workflow_btn')}
-                    </button>
-                    <button aria-label={`${t('automations.edit_workflow_btn')} ${wf.name}`} onClick={() => setEditingWf(wf)}
-                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏ {t('automations.edit_workflow_btn')}</button>
-                    <button aria-label={`${t('automations.delete_workflow_btn')} ${wf.name}`} onClick={() => { openConfirmGlobal({ message: t('automations.delete_workflow_confirm'), onConfirm: () => del(wf.id), danger: true }) }}
-                      style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
-                  </div>
-                </div>
-
-                {/* Steps visual */}
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
-                  {wf.steps?.map((s: any, i: number) => (
-                    <div key={s.id || i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <div style={{ background: 'var(--surface-4)', borderRadius: 6, padding: '4px 10px', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
-                        {STEP_ICONS[s.step_type] || '⚡'} {highlightText(s.name || s.step_type, searchTerm)}
-                      </div>
-                      {i < wf.steps.length - 1 && <span style={{ color: 'var(--text-3)', fontSize: "var(--text-md)" }}>→</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {showModal && <WorkflowModal onClose={() => setShowModal(false)} />}
-      {editingWf && <WorkflowModal workflow={editingWf} onClose={() => setEditingWf(null)} />}
-    </div>
-  )
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AutomationsPage(): JSX.Element {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [tab, setTab] = useState('rules')  // rules | workflows
   const [editing, setEditing] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
@@ -813,21 +488,7 @@ export default function AutomationsPage(): JSX.Element {
         </div>
       }
     >
-      {/* Tab selector */}
-      <Tabs
-        items={[
-          { id: 'rules',     label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><SettingsIcon size={11} /> {t('automations.rules_tab')}</span> },
-          { id: 'workflows', label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Zap size={11} /> {t('automations.workflows_tab')}</span> },
-        ]}
-        active={tab}
-        onChange={setTab}
-        ariaLabel={t('automations.sections_aria_lbl')}
-        style={{ marginBottom: 'var(--space-5)' }}
-      />
-
-      {tab === 'workflows' && <div id="automations-panel-workflows" role="tabpanel" aria-labelledby="automations-tab-workflows"><WorkflowsTab /></div>}
-
-      {tab === 'rules' && <div id="automations-panel-rules" role="tabpanel" aria-labelledby="automations-tab-rules">
+      <div>
       {/* Stats */}
       <div className="ds-grid-stats" style={{ marginBottom: 'var(--space-5)' }}>
         {[
@@ -891,6 +552,7 @@ export default function AutomationsPage(): JSX.Element {
               onDelete={id => del(id)}
               onTest={r => test(r.id)}
               onToggle={r => toggle({ id: r.id, active: !r.is_active })}
+              onHistory={r => setExecHistory(r)}
               highlightTerm={searchTerm}
             />
           ))}
@@ -904,13 +566,15 @@ export default function AutomationsPage(): JSX.Element {
 
       {/* Test result */}
       {testResult && (
-        <Modal open title={t('automations.test_result_title')} onClose={() => setTestResult(null)} width={500}>
+        <Modal open title={t('automations.test_rule_success')} onClose={() => setTestResult(null)} width={560}>
           <div style={{ padding: 4 }}>
-            <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--success)', marginBottom: 12 }}>✓ {t('automations.test_rule_success')}</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 12 }}>{t('automations.simulation_note')}</div>
+            {testResult.enabled === false && <div role="alert" style={{ fontSize: "var(--text-sm)", color: 'var(--warning)', marginBottom: 12 }}>{t('automations.simulation_off')}</div>}
+            {testResult.scan && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 12 }}>{t('automations.simulation_scan')}</div>}
             <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: 14 }}>
               {(testResult.results || []).map((r: any, i: number) => (
-                <div key={i} style={{ fontSize: "var(--text-sm)", padding: '4px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', color: r.ok ? 'var(--success)' : 'var(--danger)' }}>
-                  {r.ok ? '✓' : '✗'} {r.action}: {r.ok ? t('automations.executed') : r.error}
+                <div key={i} style={{ fontSize: "var(--text-sm)", padding: '4px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', color: r.ok ? 'var(--text-1)' : 'var(--danger)' }}>
+                  {r.ok ? '✓' : '✗'} {t('automations.act_' + r.action, r.action)}: {r.ok ? r.would : r.error}
                 </div>
               ))}
             </div>
@@ -926,7 +590,7 @@ export default function AutomationsPage(): JSX.Element {
         <Modal open title={t('automations.templates_title')} onClose={() => setShowTemplates(false)} width={680}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {templates.map((tpl: any) => {
-              const trigger = TRIGGERS[tpl.trigger_type] || { icon: '⚙️', label: tpl.trigger_type }
+              const trigger = { icon: TRIGGER_ICONS[tpl.trigger_type] || '⚙️', label: tpl.trigger_type }
               return (
                 <div key={tpl.id} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
                   <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{tpl.name}</div>
@@ -936,7 +600,7 @@ export default function AutomationsPage(): JSX.Element {
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
                     {tpl.actions.map((a: any, i: number) => {
-                      const aCfg = ACTIONS[a.type] || { icon: '⚙️', label: a.type }
+                      const aCfg = { icon: ACTION_ICONS[a.type] || '⚙️', label: a.type }
                       return <span key={i} style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{aCfg.icon} {t('automations.act_' + a.type, aCfg.label)}</span>
                     })}
                   </div>
@@ -951,7 +615,6 @@ export default function AutomationsPage(): JSX.Element {
         </Modal>
       )}
       </div>
-      }
     </Page>
   )
 }

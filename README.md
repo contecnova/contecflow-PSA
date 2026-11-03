@@ -79,7 +79,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 
 **Features that look real but are not (or not fully)**
 - Most "AI" features are rules or statistics; only NexusAssist, NexusAgent, the BI narrative, Ask the Data, the AI-assignment tie-break and AI Hub test/sync call an LLM provider. ML extras (Prophet, LightGBM, sentence-transformers) are not in the Docker image. [5]
-- Automations never fire on their own (only "Test" runs them); BPM is a diagram editor without an execution engine. [5]
+- BPM is a diagram editor without an execution engine. [5] (Automations now fire on their own; see their section.)
 - Sprint Planning "AI" is a greedy fill by story points. [1]
 - Custom roles, role `module_access`, project permissions and issue types are stored but not enforced. [2, 6]
 - API keys and developer-portal tokens cannot authenticate API calls. [6]
@@ -3406,53 +3406,80 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 - **Some settings have no effect.** `SEM_TOP_K_HISTORY` and `SEM_MULTI_ROLE_FACTOR` are read but unused. The runtime `SEM_THRESHOLD_*` values are shadowed by the `sem_config` column defaults.
 
 ### Automations — `/automations`
-*Roles:* admin, pm (route). Backend: `require_any_manager`; `/run-scheduled` uses `require_admin`.
+*Roles:* admin, pm (route). Backend: `require_any_manager`; `/run-scheduled` uses `require_admin` and only scans the caller's organization (all of them for a superadmin).
 
-**Purpose.** IF-trigger-THEN-actions rules. **No AI is involved.**
+**Purpose.** IF-trigger-THEN-actions rules that run on their own inside one organization. **No AI is involved.**
 
 **How to use it.**
-- Tab **Reglas:**
-  1. Press **+ Nueva regla**.
-  2. Fill in the name, description and project (empty = global).
-  3. Pick a trigger.
-  4. Optionally tick "Añadir condición" and set one field/operator/value condition (equals, not_equals, greater_than, less_than, contains).
-  5. Add one or more actions with **+ Añadir acción**.
-  6. Press **Crear regla**.
-- **Ver plantillas** offers 7 templates ("Usar plantilla").
-- Rule cards have **Pausar/Activar**, **Probar**, ✏ and 🗑.
-- Tab **Flujos de trabajo:** multi-step workflows. See Limitations.
+1. Press **+ Nueva regla**.
+2. Fill in name, description and project (empty = all projects of the organization).
+3. Pick a trigger. The list comes from the engine (`GET /automations/catalog`): only triggers that something actually emits are offered.
+4. Optionally tick "Añadir condición": one field/operator/value condition. The fields offered are the ones the trigger's event carries. Operators: equals, not_equals, greater_than, less_than, contains. A condition that cannot be evaluated (missing field, non-numeric value for a numeric operator) is **false**.
+5. Add one or more actions. Required parameters are marked `*`; saving a rule with an unknown trigger, an unknown action or a missing required parameter returns 422 with the reason.
+6. Press **Crear regla**.
 
-**Configuration.**
-- `send_email` uses `SMTP_*` from the environment.
-- Slack and Teams use incoming webhooks configured as `IntegrationConfig`.
-- There are no automation settings; timeouts are literals.
+On each rule card:
+- **Pausar / Activar** toggles the rule. A paused rule stays in the list and can be reactivated.
+- **Probar** is a **simulation**: it says what each action would do (for example "would notify 3 user(s) with role pm", or "no webhook configured") and executes nothing. It warns when automations are off for the organization and when the trigger comes from the periodic scan.
+- **Historial** lists the real executions with the result of every action.
+- 🗑 deletes the rule and its history.
+
+**Ver plantillas** offers 7 templates, all made of triggers and actions the engine runs.
+
+**Triggers (29).**
+
+| Category | Triggers | Source |
+|---|---|---|
+| Tasks | task_created, task_status_changed, task_assigned, task_completed, task_blocked | on save |
+| Tasks | task_overdue, task_deadline_approaching | periodic scan |
+| Projects | project_created, project_status_changed, risk_score_high (new risk or score change) | on save |
+| Projects | budget_threshold (`budget_pct` = imputed cost / budget amount, active projects) | periodic scan |
+| Sprints | sprint_started (status → active), sprint_ended (status → completed) | on save |
+| Time & team | timesheet_submitted, timesheet_rejected, absence_requested, absence_approved, absence_rejected | on save |
+| Time & team | timesheet_not_submitted (from `AUTOMATIONS_TIMESHEET_WEEKDAY`, current week still draft or missing) | periodic scan |
+| Service Desk | ticket_created, ticket_resolved, ticket_reopened | on save |
+| Service Desk | ticket_escalated, ticket_sla_at_risk, ticket_sla_breached (from the ticket event outbox) | on save |
+| Finance & CRM | expense_submitted, expense_approved, expense_rejected, opportunity_stage_changed | on save |
+
+"On save" means the event is recorded in the same transaction as the change, whatever path made it (screen, API, Jira sync, AI, another rule). Scan triggers act **once per rule and item** (`dedupe_key`): an overdue task notifies once per due date, a project crosses the budget condition once.
+
+**Actions (13).**
+
+| Action | What it does |
+|---|---|
+| create_alert | Alert of type `automation` in the organization (message, severity) |
+| notify_user | In-app notification to the event's user (task assignee, ticket assignee, requester of the expense/absence/timesheet, opportunity owner). Fails if the event carries no user |
+| notify_role | In-app notification to active users of that role **in the rule's organization** |
+| send_email | To `to` (comma-separated) and/or users of `to_role` in the organization; marked failed when SMTP does not send |
+| call_webhook | HTTPS only, SSRF check; body = `payload` (JSON) or the event context. Use it for RPA (Power Automate, Zapier, Make, n8n, UiPath) |
+| send_slack_message / send_teams_message | URL typed in the rule, else the active Slack/Teams integration **of the organization** |
+| change_task_status / change_task_priority | On the event's task |
+| create_task | In the event's project, assigned to the event's user, optional due in N days |
+| change_project_status | On the event's project |
+| escalate_ticket | Raises the support level (never lowers it) and records an `escalated` ticket event |
+| change_ticket_status | On the event's ticket |
+
+An action that fails is recorded and the next ones still run. A rule's action can trigger another rule; the chain stops at `AUTOMATIONS_MAX_CHAIN_DEPTH`.
+
+**Configuration** (Settings → Advanced → Automatizaciones, per organization):
+- `AUTOMATIONS_ENABLED` (default true). Off: rules do not run; Probar still simulates.
+- `AUTOMATIONS_MAX_CHAIN_DEPTH` (3), `AUTOMATIONS_EVENT_BATCH_SIZE` (200), `AUTOMATIONS_EVENT_MAX_ATTEMPTS` (3).
+- `AUTOMATIONS_DEADLINE_DAYS` (2), `AUTOMATIONS_TIMESHEET_WEEKDAY` (5 = Friday), `AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS` (10).
+- `AUTOMATIONS_SCAN_MINUTES` (15, environment only: read when the beat/scheduler starts).
+- `send_email` uses `SMTP_*`; Slack/Teams use incoming webhooks in Enterprise → Integraciones.
 
 **Technical notes.**
-- Endpoints (`app/api/v1/endpoints/automations.py`, `app/services/automations_service.py`):
-  - `GET/POST /api/v1/automations`
-  - `PATCH/DELETE /api/v1/automations/{id}`
-  - `POST /api/v1/automations/{id}/test`
-  - `GET /api/v1/automations/templates/list`
-  - `GET /api/v1/automations/{id}/executions`
-  - `POST /api/v1/automations/run-scheduled`
-- Tables: `automation_rules` (Postgres enum `triggertype`) and `automation_executions`.
-- **Backend triggers (14):** task_status_changed, task_overdue, budget_threshold, sprint_started, sprint_ended, timesheet_not_submitted, ticket_created, ticket_sla_at_risk, risk_score_high, expense_submitted, project_status_changed, date_reached, custom_field_changed, opportunity_stage_changed.
-- **Executors (`_ACCIONES`):** create_alert / send_alert, change_task_status, notify_role, notify_user, send_email, call_webhook (HTTPS only, SSRF check), send_slack_message, send_teams_message, wait_step (logs only), conditional_branch.
+- Endpoints (`app/api/v1/endpoints/automations.py`, `app/services/automations_service.py`): `GET/POST /api/v1/automations`, `PATCH/DELETE /api/v1/automations/{id}`, `POST /api/v1/automations/{id}/test` (simulation), `GET /api/v1/automations/catalog`, `GET /api/v1/automations/templates/list`, `GET /api/v1/automations/{id}/executions`, `POST /api/v1/automations/run-scheduled`. Every by-id call returns 404 for a rule of another organization.
+- Event capture: `app/services/automation_events.py`, a `before_flush` listener on the session (same pattern as the ticket outbox). It writes `automation_events` only when the organization has an active rule for that trigger.
+- Processing: Celery `automations_procesar_eventos` (queued on commit; beat every minute as a safety net) and `automations_escanear` (every `AUTOMATIONS_SCAN_MINUTES`). The same two jobs exist in APScheduler (`app/services/automation_jobs.py`).
+- Tables: `automation_rules` (`trigger_type` is VARCHAR(64) since migration 118; it was a 14-value Postgres enum), `automation_executions` (+ `dedupe_key`), `automation_events`.
+- Migration 118 also fills `organization_id` of existing rules from their project or creator, and adds `automation` to the `alerttype` enum.
 
-**Limitations (measured). Rules do not fire on their own.**
-- **No service emits events.** `fire_trigger()` has no callers outside `automations_service.py`. It is called only by `run_scheduled_automations()` (Friday timesheet check and overdue tasks), which is reachable only through `POST /automations/run-scheduled`. That endpoint has no button, no Celery beat entry and no APScheduler entry.
-- **In practice a rule runs only when you press "Probar",** and that executes the **real** actions: it creates alerts, notifies a whole role, and posts to Slack/Teams. The run is always recorded as success.
-- **52 of the 64 triggers offered in the UI cannot be saved.** They are not in the enum, so the database rejects them. The expected result is a 500; not verified over HTTP.
-- **16 of the 23 actions in the UI have no executor.** They return "tipo desconocido": send_webhook, create_task, assign_task, escalate_ticket, create_jira_issue, all `rpa_*`, and others. The "Escalar ticket P1" template uses one of them.
-- **Some actions with executors are broken from the UI:**
-  - **send_email always fails.** The UI sends `to_role`, and the executor needs `to`/`email`. When `to` is present, SMTP failure is ignored and the action is marked OK.
-  - **Slack/Teams ignore the URL typed in the UI** (parameter name mismatch) and use the first configured integration of *any* organization.
-  - **notify_role notifies users of every tenant.**
-  - **create_alert** always uses the type `budget_exceeded`.
-- **Pause and delete are the same operation.** Both set `is_active=False`. After pausing, the rule disappears and cannot be reactivated (404); the "Pausadas" filter and counter are always empty.
-- **Update, test and executions by id have no organization check.** Only delete calls ABAC. Cross-tenant access appears possible; not verified over HTTP.
-- **The "Flujos de trabajo" tab is wired to the wrong data.** It lists automation *rules* (through `/automation-workflows`, an alias of the rules router). "Crear" always returns 422, because no `trigger_type` is sent. "Editar" returns 404. The real `automation_workflows` table is never shown. A multi-step workflow engine exists in `bookings_service.py`, but it has no UI and no scheduled job.
-- **The execution-history modal can never open** in the UI.
+**Limitations (measured).**
+- Actions run after the change is committed, in the worker: a rule never blocks or undoes the change that triggered it, and its effect appears within about a minute (immediately when the broker is up).
+- Webhook, e-mail, Slack and Teams calls cannot be rolled back if a later action fails.
+- The "Flujos de trabajo" tab was removed: it listed rules under another name, and creating or editing there always failed. The `automation_workflows` API (Enterprise) is unchanged and still has no scheduled runner.
+- Rules created before migration 118 with actions that were never implemented (`rpa_*`, `assign_task`, `assign_ticket`, `approve_expense`, `create_jira_issue`) keep their record and fail at run time with "tipo desconocido"; editing them asks for a valid action.
 
 ### BPM Procesos — `/bpm`
 *Roles:* admin, pm, team_lead (route). Backend: reads use any user; all writes use `require_admin_or_pm`, so a team_lead sees "Editar" and "Nuevo proceso" but gets 403 on save.
@@ -3597,13 +3624,12 @@ Header buttons: **Diagnóstico**, **Sync all models**.
 | `sync_connector_data` | hourly (21 entries) | ETL connector sync (entity "default") |
 | `run_agent_task` | on demand | NexusAgent non-streamed runs |
 
-No job evaluates smart alerts, runs automations, takes CFD snapshots, computes EVM, runs the Oracle or evaluates conditional delivery rules.
+No job evaluates smart alerts, takes CFD snapshots, computes EVM, runs the Oracle or evaluates conditional delivery rules.
 
 **Not verified in this section.** None of the following was run against a live server:
 - live LLM responses from any provider, and Azure / o-series compatibility
 - real SMTP delivery and the rendered PDFs
-- the exact HTTP status for invalid automation triggers (500 inferred)
-- the cross-tenant by-id accesses in Automations and BPM
+- the cross-tenant by-id accesses in BPM
 - the rollback of NexusAgent streaming writes (inferred from code)
 - the TF-IDF vector-length collapse in AI Assignment (inferred)
 - the Portfolio empty-date 422 end to end

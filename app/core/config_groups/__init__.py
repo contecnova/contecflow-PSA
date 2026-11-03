@@ -15,6 +15,7 @@ from app.core.config_groups.sla_config import SLASettingsMixin
 from app.core.config_groups.health_config import HealthSettingsMixin
 from app.core.config_groups.semantic_config import SemanticSettingsMixin
 from app.core.config_groups.service_desk_config import ServiceDeskSettingsMixin
+from app.core.config_groups.automations_config import AutomationsSettingsMixin
 
 __all__ = [
     "AISettingsMixin",
@@ -22,4 +23,5 @@ __all__ = [
     "HealthSettingsMixin",
     "SemanticSettingsMixin",
     "ServiceDeskSettingsMixin",
+    "AutomationsSettingsMixin",
 ]

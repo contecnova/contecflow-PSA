@@ -30,6 +30,7 @@ const TYPE_ICONS = {
   overload: '🔥',
   burnout_risk: '⚠️',
   budget_exceeded: '💰',
+  automation: '⚙️',
   budget_critical: '🚨',
   deadline_risk: '📅',
   task_blocked: '🔒',

@@ -35,6 +35,7 @@ logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 from app.api.v1.router import api_router
 # Registra la bandeja de eventos de ticket en la sesion (avisos, webhooks...).
 import app.services.service_desk.ticket_events  # noqa: F401,E402
+import app.services.automation_events  # noqa: F401,E402
 from app.api.v2.router import api_v2_router
 
 
@@ -332,6 +333,22 @@ def _arrancar_planificador(_enable_apscheduler, _celery_beat_enabled):
                 id="scheduled_perf_reminders",
                 replace_existing=True,
                 misfire_grace_time=900,
+                coalesce=True,
+            )
+            _scheduler.add_job(
+                "app.services.automation_jobs:procesar_eventos_job",
+                CronTrigger(minute="*"),
+                id="automations_events",
+                replace_existing=True,
+                misfire_grace_time=60,
+                coalesce=True,
+            )
+            _scheduler.add_job(
+                "app.services.automation_jobs:escanear_job",
+                CronTrigger(minute=f"*/{max(1, settings.AUTOMATIONS_SCAN_MINUTES)}"),
+                id="automations_scan",
+                replace_existing=True,
+                misfire_grace_time=300,
                 coalesce=True,
             )
             try:

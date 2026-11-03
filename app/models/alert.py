@@ -15,6 +15,7 @@ class AlertType(str, enum.Enum):
     task_blocked = "task_blocked"      # Task blocked for >2 days
     hours_deviation = "hours_deviation"  # Task >50% over estimate
     no_imputation = "no_imputation"    # Person hasn't logged for 2+ days
+    automation = "automation"          # Creada por una regla de automatizacion
 
 
 class AlertSeverity(str, enum.Enum):

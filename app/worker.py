@@ -102,6 +102,16 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.sd_procesar_eventos_de_ticket",
         "schedule": crontab(minute="*"),
     },
+    # Automatizaciones: bandeja de eventos (red del encolado al confirmar) y
+    # barrido de fechas y umbrales cada AUTOMATIONS_SCAN_MINUTES.
+    "automations-events": {
+        "task": "app.worker.automations_procesar_eventos",
+        "schedule": crontab(minute="*"),
+    },
+    "automations-scan": {
+        "task": "app.worker.automations_escanear",
+        "schedule": crontab(minute=f"*/{max(1, settings.AUTOMATIONS_SCAN_MINUTES)}"),
+    },
     # Problem auto-detection — every hour at :05
     "problem-auto-detect": {
         "task": "app.worker.problem_auto_detect",
@@ -307,6 +317,7 @@ _worker_logger = _logging.getLogger(__name__)
 # Los cambios de ticket que hace el worker (escalado, flujos) tambien pasan por
 # la bandeja de eventos: registra sus escuchadores en la sesion.
 import app.services.service_desk.ticket_events  # noqa: F401,E402
+import app.services.automation_events  # noqa: F401,E402
 
 
 def _aplicar_cortacircuitos(hook) -> None:
@@ -1171,6 +1182,26 @@ def sd_procesar_eventos_de_ticket():
 
     with worker_db_session() as db:
         return procesar_pendientes(db)
+
+
+@celery_app.task(name="app.worker.automations_procesar_eventos")
+def automations_procesar_eventos():
+    """Ejecuta las reglas de los eventos anotados (`automation_events`)."""
+    from app.db.session import worker_db_session
+    from app.services.automation_events import procesar_pendientes
+
+    with worker_db_session() as db:
+        return procesar_pendientes(db)
+
+
+@celery_app.task(name="app.worker.automations_escanear")
+def automations_escanear():
+    """Disparadores de fecha y umbral: tareas vencidas o que vencen, presupuesto, partes."""
+    from app.db.session import worker_db_session
+    from app.services.automations_service import escanear
+
+    with worker_db_session() as db:
+        return escanear(db)
 
 
 @celery_app.task(name="app.worker.problem_auto_detect")
