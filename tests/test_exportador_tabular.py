@@ -38,7 +38,10 @@ def _cuerpo(respuesta) -> bytes:
         async def _leer():
             return b"".join([trozo async for trozo in it])
 
-        return asyncio.get_event_loop().run_until_complete(_leer())             if asyncio.get_event_loop().is_running() is False else asyncio.run(_leer())
+        # `asyncio.run` y no `get_event_loop()`: si otro test del mismo proceso
+        # cerró el bucle por defecto, `get_event_loop()` revienta (medido con
+        # -n 4: «There is no current event loop»). Aquí nunca hay uno corriendo.
+        return asyncio.run(_leer())
     return b"".join(it)
 
 

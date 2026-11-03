@@ -39,11 +39,22 @@ def _recargar(monkeypatch, **variables):
 
 @pytest.fixture(autouse=True)
 def _restaurar_configuracion():
-    """Deja el módulo como estaba: otros tests leen `settings`."""
-    yield
-    importlib.reload(config_mod)
+    """Deja el módulo como estaba: otros tests leen `settings`.
+
+    Auditoría 2026-11: volvía a recargar el módulo, y eso deja en
+    `app.core.config.settings` un objeto NUEVO, mientras los servicios que ya
+    hicieron `from app.core.config import settings` siguen con el viejo.
+    Cualquier test posterior del mismo proceso que cambiara la configuración
+    cambiaba el objeto equivocado: medido con -n 4, el de Redis (límite de
+    login 0 en vez de 120) y los de correo entrante («Firma inválida»). Ahora
+    se restaura el contenido exacto del módulo, con el mismo objeto.
+    """
     import app.services.ai_provider_service as servicio
-    importlib.reload(servicio)
+    antes_config, antes_servicio = dict(config_mod.__dict__), dict(servicio.__dict__)
+    yield
+    for modulo, antes in ((config_mod, antes_config), (servicio, antes_servicio)):
+        modulo.__dict__.clear()
+        modulo.__dict__.update(antes)
 
 
 @pytest.mark.parametrize("proveedor", [

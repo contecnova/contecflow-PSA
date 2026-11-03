@@ -27,11 +27,13 @@ def test_cada_cambio_queda_en_el_historial(client, admin_token):
     client.post(f"{BASE}/{aid}/assign", headers=h, json={"user_id": "admin-test-id"})
 
     filas = client.get(f"{BASE}/{aid}/history", headers=h).json()["items"]
-    campos = {f["field"]: (f["old_value"], f["new_value"]) for f in filas}
-    assert campos["location"] == ("Madrid", "Barcelona")
-    assert campos["eol_date"] == (None, "2027-01-31")
-    assert campos["assigned_to_id"] == (None, "admin-test-id")
-    assert campos["status"][1] == "in_use"
+    # Una lista y no un dict: el estado tiene dos filas (alta y asignacion) que
+    # pueden llevar la misma marca de tiempo, y su orden no esta garantizado.
+    cambios = {(f["field"], f["old_value"], f["new_value"]) for f in filas}
+    assert ("location", "Madrid", "Barcelona") in cambios
+    assert ("eol_date", None, "2027-01-31") in cambios
+    assert ("assigned_to_id", None, "admin-test-id") in cambios
+    assert ("status", "available", "in_use") in cambios
 
     detalle = client.get(f"{BASE}/{aid}", headers=h).json()["data"]
     assert detalle["eol_date"] == "2027-01-31"
