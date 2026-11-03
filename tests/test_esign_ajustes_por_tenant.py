@@ -163,7 +163,8 @@ def test_guardar_dos_veces_actualiza_y_no_duplica(db):
 
     filas = db.query(AppSetting).filter(AppSetting.key == CLAVE).all()
     assert len(filas) == 1
-    assert filas[0].value == "segunda"
+    # Auditoria 2026-11: los secretos se guardan cifrados; se compara descifrado.
+    assert svc.descifrar_si_es_secreto(CLAVE, filas[0].value) == "segunda"
 
 
 def test_guardar_no_confirma(db):

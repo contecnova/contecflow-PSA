@@ -230,16 +230,39 @@ def update_envelope_from_webhook(
 
 
 # ── AppSetting helpers for e-sign config ──────────────────────────────────────
+#
+# Auditoria 2026-11: los secretos de DocuSign y Adobe se guardaban en claro en
+# `app_settings`. Ahora se cifran al guardar (las claves que
+# `settings_service.es_sensible` reconoce) y se descifran al leer; un valor
+# antiguo en claro se sigue leyendo (`decrypt_value` lo devuelve tal cual) y la
+# migracion 117 cifra los que ya habia.
+
+def cifrar_si_es_secreto(clave: str, valor: Optional[str]) -> Optional[str]:
+    from app.core.encryption import encrypt_value
+    from app.services.settings_service import es_sensible
+    if not valor or not es_sensible(clave) or valor.startswith(("v2:", "kmsv1:")):
+        return valor
+    return encrypt_value(valor)
+
+
+def descifrar_si_es_secreto(clave: str, valor: Optional[str]) -> Optional[str]:
+    from app.core.encryption import decrypt_value
+    from app.services.settings_service import es_sensible
+    if not valor or not es_sensible(clave):
+        return valor
+    return decrypt_value(valor)
+
 
 def _get_db_setting(db: Optional[Session], key: str) -> Optional[str]:
     """Read an AppSetting KV value; returns None if db is None or key missing."""
     if db is None:
         return None
     row = db.query(AppSetting).filter(AppSetting.key == key).first()
-    return row.value if row and row.value else None
+    return descifrar_si_es_secreto(key, row.value) if row and row.value else None
 
 
 def _set_db_setting(db: Session, key: str, value: str) -> None:
+    value = cifrar_si_es_secreto(key, value)
     row = db.query(AppSetting).filter(AppSetting.key == key).first()
     if row:
         row.value = value
@@ -572,7 +595,7 @@ def ajuste_de_firma(db: Session, sujeto, clave: str):
             .first()
         )
         if fila and fila.value:
-            return fila.value
+            return descifrar_si_es_secreto(clave, fila.value)
 
     fila = (
         db.query(AppSetting)
@@ -582,7 +605,7 @@ def ajuste_de_firma(db: Session, sujeto, clave: str):
         )
         .first()
     )
-    return fila.value if fila and fila.value else None
+    return descifrar_si_es_secreto(clave, fila.value) if fila and fila.value else None
 
 
 def guardar_ajuste_de_firma(db: Session, sujeto, clave: str, valor: str) -> None:
@@ -595,6 +618,7 @@ def guardar_ajuste_de_firma(db: Session, sujeto, clave: str, valor: str) -> None
     """
     from app.models.settings import AppSetting
 
+    valor = cifrar_si_es_secreto(clave, valor)
     org_id = getattr(sujeto, "organization_id", None)
     consulta = db.query(AppSetting).filter(AppSetting.key == clave)
     if org_id:

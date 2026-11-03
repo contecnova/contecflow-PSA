@@ -9,7 +9,7 @@ This README is the complete functional and technical documentation of the soluti
 | Menu entries (screens reachable from the sidebar) | 97, plus the client portal and public forms |
 | HTTP API routes | 2,051 (2,043 under `/api/v1`, 3 under `/api/v2`, 5 public) and 6 WebSockets |
 | Mapped database models | 395 (394 scoped by organization, 1 exempt) |
-| Alembic migrations | 70, one linear chain, head `116_kb_vectores_pgvector` |
+| Alembic migrations | 71, one linear chain, head `117_esign_secretos_cifrados` |
 | Backend tests | 4,021 collected; last full run 3,997 passed, 22 skipped, 1 xfailed, 0 failed |
 | Frontend tests | 31 files, 114 tests, all passing |
 | Celery beat entries | 53 (over 35 tasks); `setup.sh`, `setup.bat` and Docker run them with Celery beat (APScheduler off) |
@@ -60,7 +60,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 - ~~`scripts/rotate_keys.sh` replaces `SECRET_KEY` without re-encrypting stored secrets and prints the new key.~~ Fixed 2026-11-03 (`SECRET_KEY_PREVIOUS` + `scripts/reencrypt_secrets.py`). There is still no working backup procedure in the repository. [7.7, 7.13]
 
 **Security**
-- **Fixed 2026-11-03:** `GET /api/v1/settings/general` (open to any signed-in user) returned every `app_settings` row, including e-signature tokens and secrets in plain text. It now returns only general settings to non-admins and masks sensitive values for everyone. The e-sign secrets are still stored unencrypted in the database. [6]
+- **Fixed 2026-11-03:** `GET /api/v1/settings/general` (open to any signed-in user) returned every `app_settings` row, including e-signature tokens and secrets in plain text. It now returns only general settings to non-admins and masks sensitive values for everyone. Since 2026-11-03 the e-sign credentials are also stored encrypted (migration 117 encrypts the existing ones). [6]
 - ~~MFA enrolled on the `/mfa` screen does not protect sign-in; its QR sent the TOTP secret to Google.~~ Fixed 2026-11-03: enrolling there now sets the factor sign-in checks, its backup codes work at sign-in, and the QR is generated locally. [6]
 - ~~Several endpoints accept wider roles than their screens (employees can read cost, GDPR and audit data); BI embed tokens are full access tokens.~~ Fixed 2026-11-03 for the routes listed in section 5 (report builder, Data Explorer previews, GDPR and governance reads, M365, ETL, AI narrative, scheduled reports) and for special-purpose tokens. The earlier claim that scheduled reports and the alert engine act across organizations was wrong: measured, the tenant filter scopes both. [5]
 - **Fixed 2026-11-03:** org admins could overwrite a global setting shared by all organizations through `PATCH /settings/general/{key}`; writes now go to the organization's row and only general keys are accepted. [6]
@@ -2599,6 +2599,7 @@ Workflow `wait` timers do **not** run in Celery: they run in the API process's s
 | 114 | `sd_ci_class_fields` |
 | 115 | `alm_contracts.response_hours`; `sd_tickets.uc_vendor_responded_at`, `uc_response_due`, `uc_response_breached` |
 | 116 | Optional `sd_kb_articles.embedding_vec` (pgvector) |
+| 117 | Data only: encrypts the e-sign credentials stored in plain text in `app_settings` (`esign.*` keys matched by `settings_service.es_sensible`) |
 
 ---
 
@@ -3718,7 +3719,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 | Audit | `GET /api/v1/settings/audit-log?scope=&key=&provider=&actor_id=` | `require_admin`. Table `settings_audit_log`. **There is no UI for it** (the client `settingsApi.auditLog` exists, but no page calls it) |
 
 **Limitations (measured).**
-- **Fixed 2026-11-03 — `GET /settings/general` leaked secrets.** It is read by every signed-in user (the idle timeout) and returned every `app_settings` row in plaintext, including e-sign tokens and secrets (`esign.*`), the JWT keyring and `METRICS_AUTH_TOKEN`. Now non-admins get only the general settings (factory keys and plain names, no dotted/internal keys), and nobody gets the value of a sensitive key (`token`, `secret`, `password`, `keyring`, `credential`, `*_key`, `client_id`): it comes back as `••••••••`. Admins still see the internal keys (read-only *System status* view), masked. Tests: `tests/test_ajustes_generales_sin_fugas.py`. **Still true:** the e-sign secrets are stored unencrypted in `app_settings` (only the Jira token is encrypted, `_SENSITIVE_SETTING_KEYS`); the API no longer returns them, but anyone with database access can read them.
+- **Fixed 2026-11-03 — `GET /settings/general` leaked secrets.** It is read by every signed-in user (the idle timeout) and returned every `app_settings` row in plaintext, including e-sign tokens and secrets (`esign.*`), the JWT keyring and `METRICS_AUTH_TOKEN`. Now non-admins get only the general settings (factory keys and plain names, no dotted/internal keys), and nobody gets the value of a sensitive key (`token`, `secret`, `password`, `keyring`, `credential`, `*_key`, `client_id`): it comes back as `••••••••`. Admins still see the internal keys (read-only *System status* view), masked. Tests: `tests/test_ajustes_generales_sin_fugas.py`. Since 2026-11-03 the e-sign credentials (`esign.*` keys matched by `es_sensible`) are also stored encrypted (`esign_service.cifrar_si_es_secreto`; migration 117 for existing rows; test `tests/test_esign_secretos_cifrados.py`). Other internal keys that are not e-sign are not encrypted by this change.
 - **Fixed 2026-11-03 — `PATCH /settings/general/{key}` accepted any key and overwrote global rows.** Non-superadmins can now write only general settings (403 otherwise), and the write goes to the organization's own row, created on first change; before, when the organization had no row, the **global** row shared by every tenant was overwritten.
 - **`budget_alert_threshold`, `overload_threshold`, `work_days_per_week` and `company_logo_url` have no reader** in `app/` or `frontend/src` other than the seed and the label map. Editing them changes nothing.
 - **Alertas (`alert_configs`) is not read by the alert engine.** `alert_service.py` uses hard-coded thresholds (100 %, 85 %, 7 days). Only the CRUD service touches `alert_configs`.
@@ -4102,7 +4103,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **15 
 - The provider calls live in `app/services/esign_providers.py`. Without configuration, envelopes fall back to manual mode.
 
 **Limitations (measured).**
-- **The `esign.*` secrets and access tokens are stored in plaintext in `app_settings`.** Since 2026-11-03 `GET /settings/general` masks them (see Settings); they remain readable to anyone with database access.
+- ~~The `esign.*` secrets are stored in plaintext in `app_settings`.~~ Fixed 2026-11-03: integration key, secret, client id and client secret are stored encrypted (`v2:`) and decrypted on read; values saved before are encrypted by migration 117, and an old plain value is still readable. Account id and base URLs stay in clear.
 - **The Credenciales → DocuSign / Adobe Sign providers are not read by e-sign.**
 - A PM can open the page but cannot create a request (`require_admin`).
 - A real round trip with DocuSign or Adobe is **Not verified**.
@@ -4569,7 +4570,7 @@ There is no dedicated search engine for the core domain. Measured:
 | `app/schemas/` | Pydantic schemas | 48 files |
 | `app/core/` | Config, security, CSRF, ABAC/GRC enforcement, tenancy, encryption, metrics, rate limiter, uploads, timezone context | 30 files + `config_groups/` (5 mixins) |
 | `app/db/` | `session.py` (engine, `TenantSession`, tenant hooks), `seed.py` + `seed_parts/` (9 modules, 1,969 lines), `migrate.py` (legacy, unused by setup flows) | — |
-| `alembic/versions/` | Migrations, single linear chain, head `116_kb_vectores_pgvector` | 70 revisions |
+| `alembic/versions/` | Migrations, single linear chain, head `117_esign_secretos_cifrados` | 71 revisions |
 | `tests/` | Backend pytest suite | 304 `test_*.py`, **4,021 tests collected** |
 | `tests_e2e/` | Python Playwright E2E | 13 files |
 | `frontend/` | Vite + React SPA, `nginx.frontend.conf`, i18n checkers in `scripts/` | see §1.3 |
@@ -5010,7 +5011,7 @@ Compose-only variables (consumed by `docker-compose.yml`, not by Python): `POSTG
 ### 5. Database and migrations
 
 - **Alembic is the only schema path.** `setup.sh`, `setup.bat`, the compose `migrate` service and `make migrate` all run `alembic upgrade head`. The app never migrates at startup. Its lifespan only compares `alembic_version` with the script heads and logs, or with `FAIL_ON_SCHEMA_DRIFT=1` aborts. `alembic/env.py` takes the URL from `settings.DATABASE_URL`.
-- **Chain:** 70 revision files, linear (`alembic history` = 70 steps from `<base>`), **single head `116_kb_vectores_pgvector`** (measured with `alembic heads`). There are two naming styles: legacy `NNN_name` and Alembic UUID ids (`alembic/NAMING_CONVENTION.md`; history is frozen and never renamed).
+- **Chain:** 71 revision files, linear (`alembic history` = 71 steps from `<base>`), **single head `117_esign_secretos_cifrados`** (measured with `alembic heads`). There are two naming styles: legacy `NNN_name` and Alembic UUID ids (`alembic/NAMING_CONVENTION.md`; history is frozen and never renamed).
 - **Commands:**
   ```bash
   python -m alembic upgrade head        # idempotent
