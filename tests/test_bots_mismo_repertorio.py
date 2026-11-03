@@ -90,8 +90,12 @@ async def test_un_comando_que_revienta_vuelve_como_mensaje():
 
     hub._COMANDOS["_prueba_revienta"] = revienta
     try:
+        # Desde 2026-11-03 sin usuario no se ejecuta nada: hace falta uno, y una
+        # sesion donde publicar su organizacion.
+        from types import SimpleNamespace
+        usuario = SimpleNamespace(id="u1", organization_id="org-1", is_superadmin=False)
         respuesta = await hub._ejecutar_comando_del_bot(
-            "_prueba_revienta lo que sea", None, None, canal="Test")
+            "_prueba_revienta lo que sea", usuario, SimpleNamespace(info={}), canal="Test")
     finally:
         del hub._COMANDOS["_prueba_revienta"]
 
