@@ -159,3 +159,11 @@ def test_los_campos_de_clase_se_validan(client, admin_token):
                  [{"key": "x", "field_type": "json"}]):
         assert client.put(f"{BASE}/class-fields/server", headers=h, json=malo).status_code == 422, malo
     assert client.put(f"{BASE}/class-fields/nave_espacial", headers=h, json=[]).status_code == 422
+
+
+def test_un_pm_edita_cis_como_en_la_pantalla_pero_no_configura_clases(client, pm_token):
+    """La pantalla CMDB la ven administradores y PM; la CMDB vieja dejaba editar a los dos."""
+    h = auth(pm_token)
+    r = client.post(BASE, headers=h, json={"name": "srv-pm", "ci_type": "server"})
+    assert r.status_code == 200, r.text
+    assert client.put(f"{BASE}/class-fields/server", headers=h, json=[]).status_code == 403

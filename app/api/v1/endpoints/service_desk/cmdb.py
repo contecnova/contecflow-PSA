@@ -7,7 +7,9 @@ import json
 from datetime import datetime, timezone
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin
+# Editar CIs y relaciones: administradores y PM, como la pantalla CMDB
+# (que ven los dos). Configurar las clases, solo administradores.
+from app.core.deps import get_current_user, require_admin, require_admin_or_pm
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
@@ -110,7 +112,7 @@ def list_cmdb(
 
 
 @router.post("/cmdb", summary="Crear CI")
-def create_ci(payload: CIIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def create_ci(payload: CIIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
     enforce_ci_org_constraints(db, current_user, payload, is_update=False)
     ci = build_ci(db, payload, current_user)
     _commit_or_rollback(db); db.refresh(ci)
@@ -118,7 +120,7 @@ def create_ci(payload: CIIn, db: Session = Depends(get_db), current_user: User =
 
 
 @router.patch("/cmdb/{ci_id}", summary="Actualizar CI")
-def update_ci(ci_id: str, payload: CIIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def update_ci(ci_id: str, payload: CIIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
     ci = get_scoped_ci_or_404(db, current_user, ci_id)
     enforce_ci_org_constraints(db, current_user, payload, is_update=True)
     apply_ci_update(db, ci, payload, current_user)
@@ -127,7 +129,7 @@ def update_ci(ci_id: str, payload: CIIn, db: Session = Depends(get_db), current_
 
 
 @router.delete("/cmdb/{ci_id}", summary="Borrar CI (logico: lo que lo cita lo conserva)")
-def remove_ci(ci_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def remove_ci(ci_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
     delete_ci(db, get_scoped_ci_or_404(db, current_user, ci_id), current_user)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
@@ -158,14 +160,14 @@ def get_ci_relations(ci_id: str, db: Session = Depends(get_db), current_user: Us
 
 
 @router.post("/cmdb/relations", summary="Crear relación entre CIs")
-def create_ci_relation(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def create_ci_relation(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
     rel = build_ci_relation(db, current_user, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"id": rel.id, "ok": True})
 
 
 @router.delete("/cmdb/relations/{relation_id}", summary="Quitar una relación entre CIs")
-def remove_ci_relation(relation_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def remove_ci_relation(relation_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
     delete_ci_relation(db, current_user, relation_id)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})

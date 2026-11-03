@@ -2,16 +2,15 @@
 ALM — Asset & License Management endpoints
 Enterprise-grade gestión de proveedores, contratos, licencias y activos.
 """
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
-from app.models.alm import ALMAsset
 from app.services.alm_ciclo_de_vida import (
-    abrir_ticket_de_renovacion, activos_del_ci, historial, proximos_vencimientos,
+    abrir_ticket_de_renovacion, activo_o_404, activos_del_ci, historial, proximos_vencimientos,
 )
 from app.services.alm_service import (
     get_alm_dashboard,
@@ -179,21 +178,15 @@ def assign_asset(aid: str, data: dict = Body(...), db: Session = Depends(get_db)
 
 @router.get("/assets/{aid}/history", summary="Historial de cambios del activo")
 def get_asset_history(aid: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    _activo_o_404(db, aid)
+    activo_o_404(db, aid)
     return APIListResponse.ok(items=historial(db, aid))
 
 @router.post("/assets/{aid}/refresh-ticket", summary="Abrir (o recuperar) el ticket de renovación del activo")
 def open_refresh_ticket(aid: str, db: Session = Depends(get_db), cu=Depends(require_any_manager)):
-    datos = abrir_ticket_de_renovacion(db, _activo_o_404(db, aid), cu.id)
+    datos = abrir_ticket_de_renovacion(db, activo_o_404(db, aid), cu.id)
     db.commit()
     return APIResponse.ok(data=datos)
 
-
-def _activo_o_404(db: Session, aid: str) -> ALMAsset:
-    a = db.query(ALMAsset).filter(ALMAsset.id == aid, ALMAsset.is_active.is_(True)).first()
-    if a is None:
-        raise HTTPException(404, "Activo no encontrado")
-    return a
 
 
 # ── Cost Centers ──────────────────────────────────────────────────────────────

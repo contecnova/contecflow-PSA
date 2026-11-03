@@ -1340,8 +1340,12 @@ export const sdCatalogApi = {
 }
 
 export const sdSlaPoliciesApi = {
+  // Las dos rutas escritas enteras: el comprobador de rutas del frontal no
+  // resuelve un segmento variable en medio («assign/${tipo}/…»).
   assign: (tipo: 'client' | 'contract', id: string, slaPolicyId: string | null) =>
-    api.patch(`/sd/sla-policies/assign/${tipo}/${id}`, { sla_policy_id: slaPolicyId }),
+    tipo === 'client'
+      ? api.patch(`/sd/sla-policies/assign/client/${id}`, { sla_policy_id: slaPolicyId })
+      : api.patch(`/sd/sla-policies/assign/contract/${id}`, { sla_policy_id: slaPolicyId }),
   list:   ()         => api.get('/sd/sla-policies'),
   create: (data: unknown)     => api.post('/sd/sla-policies', data),
   update: (id: any, data: unknown) => api.patch(`/sd/sla-policies/${id}`, data),

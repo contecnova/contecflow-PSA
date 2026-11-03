@@ -106,7 +106,11 @@ RUTAS = _rutas_guardadas()
 #: hace que su ruta **desaparezca** de la lista en vez de fallar: el bucle pasa
 #: en verde porque ya no la mira. Es el modo de fallo silencioso de este
 #: fichero, y se cierra exigiendo el número exacto.
-RUTAS_ESPERADAS = 993
+# 985 desde 2026-11-03: salen las 13 de la CMDB y los activos duplicados
+# (/cmdb/items|relations|categories y /sd/assets, migraciones 110 y 111) y
+# entran 5 con guarda (/sd/cmdb borrar CI y relacion, clases de CI, y
+# /alm/assets/{aid}/refresh-ticket). Medido con el diff de RUTAS.
+RUTAS_ESPERADAS = 985
 
 
 def test_se_sondean_todas_las_rutas_con_guarda():

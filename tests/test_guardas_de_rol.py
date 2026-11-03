@@ -113,7 +113,10 @@ EXENCIONES_ESPERADAS = {
     "acotada al propio usuario": 94,
     "superficie: API key": 7,
     "superficie: portal de cliente": 21,
-    "superficie: sin sujeto autenticado": 36,
+    # 38 desde 2026-11-02: POST /sd/events/{source} autentica el token de la
+    # organizacion y POST /sd/kb/{id}/deflected exige `lector_de_la_kb`
+    # (cliente del portal o usuario); el clasificador no reconoce ninguno.
+    "superficie: sin sujeto autenticado": 38,
 }
 
 #: Rutas de escritura que sí llevan guarda de rol. Sólo puede subir.

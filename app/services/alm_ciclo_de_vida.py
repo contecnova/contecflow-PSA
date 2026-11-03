@@ -66,6 +66,13 @@ def exigir_ci(db: Session, ci_id: Optional[str], current_user) -> None:
         raise HTTPException(422, "El CI no existe")
 
 
+def activo_o_404(db: Session, activo_id: str) -> ALMAsset:
+    a = db.query(ALMAsset).filter(ALMAsset.id == activo_id, ALMAsset.is_active.is_(True)).first()
+    if a is None:
+        raise HTTPException(404, "Activo no encontrado")
+    return a
+
+
 def historial(db: Session, activo_id: str) -> list[dict]:
     filas = (db.query(ALMAssetHistory).filter(ALMAssetHistory.asset_id == activo_id)
              .order_by(ALMAssetHistory.changed_at.desc()).all())
