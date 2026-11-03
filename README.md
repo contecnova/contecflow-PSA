@@ -12,7 +12,7 @@ This README is the complete functional and technical documentation of the soluti
 | Alembic migrations | 70, one linear chain, head `116_kb_vectores_pgvector` |
 | Backend tests | 4,021 collected; last full run 3,997 passed, 22 skipped, 1 xfailed, 0 failed |
 | Frontend tests | 31 files, 114 tests, all passing |
-| Celery beat entries | 52 (over 34 tasks); APScheduler inside the API runs 4 more |
+| Celery beat entries | 53 (over 35 tasks); `setup.sh`, `setup.bat` and Docker run them with Celery beat (APScheduler off) |
 | Runtime settings (editable in Admin) | 120 keys in 15 groups |
 | UI languages | Spanish, English, Chinese |
 
@@ -47,12 +47,7 @@ This README is the complete functional and technical documentation of the soluti
 - Web app: <http://localhost:3000> — sign in as user `admin` (or `admin@company.com`) with `SUPERADMIN_PASSWORD` from `.env`. In demo mode the admin's email comes from `seed_users_data.json` and `SUPERADMIN_EMAIL` is ignored; other demo users and password caveats are in [7.3.6](#36-first-login).
 - Client portal: <http://localhost:3000/portal> — portal users are created in *Clients → (client) → Portal → Accesos*.
 - API documentation (OpenAPI): <http://localhost:8000/docs>.
-- **Background jobs are not started by `setup.sh`.** Start them in two more terminals, otherwise SLA/OLA/UC monitoring, mailbox reading, ticket notifications, webhooks and every other scheduled job never run:
-
-```bash
-venv/bin/celery -A app.worker.celery_app worker --loglevel=info
-venv/bin/celery -A app.worker.celery_app beat   --loglevel=info   # then set ENABLE_APSCHEDULER=0 (see 7.8.1)
-```
+- `setup.sh start`/`demo` also start a **Celery worker and Celery beat** (logs in `/tmp/contecflow-worker.log` and `/tmp/contecflow-beat.log`) and run the API with `ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1`, so every scheduled job runs exactly once. Redis must be up (the setup starts it with Docker).
 
 All modes of `setup.sh`/`setup.bat`, the Docker stack and manual installation are in [7.3](#3-requirements-and-installation).
 
@@ -61,8 +56,7 @@ All modes of `setup.sh`/`setup.bat`, the Docker stack and manual installation ar
 Each item was measured in the code; the ones marked ✔ were re-checked by hand by the editor of this README. Details, and many smaller limitations, are in the section named in brackets.
 
 **Operation**
-- ✔ `setup.sh` does not start a Celery worker or beat, and none runs on a default local install: 48 of the 52 scheduled jobs (SLA/OLA/UC scan, mailbox reading, the ticket event outbox that sends notifications, emails, webhooks and workflows) never execute locally. Only the 4 APScheduler jobs inside the API run (scheduled reports, key rotation, alert engine, performance reminders). [7.3, 7.8]
-- The Docker stack does not set the scheduler flags, so shared jobs probably run twice (APScheduler in each API worker plus the beat container). Not verified at runtime. [7.8]
+- **Fixed 2026-11-03:** `setup.sh` did not start Celery, so 48 of the 52 scheduled jobs (SLA/OLA/UC scan, mailbox reading, the ticket event outbox that sends notifications, emails, webhooks and workflows) never ran locally. It now starts a worker and beat (verified: beat enqueued the ticket-event job and the worker ran it; the SLA scan, mailbox and asset-expiry jobs ran on the worker). `setup.bat` got the same change (`--pool=solo`; **not verified on Windows**). The Docker stack ran APScheduler in the API and the `beat` container at the same time; it now sets `ENABLE_APSCHEDULER=0`/`ENABLE_CELERY_BEAT=1`. Performance reminders, which only existed in APScheduler, are now a beat entry. [7.3, 7.8]
 - `scripts/rotate_keys.sh` replaces `SECRET_KEY` without re-encrypting stored secrets, which then become unreadable; it also prints the new key. There is no working backup procedure in the repository. [7.7, 7.13]
 
 **Security**
@@ -1200,7 +1194,7 @@ The KPI row shows active objectives, average progress and on-track objectives (�
 6. **Close** the cycle. Status goes `active → closed` and answers freeze.
 7. **Planes de desarrollo**: plan status `draft | active | completed | archived`, with goals `pending | in_progress | done | blocked | cancelled`. A plan can be created by its subject, the subject's direct manager, or admin/hr.
 
-**Configuration.** No settings. Reminders run daily at 09:00 (APScheduler job `scheduled_perf_reminders` in `app/main.py`) when `ENABLE_APSCHEDULER=1`. They can also be triggered from the KPIs tab (`POST /performance/admin/run-reminders`). Window and dedup are code constants: `REMINDER_WINDOW_DAYS=7`, `DEDUP_WINDOW_HOURS=20`.
+**Configuration.** No settings. Reminders run daily at 09:00: Celery beat entry `perf-reminders-daily` (added 2026-11-03; before, they only existed as the APScheduler job `scheduled_perf_reminders`, which is off whenever Celery beat runs). They can also be triggered from the KPIs tab (`POST /performance/admin/run-reminders`). Window and dedup are code constants: `REMINDER_WINDOW_DAYS=7`, `DEDUP_WINDOW_HOURS=20`.
 
 **Technical notes.**
 - 34 routes under `/api/v1/performance/*`:
@@ -1213,7 +1207,7 @@ The KPI row shows active objectives, average progress and on-track objectives (�
 - Tables: `review_cycles`, `review_questions`, `review_360_campaigns`, `performance_reviews`, `development_plans`, `dev_goals`.
 
 **Limitations.**
-- **Reminders don't run in Celery Beat mode.** The job exists only in the APScheduler setup; `app/worker.py`'s `beat_schedule` has no perf-reminder entry.
+- ~~Reminders don't run in Celery Beat mode.~~ Fixed 2026-11-03: `perf-reminders-daily` in `beat_schedule`.
 - `ReviewStatus.approved` is never set anywhere, so there is no approval step after submission.
 - API-only, no button: closing a single 360° campaign (`POST /campaigns/{id}/close`), `GET /campaigns/{id}/reviews`, `POST /cycles/{id}/questions/seed-default`, `POST /cycles/{id}/clone-questions/...`. The last two are reachable only through the *Nuevo ciclo* options.
 - No frontend tests for this 2,256-line page.
@@ -1292,7 +1286,7 @@ The KPI row shows active objectives, average progress and on-track objectives (�
 The practical impact is limited: new users get `weekly_capacity_hours` from the same static default at creation, and the fallback only applies to users whose capacity is null.
 
 #### Background jobs touching this area
-- **Performance reminders**: APScheduler daily at 09:00 (see Performance reviews). Missing under Celery Beat.
+- **Performance reminders**: daily at 09:00, Celery beat `perf-reminders-daily` (APScheduler `scheduled_perf_reminders` when APScheduler is the active scheduler).
 - **Missing-imputations check**: `check-missing-imputations`, Celery Beat on weekdays at 18:00; uses `weekly_capacity_hours` (`app/worker.py`).
 - No scheduled job recomputes burnout snapshots, resource alerts or utilisation snapshots. `resource_alerts` and `resource_utilization_snapshots` are only reachable through API-only `/resources/*` endpoints that no screen calls (`/resources/alerts`, `/resources/utilization-history`, `/resources/team-health`, `/resources/load-scoring`, `/resources/availability-matrix`, `/resources/forecast`, `/resources/{project_id}/skill-gaps`, `/resources/available-by-skill/{skill_id}`).
 
@@ -4625,7 +4619,7 @@ What `setup_backend` does, step by step:
 
 `start_services`: SQLite `PRAGMA quick_check` (and WAL/SHM cleanup), installs the frontend if `node_modules` is missing, runs `sync_demo_passwords` again, kills ports 8000/3000, starts `uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1`, waits up to 60 s for `/health`, validates JSX with Babel when sources changed (`frontend/validate.cjs`), starts `npm run dev -- --port 3000`, prints the demo users **with the password in clear text**, and opens the browser.
 
-**Neither `setup.sh` nor `setup.bat` starts a Celery worker or beat** (0 occurrences of "celery"). In a local install only the 4 APScheduler jobs run (§8.2). Outbound webhooks, mailbox polling, SLA scans and every other Celery task do not run until you start them by hand (§3.4).
+**Both `setup.sh` and `setup.bat` start a Celery worker and Celery beat** next to the API (since 2026-11-03; before, none was started and only the 4 APScheduler jobs ran locally). The API is launched with `ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1`. `setup.sh stop` and Ctrl+C stop the worker and beat too. On Windows the worker uses `--pool=solo` (**not verified on Windows**).
 
 #### 3.3 `setup.bat` (Windows), measured differences
 
@@ -4647,7 +4641,7 @@ python -m alembic upgrade head
 python -m app.db.seed                      # demo data   | or: python scripts/reset_to_admin_only.py
 uvicorn app.main:app --reload --port 8000
 celery -A app.worker.celery_app worker --loglevel=info
-celery -A app.worker.celery_app beat --loglevel=info   # then set ENABLE_APSCHEDULER=0 (see §8.1)
+celery -A app.worker.celery_app beat --loglevel=info   # and run uvicorn with ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1 (see §8.1)
 cd frontend && npm install --legacy-peer-deps && npm run dev -- --port 3000
 ```
 
@@ -4978,7 +4972,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | Name | Default | Where / meaning |
 |---|---|---|
 | `TESTING` | `0` | `1` disables CSRF, uses a per-request rate-limit key, skips the schema preflight and the collab scheduler. Set by `tests/conftest.py`. |
-| `ENABLE_APSCHEDULER` | `1` | Run the in-process APScheduler (4 jobs). |
+| `ENABLE_APSCHEDULER` | `1` | Run the in-process APScheduler (4 jobs). `setup.sh`/`setup.bat`/Docker set it to `0` and run Celery beat instead. |
 | `ENABLE_CELERY_BEAT` / `CELERY_BEAT` | `0` | Declares that Celery beat runs; with APScheduler also on, boot fails. |
 | `FAIL_ON_DUAL_SCHEDULER` | `1` | `0` lets the app boot with both schedulers (every job would run twice). |
 | `FAIL_ON_SCHEMA_DRIFT` | `1` in staging/production, else `0` | Abort boot if the DB's Alembic revisions ≠ script heads. |
@@ -5144,7 +5138,7 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 #### 8.1 Scheduler modes
 
 - **APScheduler** (in the API process, `ENABLE_APSCHEDULER=1` default, `SQLAlchemyJobStore` on the main DB) runs 4 jobs: `scheduled_reports` (every hour at :00), `scheduled_key_rotation` (`KEY_ROTATION_RUN_HOUR_UTC`:17), `scheduled_alert_engine` (08:00), `scheduled_perf_reminders` (09:00).
-- **Celery beat** (`ENABLE_CELERY_BEAT=1`, separate `beat` container) runs the 52 entries below. The app refuses to boot when both are enabled (`FAIL_ON_DUAL_SCHEDULER=1`), but that check only sees the API process's own env. The compose stack sets neither flag, so the API runs APScheduler **and** the `beat` container runs beat, and the 3 jobs present in both (reports, key rotation, alert engine) run twice. With 4 API workers, APScheduler itself starts 4 times; the code says the shared job store reduces but does not guarantee single execution. **Set `ENABLE_APSCHEDULER=0` and `ENABLE_CELERY_BEAT=1` in `.env` for the Docker stack.** The effect is **not verified at runtime.**
+- **Celery beat** (`ENABLE_CELERY_BEAT=1`, separate `beat` container) runs the 52 entries below. The app refuses to boot when both are enabled (`FAIL_ON_DUAL_SCHEDULER=1`), but that check only sees the API process's own env. The compose stack now sets `ENABLE_APSCHEDULER=0` and `ENABLE_CELERY_BEAT=1` for every app container (before 2026-11-03 it set neither, so the API ran APScheduler **and** the `beat` container ran beat, and the 3 jobs present in both (reports, key rotation, alert engine) run twice. With 4 API workers, APScheduler itself starts 4 times; the code says the shared job store reduces but does not guarantee single execution. **Set `ENABLE_APSCHEDULER=0` and `ENABLE_CELERY_BEAT=1` in `.env` for the Docker stack.** The effect is **not verified at runtime.**
 - **Timezone:** `celery_app.conf.timezone = DEFAULT_TIMEZONE` (Europe/Madrid by default) and `BackgroundScheduler(timezone=DEFAULT_TIMEZONE)`. All hours below are **in `DEFAULT_TIMEZONE`**, despite comments and names saying UTC (`revenue-monthly-recognition` "02:00 UTC", `KEY_ROTATION_RUN_HOUR_UTC`).
 - Broker and result backend: `REDIS_URL`. Without it Celery cannot enqueue. `run_agent_task` uses `CELERY_AGENT_TASK_TIME_LIMIT`/`SOFT`.
 
@@ -5262,7 +5256,7 @@ Structural guard tests worth knowing (all in `tests/`):
 | `setup.sh` silently ends up on SQLite | Docker daemon not ready, `up` failed, or Postgres not ready in 30 s | Check `docker compose ps`, re-run |
 | `external volume "contecflow_postgres_data" not found` | Volumes are `external: true` | `docker volume create contecflow_postgres_data contecflow_s3_data` |
 | S3 download 400/403, "region … is wrong" | SigV4 and region mismatch | Keep `AWS_REGION` equal for app and gateway |
-| Webhooks, mailbox, SLA scans never run locally | No Celery worker/beat started by the setup scripts | Start worker and beat (§3.4) |
+| Webhooks, mailbox, SLA scans never run locally | Celery worker or beat not running (e.g. Redis down when `setup.sh` started) | See `/tmp/contecflow-worker.log` and `/tmp/contecflow-beat.log`; restart with `./setup.sh start` |
 | Rate-limit or WS-ticket problems with several workers | No Redis (`/ready` shows `redis: disabled`) | Set `REDIS_URL` |
 | 401 on every call from a custom `frontend/.env` | `VITE_API_URL` without `/api/v1` | Unset it or append `/api/v1` |
 | Seed dies with `UnicodeEncodeError` on Windows | Console code page | `setup.bat` sets `PYTHONUTF8=1`; the seed reconfigures stdout |
@@ -5276,8 +5270,8 @@ DOCS.md §16 lists generic steps (activate the venv, check `DATABASE_URL`, `alem
 
 #### 13.1 Measured limitations
 
-1. **Local setup has no Celery.** Every Celery-only feature (52 schedules, webhook delivery) is inert in a `setup.sh`/`setup.bat` install (§3.2).
-2. **Docker stack runs scheduled jobs twice by default** (APScheduler in each API worker plus beat), unless `.env` sets `ENABLE_APSCHEDULER=0` (§8.1).
+1. ~~Local setup has no Celery.~~ Fixed 2026-11-03: the setup scripts start worker and beat (§3.2).
+2. ~~Docker stack runs scheduled jobs twice by default.~~ Fixed 2026-11-03: compose sets the scheduler flags (§8.1).
 3. **Schedules are in `DEFAULT_TIMEZONE`**, not UTC, contrary to names and comments (§8.1).
 4. **`RATE_LIMIT_DEFAULT` is probably inert** (no `SlowAPIMiddleware`); only 117 decorated routes are limited, and behind nginx the key is the proxy IP (§6.5).
 5. **nginx forwards WebSocket upgrades only for `/api/v1/ws/`**; 3 other WS endpoints and `/status`, `/ready` and the widgets are not routed (§6.6, §9).

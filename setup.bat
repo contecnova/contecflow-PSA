@@ -595,6 +595,8 @@ set "BACKEND_RUNNER=%TEMP%\contecflow-backend-runner.cmd"
 (
     echo @echo off
     echo cd /d "%SCRIPT_DIR%"
+    echo set ENABLE_APSCHEDULER=0
+    echo set ENABLE_CELERY_BEAT=1
     echo .venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port %BACKEND_PORT% --log-level info 1^>"%TEMP%\contecflow-backend.log" 2^>"%TEMP%\contecflow-backend.err.log"
 ) > "%BACKEND_RUNNER%"
 start "Contecflow Backend" /min "%COMSPEC%" /c call "%BACKEND_RUNNER%"
@@ -602,6 +604,23 @@ if errorlevel 1 (
     echo [ERROR] No se pudo lanzar el backend.
     exit /b 1
 )
+REM Tareas en segundo plano (auditoria 2026-11): sin Celery no corrian 48 de las
+REM 52 tareas programadas (SLA/OLA/UC, buzon, avisos de ticket). En Windows Celery
+REM necesita el pool "solo". No verificado en Windows.
+set "WORKER_RUNNER=%TEMP%\contecflow-worker-runner.cmd"
+(
+    echo @echo off
+    echo cd /d "%SCRIPT_DIR%"
+    echo .venv\Scripts\python -m celery -A app.worker.celery_app worker --loglevel=info --pool=solo 1^>"%TEMP%\contecflow-worker.log" 2^>^&1
+) > "%WORKER_RUNNER%"
+start "Contecflow Worker" /min "%COMSPEC%" /c call "%WORKER_RUNNER%"
+set "BEAT_RUNNER=%TEMP%\contecflow-beat-runner.cmd"
+(
+    echo @echo off
+    echo cd /d "%SCRIPT_DIR%"
+    echo .venv\Scripts\python -m celery -A app.worker.celery_app beat --loglevel=info --schedule "%TEMP%\contecflow-celerybeat-schedule" 1^>"%TEMP%\contecflow-beat.log" 2^>^&1
+) > "%BEAT_RUNNER%"
+start "Contecflow Beat" /min "%COMSPEC%" /c call "%BEAT_RUNNER%"
 
 :: Esperar a que el backend responda (máx. 180 s)
 echo [INFO] Esperando backend
@@ -728,6 +747,8 @@ goto :end
 echo [INFO] Parando Contecflow...
 taskkill /FI "WINDOWTITLE eq Contecflow Backend*" /F >nul 2>&1
 taskkill /FI "WINDOWTITLE eq Contecflow Frontend*" /F >nul 2>&1
+taskkill /FI "WINDOWTITLE eq Contecflow Worker*" /F >nul 2>&1
+taskkill /FI "WINDOWTITLE eq Contecflow Beat*" /F >nul 2>&1
 call :kill_port %BACKEND_PORT%
 call :kill_port %FRONTEND_PORT%
 call :wait_port_free %BACKEND_PORT% 15 >nul 2>&1

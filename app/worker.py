@@ -15,6 +15,10 @@ celery_app = Celery(
 
 celery_app.conf.beat_schedule = {
     # Run alert engine every day at 8am
+    "perf-reminders-daily": {
+        "task": "app.worker.run_perf_reminders",
+        "schedule": crontab(hour=9, minute=0),  # misma hora que en APScheduler
+    },
     "run-alert-engine-daily": {
         "task": "app.worker.run_alert_engine",
         "schedule": crontab(hour=8, minute=0),
@@ -497,6 +501,17 @@ def run_alert_engine():
     from app.services.alert_service import run_alert_engine as _run_alert_engine
     with worker_db_session() as db:
         return _run_alert_engine(db)
+
+
+@celery_app.task(name="app.worker.run_perf_reminders")
+def run_perf_reminders():
+    """Recordatorios de evaluaciones de desempeno pendientes.
+
+    Auditoria 2026-11: solo estaba en APScheduler; con Celery beat (el modo de
+    ejecucion unica) no corria nunca.
+    """
+    from app.services.perf_reminder_service import run_perf_reminders_job
+    run_perf_reminders_job()
 
 
 @celery_app.task(name="app.worker.check_missing_imputations")

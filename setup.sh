@@ -1091,10 +1091,13 @@ start_services() {
   # Kill any existing processes on our ports
   lsof -ti:$BACKEND_PORT | xargs kill -9 2>/dev/null || true
   lsof -ti:$FRONTEND_PORT | xargs kill -9 2>/dev/null || true
+  stop_background_jobs
   sleep 1
 
   log "Arrancando backend en puerto $BACKEND_PORT..."
-  "$PY_BIN" -m uvicorn app.main:app \
+  # Las tareas programadas las corre Celery beat (abajo), no la API: con los
+  # dos activos cada tarea se ejecutaria dos veces y la API se niega a arrancar.
+  ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1 "$PY_BIN" -m uvicorn app.main:app \
     --host 0.0.0.0 \
     --port $BACKEND_PORT \
     --log-level info \
@@ -1138,6 +1141,8 @@ start_services() {
     echo "   3. Falta instalar dependencias — ejecuta: cd venv && pip install -r ../requirements.txt"
     exit 1
   fi
+
+  start_background_jobs
 
   # Solo limpiar caché de Vite si los modelos del frontend cambiaron
   mkdir -p frontend/node_modules
@@ -1198,6 +1203,7 @@ start_services() {
   echo -e "  🌐 App:      ${BOLD}http://localhost:$FRONTEND_PORT${NC}"
   echo -e "  📡 API:      http://localhost:$BACKEND_PORT/api/v1/docs"
   echo -e "  📋 Logs:     /tmp/contecflow-backend.log"
+  echo -e "  ⏱  Tareas:   /tmp/contecflow-worker.log y /tmp/contecflow-beat.log"
   echo ""
   DEMO_PASSWORD=$(get_demo_password)
   echo -e "  ${BOLD}Usuarios de prueba:${NC}"
@@ -1220,13 +1226,46 @@ start_services() {
   fi
 
   # Wait and stream logs
-  trap "echo ''; log 'Parando Contecflow...'; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit 0" INT TERM
+  trap "echo ''; log 'Parando Contecflow...'; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; stop_background_jobs; exit 0" INT TERM
   wait $BACKEND_PID $FRONTEND_PID
+}
+
+# ── Background jobs (Celery worker + beat) ───────────────────────────────────
+# Auditoria 2026-11: setup.sh no arrancaba Celery, y sin el no corrian 48 de
+# las 52 tareas programadas: el monitor de SLA/OLA/UC, la lectura del buzon y
+# la bandeja de eventos de ticket (avisos, correos, webhooks y flujos), entre
+# otras. Las pruebas pasaban porque llaman a esas funciones directamente.
+start_background_jobs() {
+  log "Arrancando tareas en segundo plano (Celery worker y beat)..."
+  "$PY_BIN" -m celery -A app.worker.celery_app worker --loglevel=info --concurrency=2 \
+    > /tmp/contecflow-worker.log 2>&1 &
+  echo $! > /tmp/contecflow-worker.pid
+  "$PY_BIN" -m celery -A app.worker.celery_app beat --loglevel=info \
+    --schedule /tmp/contecflow-celerybeat-schedule \
+    > /tmp/contecflow-beat.log 2>&1 &
+  echo $! > /tmp/contecflow-beat.pid
+  sleep 3
+  for nombre in worker beat; do
+    if ! kill -0 "$(cat /tmp/contecflow-$nombre.pid)" 2>/dev/null; then
+      echo -e "${YELLOW}⚠  Celery $nombre no ha arrancado (¿Redis parado?). Revisa /tmp/contecflow-$nombre.log${NC}"
+      tail -5 /tmp/contecflow-$nombre.log
+    fi
+  done
+}
+
+stop_background_jobs() {
+  for nombre in worker beat; do
+    if [ -f /tmp/contecflow-$nombre.pid ]; then
+      kill "$(cat /tmp/contecflow-$nombre.pid)" 2>/dev/null || true
+      rm -f /tmp/contecflow-$nombre.pid
+    fi
+  done
 }
 
 # ── Stop services ─────────────────────────────────────────────────────────────
 stop_services() {
   log "Parando Contecflow..."
+  stop_background_jobs
   [ -f /tmp/contecflow-backend.pid ]  && kill $(cat /tmp/contecflow-backend.pid)  2>/dev/null || true
   [ -f /tmp/contecflow-frontend.pid ] && kill $(cat /tmp/contecflow-frontend.pid) 2>/dev/null || true
   lsof -ti:$BACKEND_PORT  | xargs kill -9 2>/dev/null || true

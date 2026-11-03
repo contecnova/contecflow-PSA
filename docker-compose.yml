@@ -67,6 +67,11 @@ x-app: &app
     AWS_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?define MINIO_ROOT_PASSWORD}
     AWS_S3_BUCKET: ${MINIO_BUCKET:-contecflow-documents}
     ENVIRONMENT: ${ENVIRONMENT:-production}
+    # Las tareas programadas las dispara solo el contenedor `beat`. Sin esto la
+    # API (con API_WORKERS procesos) arrancaba tambien APScheduler, que viene
+    # activo por defecto, y las tareas compartidas corrian varias veces.
+    ENABLE_APSCHEDULER: "0"
+    ENABLE_CELERY_BEAT: "1"
   depends_on:
     postgres: {condition: service_healthy}
     redis: {condition: service_healthy}
