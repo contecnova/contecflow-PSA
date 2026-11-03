@@ -380,6 +380,13 @@ vectores no se pueden guardar.
   `pending_order` a `available`, `disposed` a `retired`. `/sd/assets` ya no
   existe; lo nuevo está en `/alm/assets`: `GET /expiring?days=`,
   `GET /by-ci/{ci}`, `GET /{id}/history` y `POST /{id}/refresh-ticket`.
+- **WebSocket (avisos en tiempo real).** Desde agosto de 2026 el saludo de los
+  cuatro WebSocket (avisos, avisos del portal, chat de colaboración y edición de
+  documentos) respondía 500: las guardas globales de la API (zona horaria, ABAC
+  y matriz GRC) pedían una petición HTTP que un WebSocket no tiene. La campana
+  no recibía nada en vivo. Ahora las guardas no evalúan los WebSocket, que se
+  autentican con su ticket de un solo uso (`GET /ws/ticket`). Hay que
+  **reiniciar el servidor** para que lo coja.
 - **Renovación de activos.** El escaneo diario buscaba si ya había ticket con un
   `LIKE` sobre el título y lo creaba sin organización, así que no lo veía nadie.
   Ahora el activo guarda su ticket abierto (`refresh_ticket_id`), no abre otro

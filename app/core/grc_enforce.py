@@ -49,7 +49,10 @@ import logging
 from typing import Optional
 
 from fastapi import Depends, HTTPException, Request
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import HTTPAuthorizationCredentials
+from starlette.requests import HTTPConnection
+
+from app.core.credenciales_opcionales import credenciales_opcionales, es_websocket
 from sqlalchemy.orm import Session
 
 from app.core.grc_catalog import action_for, module_for_path
@@ -57,7 +60,6 @@ from app.db.session import get_db
 
 logger = logging.getLogger("contecflow.grc.enforce")
 
-_bearer = HTTPBearer(auto_error=False)
 
 # El módulo que administra la propia matriz. Ninguna fila puede cerrar el acceso
 # de lectura a los roles que tienen que poder repararla. Ver salvaguarda 2.
@@ -89,11 +91,13 @@ def _resolve_user(request: Request, credentials, db: Session):
 
 
 def enforce_grc_matrix(
-    request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+    request: HTTPConnection,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(credenciales_opcionales),
     db: Session = Depends(get_db),
 ) -> None:
     """Deniega con 403 si la matriz GRC prohíbe (rol, módulo, acción)."""
+    if es_websocket(request):
+        return  # se autentica con su ticket; ver app/core/credenciales_opcionales.py
     modulo = module_for_path(request.url.path)
     if modulo is None:
         return  # exento o no es una ruta de dominio

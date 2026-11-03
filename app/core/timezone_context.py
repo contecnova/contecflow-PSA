@@ -44,8 +44,11 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import Depends, Request
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials
+from starlette.requests import HTTPConnection
+
+from app.core.credenciales_opcionales import credenciales_opcionales, es_websocket
 from sqlalchemy.orm import Session
 
 from app.core.timeutil import UTC, set_current_zone, zone_for_user
@@ -53,12 +56,11 @@ from app.db.session import get_db
 
 logger = logging.getLogger("contecflow.timezone")
 
-_bearer = HTTPBearer(auto_error=False)
 
 
 async def bind_request_timezone(
-    request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+    request: HTTPConnection,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(credenciales_opcionales),
     db: Session = Depends(get_db),
 ) -> None:
     """Resuelve `usuario → organización → UTC` y la publica en el contexto.
@@ -72,6 +74,8 @@ async def bind_request_timezone(
     contaminar. Lo que sí necesita restauración son los bloques acotados dentro
     de una misma tarea, y para eso está `using_zone`.
     """
+    if es_websocket(request):
+        return  # se autentica con su ticket; ver app/core/credenciales_opcionales.py
     try:
         token = credentials.credentials if credentials else request.cookies.get("access_token")
         if not token:

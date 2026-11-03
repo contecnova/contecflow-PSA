@@ -66,8 +66,11 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import Depends, Request
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials
+from starlette.requests import HTTPConnection
+
+from app.core.credenciales_opcionales import credenciales_opcionales, es_websocket
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
@@ -76,7 +79,6 @@ from app.db.session import get_db
 
 logger = logging.getLogger("contecflow.abac.dependency")
 
-_bearer = HTTPBearer(auto_error=False)
 
 
 def _resolve_coverage(path: str) -> Optional[tuple[str, str]]:
@@ -91,8 +93,8 @@ def _resolve_coverage(path: str) -> Optional[tuple[str, str]]:
 
 
 def apply_abac_for_route(
-    request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+    request: HTTPConnection,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(credenciales_opcionales),
     db: Session = Depends(get_db),
 ) -> None:
     """Aplica las políticas ABAC del prefijo de esta ruta, si hay usuario.
@@ -104,6 +106,8 @@ def apply_abac_for_route(
     rompería. Quien tiene que rechazar al anónimo es la guarda propia de cada
     endpoint (`get_current_user`), no esta capa.
     """
+    if es_websocket(request):
+        return  # se autentica con su ticket; ver app/core/credenciales_opcionales.py
     coverage = _resolve_coverage(request.url.path)
     if coverage is None:
         return
