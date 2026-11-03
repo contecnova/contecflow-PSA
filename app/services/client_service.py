@@ -291,7 +291,11 @@ def create_portal_user(
     # Look up client name for company field
     client = db.query(Client).filter(Client.id == client_id).first()
 
+    # Auditoria 2026-11: nacia sin organizacion, y el filtro de organizacion de
+    # la sesion del portal dejaba fuera sus proyectos («El proyecto asignado no
+    # existe»). Es la del cliente.
     u = ClientUser(
+        organization_id=client.organization_id if client else None,
         client_org_id=client_id,
         project_id=data.get("project_id"),
         full_name=data.get("full_name", ""),

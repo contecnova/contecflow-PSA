@@ -31,7 +31,11 @@ function isApiListBody(body: unknown): body is ApiListBody {
 // ── API client ────────────────────────────────────────────────────────────────
 export const CLIENT_API = axios.create({ baseURL: '/api/v1', withCredentials: true, timeout: 30000 })
 
-// APIListResponse compatibility for portal client routes.
+// Desenvuelve los dos sobres del servidor, como el cliente de la aplicación
+// (services/api/_core.ts). Auditoría 2026-11: solo desenvolvía las listas, y
+// desde julio el login del portal responde `{data, meta}`; `res.data.client`
+// salía vacío y el portal volvía a la pantalla de entrada sin decir nada.
+// Nadie podía entrar.
 CLIENT_API.interceptors.response.use((res: AxiosResponse<unknown>) => {
   const body = res?.data
   if (isApiListBody(body)) {
@@ -40,6 +44,15 @@ CLIENT_API.interceptors.response.use((res: AxiosResponse<unknown>) => {
       data: body.items,
       meta: body.meta,
     } as AxiosResponse<unknown[]> & { meta: Record<string, unknown> }
+  }
+  // Sobre de objeto (APIResponse): exactamente {data, meta}, para no tocar un
+  // payload que casualmente tenga una clave `data`.
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    const claves = Object.keys(body)
+    if (claves.length === 2 && 'data' in body && 'meta' in body) {
+      const sobre = body as { data: unknown; meta: Record<string, unknown> }
+      return { ...res, data: sobre.data, meta: sobre.meta } as AxiosResponse<unknown> & { meta: Record<string, unknown> }
+    }
   }
   return res
 })

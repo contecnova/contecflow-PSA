@@ -437,6 +437,13 @@ vectores no se pueden guardar.
   orden del texto; hay que hacer `REINDEX DATABASE` antes de usarla. La
   columna no está en el modelo ORM a propósito (en una base sin pgvector cada
   consulta fallaría); la prueba de paridad la admite solo a ella.
+- **Portal de cliente: no dejaba entrar a nadie.** Desde julio el login del
+  portal responde con el sobre `{data, meta}` y el cliente HTTP del portal
+  solo desenvolvía las listas: leía `client` vacío y volvía a la pantalla de
+  entrada sin decir nada. Ahora desenvuelve también los objetos, como el de la
+  aplicación. Además el usuario del portal nacía sin organización y el filtro
+  de organización le ocultaba sus proyectos («El proyecto asignado no
+  existe»): ahora hereda la de su cliente.
 - **Renovación de activos.** El escaneo diario buscaba si ya había ticket con un
   `LIKE` sobre el título y lo creaba sin organización, así que no lo veía nadie.
   Ahora el activo guarda su ticket abierto (`refresh_ticket_id`), no abre otro
