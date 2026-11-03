@@ -200,7 +200,7 @@ export const RADIUS = { sm:6, md:10, lg:14, xl:18, full:9999 } as const
 // ── Tipografía ────────────────────────────────────────────────────────────────
 export const FONT = {
   sans: "'DM Sans', system-ui, sans-serif",
-  mono: "'Geist Mono', 'Space Mono', monospace",
+  mono: "'Geist Mono', ui-monospace, monospace",
   size: { xs:10, sm:11, base:13, md:14, lg:16, xl:20, xxl:24 },
 } as const
 

@@ -6,7 +6,10 @@
    Precisión · Velocidad percibida · Sin fricción
    ══════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&family=Space+Mono:wght@400;700&display=swap');
+/* Auditoría 2026-11: se cargaba también Space Mono (solo era respaldo de Geist
+   Mono, que siempre carga) y el 300 de Geist (0 usos). Pesos medidos en el
+   código: 400, 500, 600, 700 y 800; los 6 usos de 900 los sintetiza el 800. */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap');
 
 /* ── Tokens de diseño ────────────────────────────────────────── */
 :root {
@@ -87,7 +90,7 @@
 
   /* Tipografía — familia */
   --font-sans:    'DM Sans', 'Geist', system-ui, sans-serif;
-  --font-mono:    'Geist Mono', 'Space Mono', monospace;
+  --font-mono:    'Geist Mono', ui-monospace, monospace;
 
   /* Tipografía — escala completa. Tokens nombrados (semánticos) y por número
      (granularidad) — ambos válidos. Usar en lugar de fontSize literales. */

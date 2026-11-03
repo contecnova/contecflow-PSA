@@ -585,7 +585,7 @@ puede traer de vuelta. El 9 se corrigió en la guía corta. Los puntos 13, 14,
 | 13 | Casi todo el estilo va en línea | 11.508 `style={{` en 220 ficheros, frente a unos 135 usos de `.ds-card` y `.ds-input` | Componentes y clases desde el principio; el estilo en línea sólo para lo realmente único |
 | 14 | Cada pantalla redefine sus `IS` y `LS` | El mismo objeto copiado en decenas de ficheros | `.ds-input` y `.ds-field__label`, o un `<Field>` |
 | 15 | Tres capas de alias de color (`--bg`, `--surface`, `--color-background-primary`…) | Heredadas de versiones anteriores | Un solo nombre por token |
-| 17 | Cuatro familias de fuente cargadas | DM Sans, Geist, Geist Mono y Space Mono, con varios pesos | Una familia de texto y una monoespaciada, sólo con los pesos usados (400, 600, 700) |
+| 17 | Cuatro familias de fuente cargadas | DM Sans, Geist, Geist Mono y Space Mono, con varios pesos. Recortado el 03-11-2026: fuera Space Mono (sólo era respaldo de Geist Mono) y el 300 de Geist (0 usos); en latín, de 10 ficheros y 148 KB a 6 y 121 KB. Quedan tres familias porque `freight` usa Geist y los demás temas DM Sans | Una familia de texto y una monoespaciada, sólo con los pesos usados (en contecflow: 400, 500, 600, 700 y 800) |
 
 **Arreglado después (03-11-2026):** `--danger` no llegaba a 4,5 sobre
 `surface-3` en freight (4,36) ni sobre `surface-1` en el claro (4,41), y el
