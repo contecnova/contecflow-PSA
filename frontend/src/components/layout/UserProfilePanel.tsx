@@ -18,6 +18,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { Avatar } from '../ui'
 import { AVAILABLE_LANGUAGES } from '../../i18n/appTranslations'
 import { applyAccent as applyAccentToDom } from '../../utils/appearance'
+import { localeActivo } from '../../utils/helpers'
 
 // ── Temas disponibles ─────────────────────────────────────────────────────────
 const THEMES = [
@@ -461,7 +462,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                 <div style={{ color: 'var(--text-2)', marginBottom: 6 }}>{traducir('userprofile.sesion_actual')}</div>
                 <div style={{ color: 'var(--text-1)' }}>
                   {traducir('userprofile.ultimo_acceso')} {user?.last_login
-                    ? new Date(user.last_login as string).toLocaleDateString('es-ES', {
+                    ? new Date(user.last_login as string).toLocaleDateString(localeActivo(), {
                         day:'2-digit', month:'short', year:'numeric',
                         hour:'2-digit', minute:'2-digit' })
                     : 'No disponible'}

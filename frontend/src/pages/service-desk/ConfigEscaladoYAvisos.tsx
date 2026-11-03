@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
-import { extractErr } from '../../utils/helpers'
+import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -155,7 +155,7 @@ export function EscalationConfig() {
             <tbody>
               {disparos.map(d => (
                 <tr key={d.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                  <td style={{ padding: '7px 8px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{d.triggered_at ? new Date(d.triggered_at).toLocaleString() : ''}</td>
+                  <td style={{ padding: '7px 8px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{d.triggered_at ? new Date(d.triggered_at).toLocaleString(localeActivo()) : ''}</td>
                   <td style={{ padding: '7px 8px', fontWeight: 600 }}>{d.ticket_number}</td>
                   <td style={{ padding: '7px 8px', color: 'var(--text-2)' }}>{d.action_taken}</td>
                 </tr>

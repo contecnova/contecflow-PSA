@@ -20,6 +20,7 @@ import PageShell from '../components/layout/PageShell'
 import { Star } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import type { CSSProperties } from 'react'
+import { localeActivo } from '../utils/helpers'
 
 interface ClientItem {
   id: string | number
@@ -89,7 +90,7 @@ function HealthChart({ data }: { data?: HealthSnapshot[] }) {
     return <div style={{ textAlign: 'center', padding: 24, color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{t('nps.no_health_snapshots')}</div>;
   }
   const chartData = [...data].reverse().map(d => ({
-    date: new Date(d.snapshot_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }),
+    date: new Date(d.snapshot_at).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short' }),
     health: d.health_score,
   }))
   return (

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Page, Button } from '../components/ui'
 import { alpha } from '../constants/theme'
+import { localeActivo } from '../utils/helpers'
 
 // ── Utilidades ─────────────────────────────────────────
 function fmtBytes(b: any) {
@@ -30,7 +31,7 @@ function fmtBytes(b: any) {
 
 function fmtDate(d: any) {
   if (!d) return '';
-  return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(d).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function relTime(d: any) {
@@ -698,7 +699,7 @@ function SharePanel({ documentId }: { documentId: any }) {
                   <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>
                     {ACCESS_LEVELS.find(a => a.v === p.access_level)?.l || p.access_level}
                     {p.granted_by_name && ` · concedido por ${p.granted_by_name}`}
-                    {p.expires_at && ` · caduca ${new Date(p.expires_at).toLocaleDateString()}`}
+                    {p.expires_at && ` · caduca ${new Date(p.expires_at).toLocaleDateString(localeActivo())}`}
                   </div>
                 </div>
                 <button onClick={() => revokeMutation.mutate(p.id)} disabled={revokeMutation.isPending}
@@ -1157,7 +1158,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                                 </div>
                                 <div>
                                   <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-1)' }}>{d.approver_name || 'Desconocido'}</span>
-                                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 6 }}>Paso {d.step_order} · {d.decided_at ? new Date(d.decided_at).toLocaleDateString('es-ES') : ''}</span>
+                                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 6 }}>Paso {d.step_order} · {d.decided_at ? new Date(d.decided_at).toLocaleDateString(localeActivo()) : ''}</span>
                                   {d.note && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2, fontStyle: 'italic' }}>"{d.note}"</div>}
                                 </div>
                               </div>

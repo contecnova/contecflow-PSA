@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -433,8 +433,8 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
           { label: 'Personas', value: sub.worker_count ?? '—', color: 'var(--purple, var(--purple))' },
           { label: 'Asignaciones', value: assignments.length, color: 'var(--accent)' },
           { label: 'Horas registradas', value: `${totalHours.toFixed(1)}h`, color: 'var(--success)' },
-          { label: 'Coste acumulado', value: `${totalCost.toLocaleString('es-ES', {style:'currency',currency})}`, color: 'var(--warning)' },
-          { label: 'Facturas pendientes', value: `${pendingAmount.toLocaleString('es-ES', {style:'currency',currency})}`, color: pendingAmount > 0 ? 'var(--danger)' : 'var(--text-2)' },
+          { label: 'Coste acumulado', value: `${totalCost.toLocaleString(localeActivo(), {style:'currency',currency})}`, color: 'var(--warning)' },
+          { label: 'Facturas pendientes', value: `${pendingAmount.toLocaleString(localeActivo(), {style:'currency',currency})}`, color: pendingAmount > 0 ? 'var(--danger)' : 'var(--text-2)' },
         ].map(k => (
           <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
             <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>{k.value}</div>
@@ -473,7 +473,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{a.project_code} — {a.project_name}</div>
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
                     {a.po_number && `PO: ${a.po_number}`}
-                    {a.po_amount && ` · Techo: ${a.po_amount.toLocaleString('es-ES', {style:'currency',currency})}`}
+                    {a.po_amount && ` · Techo: ${a.po_amount.toLocaleString(localeActivo(), {style:'currency',currency})}`}
                     {a.hours_contracted && ` · ${a.hours_contracted}h contratadas`}
                   </div>
                   {a.hours_contracted && (
@@ -518,7 +518,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", color: 'var(--text-1)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.description || '—'}</td>
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{l.task_reference || '—'}</td>
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", color: 'var(--warning)', fontFamily: 'var(--font-mono)' }}>
-                        {l.cost_amount ? l.cost_amount.toLocaleString('es-ES', {style:'currency',currency}) : '—'}
+                        {l.cost_amount ? l.cost_amount.toLocaleString(localeActivo(), {style:'currency',currency}) : '—'}
                       </td>
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{l.project_name || '—'}</td>
                     </tr>
@@ -553,8 +553,8 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
                     <tr key={inv.id} style={{ borderBottom: '1px solid var(--surface-1)' }}>
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", fontWeight: 600 }}>{inv.invoice_number}</td>
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{inv.issue_date}</td>
-                      <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{inv.amount.toLocaleString('es-ES', {style:'currency',currency})}</td>
-                      <td style={{ padding: '9px 14px', fontSize: "var(--text-base)", fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{inv.total.toLocaleString('es-ES', {style:'currency',currency})}</td>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{inv.amount.toLocaleString(localeActivo(), {style:'currency',currency})}</td>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-base)", fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{inv.total.toLocaleString(localeActivo(), {style:'currency',currency})}</td>
                       <td style={{ padding: '9px 14px' }}>
                         <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: alpha((STATUS_COLOR[inv.status || ''] || 'var(--text-2)'), '20'), color: STATUS_COLOR[inv.status || ''] || 'var(--text-2)', fontWeight: 700 }}>
                           {STATUS_LABEL[inv.status || ''] || inv.status}
@@ -636,7 +636,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             </div>
             {invForm.amount && (
               <div style={{ gridColumn: '1/-1', background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)', borderRadius: 8, padding: '8px 12px', fontSize: "var(--text-sm)", color: 'var(--accent)' }}>
-                {t('subcontractors.total_con_iva')} <strong>{(+invForm.amount * (1 + invForm.tax_pct/100)).toLocaleString('es-ES', {style:'currency',currency})}</strong>
+                {t('subcontractors.total_con_iva')} <strong>{(+invForm.amount * (1 + invForm.tax_pct/100)).toLocaleString(localeActivo(), {style:'currency',currency})}</strong>
               </div>
             )}
             <div style={{ gridColumn: '1/-1' }}>

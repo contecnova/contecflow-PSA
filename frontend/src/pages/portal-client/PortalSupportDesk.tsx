@@ -23,6 +23,7 @@ import {
   PortalBanner as PortalBannerBase,
 } from './PortalUI'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { useTabListKeys } from '../../components/ui/Tabs'
 
 // PortalUI is untyped JS: alias each component to accept partial props so
 // optional props need not be passed explicitly (behavior unchanged).
@@ -262,6 +263,8 @@ export function PortalSupportDesk() {
     { id: 'kb',      label: 'Base de conocimiento',        icon: <BookOpen size={13} /> },
     { id: 'announcements', label: `Comunicados (${announcements.length})`, icon: <Megaphone size={13} /> },
   ]
+  // Antes del return de detalle: un hook no puede quedar detrás de un return.
+  const teclas = useTabListKeys(tabs.map(x => x.id), tab, setTab)
 
   // ── Detail view ────────────────────────────────────────────────────────────
   if (tab === 'tickets' && selectedId) {
@@ -469,9 +472,10 @@ export function PortalSupportDesk() {
         />
       )}
 
-      <div role="tablist" aria-label="Service Desk" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 18, flexWrap: 'wrap' }}>
+      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label="Service Desk" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 18, flexWrap: 'wrap' }}>
         {tabs.map(tb => (
-          <button key={tb.id} role="tab" aria-selected={tab === tb.id}
+          <button key={tb.id} type="button" role="tab" data-tab-id={tb.id}
+            tabIndex={tb.id === teclas.focusId ? 0 : -1} aria-selected={tab === tb.id}
             onClick={() => setTab(tb.id)}
             style={{
               background: 'transparent', border: 'none',

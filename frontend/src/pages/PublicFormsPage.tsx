@@ -10,7 +10,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { FileText } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -165,7 +165,7 @@ function SubmissionsModal({ form, onClose }: { form: PublicForm; onClose: () => 
               {subs.map(s => (
                 <tr key={s.id} style={{ borderBottom: '1px solid var(--surface-3)' }}>
                   <td style={{ padding: '8px 10px', color: 'var(--text-2)', fontSize: "var(--text-sm)" }}>
-                    {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('es') : '—'}
+                    {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString(localeActivo()) : '—'}
                   </td>
                   <td style={{ padding: '8px 10px' }}>{s.submitter_name || s.submitter_email || '—'}</td>
                   <td style={{ padding: '8px 10px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.subject}</td>

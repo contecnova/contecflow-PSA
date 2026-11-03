@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import type { ChangeEvent, CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { extractErr } from '../../utils/helpers'
+import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { changesApi, cmdbApi, sdChangePlanningApi } from '../../services/api'
@@ -11,6 +11,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH } from '../../components/ui'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { useTabListKeys } from '../../components/ui/Tabs'
 
 type ChangeId = string | number
 type ChangeRisk = 'low' | 'medium' | 'high' | 'critical' | string
@@ -96,7 +97,7 @@ const CHANGE_STATUS_COLOR: Record<string, string> = {
 
 function fmtDate(d?: string | null) {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  return new Date(d).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
 function ChangeDetailPanel({
@@ -347,6 +348,9 @@ export default function ChangeManagementTab() {
     implemented: [{ label: 'Cerrar éxito', next: 'closed_success', color: COLOR.success }, { label: 'Cerrar fallo', next: 'closed_failed', color: COLOR.danger }],
   }
 
+  const VISTAS = ['list', 'calendar', 'releases', 'blackouts'] as const
+  const teclas = useTabListKeys([...VISTAS], vista, id => setVista(id as typeof vista))
+
   const handleAction = (c: ChangeItem, action: StatusAction) => {
     if (action.action === 'open') { setDetail(c); return }
     if (action.action === 'approve') { approve({ id: c.id, approved: true }); return }
@@ -358,9 +362,9 @@ export default function ChangeManagementTab() {
 
   return (
     <div>
-      <div role="tablist" aria-label={ts('sd_cfg.chg_calendar')} style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-        {(['list', 'calendar', 'releases', 'blackouts'] as const).map(v => (
-          <button key={v} type="button" role="tab" aria-selected={vista === v} onClick={() => setVista(v)}
+      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label={ts('sd_cfg.chg_calendar')} style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+        {VISTAS.map(v => (
+          <button key={v} type="button" role="tab" data-tab-id={v} tabIndex={v === teclas.focusId ? 0 : -1} aria-selected={vista === v} onClick={() => setVista(v)}
             style={{ padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 600,
               border: `1px solid ${vista === v ? 'var(--accent)' : 'var(--surface-4)'}`, background: vista === v ? 'var(--accent-muted)' : 'transparent',
               color: vista === v ? 'var(--accent)' : 'var(--text-2)' }}>{ts(`sd_cfg.chg_${v}`)}</button>

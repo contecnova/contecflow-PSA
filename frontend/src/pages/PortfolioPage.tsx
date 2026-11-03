@@ -15,6 +15,7 @@ import {
   DollarSign, BarChart2, Calendar
 } from 'lucide-react';
 import { alpha } from '../constants/theme'
+import { localeActivo } from '../utils/helpers'
 
 type PortfolioStatus = 'planning' | 'active' | 'archived' | string
 type RagLevel = 'green' | 'yellow' | 'red' | 'grey' | string
@@ -76,9 +77,9 @@ type PortfolioDashboardData = {
 }
 
 // ── utils ──────────────────────────────────────────────────────────────────────
-const _fmt  = (n: number | string | null | undefined) => n == null ? '—' : Number(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtE = (n: number | string | null | undefined) => n == null ? '—' : `${Number(n).toLocaleString('es-ES', { maximumFractionDigits: 0 })} €`;
-const fmtI = (n: number | string | null | undefined) => n == null ? '—' : Number(n).toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+const _fmt  = (n: number | string | null | undefined) => n == null ? '—' : Number(n).toLocaleString(localeActivo(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtE = (n: number | string | null | undefined) => n == null ? '—' : `${Number(n).toLocaleString(localeActivo(), { maximumFractionDigits: 0 })} €`;
+const fmtI = (n: number | string | null | undefined) => n == null ? '—' : Number(n).toLocaleString(localeActivo(), { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
 const RAG: Record<string, { color: string; label: string; Icon: ComponentType<any> }> = {
   green:  { color: 'var(--success)', label: 'En control',  Icon: CheckCircle as ComponentType<any> },
@@ -448,7 +449,7 @@ export default function PortfolioPage() {
               {p.budget_total != null && (
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 10 }}>
                   <DollarSign size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  Presupuesto: <strong style={{ color: 'var(--text-1)' }}>{Number(p.budget_total).toLocaleString('es-ES', { maximumFractionDigits: 0 })} €</strong>
+                  Presupuesto: <strong style={{ color: 'var(--text-1)' }}>{Number(p.budget_total).toLocaleString(localeActivo(), { maximumFractionDigits: 0 })} €</strong>
                 </div>
               )}
 

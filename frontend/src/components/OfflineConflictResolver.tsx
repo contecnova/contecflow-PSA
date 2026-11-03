@@ -14,6 +14,7 @@ import {
   getConflictHistory,
 } from '../services/offlineSync'
 import { useAppT } from '../i18n/AppLangContext'
+import { localeActivo } from '../utils/helpers'
 
 type ConflictItem = {
   id?: number
@@ -163,7 +164,7 @@ export default function OfflineConflictResolver() {
                 <div>{t('offline_conflicts.operation', { opId: item.opId })}</div>
                 <div>{t('offline_conflicts.resolution', { resolution: item.resolution })}</div>
                 <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 4 }}>
-                  {item.resolvedAt == null ? '—' : new Date(item.resolvedAt).toLocaleTimeString()}
+                  {item.resolvedAt == null ? '—' : new Date(item.resolvedAt).toLocaleTimeString(localeActivo())}
                 </div>
               </div>
             ))

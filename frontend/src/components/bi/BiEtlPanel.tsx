@@ -13,6 +13,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { RefreshCw, CheckCircle, AlertCircle, Clock, ChevronDown, ChevronUp, Database } from 'lucide-react'
 import { Card, Button, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
+import { localeActivo } from '../../utils/helpers'
 
 // TODO type: biEtlApi connector payload — needs shared type
 interface Connector {
@@ -129,13 +130,13 @@ function ConnectorCard({ connector, onSync, syncing, expanded, onToggleLog, log,
         <span>
           <span style={{ color: 'var(--text-3)' }}>{t('bietl.ultimo_sync')}</span>{' '}
           <span style={{ color: 'var(--text-2)' }}>
-            {connector.last_sync_at ? new Date(connector.last_sync_at).toLocaleString() : 'Nunca'}
+            {connector.last_sync_at ? new Date(connector.last_sync_at).toLocaleString(localeActivo()) : 'Nunca'}
           </span>
         </span>
         <span>
           <span style={{ color: 'var(--text-3)' }}>Registros:</span>{' '}
           <span style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
-            {(connector.last_records || 0).toLocaleString()}
+            {(connector.last_records || 0).toLocaleString(localeActivo())}
           </span>
         </span>
         <button
@@ -180,7 +181,7 @@ function ConnectorCard({ connector, onSync, syncing, expanded, onToggleLog, log,
                   <div key={i} style={{ display: 'flex', gap: 10, fontSize: 'var(--text-xs)', color: 'var(--text-2)', alignItems: 'center' }}>
                     <span style={{ ...chip(c), flexShrink: 0 }}>{entry.status || (ok ? 'ok' : '—')}</span>
                     <span style={{ color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                      {entry.timestamp ? new Date(entry.timestamp).toLocaleString() : at}
+                      {entry.timestamp ? new Date(entry.timestamp).toLocaleString(localeActivo()) : at}
                     </span>
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {message}
@@ -266,7 +267,7 @@ export default function BiEtlPanel() {
 
       {totalRecords > 0 && (
         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 12 }}>
-          Total registros sincronizados: <strong style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{totalRecords.toLocaleString()}</strong>
+          Total registros sincronizados: <strong style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{totalRecords.toLocaleString(localeActivo())}</strong>
         </div>
       )}
 

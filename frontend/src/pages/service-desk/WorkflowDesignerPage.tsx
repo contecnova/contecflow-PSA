@@ -29,6 +29,7 @@ import { sdWorkflowDesignerApi } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
 import { Button, Spinner, Page, StatusBadge } from '../../components/ui'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { localeActivo } from '../../utils/helpers'
 
 // ── Catálogo visual de los nodos (color + icono por tipo) ────────────────────
 const NODE_VISUAL: Record<string, { color: string; icon: string; label: string }> = {
@@ -698,7 +699,7 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
     },
   })
 
-  const fmtDate = (iso: any) => iso ? new Date(iso).toLocaleString() : ''
+  const fmtDate = (iso: any) => iso ? new Date(iso).toLocaleString(localeActivo()) : ''
   const statusColor = (s: string): string => (({
     running: '#3b82f6', waiting: '#f59e0b', completed: '#10b981',
     cancelled: 'var(--text-3)', error: '#ef4444',

@@ -3,7 +3,7 @@
  */
 import { useState } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -73,7 +73,7 @@ const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
 const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
-const fmtEur = (n: number | null | undefined) => n == null ? '—' : new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n)
+const fmtEur = (n: number | null | undefined) => n == null ? '—' : new Intl.NumberFormat(localeActivo(),{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n)
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 const budgetSchema = z.object({

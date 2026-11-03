@@ -1,6 +1,6 @@
 import { CHART } from '../constants/theme'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useEffect, useRef, useState } from 'react'
 import { useToast } from '../context/ToastContext'
@@ -566,7 +566,7 @@ export default function WikiPage() {
                 onKeyDown={e => onKeyboardActivate(e, () => openPage(p))}
                 style={{padding:'10px 0',borderBottom:'1px solid var(--surface-4)',cursor:'pointer',color:'var(--accent)'}}>
                 <div style={{fontWeight:500}}>{p.title}</div>
-                <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{p.updated_at?new Date(p.updated_at).toLocaleDateString('es-ES'):''}</div>
+                <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{p.updated_at?new Date(p.updated_at).toLocaleDateString(localeActivo()):''}</div>
               </div>
             ))
           }
@@ -637,7 +637,7 @@ export default function WikiPage() {
                     }
                   </div>
                   <div style={{marginTop:32,paddingTop:12,borderTop:'1px solid var(--surface-4)',fontSize: "var(--text-xs)",color:'var(--text-3)'}}>
-                    {traducir('wiki.ultima_actualizacion')} {page.updated_at?new Date(page.updated_at).toLocaleString('es-ES'):'—'}
+                    {traducir('wiki.ultima_actualizacion')} {page.updated_at?new Date(page.updated_at).toLocaleString(localeActivo()):'—'}
                   </div>
                 </div>
           }
@@ -684,7 +684,7 @@ export default function WikiPage() {
                 <div style={{flex:1}}>
                   <div style={{fontWeight:500,fontSize: "var(--text-sm)"}}>{v.title}</div>
                   <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',marginTop:2}}>
-                    {v.change_note||'Actualización'} · {v.created_at?new Date(v.created_at).toLocaleString('es-ES'):'—'}
+                    {v.change_note||'Actualización'} · {v.created_at?new Date(v.created_at).toLocaleString(localeActivo()):'—'}
                   </div>
                 </div>
                 {i===0

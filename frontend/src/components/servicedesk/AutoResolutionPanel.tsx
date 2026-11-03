@@ -13,6 +13,7 @@ import { autoResolutionApi, ticketsApi } from '../../services/api'
 import { Card, Button, Spinner, Modal} from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { localeActivo } from '../../utils/helpers'
 
 type AutoResolutionConfig = {
   threshold_auto?: number
@@ -210,7 +211,7 @@ function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—'
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString('es-ES')
+  return d.toLocaleString(localeActivo())
 }
 
 export default function AutoResolutionPanel() {

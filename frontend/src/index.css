@@ -1850,6 +1850,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   transition: background 0.15s var(--easing), color 0.15s var(--easing);
 }
 .ds-segmented button[aria-pressed="true"],
+.ds-segmented button[aria-selected="true"],
 .ds-segmented button.is-active {
   background: var(--accent);
   color: var(--on-accent);

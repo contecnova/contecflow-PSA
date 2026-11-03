@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, sprintsApi, tasksApi, semanticApi, sprintPlansApi } from '../services/api'
@@ -328,7 +328,7 @@ export default function SprintPlanningPage() {
                 {isExpanded && (
                   <div style={{borderTop:'1px solid var(--surface-4)',paddingTop:12}}>
                     <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>
-                      {t('sprint_planning.created_label')}: {plan.created_at ? new Date(plan.created_at).toLocaleString() : '—'}
+                      {t('sprint_planning.created_label')}: {plan.created_at ? new Date(plan.created_at).toLocaleString(localeActivo()) : '—'}
                     </div>
                     <div style={{display:'flex',justifyContent:'space-between',fontSize: "var(--text-xs)",color:'var(--text-2)',marginBottom:4}}>
                       <span>{t('sprint_planning.sprint_utilization')}</span>

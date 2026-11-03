@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { COLOR, alpha } from '../../constants/theme'
 import PageShell from '../layout/PageShell'
 import PageHeader from '../layout/PageHeader'
+import { localeActivo } from '../../utils/helpers'
 
 export { COLOR }
 
@@ -346,8 +347,8 @@ export function dateRange(days: number): { date_from: string; date_to: string } 
 
 export function fmtCur(v: number | null | undefined, lang: string = 'es', currency?: string): string {
   if (v == null) return '—'
-  if (!currency) return new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES', { maximumFractionDigits: 0 }).format(v)
-  return new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES', {
+  if (!currency) return new Intl.NumberFormat(localeActivo(lang), { maximumFractionDigits: 0 }).format(v)
+  return new Intl.NumberFormat(localeActivo(lang), {
     style: 'currency', currency, maximumFractionDigits: 0,
   }).format(v)
 }

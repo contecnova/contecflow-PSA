@@ -11,6 +11,7 @@ import { sdApprovalsApi } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
 import { MessageSquare } from 'lucide-react'
 import { Button, Spinner, Tabs } from '../components/ui'
+import { useTabListKeys } from '../components/ui/Tabs'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { TicketList, MajorIncidents } from './service-desk/QueueAndRoutingSections'
@@ -24,6 +25,7 @@ import IncidentAssignmentPanel from '../components/servicedesk/IncidentAssignmen
 import ChangeRolloutPanel from '../components/servicedesk/ChangeRolloutPanel'
 import AutoResolutionPanel from '../components/servicedesk/AutoResolutionPanel'
 import AlertCorrelationPanel from '../components/servicedesk/AlertCorrelationPanel'
+import { localeActivo } from '../utils/helpers'
 
 const LazyChangeManagementTab = lazy(() => import('./service-desk/ChangeManagementTab'))
 const LazyITSMKnowledgeTab    = lazy(() => import('./service-desk/ITSMKnowledgeTab'))
@@ -92,6 +94,7 @@ export default function ServiceDeskPage() {
     { id: 'rollout',     label: t('service_desk.tab_rollout') },
     { id: 'voice',       label: t('service_desk.tab_voice') },
   ]
+  const teclasHerramientas = useTabListKeys(HERRAMIENTAS.map(h => h.id), herramienta, setHerramienta)
 
   return (
     <PageShell>
@@ -177,9 +180,9 @@ export default function ServiceDeskPage() {
               </Suspense></div>
             )}
             {tab === 'tools' && (
-              <div role="tablist" aria-label={t('sd_cfg.tab_tools')} style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+              <div ref={teclasHerramientas.listRef} onKeyDown={teclasHerramientas.onKeyDown} role="tablist" aria-label={t('sd_cfg.tab_tools')} style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
                 {HERRAMIENTAS.map(h => (
-                  <button key={h.id} type="button" role="tab" aria-selected={herramienta === h.id} onClick={() => setHerramienta(h.id)}
+                  <button key={h.id} type="button" role="tab" data-tab-id={h.id} tabIndex={h.id === teclasHerramientas.focusId ? 0 : -1} aria-selected={herramienta === h.id} onClick={() => setHerramienta(h.id)}
                     style={{ padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 600,
                       border: `1px solid ${herramienta === h.id ? 'var(--accent)' : 'var(--surface-4)'}`,
                       background: herramienta === h.id ? 'var(--accent-muted)' : 'transparent',
@@ -246,7 +249,7 @@ function ListaPorAprobar({ items, seleccionado, onSelect }: { items: PorAprobar[
             </span>
           </span>
           <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>
-            {a.created_at ? new Date(a.created_at).toLocaleDateString() : ''}
+            {a.created_at ? new Date(a.created_at).toLocaleDateString(localeActivo()) : ''}
           </span>
         </button>
       ))}

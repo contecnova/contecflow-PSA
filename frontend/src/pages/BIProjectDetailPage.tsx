@@ -19,6 +19,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { localeActivo } from '../utils/helpers'
 
 type Translator = (key: string, params?: Record<string, unknown>) => string
 
@@ -387,13 +388,13 @@ export default function BIProjectDetailPage(): JSX.Element {
         <div style={panelStyle}>
           <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('bi.revenues')}</div>
           <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--accent)' }}>
-            {Math.round(Number(marginCard?.revenue || 0)).toLocaleString('es-ES')} €
+            {Math.round(Number(marginCard?.revenue || 0)).toLocaleString(localeActivo())} €
           </div>
         </div>
         <div style={panelStyle}>
           <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('bi.cost')}</div>
           <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--danger)' }}>
-            {Math.round(Number(marginCard?.cost || 0)).toLocaleString('es-ES')} €
+            {Math.round(Number(marginCard?.cost || 0)).toLocaleString(localeActivo())} €
           </div>
         </div>
       </div>

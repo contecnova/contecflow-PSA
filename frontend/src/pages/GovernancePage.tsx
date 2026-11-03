@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -105,7 +105,7 @@ export default function GovernancePage(): JSX.Element {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
           { icon: '🤖', label: t('governance.kpi_active_modules'),   value: `${activeCount}/${configs.length || 9}`, color: 'var(--success)' },
-          { icon: '💬', label: t('governance.kpi_total_calls'),  value: (stats?.total_calls || 0).toLocaleString(), color: 'var(--accent)' },
+          { icon: '💬', label: t('governance.kpi_total_calls'),  value: (stats?.total_calls || 0).toLocaleString(localeActivo()), color: 'var(--accent)' },
           { icon: '🔤', label: t('governance.kpi_tokens'),    value: `${totalTokens}K`, color: 'var(--warning)' },
           { icon: '⚙️',  label: t('governance.kpi_active_provider'), value: defaultProv?.name || t('governance.kpi_not_configured'), color: defaultProv ? 'var(--success)' : 'var(--danger)' },
         ].map(k => (
@@ -215,7 +215,7 @@ export default function GovernancePage(): JSX.Element {
               <span style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)" }}>{l.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
               <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{MODULE_CFG[l.module ?? '']?.icon} {MODULE_CFG[l.module ?? ''] ? t(MODULE_CFG[l.module ?? ''].labelKey) : l.module}</span>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-2)' }}>{l.input_summary || l.action_type || t('governance.dash')}</span>
-              <span style={{ color: 'var(--warning)' }}>{(l.tokens_used || 0).toLocaleString()}</span>
+              <span style={{ color: 'var(--warning)' }}>{(l.tokens_used || 0).toLocaleString(localeActivo())}</span>
             </div>
           ))}
         </div>

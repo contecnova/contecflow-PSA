@@ -11,6 +11,7 @@ import { useAppT, useAppLang } from '../i18n/AppLangContext'
 import NarrativeCard from '../components/bi/NarrativeCard'
 import AskDataWidget from '../components/bi/AskDataWidget'
 import useMediaQuery from '../hooks/useMediaQuery'
+import { localeActivo } from '../utils/helpers'
 
 interface BiKpis {
   projects_total?: number
@@ -41,7 +42,7 @@ function dateRange(days: number) {
 }
 
 function getLocale(lang: string) {
-  return String(lang || 'es').toLowerCase().startsWith('en') ? 'en-US' : 'es-ES'
+  return localeActivo(lang || undefined)
 }
 
 function fmtCur(v: unknown, lang = 'es') {

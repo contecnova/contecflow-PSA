@@ -1,5 +1,5 @@
 import { CHART_COLORS_EXTENDED, COLOR, alpha } from '../constants/theme'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
@@ -162,7 +162,7 @@ function RoadmapView({ epics, t }: { epics: EpicItem[]; t: (key: string, params?
   const months = []
   const cur = new Date(minDate); cur.setDate(1)
   while(cur <= maxDate) {
-    months.push(cur.toLocaleDateString('es-ES',{month:'short',year:'2-digit'}))
+    months.push(cur.toLocaleDateString(localeActivo(),{month:'short',year:'2-digit'}))
     cur.setMonth(cur.getMonth()+1)
   }
 

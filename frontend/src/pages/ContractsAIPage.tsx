@@ -17,7 +17,7 @@ import { useToast } from '../context/ToastContext'
 import PageHeader from '../components/layout/PageHeader'
 import { Button, Card, Spinner, EmptyState } from '../components/ui'
 import { FileText, Upload } from 'lucide-react'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { useAppLang } from '../i18n/AppLangContext'
 
 type RiskLevel = 'high' | 'medium' | 'low' | string
@@ -164,7 +164,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
               <Card style={{ marginBottom: 16, display: 'flex', gap: 30 }}>
                 <div>
                   <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase' }}>Valor total</div>
-                  <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>{data.total_value?.toLocaleString()} €</div>
+                  <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>{data.total_value?.toLocaleString(localeActivo())} €</div>
                 </div>
                 {(data.scope_creep_alerts ?? 0) > 0 && (
                   <div>
@@ -211,7 +211,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
                     )}
                     {(cl.impact_amount != null || cl.due_date) && (
                       <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 6 }}>
-                        {cl.impact_amount != null && `Impacto: ${cl.impact_amount.toLocaleString()} €`}
+                        {cl.impact_amount != null && `Impacto: ${cl.impact_amount.toLocaleString(localeActivo())} €`}
                         {cl.impact_amount != null && cl.due_date && ' · '}
                         {cl.due_date && `Vencimiento: ${cl.due_date}`}
                       </div>

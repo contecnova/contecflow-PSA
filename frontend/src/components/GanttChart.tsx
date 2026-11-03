@@ -1,4 +1,5 @@
 import { useAppT } from '../i18n/AppLangContext'
+import { localeActivo } from '../utils/helpers'
 /**
  * GanttChart v2 — Production-quality Interactive Gantt
  * Pure SVG + React — no Gantt library required.
@@ -103,7 +104,7 @@ function getTopTicks(zoom: Zoom, minD: Date, maxD: Date): Tick[] {
   if (zoom === 'day' || zoom === 'week') {
     let d = startOfMonth(minD)
     while (d <= maxD) {
-      ticks.push({ d: new Date(d), label: d.toLocaleString('es', { month: 'long', year: 'numeric' }) })
+      ticks.push({ d: new Date(d), label: d.toLocaleString(localeActivo(), { month: 'long', year: 'numeric' }) })
       d = new Date(d.getFullYear(), d.getMonth() + 1, 1)
     }
   } else if (zoom === 'month') {
@@ -142,7 +143,7 @@ function getBotTicks(zoom: Zoom, minD: Date, maxD: Date): Tick[] {
   } else if (zoom === 'month') {
     let d = startOfMonth(minD)
     while (d <= maxD) {
-      ticks.push({ d: new Date(d), label: d.toLocaleString('es', { month: 'short' }) + " '" + d.getFullYear().toString().slice(2) })
+      ticks.push({ d: new Date(d), label: d.toLocaleString(localeActivo(), { month: 'short' }) + " '" + d.getFullYear().toString().slice(2) })
       d = new Date(d.getFullYear(), d.getMonth() + 1, 1)
     }
   } else {

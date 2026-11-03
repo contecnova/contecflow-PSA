@@ -23,6 +23,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { MessageCircle, Eye, Share2, Plus, Trash2, Lock, CheckCircle, Clock, Bell, History } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
+import { localeActivo } from '../../utils/helpers'
 
 type ApiError = { response?: { data?: { detail?: string } } }
 
@@ -329,7 +330,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                       <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <span>{c.author_name ?? c.user_id ?? 'Usuario'}</span>
                         {c.widget_id && <span>· widget {c.widget_id}</span>}
-                        {c.created_at && <span>· {new Date(c.created_at).toLocaleString()}</span>}
+                        {c.created_at && <span>· {new Date(c.created_at).toLocaleString(localeActivo())}</span>}
                         {c.resolved && <span style={chip('var(--success)')}>resuelto</span>}
                       </div>
                     </div>
@@ -388,7 +389,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{v.name}</div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
-                      {v.dashboard_key} {v.created_at && `· ${new Date(v.created_at).toLocaleDateString()}`}
+                      {v.dashboard_key} {v.created_at && `· ${new Date(v.created_at).toLocaleDateString(localeActivo())}`}
                       {v.created_by_name && ` · ${v.created_by_name}`}
                     </div>
                   </div>
@@ -529,7 +530,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                     )}
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       <Clock size={11} />
-                      {v.created_at ? new Date(v.created_at).toLocaleString() : ''}
+                      {v.created_at ? new Date(v.created_at).toLocaleString(localeActivo()) : ''}
                       {v.created_by_name && ` · ${v.created_by_name}`}
                     </div>
                   </div>
@@ -580,7 +581,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                     </div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
                       {n.message || n.dashboard_key || ''}
-                      {n.created_at && ` · ${new Date(n.created_at).toLocaleString()}`}
+                      {n.created_at && ` · ${new Date(n.created_at).toLocaleString(localeActivo())}`}
                     </div>
                   </div>
                   <Button

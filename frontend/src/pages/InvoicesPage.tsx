@@ -3,7 +3,7 @@
  */
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -235,7 +235,7 @@ function InvoicesTab() {
             {syncStatus && (
               <span style={{ fontSize: "var(--text-xs)", color: syncStatus.last_sync_at ? 'var(--text-3)' : 'var(--warning)' }}>
                 {syncStatus.last_sync_at
-                  ? `Última sync: ${new Date(syncStatus.last_sync_at).toLocaleDateString('es-ES')}`
+                  ? `Última sync: ${new Date(syncStatus.last_sync_at).toLocaleDateString(localeActivo())}`
                   : 'Sin sincronizar'}
                     {(syncStatus.pending_count || 0) > 0 && (
                   <span style={{ marginLeft: 6, color: 'var(--warning)', fontWeight: 600 }}>({syncStatus.pending_count} pendientes)</span>
@@ -275,7 +275,7 @@ function InvoicesTab() {
                 </div>
                 <span style={{fontSize: "var(--text-sm)",color:'var(--text-2)'}}>{inv.issue_date}</span>
                 <span style={{fontSize: "var(--text-sm)",color:isOverdue?'var(--danger)':'var(--text-2)'}}>{inv.due_date||'—'}{isOverdue&&' ⚠'}</span>
-                <span style={{fontSize: "var(--text-base)",fontWeight:700,fontFamily:'var(--font-mono)'}}>{(inv.total||0).toLocaleString('es-ES',{minimumFractionDigits:2})}€</span>
+                <span style={{fontSize: "var(--text-base)",fontWeight:700,fontFamily:'var(--font-mono)'}}>{(inv.total||0).toLocaleString(localeActivo(),{minimumFractionDigits:2})}€</span>
                 <span style={{fontSize: "var(--text-xs)",fontWeight:700,padding:'2px 8px',borderRadius:20,background:alpha(cfg.color, '20'),color:cfg.color}}>{cfg.label}</span>
                 <div style={{display:'flex',gap:6}}>
                   {inv.status === 'draft' && <button onClick={() => updateStatus({id:inv.id,status:'sent'})} style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border-strong)',borderRadius:6,padding:'3px 10px',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.send')}</button>}
@@ -345,7 +345,7 @@ function InvoicesTab() {
                     <span>{l.description}</span>
                     <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.quantity} h</span>
                     <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.unit_price}€/h</span>
-                    <span style={{textAlign:'right',fontWeight:700}}>{l.amount.toLocaleString('es-ES',{minimumFractionDigits:2})}€</span>
+                    <span style={{textAlign:'right',fontWeight:700}}>{l.amount.toLocaleString(localeActivo(),{minimumFractionDigits:2})}€</span>
                   </div>
                 ))}
               </div>

@@ -1,6 +1,6 @@
 import { PROVIDER_META } from '../constants/api'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { useId, useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -508,8 +508,8 @@ export default function AIHubPage(): JSX.Element {
 
   const defaultProvider = providers.find((p: any) => p.is_default)
   const byModule = stats.by_module || []
-  const moneyFmt = new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES', { style: 'currency', currency: 'USD', minimumFractionDigits: 4, maximumFractionDigits: 4 })
-  const intFmt = new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES')
+  const moneyFmt = new Intl.NumberFormat(localeActivo(lang), { style: 'currency', currency: 'USD', minimumFractionDigits: 4, maximumFractionDigits: 4 })
+  const intFmt = new Intl.NumberFormat(localeActivo(lang))
 
   return (
     <Page

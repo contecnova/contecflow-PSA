@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
-import { extractErr } from '../../utils/helpers'
+import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -997,8 +997,8 @@ export function AnnouncementsConfig() {
                     <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', lineHeight:1.5 }}>{a.body}</div>
                     {(a.starts_at||a.ends_at) && (
                       <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', marginTop:6 }}>
-                        {a.starts_at && `${t('service_desk.ann_starts')}: ${new Date(a.starts_at).toLocaleString()}`}
-                        {a.ends_at && ` · ${t('service_desk.ann_ends')}: ${new Date(a.ends_at).toLocaleString()}`}
+                        {a.starts_at && `${t('service_desk.ann_starts')}: ${new Date(a.starts_at).toLocaleString(localeActivo())}`}
+                        {a.ends_at && ` · ${t('service_desk.ann_ends')}: ${new Date(a.ends_at).toLocaleString(localeActivo())}`}
                       </div>
                     )}
                   </div>

@@ -10,7 +10,7 @@ import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
-import { extractErr } from '../../utils/helpers'
+import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, Spinner } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
@@ -101,7 +101,7 @@ export default function ConfigCorreoEntrante() {
               <tbody>
                 {entradas.map(e => (
                   <tr key={e.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                    <td style={{ padding: '7px 8px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{e.received_at ? new Date(e.received_at).toLocaleString() : ''}</td>
+                    <td style={{ padding: '7px 8px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{e.received_at ? new Date(e.received_at).toLocaleString(localeActivo()) : ''}</td>
                     <td style={{ padding: '7px 8px', color: 'var(--text-2)' }}>{e.sender}</td>
                     <td style={{ padding: '7px 8px', fontWeight: 600, color: COLOR_RESULTADO[e.outcome] ?? 'var(--text-2)', whiteSpace: 'nowrap' }}>
                       {t(`sd_cfg.mail_out_${e.outcome}`)}

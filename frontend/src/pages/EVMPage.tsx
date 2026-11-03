@@ -11,6 +11,7 @@ import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, DollarSign
 import PageHeader from '../components/layout/PageHeader';
 import PageShell from '../components/layout/PageShell'
 import { useAppT } from '../i18n/AppLangContext';
+import { localeActivo } from '../utils/helpers';
 
 type IdType = string | number
 type HealthKey = 'green' | 'yellow' | 'red' | 'grey'
@@ -40,7 +41,7 @@ interface EvmData {
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
-const fmt = (n: number | null | undefined, dec = 2) => n == null ? '—' : Number(n).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+const fmt = (n: number | null | undefined, dec = 2) => n == null ? '—' : Number(n).toLocaleString(localeActivo(), { minimumFractionDigits: dec, maximumFractionDigits: dec });
 const fmtEur = (n: number | null | undefined) => n == null ? '—' : `${fmt(n, 0)} €`;
 const fmtPct = (n: number | null | undefined) => n == null ? '—' : `${fmt(n, 1)} %`;
 const fmtIdx = (n: number | null | undefined) => n == null ? '—' : fmt(n, 3);

@@ -11,7 +11,7 @@ import {
   Table as TableIcon, BarChartBig,
 } from 'lucide-react'
 import BiAdvancedViz from '../components/bi/BiAdvancedViz'
-import { fmtCurrency, extractErr } from '../utils/helpers'
+import { fmtCurrency, extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { CHART_COLORS_EXTENDED, alpha } from '../constants/theme'
 import { useAuth } from '../context/AuthContext'
@@ -204,7 +204,7 @@ const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }: { acti
     if (v == null) return '—'
     if (isCurrency) return fmtCurrency(Number(v) || 0)
     if (isPercent) return `${Number(v) || 0}%`
-    return typeof v === 'number' ? v.toLocaleString('es-ES', { maximumFractionDigits: 1 }) : v
+    return typeof v === 'number' ? v.toLocaleString(localeActivo(), { maximumFractionDigits: 1 }) : v
   }
   return (
     <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-sm)" }}>
@@ -279,7 +279,7 @@ function DataTable({ data, isCurrency, isPercent }: { data: any[]; isCurrency?: 
     if (typeof v !== 'number') return v
     if (isCurrency) return fmtCurrency(v)
     if (isPercent) return `${v.toFixed(1)}%`
-    return v.toLocaleString('es-ES', { maximumFractionDigits: 1 })
+    return v.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })
   }
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -342,7 +342,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
                 <span style={{ fontFamily: 'var(--font-mono)', color: PALETTE[i % PALETTE.length], fontWeight: 700 }}>
                   {isCurrency
                     ? fmtCurrency(Number(row.value) || 0)
-                    : (Number(row.value) || 0).toLocaleString('es-ES', { maximumFractionDigits: 1 })}
+                    : (Number(row.value) || 0).toLocaleString(localeActivo(), { maximumFractionDigits: 1 })}
                 </span>
                 <span style={{ color: 'var(--text-2)', fontSize: "var(--text-xs)" }}>{pct}%</span>
               </div>
@@ -457,7 +457,7 @@ function SummaryBar({ summary, meta, prevSummary }: { summary?: any; meta?: any;
   if (!summary || !summary.total) return null
   const isCurrency = meta?.y_label?.includes('€')
   const isPercent  = meta?.y_label?.includes('%')
-  const fmt = (v: any) => isCurrency ? fmtCurrency(v) : isPercent ? `${v.toFixed(1)}%` : v.toLocaleString('es-ES', { maximumFractionDigits: 1 })
+  const fmt = (v: any) => isCurrency ? fmtCurrency(v) : isPercent ? `${v.toFixed(1)}%` : v.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })
 
   const trend = (curr: any, prev: any) => {
     if (!prev || prev === 0) return null
@@ -785,7 +785,7 @@ function MiniPanel({ config }: { config: any }) {
     <div>
       {result.summary?.total > 0 && (
         <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: config.color || 'var(--accent)', marginBottom: 8 }}>
-          {result.meta?.y_label?.includes('€') ? fmtCurrency(result.summary.total) : result.summary.total.toLocaleString('es-ES', { maximumFractionDigits: 1 })}
+          {result.meta?.y_label?.includes('€') ? fmtCurrency(result.summary.total) : result.summary.total.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })}
           <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', fontFamily: 'inherit', marginLeft: 6 }}>total</span>
         </div>
       )}

@@ -30,6 +30,7 @@ import PortalQuickCreateMenu from './PortalQuickCreateMenu'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 import { useTabListKeys } from '../../components/ui/Tabs'
+import { localeActivo } from '../../utils/helpers'
 
 // ── Section configuration (grouped like the backoffice) ──────────────────────
 export const PORTAL_NAV_GROUPS = [
@@ -944,8 +945,8 @@ export function formatDuration(minutes: any) {
 
 export function formatMoney(value: any, currency = 'EUR') {
   const n = Number(value || 0)
-  try { return n.toLocaleString('es-ES', { style: 'currency', currency }) }
-  catch { return `${n.toLocaleString('es-ES')} ${currency}` }
+  try { return n.toLocaleString(localeActivo(), { style: 'currency', currency }) }
+  catch { return `${n.toLocaleString(localeActivo())} ${currency}` }
 }
 
 export function relativeDate(iso: any) {
@@ -957,7 +958,7 @@ export function relativeDate(iso: any) {
     if (abs < 1) return diff < 0 ? 'hoy' : 'hoy'
     if (abs < 2) return diff < 0 ? 'ayer' : 'mañana'
     if (abs < 7) return diff < 0 ? `hace ${Math.round(abs)} días` : `en ${Math.round(abs)} días`
-    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+    return d.toLocaleDateString(localeActivo(), { day: 'numeric', month: 'short' })
   } catch { return iso }
 }
 

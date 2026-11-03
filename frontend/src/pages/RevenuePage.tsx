@@ -3,7 +3,7 @@
  * Configura el método por proyecto y registra entradas mensuales
  */
 import { useState, type CSSProperties } from 'react'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -138,8 +138,8 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
 
 function fmtEur(n: number | null | undefined, currency?: string) {
   if (!n && n !== 0) return '—'
-  if (!currency) return new Intl.NumberFormat('es-ES', { minimumFractionDigits:0, maximumFractionDigits:0 }).format(n)
-  return new Intl.NumberFormat('es-ES', { style:'currency', currency, minimumFractionDigits:0, maximumFractionDigits:0 }).format(n)
+  if (!currency) return new Intl.NumberFormat(localeActivo(), { minimumFractionDigits:0, maximumFractionDigits:0 }).format(n)
+  return new Intl.NumberFormat(localeActivo(), { style:'currency', currency, minimumFractionDigits:0, maximumFractionDigits:0 }).format(n)
 }
 
 export default function RevenuePage() {
@@ -214,7 +214,7 @@ export default function RevenuePage() {
     mutationFn: () => revenueApi.autoCompute(computePeriod),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['revenue-rules'] })
-      toast.success(`Auto-compute: ${res.data.total_recognised?.toLocaleString('es-ES', {style:'currency',currency})} reconocidos`)
+      toast.success(`Auto-compute: ${res.data.total_recognised?.toLocaleString(localeActivo(), {style:'currency',currency})} reconocidos`)
     },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })

@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -316,7 +316,7 @@ function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                   <span style={{ ...chip(color), fontWeight: 700 }}>{etiqueta('action_', e.action)}</span>
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-                    {e.created_at ? new Date(e.created_at).toLocaleString() : ''}
+                    {e.created_at ? new Date(e.created_at).toLocaleString(localeActivo()) : ''}
                     {e.user_name ? ` · ${t('cmdb.por')} ${e.user_name}` : ` · ${t('cmdb.by_discovery')}`}
                   </span>
                 </div>
@@ -477,7 +477,7 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
                     </span>
                   </td>
                   <td style={{ ...td, fontSize: "var(--text-sm)" }}>
-                    {ag.last_checkin_at ? new Date(ag.last_checkin_at).toLocaleString() : t('cmdb.never')}
+                    {ag.last_checkin_at ? new Date(ag.last_checkin_at).toLocaleString(localeActivo()) : t('cmdb.never')}
                   </td>
                   <td style={td}>{nombreCI(ag.ci_id) || ag.last_hostname || '—'}</td>
                   <td style={td}>

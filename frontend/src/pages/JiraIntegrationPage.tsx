@@ -10,7 +10,7 @@ import { useToast } from '../context/ToastContext'
 import { Card, Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 
 interface JiraConfig {
@@ -409,7 +409,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                           </span>
                         </td>
                         <td style={{ padding: '8px 10px', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
-                          {row.jira_synced_at ? new Date(row.jira_synced_at).toLocaleString() : '\u2014'}
+                          {row.jira_synced_at ? new Date(row.jira_synced_at).toLocaleString(localeActivo()) : '\u2014'}
                         </td>
                       </tr>
                     ))}

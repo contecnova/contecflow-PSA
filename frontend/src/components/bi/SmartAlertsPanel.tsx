@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import { biSmartAlertsApi } from '../../services/api'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { localeActivo } from '../../utils/helpers'
 
 // TODO type: biSmartAlertsApi payloads — needs shared types
 interface AlertRule {
@@ -165,7 +166,7 @@ export default function SmartAlertsPanel() {
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{entry.rule_name}</div>
                 <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>
-                  {entry.metric_key} · {String(entry.condition || '').replace(/_/g, ' ')} · {entry.triggered_at ? new Date(entry.triggered_at).toLocaleDateString('es-ES') : '—'}
+                  {entry.metric_key} · {String(entry.condition || '').replace(/_/g, ' ')} · {entry.triggered_at ? new Date(entry.triggered_at).toLocaleDateString(localeActivo()) : '—'}
                 </div>
                 {entry.correlated && entry.correlated.length > 0 && (
                   <div style={{ fontSize: 'var(--text-2xs)', color: COLOR.warning, marginTop: 2 }}>

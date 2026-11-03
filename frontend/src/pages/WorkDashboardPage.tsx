@@ -15,6 +15,7 @@ import {
   dateRange,
 } from '../components/dashboard/DashKit'
 import { useAppT } from '../i18n/AppLangContext'
+import { localeActivo } from '../utils/helpers'
 
 type TaskStatResponse = { open: number; overdue: number; done: number }
 type HourRow = { label?: string; value?: number }
@@ -55,7 +56,7 @@ function startOfMonthIso() {
   return d.toISOString().slice(0, 10)
 }
 function fmtShort(dateStr: string) {
-  return new Intl.DateTimeFormat('es-ES', { month: 'short', day: 'numeric' }).format(new Date(dateStr + 'T12:00:00'))
+  return new Intl.DateTimeFormat(localeActivo(), { month: 'short', day: 'numeric' }).format(new Date(dateStr + 'T12:00:00'))
 }
 function weekDateRangeLabel() {
   const from = startOfWeekIso()
@@ -82,8 +83,8 @@ const formatTrendPct = (deltaPct: number | null, baseline: number) =>
 // más sobria con una CTA destacada y atajos secundarios.
 function Hero({ navigate, userName, t }: HeroProps) {
   const now = new Date()
-  const day = new Intl.DateTimeFormat('es-ES', { weekday: 'long' }).format(now)
-  const date = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long' }).format(now)
+  const day = new Intl.DateTimeFormat(localeActivo(), { weekday: 'long' }).format(now)
+  const date = new Intl.DateTimeFormat(localeActivo(), { day: 'numeric', month: 'long' }).format(now)
   const hour = now.getHours()
   const greeting = hour < 13 ? t('work_dashboard.greeting_morning') : hour < 20 ? t('work_dashboard.greeting_afternoon') : t('work_dashboard.greeting_evening')
 

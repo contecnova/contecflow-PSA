@@ -27,6 +27,7 @@ import {
 import { collabApi } from '../services/collaborationApi'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { localeActivo } from '../utils/helpers'
 
 type TFn = (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
 
@@ -192,13 +193,13 @@ export default function CallPage(): JSX.Element {
     function handleDataMessage(msg: { type?: string; body?: string; emoji?: string; text?: string }, sender: { name?: string; identity?: string } | undefined) {
       if (msg.type === 'chat') {
         setChatItems(prev => [...prev, {
-          time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          time: new Date().toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' }),
           name: sender?.name || sender?.identity || t('call.other'),
           body: msg.body || '', me: false,
         }])
       } else if (msg.type === 'reaction') {
         setChatItems(prev => [...prev, {
-          time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          time: new Date().toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' }),
           name: sender?.name || t('call.other'),
           body: `${t('call.reacted')} ${msg.emoji}`,
           me: false, reaction: true,
@@ -454,7 +455,7 @@ export default function CallPage(): JSX.Element {
   )
 }
 
-function now() { return new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) }
+function now() { return new Date().toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' }) }
 
 function QualityBadge({ q, fallback, t }: { q: string; fallback: boolean; t: TFn }) {
   const map: Record<string, { color: string; label: string }> = {

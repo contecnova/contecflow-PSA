@@ -9,7 +9,7 @@ import { Button, Spinner, EmptyState, Modal, Tabs, Page } from '../components/ui
 import {
   Layers, Building2, FileText, Key, Monitor, Briefcase,
 } from 'lucide-react'
-import { fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
+import { fmtCurrency, fmtDate, extractErr, localeActivo } from '../utils/helpers'
 import { sanitizeUrl } from '../utils/security'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
@@ -1145,7 +1145,7 @@ function AssetHistoryModal({ asset, onClose }: { asset: any; onClose: () => void
           {filas.map((h: any) => (
             <div key={h.id} style={{ padding: '8px 12px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)" }}>
               <div style={{ color: 'var(--text-2)', fontSize: "var(--text-xs)" }}>
-                {h.changed_at ? new Date(h.changed_at).toLocaleString() : ''}{h.user_name ? ` · ${h.user_name}` : ''}{h.note ? ` · ${h.note}` : ''}
+                {h.changed_at ? new Date(h.changed_at).toLocaleString(localeActivo()) : ''}{h.user_name ? ` · ${h.user_name}` : ''}{h.note ? ` · ${h.note}` : ''}
               </div>
               <div style={{ wordBreak: 'break-word' }}>
                 <code style={{ background: 'var(--surface-3)', padding: '1px 5px', borderRadius: 4 }}>{h.field}</code>{' '}

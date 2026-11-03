@@ -80,6 +80,7 @@ import {
 import { PortalSupportDesk } from './portal-client/PortalSupportDesk'
 import { PortalSurveys } from './portal-client/PortalSurveys'
 import PortalAIChatWidget from './portal-client/PortalAIChatWidget'
+import { useTabListKeys } from '../components/ui/Tabs'
 
 // ── Inner app (con cliente autenticado) ──────────────────────────────────────
 function PortalApp({ changeLang }: { changeLang: ChangeLangFn }) {
@@ -295,6 +296,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
     { id: 'language',   label: 'Idioma',      icon: <Languages size={13} /> },
     { id: 'security',   label: 'Seguridad',   icon: <ShieldCheck size={13} /> },
   ]
+  const teclas = useTabListKeys(TABS.map(x => x.id), tab, setTab)
 
   const applyTheme = (id: string) => {
     setThemeMode(id)
@@ -395,9 +397,10 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       </PortalCard>
 
       {/* Sub-tabs */}
-      <div role="tablist" aria-label="Mi perfil" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 20, flexWrap: 'wrap' }}>
+      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label="Mi perfil" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 20, flexWrap: 'wrap' }}>
         {TABS.map(tb => (
-          <button key={tb.id} role="tab" aria-selected={tab === tb.id}
+          <button key={tb.id} type="button" role="tab" data-tab-id={tb.id}
+            tabIndex={tb.id === teclas.focusId ? 0 : -1} aria-selected={tab === tb.id}
             onClick={() => setTab(tb.id)}
             style={{
               background: 'transparent', border: 'none',

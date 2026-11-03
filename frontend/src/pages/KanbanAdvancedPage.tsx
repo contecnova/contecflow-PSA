@@ -17,6 +17,7 @@ import { LayoutGrid, History, X } from 'lucide-react'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { localeActivo } from '../utils/helpers'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -859,7 +860,7 @@ function TaskMovementLogDrawer({ task, onClose }: { task: Task; onClose: () => v
                       {entry.moved_by?.username || entry.moved_by?.full_name || 'Sistema'}
                     </span>
                     <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>
-                      {new Date(entry.moved_at).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      {new Date(entry.moved_at).toLocaleString(localeActivo(), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 </div>

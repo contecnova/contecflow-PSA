@@ -14,6 +14,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { DEFAULT_PAGE_SIZE, LARGE_PAGE_SIZE, NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS } from '../constants/timings'
 import { alpha } from '../constants/theme'
+import { localeActivo } from '../utils/helpers'
 
 const FS: CSSProperties = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -462,7 +463,7 @@ export default function TimerPage() {
           </div>
 
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
-            Inicio: {new Date(currentTimer.started_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            Inicio: {new Date(currentTimer.started_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             {(currentTimer.paused_duration_secs || 0) > 0 && (
               <span style={{ marginLeft: 14 }}>· Pausado acumulado: {formatTime(currentTimer.paused_duration_secs ?? 0)}</span>
             )}
@@ -564,7 +565,7 @@ export default function TimerPage() {
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>
-                    {s.created_at ? new Date(s.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                    {s.created_at ? new Date(s.created_at).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                   </td>
                 </tr>
               ))}

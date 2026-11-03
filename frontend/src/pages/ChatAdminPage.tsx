@@ -12,6 +12,7 @@ import {
 import { useToast } from '../context/ToastContext'
 import { collabApi } from '../services/collaborationApi'
 import { useAppT } from '../i18n/AppLangContext'
+import { useTabListKeys } from '../components/ui/Tabs'
 
 type TabId = 'retention' | 'legal_hold' | 'integrations' | 'webhooks' | 'audit' | 'ediscovery'
 type ButtonVariant = 'primary' | 'secondary' | 'danger'
@@ -124,20 +125,24 @@ export default function ChatAdminPage(): JSX.Element {
     { id: 'audit', label: t('chat_admin.tab_audit'), icon: ScrollText as ComponentType<any> },
     { id: 'ediscovery', label: t('chat_admin.tab_ediscovery'), icon: Search as ComponentType<any> },
   ]
+  const teclas = useTabListKeys(TABS.map(x => x.id), tab, id => setTab(id as TabId))
 
   return (
     <div style={{ padding: '20px 26px' }}>
       <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 6px' }}>{t('chat_admin.title')}</h1>
       <p style={{ color: 'var(--text-2)', margin: '0 0 18px', fontSize: 'var(--text-sm)' }}>{t('chat_admin.subtitle')}</p>
 
-      <div role="tablist" style={{ display: 'flex', gap: 4, marginBottom: 22, borderBottom: '1px solid var(--surface-4)', flexWrap: 'wrap' }}>
+      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" style={{ display: 'flex', gap: 4, marginBottom: 22, borderBottom: '1px solid var(--surface-4)', flexWrap: 'wrap' }}>
         {TABS.map((tabItem) => {
           const Icon = tabItem.icon
           const active = tab === tabItem.id
           return (
             <button
               key={tabItem.id}
+              type="button"
               role="tab"
+              data-tab-id={tabItem.id}
+              tabIndex={tabItem.id === teclas.focusId ? 0 : -1}
               aria-selected={active}
               onClick={() => setTab(tabItem.id)}
               style={{

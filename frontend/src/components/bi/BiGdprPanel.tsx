@@ -18,6 +18,7 @@ import {
   Shield, AlertTriangle, CheckCircle, Download, Trash2,
   Clock, Users, ToggleLeft, ToggleRight,
 } from 'lucide-react'
+import { localeActivo } from '../../utils/helpers'
 
 // TODO type: biGdprApi payloads — needs shared types
 interface DsrItem {
@@ -104,7 +105,7 @@ const STATUS_COLOR: Record<string, string>= { pending: 'var(--warning)', complet
 
 function fmt(iso?: string): string {
   if (!iso) return '—'
-  try { return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) }
+  try { return new Date(iso).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', year: 'numeric' }) }
   catch { return iso }
 }
 

@@ -24,6 +24,7 @@ import { collabApi } from '../services/collaborationApi'
 import { registerCollabPush } from '../utils/collabPush'
 import { useAppLang } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { localeActivo } from '../utils/helpers'
 
 // ── Loose row/entity types ──────────────────────────────────────────────────
 // The collaboration API client returns `any`/`unknown[]`, so we describe the
@@ -1520,7 +1521,7 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
             <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{author}</span>
             {msg.bot_id && <span style={{ fontSize: 'var(--text-xs)', padding: '1px 6px', background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 4, fontWeight: 700 }}>BOT</span>}
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-              {new Date(msg.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+              {new Date(msg.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}
             </span>
             {msg.is_pinned && <Pin size={11} style={{ color: 'var(--warning)' }} />}
             {msg.edited_at && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>(editado)</span>}
@@ -1761,7 +1762,7 @@ function SearchModal({ onClose, onJump }: { onClose: () => void; onJump: (conver
               onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
               <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', marginBottom: 4 }}>{h.snippet}</div>
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-                {h.sent_at ? new Date(h.sent_at).toLocaleString('es-ES') : ''}
+                {h.sent_at ? new Date(h.sent_at).toLocaleString(localeActivo()) : ''}
               </div>
             </button>
           ))}
@@ -1913,7 +1914,7 @@ function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: string; on
         {thread.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('chat.sin_respuestas_todavia')}</div>}
         {thread.map(m => (
           <div key={m.id} style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{m.author_name || 'Usuario'} · {new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{m.author_name || 'Usuario'} · {new Date(m.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}</div>
             <div style={{ fontSize: 'var(--text-sm)', whiteSpace: 'pre-wrap', color: 'var(--text-1)' }}>{m.body}</div>
           </div>
         ))}
@@ -2120,7 +2121,7 @@ function ContextPanel({ conv }: { conv: Conv }) {
             style={{ display: 'block', padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)', textDecoration: 'none' }}>
             <div style={{ color: 'var(--text-1)', fontWeight: 600 }}>{ev.title}</div>
             <div style={{ color: 'var(--text-3)' }}>
-              {ev.source === 'google' ? '🅖' : '🅜'} {ev.start ? new Date(ev.start).toLocaleString('es-ES', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+              {ev.source === 'google' ? '🅖' : '🅜'} {ev.start ? new Date(ev.start).toLocaleString(localeActivo(), { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
             </div>
           </a>
         ))}

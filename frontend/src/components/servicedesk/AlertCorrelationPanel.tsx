@@ -13,6 +13,7 @@ import { alertClustersApi } from '../../services/api'
 import { Card, Button, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { localeActivo } from '../../utils/helpers'
 
 // TODO type: alertClustersApi payload — needs shared type
 interface AlertCluster {
@@ -117,10 +118,10 @@ function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterC
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
             {cluster.ci_id && <span>CI: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{cluster.ci_id}</span></span>}
             {cluster.earliest_at && (
-              <span>Desde {new Date(cluster.earliest_at).toLocaleString()}</span>
+              <span>Desde {new Date(cluster.earliest_at).toLocaleString(localeActivo())}</span>
             )}
             {cluster.latest_at && (
-              <span>Hasta {new Date(cluster.latest_at).toLocaleString()}</span>
+              <span>Hasta {new Date(cluster.latest_at).toLocaleString(localeActivo())}</span>
             )}
           </div>
         </div>

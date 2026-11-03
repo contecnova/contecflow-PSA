@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { portalApi, projectsApi, deliverablesApi, wikiApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
+import { useTabListKeys } from '../components/ui/Tabs'
 import {
   Globe, Users, FlaskConical, Lightbulb, FileText, BookOpen,
 } from 'lucide-react'
@@ -944,6 +945,7 @@ export default function ClientPortalPage(): JSX.Element {
     { id: 'documents',label: `${t('client_portal.tab_documents')}` },
     { id: 'wiki',     label: `${t('client_portal.tab_wiki')}` },
   ]
+  const teclas = useTabListKeys(TABS.map(x => x.id), tab, setTab)
 
   return (
     <Page
@@ -961,11 +963,11 @@ export default function ClientPortalPage(): JSX.Element {
     >
       {selectedProject && <StatsPanel projectId={selectedProject} />}
 
-      <div className="ds-segmented" role="tablist" aria-label={traducir('clientportal.secciones_del_portal_cliente')}
+      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} className="ds-segmented" role="tablist" aria-label={traducir('clientportal.secciones_del_portal_cliente')}
         style={{ alignSelf: 'flex-start' }}>
         {TABS.map(t => (
-          <button key={t.id} type="button" role="tab"
-            aria-pressed={tab === t.id}
+          <button key={t.id} type="button" role="tab" data-tab-id={t.id}
+            tabIndex={t.id === teclas.focusId ? 0 : -1}
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}>
             {t.label}

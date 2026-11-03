@@ -21,6 +21,7 @@ import {
 import BiGdprPanel from '../components/bi/BiGdprPanel'
 import BiGovernancePanel from '../components/bi/BiGovernancePanel'
 import BiDashboardCollabPanel from '../components/bi/BiDashboardCollabPanel'
+import { localeActivo } from '../utils/helpers'
 
 type ItemsResponse<T> = {
   items: T[]
@@ -92,7 +93,7 @@ const S = {
   btnAccentOutline: (c: string = COLOR.accent): CSSProperties => ({ padding: '7px 14px', borderRadius: 8, border: `1px solid ${c}`, background: alpha(c, '18'), color: c, cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }),
 }
 
-const getLocale = (lang: string) => (lang === 'en' ? 'en-US' : 'es-ES')
+const getLocale = (lang: string) => localeActivo(lang)
 function toFiniteNumber(value: unknown, fallback = 0) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : fallback
   if (typeof value === 'string') {
@@ -304,7 +305,7 @@ export default function DataGovernancePage(): JSX.Element {
                           <span style={{ fontSize: 'var(--text-2xs)', background: alpha(COLOR.info, '18'), color: COLOR.info, borderRadius: 6, padding: '2px 7px', fontWeight: 700, flexShrink: 0 }}>{ev.action || 'view'}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.resource || '—'}</div>
-                            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{ev.user_id || '—'} · {ev.accessed_at ? new Date(ev.accessed_at).toLocaleString() : '—'}</div>
+                            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{ev.user_id || '—'} · {ev.accessed_at ? new Date(ev.accessed_at).toLocaleString(localeActivo()) : '—'}</div>
                           </div>
                         </div>
                       ))}

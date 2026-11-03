@@ -14,6 +14,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { Shield, Plus, RefreshCw, ToggleLeft, ToggleRight, Trash2, Database, MessageCircle, Calendar, Zap, Clock } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
+import { localeActivo } from '../../utils/helpers'
 
 const POLICY_TYPES = [
   { id: 'data_retention',    label: 'Retención de datos' },
@@ -158,7 +159,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
           display: 'flex', alignItems: 'center', gap: 6,
         }}>
           <Clock size={12} />
-          Snapshot generado: <span style={{ color: 'var(--text-2)' }}>{ts.toLocaleString()}</span>
+          Snapshot generado: <span style={{ color: 'var(--text-2)' }}>{ts.toLocaleString(localeActivo())}</span>
         </div>
       )}
 
@@ -535,7 +536,7 @@ export default function BiGovernancePanel() {
                       {ev.user_id || '—'}
                     </span>
                     <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>
-                      {ev.accessed_at ? new Date(ev.accessed_at).toLocaleString() : ''}
+                      {ev.accessed_at ? new Date(ev.accessed_at).toLocaleString(localeActivo()) : ''}
                     </span>
                   </div>
                 )

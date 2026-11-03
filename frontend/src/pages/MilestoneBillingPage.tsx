@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -145,7 +145,7 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
             📁 {projectName}
             {m.billing_amount && (
               <span style={{ marginLeft: 10, color: 'var(--accent)', fontWeight: 600 }}>
-                💶 {m.billing_amount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                💶 {m.billing_amount.toLocaleString(localeActivo(), { style: 'currency', currency: 'EUR' })}
               </span>
             )}
             {m.billing_pct && !m.billing_amount && (

@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
@@ -67,8 +67,8 @@ function CatBadge({ cat }: { cat: string }) {
 
 function fmt(amount: unknown, currency?: string) {
   const v = Number(amount)
-  if (!currency) return `${v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  return `${v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
+  if (!currency) return `${v.toLocaleString(localeActivo(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `${v.toLocaleString(localeActivo(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
 }
 
 // ── Expense row ───────────────────────────────────────────────────────────────

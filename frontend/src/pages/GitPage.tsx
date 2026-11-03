@@ -12,6 +12,7 @@ import { GitBranch } from 'lucide-react'
 import { Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { localeActivo } from '../utils/helpers'
 
 type PrStatus = 'open' | 'draft' | 'merged' | 'closed'
 type DeployStatus = 'pending' | 'running' | 'success' | 'failure' | 'cancelled'
@@ -99,7 +100,7 @@ export default function GitPage(): JSX.Element {
   })
   const deploys = deploysRaw as DeploymentItem[]
 
-  const fmtDate = (d?: string) => d ? new Date(d).toLocaleString('es-ES', {
+  const fmtDate = (d?: string) => d ? new Date(d).toLocaleString(localeActivo(), {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
   }) : '—'
 

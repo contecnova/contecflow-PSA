@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { alpha } from '../constants/theme';
 import { applyAccent, applyDensity, onAccentFor } from '../utils/appearance';
-import { fmtDate, fmtDateTime, fmtMonth } from '../utils/helpers';
+import { fmtCurrency, fmtDate, fmtDateTime, fmtMonth, fmtNumber, localeActivo } from '../utils/helpers';
 import Tabs from '../components/ui/Tabs';
 import { ToastProvider, useToast } from '../context/ToastContext';
 
@@ -63,6 +63,29 @@ describe('fechas en el idioma activo', () => {
 
   it('sin fecha, guion', () => {
     expect(fmtDate(null)).toBe('—');
+  });
+});
+
+describe('números y monedas en el idioma activo', () => {
+  afterEach(() => localStorage.removeItem('contecflow_operator_lang'));
+  // Intl separa con espacio duro (U+00A0 / U+202F): se normaliza para comparar.
+  const plano = (s: string) => s.replace(/[\u00a0\u202f]/g, ' ');
+
+  it('castellano: punto de miles y coma decimal', () => {
+    localStorage.setItem('contecflow_operator_lang', 'es');
+    expect(fmtNumber(1234567.5)).toBe('1.234.567,5');
+    expect(plano(fmtCurrency(1234567, 'EUR'))).toBe('1.234.567 €');
+  });
+
+  it('inglés: coma de miles y punto decimal; la moneda sigue siendo la que se pasa', () => {
+    localStorage.setItem('contecflow_operator_lang', 'en');
+    expect(fmtNumber(1234567.5)).toBe('1,234,567.5');
+    expect(fmtCurrency(1234567, 'EUR')).toBe('€1,234,567');
+    expect(new Date(2026, 10, 2).toLocaleDateString(localeActivo(), { month: 'long' })).toBe('November');
+  });
+
+  it('un idioma guardado que Intl no reconoce cae a castellano sin lanzar', () => {
+    expect(localeActivo('no_vale!')).toBe('es');
   });
 });
 

@@ -13,6 +13,7 @@ import { PenLine } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { localeActivo } from '../utils/helpers'
 
 type EnvelopeStatus = 'draft' | 'sent' | 'delivered' | 'completed' | 'declined' | 'voided' | 'error'
 
@@ -271,7 +272,7 @@ export default function ESignPage(): JSX.Element {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['esign-envelopes'] }); setDetail(null) },
   })
 
-  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
   const docusignOk = stats?.providers?.docusign_configured
   const adobeOk    = stats?.providers?.adobe_configured

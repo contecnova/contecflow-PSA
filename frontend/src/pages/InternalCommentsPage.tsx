@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ticketsApi } from '../services/api'
@@ -93,7 +93,7 @@ function InternalCommentThread({ ticketId }: { ticketId: string | number }) {
                       <span style={{fontSize: "var(--text-xs)", padding:'2px 8px', borderRadius:20,
                         background:'var(--warning-bg)', color:'var(--warning)', fontWeight:600}}>🔒 INTERNO</span>
                       <span style={{fontSize: "var(--text-xs)", color:'var(--text-3)'}}>
-                        {c.created_at ? new Date(c.created_at).toLocaleString('es-ES') : ''}
+                        {c.created_at ? new Date(c.created_at).toLocaleString(localeActivo()) : ''}
                       </span>
                     </div>
                     <div style={{display:'flex', gap:6}}>

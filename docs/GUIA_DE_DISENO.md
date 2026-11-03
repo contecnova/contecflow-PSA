@@ -463,7 +463,14 @@ En una solución nueva, esos dos objetos son las clases `.ds-input` y
 - **Fechas y números:** siempre con un formateador, nunca la cadena ISO cruda.
   `fmtDate`, `fmtDateTime` y `fmtMonth` usan `Intl.DateTimeFormat` en el idioma
   activo: el 2 de noviembre de 2026 sale `02/11/2026` en español,
-  `11/02/2026` en inglés y `2026/11/02` en chino.
+  `11/02/2026` en inglés y `2026/11/02` en chino. `fmtNumber` y `fmtCurrency`
+  también: `1.234.567,5` en español y `1,234,567.5` en inglés; la moneda es la
+  que se pase, el idioma sólo cambia cómo se escribe.
+- **Formatear a mano:** si hace falta un formato propio, el locale es
+  `localeActivo()` de `utils/helpers`, nunca `'es-ES'`:
+  `d.toLocaleDateString(localeActivo(), { month: 'short' })`. Con el `lang` del
+  hook, `localeActivo(lang)`. Un idioma guardado que `Intl` no reconoce cae a
+  castellano en vez de romper la pantalla.
 
 ---
 
@@ -531,7 +538,7 @@ convertir 11.500 estilos en línea después cuesta mucho más que no escribirlos
 
 ## 15. Defectos: arreglados y lo que no se debe copiar
 
-Medido el 02-11-2026. Los puntos 1 a 8, 10 a 12 y 16 eran defectos de
+Medido el 02-11-2026. Los puntos 1 a 8, 10 a 12, 16, 18 y 19 eran defectos de
 contecflow y **están arreglados** en contecflow; se dejan aquí con la medida de
 antes y la de después, porque una solución nueva que copie código antiguo los
 puede traer de vuelta. El 9 se corrigió en la guía corta. Los puntos 13, 14,
@@ -554,6 +561,8 @@ puede traer de vuelta. El 9 se corrigió en la guía corta. Los puntos 13, 14,
 | 11 | `COLOR.*` eran literales del tema oscuro, con `text2` y `text3` viejos | 29 literales | 0: cada uno es su `var(--token)`. `CHART_COLORS` sigue en hex, porque es la paleta fija de series |
 | 12 | P1 y P2 tenían el mismo rojo | `TICKET_PRIORITY`, `Badge` y el portal usaban `danger` en P2; el kanban, azul en P3 y verde en P4 | P1 `danger`, P2 `orange`, P3 `warning`, P4 `text-2` en los ocho ficheros con mapa de prioridad de tique |
 | 16 | Las fechas salían siempre en formato español | `fmtDate` fijaba `dd/MM/yyyy` y el locale `es` | `Intl.DateTimeFormat` en el idioma activo (apartado 10), en `fmtDate`, `fmtDateTime`, `fmtMonth`, `fmtRelative` y el `fmtDate` del Service Desk |
+| 18 | Fechas y números formateados a mano, fuera de `fmtDate`, seguían en español; `fmtNumber` y `fmtCurrency` fijaban `es-ES` | Medido el 03-11-2026 sobre 318 ficheros `.ts`/`.tsx` de `src` (sin pruebas): 64 `toLocale(Date\|Time)?String('es-ES'\|'es')` en 33 ficheros, 9 `Intl.NumberFormat`/`DateTimeFormat('es-ES')` en 4 y 7 `lang === 'en' ? 'en-US' : 'es-ES'` (el chino salía en español) en 5 | 0, 0 y 0. Todos pasan por `localeActivo()` (apartado 10), también las 40 llamadas sin locale (`toLocaleString()` y familia, en 22 ficheros) que usaban el idioma del navegador en vez del de la interfaz: ahora 0 |
+| 19 | Filas de pestañas hechas a mano en páginas, sin teclado | 9 filas `role="tablist"` fuera de `Tabs` y `PortalTabs`, en 8 ficheros; 0 con flechas; dos con `aria-pressed` en vez de `aria-selected` | 9 de 9 con `useTabListKeys`: una sola en el orden de Tab, flechas, Inicio y Fin. Mismo aspecto; `.ds-segmented` pinta también `[aria-selected="true"]` |
 
 ### Lo que queda y no se debe copiar
 
@@ -564,12 +573,8 @@ puede traer de vuelta. El 9 se corrigió en la guía corta. Los puntos 13, 14,
 | 15 | Tres capas de alias de color (`--bg`, `--surface`, `--color-background-primary`…) | Heredadas de versiones anteriores | Un solo nombre por token |
 | 17 | Cuatro familias de fuente cargadas | DM Sans, Geist, Geist Mono y Space Mono, con varios pesos | Una familia de texto y una monoespaciada, sólo con los pesos usados (400, 600, 700) |
 
-**Pendiente, medido y fuera de este arreglo:** 65 llamadas a
-`toLocaleDateString('es-ES')` y parecidas en 34 ficheros formatean fechas por
-su cuenta, fuera de `fmtDate`, y siguen en español; `fmtNumber` y
-`fmtCurrency` fijan `es-ES`; hay 9 listas de pestañas hechas a mano en
-páginas (no `Tabs`), y en 6 de sus 8 ficheros no hay manejo de flechas; y `--danger` no llega a 4,5 sobre `surface-3` en freight
-(4,36) ni sobre `surface-1` en el claro (4,41).
+**Pendiente, medido y fuera de este arreglo:** `--danger` no llega a 4,5 sobre
+`surface-3` en freight (4,36) ni sobre `surface-1` en el claro (4,41).
 
 ---
 

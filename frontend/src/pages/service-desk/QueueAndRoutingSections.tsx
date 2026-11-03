@@ -6,7 +6,7 @@ import { sdRoutingApi, sdGroupsApi, sdSlaPoliciesApi, usersApi } from '../../ser
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH } from '../../components/ui'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppT } from '../../i18n/AppLangContext'
-import { extractErr } from '../../utils/helpers'
+import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -58,7 +58,7 @@ function SBadge({ v }: { v?: string }) {
 
 function fmtDate(d?: string | Date | null) {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  return new Date(d).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
 type Ticket = {

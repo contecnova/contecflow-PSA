@@ -19,6 +19,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { performanceApi, usersApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
+import { useTabListKeys } from '../components/ui/Tabs'
 import {
   Star, Plus, ChevronRight, ChevronDown, Clock, CheckCircle2,
   User, Users as UsersIcon, Crown, ArrowUp, UserPlus, Save, Send,
@@ -2113,6 +2114,8 @@ export default function PerformanceReviewsPage() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
+  const teclas = useTabListKeys(['cycles', 'pending', 'plans', ...(isManager ? ['kpis'] : [])], tab, setTab)
+
   return (
     <Page
       icon={<Star size={18} />}
@@ -2129,19 +2132,19 @@ export default function PerformanceReviewsPage() {
       }
     >
       {/* Tabs */}
-      <div className="ds-segmented" role="tablist" style={{ alignSelf: 'flex-start' }}>
-        <button type="button" role="tab" aria-pressed={tab === 'cycles'} onClick={() => setTab('cycles')}>
+      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} className="ds-segmented" role="tablist" style={{ alignSelf: 'flex-start' }}>
+        <button type="button" role="tab" data-tab-id="cycles" tabIndex={teclas.focusId === 'cycles' ? 0 : -1} aria-selected={tab === 'cycles'} onClick={() => setTab('cycles')}>
           Ciclos
         </button>
-        <button type="button" role="tab" aria-pressed={tab === 'pending'} onClick={() => setTab('pending')}>
+        <button type="button" role="tab" data-tab-id="pending" tabIndex={teclas.focusId === 'pending' ? 0 : -1} aria-selected={tab === 'pending'} onClick={() => setTab('pending')}>
           <Clock size={11} /> Mis evaluaciones
           {myReviews.length > 0 && ` (${myReviews.length})`}
         </button>
-        <button type="button" role="tab" aria-pressed={tab === 'plans'} onClick={() => setTab('plans')}>
+        <button type="button" role="tab" data-tab-id="plans" tabIndex={teclas.focusId === 'plans' ? 0 : -1} aria-selected={tab === 'plans'} onClick={() => setTab('plans')}>
           <MapIcon size={11} /> Mi plan
         </button>
         {isManager && (
-          <button type="button" role="tab" aria-pressed={tab === 'kpis'} onClick={() => setTab('kpis')}>
+          <button type="button" role="tab" data-tab-id="kpis" tabIndex={teclas.focusId === 'kpis' ? 0 : -1} aria-selected={tab === 'kpis'} onClick={() => setTab('kpis')}>
             <Activity size={11} /> Panel HR
           </button>
         )}

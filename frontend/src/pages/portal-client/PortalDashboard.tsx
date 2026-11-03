@@ -32,6 +32,7 @@ import {
   formatDuration, formatMoney,
 } from './PortalUI'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { localeActivo } from '../../utils/helpers'
 
 // PortalUI components have loosely-typed (`any`) props; re-alias as permissive
 // components so callers don't need to pass every inferred-required prop.
@@ -323,7 +324,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         icon={LayoutDashboard}
         meta={[
           project.code && { icon: <Pin size={12} />, value: project.code, color: 'var(--accent)' },
-          { icon: <CalendarDays size={12} />, value: today.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }) },
+          { icon: <CalendarDays size={12} />, value: today.toLocaleDateString(localeActivo(), { weekday: 'long', day: 'numeric', month: 'long' }) },
           remainingDays != null && remainingDays >= 0 && { icon: <Clock size={12} />, value: `${remainingDays} días restantes`, color: remainingDays < 14 ? 'var(--warning)' : 'var(--text-2)' },
           remainingDays != null && remainingDays < 0 && { icon: <AlertTriangle size={12} />, value: `${Math.abs(remainingDays)} días vencido`, color: 'var(--danger)' },
         ].filter(Boolean)}
@@ -408,7 +409,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
           tone={budgetPct > 90 ? 'danger' : budgetPct > 75 ? 'warning' : 'success'}
           label="Presupuesto"
           value={`${budgetPct}%`}
-          sub={kpis.budget_total ? `${(kpis.budget_spent || 0).toLocaleString('es-ES')}h / ${kpis.budget_total.toLocaleString('es-ES')}h` : 'Sin presupuesto'}
+          sub={kpis.budget_total ? `${(kpis.budget_spent || 0).toLocaleString(localeActivo())}h / ${kpis.budget_total.toLocaleString(localeActivo())}h` : 'Sin presupuesto'}
           footer={<PortalProgress value={budgetPct} />}
         />
         <PortalKpi

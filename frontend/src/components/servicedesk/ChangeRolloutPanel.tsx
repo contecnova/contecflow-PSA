@@ -17,6 +17,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { GitBranch, ChevronRight, CheckCircle, AlertTriangle, RotateCcw, Play, Plus } from 'lucide-react'
 import { Card, Button, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
+import { localeActivo } from '../../utils/helpers'
 
 // TODO type: changeRolloutApi rollout plan/phase payloads — needs shared types
 interface RolloutPhase {
@@ -383,7 +384,7 @@ export default function ChangeRolloutPanel() {
                     <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
                       <span>Fase {(plan.current_phase_index ?? 0) + (plan.status === 'completed' ? 0 : 1)} / {totalPhases || '—'}</span>
                       {plan.created_at && (
-                        <span>Creado {new Date(plan.created_at).toLocaleDateString()}</span>
+                        <span>Creado {new Date(plan.created_at).toLocaleDateString(localeActivo())}</span>
                       )}
                     </div>
                   </button>

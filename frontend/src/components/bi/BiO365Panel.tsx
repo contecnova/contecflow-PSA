@@ -9,6 +9,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useChartTheme } from '../../charts/useChartTheme'
 import { Cloud, RefreshCw, Settings } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { localeActivo } from '../../utils/helpers'
 
 const REPORTS = [
   { key: 'teams_activity',    label: 'Teams'      },
@@ -176,7 +177,7 @@ export default function BiO365Panel() {
               <div key={k} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6, textTransform: 'capitalize' }}>{k.replace(/_/g, ' ')}</div>
                 <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, color: 'var(--text-1)' }}>
-                  {typeof v === 'number' ? v.toLocaleString() : String(v ?? '—')}
+                  {typeof v === 'number' ? v.toLocaleString(localeActivo()) : String(v ?? '—')}
                 </div>
               </div>
             ))}
@@ -231,7 +232,7 @@ export default function BiO365Panel() {
           </div>
           {config?.last_sync_at && (
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
-              {t('bio365.ultimo_sync')} {new Date(config.last_sync_at).toLocaleString()}
+              {t('bio365.ultimo_sync')} {new Date(config.last_sync_at).toLocaleString(localeActivo())}
             </div>
           )}
         </div>

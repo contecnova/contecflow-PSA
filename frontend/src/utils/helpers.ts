@@ -21,6 +21,22 @@ export function idiomaActivo(): string {
   }
 }
 
+const _locales = new Map<string, string>()
+
+/**
+ * Locale para `Intl.*` y `toLocale*String`: el idioma activo, o el que se le
+ * pase. Un valor que el navegador no reconoce cae a castellano en vez de
+ * lanzar RangeError en mitad del render.
+ */
+export function localeActivo(lang: string = idiomaActivo()): string {
+  let l = _locales.get(lang)
+  if (l === undefined) {
+    try { l = Intl.getCanonicalLocales(lang)[0] ?? 'es' } catch { l = 'es' }
+    _locales.set(lang, l)
+  }
+  return l
+}
+
 const FORMATOS: Record<'date' | 'datetime' | 'month', Intl.DateTimeFormatOptions> = {
   date:     { day: '2-digit', month: '2-digit', year: 'numeric' },
   datetime: { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' },
@@ -57,13 +73,15 @@ export function getWeekStart(date: Date | string | number = new Date()): string 
 }
 
 // ── Number helpers ────────────────────────────────────────────────────────────
+// Separadores de miles y decimales del idioma activo; la moneda es la que se
+// pase, el idioma sólo cambia cómo se escribe.
 export const fmtCurrency = (n: Maybe<number>, currency?: string | null): string => {
-  if (!currency) return new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(n ?? 0)
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n ?? 0)
+  if (!currency) return new Intl.NumberFormat(localeActivo(), { maximumFractionDigits: 0 }).format(n ?? 0)
+  return new Intl.NumberFormat(localeActivo(), { style: 'currency', currency, maximumFractionDigits: 0 }).format(n ?? 0)
 }
 
 export const fmtNumber = (n: Maybe<number>, decimals = 1): string =>
-  (n ?? 0).toLocaleString('es-ES', { maximumFractionDigits: decimals })
+  (n ?? 0).toLocaleString(localeActivo(), { maximumFractionDigits: decimals })
 
 export const fmtHours = (h: Maybe<number>): string => `${fmtNumber(h ?? 0, 1)}h`
 

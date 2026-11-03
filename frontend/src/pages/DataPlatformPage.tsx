@@ -14,6 +14,7 @@ import useMediaQuery from '../hooks/useMediaQuery'
 import { biIntelligenceApi, biPlatformApi } from '../services/api'
 import BiEtlPanel from '../components/bi/BiEtlPanel'
 import BiO365Panel from '../components/bi/BiO365Panel'
+import { localeActivo } from '../utils/helpers'
 
 interface ConnectorCfg {
   enabled?: boolean
@@ -87,7 +88,7 @@ const S = {
   btnAccentOutline: (c: string = COLOR.accent) => ({ padding: '7px 14px', borderRadius: 8, border: `1px solid ${c}`, background: alpha(c, '18'), color: c, cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }),
 }
 
-const getLocale = (lang?: string) => (lang === 'en' ? 'en-US' : 'es-ES')
+const getLocale = (lang?: string) => localeActivo(lang)
 
 function SectionHeading({ title, description }: { title?: React.ReactNode; description?: React.ReactNode }) {
   return (

@@ -28,6 +28,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { Phone, Mic, StopCircle, Plus, ExternalLink, Edit2, Trash2 } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState, Modal } from '../ui'
 import { useToast } from '../../context/ToastContext'
+import { localeActivo } from '../../utils/helpers'
 
 // TODO type: voiceAgentApi payloads — needs shared types
 interface VoiceTurn {
@@ -285,7 +286,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
                   textAlign: align === 'flex-end' ? 'right' : 'left', marginBottom: 2,
                   textTransform: 'uppercase', letterSpacing: '0.05em',
                 }}>
-                  {turn.speaker} {turn.ts && `· ${new Date(turn.ts).toLocaleTimeString()}`}
+                  {turn.speaker} {turn.ts && `· ${new Date(turn.ts).toLocaleTimeString(localeActivo())}`}
                 </div>
                 <span style={{
                   display: 'inline-block',
@@ -600,8 +601,8 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
           {session.channel && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>· {session.channel}</span>}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
-          {session.created_at && <span><span style={{ color: 'var(--text-3)' }}>Inicio:</span> {new Date(session.created_at).toLocaleString()}</span>}
-          {session.closed_at && <span><span style={{ color: 'var(--text-3)' }}>Cierre:</span> {new Date(session.closed_at).toLocaleString()}</span>}
+          {session.created_at && <span><span style={{ color: 'var(--text-3)' }}>Inicio:</span> {new Date(session.created_at).toLocaleString(localeActivo())}</span>}
+          {session.closed_at && <span><span style={{ color: 'var(--text-3)' }}>Cierre:</span> {new Date(session.closed_at).toLocaleString(localeActivo())}</span>}
           {session.ticket_id && (
             <button
               type="button"
@@ -645,7 +646,7 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
                       textAlign: isUser ? 'right' : 'left', marginBottom: 2,
                       textTransform: 'uppercase', letterSpacing: '0.05em',
                     }}>
-                      {turn.speaker} {turn.ts && `· ${new Date(turn.ts).toLocaleTimeString()}`}
+                      {turn.speaker} {turn.ts && `· ${new Date(turn.ts).toLocaleTimeString(localeActivo())}`}
                     </div>
                     <span style={{
                       display: 'inline-block', fontSize: 'var(--text-xs)',
@@ -882,7 +883,7 @@ export default function VoiceAgentPanel() {
                     <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>· {s.channel}</span>
                     {s.created_at && (
                       <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-                        · {new Date(s.created_at).toLocaleString()}
+                        · {new Date(s.created_at).toLocaleString(localeActivo())}
                       </span>
                     )}
                     <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>

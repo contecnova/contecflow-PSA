@@ -15,7 +15,7 @@ import {
   ExternalLink, Key, Package,
 } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
-import { extractErr } from '../../utils/helpers'
+import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconCR } from '../../components/ui/FRCRIcons'
@@ -29,6 +29,7 @@ import {
 } from './PortalUI'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
+import { useTabListKeys } from '../../components/ui/Tabs'
 
 // ── Status helpers ───────────────────────────────────────────────────────────
 const STATUS_TONE: Record<string, string> = {
@@ -421,7 +422,7 @@ export function PortalFeatureRequests() {
                       </div>
                       <p style={{ fontSize: 'var(--text-sm)', margin: '0 0 8px' }}>{fr.pm_response}</p>
                       <div style={{ display: 'flex', gap: 14, fontSize: 'var(--text-xs)', flexWrap: 'wrap' }}>
-                        {fr.estimated_cost && <span style={{ color: 'var(--warning)', fontWeight: 700 }}>💶 {Number(fr.estimated_cost).toLocaleString('es-ES')}€</span>}
+                        {fr.estimated_cost && <span style={{ color: 'var(--warning)', fontWeight: 700 }}>💶 {Number(fr.estimated_cost).toLocaleString(localeActivo())}€</span>}
                         {fr.estimated_hours && <span style={{ color: 'var(--accent)' }}>⏱ {fr.estimated_hours}h</span>}
                         {fr.estimated_delivery_weeks && <span style={{ color: 'var(--text-2)' }}>📅 ~{fr.estimated_delivery_weeks} semanas</span>}
                       </div>
@@ -579,6 +580,7 @@ export function PortalMessages() {
     { id: 'chat', label: 'Chat unificado' },
     { id: 'governed', label: 'Solicitudes formales' },
   ]
+  const teclas = useTabListKeys(tabs.map(x => x.id), tab, setTab)
 
   return (
     <div>
@@ -588,9 +590,10 @@ export function PortalMessages() {
         icon={MessageSquare}
       />
 
-      <div role="tablist" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 16 }}>
+      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 16 }}>
         {tabs.map(tb => (
-          <button key={tb.id} role="tab" aria-selected={tab === tb.id}
+          <button key={tb.id} type="button" role="tab" data-tab-id={tb.id}
+            tabIndex={tb.id === teclas.focusId ? 0 : -1} aria-selected={tab === tb.id}
             onClick={() => setTab(tb.id)}
             style={{
               background: 'transparent', border: 'none',
@@ -627,7 +630,7 @@ export function PortalMessages() {
                 {messages.map((m: PortalRow) => (
                   <div key={m.id} style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-                      {m.author_name || (m.client_user_id === client?.id ? 'Tú' : 'Equipo')} · {new Date(m.sent_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                      {m.author_name || (m.client_user_id === client?.id ? 'Tú' : 'Equipo')} · {new Date(m.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}
                     </div>
                     <div style={{ fontSize: 'var(--text-sm)', whiteSpace: 'pre-wrap' }}>{m.body}</div>
                   </div>
@@ -1055,6 +1058,8 @@ export function PortalWiki() {
     { id: 'docs', label: 'Documentación' },
     { id: 'kb',   label: 'Base de conocimiento' },
   ]
+  // Antes del return del detalle: un hook no puede quedar detrás de un return.
+  const teclas = useTabListKeys(tabs.map(x => x.id), tab, id => { setTab(id); setSelected(null) })
 
   if (selected && pageDetail) {
     return (
@@ -1079,7 +1084,7 @@ export function PortalWiki() {
             })}
           </div>
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 20 }}>
-            {traducir('portaladvanced.ultima_actualizacion')} {pageDetail.updated_at ? new Date(pageDetail.updated_at).toLocaleDateString() : '—'}
+            {traducir('portaladvanced.ultima_actualizacion')} {pageDetail.updated_at ? new Date(pageDetail.updated_at).toLocaleDateString(localeActivo()) : '—'}
           </div>
         </PortalCard>
       </div>
@@ -1098,9 +1103,10 @@ export function PortalWiki() {
         ]}
       />
 
-      <div role="tablist" aria-label="Wiki" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 20 }}>
+      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label="Wiki" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 20 }}>
         {tabs.map(tb => (
-          <button key={tb.id} role="tab" aria-selected={tab === tb.id}
+          <button key={tb.id} type="button" role="tab" data-tab-id={tb.id}
+            tabIndex={tb.id === teclas.focusId ? 0 : -1} aria-selected={tab === tb.id}
             onClick={() => { setTab(tb.id); setSelected(null) }}
             style={{
               background: 'transparent', border: 'none',
@@ -1129,7 +1135,7 @@ export function PortalWiki() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 4 }}>{p.title}</div>
                       <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-                        {p.updated_at ? new Date(p.updated_at).toLocaleDateString() : '—'}
+                        {p.updated_at ? new Date(p.updated_at).toLocaleDateString(localeActivo()) : '—'}
                       </div>
                     </div>
                   </div>
