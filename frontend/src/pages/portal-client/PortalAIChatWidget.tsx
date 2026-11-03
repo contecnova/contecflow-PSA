@@ -278,7 +278,7 @@ export default function PortalAIChatWidget() {
         <button onClick={() => handleSend()} disabled={!input.trim() || sending}
           aria-label="Enviar"
           style={{
-            padding: '8px 12px', background: 'var(--accent)', color: '#fff',
+            padding: '8px 12px', background: 'var(--accent)', color: 'var(--on-accent)',
             border: 'none', borderRadius: 8, cursor: input.trim() && !sending ? 'pointer' : 'not-allowed',
             opacity: input.trim() && !sending ? 1 : 0.5,
             display: 'flex', alignItems: 'center', justifyContent: 'center',

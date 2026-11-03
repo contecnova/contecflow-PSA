@@ -9,6 +9,7 @@ import { useAppT } from '../i18n/AppLangContext'
  *   progress % outside bar · keyboard +/−/Esc
  */
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import { alpha } from '../constants/theme'
 
 type Zoom = 'day' | 'week' | 'month' | 'quarter'
 
@@ -524,7 +525,7 @@ export default function GanttChart({
                     <rect x={0} y={svgY} width={chartW} height={h} fill="transparent" />
                     <line x1={0} y1={svgY + h} x2={chartW} y2={svgY + h} stroke="color-mix(in srgb, var(--surface-4) 40%, transparent)" />
                     <rect x={mx - MS_R} y={my - MS_R} width={MS_R * 2} height={MS_R * 2}
-                      fill={barColor + '30'} stroke={barColor} strokeWidth={1.5}
+                      fill={alpha(barColor, '30')} stroke={barColor} strokeWidth={1.5}
                       transform={`rotate(45,${mx},${my})`} rx={1} style={{ cursor: 'pointer' }} />
                   </g>
                 )
@@ -567,14 +568,14 @@ export default function GanttChart({
 
                   {/* Main bar */}
                   <rect x={x1} y={bY} width={bW} height={bH} rx={4}
-                    fill={barColor + '28'} stroke={barColor} strokeWidth={isDragging ? 2 : 1}
+                    fill={alpha(barColor, '28')} stroke={barColor} strokeWidth={isDragging ? 2 : 1}
                     style={{ cursor: onTaskUpdate ? 'grab' : 'default', opacity: isDragging ? 0.65 : 1, filter: isDragging ? `drop-shadow(0 0 6px ${barColor})` : 'none' }}
                     onMouseDown={e => startDrag(e, item, 'move')} />
 
                   {/* Progress fill */}
                   {progress > 0 && (
                     <rect x={x1} y={bY} width={Math.max(bW * progress, 4)} height={bH} rx={4}
-                      fill={barColor + '80'} style={{ pointerEvents: 'none' }} />
+                      fill={alpha(barColor, '80')} style={{ pointerEvents: 'none' }} />
                   )}
 
                   {/* Text label */}
@@ -599,7 +600,7 @@ export default function GanttChart({
                   {/* Resize handle */}
                   {onTaskUpdate && (
                     <rect x={x1 + bW - 8} y={bY + 2} width={8} height={bH - 4} rx={2}
-                      fill={barColor + '55'} style={{ cursor: 'ew-resize' }}
+                      fill={alpha(barColor, '55')} style={{ cursor: 'ew-resize' }}
                       {...{ title: onDepCreate ? 'Redimensionar · Shift+drag = crear dependencia' : 'Redimensionar' } as object}
                       onMouseDown={e => { e.stopPropagation(); startDrag(e, item, 'resize') }} />
                   )}

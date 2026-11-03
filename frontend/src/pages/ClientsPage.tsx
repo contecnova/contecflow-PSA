@@ -70,6 +70,7 @@ import {
   ContractsTab,
   PortalConfigTab,
 } from './clients/ClientsPageTabs'
+import { alpha } from '../constants/theme'
 
 
 // ── Client shape (list item + hydrated detail) ───────────────────────────────
@@ -255,7 +256,7 @@ export default function ClientsPage(): JSX.Element {
               onMouseLeave={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-4)' } }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                 <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{c.name}</div>
-                <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: (STATUS_COLOR[c.status || ""] || 'var(--text-2)') + '20', color: STATUS_COLOR[c.status || ""] || 'var(--text-2)', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: alpha((STATUS_COLOR[c.status || ""] || 'var(--text-2)'), '20'), color: STATUS_COLOR[c.status || ""] || 'var(--text-2)', fontWeight: 700, whiteSpace: 'nowrap' }}>
                   {STATUS_LABEL[c.status || ""] || c.status}
                 </span>
               </div>
@@ -277,12 +278,12 @@ export default function ClientsPage(): JSX.Element {
               </div>
               {(sortedClients as Client[]).map(c => (
                 <button key={c.id} type="button" onClick={() => { setSelected(c); setActiveTab('contacts') }}
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '9px 12px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', cursor: 'pointer', background: selected?.id === c.id ? 'var(--accent-muted)' : 'transparent' }}
+                  style={{ display: 'grid', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '9px 12px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', cursor: 'pointer', background: selected?.id === c.id ? 'var(--accent-muted)' : 'transparent' }}
                   onMouseEnter={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'var(--surface-3)' }}
                   onMouseLeave={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'transparent' }}>
                   <div>
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-                    <span style={{ fontSize: "var(--text-3xs)", padding: '1px 5px', borderRadius: 10, background: (STATUS_COLOR[c.status || ""] || 'var(--text-2)') + '20', color: STATUS_COLOR[c.status || ""] || 'var(--text-2)', fontWeight: 700 }}>
+                    <span style={{ fontSize: "var(--text-3xs)", padding: '1px 5px', borderRadius: 10, background: alpha((STATUS_COLOR[c.status || ""] || 'var(--text-2)'), '20'), color: STATUS_COLOR[c.status || ""] || 'var(--text-2)', fontWeight: 700 }}>
                       {STATUS_LABEL[c.status || ""] || c.status}
                     </span>
                   </div>
@@ -324,11 +325,11 @@ export default function ClientsPage(): JSX.Element {
                       fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
                     ✏️ Editar
                   </button>
-                  <span style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 20, background: (STATUS_COLOR[detail?.status || ""] || 'var(--text-2)') + '20', color: STATUS_COLOR[detail?.status || ""] || 'var(--text-2)', fontWeight: 700 }}>
+                  <span style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 20, background: alpha((STATUS_COLOR[detail?.status || ""] || 'var(--text-2)'), '20'), color: STATUS_COLOR[detail?.status || ""] || 'var(--text-2)', fontWeight: 700 }}>
                     {STATUS_LABEL[detail?.status || ""] || detail?.status}
                   </span>
                   {detail?.portal_config?.sla_tier && (
-                    <span style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 20, background: (SLA_COLOR[detail.portal_config.sla_tier] || 'var(--text-2)') + '20', color: SLA_COLOR[detail.portal_config.sla_tier] || 'var(--text-2)', fontWeight: 700 }}>
+                    <span style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 20, background: alpha((SLA_COLOR[detail.portal_config.sla_tier] || 'var(--text-2)'), '20'), color: SLA_COLOR[detail.portal_config.sla_tier] || 'var(--text-2)', fontWeight: 700 }}>
                       ⭐ {detail.portal_config.sla_tier.toUpperCase()}
                     </span>
                   )}

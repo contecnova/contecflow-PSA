@@ -1,14 +1,52 @@
 import { format, formatDistanceToNow } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { es, enUS, zhCN } from 'date-fns/locale'
+import type { Locale } from 'date-fns'
 
 export type DateInput = Date | string | number | null | undefined
 export type Maybe<T> = T | null | undefined
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
-export const fmtDate     = (d: DateInput): string => d ? format(new Date(d), 'dd/MM/yyyy', { locale: es }) : '—'
-export const fmtDateTime = (d: DateInput): string => d ? format(new Date(d), 'dd/MM/yyyy HH:mm', { locale: es }) : '—'
-export const fmtRelative = (d: DateInput): string => d ? formatDistanceToNow(new Date(d), { addSuffix: true, locale: es }) : '—'
-export const fmtMonth    = (d: DateInput): string => d ? format(new Date(d), 'MMMM yyyy', { locale: es }) : '—'
+// Las fechas salen en el idioma activo de la interfaz (es, en, zh), con el
+// orden y los nombres que tocan en cada uno, y la zona horaria del navegador.
+
+/** La clave con la que AppLangProvider recuerda el idioma. */
+const CLAVE_IDIOMA = 'contecflow_operator_lang'
+
+/** Idioma activo leído sin hooks: sirve en formateadores y en boundaries. */
+export function idiomaActivo(): string {
+  try {
+    return localStorage.getItem(CLAVE_IDIOMA) || 'es'
+  } catch {
+    return 'es'   // almacenamiento bloqueado: castellano y seguir
+  }
+}
+
+const FORMATOS: Record<'date' | 'datetime' | 'month', Intl.DateTimeFormatOptions> = {
+  date:     { day: '2-digit', month: '2-digit', year: 'numeric' },
+  datetime: { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' },
+  month:    { month: 'long', year: 'numeric' },
+}
+const _formateadores = new Map<string, Intl.DateTimeFormat>()
+
+/** Intl.DateTimeFormat del idioma activo, uno por idioma y formato. */
+export function formateadorDeFecha(opciones: Intl.DateTimeFormatOptions, lang = idiomaActivo()): Intl.DateTimeFormat {
+  const clave = lang + JSON.stringify(opciones)
+  let f = _formateadores.get(clave)
+  if (!f) {
+    try { f = new Intl.DateTimeFormat(lang, opciones) } catch { f = new Intl.DateTimeFormat('es', opciones) }
+    _formateadores.set(clave, f)
+  }
+  return f
+}
+
+const LOCALES_DATE_FNS: Record<string, Locale> = { es, en: enUS, zh: zhCN }
+
+export const fmtDate     = (d: DateInput): string => d ? formateadorDeFecha(FORMATOS.date).format(new Date(d)) : '—'
+export const fmtDateTime = (d: DateInput): string => d ? formateadorDeFecha(FORMATOS.datetime).format(new Date(d)) : '—'
+export const fmtRelative = (d: DateInput): string => d
+  ? formatDistanceToNow(new Date(d), { addSuffix: true, locale: LOCALES_DATE_FNS[idiomaActivo()] ?? es })
+  : '—'
+export const fmtMonth    = (d: DateInput): string => d ? formateadorDeFecha(FORMATOS.month).format(new Date(d)) : '—'
 
 export function getWeekStart(date: Date | string | number = new Date()): string {
   const d = new Date(date)

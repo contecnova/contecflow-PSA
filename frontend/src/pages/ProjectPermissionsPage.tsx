@@ -11,6 +11,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ShieldCheck } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 type IdType = string | number
 
@@ -106,7 +107,7 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {LEVELS.map(l => (
               <button key={l.value} onClick={() => set('level')(l.value)}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, border: `1px solid ${form.level === l.value ? l.color + '50' : 'var(--surface-4)'}`, background: form.level === l.value ? l.color + '15' : 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, border: `1px solid ${form.level === l.value ? alpha(l.color, '50') : 'var(--surface-4)'}`, background: form.level === l.value ? alpha(l.color, '15') : 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: l.color, flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: "var(--text-base)", fontWeight: form.level === l.value ? 600 : 400, color: form.level === l.value ? l.color : 'var(--text-1)' }}>{l.label}</div>
@@ -238,7 +239,7 @@ export default function ProjectPermissionsPage() {
           {/* Resumen */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 20 }}>
             {LEVELS.map(l => (
-              <div key={l.value} style={{ background: 'var(--surface-2)', border: `1px solid ${byLevel[l.value]?.length > 0 ? l.color + '40' : 'var(--surface-4)'}`, borderRadius: 10, padding: '12px 14px' }}>
+              <div key={l.value} style={{ background: 'var(--surface-2)', border: `1px solid ${byLevel[l.value]?.length > 0 ? alpha(l.color, '40') : 'var(--surface-4)'}`, borderRadius: 10, padding: '12px 14px' }}>
                 <div style={{ fontSize: "var(--text-xl)", fontWeight: 700, color: l.color }}>{byLevel[l.value]?.length || 0}</div>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{l.label}</div>
               </div>
@@ -273,7 +274,7 @@ export default function ProjectPermissionsPage() {
                         </div>
                       </td>
                       <td style={{ padding: '10px 12px' }}>
-                        <span style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 6, background: (level?.color || 'var(--text-2)') + '20', color: level?.color || 'var(--text-2)', fontWeight: 500 }}>
+                        <span style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 6, background: alpha((level?.color || 'var(--text-2)'), '20'), color: level?.color || 'var(--text-2)', fontWeight: 500 }}>
                           {level?.label || perm.level}
                         </span>
                       </td>

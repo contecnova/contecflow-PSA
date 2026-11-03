@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { ROLE_LABELS, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 const ROLES = Object.entries(ROLE_LABELS).map(([v, l]) => ({ value: v, label: l }))
 
@@ -433,10 +434,10 @@ function SmartMatchTab() {
           <div>
             <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>{results.message}</div>
             {(results.candidates || []).map((c, i) => (
-              <div key={c.user_id} style={{ ...panelStyle, padding: '18px 22px', marginBottom: 12, border: `1px solid ${scoreColor(c.scores.overall)}30` }}>
+              <div key={c.user_id} style={{ ...panelStyle, padding: '18px 22px', marginBottom: 12, border: `1px solid ${alpha(scoreColor(c.scores.overall), '30')}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg,${scoreColor(c.scores.overall)}40,${scoreColor(c.scores.overall)}20)`, border: `1px solid ${scoreColor(c.scores.overall)}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg)", fontWeight: 800, color: scoreColor(c.scores.overall) }}>{i + 1}</div>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg,${alpha(scoreColor(c.scores.overall), '40')},${alpha(scoreColor(c.scores.overall), '20')})`, border: `1px solid ${alpha(scoreColor(c.scores.overall), '40')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg)", fontWeight: 800, color: scoreColor(c.scores.overall) }}>{i + 1}</div>
                     <div>
                       <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{c.user_name}</div>
                       <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{c.job_title || c.role} · {c.department || '—'}</div>
@@ -565,7 +566,7 @@ export default function ResourcesPage() {
                 {hasRole('admin', 'hr') && <SortableTH col="user.hourly_rate" sort={resSort} onSort={setResSort}>Tarifa/h</SortableTH>}
               </div>
               {sortedResources.map(r => (
-                <div key={r.user?.id} style={{ display: 'grid', gridTemplateColumns: hasRole('admin', 'hr') ? '2fr 1fr 1fr 1fr 1fr 1fr 80px' : '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '11px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', cursor: 'pointer' }}
+                <div key={r.user?.id} style={{ display: 'grid', gridTemplateColumns: hasRole('admin', 'hr') ? '2fr 1fr 1fr 1fr 1fr 1fr 80px' : '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '11px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', cursor: 'pointer' }}
                   onPointerEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onPointerLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

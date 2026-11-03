@@ -10,6 +10,7 @@ import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Card } from '../../components/ui'
 import { portalClientsApi, settingsApi } from '../../services/api'
+import { alpha } from '../../constants/theme'
 
 function Section({ icon, title, description, children }: { icon?: ReactNode; title?: ReactNode; description?: ReactNode; children?: ReactNode }) {
   return (
@@ -215,7 +216,7 @@ export function IdiomasSection() {
               const isModified = appEdits[appLang]?.[item.module]?.[item.key] !== undefined
               return (
                 <div key={item.full_key}
-                  style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr', gap: 8, padding: '6px 14px', borderBottom: '1px solid var(--surface-4)20', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', alignItems: 'center' }}>
+                  style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr', gap: 8, padding: '6px 14px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', alignItems: 'center' }}>
                   <div>
                     <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', display: 'block' }}>{item.module}</span>
                     <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: isModified ? 'var(--warning)' : 'var(--text-2)' }}>{item.key}</span>
@@ -324,7 +325,7 @@ export function IdiomasSection() {
                   ?? (PORTAL_TRANSLATIONS as any)[portalLang]?.[key] ?? ''
                 const isModified = portalEdits[key]?.[portalLang] !== undefined
                 return (
-                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', gap: 8, padding: '6px 14px', borderBottom: '1px solid var(--surface-4)20', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', alignItems: 'center' }}>
+                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', gap: 8, padding: '6px 14px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', alignItems: 'center' }}>
                     <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: isModified ? 'var(--warning)' : 'var(--text-2)' }}>{key}</span>
                     <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{base_es}</span>
                     <input
@@ -470,7 +471,7 @@ export function LogLevelSection() {
             {LEVELS.map(l => (
               <button key={l} onClick={() => handleSetBackend(l)}
                 style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${backendLevel === l ? LEVEL_COLORS[l] : 'var(--surface-4)'}`,
-                  background: backendLevel === l ? (LEVEL_COLORS[l] + '22') : 'var(--surface-3)',
+                  background: backendLevel === l ? (alpha(LEVEL_COLORS[l], '22')) : 'var(--surface-3)',
                   color: backendLevel === l ? LEVEL_COLORS[l] : 'var(--text-2)',
                   cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                 {l}
@@ -492,7 +493,7 @@ export function LogLevelSection() {
               <button key={l} onClick={() => handleSetFrontend(l.toLowerCase())}
                 style={{ padding: '6px 14px', borderRadius: 8,
                   border: `1px solid ${frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--surface-4)'}`,
-                  background: frontendLevel.toUpperCase() === l ? ((LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) + '22') : 'var(--surface-3)',
+                  background: frontendLevel.toUpperCase() === l ? (alpha((LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']), '22')) : 'var(--surface-3)',
                   color: frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--text-2)',
                   cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                 {l}

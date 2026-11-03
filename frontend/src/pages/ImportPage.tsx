@@ -223,7 +223,7 @@ function ImportTab() {
                     <table style={{borderCollapse:'collapse',fontSize: "var(--text-xs)"}}>
                       <thead><tr>{Object.keys((validation.preview ?? [])[0] || {}).map(k => <th key={k} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)',textAlign:'left',color:'var(--text-3)',whiteSpace:'nowrap'}}>{k}</th>)}</tr></thead>
                       <tbody>
-                        {(validation.preview ?? []).map((row,i) => <tr key={i}>{Object.values(row).map((v,j) => <td key={j} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)20',color:'var(--text-1)',whiteSpace:'nowrap'}}>{String(v).slice(0,30)}</td>)}</tr>)}
+                        {(validation.preview ?? []).map((row,i) => <tr key={i}>{Object.values(row).map((v,j) => <td key={j} style={{padding:'4px 8px',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)',color:'var(--text-1)',whiteSpace:'nowrap'}}>{String(v).slice(0,30)}</td>)}</tr>)}
                       </tbody>
                     </table>
                   </div>
@@ -260,7 +260,7 @@ function ImportTab() {
           <div style={{padding:'14px 18px',borderBottom:'1px solid var(--surface-4)',fontSize: "var(--text-base)",fontWeight:700}}>{t('import_data.import_history')}</div>
           {jobs.length === 0 ? <div style={{padding:'24px',textAlign:'center',color:'var(--text-3)',fontSize: "var(--text-base)"}}>{t('import_data.no_imports')}</div> : (
             jobs.slice(0,10).map(j => (
-              <div key={j.id} style={{display:'grid',gridTemplateColumns:'80px 1fr 80px 60px',gap:10,padding:'10px 18px',borderBottom:'1px solid var(--surface-4)20',alignItems:'center'}}>
+              <div key={j.id} style={{display:'grid',gridTemplateColumns:'80px 1fr 80px 60px',gap:10,padding:'10px 18px',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)',alignItems:'center'}}>
                 <span style={{fontSize: "var(--text-xs)",fontWeight:700,padding:'2px 6px',borderRadius:4,background:j.status==='completed'?'var(--success-bg)':j.status==='partial'?'var(--warning-bg)':'var(--danger-bg)',color:j.status==='completed'?'var(--success)':j.status==='partial'?'var(--warning)':'var(--danger)'}}>
                   {j.status}
                 </span>

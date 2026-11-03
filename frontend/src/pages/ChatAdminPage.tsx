@@ -201,7 +201,7 @@ function Btn({
   disabled?: boolean
 }) {
   const v: Record<ButtonVariant, CSSProperties> = {
-    primary: { background: 'var(--accent)', color: '#fff', border: '1px solid var(--accent)' },
+    primary: { background: 'var(--accent)', color: 'var(--on-accent)', border: '1px solid var(--accent)' },
     secondary: { background: 'var(--surface-3)', color: 'var(--text-1)', border: '1px solid var(--surface-4)' },
     danger: { background: 'rgba(239,68,68,0.12)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)' },
   }

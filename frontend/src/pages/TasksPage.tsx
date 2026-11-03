@@ -21,6 +21,7 @@ import { useAuth } from '../context/AuthContext'
 import _DocumentsPanel from '../components/DocumentsPanel'
 import _AIInlineEditor from '../components/AIInlineEditor'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 // Type-relaxed aliases for legacy JS-inferred components (runtime unchanged)
 const Badge: any = _Badge
@@ -351,11 +352,11 @@ function TaskDetailModal({ task, open, onClose }: { task: any; open: boolean; on
           {/* Status + Priority row */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
             <span style={{ fontSize: "var(--text-sm)", padding: '3px 12px', borderRadius: 20, fontWeight: 700,
-              background: STATUS_COLOR[task.status] + '20', color: STATUS_COLOR[task.status] }}>
+              background: alpha(STATUS_COLOR[task.status], '20'), color: STATUS_COLOR[task.status] }}>
               {STATUS_LABEL_MAP[task.status] || task.status}
             </span>
             <span style={{ fontSize: "var(--text-sm)", padding: '3px 12px', borderRadius: 20, fontWeight: 700,
-              background: PRIORITY_COLOR[task.priority] + '20', color: PRIORITY_COLOR[task.priority] }}>
+              background: alpha(PRIORITY_COLOR[task.priority], '20'), color: PRIORITY_COLOR[task.priority] }}>
               {(PRIORITY_LABELS as any)[task.priority] || task.priority}
             </span>
           </div>
@@ -1089,7 +1090,7 @@ export default function TasksPage() {
                     onKeyDown={e => onKeyboardActivate(e, () => setSelectedTask(t))}
                     role="button"
                     tabIndex={0}
-                    style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', cursor: 'pointer', alignItems: 'center', background: selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
+                    style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', cursor: 'pointer', alignItems: 'center', background: selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
                     onMouseEnter={e => { if (!selected.has(t.id)) e.currentTarget.style.background = 'var(--surface-3)' }}
                     onMouseLeave={e => { e.currentTarget.style.background = selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}>
                     <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
@@ -1173,7 +1174,7 @@ export default function TasksPage() {
                   onKeyDown={e => onKeyboardActivate(e, () => setSelectedTask(t))}
                   role="button"
                   tabIndex={0}
-                  style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 80px 100px 100px', gap: 16, padding: '14px 20px', borderBottom: '1px solid var(--surface-4)30', cursor: 'pointer', transition: 'background 0.1s', alignItems: 'center', background: selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
+                  style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 80px 100px 100px', gap: 16, padding: '14px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', cursor: 'pointer', transition: 'background 0.1s', alignItems: 'center', background: selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
                   onMouseEnter={e => { if (!selected.has(t.id)) e.currentTarget.style.background = 'var(--surface-3)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
                 >

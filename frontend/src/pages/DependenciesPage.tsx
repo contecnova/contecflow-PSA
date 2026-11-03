@@ -11,6 +11,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { GitMerge } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 type DependencyType = 'blocks' | 'blocked_by' | 'relates_to' | 'duplicates' | 'cloned_from'
 type TaskStatus = 'todo' | 'in_progress' | 'done' | 'blocked' | 'in_review' | string
@@ -118,8 +119,8 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dependency_type')(dt.value)}
                 style={{display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:8,
-                  border:`1px solid ${form.dependency_type===dt.value ? dt.color+'50' : 'var(--surface-4)'}`,
-                  background:form.dependency_type===dt.value ? dt.color+'15' : 'transparent',
+                  border:`1px solid ${form.dependency_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`,
+                  background:form.dependency_type===dt.value ? alpha(dt.color, '15') : 'transparent',
                   cursor:'pointer', fontFamily:'inherit', textAlign:'left'}}>
                 <div style={{width:10, height:10, borderRadius:'50%', background:dt.color, flexShrink:0}} />
                 <div style={{flex:1}}>
@@ -202,7 +203,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
               </div>
               <div>
                 <span style={{fontSize: "var(--text-2xs)", padding:'2px 6px', borderRadius:10,
-                  background:sc+'20', color:sc}}>{node.status}</span>
+                  background:alpha(sc, '20'), color:sc}}>{node.status}</span>
               </div>
               <div style={{display:'flex', flexDirection:'column', gap:4}}>
                 {outEdges.map(e => {
@@ -391,7 +392,7 @@ export default function DependenciesPage(): JSX.Element {
                           </td>
                           <td style={{padding:'10px 12px'}}>
                             <span style={{fontSize: "var(--text-xs)", padding:'3px 8px', borderRadius:20,
-                              background:(dt?.color||'var(--text-2)')+'20', color:dt?.color||'var(--text-2)', fontWeight:600}}>
+                              background:alpha((dt?.color||'var(--text-2)'), '20'), color:dt?.color||'var(--text-2)', fontWeight:600}}>
                               {dt?.label}
                             </span>
                           </td>

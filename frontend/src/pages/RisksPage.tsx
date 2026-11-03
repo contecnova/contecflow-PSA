@@ -11,6 +11,7 @@ import { AlertTriangle } from 'lucide-react'
 import { fmtCurrency, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 type RiskLevel = 'critical' | 'high' | 'medium' | 'low' | string
 type RiskStatus = 'identified' | 'analyzing' | 'mitigating' | 'monitoring' | 'closed' | 'materialized' | string
@@ -177,7 +178,7 @@ function RiskMatrix({ risks }: { risks: RiskItem[] }) {
                 const cr = cellRisks(prob, imp)
                 return (
                   <td key={prob} style={{ padding: 4 }}>
-                    <div style={{ width: 82, height: 52, borderRadius: 6, background: color + '20', border: `1px solid ${color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+                    <div style={{ width: 82, height: 52, borderRadius: 6, background: alpha(color, '20'), border: `1px solid ${alpha(color, '40')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
                       {cr.length > 0 && (
                         <>
                           <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color, fontFamily: 'var(--font-mono)' }}>{cr.length}</div>
@@ -432,7 +433,7 @@ export default function RisksPage() {
           {sortedRisks.map((r: RiskItem) => {
             const lvl = (r.risk_level && LEVEL_CFG[r.risk_level]) || LEVEL_CFG.low
             return (
-              <div key={r.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${lvl.color}30`, borderRadius: 12 }}>
+              <div key={r.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${alpha(lvl.color, '30')}`, borderRadius: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: lvl.color, marginTop: 4, flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
@@ -443,7 +444,7 @@ export default function RisksPage() {
                         {r.project_name && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8 }}>· {r.project_name}</span>}
                       </div>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: lvl.bg, color: lvl.color, border: `1px solid ${lvl.color}40` }}>{lvl.label}</span>
+                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: lvl.bg, color: lvl.color, border: `1px solid ${alpha(lvl.color, '40')}` }}>{lvl.label}</span>
                         <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{r.status_label}</span>
                         <button onClick={() => setEditing(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
                         <button onClick={() => { openConfirmGlobal({ message: t('risks.delete_confirm'), onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id }), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
@@ -473,7 +474,7 @@ export default function RisksPage() {
             {sortedRisks.map((r: RiskItem) => {
               const lvl = (r.risk_level && LEVEL_CFG[r.risk_level]) || LEVEL_CFG.low
               return (
-                <div key={r.id} style={{ padding: '14px 16px', background: 'var(--surface-2)', border: `1px solid ${lvl.color}30`, borderRadius: 12 }}>
+                <div key={r.id} style={{ padding: '14px 16px', background: 'var(--surface-2)', border: `1px solid ${alpha(lvl.color, '30')}`, borderRadius: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ width: 10, height: 10, borderRadius: '50%', background: lvl.color, flexShrink: 0 }} />

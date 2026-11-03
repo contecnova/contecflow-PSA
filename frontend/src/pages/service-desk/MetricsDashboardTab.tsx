@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { sdMetricsApi } from '../../services/api'
 import { Spinner, useSort, SortableTH } from '../../components/ui'
-import { COLOR } from '../../constants/theme'
+import { COLOR, alpha } from '../../constants/theme'
 import PageShell from '../../components/layout/PageShell'
 import { useAppLang } from '../../i18n/AppLangContext'
 
@@ -43,7 +43,7 @@ const S: Record<string, CSSProperties> = {
 
 const PRIORITY_META: Record<string, { label: string; color: string; bg: string }> = {
   p1_critical: { label: 'P1 Crítico',  color: COLOR.danger,  bg: COLOR.dangerBg },
-  p2_high:     { label: 'P2 Alto',     color: 'var(--orange)',     bg: 'rgba(251,146,60,0.08)' },
+  p2_high:     { label: 'P2 Alto',     color: COLOR.orange,  bg: 'var(--orange-bg)' },
   p3_medium:   { label: 'P3 Medio',    color: COLOR.warning, bg: COLOR.warningBg },
   p4_low:      { label: 'P4 Bajo',     color: COLOR.text2,   bg: 'transparent' },
 }
@@ -81,7 +81,7 @@ function KpiCard({ label, value, sub, color, icon, accentBar }: { label?: ReactN
           {icon && (
             <span style={{
               fontSize: "var(--text-lg-em)",
-              background: `${bar}18`,
+              background: alpha(bar, '18'),
               borderRadius: 8,
               padding: '5px 7px',
               lineHeight: 1,
@@ -221,8 +221,8 @@ function AgentAvatar({ name }: { name?: string }) {
       width: 32,
       height: 32,
       borderRadius: '50%',
-      background: `${colors[idx]}22`,
-      border: `1.5px solid ${colors[idx]}44`,
+      background: alpha(colors[idx], '22'),
+      border: `1.5px solid ${alpha(colors[idx], '44')}`,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -596,7 +596,7 @@ export default function MetricsDashboardTab() {
                     key={a.agent_id}
                     style={{
                       borderBottom: '1px solid var(--surface-4)',
-                      background: idx % 2 === 0 ? 'transparent' : 'var(--surface-3)08',
+                      background: idx % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--surface-3) 3%, transparent)',
                     }}
                   >
                     <td style={{ padding: '12px 16px' }}>

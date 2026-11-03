@@ -14,6 +14,7 @@ import {
   AlertTriangle, CheckCircle, Clock,
   DollarSign, BarChart2, Calendar
 } from 'lucide-react';
+import { alpha } from '../constants/theme'
 
 type PortfolioStatus = 'planning' | 'active' | 'archived' | string
 type RagLevel = 'green' | 'yellow' | 'red' | 'grey' | string
@@ -91,7 +92,7 @@ function RagPill({ rag }: { rag: RagLevel }) {
   const r = RAG[rag] || RAG.grey;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4,
-      background: r.color + '22', color: r.color,
+      background: alpha(r.color, '22'), color: r.color,
       borderRadius: 20, padding: '3px 10px', fontSize: "var(--text-xs)", fontWeight: 600 }}>
       <r.Icon size={11} />
       {r.label}
@@ -140,7 +141,7 @@ function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem 
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }}>Cancelar</button>
-          <button onClick={() => onSave(form)} disabled={!form.name} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+          <button onClick={() => onSave(form)} disabled={!form.name} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', cursor: 'pointer', fontWeight: 600 }}>
             {initial ? 'Guardar' : 'Crear cartera'}
           </button>
         </div>
@@ -231,7 +232,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <button onClick={() => setShowAddProject(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: '1px solid var(--accent)', background: 'var(--accent)15', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-base)", fontWeight: 600 }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: '1px solid var(--accent)', background: 'color-mix(in srgb, var(--accent) 8%, transparent)', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-base)", fontWeight: 600 }}>
                 <Plus size={13} /> {t('portfolio.anadir_proyecto')}
               </button>
               <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}><X size={18} /></button>
@@ -394,7 +395,7 @@ export default function PortfolioPage() {
           </div>
         </div>
         <button onClick={() => setShowCreate(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', background: 'var(--accent)', border: 'none', borderRadius: 9, color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: "var(--text-base)" }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', background: 'var(--accent)', border: 'none', borderRadius: 9, color: 'var(--on-accent)', cursor: 'pointer', fontWeight: 600, fontSize: "var(--text-base)" }}>
           <Plus size={14} /> {t('portfolio.new_portfolio')}
         </button>
       </div>
@@ -416,7 +417,7 @@ export default function PortfolioPage() {
               cursor: 'pointer', transition: 'box-shadow 0.2s, transform 0.15s',
               border: '1px solid transparent',
             }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.2)'; e.currentTarget.style.borderColor = 'var(--accent)30'; }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.2)'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--accent) 19%, transparent)'; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'transparent'; }}
               onClick={() => setSelectedId(p.id)}
               role="button"

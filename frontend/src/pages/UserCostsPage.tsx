@@ -18,6 +18,7 @@ import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { Wallet, Globe, History, Plus } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 // Loosely-typed alias: Input infers its props as required.
 const Input = InputRaw as unknown as (props: Record<string, unknown>) => JSX.Element
@@ -305,7 +306,7 @@ function SourceBadge({ source }: { source?: string }) {
   const cfg = cfgMap[source || ''] || { label: source, color: 'var(--text-3)' }
   return (
     <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 10,
-                   border: `1px solid ${cfg.color}55`, color: cfg.color, background: `${cfg.color}11` }}>
+                   border: `1px solid ${alpha(cfg.color, '55')}`, color: cfg.color, background: alpha(cfg.color, '11') }}>
       {cfg.label}
     </span>
   )

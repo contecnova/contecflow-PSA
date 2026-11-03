@@ -15,6 +15,7 @@ import {
   Bot, FileStack, Plus, Zap, Pause, Play, Settings as SettingsIcon, Search,
 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 
 
@@ -680,7 +681,7 @@ function WorkflowsTab() {
                   <div>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4 }}>
                       <span style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{highlightText(wf.name, searchTerm)}</span>
-                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color }}>{t('automations.status_' + wf.status, cfg.label)}</span>
+                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color }}>{t('automations.status_' + wf.status, cfg.label)}</span>
                       {wf.is_global && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', background: 'var(--purple-bg)', color: 'var(--purple)', borderRadius: 4 }}>GLOBAL</span>}
                     </div>
                     {wf.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{highlightText(wf.description, searchTerm)}</div>}
@@ -908,7 +909,7 @@ export default function AutomationsPage(): JSX.Element {
             <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--success)', marginBottom: 12 }}>✓ {t('automations.test_rule_success')}</div>
             <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: 14 }}>
               {(testResult.results || []).map((r: any, i: number) => (
-                <div key={i} style={{ fontSize: "var(--text-sm)", padding: '4px 0', borderBottom: '1px solid var(--surface-4)30', color: r.ok ? 'var(--success)' : 'var(--danger)' }}>
+                <div key={i} style={{ fontSize: "var(--text-sm)", padding: '4px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', color: r.ok ? 'var(--success)' : 'var(--danger)' }}>
                   {r.ok ? '✓' : '✗'} {r.action}: {r.ok ? t('automations.executed') : r.error}
                 </div>
               ))}
@@ -940,7 +941,7 @@ export default function AutomationsPage(): JSX.Element {
                     })}
                   </div>
                   <button aria-label={t('automations.use_template_aria', { name: tpl.name })} onClick={() => createFromTemplate(tpl)}
-                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '6px 14px', color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600, width: '100%' }}>
+                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '6px 14px', color: 'var(--on-accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600, width: '100%' }}>
                     {t('automations.use_template_btn')}
                   </button>
                 </div>

@@ -13,6 +13,7 @@ import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { DEFAULT_PAGE_SIZE } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 type NotificationType = string
 
@@ -93,16 +94,16 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
       <button type="button" onClick={() => onMarkRead(notif.id)}
         style={{ display:'flex', gap:12, padding:'12px 16px',
           background: 'var(--surface-2)',
-          border:`1px solid ${cfg.color + '25'}`,
+          border:`1px solid ${alpha(cfg.color, '25')}`,
           borderRadius:10, cursor:'pointer',
           transition:'all .15s', marginBottom:4, width:'100%', textAlign:'left', fontFamily:'inherit' }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = cfg.color + '50' }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = cfg.color + '25' }}>
+        onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(cfg.color, '50') }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = alpha(cfg.color, '25') }}>
         <div style={{ width:8, height:8, borderRadius:'50%',
           background: cfg.color,
           flexShrink:0, marginTop:8, alignSelf:'flex-start' }} />
         <div style={{ width:36, height:36, borderRadius:10, flexShrink:0,
-          background:`${cfg.color}20`, border:`1px solid ${cfg.color}30`,
+          background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}`,
           display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)" }}>
           {cfg.icon}
         </div>
@@ -125,7 +126,7 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
     <div
       style={{ display:'flex', gap:12, padding:'12px 16px',
         background: isUnread ? 'var(--surface-2)' : 'transparent',
-        border:`1px solid ${isUnread ? cfg.color + '25' : 'transparent'}`,
+        border:`1px solid ${isUnread ? alpha(cfg.color, '25') : 'transparent'}`,
         borderRadius:10, cursor: isUnread ? 'pointer' : 'default',
         transition:'all .15s', marginBottom:4 }}
       >
@@ -135,7 +136,7 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
         flexShrink:0, marginTop:8, alignSelf:'flex-start' }} />
       {/* Icono tipo */}
       <div style={{ width:36, height:36, borderRadius:10, flexShrink:0,
-        background:`${cfg.color}20`, border:`1px solid ${cfg.color}30`,
+        background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}`,
         display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)" }}>
         {cfg.icon}
       </div>

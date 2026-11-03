@@ -351,7 +351,7 @@ function BiPresetsTab() {
         </div>
         <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
           <button onClick={runPreview}
-            style={{ padding: '7px 16px', borderRadius: 8, background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }}>
             Vista previa
           </button>
           <button onClick={exportJson}

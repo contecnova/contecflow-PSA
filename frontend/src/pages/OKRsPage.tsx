@@ -13,6 +13,7 @@ import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { LARGE_PAGE_SIZE } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 type PeriodOpt = 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'H1' | 'H2' | 'annual' | ''
 type OkrStatus = 'draft' | 'active' | 'completed' | 'cancelled' | string
@@ -171,7 +172,7 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
   const color = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : pct >= 30 ? 'var(--warning)' : 'var(--danger)'
 
   return (
-    <div style={{ background:'var(--surface-2)', border:`1px solid ${color}25`,
+    <div style={{ background:'var(--surface-2)', border:`1px solid ${alpha(color, '25')}`,
       borderRadius:12, padding:'14px 16px', marginBottom:12 }}>
       <div style={{ display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={() => setExpanded(s => !s)}

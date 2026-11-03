@@ -11,8 +11,8 @@ mismo comportamiento.
   tamaño salen de ejecutar algo contra el repositorio ese día. Cuando el código
   cambie, se vuelven a medir; no se copian de aquí.
 - **Cómo leerla:** cada apartado dice qué hay y cómo usarlo. El apartado 15
-  reúne lo que contecflow hace mal y **no se debe copiar**, con el arreglo
-  propuesto y medido.
+  reúne los defectos que tenía contecflow, los que ya están arreglados (con la
+  medida nueva) y los que quedan y **no se deben copiar**.
 - **La guía corta** de los componentes sigue en
   `frontend/src/components/ui/DESIGN_SYSTEM.md`. Esta la amplía y la corrige
   donde no coincide con el código.
@@ -81,10 +81,15 @@ se reservan para lo que flota (modales, menús, avisos).
 | `--accent-muted` | `rgba(79,142,247,.08)` | Fondo de lo seleccionado, botón `subtle` |
 | `--accent-glow` | `rgba(79,142,247,.15)` | Halo |
 | `--accent-border-soft` / `--accent-border` / `--accent-border-strong` | 20 % / 30 % / 40 % | Bordes con acento |
+| `--on-accent` | `var(--surface-0)` en los temas oscuros, `#ffffff` en el claro | **Texto sobre el acento**: botón principal, contador de la pestaña activa, `.ds-segmented` activo. Nunca `#fff` a mano |
 
-Cada usuario puede cambiar el acento en su perfil. La aplicación sobreescribe
-`--accent`, `--accent-muted` y `--accent-glow` en `<html>`. Por eso **todo lo
-que use el acento tiene que leer la variable**, nunca su valor.
+Cada usuario puede cambiar el acento en su perfil. `applyAccent()`
+(`src/utils/appearance.ts`) sobreescribe `--accent`, `--accent-muted`,
+`--accent-glow` y `--on-accent` en `<html>`; para `--on-accent` elige, entre
+blanco y negro (`--on-accent-light` / `--on-accent-dark`), el que más contrasta
+con el color elegido, y con esos dos extremos el peor caso posible es 4,58:1.
+Por eso **todo lo que use el acento tiene que leer la variable**, nunca su
+valor.
 
 ### 2.4 Semánticos
 
@@ -101,8 +106,14 @@ borde al 20 % (`-border`).
 | `--orange` | `#fb923c` | Severidad alta (P2), distinta del aviso |
 | `--coral` | `#f43f5e` | Sólo para el selector de color |
 
+El tema claro oscurece éxito (`#15803d`), aviso (`#b45309`) y naranja
+(`#c2410c`) para que se lean como texto sobre blanco (5,0:1 o más).
+
 **El patrón de una etiqueta de estado:** texto en el color, fondo `-bg` y
-borde `-border`. Es lo que hacen `StatusBadge` y `.ds-pill--*`.
+borde `-border`. Es lo que hacen `StatusBadge` y `.ds-pill--*`. Si hace falta
+otra opacidad, `alpha(color, '20')` de `constants/theme`, que da
+`color-mix(in srgb, var(--x) 13%, transparent)`: pegar `'20'` a un `var()` da
+CSS inválido y el navegador descarta la propiedad entera.
 
 ### 2.5 Colores en JavaScript
 
@@ -116,8 +127,9 @@ Para ellas existen:
   violeta, turquesa, rojo, naranja, rosa, lima, cielo. `CHART_COLORS_EXTENDED`
   la alarga a 12.
 
-`COLOR.*` (en `theme.ts`) son literales del tema oscuro y **no siguen al tema
-activo** (véase el apartado 15).
+`COLOR.*` (en `theme.ts`) valen `var(--token)`: siguen al tema activo y al
+acento del perfil, y sirven en `style` y en `fill`/`stroke` de SVG. En canvas,
+donde `var()` no se resuelve, `getCSSVar()`.
 
 ---
 
@@ -140,22 +152,29 @@ Un tema nuevo sólo redefine tokens: superficies, texto, acento, semánticos,
 
 ### 3.1 Contraste medido por tema
 
-Medido con la fórmula WCAG 2.x sobre `--surface-2` (tarjetas). AA pide 4,5:1
-para texto normal.
+Medido el 02-11-2026 con la fórmula WCAG 2.x sobre `--surface-2` (tarjetas),
+leyendo los valores de `index.css`. AA pide 4,5:1 para texto normal.
 
-| Tema | text-1 | text-2 | text-3 | accent | success | warning | danger |
-|---|---|---|---|---|---|---|---|
-| dark (`:root`) | 16,1 | 8,8 | 5,0 | 5,5 | 9,2 | 8,3 | 6,4 |
-| freight | 14,2 | 9,4 | 5,4 | 6,7 | 7,1 | 7,0 | 5,1 |
-| light | 17,9 | 7,6 | **2,6** | 5,2 | **3,3** | **3,2** | 4,8 |
-| high-contrast | 18,9 | 15,0 | 8,1 | 7,4 | 10,8 | 11,3 | 6,8 |
-| midnight | 16,7 | 6,0 | **2,3** | 6,9 | 10,0 | 8,9 | 6,9 |
-| slate | 13,7 | **4,3** | **2,0** | 5,2 | 8,4 | 7,5 | 5,9 |
+| Tema | text-1 | text-2 | text-3 | accent | success | warning | danger | orange | `--on-accent` sobre el acento |
+|---|---|---|---|---|---|---|---|---|---|
+| dark (`:root`) | 16,13 | 8,85 | 5,00 | 5,53 | 9,23 | 8,26 | 6,41 | 7,84 | 6,10 (`#080c14`) |
+| freight | 14,24 | 9,40 | 5,41 | 6,72 | 7,09 | 6,99 | 5,10 | 7,04 | 8,29 (`#0a0b0f`) |
+| light | 17,85 | 7,58 | 5,02 | 5,17 | 5,02 | 5,02 | 4,83 | 5,18 | 5,17 (`#ffffff`) |
+| high-contrast | 18,88 | 14,99 | 8,13 | 7,43 | 10,84 | 11,31 | 6,83 | 8,34 | 8,26 (`#000000`) |
+| midnight | 16,71 | 5,95 | 5,39 | 6,86 | 9,95 | 8,91 | 6,92 | 8,46 | 7,35 (`#02040a`) |
+| slate | 13,70 | 6,64 | 5,26 | 5,22 | 8,42 | 7,54 | 5,85 | 7,15 | 6,11 (`#0d1117`) |
 
-Texto blanco del botón principal sobre el acento: dark 3,21 · freight **2,37** ·
-light 5,17 · high-contrast **2,54** · midnight 2,79 · slate 3,10. Sólo el tema
-claro llega a AA. Los valores en negrita no llegan a AA. Los arreglos están en
-el apartado 15.
+`system` escribe `dark` o `light`, así que hereda sus filas. Todo pasa AA sobre
+las tarjetas. El script recorrió 246 pares (10 colores × 4 superficies × 6
+temas, más el texto del botón en cada tema). Mirando el peor fondo de los
+cuatro (`surface-0` a `surface-3`) quedan dos por debajo, que este arreglo no
+tocó: `--danger` en freight sobre `surface-3` (4,36) y en el claro sobre
+`surface-1` (4,41).
+
+**Con el acento del perfil** (que es lo que ve quien ha iniciado sesión), el
+texto del botón sale de `applyAccent()`: Índigo `#4f8ef7` 6,54 · Violeta 7,72 ·
+Teal 6,20 · Azul 8,26 · Rosa 5,72 · Ámbar 9,78 · Verde 10,92 · Coral 9,28. Antes,
+en blanco, iban de 1,92 a 3,67.
 
 ---
 
@@ -220,6 +239,18 @@ de relleno de modal.
 **Página:** `--page-pad-x` y `--page-pad-y` (32 px) y `--page-max-w` (1400 px).
 Los aplica `PageShell`.
 
+**Densidad del perfil:** `applyDensity()` escribe `data-density` en `<html>`
+(un solo sitio) y `index.css` mueve los tokens:
+
+| Densidad | `--text-xs` | `--text-sm` | `--text-base` | `--text-md` | Relleno de página |
+|---|---|---|---|---|---|
+| `compact` | 10 | 11 | 12 | 13 | 24 |
+| `normal` | 11 | 12 | 13 | 14 | 32 |
+| `comfortable` | 12 | 13 | 14 | 15 | 40 |
+
+Cambia todo lo que lee esos tokens (unos 4.500 usos de `--text-xs/sm/base/md`).
+Un `fontSize` escrito como número en un estilo en línea no se entera.
+
 **Radios:** `--radius-sm` 6 (chips, botón pequeño) · `--radius-md` 10 (botón y
 campo) · `--radius-lg` 14 (tarjeta) · `--radius-xl` 18 (modal) ·
 `--radius-full` (píldora, punto).
@@ -247,7 +278,7 @@ No hay `--shadow-xl`. El modal usa `0 24px 64px rgba(0,0,0,.7)`.
 
 ## 6. Movimiento
 
-- Curva por defecto en todo: `cubic-bezier(0.4, 0, 0.2, 1)`.
+- Curva por defecto en todo: `--easing`, `cubic-bezier(0.4, 0, 0.2, 1)`.
 - Duraciones: 0,15 s para hover y bordes; 0,2 s para la entrada del modal
   (`fadeUp`); 0,25 s para avisos y para la barra lateral móvil.
 - Pulsar un botón lo escala a 0,97.
@@ -284,7 +315,7 @@ Se importan de `src/components/ui`. Entre paréntesis, en cuántos ficheros
 
 ### 8.1 Button (107 ficheros, 708 usos)
 
-- **Variantes:** `primary` (acento con texto blanco) · `secondary` (`surface-3`
+- **Variantes:** `primary` (acento con texto `--on-accent`) · `secondary` (`surface-3`
   con borde) · `danger` (fondo y borde de error) · `ghost` (transparente con
   borde de acento) · `subtle` (`accent-muted`).
 - **Tamaños:** `xs` 11 px · `sm` 12 px · `md` 13 px (por defecto) · `lg` 14 px.
@@ -314,7 +345,10 @@ Se importan de `src/components/ui`. Entre paréntesis, en cuántos ficheros
   usos antiguos en 3 ficheros).
 - **Avisos:** `useToast()` con `success`, `error`, `warning` o `info`. Salen
   abajo a la derecha sobre `surface-1`, con un borde izquierdo del color del
-  tipo, y se cierran solos a los 4 segundos.
+  tipo y fondo y borde de los tokens `-bg`/`-border`, y se cierran solos a los
+  4 segundos (6 los errores). El contenedor es una región viva
+  (`role="status" aria-live="polite"`), cada error lleva `role="alert"` y el
+  botón de cerrar, `aria-label` traducido (`toast.close`).
 - **Error del servidor:** `toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))`.
   Se muestra el mensaje del servidor, porque dice qué ha pasado de verdad.
 
@@ -361,8 +395,10 @@ búsqueda en el servidor.
 ### 8.8 Pestañas
 
 `<Tabs items active onChange variant="pill|underline" size>`. Cada pestaña
-admite contador e icono. Marca la activa con `aria-pressed`, no con el patrón
-ARIA de pestañas (véase el apartado 15).
+admite contador e icono. Sigue el patrón ARIA: `role="tablist"` y `role="tab"`,
+`aria-selected` en la activa, que es la única en el orden de Tab; las flechas,
+Inicio y Fin mueven el foco y seleccionan, saltando las deshabilitadas.
+`PortalTabs` usa el mismo teclado (`useTabListKeys`).
 
 ---
 
@@ -419,7 +455,9 @@ En una solución nueva, esos dos objetos son las clases `.ds-input` y
 - Mayúscula sólo al principio de la frase, en títulos y botones también.
 - Los botones son verbos: Guardar, Declarar, Añadir. El de crear lleva «+».
 - **Fechas y números:** siempre con un formateador, nunca la cadena ISO cruda.
-  El de contecflow (`fmtDate`) tiene un defecto (apartado 15).
+  `fmtDate`, `fmtDateTime` y `fmtMonth` usan `Intl.DateTimeFormat` en el idioma
+  activo: el 2 de noviembre de 2026 sale `02/11/2026` en español,
+  `11/02/2026` en inglés y `2026/11/02` en chino.
 
 ---
 
@@ -450,17 +488,21 @@ En una solución nueva, esos dos objetos son las clases `.ds-input` y
 
 **Lo que está bien:**
 
-- texto principal y secundario por encima de AA en los temas oscuros;
+- todo el texto por encima de AA en los seis temas, también el del botón
+  principal (apartado 3.1);
 - `prefers-reduced-motion` respetado;
 - enlace «saltar al contenido» (`.skip-nav`);
 - modal con trampa de foco;
 - botones con `aria-busy` y `aria-disabled`;
-- campos con foco visible (contorno de 2 px en acento);
+- foco visible con teclado en todo lo enfocable (`:focus-visible`, contorno
+  de 2 px en el acento), sin anillo al hacer clic;
+- pestañas con el patrón ARIA y flechas;
+- avisos emergentes anunciados (`aria-live`, `role="alert"` para errores);
 - 450 `aria-label` en 100 ficheros;
 - `jsx-a11y` activo en ESLint;
 - un tema de alto contraste.
 
-**Lo que falta** está en el apartado 15. La auditoría completa es
+**Lo que queda** está en el apartado 15. La auditoría completa es
 `docs/A11Y_WCAG_AUDIT.md`.
 
 ---
@@ -481,50 +523,65 @@ convertir 11.500 estilos en línea después cuesta mucho más que no escribirlos
 
 ---
 
-## 15. Lo que no se debe copiar
+## 15. Defectos: arreglados y lo que no se debe copiar
 
-Medido el 02-11-2026. Cada fila dice qué pasa, cuánto y qué hacer en una
-solución nueva.
+Medido el 02-11-2026. Los puntos 1 a 8, 10 a 12 y 16 eran defectos de
+contecflow y **están arreglados** en contecflow; se dejan aquí con la medida de
+antes y la de después, porque una solución nueva que copie código antiguo los
+puede traer de vuelta. El 9 se corrigió en la guía corta. Los puntos 13, 14,
+15 y 17 siguen en contecflow: **no se deben copiar**.
+
+### Arreglados
+
+| # | Qué pasaba | Antes | Ahora |
+|---|---|---|---|
+| 1 | El texto blanco del botón principal no llegaba a AA | 2,37:1 en `freight`, 2,54:1 en alto contraste; sólo el claro pasaba (5,17) | Token `--on-accent`: 6,10–8,29:1 en los temas oscuros, 5,17 en el claro; con el acento del perfil, 5,72–10,92 (apartado 3.1). Lo usan `Button`, `.btn-primary` (ya sin el degradado a `#6366f1`), `.skip-nav`, `.ds-segmented`, el contador de `Tabs` y 38 botones en línea con fondo de acento |
+| 2 | `--text-3` no llegaba a AA en tres temas, ni `--text-2` en slate | text-3: light 2,56 · midnight 2,34 · slate 1,95; text-2 slate 4,34 | light `#617089` 5,02 (4,58 sobre `surface-1`) · midnight `#7689a8` 5,39 · slate `#8b949e` 5,26; text-2 slate `#9da7b3` 6,64 |
+| 3 | En el tema claro, éxito y aviso no llegaban a AA como texto | 3,30 y 3,19 | `#15803d` y `#b45309`: 5,02 cada uno. También el naranja (P2), que estaba a 2,26: `#c2410c`, 5,18 |
+| 4 | Se quitaba el foco a botones, enlaces y pestañas (`outline: 0 !important`) | 9 supresiones en `index.css`, 5 con `!important`; sin anillo con teclado | Un `:focus-visible` con contorno de 2 px en el acento y `!important`, que gana a las 3 reglas `outline: none` que quedan en `index.css` y a los 250 `outline: 'none'` en línea. Con ratón no sale |
+| 5 | Las pestañas no seguían el patrón ARIA | `role="group"` y `aria-pressed` | `role="tablist"`/`tab`, `aria-selected`, una sola en el orden de Tab y flechas, Inicio y Fin, en `Tabs` y `PortalTabs` |
+| 6 | Los avisos emergentes no se anunciaban | Sin `aria-live` ni `role`; cerrar sin nombre | Contenedor `role="status" aria-live="polite"`, errores `role="alert"`, cerrar con `aria-label` en es, en y zh |
+| 7 | El color con opacidad se armaba pegando texto a una variable (`'var(--success)' + '20'`) | 371 sitios en 98 ficheros: 183 `` `${color}20` ``, 131 `color + '20'` y 57 `var(--x)30` escritos tal cual | 0. El aviso usa los tokens `-bg`/`-border`; el resto, `alpha(color, '20')`, que deja igual un hex de 6 cifras y da `color-mix()` con un `var()` |
+| 8 | `--easing` se usaba y no estaba definida | 6 usos, 0 definiciones: no animaban | Definida en `:root`: `cubic-bezier(0.4, 0, 0.2, 1)` |
+| 9 | La guía corta citaba tokens que no existen | `--space-7`, `--shadow-xl`, `--easing-spring` | Corregida; lo que no está en `:root` no existe |
+| 10 | La densidad del perfil no cambiaba nada | Escribía `--space-item` y `--font-size-base` (0 usos), desde tres sitios | `applyDensity()` escribe `data-density` desde un sitio y `index.css` mueve la escala de texto y el relleno de página (apartado 5) |
+| 11 | `COLOR.*` eran literales del tema oscuro, con `text2` y `text3` viejos | 29 literales | 0: cada uno es su `var(--token)`. `CHART_COLORS` sigue en hex, porque es la paleta fija de series |
+| 12 | P1 y P2 tenían el mismo rojo | `TICKET_PRIORITY`, `Badge` y el portal usaban `danger` en P2; el kanban, azul en P3 y verde en P4 | P1 `danger`, P2 `orange`, P3 `warning`, P4 `text-2` en los ocho ficheros con mapa de prioridad de tique |
+| 16 | Las fechas salían siempre en formato español | `fmtDate` fijaba `dd/MM/yyyy` y el locale `es` | `Intl.DateTimeFormat` en el idioma activo (apartado 10), en `fmtDate`, `fmtDateTime`, `fmtMonth`, `fmtRelative` y el `fmtDate` del Service Desk |
+
+### Lo que queda y no se debe copiar
 
 | # | Qué pasa en contecflow | Medida | En una solución nueva |
 |---|---|---|---|
-| 1 | El texto blanco del botón principal no llega a AA | 2,37:1 en `freight` (el tema por defecto), 2,54:1 en alto contraste; sólo el claro pasa (5,17) | Un token `--on-accent`: `--surface-0` en los temas oscuros (6,1–8,3:1) y `#ffffff` en el claro (5,17:1). El botón usa `color: var(--on-accent)` |
-| 2 | `--text-3` no llega a AA en tres temas | light 2,6 · midnight 2,3 · slate 2,0 | Probados: light `#64748b` (4,76), midnight `#7689a8` (5,39), slate `#8b949e` (5,26); y `--text-2` de slate `#9da7b3` (6,64) |
-| 3 | En el tema claro, éxito y aviso no llegan a AA como texto | 3,3 y 3,2 | `#15803d` y `#b45309` (5,02 cada uno) |
-| 4 | Se quita el indicador de foco a botones, enlaces y pestañas (`outline: 0 !important`) | Sólo los campos y `.ds-card--clickable` muestran foco | Rompe WCAG 2.4.7: con teclado no se sabe dónde se está. Usar `:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }` en todo lo que se pueda enfocar; con `:focus-visible` el anillo no aparece al hacer clic |
-| 5 | Las pestañas no siguen el patrón ARIA (`role="tab"`, flechas) | Se dejó a propósito para evitar el contorno al cargar | Con el punto 4 bien resuelto el motivo desaparece: `role="tablist"`/`tab`, `aria-selected` y navegación con flechas |
-| 6 | Los avisos emergentes no se anuncian | Sin `aria-live` ni `role` en el contenedor; el botón de cerrar sin `aria-label` | Contenedor con `role="status" aria-live="polite"` (`role="alert"` para los errores) y `aria-label` en cerrar |
-| 7 | El color con opacidad se arma pegando texto a una variable (`'var(--success)' + '20'`) | Da CSS inválido: el fondo y el borde del aviso se descartan | Usar los tokens `-bg` y `-border`, o `color-mix(in srgb, var(--success) 12%, transparent)` |
-| 8 | `--easing` se usa y no está definida | 3 transiciones inválidas (`.ds-card`, `.ds-input`): no animan | Definirla en `:root`: `--easing: cubic-bezier(0.4, 0, 0.2, 1)` |
-| 9 | La guía corta cita tokens que no existen | `--space-7`, `--shadow-xl`, `--easing-spring` | Lo que no está en `:root` no existe; la lista de tokens sale del CSS |
-| 10 | La densidad del perfil no cambia nada | Escribe `--space-item` y `--font-size-base`, con 0 usos; se aplica desde dos sitios | O los componentes leen la variable, o no se ofrece el interruptor. Un ajuste que no hace nada es peor que no tenerlo |
-| 11 | `COLOR.*` en JavaScript son literales del tema oscuro | `COLOR.text2` y `COLOR.text3` además conservan los valores viejos (`#8899bb`, `#4a5a78`) que el CSS corrigió para AA | En JSX, `var(--token)` siempre. En gráficas, `getCSSVar` o `useChartTheme`. Ninguna copia de la paleta en JS |
-| 12 | P1 y P2 tienen el mismo rojo | `TICKET_PRIORITY` usa `danger` en los dos, aunque `--orange` existe para P2 | Una severidad, un color: P1 `danger`, P2 `orange`, P3 `warning`, P4 `text-2` |
 | 13 | Casi todo el estilo va en línea | 11.508 `style={{` en 220 ficheros, frente a unos 135 usos de `.ds-card` y `.ds-input` | Componentes y clases desde el principio; el estilo en línea sólo para lo realmente único |
 | 14 | Cada pantalla redefine sus `IS` y `LS` | El mismo objeto copiado en decenas de ficheros | `.ds-input` y `.ds-field__label`, o un `<Field>` |
 | 15 | Tres capas de alias de color (`--bg`, `--surface`, `--color-background-primary`…) | Heredadas de versiones anteriores | Un solo nombre por token |
-| 16 | Las fechas salen siempre en formato español | `fmtDate` fija `dd/MM/yyyy` y el locale `es`, con la zona del navegador, aunque la aplicación esté en inglés o en chino | Formatear con `Intl.DateTimeFormat` en el idioma activo y la zona de la organización |
 | 17 | Cuatro familias de fuente cargadas | DM Sans, Geist, Geist Mono y Space Mono, con varios pesos | Una familia de texto y una monoespaciada, sólo con los pesos usados (400, 600, 700) |
 
-Los puntos 1 a 8, el 10 y el 16 son defectos de la propia contecflow. Arreglarlos
-cambia el aspecto de toda la aplicación, y queda pendiente de decidir.
+**Pendiente, medido y fuera de este arreglo:** 65 llamadas a
+`toLocaleDateString('es-ES')` y parecidas en 34 ficheros formatean fechas por
+su cuenta, fuera de `fmtDate`, y siguen en español; `fmtNumber` y
+`fmtCurrency` fijan `es-ES`; hay 9 listas de pestañas hechas a mano en
+páginas (no `Tabs`), y en 6 de sus 8 ficheros no hay manejo de flechas; y `--danger` no llega a 4,5 sobre `surface-3` en freight
+(4,36) ni sobre `surface-1` en el claro (4,41).
 
 ---
 
 ## 16. Arranque de una solución nueva
 
 1. **Copiar los tokens** de `:root` de `frontend/src/index.css` (color, texto,
-   escala, espacio, radios, sombras y capas), sin las capas de alias. Añadir
-   `--easing` y `--on-accent`.
-2. **Copiar los temas** que se vayan a ofrecer, con los arreglos de contraste
-   de los puntos 1 a 3 del apartado 15. Si sólo se ofrece uno, `freight` es la
-   identidad por defecto de la casa.
-3. **Copiar el foco** del punto 4: `:focus-visible` con contorno de 2 px en el
-   acento en todo lo que se pueda enfocar.
+   escala, espacio, radios, sombras, capas, `--easing` y `--on-accent`), sin
+   las capas de alias.
+2. **Copiar los temas** que se vayan a ofrecer, tal como están (ya pasan AA,
+   apartado 3.1), y los bloques `[data-density]`. Si sólo se ofrece uno,
+   `freight` es la identidad por defecto de la casa.
+3. **Copiar el foco** del bloque «FOCO» de `index.css`: `:focus-visible` con
+   contorno de 2 px en el acento en todo lo que se pueda enfocar.
 4. **Copiar los componentes** de `src/components/ui`: `Button`, `Modal`,
    `EmptyState`, `Spinner`, `Card`, `StatusBadge`, `KpiCard`, `Tabs`, `Section`
    y `TableControls`, más `PageShell` y `PageHeader` de `components/layout`.
-   Llevarse también `ToastContext` (con el punto 6) y `ConfirmContext`.
+   Llevarse también `ToastContext`, `ConfirmContext`, `utils/appearance.ts`
+   (acento y densidad) y `alpha()` de `constants/theme.ts`.
 5. **Copiar las clases `.ds-*`** del final de `index.css`.
 6. **Poner las reglas de ESLint** del apartado 14 como error.
 7. **Montar la i18n** con los tres idiomas desde la primera pantalla.

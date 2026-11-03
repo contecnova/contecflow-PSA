@@ -272,7 +272,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
             { label: 'Tarifa media coste', value: `${data.avg_cost_rate}€/h` },
             { label: 'Tarifa cliente', value: data.billing_rate ? `${data.billing_rate}€/h` : '—' },
           ].map(({ label, value }) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--surface-4)30', fontSize: "var(--text-base)" }}>
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', fontSize: "var(--text-base)" }}>
               <span style={{ color: 'var(--text-2)' }}>{label}</span>
               <span style={{ fontWeight: 600 }}>{value}</span>
             </div>
@@ -284,7 +284,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
           <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('profitability.por_persona')}</h4>
           {data.by_person?.length === 0 ? <EmptyState icon="👤" title={t('profitability.sin_detalle_por_persona')} /> : (
             data.by_person?.slice(0, 6).map(p => (
-              <div key={p.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--surface-4)30', fontSize: "var(--text-sm)" }}>
+              <div key={p.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', fontSize: "var(--text-sm)" }}>
                 <span>{p.user_name}</span>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <span style={{ color: 'var(--text-2)' }}>{fmtHours(p.hours)}</span>
@@ -431,7 +431,7 @@ export default function ProfitabilityPage() {
             </div>
             {projects.map(p => (
               <div key={p.project_id}
-                style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 100px 80px', gap: 16, padding: '14px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', cursor: 'pointer', transition: 'background 0.15s' }}
+                style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 100px 80px', gap: 16, padding: '14px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', cursor: 'pointer', transition: 'background 0.15s' }}
                 role="button" tabIndex={0}
                 onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && p.project_id != null) { e.preventDefault(); setSelectedProject(p.project_id) } }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}

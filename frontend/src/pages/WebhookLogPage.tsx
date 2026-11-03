@@ -10,6 +10,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Webhook } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 interface WebhookItem {
   id: string | number
@@ -145,7 +146,7 @@ export default function WebhookLogPage() {
                 const ok = (log.http_status ?? 0) >= 200 && (log.http_status ?? 0) < 300
                 return (
                   <tr key={log.id || i}
-                    style={{ borderBottom:'1px solid var(--surface-4)20', cursor:'pointer' }}
+                    style={{ borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', cursor:'pointer' }}
                     onClick={() => setSelectedLog(log)}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -170,7 +171,7 @@ export default function WebhookLogPage() {
                     <td style={{ padding:'10px 14px' }}>
                       <span style={{ fontSize: "var(--text-sm)", fontWeight:800, padding:'2px 8px',
                         borderRadius:6, fontFamily:'var(--font-mono)',
-                        background:`${statusColor}20`, color:statusColor }}>
+                        background:alpha(statusColor, '20'), color:statusColor }}>
                         {ok ? '✓' : '✗'} {log.http_status || 'ERR'}
                       </span>
                     </td>

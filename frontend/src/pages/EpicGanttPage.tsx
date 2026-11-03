@@ -11,6 +11,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 type DepType = 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'relates_to'
 
@@ -209,11 +210,11 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dep_type')(dt.value)}
                 style={{display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:8,
-                  border:`1px solid ${form.dep_type===dt.value ? dt.color+'50' : 'var(--surface-4)'}`,
-                  background:form.dep_type===dt.value ? dt.color+'15' : 'transparent',
+                  border:`1px solid ${form.dep_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`,
+                  background:form.dep_type===dt.value ? alpha(dt.color, '15') : 'transparent',
                   cursor:'pointer', fontFamily:'inherit', textAlign:'left'}}>
                 <span style={{fontSize: "var(--text-sm)", fontWeight:700, padding:'2px 6px', borderRadius:4,
-                  background:dt.color+'30', color:dt.color, minWidth:28, textAlign:'center'}}>{dt.symbol}</span>
+                  background:alpha(dt.color, '30'), color:dt.color, minWidth:28, textAlign:'center'}}>{dt.symbol}</span>
                 <div style={{flex:1}}>
                   <div style={{fontSize: "var(--text-base)", fontWeight:form.dep_type===dt.value?600:400,
                     color:form.dep_type===dt.value ? dt.color : 'var(--text-1)'}}>{dt.label}</div>
@@ -333,7 +334,7 @@ export default function EpicGanttPage(): JSX.Element {
                     <div key={dep.id} style={{display:'flex', alignItems:'center', gap:12,
                       padding:'10px 14px', background:'var(--surface-1)', borderRadius:8, border:'1px solid var(--surface-4)', fontSize: "var(--text-sm)"}}>
                       <span style={{fontSize: "var(--text-xs)", fontWeight:700, padding:'2px 6px', borderRadius:4,
-                        background:dt?.color+'30', color:dt?.color, minWidth:28, textAlign:'center'}}>
+                        background:alpha(dt?.color, '30'), color:dt?.color, minWidth:28, textAlign:'center'}}>
                         {dt?.symbol}
                       </span>
                       <div style={{flex:1}}>
@@ -357,7 +358,7 @@ export default function EpicGanttPage(): JSX.Element {
               {DEP_TYPES.map(dt => (
                 <div key={dt.value} style={{display:'flex', alignItems:'center', gap:6, fontSize: "var(--text-xs)"}}>
                   <span style={{fontWeight:700, padding:'1px 5px', borderRadius:3,
-                    background:dt.color+'30', color:dt.color}}>{dt.symbol}</span>
+                    background:alpha(dt.color, '30'), color:dt.color}}>{dt.symbol}</span>
                   <span style={{color:'var(--text-2)'}}>{dt.label}</span>
                 </div>
               ))}

@@ -1,4 +1,5 @@
 import type { CSSProperties, MouseEvent, ReactNode } from 'react'
+import { alpha } from '../../constants/theme'
 
 /**
  * Badge with tooltip (hover for info)
@@ -25,7 +26,7 @@ export function BadgeWithTooltip({
     fontSize: 'var(--text-2xs)',
     padding: '2px 8px',
     borderRadius: 20,
-    background: color + '20',
+    background: alpha(color, '20'),
     color,
     fontWeight: 700,
     cursor: onClick ? 'pointer' : 'default',

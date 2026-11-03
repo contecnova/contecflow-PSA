@@ -11,6 +11,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { LayoutTemplate } from 'lucide-react'
+import { alpha } from '../constants/theme'
 
 const PHASE_COLOR = 'var(--accent)'
 const TASK_COLOR  = 'var(--success)'
@@ -23,7 +24,7 @@ function Badge({ color, label }: { color: string; label: ReactNode }) {
   return (
     <span style={{
       fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-      background: `${color}20`, color,
+      background: alpha(color, '20'), color,
     }}>{label}</span>
   )
 }
@@ -84,7 +85,7 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
           onClick={() => onInstantiate(tpl)}
           style={{
             padding: '6px 14px', borderRadius: 7, border: 'none',
-            background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 700,
+            background: 'var(--accent)', color: 'var(--on-accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 700,
           }}
         >
           {t('project_templates.create_from_template')}
@@ -485,7 +486,7 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
             disabled={mutation.isPending}
             style={{
               padding: '8px 18px', borderRadius: 8, border: 'none',
-              background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700,
+              background: 'var(--accent)', color: 'var(--on-accent)', cursor: 'pointer', fontWeight: 700,
             }}
           >
             {mutation.isPending ? t('project_templates.creating') : t('project_templates.create_project')}

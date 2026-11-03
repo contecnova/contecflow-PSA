@@ -78,7 +78,7 @@ const st: Record<string, CSSProperties> = {
   },
   btnPrimary: {
     width: '100%', height: 44,
-    background: 'var(--accent)', color: '#fff', border: 'none',
+    background: 'var(--accent)', color: 'var(--on-accent)', border: 'none',
     borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
     transition: 'opacity 0.15s', fontFamily: 'inherit',

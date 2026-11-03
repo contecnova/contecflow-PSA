@@ -14,6 +14,7 @@ import { resolveWsBase } from '../../utils/wsUtils'
 import { PortalUsersTab } from './PortalUsersTab'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../../components/portal/GovernedConversations'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { alpha } from '../../constants/theme'
 
 const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
@@ -101,7 +102,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
                 <div>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)", color: 'var(--text-2)', marginRight: 8 }}>{p.code}</span>
                   <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{p.name}</span>
-                  <span style={{ marginLeft: 10, fontSize: "var(--text-xs)", padding: '1px 6px', borderRadius: 4, background: (statusColor[p.status] || 'var(--text-2)') + '20', color: statusColor[p.status] || 'var(--text-2)' }}>
+                  <span style={{ marginLeft: 10, fontSize: "var(--text-xs)", padding: '1px 6px', borderRadius: 4, background: alpha((statusColor[p.status] || 'var(--text-2)'), '20'), color: statusColor[p.status] || 'var(--text-2)' }}>
                     {statusLabel[p.status] || p.status}
                   </span>
                 </div>
@@ -124,7 +125,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{p.code}</span>
                   <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{p.name}</span>
-                  <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: (statusColor[p.status] || 'var(--text-2)') + '20', color: statusColor[p.status] || 'var(--text-2)', fontWeight: 700 }}>
+                  <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: alpha((statusColor[p.status] || 'var(--text-2)'), '20'), color: statusColor[p.status] || 'var(--text-2)', fontWeight: 700 }}>
                     {statusLabel[p.status] || p.status}
                   </span>
                 </div>
@@ -184,7 +185,7 @@ export function ContactsTab({ cid }: { cid: string }) {
       ) : contacts.map((ct: any) => (
         <div key={ct.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: (roleColor[ct.role] || 'var(--text-2)') + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg)", fontWeight: 800, color: roleColor[ct.role] || 'var(--text-2)' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: alpha((roleColor[ct.role] || 'var(--text-2)'), '20'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg)", fontWeight: 800, color: roleColor[ct.role] || 'var(--text-2)' }}>
               {ct.full_name?.charAt(0) || '?'}
             </div>
             <div>
@@ -195,7 +196,7 @@ export function ContactsTab({ cid }: { cid: string }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: "var(--text-xs)", padding: '3px 8px', borderRadius: 20, background: (roleColor[ct.role] || 'var(--text-2)') + '15', color: roleColor[ct.role] || 'var(--text-2)', fontWeight: 700 }}>
+            <span style={{ fontSize: "var(--text-xs)", padding: '3px 8px', borderRadius: 20, background: alpha((roleColor[ct.role] || 'var(--text-2)'), '15'), color: roleColor[ct.role] || 'var(--text-2)', fontWeight: 700 }}>
               {roles.find(r => r.id === ct.role)?.label || ct.role}
             </span>
             {ct.phone && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>📞 {ct.phone}</span>}
@@ -278,7 +279,7 @@ export function LicensesTab({ cid }: { cid: string }) {
             {l.notes && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontStyle: 'italic', marginTop: 2 }}>{l.notes}</div>}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: (statusCol[l.status] || 'var(--text-2)') + '15', color: statusCol[l.status] || 'var(--text-2)', fontWeight: 700 }}>{l.status}</span>
+            <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: alpha((statusCol[l.status] || 'var(--text-2)'), '15'), color: statusCol[l.status] || 'var(--text-2)', fontWeight: 700 }}>{l.status}</span>
             <button onClick={() => unlink(l.link_id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>🗑</button>
           </div>
         </div>
@@ -350,7 +351,7 @@ export function ContractsTab({ cid }: { cid: string }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: (statusCol[c.status] || 'var(--text-2)') + '15', color: statusCol[c.status] || 'var(--text-2)', fontWeight: 700 }}>{c.status}</span>
+            <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: alpha((statusCol[c.status] || 'var(--text-2)'), '15'), color: statusCol[c.status] || 'var(--text-2)', fontWeight: 700 }}>{c.status}</span>
             <button onClick={() => unlink(c.link_id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>🗑</button>
           </div>
         </div>
@@ -463,7 +464,7 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: any[
                       {s.deadline && ` · Límite: ${s.deadline}`}
                     </div>
                   </div>
-                  <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, flexShrink: 0, background: (statusColor[s.status] || 'var(--text-2)') + '20', color: statusColor[s.status] || 'var(--text-2)', fontWeight: 700 }}>
+                  <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, flexShrink: 0, background: alpha((statusColor[s.status] || 'var(--text-2)'), '20'), color: statusColor[s.status] || 'var(--text-2)', fontWeight: 700 }}>
                     {statusLabel[s.status] || s.status}
                   </span>
                 </div>
@@ -590,8 +591,8 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
               {fr.project_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 3 }}>📁 {fr.project_name}</div>}
             </div>
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: (prioColor[fr.priority] || 'var(--text-2)') + '20', color: prioColor[fr.priority] || 'var(--text-2)', fontWeight: 700 }}>{fr.priority}</span>
-              <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: (statusColor[fr.status] || 'var(--text-2)') + '20', color: statusColor[fr.status] || 'var(--text-2)', fontWeight: 700 }}>{statusLabel[fr.status] || fr.status}</span>
+              <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: alpha((prioColor[fr.priority] || 'var(--text-2)'), '20'), color: prioColor[fr.priority] || 'var(--text-2)', fontWeight: 700 }}>{fr.priority}</span>
+              <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: alpha((statusColor[fr.status] || 'var(--text-2)'), '20'), color: statusColor[fr.status] || 'var(--text-2)', fontWeight: 700 }}>{statusLabel[fr.status] || fr.status}</span>
               {fr.cr_status ? (
                 <BadgeWithTooltip
                   label={`CR: ${fr.cr_status_label || fr.cr_status}`}
@@ -845,7 +846,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
               <option value="gold">🥇 Gold — 4h respuesta</option>
               <option value="enterprise">💎 Enterprise — 1h respuesta 24/7</option>
             </select>
-            {slaTier && <div style={{ marginTop: 6, fontSize: "var(--text-xs)", padding: '6px 10px', borderRadius: 6, background: (SLA_COLOR[slaTier] || 'var(--text-2)') + '15', color: SLA_COLOR[slaTier] || 'var(--text-2)' }}>
+            {slaTier && <div style={{ marginTop: 6, fontSize: "var(--text-xs)", padding: '6px 10px', borderRadius: 6, background: alpha((SLA_COLOR[slaTier] || 'var(--text-2)'), '15'), color: SLA_COLOR[slaTier] || 'var(--text-2)' }}>
               Tier activo: <strong>{slaTier.toUpperCase()}</strong>
             </div>}
           </div>

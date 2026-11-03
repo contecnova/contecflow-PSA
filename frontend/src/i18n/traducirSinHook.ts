@@ -1,8 +1,7 @@
 import { APP_TRANSLATIONS } from './appTranslations.mjs'
 import { resolveTranslation } from './translationRuntime.mjs'
+import { idiomaActivo } from '../utils/helpers'
 
-/** La misma clave que usa `AppLangProvider` para recordar el idioma. */
-const CLAVE_DE_ALMACENAMIENTO = 'contecflow_operator_lang'
 
 /**
  * Traduce sin hooks y sin contexto de React.
@@ -25,13 +24,9 @@ const CLAVE_DE_ALMACENAMIENTO = 'contecflow_operator_lang'
  * porque se evalúa una vez por render y fuera del ciclo de React.
  */
 export function traducirSinHook(claveCompleta: string): string {
-  let lang = 'es'
-  try {
-    lang = localStorage.getItem(CLAVE_DE_ALMACENAMIENTO) || 'es'
-  } catch {
-    // Ventana privada, almacenamiento bloqueado: castellano y seguir. Una
-    // pantalla de error nunca debe caerse por no poder leer una preferencia.
-  }
+  // Lee la misma clave que AppLangProvider; con el almacenamiento bloqueado
+  // devuelve castellano: una pantalla de error nunca debe caerse por eso.
+  const lang = idiomaActivo()
 
   const [modulo, ...resto] = claveCompleta.split('.')
   return resolveTranslation({

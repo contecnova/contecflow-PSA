@@ -10,6 +10,7 @@ import PageShell from '../components/layout/PageShell'
 import { ListTodo } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import type { CSSProperties } from 'react'
+import { alpha } from '../constants/theme'
 
 interface ProjectItem {
   id: string | number
@@ -286,7 +287,7 @@ export default function SprintPlanningPage() {
             const pct = plan.team_capacity > 0 ? Math.round(plan.total_points/plan.team_capacity*100) : 0
             const isExpanded = expandPlan === plan.id
             return (
-              <div key={plan.id} style={{...ps,padding:'16px 20px',border:`1px solid ${sc.color}30`}}>
+              <div key={plan.id} style={{...ps,padding:'16px 20px',border:`1px solid ${alpha(sc.color, '30')}`}}>
                 <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:isExpanded?12:0}}>
                   <div style={{flex:1}}>
                     <div style={{display:'flex',alignItems:'center',gap:10}}>

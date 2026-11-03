@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { analyticsApi } from '../../services/api'
 import { Search, Send, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucide-react'
-import { COLOR } from '../../constants/theme'
+import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 
 const EXAMPLE_QUESTIONS = [
@@ -98,7 +98,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
         display: 'flex', alignItems: 'center', gap: 10,
       }}>
         <span style={{
-          background: `${COLOR.purple}18`, borderRadius: 8, padding: '5px 7px',
+          background: alpha(COLOR.purple, '18'), borderRadius: 8, padding: '5px 7px',
           display: 'flex', alignItems: 'center',
         }}>
           <Search size={14} color={COLOR.purple} />
@@ -181,8 +181,8 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
               <div style={{
                 display: 'flex', alignItems: 'flex-start', gap: 8,
                 color: COLOR.warning, fontSize: "var(--text-sm)",
-                background: `${COLOR.warning}10`,
-                border: `1px solid ${COLOR.warning}30`,
+                background: alpha(COLOR.warning, '10'),
+                border: `1px solid ${alpha(COLOR.warning, '30')}`,
                 borderRadius: 8, padding: '10px 14px',
               }}>
                 <AlertTriangle size={13} style={{ marginTop: 1, flexShrink: 0 }} />

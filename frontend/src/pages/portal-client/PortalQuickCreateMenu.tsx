@@ -14,6 +14,7 @@ import {
   Receipt, FlaskConical, Sparkles,
 } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { alpha } from '../../constants/theme'
 
 interface PortalQuickCreateBadges {
   uat?: number
@@ -131,7 +132,7 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
             >
               <div style={{
                 width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                background: `${color}15`, border: `1px solid ${color}30`,
+                background: alpha(color, '15'), border: `1px solid ${alpha(color, '30')}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <Icon size={15} color={color} />

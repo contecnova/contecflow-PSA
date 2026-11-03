@@ -9,6 +9,7 @@ import { extractErr } from '../../utils/helpers'
 import { resolveWsBase } from '../../utils/wsUtils'
 import { CLIENT_API, S as PORTAL_STYLES } from '../../pages/portal-client/portalClientContext'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { alpha } from '../../constants/theme'
 
 // Loose backend shapes — full domain types pending services/api migration.
 type Conversation = Record<string, any>
@@ -81,7 +82,7 @@ interface BadgeProps {
 
 function Badge({ children, color = 'var(--text-2)' }: BadgeProps) {
   return (
-    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: `${color}22`, color, border: `1px solid ${color}33`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: alpha(color, '22'), color, border: `1px solid ${alpha(color, '33')}`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
       {children}
     </span>
   )

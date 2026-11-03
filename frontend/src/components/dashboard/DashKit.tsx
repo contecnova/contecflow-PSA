@@ -4,7 +4,7 @@
  */
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { COLOR } from '../../constants/theme'
+import { COLOR, alpha } from '../../constants/theme'
 import PageShell from '../layout/PageShell'
 import PageHeader from '../layout/PageHeader'
 
@@ -80,7 +80,7 @@ export function KpiCard({ label, value, sub, color, icon, accentBar, action }: K
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {icon && (
             <span style={{
-              fontSize: "var(--text-lg-em)", background: `${bar}18`,
+              fontSize: "var(--text-lg-em)", background: alpha(bar, '18'),
               borderRadius: 8, padding: '5px 7px', lineHeight: 1,
             }}>{icon}</span>
           )}

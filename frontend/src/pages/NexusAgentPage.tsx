@@ -8,6 +8,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Bot } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
@@ -99,7 +100,7 @@ function StepBadge({ step }: { step: PasoDeAgente }) {
   const c = (step.tool && colors[step.tool]) || 'var(--text-2)'
   return (
     <div style={{ display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, marginBottom: 6 }}>
-      <div style={{ width: 24, height: 24, borderRadius: 6, background: c + '20', border: `1px solid ${c}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: c, flexShrink: 0 }}>
+      <div style={{ width: 24, height: 24, borderRadius: 6, background: alpha(c, '20'), border: `1px solid ${alpha(c, '40')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: c, flexShrink: 0 }}>
         {step.step}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -338,7 +339,7 @@ export default function ContecflowAgentPage() {
               const sc = (e.status && STATUS_CFG[e.status]) || STATUS_CFG.pending
               return (
                 <button key={e.id} type="button" onClick={() => setResult(e)}
-                  style={{ padding: '14px 20px', borderBottom: '1px solid var(--surface-4)30', cursor: 'pointer', transition: 'background 0.15s' }}
+                  style={{ padding: '14px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', cursor: 'pointer', transition: 'background 0.15s' }}
                   onMouseEnter={ev => ev.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
@@ -370,7 +371,7 @@ export default function ContecflowAgentPage() {
             </div>
             {EXAMPLES.map((ex, i) => (
               <button key={i} onClick={() => { setInstruction(ex.text); textareaRef.current?.focus() }}
-                style={{ width: '100%', display: 'flex', gap: 8, padding: '8px 0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', borderBottom: i < EXAMPLES.length - 1 ? '1px solid var(--surface-4)30' : 'none', textAlign: 'left' }}>
+                style={{ width: '100%', display: 'flex', gap: 8, padding: '8px 0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', borderBottom: i < EXAMPLES.length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none', textAlign: 'left' }}>
                 <span style={{ flexShrink: 0 }}>{ex.icon}</span>
                 <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.4 }}>{ex.text}</span>
               </button>
@@ -387,7 +388,7 @@ export default function ContecflowAgentPage() {
               </button>
             </div>
             {(showTools ? TOOLS : TOOLS.slice(0, 5)).map(t => (
-              <div key={t.name} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--surface-4)20', alignItems: 'center' }}>
+              <div key={t.name} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', alignItems: 'center' }}>
                 <span style={{ fontSize: "var(--text-md)" }}>{t.icon}</span>
                 <div>
                   <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>{t.name}</div>

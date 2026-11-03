@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Button, Modal, EmptyState, Tabs, Page } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
@@ -344,7 +345,7 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: any; onBack: () =>
               <div key={step.id} style={{ display: 'flex', gap: 16, marginBottom: 6 }}>
                 {/* Línea vertical */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 40, flexShrink: 0 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: color + '20', border: `2px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-md)", fontWeight: 800, color, flexShrink: 0 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: alpha(color, '20'), border: `2px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-md)", fontWeight: 800, color, flexShrink: 0 }}>
                     {step.step_order}
                   </div>
                   {i < steps.length - 1 && (
@@ -571,8 +572,8 @@ function MyPendingTab() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="ds-row-wrap" style={{ marginBottom: 6 }}>
                     <span className="ds-pill" style={{
-                      background: entity.color + '20', color: entity.color,
-                      borderColor: entity.color + '40',
+                      background: alpha(entity.color, '20'), color: entity.color,
+                      borderColor: alpha(entity.color, '40'),
                     }}>
                       {entity.icon} {entity.label}
                     </span>
@@ -1551,13 +1552,13 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
                       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(wf.id) } }}
                       aria-label={t('approvals.workflow_open_aria', { name: wf.name })}
                       style={{
-                        background: 'var(--surface-2)', border: `1px solid ${wf.is_active ? cfg.color + '30' : 'var(--surface-4)'}`,
+                        background: 'var(--surface-2)', border: `1px solid ${wf.is_active ? alpha(cfg.color, '30') : 'var(--surface-4)'}`,
                         borderRadius: 12, padding: '16px 20px', cursor: 'pointer',
                         opacity: wf.is_active ? 1 : 0.6,
                         transition: 'border-color 0.15s',
                       }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = cfg.color + '60'}
-                      onMouseLeave={e => e.currentTarget.style.borderColor = wf.is_active ? cfg.color + '30' : 'var(--surface-4)'}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = alpha(cfg.color, '60')}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = wf.is_active ? alpha(cfg.color, '30') : 'var(--surface-4)'}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

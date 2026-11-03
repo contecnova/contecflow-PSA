@@ -18,6 +18,7 @@ import { Network } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 // ── Colores por rol ───────────────────────────────────────────────────────────
 const ROLE_COLOR: Record<string, string> = {
@@ -206,7 +207,7 @@ function UserNode({ node, depth = 0, onEdit, isAdmin }: {
           </div>
         </div>
         <span style={{ fontSize: "var(--text-2xs)", padding:'2px 7px', borderRadius:4, fontWeight:600,
-          background:`${getRoleColor(node.role)}20`,
+          background:alpha(getRoleColor(node.role), '20'),
           color: getRoleColor(node.role), flexShrink:0, whiteSpace:'nowrap' }}>
           {getRoleLabel(node.role)}
         </span>
@@ -434,7 +435,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
                   </td>
                   <td style={{ padding:'10px 14px' }}>
                     <span style={{ fontSize: "var(--text-xs)", padding:'2px 7px', borderRadius:4, fontWeight:600,
-                      background:`${ROLE_COLOR[u.role]||'#7a8aaa'}20`,
+                      background:alpha(ROLE_COLOR[u.role]||'#7a8aaa', '20'),
                       color: ROLE_COLOR[u.role]||'#7a8aaa' }}>
                       {getRoleLabel(u.role)}
                     </span>

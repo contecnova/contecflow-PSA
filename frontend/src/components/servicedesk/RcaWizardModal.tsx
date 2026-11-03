@@ -16,7 +16,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { problemsApi } from '../../services/api'
 import { Button, Spinner, Modal } from '../ui'
 import { useToast } from '../../context/ToastContext'
-import { COLOR } from '../../constants/theme'
+import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 
 // TODO type: problemsApi RCA wizard payloads — needs shared types
@@ -156,7 +156,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
           {stepDef.prompt || stepDef.title || `Paso ${currentStep + 1}`}
         </div>
         {stepDef.hint && (
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', background: `${COLOR.info ?? 'var(--info)'}10`, border: `1px solid ${COLOR.info ?? 'var(--info)'}25`, borderRadius: 6, padding: '8px 12px', marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', background: alpha(COLOR.info ?? 'var(--info)', '10'), border: `1px solid ${alpha(COLOR.info ?? 'var(--info)', '25')}`, borderRadius: 6, padding: '8px 12px', marginBottom: 10 }}>
             💡 {stepDef.hint}
           </div>
         )}
@@ -172,7 +172,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
 
         {/* AI hint */}
         {aiHint && (
-          <div style={{ marginTop: 10, background: `${COLOR.success}10`, border: `1px solid ${COLOR.success}25`, borderRadius: 8, padding: '10px 14px' }}>
+          <div style={{ marginTop: 10, background: alpha(COLOR.success, '10'), border: `1px solid ${alpha(COLOR.success, '25')}`, borderRadius: 8, padding: '10px 14px' }}>
             <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: COLOR.success, textTransform: 'uppercase', marginBottom: 4 }}>🤖 Sugerencia IA</div>
             <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{aiHint}</div>
           </div>

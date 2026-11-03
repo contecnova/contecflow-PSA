@@ -429,7 +429,7 @@ export default function SemanticEnginePage() {
                 { key: 'auto_assign_tickets', label: 'Auto-asignar tickets (sin confirmación)', val: config.auto_assign_tickets },
                 { key: 'auto_assign_tasks',   label: 'Auto-asignar tareas (sin confirmación)',  val: config.auto_assign_tasks },
               ].map(f => (
-                <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--surface-4)30' }}>
+                <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' }}>
                   <span style={{ fontSize: "var(--text-base)" }}>{f.label}</span>
                   <button onClick={() => saveConfig({ [f.key]: !f.val })}
                     style={{ width: 44, height: 24, borderRadius: 12, background: f.val ? 'var(--success-border)' : 'var(--surface-4)', border: `1px solid ${f.val ? 'rgba(52,211,153,0.38)' : 'var(--surface-4)'}`, cursor: 'pointer', position: 'relative', transition: 'all 0.2s' }}>
@@ -457,7 +457,7 @@ export default function SemanticEnginePage() {
                 <EmptyState icon="👥" title={traducir('semanticengine.sin_perfiles_semanticos')} description="Configura perfiles para habilitar la asignacion automatica" />
               </div>
             ) : profilesWithUsers.map(u => (
-              <div key={u.user_id} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, alignItems: 'center', fontSize: "var(--text-base)" }}>
+              <div key={u.user_id} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, alignItems: 'center', fontSize: "var(--text-base)" }}>
                 <div>
                   <div style={{ fontWeight: 600 }}>{u.user_name}</div>
                   {u.profile_text && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.profile_text}</div>}

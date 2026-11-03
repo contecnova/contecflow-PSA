@@ -7,6 +7,7 @@ import PageShell from '../components/layout/PageShell'
 import { EmptyState } from '../components/ui'
 import { BarChart } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 const STATUS_COLOR: Record<string, string> = {
   overloaded: 'var(--danger)',
@@ -116,14 +117,14 @@ function HeatCell({ week }: { week: SemanaDeCarga }) {
       onPointerLeave={() => setHover(false)}
       style={{
         position: 'relative', width: 36, height: 36, borderRadius: 6,
-        background: 'var(--surface-1)', border: `1px solid ${color}30`,
+        background: 'var(--surface-1)', border: `1px solid ${alpha(color, '30')}`,
         cursor: 'default', overflow: 'visible', flexShrink: 0,
       }}
     >
       {/* Barra de relleno proporcional */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
-        height: `${pct}%`, background: color + '40',
+        height: `${pct}%`, background: alpha(color, '40'),
         borderRadius: '0 0 5px 5px', transition: 'height 0.2s',
       }} />
       <div style={{

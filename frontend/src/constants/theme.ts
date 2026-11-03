@@ -3,8 +3,8 @@
  *
  * REGLA: Nunca uses colores hex directamente en componentes.
  * - En CSS/JSX inline: usa var(--accent), var(--surface-2), etc.
- * - En Recharts/Chart.js/SVG/Canvas (donde CSS vars no funcionan):
- *   importa COLOR, CHART_COLORS desde aquí.
+ * - En Recharts/SVG: COLOR.* (son var(--x)) o CHART_COLORS para series.
+ * - En Canvas, donde var() no se resuelve: getCSSVar('--x').
  *
  * Las CSS vars están definidas en src/index.css
  */
@@ -30,48 +30,62 @@ export function getCSSVar(varName: string, fallback: string = ''): string {
 }
 
 // ── Colores del sistema ────────────────────────────────────────────────────────
+// Cada valor es la variable CSS, no una copia de su valor: así sigue al tema
+// activo y al acento del perfil. Sirve en style={{}} y en fill/stroke de SVG.
+// En canvas, o donde var() no se resuelva, getCSSVar('--x').
+// Para opacidad, alpha(COLOR.x, '20'): pegar '20' a un var() da CSS inválido.
 export const COLOR = {
   // Superficies (de más oscuro a más claro)
-  surface0:    '#080c14',
-  surface1:    '#0d1220',
-  surface2:    '#111827',
-  surface3:    '#172133',
-  surface4:    '#1e2d45',
-  surface5:    '#253550',
+  surface0:    'var(--surface-0)',
+  surface1:    'var(--surface-1)',
+  surface2:    'var(--surface-2)',
+  surface3:    'var(--surface-3)',
+  surface4:    'var(--surface-4)',
+  surface5:    'var(--surface-5)',
 
   // Jerarquía de texto
-  text1:       '#f0f4ff',   // headings, valores clave
-  text2:       '#8899bb',   // labels, descripciones
-  text3:       '#4a5a78',   // placeholders, disabled
-  text4:       '#2a3a54',   // muy sutil
+  text1:       'var(--text-1)',   // headings, valores clave
+  text2:       'var(--text-2)',   // labels, descripciones
+  text3:       'var(--text-3)',   // secundario, pistas
+  text4:       'var(--text-4)',   // decorativo: nunca texto que haya que leer
 
-  // Accent (azul índigo)
-  accent:      '#4f8ef7',
-  accentDim:   '#2d5fd4',
-  accentGlow:  'rgba(79,142,247,0.15)',
-  accentMuted: 'rgba(79,142,247,0.08)',
+  // Accent
+  accent:      'var(--accent)',
+  accentDim:   'var(--accent-dim)',
+  accentGlow:  'var(--accent-glow)',
+  accentMuted: 'var(--accent-muted)',
 
   // Semánticos
-  success:       '#34d399',
-  successBg:     'rgba(52,211,153,0.08)',
-  successBorder: 'rgba(52,211,153,0.20)',
-  warning:       '#f59e0b',
-  warningBg:     'rgba(245,158,11,0.08)',
-  warningBorder: 'rgba(245,158,11,0.20)',
-  danger:        '#f87171',
-  dangerBg:      'rgba(248,113,113,0.08)',
-  dangerBorder:  'rgba(248,113,113,0.20)',
-  info:          '#60a5fa',
-  infoBg:        'rgba(96,165,250,0.08)',
+  success:       'var(--success)',
+  successBg:     'var(--success-bg)',
+  successBorder: 'var(--success-border)',
+  warning:       'var(--warning)',
+  warningBg:     'var(--warning-bg)',
+  warningBorder: 'var(--warning-border)',
+  danger:        'var(--danger)',
+  dangerBg:      'var(--danger-bg)',
+  dangerBorder:  'var(--danger-border)',
+  info:          'var(--info)',
+  infoBg:        'var(--info-bg)',
+  orange:        'var(--orange)',   // severidad alta (P2), distinta del aviso
 
   // Purple — AI / features premium
-  purple:    '#a78bfa',
-  purpleBg:  'rgba(167,139,250,0.08)',
-
-  // Overlays
-  overlay:      'rgba(8,12,20,0.85)',
-  overlayLight: 'rgba(8,12,20,0.60)',
+  purple:    'var(--purple)',
+  purpleBg:  'var(--purple-bg)',
 } as const
+
+/**
+ * alpha() — un color con opacidad, válido para un hex y para var(--x).
+ * `'var(--success)' + '20'` es CSS inválido y el navegador descarta la
+ * propiedad entera; color-mix() admite los dos. Un hex de 6 cifras da lo de
+ * siempre (#rrggbb + aa). hexAlpha va de '00' a 'ff'.
+ */
+export function alpha(color: string | null | undefined, hexAlpha: string): string {
+  if (!color) return ''
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) return color + hexAlpha
+  const pct = Math.round((parseInt(hexAlpha, 16) / 255) * 100)
+  return `color-mix(in srgb, ${color} ${pct}%, transparent)`
+}
 
 export type ColorToken = keyof typeof COLOR
 
@@ -95,12 +109,12 @@ export const CHART_COLORS_EXTENDED: readonly string[] = [
 ] as const
 
 export const CHART_COLORS: readonly string[] = [
-  COLOR.accent,    // [0] azul índigo
-  COLOR.success,   // [1] verde esmeralda
-  COLOR.warning,   // [2] ámbar
-  COLOR.purple,    // [3] violeta
+  '#4f8ef7',       // [0] azul índigo
+  '#34d399',       // [1] verde esmeralda
+  '#f59e0b',       // [2] ámbar
+  '#a78bfa',       // [3] violeta
   '#2dd4bf',       // [4] teal
-  COLOR.danger,    // [5] rojo
+  '#f87171',       // [5] rojo
   '#fb923c',       // [6] naranja
   '#ec4899',       // [7] rosa/fucsia
   '#84cc16',       // [8] lima
@@ -155,7 +169,7 @@ export const PROJECT_STATUS: Record<string, StatusToken> = {
 
 export const TICKET_PRIORITY: Record<string, StatusToken> = {
   p1_critical: { color: COLOR.danger,  label: 'P1 Crítico' },
-  p2_high:     { color: COLOR.danger,  label: 'P2 Alto'    },
+  p2_high:     { color: COLOR.orange,  label: 'P2 Alto'    },
   p3_medium:   { color: COLOR.warning, label: 'P3 Medio'   },
   p4_low:      { color: COLOR.text2,   label: 'P4 Bajo'    },
 }

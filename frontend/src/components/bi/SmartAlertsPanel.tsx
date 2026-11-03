@@ -5,7 +5,7 @@
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { biSmartAlertsApi } from '../../services/api'
-import { COLOR } from '../../constants/theme'
+import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 
 // TODO type: biSmartAlertsApi payloads — needs shared types
@@ -133,7 +133,7 @@ export default function SmartAlertsPanel() {
                 <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{rule.name}</div>
                 <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{rule.metric_key} · {String(rule.condition || '').replace(/_/g, ' ')}</div>
               </div>
-              <span style={{ fontSize: 'var(--text-2xs)', padding: '2px 8px', borderRadius: 10, background: rule.enabled ? `${COLOR.success}18` : 'var(--surface-4)', color: rule.enabled ? COLOR.success : 'var(--text-3)', fontWeight: 700 }}>
+              <span style={{ fontSize: 'var(--text-2xs)', padding: '2px 8px', borderRadius: 10, background: rule.enabled ? alpha(COLOR.success, '18') : 'var(--surface-4)', color: rule.enabled ? COLOR.success : 'var(--text-3)', fontWeight: 700 }}>
                 {rule.enabled ? 'activa' : 'pausada'}
               </span>
               <button onClick={() => deleteRule(rule.id)}

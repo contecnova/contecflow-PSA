@@ -369,7 +369,7 @@ export default function VisualQueryBuilderWidget() {
                 type="button"
                 onClick={() => previewMutation.mutate(buildQueryPayload())}
                 disabled={previewMutation.isPending}
-                style={{ border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 8, padding: '7px 12px', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer' }}
+                style={{ border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', borderRadius: 8, padding: '7px 12px', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer' }}
               >
                 {previewMutation.isPending ? t('visual_query_builder.loading') : t('visual_query_builder.preview')}
               </button>

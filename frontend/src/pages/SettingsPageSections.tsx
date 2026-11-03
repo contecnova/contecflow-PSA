@@ -16,6 +16,7 @@ import { IdiomasSection, EmailInboundSection, LogLevelSection, SystemStateSectio
 
 import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
 import { useOrgSettings } from '../hooks/useOrgSettings'
+import { alpha } from '../constants/theme'
 const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
@@ -31,7 +32,7 @@ const styles: Record<string, CSSProperties> = {
   btnEdit: { background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" },
   addPanel10: { display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' },
   addPanelBasic: { padding: '14px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 },
-  saveBtn: { background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '6px 14px', color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' },
+  saveBtn: { background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '6px 14px', color: 'var(--on-accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' },
   cancelBtnSm: { background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" },
   cardListItem: { display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 },
   mutedCenter: { fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center' },
@@ -236,7 +237,7 @@ function UsersSection() {
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{u.full_name}</div>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{u.username} · {u.email}</div>
               </div>
-              <span style={{ fontSize: "var(--text-xs)", background: `${roleColor}15`, color: roleColor, border: `1px solid ${roleColor}30`, borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>{roleLabel}</span>
+              <span style={{ fontSize: "var(--text-xs)", background: alpha(roleColor, '15'), color: roleColor, border: `1px solid ${alpha(roleColor, '30')}`, borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>{roleLabel}</span>
               {orgs.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                   {orgs.slice(0, 3).map((org: any) => {
@@ -433,7 +434,7 @@ function RolesSection() {
     <Section icon="🔐" title="Roles y permisos" description="Define accesos avanzados por modulo">
       <div style={styles.colGap8}>
         {isLoading ? <Spinner /> : roles.map((r: any) => (
-          <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'var(--surface-2)', border: `1px solid ${r.color}30`, borderRadius: 10 }}>
+          <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'var(--surface-2)', border: `1px solid ${alpha(r.color, '30')}`, borderRadius: 10 }}>
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{r.name}</div>
@@ -560,12 +561,12 @@ function AlertConfigSection() {
       {isLoading ? <Spinner /> : (
         <div style={styles.colGap10}>
           {configs.map((cfg: any) => (
-            <div key={cfg.alert_type} style={{ padding: '14px 16px', background: 'var(--surface-2)', border: `1px solid ${cfg.is_enabled ? SEV_CFG[cfg.severity] + '30' : 'var(--surface-4)'}`, borderRadius: 10, opacity: cfg.is_enabled ? 1 : 0.6 }}>
+            <div key={cfg.alert_type} style={{ padding: '14px 16px', background: 'var(--surface-2)', border: `1px solid ${cfg.is_enabled ? alpha(SEV_CFG[cfg.severity], '30') : 'var(--surface-4)'}`, borderRadius: 10, opacity: cfg.is_enabled ? 1 : 0.6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                 <div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 3 }}>
                     <span style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{cfg.label}</span>
-                    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: SEV_CFG[cfg.severity], background: SEV_CFG[cfg.severity] + '20', borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{cfg.severity}</span>
+                    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: SEV_CFG[cfg.severity], background: alpha(SEV_CFG[cfg.severity], '20'), borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{cfg.severity}</span>
                   </div>
                   {cfg.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{cfg.description}</div>}
                 </div>
@@ -613,11 +614,11 @@ function AlertConfigSection() {
         ) : (
           <div style={styles.colGap8}>
             {rules.map((rule: any) => (
-              <div key={rule.id} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: `1px solid ${rule.enabled ? SEV_CFG[rule.severity] + '30' : 'var(--surface-4)'}`, borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, opacity: rule.enabled ? 1 : 0.6 }}>
+              <div key={rule.id} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: `1px solid ${rule.enabled ? alpha(SEV_CFG[rule.severity], '30') : 'var(--surface-4)'}`, borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, opacity: rule.enabled ? 1 : 0.6 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2 }}>
                     <span style={{ fontWeight: 600, fontSize: "var(--text-base)" }}>{rule.name}</span>
-                    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: SEV_CFG[rule.severity], background: SEV_CFG[rule.severity] + '20', borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{rule.severity}</span>
+                    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: SEV_CFG[rule.severity], background: alpha(SEV_CFG[rule.severity], '20'), borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{rule.severity}</span>
                   </div>
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                     {metrics.find((m: any) => m.key === rule.metric_key)?.label ?? rule.metric_key} · {CONDITION_LABELS[rule.condition] ?? rule.condition}{rule.threshold != null ? ` · umbral: ${rule.threshold}` : ''}
@@ -749,7 +750,7 @@ function RateTablesSection() {
                       <input type="number" value={editEntryForm.cost_rate} onChange={ev => setEditEntryForm((f: any)=>({...f,cost_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
                       <input type="number" value={editEntryForm.billing_rate} onChange={ev => setEditEntryForm((f: any)=>({...f,billing_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
                       <div style={{display:'flex',gap:4}}>
-                        <button onClick={() => updateEntry({ tableId: t.id, entryId: e.id, data: editEntryForm })} disabled={!editEntryForm.label} style={{background:'var(--accent)',border:'none',borderRadius:5,padding:'4px 8px',color:'#fff',cursor:'pointer',fontSize: "var(--text-sm)"}}>✓</button>
+                        <button onClick={() => updateEntry({ tableId: t.id, entryId: e.id, data: editEntryForm })} disabled={!editEntryForm.label} style={{background:'var(--accent)',border:'none',borderRadius:5,padding:'4px 8px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✓</button>
                         <button onClick={() => setEditingEntryId(null)} style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:5,padding:'4px 7px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✕</button>
                       </div>
                     </React.Fragment>
@@ -849,7 +850,7 @@ function VacationSection() {
             <span>Persona</span><span>Asignados</span><span>Tomados</span><span>Pendientes</span><span>Disponibles</span><span>Editar</span>
           </div>
           {balances.map((b: any) => (
-            <div key={b.user_id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '10px 16px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>
+            <div key={b.user_id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '10px 16px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{b.user_name}</div>
                 {b.department && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{b.department}</div>}
@@ -983,7 +984,7 @@ function CustomFieldsSection() {
                             onChange={e=>setEditFieldForm((f: any)=>({...f,is_required:e.target.checked}))} />Obligatorio
                         </label>
                         <button onClick={() => updateField({ id: f.id, data: editFieldForm })} disabled={!editFieldForm.name}
-                          style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color:'#fff',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>✓ Guardar</button>
+                          style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>✓ Guardar</button>
                         <button onClick={() => setEditingFieldId(null)}
                           style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'5px 9px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✕</button>
                       </div>
@@ -1372,7 +1373,7 @@ function TaskTypesSection() {
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
           {types.map((t: any) => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--surface-2)', border: `1px solid ${t.color}40`, borderRadius: 10 }}>
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--surface-2)', border: `1px solid ${alpha(t.color, '40')}`, borderRadius: 10 }}>
               <span style={{ fontSize: "var(--text-lg-em)" }}>{t.icon}</span>
               <div>
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: t.color }}>{t.name}</div>

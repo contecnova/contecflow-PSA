@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { Shield } from 'lucide-react'
-import { COLOR } from '../constants/theme'
+import { COLOR, alpha } from '../constants/theme'
 import { useAppLang } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import {
@@ -89,7 +89,7 @@ const S = {
   input:       { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', borderRadius: 8, padding: '9px 13px', fontSize: 'var(--text-base)', fontFamily: 'inherit', outline: 'none', width: '100%' } as CSSProperties,
   btnPrimary:  { padding: '7px 16px', borderRadius: 8, background: COLOR.accent, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
   btnSecondary:{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' } as CSSProperties,
-  btnAccentOutline: (c: string = COLOR.accent): CSSProperties => ({ padding: '7px 14px', borderRadius: 8, border: `1px solid ${c}`, background: `${c}18`, color: c, cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }),
+  btnAccentOutline: (c: string = COLOR.accent): CSSProperties => ({ padding: '7px 14px', borderRadius: 8, border: `1px solid ${c}`, background: alpha(c, '18'), color: c, cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }),
 }
 
 const getLocale = (lang: string) => (lang === 'en' ? 'en-US' : 'es-ES')
@@ -301,7 +301,7 @@ export default function DataGovernancePage(): JSX.Element {
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
                       {(govAuditData?.items || []).slice(0, 20).map((ev, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
-                          <span style={{ fontSize: 'var(--text-2xs)', background: `${COLOR.info}18`, color: COLOR.info, borderRadius: 6, padding: '2px 7px', fontWeight: 700, flexShrink: 0 }}>{ev.action || 'view'}</span>
+                          <span style={{ fontSize: 'var(--text-2xs)', background: alpha(COLOR.info, '18'), color: COLOR.info, borderRadius: 6, padding: '2px 7px', fontWeight: 700, flexShrink: 0 }}>{ev.action || 'view'}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.resource || '—'}</div>
                             <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{ev.user_id || '—'} · {ev.accessed_at ? new Date(ev.accessed_at).toLocaleString() : '—'}</div>
@@ -363,7 +363,7 @@ export default function DataGovernancePage(): JSX.Element {
                         const sc = f.sensitivity === 'critical' || f.sensitivity === 'pii' ? COLOR.danger : f.sensitivity === 'high' ? COLOR.warning : COLOR.success
                         return (
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
-                            <span style={{ fontSize: 'var(--text-2xs)', background: `${sc}18`, color: sc, borderRadius: 6, padding: '2px 7px', fontWeight: 700, flexShrink: 0, textTransform: 'uppercase' }}>{f.sensitivity || '—'}</span>
+                            <span style={{ fontSize: 'var(--text-2xs)', background: alpha(sc, '18'), color: sc, borderRadius: 6, padding: '2px 7px', fontWeight: 700, flexShrink: 0, textTransform: 'uppercase' }}>{f.sensitivity || '—'}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.field_name || '—'}</div>
                               <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{f.dataset_id || '—'}</div>
@@ -502,7 +502,7 @@ export default function DataGovernancePage(): JSX.Element {
                       </div>
                       <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('datagovernance.periodo')} {bm.period_days}d · Tab: {bm.active_tab || 'executive'}</div>
                       {bm.description && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{bm.description}</div>}
-                      {bm.shared && <span style={{ fontSize: 'var(--text-2xs)', padding: '3px 8px', borderRadius: 10, background: `${COLOR.success}18`, color: COLOR.success, fontWeight: 700, alignSelf: 'flex-start' }}>Compartido</span>}
+                      {bm.shared && <span style={{ fontSize: 'var(--text-2xs)', padding: '3px 8px', borderRadius: 10, background: alpha(COLOR.success, '18'), color: COLOR.success, fontWeight: 700, alignSelf: 'flex-start' }}>Compartido</span>}
                     </div>
                   ))}
                 </div>

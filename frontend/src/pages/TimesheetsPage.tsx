@@ -480,7 +480,7 @@ export default function TimesheetsPage() {
                 const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))
                 return teamSortDir === 'asc' ? cmp : -cmp
               }).map(ts => (
-                <div key={ts.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>
+                <div key={ts.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center' }}>
                   <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{ts.user_name}</span>
                   <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{fmtDate(ts.week_start)}</span>
                   <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{fmtHours(ts.total_hours)}</span>

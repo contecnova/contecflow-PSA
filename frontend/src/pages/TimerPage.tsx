@@ -13,6 +13,7 @@ import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { DEFAULT_PAGE_SIZE, LARGE_PAGE_SIZE, NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS } from '../constants/timings'
+import { alpha } from '../constants/theme'
 
 const FS: CSSProperties = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -455,7 +456,7 @@ export default function TimerPage() {
             fontSize: "var(--text-80)", fontWeight: 800,
             fontFamily: '"Roboto Mono","Courier New",monospace',
             color: 'var(--text-1)', letterSpacing: 4, lineHeight: 1,
-            textShadow: isRunning ? `0 0 40px ${stateColor}55` : 'none',
+            textShadow: isRunning ? `0 0 40px ${alpha(stateColor, '55')}` : 'none',
           }}>
             {formatTime(elapsed)}
           </div>

@@ -14,6 +14,7 @@ import { Search } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 type EntityTypeId = 'project' | 'task' | 'client' | 'ticket' | 'contract' | 'invoice'
 
@@ -124,7 +125,7 @@ function FTSMode() {
           {ENTITY_TYPES.map(e => (
             <button key={e.id} onClick={() => setEntity(e.id)}
               style={{ padding: '5px 14px', borderRadius: 20, border: `1px solid ${entity === e.id ? e.color : 'var(--surface-4)'}`,
-                background: entity === e.id ? e.color + '15' : 'transparent', color: entity === e.id ? e.color : 'var(--text-2)',
+                background: entity === e.id ? alpha(e.color, '15') : 'transparent', color: entity === e.id ? e.color : 'var(--text-2)',
                 fontSize: "var(--text-sm)", fontWeight: entity === e.id ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
               {e.icon} {e.label}
             </button>
@@ -149,14 +150,14 @@ function FTSMode() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <span style={{ fontSize: "var(--text-lg)" }}>{etype.icon}</span>
                 <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: etype.color }}>{etype.label}</span>
-                <span style={{ fontSize: "var(--text-xs)", background: etype.color + '20', color: etype.color, borderRadius: 10, padding: '1px 7px' }}>
+                <span style={{ fontSize: "var(--text-xs)", background: alpha(etype.color, '20'), color: etype.color, borderRadius: 10, padding: '1px 7px' }}>
                   {results[etype.id]!.length}
                 </span>
               </div>
               {results[etype.id]!.map(item => (
                 <button key={item.id} type="button" style={{ ...panel, padding: '12px 16px', marginBottom: 6,
                   cursor: 'pointer', transition: 'border-color 0.12s' }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = etype.color + '40'}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = alpha(etype.color, '40')}
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
                   onClick={() => {
                     const paths: Record<EntityTypeId, string> = { project: '/projects', task: '/tasks', client: '/clients', ticket: '/service-desk', contract: '/contracts', invoice: '/invoices' }

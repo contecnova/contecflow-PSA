@@ -1185,21 +1185,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const { alertCount, approvalCount } = useNotificationBadges()
   const { unread: chatUnread } = useChatRealtime()
 
-  useEffect(() => {
-    const density = prefs?.ui_density || 'normal'
-    document.documentElement.setAttribute('data-density', density)
-    const root = document.documentElement
-    if (density === 'compact') {
-      root.style.setProperty('--space-item', '5px')
-      root.style.setProperty('--font-size-base', '12px')
-    } else if (density === 'comfortable') {
-      root.style.setProperty('--space-item', '10px')
-      root.style.setProperty('--font-size-base', '14px')
-    } else {
-      root.style.setProperty('--space-item', '7px')
-      root.style.setProperty('--font-size-base', '13px')
-    }
-  }, [prefs?.ui_density])
+  // La densidad la aplica useUserPreferences (applyDensity), un solo sitio.
 
   const location = useLocation()
   const [pinned, setPinned] = useState<string[]>(() => _lsGet(PINNED_KEY))

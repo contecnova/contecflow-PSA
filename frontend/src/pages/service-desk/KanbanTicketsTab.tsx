@@ -5,8 +5,9 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { Spinner } from '../../components/ui'
 import { ticketsApi } from '../../services/api'
+import { alpha } from '../../constants/theme'
 
-const PRIO_COLOR: Record<string, string> = { p1_critical: '#f87171', p2_high: '#fb923c', p3_medium: '#4f8ef7', p4_low: '#34d399' }
+const PRIO_COLOR: Record<string, string> = { p1_critical: 'var(--danger)', p2_high: 'var(--orange)', p3_medium: 'var(--warning)', p4_low: 'var(--text-2)' }
 const PRIO_LABEL: Record<string, string> = { p1_critical: 'P1', p2_high: 'P2', p3_medium: 'P3', p4_low: 'P4' }
 
 interface KanbanTicket {
@@ -102,8 +103,8 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
           >
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10,
-              padding: '8px 12px', background: `${col.color}18`,
-              borderRadius: 8, border: `1px solid ${col.color}35`,
+              padding: '8px 12px', background: alpha(col.color, '18'),
+              borderRadius: 8, border: `1px solid ${alpha(col.color, '35')}`,
             }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color, flexShrink: 0 }} />
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)', flex: 1 }}>{col.label}</div>
@@ -131,7 +132,7 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
                     cursor: 'grab', transition: 'border-color .15s, box-shadow .15s',
                     opacity: dragging?.ticket?.id === ticket.id ? 0.5 : 1,
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = col.color + '60'; e.currentTarget.style.boxShadow = `0 2px 8px ${col.color}20` }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(col.color, '60'); e.currentTarget.style.boxShadow = `0 2px 8px ${alpha(col.color, '20')}` }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.boxShadow = 'none' }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
@@ -139,7 +140,7 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
                     {ticket.priority && (
                       <span style={{
                         fontSize: "var(--text-3xs)", fontWeight: 700, padding: '1px 6px', borderRadius: 4,
-                        background: `${PRIO_COLOR[ticket.priority] || '#888'}20`,
+                        background: alpha(PRIO_COLOR[ticket.priority] || 'var(--text-2)', '20'),
                         color: PRIO_COLOR[ticket.priority] || 'var(--text-2)',
                       }}>
                         {PRIO_LABEL[ticket.priority] || ticket.priority}

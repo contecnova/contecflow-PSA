@@ -10,6 +10,7 @@ import { Button, Modal, Spinner, EmptyState } from './ui'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 interface ProjectItem {
   id: string | number
@@ -318,7 +319,7 @@ export default function ResourceHeatmap() {
               {bookings.map(b => (
                 <div key={b.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 120px 120px 80px 80px auto', gap:10, padding:'8px 12px', background:'var(--surface-3)', borderRadius:8, alignItems:'center', fontSize: "var(--text-sm)" }}>
                   <span style={{ fontWeight:600 }}>{b.user_name}</span>
-                  <span style={{ fontSize: "var(--text-xs)", fontWeight:700, color:(b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)', background:((b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)')+'20', padding:'2px 6px', borderRadius:4, textAlign:'center' }}>{b.booking_type}</span>
+                  <span style={{ fontSize: "var(--text-xs)", fontWeight:700, color:(b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)', background:alpha(((b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)'), '20'), padding:'2px 6px', borderRadius:4, textAlign:'center' }}>{b.booking_type}</span>
                   <span style={{ color:'var(--text-2)' }}>{b.project_name || t('resource_heatmap.no_project')}</span>
                   <span style={{ color:'var(--text-2)' }}>{b.start_date} → {b.end_date}</span>
                   <span>{b.hours_per_day}{t('resourceheatmap.h_dia_2')}</span>

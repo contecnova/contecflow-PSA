@@ -46,6 +46,14 @@
   --accent-border:        rgba(79, 142, 247, 0.30);
   --accent-border-strong: rgba(79, 142, 247, 0.40);
 
+  /* Texto sobre el acento (botón principal, pestaña activa). En los temas
+     oscuros, el fondo del tema; el claro lo cambia a blanco. Con un acento
+     del perfil, applyAccent() elige el extremo que más contrasta (≥ 4,58:1
+     con cualquier color). */
+  --on-accent-light: #ffffff;
+  --on-accent-dark:  #000000;
+  --on-accent:       var(--surface-0);
+
   /* Semánticos */
   --success:      #34d399;
   --success-bg:   rgba(52, 211, 153, 0.08);
@@ -148,6 +156,9 @@
   --radius-xl:  18px;
   --radius-full: 9999px;
 
+  /* Movimiento — curva por defecto de toda transición */
+  --easing: cubic-bezier(0.4, 0, 0.2, 1);
+
   /* Sombras */
   --shadow-sm:  0 1px 3px rgba(0,0,0,0.4);
   --shadow-md:  0 4px 16px rgba(0,0,0,0.5);
@@ -240,59 +251,19 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--surface-5); }
 
 /* ══════════════════════════════════════════════════════════════
-   FOCUS / OUTLINE — NUCLEAR SUPPRESSION para buttons
+   FOCO — visible con teclado, nunca con ratón
    ══════════════════════════════════════════════════════════════
-   Cualquier elemento clickable (button, a, [role="button"], [role="tab"],
-   [aria-pressed], [aria-selected]) NO debe mostrar NINGÚN outline,
-   box-shadow ring ni focus indicator extra. El estado activo se identifica
-   por el border + background propios. Solo inputs/select/textarea mantienen
-   outline para a11y de formularios. */
+   Con teclado hay que ver dónde se está (WCAG 2.4.7). :focus-visible separa
+   los dos casos: el anillo no sale al hacer clic ni al cargar la página, que
+   era el motivo para quitarlo. El !important gana a los outline: 'none' de
+   los estilos en línea. El estado activo sigue marcado por borde y fondo. */
+*, *::before, *::after { -webkit-tap-highlight-color: transparent; }
 
-/* Reset universal */
-*, *::before, *::after {
-  outline-width: 0;
-  outline-style: none;
-  outline-color: transparent;
-}
+:focus:not(:focus-visible) { outline: none; }
 
-/* Override total para focusables visuales */
-button,
-button:hover,
-button:focus,
-button:focus-visible,
-button:focus-within,
-button:active,
-a,
-a:hover,
-a:focus,
-a:focus-visible,
-a:focus-within,
-a:active,
-[role="button"],
-[role="button"]:focus,
-[role="button"]:focus-visible,
-[role="tab"],
-[role="tab"]:focus,
-[role="tab"]:focus-visible,
-[role="menuitem"],
-[role="menuitem"]:focus,
-[aria-pressed],
-[aria-pressed]:focus,
-[aria-pressed]:focus-visible,
-[aria-selected],
-[aria-selected]:focus,
-[aria-selected]:focus-visible,
-[role="tablist"] *,
-[role="tablist"] *:focus,
-[role="tablist"] *:focus-visible,
-[role="group"] > button,
-[role="group"] > button:focus,
-[role="group"] > button:focus-visible {
-  outline: 0 !important;
-  outline-style: none !important;
-  outline-width: 0 !important;
-  outline-color: transparent !important;
-  -webkit-tap-highlight-color: transparent !important;
+:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px;
 }
 
 /* Firefox específico — quita el dotted inner border en buttons focuseados */
@@ -301,17 +272,7 @@ button::-moz-focus-inner,
 [type="submit"]::-moz-focus-inner,
 [type="reset"]::-moz-focus-inner {
   border: 0 !important;
-  outline: 0 !important;
   padding: 0 !important;
-}
-
-/* Inputs / Select / Textarea — mantienen outline ring para a11y de forms */
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: 2px solid var(--accent) !important;
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
 }
 
 /* ── Selección ────────────────────────────────────────────────── */
@@ -556,21 +517,28 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 
   --text-1:       #0f172a;
   --text-2:       #475569;
-  --text-3:       #94a3b8;
+  --text-3:       #617089;   /* era #94a3b8 (2,6:1); ahora pasa AA también sobre surface-1 */
   --text-4:       #cbd5e1;
 
   --accent:         #2563eb;
   --accent-dim:     #1d4ed8;
   --accent-glow:    rgba(37, 99, 235, 0.12);
   --accent-muted:   rgba(37, 99, 235, 0.08);
+  --on-accent:      var(--on-accent-light);
 
-  --success:        #16a34a;
-  --success-bg:     rgba(22, 163, 74, 0.08);
-  --success-border: rgba(22, 163, 74, 0.2);
+  /* Éxito, aviso y naranja, oscurecidos para leerse como texto sobre blanco */
+  --success:        #15803d;
+  --success-bg:     rgba(21, 128, 61, 0.08);
+  --success-border: rgba(21, 128, 61, 0.2);
 
-  --warning:        #d97706;
-  --warning-bg:     rgba(217, 119, 6, 0.08);
-  --warning-border: rgba(217, 119, 6, 0.2);
+  --warning:        #b45309;
+  --warning-bg:     rgba(180, 83, 9, 0.08);
+  --warning-border: rgba(180, 83, 9, 0.2);
+
+  --orange:               #c2410c;
+  --orange-bg:            rgba(194, 65, 12, 0.08);
+  --orange-border:        rgba(194, 65, 12, 0.30);
+  --orange-border-strong: rgba(194, 65, 12, 0.40);
 
   --danger:         #dc2626;
   --danger-bg:      rgba(220, 38, 38, 0.08);
@@ -651,7 +619,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 
   --text-1:       #e8f0ff;
   --text-2:       #7a90bb;
-  --text-3:       #3d506e;
+  --text-3:       #7689a8;   /* era #3d506e (2,3:1); ahora pasa AA */
   --text-4:       #1e2d45;
 
   --accent:         #5b9cf6;
@@ -673,8 +641,8 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   --surface-5:    #373e47;
 
   --text-1:       #e6edf3;
-  --text-2:       #7d8590;
-  --text-3:       #484f58;
+  --text-2:       #9da7b3;   /* era #7d8590 (4,3:1) */
+  --text-3:       #8b949e;   /* era #484f58 (2,0:1); ahora pasa AA */
   --text-4:       #2d333b;
 
   --accent:         #4493f8;
@@ -686,10 +654,32 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   color-scheme: dark;
 }
 
+/* ── Densidad del perfil ────────────────────────────────────────────────────
+   data-density lo escribe applyDensity() (utils/appearance.ts), un solo sitio.
+   Aquí sólo se mueven los tokens: la escala de texto de trabajo y el relleno
+   de la página. Lo que use var(--text-*) o PageShell cambia con ella; un
+   tamaño escrito como número en un estilo en línea, no. 'normal' es :root. */
+[data-density="compact"] {
+  --text-xs:   10px;
+  --text-sm:   11px;
+  --text-base: 12px;
+  --text-md:   13px;
+  --page-pad-x: var(--space-6);
+  --page-pad-y: var(--space-6);
+}
+[data-density="comfortable"] {
+  --text-xs:   12px;
+  --text-sm:   13px;
+  --text-base: 14px;
+  --text-md:   15px;
+  --page-pad-x: var(--space-10);
+  --page-pad-y: var(--space-10);
+}
+
 /* ── Skip to content (lectores de pantalla) ─────────────────────────────────── */
 .skip-nav {
   position: fixed; top: -100%; left: 8px;
-  padding: 8px 16px; background: var(--accent); color: #fff;
+  padding: 8px 16px; background: var(--accent); color: var(--on-accent);
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   font-size: 13px; font-weight: 600; text-decoration: none; z-index: 9999;
   transition: top .15s;
@@ -762,8 +752,8 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   justify-content: center;
   gap: 6px;
   padding: 9px 18px;
-  background: linear-gradient(135deg, var(--accent) 0%, #6366f1 100%);
-  color: #fff;
+  background: var(--accent);   /* era un degradado hacia #6366f1, un literal que no seguía al tema */
+  color: var(--on-accent);
   border: none;
   border-radius: var(--radius-md);
   font-family: var(--font-sans);
@@ -1425,16 +1415,6 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   }
 }
 
-/* ── Focus-visible para a11y (sólo inputs/select/textarea) ─────
-   Buttons y links NO reciben outline — su estado activo lo identifica
-   el border + background. Esto evita el "halo" del navegador en pills. */
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 /* ── Print media ──────────────────────────────────────────────── */
 @media print {
   aside[aria-label="Navegación principal"],
@@ -1662,7 +1642,6 @@ textarea:focus-visible {
   box-shadow: var(--shadow-md);
 }
 .ds-card--clickable:focus-visible {
-  outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
@@ -1873,7 +1852,7 @@ textarea:focus-visible {
 .ds-segmented button[aria-pressed="true"],
 .ds-segmented button.is-active {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 

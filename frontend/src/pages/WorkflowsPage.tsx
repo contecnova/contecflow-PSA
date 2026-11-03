@@ -10,7 +10,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Workflow } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
-import { CHART_COLORS_EXTENDED } from '../constants/theme'
+import { CHART_COLORS_EXTENDED, alpha } from '../constants/theme'
 
 type ProjectRole = 'admin' | 'pm' | 'team_lead' | 'employee' | 'hr'
 
@@ -415,7 +415,7 @@ export default function WorkflowsPage() {
               {[...states].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).map((s, i) => (
                 <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ textAlign: 'center', minWidth: 100 }}>
-                    <div style={{ width: 64, height: 64, borderRadius: '50%', background: s.color + '25', border: `2px solid ${s.color}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px', fontSize: "var(--text-xl)" }}>
+                    <div style={{ width: 64, height: 64, borderRadius: '50%', background: alpha(s.color, '25'), border: `2px solid ${s.color}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px', fontSize: "var(--text-xl)" }}>
                       {s.icon || s.name.charAt(0)}
                     </div>
                     <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: s.color }}>{s.name}</div>

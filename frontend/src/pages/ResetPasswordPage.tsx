@@ -200,7 +200,7 @@ export default function ResetPasswordPage() {
             onClick={submit}
             disabled={loading}
             style={{
-              width: '100%', height: 44, background: 'var(--accent)', color: '#fff',
+              width: '100%', height: 44, background: 'var(--accent)', color: 'var(--on-accent)',
               border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 14,
               cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
               fontFamily: 'inherit', transition: 'opacity 0.15s',

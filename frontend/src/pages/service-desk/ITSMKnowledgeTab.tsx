@@ -11,7 +11,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { sdKbApi, problemsApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
-import { COLOR } from '../../constants/theme'
+import { COLOR, alpha } from '../../constants/theme'
 
 type Priority = 'p1_critical' | 'p2_high' | 'p3_medium' | 'p4_low' | string
 type ProblemStatus = 'open' | 'investigating' | 'known_error' | 'resolved' | 'closed' | string
@@ -56,7 +56,7 @@ type InputStyles = CSSProperties
 
 const PRIORITY_COLOR: Record<string, string> = {
   p1_critical: COLOR.danger,
-  p2_high: 'var(--orange)',
+  p2_high: COLOR.orange,
   p3_medium: COLOR.warning,
   p4_low: COLOR.text2,
 }
@@ -71,7 +71,7 @@ const PRIORITY_LABEL: Record<string, string> = {
 function PBadge({ v }: { v?: Priority }) {
   const color = PRIORITY_COLOR[v ?? ''] || COLOR.text2
   return (
-    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color, padding: '2px 7px', borderRadius: 4, border: `1px solid ${color}30`, background: `${color}12`, whiteSpace: 'nowrap' }}>
+    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color, padding: '2px 7px', borderRadius: 4, border: `1px solid ${alpha(color, '30')}`, background: alpha(color, '12'), whiteSpace: 'nowrap' }}>
       {PRIORITY_LABEL[v ?? ''] || v}
     </span>
   )
@@ -166,14 +166,14 @@ function KnownErrors() {
             {ke.workaround ? (
               <div>
                 <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: COLOR.success, marginBottom: 4 }}>WORKAROUND</div>
-                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', background: `${COLOR.success}08`, border: `1px solid ${COLOR.success}20`, borderRadius: 8, padding: '10px 14px' }}>
+                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', background: alpha(COLOR.success, '08'), border: `1px solid ${alpha(COLOR.success, '20')}`, borderRadius: 8, padding: '10px 14px' }}>
                   {ke.workaround}
                 </div>
               </div>
             ) : ke.fix_description ? (
               <div>
                 <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: COLOR.info, marginBottom: 4 }}>{t('itsmknowledge.solucion_definitiva')}</div>
-                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', background: `${COLOR.info}08`, border: `1px solid ${COLOR.info}20`, borderRadius: 8, padding: '10px 14px' }}>
+                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', background: alpha(COLOR.info, '08'), border: `1px solid ${alpha(COLOR.info, '20')}`, borderRadius: 8, padding: '10px 14px' }}>
                   {ke.fix_description}
                 </div>
               </div>
@@ -323,7 +323,7 @@ function Problems() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                         <span style={{ fontSize: "var(--text-xs)", color: COLOR.warning, fontWeight: 700 }}>{p.number}</span>
-                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: sc, background: `${sc}15`, padding: '2px 8px', borderRadius: 4 }}>
+                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: sc, background: alpha(sc, '15'), padding: '2px 8px', borderRadius: 4 }}>
                           {p.status?.replace(/_/g, ' ')}
                         </span>
                         <PBadge v={p.priority} />
@@ -357,7 +357,7 @@ function Problems() {
                     </div>
                   )}
                   {p.workaround && (
-                    <div style={{ background: `${COLOR.success}08`, border: `1px solid ${COLOR.success}20`, borderRadius: 8, padding: '8px 12px' }}>
+                    <div style={{ background: alpha(COLOR.success, '08'), border: `1px solid ${alpha(COLOR.success, '20')}`, borderRadius: 8, padding: '8px 12px' }}>
                       <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: COLOR.success, textTransform: 'uppercase', marginRight: 8 }}>Workaround</span>
                       <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>{p.workaround}</span>
                     </div>
@@ -491,7 +491,7 @@ function KB() {
           <div key={a.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
               <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-1)', flex: 1, marginRight: 8 }}>{a.title}</div>
-              <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap', background: `${STATUS_COLOR[a.status ?? ''] || COLOR.text2}15`, color: STATUS_COLOR[a.status ?? ''] || COLOR.text2 }}>
+              <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap', background: alpha(STATUS_COLOR[a.status ?? ''] || COLOR.text2, '15'), color: STATUS_COLOR[a.status ?? ''] || COLOR.text2 }}>
                 {a.status ? ts(`sd_cfg.kb_status_${a.status}`) : ''}
               </span>
             </div>
@@ -512,7 +512,7 @@ function KB() {
                 <button onClick={() => toggleStatus({ id: a.id, status: a.status === 'published' ? 'draft' : 'published' })} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>{a.status === 'published' ? `⏸ ${ts('sd_cfg.kb_unpublish')}` : `▶ ${ts('sd_cfg.kb_publish')}`}</button>
                 {a.status === 'draft' && <button onClick={() => enviarARevision(a.id)} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>{ts('sd_cfg.kb_submit')}</button>}
               </>}
-              <button onClick={() => { openConfirmGlobal({ message: 'Eliminar articulo?', onConfirm: () => deleteArticle(a.id), danger: true }) }} style={{ padding: '5px 8px', borderRadius: 6, border: `1px solid ${COLOR.danger}30`, background: 'transparent', color: COLOR.danger, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
+              <button onClick={() => { openConfirmGlobal({ message: 'Eliminar articulo?', onConfirm: () => deleteArticle(a.id), danger: true }) }} style={{ padding: '5px 8px', borderRadius: 6, border: `1px solid ${alpha(COLOR.danger, '30')}`, background: 'transparent', color: COLOR.danger, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
             </div>
           </div>
         ))}

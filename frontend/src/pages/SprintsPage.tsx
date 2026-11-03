@@ -18,6 +18,7 @@ import { RefreshCw } from 'lucide-react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 type Task = {
   [k: string]: unknown
@@ -194,9 +195,9 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
   const pColor = PRIORITY_COLOR[task.priority || ''] || 'var(--text-2)'
 
   return (
-    <div style={{ background: 'var(--surface-2)', border: `1px solid ${cfg.color}30`, borderRadius: 10, padding: compact ? '8px 12px' : '12px 14px', cursor: 'pointer', position: 'relative' }}
-      onPointerEnter={e => e.currentTarget.style.borderColor = cfg.color + '60'}
-      onPointerLeave={e => e.currentTarget.style.borderColor = cfg.color + '30'}>
+    <div style={{ background: 'var(--surface-2)', border: `1px solid ${alpha(cfg.color, '30')}`, borderRadius: 10, padding: compact ? '8px 12px' : '12px 14px', cursor: 'pointer', position: 'relative' }}
+      onPointerEnter={e => e.currentTarget.style.borderColor = alpha(cfg.color, '60')}
+      onPointerLeave={e => e.currentTarget.style.borderColor = alpha(cfg.color, '30')}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginBottom: 3 }}>{task.code}</div>
@@ -207,7 +208,7 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: pColor + '20', color: pColor }}>{task.priority}</span>
+        <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: alpha(pColor, '20'), color: pColor }}>{task.priority}</span>
         {(task.story_points ?? 0) > 0 && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-2)' }}>{task.story_points} pts</span>}
         {task.assignee_name && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>👤 {task.assignee_name.split(' ')[0]}</span>}
       </div>
@@ -217,7 +218,7 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
           <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', padding: '4px 8px', marginBottom: 4, textTransform: 'uppercase' }}>Cambiar estado</div>
           {Object.entries(TASK_STATUS_CFG).map(([status, { label, color }]) => (
             <button key={status} onClick={() => { onStatusChange?.(task.id, status); setShowMenu(false) }}
-              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', background: task.status === status ? color + '20' : 'transparent', border: 'none', borderRadius: 6, color: task.status === status ? color : 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', background: task.status === status ? alpha(color, '20') : 'transparent', border: 'none', borderRadius: 6, color: task.status === status ? color : 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
               {label}
             </button>
           ))}
@@ -257,7 +258,7 @@ function SprintKanban({ sprint, onStatusChange, onMoveToBacklog }: { sprint: Spr
         const cfg = TASK_STATUS_CFG[col.key]
         return (
           <div key={col.key}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: '6px 10px', background: cfg.color + '15', borderRadius: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: '6px 10px', background: alpha(cfg.color, '15'), borderRadius: 8 }}>
               <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: cfg.color }}>{col.label}</span>
               <span style={{ fontSize: "var(--text-xs)", color: cfg.color }}>{colTasks.length}</span>
             </div>
@@ -563,7 +564,7 @@ export default function SprintsPage() {
                     <input type="checkbox" checked={selected} readOnly style={{ cursor: 'pointer' }} />
                     <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{task.code}</span>
                     <span style={{ fontSize: "var(--text-sm)", fontWeight: 500 }}>{task.title}</span>
-                    <span style={{ fontSize: "var(--text-xs)", padding: '2px 6px', borderRadius: 4, background: (PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)') + '20', color: PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)', textAlign: 'center' }}>{task.priority}</span>
+                    <span style={{ fontSize: "var(--text-xs)", padding: '2px 6px', borderRadius: 4, background: alpha((PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)'), '20'), color: PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)', textAlign: 'center' }}>{task.priority}</span>
                     <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textAlign: 'center' }}>{task.story_points || '—'} pts</span>
                     <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{task.assignee_name || 'Sin asignar'}</span>
                   </div>

@@ -4,14 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../../context/ToastContext'
 import { sdRoutingApi, sdGroupsApi, sdSlaPoliciesApi, usersApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH } from '../../components/ui'
-import { COLOR } from '../../constants/theme'
+import { COLOR, alpha } from '../../constants/theme'
 import { useAppT } from '../../i18n/AppLangContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
 const PRIORITY_COLOR: Record<string, string> = {
   p1_critical: COLOR.danger,
-  p2_high: 'var(--orange)',
+  p2_high: COLOR.orange,
   p3_medium: COLOR.warning,
   p4_low: COLOR.text2,
 }
@@ -38,7 +38,7 @@ function PBadge({ v }: { v?: string }) {
   const color = PRIORITY_COLOR[v || ''] || COLOR.text2
   return (
     <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color, padding: '2px 7px',
-      borderRadius: 4, border: `1px solid ${color}30`, background: `${color}12`,
+      borderRadius: 4, border: `1px solid ${alpha(color, '30')}`, background: alpha(color, '12'),
       whiteSpace: 'nowrap' }}>
       {PRIORITY_LABEL[v || ''] || v}
     </span>
@@ -50,7 +50,7 @@ function SBadge({ v }: { v?: string }) {
   const label = v?.replace(/_/g, ' ')
   return (
     <span style={{ fontSize: "var(--text-2xs)", fontWeight: 600, color, padding: '2px 8px',
-      borderRadius: 4, background: `${color}15`, whiteSpace: 'nowrap' }}>
+      borderRadius: 4, background: alpha(color, '15'), whiteSpace: 'nowrap' }}>
       {label}
     </span>
   )
@@ -214,14 +214,14 @@ export function MajorIncidents() {
   return (
     <div>
       {activeMis.length > 0 && (
-        <div style={{ background: `${COLOR.danger}15`, border: `1px solid ${COLOR.danger}40`,
+        <div style={{ background: alpha(COLOR.danger, '15'), border: `1px solid ${alpha(COLOR.danger, '40')}`,
           borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: COLOR.danger, marginBottom: 10 }}>
             🚨 {activeMis.length} {t('service_desk.mi_declared_at').toLowerCase()} {activeMis.length > 1 ? 's' : ''}
           </div>
           {activeMis.map(m => (
             <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between',
-              alignItems: 'center', padding: '8px 0', borderTop: `1px solid ${COLOR.danger}20` }}>
+              alignItems: 'center', padding: '8px 0', borderTop: `1px solid ${alpha(COLOR.danger, '20')}` }}>
               <div>
                 <span style={{ fontWeight: 600, fontSize: "var(--text-sm)", color: COLOR.danger, marginRight: 10 }}>{m.number}</span>
                 <span style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{m.title}</span>
@@ -234,8 +234,8 @@ export function MajorIncidents() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{mis.length} incidentes mayores registrados</div>
-        <Button onClick={() => setShowDeclare(true)} style={{ background: `${COLOR.danger}20`, color: COLOR.danger,
-          border: `1px solid ${COLOR.danger}40` }}>
+        <Button onClick={() => setShowDeclare(true)} style={{ background: alpha(COLOR.danger, '20'), color: COLOR.danger,
+          border: `1px solid ${alpha(COLOR.danger, '40')}` }}>
           🚨 {t('service_desk.mi_declare_btn')}
         </Button>
       </div>
@@ -266,7 +266,7 @@ export function MajorIncidents() {
                   <td style={{ padding: '10px 8px' }}>
                     <span style={{ fontSize: "var(--text-xs)", fontWeight: 600,
                       color: m.status === 'active' ? COLOR.danger : COLOR.success,
-                      background: m.status === 'active' ? `${COLOR.danger}15` : `${COLOR.success}15`,
+                      background: m.status === 'active' ? alpha(COLOR.danger, '15') : alpha(COLOR.success, '15'),
                       padding: '2px 8px', borderRadius: 4 }}>{m.status}</span>
                   </td>
                   <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{m.commander || '—'}</td>
@@ -329,7 +329,7 @@ function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}
-            style={{ background: `${COLOR.danger}20`, color: COLOR.danger, border: `1px solid ${COLOR.danger}40` }}>
+            style={{ background: alpha(COLOR.danger, '20'), color: COLOR.danger, border: `1px solid ${alpha(COLOR.danger, '40')}` }}>
             {t('service_desk.mi_declare_btn')}
           </Button>
         </div>
@@ -428,7 +428,7 @@ export function RoutingRules() {
                 <div>
                   <span style={{ color: 'var(--text-3)', marginRight: 6 }}>THEN</span>
                   {Object.entries(acts).map(([k, v]) => (
-                    <span key={k} style={{ background: `${COLOR.accent}15`, borderRadius: 4,
+                    <span key={k} style={{ background: alpha(COLOR.accent, '15'), borderRadius: 4,
                       padding: '2px 8px', marginRight: 6, color: COLOR.accent }}>
                       {k}: {String(v)}
                     </span>

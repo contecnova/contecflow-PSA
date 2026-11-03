@@ -266,7 +266,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
             </div>
             {!recording ? (
               <button onClick={handleStart} style={{
-                background: 'var(--accent)', color: '#fff', border: 'none',
+                background: 'var(--accent)', color: 'var(--on-accent)', border: 'none',
                 padding: '10px 22px', borderRadius: 8, cursor: 'pointer',
                 fontWeight: 600, fontSize: 'var(--text-base)',
                 display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -306,7 +306,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
               </button>
               <button onClick={() => transcribe()} disabled={isTranscribing}
                 style={{
-                  background: 'var(--accent)', color: '#fff',
+                  background: 'var(--accent)', color: 'var(--on-accent)',
                   border: 'none', padding: '8px 18px',
                   borderRadius: 8, cursor: 'pointer', fontWeight: 600,
                   fontSize: 'var(--text-sm)', opacity: isTranscribing ? 0.6 : 1,
@@ -387,7 +387,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button onClick={onClose}
                   style={{
-                    background: 'var(--accent)', color: '#fff', border: 'none',
+                    background: 'var(--accent)', color: 'var(--on-accent)', border: 'none',
                     padding: '8px 18px', borderRadius: 8, cursor: 'pointer',
                     fontWeight: 600, fontSize: 'var(--text-sm)',
                   }}>

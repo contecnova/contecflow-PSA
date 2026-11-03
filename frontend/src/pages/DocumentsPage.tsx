@@ -18,6 +18,7 @@ import {
   CheckCircle, XCircle, ExternalLink, Loader
 } from 'lucide-react';
 import { Page, Button } from '../components/ui'
+import { alpha } from '../constants/theme'
 
 // ── Utilidades ─────────────────────────────────────────
 function fmtBytes(b: any) {
@@ -128,7 +129,7 @@ function KpiCard({ icon: Icon, label, value, color, sub }: { icon: any; label?: 
     }}>
       <div style={{
         width: 44, height: 44, borderRadius: 11, flexShrink: 0,
-        backgroundColor: color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backgroundColor: alpha(color, '20'), display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <Icon size={20} style={{ color }} />
       </div>
@@ -674,7 +675,7 @@ function SharePanel({ documentId }: { documentId: any }) {
         </div>
 
         <button onClick={submitGrant} disabled={grantMutation.isPending}
-          style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'white', fontWeight: 700, fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <Check size={13} /> {grantMutation.isPending ? 'Concediendo…' : 'Conceder acceso'}
         </button>
       </div>
@@ -808,8 +809,8 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
   }, [activeVer?.download_url, activeVer?.file_mime_type, activeVer?.file_name]);
 
   const tabBtnStyle = (id: string): CSSProperties => ({
-    padding: '6px 14px', borderRadius: 7, border: `1px solid ${tab === id ? 'var(--accent)40' : 'var(--surface-4)'}`,
-    backgroundColor: tab === id ? 'var(--accent)15' : 'transparent',
+    padding: '6px 14px', borderRadius: 7, border: `1px solid ${tab === id ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}`,
+    backgroundColor: tab === id ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
     color: tab === id ? 'var(--accent)' : 'var(--text-2)',
     fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
   });
@@ -945,7 +946,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                         <div style={{ marginTop: 14, fontSize: "var(--text-base)", color: 'var(--text-3)' }}>{t('documents.el_archivo_no_esta_disponible_en_el')}</div>
                         {activeVer.download_url && (
                           <a href={activeVer.download_url} target="_blank" rel="noreferrer"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '8px 16px', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'white', textDecoration: 'none', fontSize: "var(--text-base)", fontWeight: 700 }}>
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '8px 16px', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'var(--on-accent)', textDecoration: 'none', fontSize: "var(--text-base)", fontWeight: 700 }}>
                             <Download size={14} /> Intentar descargar
                           </a>
                         )}
@@ -959,7 +960,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                         <FileIcon mime={activeVer.file_mime_type} name={activeVer.file_name} size={56} />
                         <div style={{ marginTop: 14, fontSize: "var(--text-base)", color: 'var(--text-3)' }}>{t('documents.vista_previa_no_disponible_para_este_tipo')}</div>
                         <a href={activeVer.download_url} target="_blank" rel="noreferrer"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '8px 16px', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'white', textDecoration: 'none', fontSize: "var(--text-base)", fontWeight: 700 }}>
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '8px 16px', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'var(--on-accent)', textDecoration: 'none', fontSize: "var(--text-base)", fontWeight: 700 }}>
                           <Download size={14} /> {t('documents.descargar_para_ver')}
                         </a>
                       </div>
@@ -993,7 +994,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                         style={{
                           display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, cursor: 'pointer',
                           backgroundColor: activeVer?.id === v.id ? 'var(--surface-3)' : 'var(--surface-2)',
-                          border: `1px solid ${activeVer?.id === v.id ? 'var(--accent)40' : 'var(--surface-4)'}`,
+                          border: `1px solid ${activeVer?.id === v.id ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}`,
                           transition: 'all 0.12s',
                         }}>
                         <div style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: activeVer?.id === v.id ? 'var(--accent)' : 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)", fontWeight: 700, color: activeVer?.id === v.id ? 'white' : 'var(--text-2)', flexShrink: 0 }}>
@@ -1004,7 +1005,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                           {v.change_note && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.change_note}</div>}
                           <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{v.uploader_name} · {fmtDate(v.created_at)} · {fmtBytes(v.file_size)}</div>
                         </div>
-                        {i === 0 && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 10, backgroundColor: 'var(--accent)20', color: 'var(--accent)', fontWeight: 700 }}>Actual</span>}
+                        {i === 0 && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 10, backgroundColor: 'color-mix(in srgb, var(--accent) 13%, transparent)', color: 'var(--accent)', fontWeight: 700 }}>Actual</span>}
                         {v.download_url && (
                           <a href={v.download_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                             style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none', flexShrink: 0 }}>
@@ -1049,7 +1050,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                 <div>
                   {/* AI Summary card */}
                   {doc.ai_summary && (
-                    <div style={{ background: 'var(--purple)12', border: '1px solid var(--purple)30', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+                    <div style={{ background: 'color-mix(in srgb, var(--purple) 7%, transparent)', border: '1px solid color-mix(in srgb, var(--purple) 19%, transparent)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
                       <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--purple)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
                         <Sparkles size={12} /> Resumen IA
                       </div>
@@ -1195,7 +1196,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 6, borderTop: '1px solid var(--surface-4)' }}>
                     <button onClick={() => setIsEditingMeta(false)} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
                     <button onClick={() => updateMetaMutation.mutate(metaForm)} disabled={updateMetaMutation.isPending || !metaForm.title}
-                      style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                       {updateMetaMutation.isPending ? 'Guardando...' : '💾 Guardar'}
                     </button>
                   </div>

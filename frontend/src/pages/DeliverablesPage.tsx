@@ -12,6 +12,7 @@ import { fmtDate, extractErr} from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 interface ProjectItem {
   id: string | number
@@ -81,7 +82,7 @@ function StatusDropdown({ del, onUpdate }: { del: DeliverableItem; onUpdate: (st
   return (
     <div style={{ position: 'relative' }}>
       <button onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-        style={{ display: 'flex', alignItems: 'center', gap: 5, background: cfg.color + '15', border: `1px solid ${cfg.color}40`, borderRadius: 20, padding: '3px 10px', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 700, color: cfg.color, fontFamily: 'inherit', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        style={{ display: 'flex', alignItems: 'center', gap: 5, background: alpha(cfg.color, '15'), border: `1px solid ${alpha(cfg.color, '40')}`, borderRadius: 20, padding: '3px 10px', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 700, color: cfg.color, fontFamily: 'inherit', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
         {cfg.icon} {cfg.label} ▾
       </button>
       {open && (
@@ -277,7 +278,7 @@ export default function DeliverablesPage(): JSX.Element {
               {deliverables.map(d => {
                 const cfg = STATUS_CFG[d.status as keyof typeof STATUS_CFG] || STATUS_CFG.planned
                 return (
-                  <div key={d.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${d.overdue ? 'var(--danger-border)' : cfg.color + '25'}`, borderRadius: 12 }}>
+                  <div key={d.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${d.overdue ? 'var(--danger-border)' : alpha(cfg.color, '25')}`, borderRadius: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
@@ -335,7 +336,7 @@ export default function DeliverablesPage(): JSX.Element {
             {sortedOverview.map(d => {
               const cfg = STATUS_CFG[d.status as keyof typeof STATUS_CFG] || STATUS_CFG.planned
               return (
-                <div key={d.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>
+                <div key={d.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px', gap: 16, padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{d.name}</div>
                     {d.overdue && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--danger)' }}>⚠ En retraso</span>}

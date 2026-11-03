@@ -28,6 +28,7 @@ import {
   formatMoney,
 } from './PortalUI'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { alpha } from '../../constants/theme'
 
 // ── Status helpers ───────────────────────────────────────────────────────────
 const STATUS_TONE: Record<string, string> = {
@@ -162,7 +163,7 @@ export function PortalUAT() {
                         flex: 1, padding: '10px',
                         borderRadius: 8,
                         border: `1px solid ${testResults[tc.id] === opt.val ? opt.color : 'var(--surface-4)'}`,
-                        background: testResults[tc.id] === opt.val ? `${opt.color}1a` : 'var(--surface-3)',
+                        background: testResults[tc.id] === opt.val ? alpha(opt.color, '1a') : 'var(--surface-3)',
                         color: testResults[tc.id] === opt.val ? opt.color : 'var(--text-2)',
                         fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
                         fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,

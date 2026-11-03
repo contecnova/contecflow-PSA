@@ -9,7 +9,7 @@ import { changesApi, cmdbApi, sdChangePlanningApi } from '../../services/api'
 import { CalendarioCambios, Congelaciones, PanelCab, Versiones } from './CambiosPlanificacion'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH } from '../../components/ui'
-import { COLOR } from '../../constants/theme'
+import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 
 type ChangeId = string | number
@@ -142,7 +142,7 @@ function ChangeDetailPanel({
           <div style={{ flex: 1, marginRight: 12 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
               <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 700 }}>{c.number}</span>
-              <span style={{ fontSize: "var(--text-xs)", background: `${sc}15`, color: sc, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{c.status?.replace(/_/g, ' ')}</span>
+              <span style={{ fontSize: "var(--text-xs)", background: alpha(sc, '15'), color: sc, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{c.status?.replace(/_/g, ' ')}</span>
               <span style={{ fontSize: "var(--text-xs)", color: rc, fontWeight: 600 }}>⚠ {c.risk}</span>
               <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{c.change_type?.replace(/_/g, ' ')}</span>
             </div>
@@ -153,7 +153,7 @@ function ChangeDetailPanel({
         <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           <button onClick={onEdit} style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
           {actions.map(a => (
-            <button key={a.label} onClick={() => { onAction(c, a); onClose() }} style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${a.color}40`, background: `${a.color}10`, color: a.color, fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>{a.label}</button>
+            <button key={a.label} onClick={() => { onAction(c, a); onClose() }} style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${alpha(a.color, '40')}`, background: alpha(a.color, '10'), color: a.color, fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>{a.label}</button>
           ))}
         </div>
       </div>
@@ -161,7 +161,7 @@ function ChangeDetailPanel({
       <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
         {isLoading ? <Spinner /> : <>
           {c.rejected_reason && (
-            <div role="status" style={{ border: `1px solid ${COLOR.danger}50`, background: `${COLOR.danger}10`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 'var(--text-sm)', color: COLOR.danger }}>{c.rejected_reason}</div>
+            <div role="status" style={{ border: `1px solid ${alpha(COLOR.danger, '50')}`, background: alpha(COLOR.danger, '10'), borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 'var(--text-sm)', color: COLOR.danger }}>{c.rejected_reason}</div>
           )}
           <PanelCab changeId={c.id} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
@@ -390,10 +390,10 @@ export default function ChangeManagementTab() {
                     <td style={{ padding: '10px 8px', fontSize: "var(--text-base)", color: 'var(--text-1)', maxWidth: 220 }}><button onClick={() => setDetail(c)} style={{ background: 'none', border: 'none', color: 'var(--text-1)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', fontSize: "var(--text-base)", padding: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>{c.title}</button></td>
                     <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{c.change_type?.replace(/_/g, ' ')}</td>
                     <td style={{ padding: '10px 8px' }}><span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: rc }}>{c.risk}</span></td>
-                    <td style={{ padding: '10px 8px' }}><span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: sc, background: `${sc}15`, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>{c.status?.replace(/_/g, ' ')}</span></td>
+                    <td style={{ padding: '10px 8px' }}><span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: sc, background: alpha(sc, '15'), padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>{c.status?.replace(/_/g, ' ')}</span></td>
                     <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmtDate(c.planned_start)}</td>
                     <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{c.owner || '—'}</td>
-                    <td style={{ padding: '10px 8px' }}><div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap' }}><button onClick={() => setEditing(c)} style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>✏ Editar</button>{actions.map(a => <button key={a.label} onClick={() => handleAction(c, a)} style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${a.color}40`, background: `${a.color}10`, color: a.color, fontSize: "var(--text-2xs)", cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{a.label}</button>)}</div></td>
+                    <td style={{ padding: '10px 8px' }}><div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap' }}><button onClick={() => setEditing(c)} style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>✏ Editar</button>{actions.map(a => <button key={a.label} onClick={() => handleAction(c, a)} style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${alpha(a.color, '40')}`, background: alpha(a.color, '10'), color: a.color, fontSize: "var(--text-2xs)", cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{a.label}</button>)}</div></td>
                   </tr>
                 )
               })}

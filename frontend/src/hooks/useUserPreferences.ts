@@ -7,6 +7,7 @@ import { useEffect, useCallback, useRef } from 'react'
 // TODO type: services/api still JS.
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import { applyAccent, applyDensity } from '../utils/appearance'
 
 export type ThemeMode = 'freight' | 'dark' | 'light' | 'high-contrast' | 'midnight' | 'slate' | 'system' | string
 export type UIDensity = 'compact' | 'normal' | 'comfortable' | string
@@ -69,12 +70,8 @@ export function useUserPreferences(): UseUserPreferencesResult {
       window.dispatchEvent(new CustomEvent('contecflow-lang-sync', { detail: { lang: prefs.language } }))
     }
 
-    // Accent color
-    if (prefs.accent_color) {
-      root.style.setProperty('--accent', prefs.accent_color)
-      root.style.setProperty('--accent-muted', `${prefs.accent_color}14`)
-      root.style.setProperty('--accent-glow',  `${prefs.accent_color}26`)
-    }
+    // Accent color (y el texto que va encima, --on-accent)
+    if (prefs.accent_color) applyAccent(prefs.accent_color)
     // Tema (freight / dark / light / high-contrast / midnight / slate / system)
     const theme = prefs.theme_mode || 'freight'
     if (theme === 'system') {
@@ -83,19 +80,8 @@ export function useUserPreferences(): UseUserPreferencesResult {
     } else {
       root.setAttribute('data-theme', theme)
     }
-    // Densidad
-    const density = prefs.ui_density || 'normal'
-    root.setAttribute('data-density', density)
-    if (density === 'compact') {
-      root.style.setProperty('--space-item', '5px')
-      root.style.setProperty('--font-size-base', '12px')
-    } else if (density === 'comfortable') {
-      root.style.setProperty('--space-item', '10px')
-      root.style.setProperty('--font-size-base', '14px')
-    } else {
-      root.style.setProperty('--space-item', '7px')
-      root.style.setProperty('--font-size-base', '13px')
-    }
+    // Densidad: los tokens que cambia están en index.css ([data-density])
+    applyDensity(prefs.ui_density)
 
   }, [prefs])
 
@@ -104,11 +90,7 @@ export function useUserPreferences(): UseUserPreferencesResult {
     // Actualizar caché inmediatamente (optimistic)
     qc.setQueryData(['user-preferences'], (old: UserPreferences | undefined) => ({ ...(old ?? DEFAULTS), ...patch }))
     // Aplicar cambios CSS inmediatos
-    if (patch.accent_color) {
-      document.documentElement.style.setProperty('--accent', patch.accent_color)
-      document.documentElement.style.setProperty('--accent-muted', `${patch.accent_color}14`)
-      document.documentElement.style.setProperty('--accent-glow',  `${patch.accent_color}26`)
-    }
+    if (patch.accent_color) applyAccent(patch.accent_color)
     if (patch.theme_mode) {
       if (patch.theme_mode === 'system') {
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -117,21 +99,7 @@ export function useUserPreferences(): UseUserPreferencesResult {
         document.documentElement.setAttribute('data-theme', patch.theme_mode)
       }
     }
-    if (patch.ui_density) {
-      const density = patch.ui_density
-      document.documentElement.setAttribute('data-density', density)
-      const root = document.documentElement
-      if (density === 'compact') {
-        root.style.setProperty('--space-item', '5px')
-        root.style.setProperty('--font-size-base', '12px')
-      } else if (density === 'comfortable') {
-        root.style.setProperty('--space-item', '10px')
-        root.style.setProperty('--font-size-base', '14px')
-      } else {
-        root.style.setProperty('--space-item', '7px')
-        root.style.setProperty('--font-size-base', '13px')
-      }
-    }
+    if (patch.ui_density) applyDensity(patch.ui_density)
     // Debounce el guardado en backend
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => saveMutation(patch), 500)

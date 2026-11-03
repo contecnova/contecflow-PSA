@@ -10,6 +10,7 @@ import PageShell from '../components/layout/PageShell'
 import { Brain } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 
 
@@ -215,7 +216,7 @@ export default function OraclePage() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {['all', 'critical', 'high', 'medium', 'low'].map(s => (
           <button key={s} onClick={() => setFilter(s)}
-            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${filter===s ? SEV[s]?.color+'60' || 'var(--accent)' : 'var(--surface-4)'}`, background: filter===s ? (SEV[s]?.bg || 'var(--accent-muted)') : 'transparent', color: filter===s ? (SEV[s]?.color || 'var(--accent)') : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: filter===s ? 700 : 400, textTransform: 'capitalize' }}>
+            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${filter===s ? alpha(SEV[s]?.color, '60') || 'var(--accent)' : 'var(--surface-4)'}`, background: filter===s ? (SEV[s]?.bg || 'var(--accent-muted)') : 'transparent', color: filter===s ? (SEV[s]?.color || 'var(--accent)') : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: filter===s ? 700 : 400, textTransform: 'capitalize' }}>
             {s === 'all' ? `Todos (${preds.length})` : `${SEV[s]?.label} (${preds.filter(p=>p.severity===s).length})`}
           </button>
         ))}

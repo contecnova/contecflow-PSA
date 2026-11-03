@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
+import { alpha } from '../constants/theme'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -89,7 +90,7 @@ function StatusBadge({ status }: { status?: string }) {
   const t = useAppT()
   const cfgMap = statusCfg(t)
   const cfg = cfgMap[status || ''] || cfgMap.pending
-  return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase' }}>{cfg.label}</span>
+  return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color, border: `1px solid ${alpha(cfg.color, '40')}`, textTransform: 'uppercase' }}>{cfg.label}</span>
 }
 
 function RequestModal({ onClose }: { onClose: () => void }) {
@@ -663,7 +664,7 @@ export default function AbsencesPage(): JSX.Element {
                 <SortableTH col="status" sort={teamAbsSort} onSort={setTeamAbsSort}>{t('common.status')}</SortableTH>
               </div>
               {(sortedTeamAbs as Absence[]).map(a => (
-                <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>
+                <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center' }}>
                   <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{a.user_name}</span>
                   <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{typeLabels(t)[a.type || ""]?.replace(/^\S+\s/, '') || a.type}</span>
                   <span style={{ fontSize: "var(--text-sm)" }}>{fmtDate(a.start_date)}</span>

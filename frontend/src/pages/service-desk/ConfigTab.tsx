@@ -7,7 +7,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
-import { COLOR } from '../../constants/theme'
+import { COLOR, alpha } from '../../constants/theme'
 import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, slaCalendarsApi, clientsApi, contractsApi } from '../../services/api'
 import { EscalationConfig, NotificationsConfig } from './ConfigEscaladoYAvisos'
 import ConfigCorreoEntrante from './ConfigCorreoEntrante'
@@ -109,7 +109,7 @@ function CatalogConfig() {
                 <button onClick={() => setEditingCat(cat)}
                   style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏ Editar</button>
                 <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar categoría y todos sus servicios?', onConfirm: () => deleteCat(cat.id), danger: true }) }}
-                  style={{ padding:'3px 8px', borderRadius:5, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
+                  style={{ padding:'3px 8px', borderRadius:5, border:`1px solid ${alpha(COLOR.danger, '30')}`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
               </div>
             </div>
             {(cat.services?.length ?? 0) > 0 && (
@@ -127,7 +127,7 @@ function CatalogConfig() {
                           <button onClick={() => setEditingSvc({...svc, category_id: cat.id})}
                             style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏</button>
                           <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar servicio?', onConfirm: () => deleteSvc(svc.id), danger: true }) }}
-                            style={{ padding:'3px 8px', borderRadius:5, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑</button>
+                            style={{ padding:'3px 8px', borderRadius:5, border:`1px solid ${alpha(COLOR.danger, '30')}`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑</button>
                         </div>
                       </td>
                     </tr>
@@ -346,7 +346,7 @@ function SLAConfig() {
                 <button onClick={() => setEditing(p)}
                   style={{ padding:'3px 10px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏ Editar</button>
                 <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta política SLA?', onConfirm: () => remove(p.id), danger: true }) }}
-                  style={{ padding:'3px 10px', borderRadius:6, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
+                  style={{ padding:'3px 10px', borderRadius:6, border:`1px solid ${alpha(COLOR.danger, '30')}`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
               </div>
             </div>
             <div style={{ fontSize:'var(--text-sm)', color:'var(--text-2)', marginBottom:12, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
@@ -622,7 +622,7 @@ function GroupsConfig() {
                   <button onClick={() => setEditing(g)}
                     style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>✏ Editar</button>
                   <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar el grupo "${g.name}"?`, onConfirm: () => deleteGroup(g.id), danger: true }) }}
-                    style={{ padding:'4px 10px', borderRadius:6, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>🗑 Eliminar</button>
+                    style={{ padding:'4px 10px', borderRadius:6, border:`1px solid ${alpha(COLOR.danger, '30')}`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>🗑 Eliminar</button>
                 </div>
               </div>
               {g.description && <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)', marginBottom:12 }}>{g.description}</div>}
@@ -765,7 +765,7 @@ function TemplatesConfig() {
                   style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'3px 8px',
                     fontSize: "var(--text-xs)", color:'var(--accent)', cursor:'pointer', fontFamily:'inherit' }}>✏</button>
                 <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta plantilla?', onConfirm: () => remove(tmpl.id), danger: true }) }}
-                  style={{ background:'none', border:`1px solid ${COLOR.danger}30`, borderRadius:6, padding:'3px 8px',
+                  style={{ background:'none', border:`1px solid ${alpha(COLOR.danger, '30')}`, borderRadius:6, padding:'3px 8px',
                     fontSize: "var(--text-xs)", color:COLOR.danger, cursor:'pointer', fontFamily:'inherit' }}>🗑</button>
               </div>
             </div>
@@ -896,7 +896,7 @@ function CannedResponsesManager() {
                   style={{...IS, resize:'vertical'}} /></div>
               <div style={{display:'flex',gap:8}}>
                 <button onClick={() => update({ id:r.id, data:editForm })} disabled={!editForm.title||!editForm.body}
-                  style={{background:'var(--accent)',border:'none',borderRadius:7,padding:'7px 16px',color:'#fff',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>
+                  style={{background:'var(--accent)',border:'none',borderRadius:7,padding:'7px 16px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>
                   ✓ Guardar</button>
                 <button onClick={() => setEditing(null)}
                   style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:7,padding:'7px 12px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>
@@ -941,7 +941,7 @@ function CannedResponsesManager() {
           <textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4}
             style={{...IS, resize:'vertical'}} placeholder={t('config.texto_de_la_respuesta_enlatada')} /></div>
         <button onClick={() => create(form)} disabled={!form.title || !form.body}
-          style={{background:'var(--accent)',border:'none',borderRadius:8,padding:'8px 18px',color:'#fff',cursor:'pointer',fontSize: "var(--text-base)",fontFamily:'inherit',fontWeight:600}}>
+          style={{background:'var(--accent)',border:'none',borderRadius:8,padding:'8px 18px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-base)",fontFamily:'inherit',fontWeight:600}}>
           + {t('service_desk.canned_add_btn')}
         </button>
       </div>
@@ -987,11 +987,11 @@ export function AnnouncementsConfig() {
           : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {anns.map((a: Ann) => (
-                <div key={a.id} style={{ display:'flex', gap:14, padding:'12px 16px', background:'var(--surface-2)', border:`1px solid ${(TYPE_COLOR[a.type||'']||'var(--accent)')}30`, borderRadius:10, alignItems:'flex-start' }}>
+                <div key={a.id} style={{ display:'flex', gap:14, padding:'12px 16px', background:'var(--surface-2)', border:`1px solid ${alpha((TYPE_COLOR[a.type||'']||'var(--accent)'), '30')}`, borderRadius:10, alignItems:'flex-start' }}>
                   <div style={{ width:4, alignSelf:'stretch', borderRadius:4, background:TYPE_COLOR[a.type||'']||'var(--accent)', flexShrink:0 }} />
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize: "var(--text-base)", fontWeight:700, marginBottom:4 }}>{a.title}
-                      <span style={{ fontSize: "var(--text-2xs)", padding:'2px 7px', marginLeft:8, borderRadius:20, background:(TYPE_COLOR[a.type||'']||'var(--accent)')+'20', color:TYPE_COLOR[a.type||'']||'var(--accent)', fontWeight:700, textTransform:'uppercase' }}>{a.type}</span>
+                      <span style={{ fontSize: "var(--text-2xs)", padding:'2px 7px', marginLeft:8, borderRadius:20, background:alpha((TYPE_COLOR[a.type||'']||'var(--accent)'), '20'), color:TYPE_COLOR[a.type||'']||'var(--accent)', fontWeight:700, textTransform:'uppercase' }}>{a.type}</span>
                       {a.show_to_clients && <span style={{ fontSize: "var(--text-2xs)", marginLeft:6, color:'var(--text-3)' }}>👁 {t('service_desk.ann_visible_clients')}</span>}
                     </div>
                     <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', lineHeight:1.5 }}>{a.body}</div>

@@ -9,6 +9,7 @@ import { PROVIDER_DOCS } from '../constants/api'
 import { Button, Spinner, Modal, Tabs, Page } from '../components/ui'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
 import { Cpu, X, Search, Plus, Activity } from 'lucide-react'
+import { alpha } from '../constants/theme'
 
 const PMETA = PROVIDER_META as Record<string, { name: string; icon: string; color: string }>
 const PDOCS = PROVIDER_DOCS as Record<string, string>
@@ -116,7 +117,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
             {Object.entries(PMETA).map(([key, meta]) => (
               <button key={key} type="button" aria-pressed={providerType === key} aria-label={`${t('ai.select_provider')} ${meta.name}`} onClick={() => handleProviderChange(key)}
-                style={{ padding: '10px 8px', borderRadius: 8, border: `2px solid ${providerType === key ? meta.color + '80' : 'var(--surface-4)'}`, background: providerType === key ? meta.color + '15' : 'transparent', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                style={{ padding: '10px 8px', borderRadius: 8, border: `2px solid ${providerType === key ? alpha(meta.color, '80') : 'var(--surface-4)'}`, background: providerType === key ? alpha(meta.color, '15') : 'transparent', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
                 <div style={{ fontSize: "var(--text-lg-em)", marginBottom: 4 }}>{meta.icon}</div>
                 <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: providerType === key ? meta.color : 'var(--text-2)' }}>{meta.name}</div>
               </button>
@@ -597,7 +598,7 @@ export default function AIHubPage(): JSX.Element {
 
           {/* Proveedor activo */}
           {defaultProvider && (
-            <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: PMETA[defaultProvider.provider]?.color + '50' || 'var(--surface-4)', background: PMETA[defaultProvider.provider]?.color + '08' || 'var(--surface-2)' }}>
+            <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: alpha(PMETA[defaultProvider.provider]?.color, '50') || 'var(--surface-4)', background: alpha(PMETA[defaultProvider.provider]?.color, '08') || 'var(--surface-2)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ fontSize: "var(--text-3xl)" }}>{PMETA[defaultProvider.provider]?.icon}</span>
                 <div>
@@ -624,10 +625,10 @@ export default function AIHubPage(): JSX.Element {
                 const meta: { name?: string; icon: string; color: string } = PMETA[p.provider] || { icon: '🤖', color: 'var(--text-2)' }
                 const st   = statusCfg[p.status] || statusCfg.inactive
                 return (
-                  <div key={p.id} style={{ ...card, padding: '18px 20px', borderColor: p.is_default ? meta.color + '50' : 'var(--surface-4)' }}>
+                  <div key={p.id} style={{ ...card, padding: '18px 20px', borderColor: p.is_default ? alpha(meta.color, '50') : 'var(--surface-4)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 40, height: 40, borderRadius: 10, background: meta.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xl)" }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 10, background: alpha(meta.color, '20'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xl)" }}>
                           {meta.icon}
                         </div>
                         <div>
@@ -636,7 +637,7 @@ export default function AIHubPage(): JSX.Element {
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: st.color + '20', color: st.color, border: `1px solid ${st.color}40` }}>{st.label}</span>
+                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: alpha(st.color, '20'), color: st.color, border: `1px solid ${alpha(st.color, '40')}` }}>{st.label}</span>
                         {p.is_default && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--accent)', fontWeight: 700 }}>⭐ {t('ai.default_badge')}</span>}
                       </div>
                     </div>
@@ -700,7 +701,7 @@ export default function AIHubPage(): JSX.Element {
             <div style={card}>
               <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 700, fontSize: "var(--text-md)" }}>{t('ai.module_usage')}</div>
               {byModule.map((r: any) => (
-                <div key={r.module} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)" }}>
+                <div key={r.module} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)" }}>
                   <span style={{ fontWeight: 600 }}>{r.module}</span>
                   <div style={{ display: 'flex', gap: 20, color: 'var(--text-2)' }}>
                     <span>{r.calls} {t('ai.calls')}</span>
@@ -740,7 +741,7 @@ export default function AIHubPage(): JSX.Element {
                   <div key={key} style={{ ...card, padding: '18px 20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                       <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{label}</div>
-                      <span style={{ fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20, background: `${statusColor}18`, color: statusColor, fontWeight: 600 }}>
+                      <span style={{ fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20, background: alpha(statusColor, '18'), color: statusColor, fontWeight: 600 }}>
                         {data.status || 'unknown'}
                       </span>
                     </div>

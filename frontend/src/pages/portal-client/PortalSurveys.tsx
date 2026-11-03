@@ -16,6 +16,7 @@ import {
   PortalBadge, PortalButton, PortalField, PortalTextarea, PortalBanner,
 } from './PortalUI'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { alpha } from '../../constants/theme'
 
 type ScoreKey = 'overall_satisfaction' | 'communication_score' | 'quality_score' | 'deadline_score'
 
@@ -170,7 +171,7 @@ export function PortalSurveys() {
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                       borderRadius: 10,
                       border: `1px solid ${isActive ? opt.color : 'var(--surface-4)'}`,
-                      background: isActive ? `${opt.color}1a` : 'var(--surface-3)',
+                      background: isActive ? alpha(opt.color, '1a') : 'var(--surface-3)',
                       color: isActive ? opt.color : 'var(--text-2)',
                       fontFamily: 'inherit', cursor: 'pointer',
                       fontSize: 'var(--text-sm)', fontWeight: 700,
@@ -378,7 +379,7 @@ function NpsScale({ value, onChange }: { value: number; onChange: (value: number
                 width: 40, height: 40, flexShrink: 0,
                 borderRadius: 8,
                 border: `1px solid ${active ? color : 'var(--surface-4)'}`,
-                background: active ? `${color}1a` : 'var(--surface-3)',
+                background: active ? alpha(color, '1a') : 'var(--surface-3)',
                 color: active ? color : 'var(--text-2)',
                 cursor: 'pointer', fontFamily: 'var(--font-mono)',
                 fontSize: 'var(--text-base)', fontWeight: 700,

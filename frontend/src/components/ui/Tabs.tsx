@@ -1,14 +1,15 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useRef } from 'react'
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react'
 
 /**
  * Tabs — pills planos compactos, idénticos al patrón usado en /expenses y /grc.
  *
  *   <Tabs items={[{id, label, count?, icon?}]} active={tab} onChange={setTab} />
  *
- * Markup deliberadamente simple: <button onClick> sin role="tab"/aria-selected
- * para evitar el focus indicator del navegador que aparece en la primera carga.
- * a11y: aria-pressed marca el activo. ARIA tabs pattern descartado a propósito —
- * causaba "línea blanca" debajo del tab activo en algunos navegadores.
+ * a11y: patrón ARIA de pestañas. role="tablist"/"tab", aria-selected en la
+ * activa y sólo ella en el orden de tabulación; las flechas, Inicio y Fin
+ * mueven el foco y la seleccionan. El anillo de foco sale sólo con teclado
+ * (:focus-visible en index.css), así que ya no aparece al cargar.
  */
 export interface TabItem {
   id: string
@@ -33,6 +34,35 @@ export interface TabsProps {
   style?: CSSProperties
 }
 
+/**
+ * useTabListKeys — teclado del patrón ARIA de pestañas, compartido por Tabs y
+ * PortalTabs. Sólo una pestaña entra en el orden de Tab (la activa, o la
+ * primera habilitada); flechas, Inicio y Fin mueven el foco y la seleccionan.
+ * Cada botón lleva role="tab" y data-tab-id.
+ */
+export function useTabListKeys(ids: string[], active: string | undefined, onChange?: (id: string) => void) {
+  const listRef = useRef<HTMLDivElement>(null)
+  const focusId = active !== undefined && ids.includes(active) ? active : ids[0]
+
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!ids.length) return
+    const cur = ids.indexOf(focusId as string)
+    let next: number
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (cur + 1) % ids.length
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (cur - 1 + ids.length) % ids.length
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = ids.length - 1
+    else return
+    e.preventDefault()
+    const id = ids[next]
+    onChange?.(id)
+    Array.from(listRef.current?.querySelectorAll<HTMLElement>('[role="tab"]') ?? [])
+      .find(b => b.dataset.tabId === id)?.focus()
+  }
+
+  return { listRef, onKeyDown, focusId }
+}
+
 export default function Tabs({
   items = [],
   active,
@@ -44,6 +74,8 @@ export default function Tabs({
   style,
 }: TabsProps) {
   const isPill = variant === 'pill'
+  const { listRef, onKeyDown, focusId } = useTabListKeys(
+    items.filter(it => !it.disabled).map(it => it.id), active, onChange)
   const padding =
     size === 'sm' ? '4px 12px'
     : size === 'lg' ? '7px 16px'
@@ -55,8 +87,10 @@ export default function Tabs({
 
   return (
     <div
-      role="group"
+      ref={listRef}
+      role="tablist"
       aria-label={ariaLabel}
+      onKeyDown={onKeyDown}
       className={className}
       style={{
         display: 'flex',
@@ -73,7 +107,10 @@ export default function Tabs({
           <button
             key={it.id}
             type="button"
-            aria-pressed={isActive}
+            role="tab"
+            data-tab-id={it.id}
+            aria-selected={isActive}
+            tabIndex={it.id === focusId ? 0 : -1}
             disabled={it.disabled}
             onClick={() => !it.disabled && onChange?.(it.id)}
             style={{
@@ -103,7 +140,6 @@ export default function Tabs({
               marginBottom: isPill ? 0 : -1,
               transition: 'color 0.12s, background 0.12s, border-color 0.12s',
               whiteSpace: 'nowrap',
-              outline: 'none',
               boxShadow: 'none',
             }}
           >
@@ -113,7 +149,7 @@ export default function Tabs({
               <span style={{
                 fontSize: 'var(--text-2xs)', fontWeight: 700,
                 background: isActive ? 'var(--accent)' : 'var(--surface-4)',
-                color: isActive ? '#fff' : 'var(--text-2)',
+                color: isActive ? 'var(--on-accent)' : 'var(--text-2)',
                 borderRadius: 'var(--radius-full)',
                 padding: '1px 7px',
                 minWidth: 16, textAlign: 'center',

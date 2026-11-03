@@ -284,7 +284,7 @@ export default function MeetingsAIPage() {
                     ✅ {_t('meetings_ai.decisions_label', { count: (detail.decisions ?? []).length })}
                   </div>
                   {(detail.decisions ?? []).map((d, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < (detail.decisions ?? []).length - 1 ? '1px solid var(--surface-4)30' : 'none', fontSize: "var(--text-base)" }}>
+                    <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < (detail.decisions ?? []).length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none', fontSize: "var(--text-base)" }}>
                       <span style={{ color: 'var(--success)', flexShrink: 0, marginTop: 1 }}>◆</span>
                       <span style={{ lineHeight: 1.5 }}>{d}</span>
                     </div>
@@ -306,7 +306,7 @@ export default function MeetingsAIPage() {
                     )}
                   </div>
                   {(detail.actions ?? []).map(a => (
-                    <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--surface-4)30', alignItems: 'flex-start', gap: 12 }}>
+                    <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'flex-start', gap: 12 }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 4 }}>{a.description}</div>
                         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>

@@ -13,6 +13,7 @@ import {
   dateRange, typePalette,
 } from '../components/dashboard/DashKit'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 const STATUS_COLORS: Record<string, string> = {
   active:    COLOR.accent,
@@ -218,7 +219,7 @@ export default function ProjectsDashboardPage() {
                   return (
                     <div key={p.project_id} className="ds-card--inset" style={{
                       display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
-                      border: `1px solid ${color}30`,
+                      border: `1px solid ${alpha(color, '30')}`,
                     }}>
                       <RiskIcon size={16} style={{ color, flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -232,7 +233,7 @@ export default function ProjectsDashboardPage() {
                       </div>
                       <span style={{
                         fontSize: "var(--text-xs)", fontWeight: 700, color,
-                        background: `${color}18`, border: `1px solid ${color}30`,
+                        background: alpha(color, '18'), border: `1px solid ${alpha(color, '30')}`,
                         borderRadius: 'var(--radius-sm)', padding: '3px 9px',
                       }}>{budPct}%</span>
                     </div>

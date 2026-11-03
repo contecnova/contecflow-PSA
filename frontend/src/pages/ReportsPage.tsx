@@ -13,7 +13,7 @@ import {
 import BiAdvancedViz from '../components/bi/BiAdvancedViz'
 import { fmtCurrency, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
-import { CHART_COLORS_EXTENDED } from '../constants/theme'
+import { CHART_COLORS_EXTENDED, alpha } from '../constants/theme'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import {
@@ -291,7 +291,7 @@ function DataTable({ data, isCurrency, isPercent }: { data: any[]; isCurrency?: 
         </thead>
         <tbody>
           {data.map((row: any, i: number) => (
-            <tr key={i} style={{ borderBottom: '1px solid var(--surface-4)30' }}>
+            <tr key={i} style={{ borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' }}>
               {keys.map(k => (
                 <td key={k} style={{ padding: '10px 12px', textAlign: k === 'label' ? 'left' : 'right', fontFamily: k !== 'label' ? 'var(--font-mono)' : 'inherit', fontWeight: k === 'value' ? 700 : 400, color: k === 'value' ? (row.status ? STATUS_COLORS[row.status] : 'var(--text-1)') : 'var(--text-1)' }}>
                   {fmt(row[k])}
@@ -1088,10 +1088,10 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: any[]; sup
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
         {filtered.map((p: any) => (
           <button key={p.id} type="button" onClick={() => onOpen(p)}
-            style={{ background: 'var(--surface-2)', border: `1px solid ${p.color}25`, borderRadius: 12,
+            style={{ background: 'var(--surface-2)', border: `1px solid ${alpha(p.color, '25')}`, borderRadius: 12,
               padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s', width:'100%', textAlign:'left', fontFamily:'inherit' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = p.color + '70'; e.currentTarget.style.background = p.color + '08' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = p.color + '25'; e.currentTarget.style.background = 'var(--surface-2)' }}>
+            onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(p.color, '70'); e.currentTarget.style.background = alpha(p.color, '08') }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = alpha(p.color, '25'); e.currentTarget.style.background = 'var(--surface-2)' }}>
             <div style={{ fontSize: "var(--text-2xl)", marginBottom: 8 }}>{p.icon}</div>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>{p.label}</div>
             <div style={{ fontSize: "var(--text-2xs)", color: p.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>

@@ -12,6 +12,7 @@ import PageShell from '../components/layout/PageShell'
 import { Zap } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -59,7 +60,7 @@ const LEVELS = Object.keys(LEVEL_CFG)
 function LevelBadge({ level }: { level?: string }) {
   const cfg = LEVEL_CFG[level || ''] || LEVEL_CFG.basic
   return (
-    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, whiteSpace: 'nowrap' }}>
+    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color, border: `1px solid ${alpha(cfg.color, '40')}`, whiteSpace: 'nowrap' }}>
       {'★'.repeat(cfg.score)}{'☆'.repeat(4 - cfg.score)} {cfg.label}
     </span>
   )
@@ -109,10 +110,10 @@ function SkillsMatrix({ users, skills }: { users: MatrixUser[]; skills: CatalogS
                 skills.filter(s => s.category === cat).map(s => {
                   const us = u.skills[s.id]
                   return (
-                    <td key={s.id} style={{ padding: 2, textAlign: 'center', borderBottom: '1px solid var(--surface-4)20' }}>
+                    <td key={s.id} style={{ padding: 2, textAlign: 'center', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)' }}>
                       {us?.level ? (
                         <div title={`${LEVEL_CFG[us.level]?.label}${us.certified ? ' · Certificado' : ''}`}
-                          style={{ width: 28, height: 28, borderRadius: 6, background: levelColor(us.level) + '30', border: `1px solid ${levelColor(us.level)}60`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 'auto', fontSize: "var(--text-2xs)", color: levelColor(us.level), fontWeight: 700 }}>
+                          style={{ width: 28, height: 28, borderRadius: 6, background: alpha(levelColor(us.level), '30'), border: `1px solid ${alpha(levelColor(us.level), '60')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 'auto', fontSize: "var(--text-2xs)", color: levelColor(us.level), fontWeight: 700 }}>
                           {LEVEL_CFG[us.level]?.score}
                           {us.certified && <span style={{ fontSize: "var(--text-8)" }}>✓</span>}
                         </div>
@@ -379,7 +380,7 @@ function UserSkillPreview({ userId }: { userId: string }) {
       {skills.slice(0, 6).map(s => {
         const cfg = LEVEL_CFG[s.level || ''] || LEVEL_CFG.basic
         return (
-          <span key={s.id} style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 20, background: cfg.color + '15', color: cfg.color, border: `1px solid ${cfg.color}30` }}>
+          <span key={s.id} style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 20, background: alpha(cfg.color, '15'), color: cfg.color, border: `1px solid ${alpha(cfg.color, '30')}` }}>
             {s.skill_name}
           </span>
         )
@@ -469,7 +470,7 @@ export default function SkillsPage() {
             <div style={{ marginBottom: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               {Object.entries(LEVEL_CFG).map(([l, cfg]) => (
                 <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ width: 16, height: 16, borderRadius: 4, background: cfg.color + '30', border: `1px solid ${cfg.color}60`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-3xs)", color: cfg.color, fontWeight: 700 }}>{cfg.score}</div>
+                  <div style={{ width: 16, height: 16, borderRadius: 4, background: alpha(cfg.color, '30'), border: `1px solid ${alpha(cfg.color, '60')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-3xs)", color: cfg.color, fontWeight: 700 }}>{cfg.score}</div>
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{cfg.label}</span>
                 </div>
               ))}

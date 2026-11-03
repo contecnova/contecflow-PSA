@@ -23,6 +23,7 @@ import { useChatRealtime } from '../context/ChatRealtimeContext'
 import { collabApi } from '../services/collaborationApi'
 import { registerCollabPush } from '../utils/collabPush'
 import { useAppLang } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 // ── Loose row/entity types ──────────────────────────────────────────────────
 // The collaboration API client returns `any`/`unknown[]`, so we describe the
@@ -510,7 +511,7 @@ function NewConversationButton({ onCreated }: { onCreated?: (c: Conv) => void })
       <button onClick={() => setOpen(true)} style={{
         width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
         padding: '8px',
-        background: 'var(--accent)', color: '#fff',
+        background: 'var(--accent)', color: 'var(--on-accent)',
         border: 'none', borderRadius: 8,
         fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 700,
         cursor: 'pointer',
@@ -727,7 +728,7 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
           }}>Cancelar</button>
           <button onClick={() => submit.mutate()} disabled={submit.isPending} style={{
             padding: '8px 16px', borderRadius: 8,
-            background: 'var(--accent)', color: '#fff',
+            background: 'var(--accent)', color: 'var(--on-accent)',
             border: 'none', cursor: submit.isPending ? 'not-allowed' : 'pointer',
             fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 700,
           }}>{submit.isPending ? 'Creando…' : 'Crear'}</button>
@@ -1426,7 +1427,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
           />
           <IconBtn onClick={() => setDraft(d => d + '@')} title="Mencionar"><AtSign size={16} /></IconBtn>
           <IconBtn onClick={handleSend} title="Enviar"
-            style={{ background: 'var(--accent)', color: '#fff' }}>
+            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
             <Send size={16} />
           </IconBtn>
         </div>
@@ -1611,12 +1612,12 @@ function Card({ icon: Icon, accent, title, body }: {
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10,
       marginTop: 6, padding: '10px 12px',
-      background: `${accent}10`, border: `1px solid ${accent}40`, borderRadius: 8,
+      background: alpha(accent, '10'), border: `1px solid ${alpha(accent, '40')}`, borderRadius: 8,
       maxWidth: 480,
     }}>
       <div style={{
         width: 28, height: 28, borderRadius: 6, flexShrink: 0,
-        background: `${accent}25`, color: accent,
+        background: alpha(accent, '25'), color: accent,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}><Icon size={15} /></div>
       <div style={{ minWidth: 0 }}>
@@ -1785,7 +1786,7 @@ function LinkedEntityChips({ msg }: { msg: Msg }) {
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             padding: '4px 10px', borderRadius: 999,
-            background: `${c.color}15`, border: `1px solid ${c.color}40`,
+            background: alpha(c.color, '15'), border: `1px solid ${alpha(c.color, '40')}`,
             color: c.color, fontSize: 'var(--text-xs)', fontWeight: 700,
             textDecoration: 'none',
           }}>
@@ -1926,7 +1927,7 @@ function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: string; on
             background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
             color: 'var(--text-1)', fontSize: 'var(--text-sm)', outline: 'none', fontFamily: 'inherit',
           }} />
-        <IconBtn onClick={() => reply.trim() && send.mutate()} style={{ background: 'var(--accent)', color: '#fff' }}><Send size={14} /></IconBtn>
+        <IconBtn onClick={() => reply.trim() && send.mutate()} style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}><Send size={14} /></IconBtn>
       </div>
     </div>
   )

@@ -257,7 +257,7 @@ class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErrorBound
         <div style={{ display: 'flex', gap: 12 }}>
           <button
             onClick={() => { this.setState({ error: null }); window.location.href = '/login' }}
-            style={{ padding: '10px 22px', background: 'var(--accent)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontWeight: 600 }}
+            style={{ padding: '10px 22px', background: 'var(--accent)', border: 'none', borderRadius: 8, color: 'var(--on-accent)', cursor: 'pointer', fontWeight: 600 }}
           >
             {this.props.t('app_errors.go_login')}
           </button>

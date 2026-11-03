@@ -144,9 +144,9 @@ export function Badge({ label, display, _color }: BadgeProps) {
     high:        { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
     critical:    { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
     p1_critical: { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
-    p2_high:     { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
+    p2_high:     { bg: 'var(--orange-bg)',   text: 'var(--orange)',   border: 'var(--orange-border)' },
     p3_medium:   { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
-    p4_low:      { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
+    p4_low:      { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
     active:      { bg: 'var(--accent-muted)', text: 'var(--accent)', border: 'rgba(79,142,247,0.25)' },
     planning:    { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
     paused:      { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
@@ -373,7 +373,7 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
   const variants: Record<string, React.CSSProperties> = {
     primary:   {
       background: 'var(--accent)',
-      color: '#fff',
+      color: 'var(--on-accent)',   // blanco fijo no llegaba a AA (2,37:1 en freight)
       border: 'none',
       boxShadow: '0 1px 3px rgba(79,142,247,0.3)',
     },

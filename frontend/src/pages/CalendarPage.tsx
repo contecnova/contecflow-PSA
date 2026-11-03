@@ -12,6 +12,7 @@ import { Calendar } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const DAYS   = ['L','M','X','J','V','S','D']
@@ -142,7 +143,7 @@ export default function CalendarPage(): JSX.Element {
           {[['all', 'Todo'], ...Object.entries(EVENT_TYPES).map(([k, v]) => [k, v.label])].map(([k, label]) => (
             <button key={k} onClick={() => setFilter(k)}
               style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${filter === k ? EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.color || 'var(--accent)' : 'var(--surface-4)'}`,
-                background: filter === k ? (EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.color || 'var(--accent)') + '15' : 'transparent',
+                background: filter === k ? alpha((EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.color || 'var(--accent)'), '15') : 'transparent',
                 color: filter === k ? (EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.color || 'var(--accent)') : 'var(--text-2)',
                 fontSize: "var(--text-xs)", fontWeight: filter === k ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
               {k !== 'all' && EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.icon + ' '}{label}
@@ -199,7 +200,7 @@ export default function CalendarPage(): JSX.Element {
                   return (
                     <div key={e.id} title={e.title}
                       style={{ fontSize: "var(--text-2xs)", padding: '2px 5px', borderRadius: 4, borderLeft: `2px solid ${cfg.color}`,
-                        background: cfg.color + '15', color: 'var(--text-1)',
+                        background: alpha(cfg.color, '15'), color: 'var(--text-1)',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                       {cfg.icon} {e.title}
                     </div>

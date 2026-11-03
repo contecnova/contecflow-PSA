@@ -4130,6 +4130,7 @@ const en = {
   },
   toast: {
     unexpected_error: 'Unexpected error',
+    close: 'Close notification',
   },
   cmdb: {
     title: 'CMDB',

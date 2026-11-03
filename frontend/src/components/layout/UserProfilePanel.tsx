@@ -17,6 +17,8 @@ import useUserPreferences from '../../hooks/useUserPreferences'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Avatar } from '../ui'
 import { AVAILABLE_LANGUAGES } from '../../i18n/appTranslations'
+import { alpha } from '../../constants/theme'
+import { applyAccent as applyAccentToDom } from '../../utils/appearance'
 
 // ── Temas disponibles ─────────────────────────────────────────────────────────
 const THEMES = [
@@ -127,10 +129,7 @@ export default function UserProfilePanel({ onClose }: Props) {
 
   const applyAccent = (color: string) => {
     setLocalAccent(color)
-    const root = document.documentElement
-    root.style.setProperty('--accent', color)
-    root.style.setProperty('--accent-muted', color + '14')
-    root.style.setProperty('--accent-glow',  color + '26')
+    applyAccentToDom(color)
   }
 
   const saveAppearance = () => {
@@ -361,7 +360,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                     <div style={{ width: 28, height: 28, borderRadius: 6,
                       background: localAccent }} />
                     <div style={{ width: 28, height: 28, borderRadius: 6,
-                      background: localAccent + '20', border: `1px solid ${localAccent}` }} />
+                      background: alpha(localAccent, '20'), border: `1px solid ${localAccent}` }} />
                   </div>
                 </div>
               </div>

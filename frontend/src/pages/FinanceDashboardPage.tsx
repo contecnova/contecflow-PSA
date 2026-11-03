@@ -13,6 +13,7 @@ import {
   COLOR, DashPageShell, KpiCard, KpiIcon, KpiCardSkeleton, GaugeCard, BarRow, SectionCard, DashEmpty,
   dateRange, fmtCur, typePalette,
 } from '../components/dashboard/DashKit'
+import { alpha } from '../constants/theme'
 
 interface ClientItem { status?: string }
 interface PipelineItem { status?: string; stage?: string; value?: number; amount?: number }
@@ -336,7 +337,7 @@ export default function FinanceDashboardPage(): JSX.Element {
                       <td style={{ padding: '11px 16px', textAlign: 'center' }}>
                         <span style={{
                           fontSize: "var(--text-sm)", fontWeight: 700, color: mColor,
-                          background: `${mColor}18`, border: `1px solid ${mColor}30`,
+                          background: alpha(mColor, '18'), border: `1px solid ${alpha(mColor, '30')}`,
                           borderRadius: 6, padding: '3px 9px',
                         }}>{pct}%</span>
                       </td>

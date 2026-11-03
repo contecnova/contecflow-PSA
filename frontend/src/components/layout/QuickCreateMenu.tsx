@@ -6,6 +6,7 @@ import { X, CheckSquare, Clock, Ticket, FileText, Building2, ScrollText, AlertTr
 import { useToast } from '../../context/ToastContext'
 import SmartScheduleModal from '../SmartScheduleModal'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { alpha } from '../../constants/theme'
 
 const ACTIONS = [
   { id: 'task',     icon: CheckSquare,  label: 'Nueva tarea',     color: 'var(--accent)',  inline: true },
@@ -190,7 +191,7 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
                 >
                   <div style={{
                     width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                    background: `${color}15`, border: `1px solid ${color}30`,
+                    background: alpha(color, '15'), border: `1px solid ${alpha(color, '30')}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
                     <Icon size={15} color={color} />

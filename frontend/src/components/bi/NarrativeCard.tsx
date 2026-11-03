@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { analyticsApi } from '../../services/api'
 import { Sparkles, RefreshCw, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
-import { COLOR } from '../../constants/theme'
+import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 
 function MarkdownText({ text, style }: { text: string; style?: React.CSSProperties }) {
@@ -89,7 +89,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{
-            background: `${COLOR.accent}18`, borderRadius: 8, padding: '5px 7px',
+            background: alpha(COLOR.accent, '18'), borderRadius: 8, padding: '5px 7px',
             display: 'flex', alignItems: 'center',
           }}>
             <Sparkles size={14} color={COLOR.accent} />

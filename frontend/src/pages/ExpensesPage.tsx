@@ -22,6 +22,7 @@ import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer
 } from 'recharts'
+import { alpha } from '../constants/theme'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const CATEGORIES: Record<string, { label: string; icon: string; color: string }> = {
@@ -49,7 +50,7 @@ const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid
 function StatusBadge({ status }: { status: string }) {
   const cfg = STATUSES[status] || { label: status, color: 'var(--text-2)' }
   return (
-    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, whiteSpace: 'nowrap' }}>
+    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color, border: `1px solid ${alpha(cfg.color, '40')}`, whiteSpace: 'nowrap' }}>
       {cfg.label}
     </span>
   )
@@ -58,7 +59,7 @@ function StatusBadge({ status }: { status: string }) {
 function CatBadge({ cat }: { cat: string }) {
   const cfg = CATEGORIES[cat] || { label: cat, icon: '📦', color: 'var(--text-2)' }
   return (
-    <span style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 6, background: cfg.color + '15', color: cfg.color }}>
+    <span style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 6, background: alpha(cfg.color, '15'), color: cfg.color }}>
       {cfg.icon} {cfg.label}
     </span>
   )

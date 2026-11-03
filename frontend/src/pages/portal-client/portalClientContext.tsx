@@ -9,6 +9,7 @@ import { PORTAL_TRANSLATIONS as T, PORTAL_LANGUAGES as LANGUAGES } from '../../i
 import { STATUS_CFG } from '../../constants/sharedStatus'
 import { useIdleTimeout } from '../../hooks/useIdleTimeout'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { alpha } from '../../constants/theme'
 
 type ApiListBody = {
   items: unknown[]
@@ -276,7 +277,7 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
 export const S = {
   page: { minHeight: '100vh', background: 'var(--surface-0)', color: 'var(--text-1)', fontFamily: "'Inter', system-ui, sans-serif" },
   card: { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: 'var(--space-4) var(--space-5)' },
-  badge: (color: string) => ({ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: color + '20', color, border: `1px solid ${color}40`, textTransform: 'uppercase' }),
+  badge: (color: string) => ({ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: alpha(color, '20'), color, border: `1px solid ${alpha(color, '40')}`, textTransform: 'uppercase' }),
   btn: { background: 'var(--accent)', border: 'none', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--portal-bg)', fontSize: "var(--text-md)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
   btnSec: { background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit' },
   input: { background: 'var(--surface-4)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-md)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
@@ -437,7 +438,7 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
             )}
             <button type="submit" disabled={loading || !email || !password} style={{
               width: '100%', padding: '12px',
-              background: 'var(--accent)', color: '#fff',
+              background: 'var(--accent)', color: 'var(--on-accent)',
               border: '1px solid var(--accent)',
               borderRadius: 'var(--radius-md, 8px)',
               fontSize: 'var(--text-md)', fontWeight: 700,

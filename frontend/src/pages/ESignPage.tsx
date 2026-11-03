@@ -12,6 +12,7 @@ import PageShell from '../components/layout/PageShell'
 import { PenLine } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 type EnvelopeStatus = 'draft' | 'sent' | 'delivered' | 'completed' | 'declined' | 'voided' | 'error'
 
@@ -100,7 +101,7 @@ function StatusPill({ status }: { status: string }) {
   return (
     <span style={{
       background: s.bg, color: s.color,
-      border: `1px solid ${s.color}40`,
+      border: `1px solid ${alpha(s.color, '40')}`,
       borderRadius: 'var(--radius-md)', padding: '2px var(--space-3)', fontSize: '11px', fontWeight: 600,
     }}>{t(s.key)}</span>
   )

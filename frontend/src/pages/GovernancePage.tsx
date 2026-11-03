@@ -190,7 +190,7 @@ export default function GovernancePage(): JSX.Element {
                   <span>{t('governance.col_module')}</span><span>{t('governance.col_calls')}</span><span>{t('governance.col_tokens')}</span>
                 </div>
                 {chartData.map((r, i) => (
-                  <div key={i} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: "var(--text-base)" }}>
+                  <div key={i} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: "var(--text-base)" }}>
                     <span>{r.name}</span>
                     <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{r.calls}</span>
                     <span style={{ color: 'var(--warning)' }}>{r.tokens}K</span>
@@ -211,7 +211,7 @@ export default function GovernancePage(): JSX.Element {
           {logs.length === 0 ? (
             <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>{t('governance.no_audit_logs')}</div>
           ) : logs.map(l => (
-            <div key={l.id} style={{ padding: '10px 20px', borderBottom: '1px solid var(--surface-4)20', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: "var(--text-sm)", alignItems: 'center' }}>
+            <div key={l.id} style={{ padding: '10px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: "var(--text-sm)", alignItems: 'center' }}>
               <span style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)" }}>{l.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
               <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{MODULE_CFG[l.module ?? '']?.icon} {MODULE_CFG[l.module ?? ''] ? t(MODULE_CFG[l.module ?? ''].labelKey) : l.module}</span>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-2)' }}>{l.input_summary || l.action_type || t('governance.dash')}</span>

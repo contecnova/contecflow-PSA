@@ -14,6 +14,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
+import { alpha } from '../constants/theme'
 
 type ImpactLevel = 'low' | 'medium' | 'high' | 'critical' | string
 type ChangeStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'implemented' | string
@@ -125,7 +126,7 @@ const reviewSchema = z.object({
 
 function StatusBadge({ status }: { status?: ChangeStatus }) {
   const cfg = (status && STATUS_CFG[status]) || STATUS_CFG.draft
-  return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{cfg.label}</span>
+  return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color, border: `1px solid ${alpha(cfg.color, '40')}`, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{cfg.label}</span>
 }
 
 function CRFormModal({ cr, projectId, onClose }: { cr?: ChangeRequest | null; projectId: string | number; onClose: () => void }) {
@@ -476,7 +477,7 @@ export default function ChangesPage(): JSX.Element {
               {crs.map((cr) => {
                 const impact = (cr.impact && IMPACT_CFG[cr.impact]) || IMPACT_CFG.medium
                 return (
-                  <div key={cr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${(STATUS_CFG[cr.status ?? '']?.color ?? 'var(--surface-4)')}30`, borderRadius: 12 }}>
+                  <div key={cr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${alpha((STATUS_CFG[cr.status ?? '']?.color ?? 'var(--surface-4)'), '30')}`, borderRadius: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>

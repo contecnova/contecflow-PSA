@@ -12,6 +12,7 @@ import { fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
+import { alpha } from '../constants/theme'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -313,7 +314,7 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
   return (
     <Modal open title={`${contract.code} — ${contract.name}`} onClose={onClose} width={680}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase' }}>{cfg.label}</span>
+        <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color, border: `1px solid ${alpha(cfg.color, '40')}`, textTransform: 'uppercase' }}>{cfg.label}</span>
         <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{contract.contract_type_label}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
@@ -356,7 +357,7 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
                     </div>
                   </div>
                   <select value={wo.status} onChange={e => updateWOStatus({ woId: wo.id, status: e.target.value })}
-                    style={{ ...fs, fontSize: "var(--text-xs)", color: wocfg.color, background: wocfg.color + '15', border: `1px solid ${wocfg.color}40`, cursor: 'pointer', padding: '4px 10px' }}>
+                    style={{ ...fs, fontSize: "var(--text-xs)", color: wocfg.color, background: alpha(wocfg.color, '15'), border: `1px solid ${alpha(wocfg.color, '40')}`, cursor: 'pointer', padding: '4px 10px' }}>
                     {Object.entries(WO_STATUS).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
                   </select>
                 </div>
@@ -516,7 +517,7 @@ export default function ContractsPage(): JSX.Element {
           {sortedContracts.map(c => {
             const cfg = STATUS_CFG[c.status || ''] || STATUS_CFG.draft
             return (
-              <button key={c.id} type="button" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', cursor: 'pointer', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', fontFamily: 'inherit' }}
+              <button key={c.id} type="button" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', cursor: 'pointer', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', fontFamily: 'inherit' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 onClick={() => setDetail(c)}>
@@ -542,16 +543,16 @@ export default function ContractsPage(): JSX.Element {
             const cfg = STATUS_CFG[c.status || ''] || STATUS_CFG.draft
             return (
               <button key={c.id} type="button" onClick={() => setDetail(c)}
-                style={{ background: 'var(--surface-2)', border: `1px solid ${cfg.color}30`, borderRadius: 12, padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                style={{ background: 'var(--surface-2)', border: `1px solid ${alpha(cfg.color, '30')}`, borderRadius: 12, padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
-                onMouseLeave={e => e.currentTarget.style.borderColor = `${cfg.color}30`}>
+                onMouseLeave={e => e.currentTarget.style.borderColor = alpha(cfg.color, '30')}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                   <div>
                     <div style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)', marginBottom: 2 }}>{c.code}</div>
                     <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{c.name}</div>
                     {c.client_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>🏢 {c.client_name}</div>}
                   </div>
-                  <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, whiteSpace: 'nowrap', flexShrink: 0 }}>{cfg.label}</span>
+                  <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color, whiteSpace: 'nowrap', flexShrink: 0 }}>{cfg.label}</span>
                 </div>
                 <div style={{ marginBottom: 10 }}>
                   <span style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>

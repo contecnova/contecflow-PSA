@@ -10,6 +10,7 @@ import PageShell from '../components/layout/PageShell'
 import { Flag } from 'lucide-react'
 import { Button, Modal, EmptyState, Tabs } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 type BillingStatus = 'pending' | 'completed' | 'pending_approval' | 'approved' | 'rejected' | 'invoiced'
 
@@ -128,7 +129,7 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
 
   return (
     <div style={{
-      background: 'var(--surface-2)', border: `1px solid ${s.color}30`,
+      background: 'var(--surface-2)', border: `1px solid ${alpha(s.color, '30')}`,
       borderRadius: 12, padding: '16px 20px', marginBottom: 10,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>

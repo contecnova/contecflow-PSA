@@ -13,6 +13,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CreditCard, Download } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 interface InvoiceLine {
   description: string
@@ -265,7 +266,7 @@ function InvoicesTab() {
             const cfg = STATUS_CFG[(inv.status as InvoiceStatus) || 'draft'] || {label:inv.status || '—',color:'var(--text-2)'}
             const isOverdue = inv.status === 'sent' && inv.due_date && new Date(inv.due_date) < new Date()
             return (
-              <div key={inv.id} style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'12px 18px',borderBottom:'1px solid var(--surface-4)20',alignItems:'center'}}>
+              <div key={inv.id} style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'12px 18px',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)',alignItems:'center'}}>
                 <span style={{fontSize: "var(--text-sm)",fontFamily:'var(--font-mono)',color:'var(--accent)'}}>{inv.number}</span>
                 <span style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{inv.project_code||'—'}</span>
                 <div>
@@ -275,7 +276,7 @@ function InvoicesTab() {
                 <span style={{fontSize: "var(--text-sm)",color:'var(--text-2)'}}>{inv.issue_date}</span>
                 <span style={{fontSize: "var(--text-sm)",color:isOverdue?'var(--danger)':'var(--text-2)'}}>{inv.due_date||'—'}{isOverdue&&' ⚠'}</span>
                 <span style={{fontSize: "var(--text-base)",fontWeight:700,fontFamily:'var(--font-mono)'}}>{(inv.total||0).toLocaleString('es-ES',{minimumFractionDigits:2})}€</span>
-                <span style={{fontSize: "var(--text-xs)",fontWeight:700,padding:'2px 8px',borderRadius:20,background:cfg.color+'20',color:cfg.color}}>{cfg.label}</span>
+                <span style={{fontSize: "var(--text-xs)",fontWeight:700,padding:'2px 8px',borderRadius:20,background:alpha(cfg.color, '20'),color:cfg.color}}>{cfg.label}</span>
                 <div style={{display:'flex',gap:6}}>
                   {inv.status === 'draft' && <button onClick={() => updateStatus({id:inv.id,status:'sent'})} style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border-strong)',borderRadius:6,padding:'3px 10px',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.send')}</button>}
                   {inv.status === 'sent' && <button onClick={() => updateStatus({id:inv.id,status:'paid'})} style={{background:'var(--success-bg)',border:'1px solid var(--success-border)',borderRadius:6,padding:'3px 10px',color:'var(--success)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.paid')}</button>}
@@ -340,7 +341,7 @@ function InvoicesTab() {
               <div style={{background:'var(--surface-3)',borderRadius:8,padding:12}}>
                 <div style={{fontSize: "var(--text-xs)",fontWeight:700,color:'var(--text-2)',marginBottom:8,textTransform:'uppercase'}}>{t('invoices.invoice_lines')}</div>
                 {form.lines.map((l,i) => (
-                  <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 80px 80px',gap:10,padding:'6px 0',borderBottom:'1px solid var(--surface-4)20',fontSize: "var(--text-sm)"}}>
+                  <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 80px 80px',gap:10,padding:'6px 0',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)',fontSize: "var(--text-sm)"}}>
                     <span>{l.description}</span>
                     <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.quantity} h</span>
                     <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.unit_price}€/h</span>

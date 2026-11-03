@@ -3126,6 +3126,7 @@ const es = {
 
   toast: {
     unexpected_error: 'Error inesperado',
+    close: 'Cerrar aviso',
   },
 
   calendar: {

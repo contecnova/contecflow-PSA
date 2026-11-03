@@ -3,12 +3,13 @@
  * used across all ServiceDesk sub-modules.
  */
 import { useState, useEffect } from 'react'
-import { COLOR } from '../../constants/theme'
+import { COLOR, alpha } from '../../constants/theme'
+import { formateadorDeFecha } from '../../utils/helpers'
 
 // ── Priority / Status maps ─────────────────────────────────────────────────────
 export const PRIORITY_COLOR = {
   p1_critical: COLOR.danger,
-  p2_high:     'var(--orange)',
+  p2_high:     COLOR.orange,
   p3_medium:   COLOR.warning,
   p4_low:      COLOR.text2,
 }
@@ -46,11 +47,12 @@ export const LABEL_STYLE = {
 }
 
 // ── Formatters ─────────────────────────────────────────────────────────────────
+const FORMATO_SD: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }
+
+/** Día, mes abreviado y hora, en el idioma activo de la interfaz. */
 export function fmtDate(d: string | number | Date | null | undefined) {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString('es-ES', {
-    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-  })
+  return formateadorDeFecha(FORMATO_SD).format(new Date(d))
 }
 export function fmtMinutes(m: number | null | undefined) {
   if (!m) return '—'
@@ -70,7 +72,7 @@ export function PBadge({ v }: { v?: string }) {
     <span style={{
       fontSize: "var(--text-2xs)", fontWeight: 700, color,
       padding: '2px 7px', borderRadius: 4,
-      border: `1px solid ${color}30`, background: `${color}12`,
+      border: `1px solid ${alpha(color, '30')}`, background: alpha(color, '12'),
       whiteSpace: 'nowrap',
     }}>
       {PRIORITY_LABEL[v as keyof typeof PRIORITY_LABEL] || v}
@@ -83,7 +85,7 @@ export function SBadge({ v }: { v: string }) {
     <span style={{
       fontSize: "var(--text-2xs)", fontWeight: 600, color,
       padding: '2px 8px', borderRadius: 4,
-      background: `${color}15`, whiteSpace: 'nowrap',
+      background: alpha(color, '15'), whiteSpace: 'nowrap',
     }}>
       {v?.replace(/_/g, ' ')}
     </span>

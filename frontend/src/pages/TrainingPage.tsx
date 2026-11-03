@@ -16,6 +16,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { sanitizeUrl } from '../utils/security'
+import { alpha } from '../constants/theme'
 
 type TrainingStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled'
 
@@ -302,10 +303,10 @@ export default function TrainingPage() {
                 {enrollments.map((e) => {
                   const sc = STATUS_CFG[e.status || 'planned'] || STATUS_CFG.planned
                   return (
-                    <tr key={e.id} style={{ borderBottom:'1px solid var(--surface-4)20' }} onMouseEnter={el => el.currentTarget.style.background='var(--surface-3)'} onMouseLeave={el => el.currentTarget.style.background='transparent'}>
+                    <tr key={e.id} style={{ borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)' }} onMouseEnter={el => el.currentTarget.style.background='var(--surface-3)'} onMouseLeave={el => el.currentTarget.style.background='transparent'}>
                       <td style={{ padding:'10px 14px', fontSize: 'var(--text-base)', fontWeight:600 }}>{e.user_name}</td>
                       <td style={{ padding:'10px 14px', fontSize: 'var(--text-base)' }}>{e.course_title}</td>
-                      <td style={{ padding:'10px 14px' }}><span style={{ fontSize: 'var(--text-xs)', fontWeight:700, padding:'2px 8px', borderRadius:20, background:`${sc.color}20`, color:sc.color }}>{sc.icon} {sc.label}</span></td>
+                      <td style={{ padding:'10px 14px' }}><span style={{ fontSize: 'var(--text-xs)', fontWeight:700, padding:'2px 8px', borderRadius:20, background:alpha(sc.color, '20'), color:sc.color }}>{sc.icon} {sc.label}</span></td>
                       <td style={{ padding:'10px 14px', fontSize: 'var(--text-sm)', color:'var(--text-2)' }}>{e.start_date || '—'}</td>
                       <td style={{ padding:'10px 14px', fontSize: 'var(--text-sm)', color:'var(--text-2)' }}>{e.end_date || '—'}</td>
                       <td style={{ padding:'10px 14px', fontSize: 'var(--text-sm)', color: e.score && e.score >= 7 ? 'var(--success)' : e.score ? 'var(--warning)' : 'var(--text-3)' }}>{e.score ? `${e.score}/10` : '—'}</td>

@@ -396,6 +396,27 @@ Guía de diseño completa —tokens, temas con su contraste medido, componentes,
 patrones, idiomas, accesibilidad y lo que no se debe copiar—, pensada también
 para las otras soluciones: [docs/GUIA_DE_DISENO.md](docs/GUIA_DE_DISENO.md).
 
+### Apariencia y accesibilidad (para quien usa la aplicación)
+Se cambia en **Perfil → Apariencia**:
+- **Tema:** Freight Pro (por defecto), Oscuro clásico, Midnight, Slate, Claro,
+  Alto contraste o Sistema (sigue al sistema operativo). Todos se leen bien:
+  el texto cumple el contraste mínimo de accesibilidad (WCAG AA) en los seis.
+- **Color de acento:** el de los botones principales y lo seleccionado. El
+  texto de encima se pone blanco o negro solo, el que se lea mejor con el
+  color elegido.
+- **Densidad:** *Compacta* reduce un punto la letra y el margen de la página
+  para ver más a la vez; *Confortable* los aumenta para leer mejor.
+
+Con el teclado: `Tab` recorre la pantalla y un contorno del color de acento
+marca dónde se está (con el ratón no aparece). En una fila de pestañas, las
+flechas cambian de pestaña, e `Inicio` y `Fin` van a la primera y la última.
+Los avisos que salen abajo a la derecha los lee también el lector de
+pantalla; los errores, en cuanto aparecen.
+
+Las fechas salen en el idioma de la interfaz: `02/11/2026` en español,
+`11/02/2026` en inglés y `2026/11/02` en chino. Quedan pantallas que todavía
+las escriben en formato español (véase la guía de diseño, apartado 15).
+
 ### Modales y drawers
 - Contenedor `position: fixed` (drawer: `top: 12, right: 12`; modal centrado: `inset: 0`).
 - Altura por contenido; si excede el viewport, el cuerpo interno scrollea con `flex: 1; overflow-y: auto`. Cabecera y footer permanecen visibles (`flex-shrink: 0`).

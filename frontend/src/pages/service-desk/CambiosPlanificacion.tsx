@@ -12,7 +12,7 @@ import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, EmptyState, Modal, Spinner } from '../../components/ui'
-import { COLOR } from '../../constants/theme'
+import { COLOR, alpha } from '../../constants/theme'
 import { sdChangePlanningApi } from '../../services/api'
 
 type Choque = { change_id: string; number: string; cis: string[] }
@@ -61,7 +61,7 @@ export function CalendarioCambios({ onOpen }: { onOpen: (id: string) => void }) 
       </div>
       {isLoading ? <Spinner /> : <>
         {(data?.blackouts ?? []).map(b => (
-          <div key={b.id} role="note" style={{ border: `1px solid ${COLOR.danger}50`, background: `${COLOR.danger}10`, borderRadius: 8, padding: '8px 12px', fontSize: 'var(--text-sm)' }}>
+          <div key={b.id} role="note" style={{ border: `1px solid ${alpha(COLOR.danger, '50')}`, background: alpha(COLOR.danger, '10'), borderRadius: 8, padding: '8px 12px', fontSize: 'var(--text-sm)' }}>
             <strong style={{ color: COLOR.danger }}>❄ {b.name}</strong> · {fecha(b.start_at)} → {fecha(b.end_at)}
           </div>
         ))}

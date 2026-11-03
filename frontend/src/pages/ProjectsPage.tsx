@@ -26,6 +26,7 @@ import { useColVisibility } from '../components/ui/ColVisibility'
 import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
+import { alpha } from '../constants/theme'
 
 const PROJ_COLS = [
   { id: 'name',     label: 'Proyecto',     width: '2fr',   sortKey: 'name' },
@@ -117,7 +118,7 @@ function StatusDropdown({ project, onUpdate }: { project: any; onUpdate: (s: any
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
         style={{
           display: 'flex', alignItems: 'center', gap: 5,
-          background: `${c.color}15`, border: `1px solid ${c.color}40`,
+          background: alpha(c.color, '15'), border: `1px solid ${alpha(c.color, '40')}`,
           borderRadius: 20, padding: '3px 10px', cursor: 'pointer',
           fontSize: "var(--text-xs)", fontWeight: 700, color: c.color, fontFamily: 'inherit',
           textTransform: 'uppercase', letterSpacing: '0.06em',
@@ -689,7 +690,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                           <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{fr.code}</span>
-                          <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: statusColors[fr.status] || 'var(--text-2)', background: `${statusColors[fr.status] || 'var(--text-2)'}18`, border: `1px solid ${statusColors[fr.status] || 'var(--text-2)'}40`, borderRadius: 5, padding: '2px 7px' }}>{statusLabels[fr.status] || fr.status}</span>
+                          <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: statusColors[fr.status] || 'var(--text-2)', background: alpha(statusColors[fr.status] || 'var(--text-2)', '18'), border: `1px solid ${alpha(statusColors[fr.status] || 'var(--text-2)', '40')}`, borderRadius: 5, padding: '2px 7px' }}>{statusLabels[fr.status] || fr.status}</span>
                           <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: priorityColors[fr.priority] || 'var(--text-2)' }}>● {fr.priority}</span>
                           {fr.client_approved === true && <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>{traducir('projects.cliente_aprobo')}</span>}
                           {fr.client_approved === false && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{traducir('projects.cliente_rechazo')}</span>}
@@ -837,7 +838,7 @@ function TemplatesTab() {
               </div>
 
               {t.phases?.slice(0,3).map((ph: any,i: number) => (
-                <div key={ph.id} style={{padding:'4px 0',borderBottom:'1px solid var(--surface-4)15',fontSize: "var(--text-sm)"}}>
+                <div key={ph.id} style={{padding:'4px 0',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 8%, transparent)',fontSize: "var(--text-sm)"}}>
                   <span style={{color:'var(--text-2)'}}>{i+1}.</span> <span style={{color:'var(--text-1)'}}>{ph.name}</span>
                   <span style={{color:'var(--text-3)',marginLeft:8}}>{ph.duration_weeks}w · {ph.tasks?.length||0} tareas</span>
                 </div>
@@ -1078,7 +1079,7 @@ export default function ProjectsPage() {
           </div>
           {sortedProjects.map(p => (
             <div key={p.id}
-              style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '14px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', transition: 'background 0.15s' }}
+              style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '14px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', transition: 'background 0.15s' }}
               onPointerEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
               onPointerLeave={e => e.currentTarget.style.background = 'transparent'}
             >

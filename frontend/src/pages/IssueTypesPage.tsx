@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { CHART_COLORS_EXTENDED } from '../constants/theme'
+import { CHART_COLORS_EXTENDED, alpha } from '../constants/theme'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useState } from 'react'
@@ -244,7 +244,7 @@ export default function IssueTypesPage(): JSX.Element {
           {/* Resumen visual */}
           <div style={{display:'flex', gap:10, flexWrap:'wrap', marginBottom:20}}>
             {types.map(typeItem => (
-              <div key={typeItem.id} style={{background:'var(--surface-2)', border:`1px solid ${typeItem.color}40`,
+              <div key={typeItem.id} style={{background:'var(--surface-2)', border:`1px solid ${alpha(typeItem.color, '40')}`,
                 borderRadius:10, padding:'12px 16px', minWidth:120, textAlign:'center'}}>
                 <div style={{fontSize: "var(--text-3xl)", marginBottom:4}}>{typeItem.icon || '📌'}</div>
                 <div style={{fontWeight:600, fontSize: "var(--text-base)", color:typeItem.color}}>{typeItem.name}</div>
@@ -273,7 +273,7 @@ export default function IssueTypesPage(): JSX.Element {
                   <tr key={typeItem.id} style={{borderBottom:'1px solid #1e2d45', background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex', alignItems:'center', gap:10}}>
-                        <div style={{width:32, height:32, borderRadius:8, background:typeItem.color+'20',
+                        <div style={{width:32, height:32, borderRadius:8, background:alpha(typeItem.color, '20'),
                           display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)"}}>
                           {typeItem.icon || '📌'}
                         </div>

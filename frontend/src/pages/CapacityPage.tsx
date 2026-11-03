@@ -19,6 +19,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
+import { alpha } from '../constants/theme'
 
 type UserItem = {
   id: string | number
@@ -235,7 +236,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
       style={{
         minWidth: 72, minHeight: 60, borderRadius: 8, padding: '4px 6px',
         background: dragOver ? 'var(--accent-muted)' : committed > 0 ? 'var(--surface-2)' : 'var(--surface-0)',
-        border: `1px solid ${dragOver ? 'var(--accent)' : committed > 0 ? color + '40' : 'var(--surface-4)'}`,
+        border: `1px solid ${dragOver ? 'var(--accent)' : committed > 0 ? alpha(color, '40') : 'var(--surface-4)'}`,
         cursor: plans.length === 0 ? 'pointer' : 'default',
         position: 'relative', overflow: 'hidden', transition: 'all 0.15s',
       }}
@@ -243,7 +244,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
       {/* Barra de fondo */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
-        height: `${Math.min(loadPct, 100)}%`, background: color + '20',
+        height: `${Math.min(loadPct, 100)}%`, background: alpha(color, '20'),
         transition: 'height 0.3s',
       }} />
 

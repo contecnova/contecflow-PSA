@@ -2,7 +2,7 @@
 
 > La guía completa, medida y pensada para reutilizar en otras soluciones, es
 > [docs/GUIA_DE_DISENO.md](../../../../docs/GUIA_DE_DISENO.md). Incluye lo que
-> no se debe copiar (contraste, foco, densidad) y los arreglos medidos.
+> no se debe copiar y el contraste medido de cada tema.
 
 **Objetivo**: una sola identidad visual y experiencia consistente en todas las
 pantallas. Cuando construyas una página nueva o toques una existente, **usa
@@ -178,7 +178,10 @@ valor que ya existe como token.
 | Texto secundario | `var(--text-2)` |
 | Texto terciario | `var(--text-3)` |
 | Acento (CTA, links) | `var(--accent)` |
+| Texto sobre el acento (botón principal) | `var(--on-accent)` — nunca `#fff` |
 | Éxito / Advertencia / Error / Info | `var(--success/warning/danger/info)` |
+| Fondo y borde de un estado | `var(--success-bg)` / `var(--success-border)` (igual para el resto) |
+| Color con opacidad desde JS | `alpha(color, '20')` de `constants/theme` — nunca `color + '20'` |
 
 ### Tipografía
 
@@ -205,7 +208,18 @@ valor que ya existe como token.
 ### Shadows / motion
 
 `--shadow-sm/md/lg` · `--shadow-accent`
-`--easing` se usa en `.ds-card` y `.ds-input` pero **no está definida** (véase la guía completa, apartado 15)
+`--easing` = `cubic-bezier(0.4, 0, 0.2, 1)`, la curva de toda transición
+
+### Densidad
+
+El perfil escribe `data-density` en `<html>` (`compact`, `normal`, `comfortable`)
+y `index.css` mueve `--text-xs/sm/base/md` y `--page-pad-x/y`. Sólo cambia lo
+que usa el token: un `fontSize` escrito como número no se entera.
+
+### Foco
+
+`:focus-visible` pinta un contorno de 2 px en el acento en todo lo enfocable, y
+sólo con teclado. No hay que quitarlo con `outline: none`.
 
 ---
 

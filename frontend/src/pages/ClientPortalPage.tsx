@@ -23,6 +23,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { LARGE_PAGE_SIZE, NOTIFICATIONS_POLL_MS } from '../constants/timings'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../components/portal/GovernedConversations'
+import { alpha } from '../constants/theme'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -80,7 +81,7 @@ const portalClientEditSchema = z.object({
 function StatusBadge({ status, cfg }: { status: any; cfg: any }) {
   const t = useAppT()
   const c = cfg[status] || { label: t('client_portal.unknown_status'), color: 'var(--text-2)' }
-  return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: c.color + '20', color: c.color, border: `1px solid ${c.color}40`, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{c.label}</span>
+  return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: alpha(c.color, '20'), color: c.color, border: `1px solid ${alpha(c.color, '40')}`, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{c.label}</span>
 }
 
 // ── Client Users Management ───────────────────────────────────────────────────
@@ -376,7 +377,7 @@ function UATTab({ projectId }: { projectId: any }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {sessions.map((s: any) => (
-            <button key={s.id} type="button" style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${STATUS_CFG[s.status]?.color + '40' || 'var(--surface-4)'}`, borderRadius: 12, cursor: 'pointer', width:'100%', textAlign:'left', fontFamily:'inherit' }}
+            <button key={s.id} type="button" style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${alpha(STATUS_CFG[s.status]?.color, '40') || 'var(--surface-4)'}`, borderRadius: 12, cursor: 'pointer', width:'100%', textAlign:'left', fontFamily:'inherit' }}
               onClick={() => setSelectedId(s.id)}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}>
@@ -538,14 +539,14 @@ function UATDetailModal({ session: initialSession, onClose }: { session: any; on
             {initialSession.test_cases.map((tc: any) => {
               const color = tc.status === 'passed' ? 'var(--success)' : tc.status === 'failed' ? 'var(--danger)' : 'var(--text-2)'
               return (
-                <div key={tc.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${color}30`, borderRadius: 8 }}>
+                <div key={tc.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${alpha(color, '30')}`, borderRadius: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 4 }}>{tc.title}</div>
                       {tc.expected_result && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{`${t('client_portal.uat_expected')}: ${tc.expected_result}`}</div>}
                       {tc.actual_result && <div style={{ fontSize: "var(--text-sm)", color: color, marginTop: 4 }}>{`${t('client_portal.uat_result')}: ${tc.actual_result}`}</div>}
                     </div>
-                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color, background: color + '20', border: `1px solid ${color}40`, borderRadius: 20, padding: '2px 8px', textTransform: 'uppercase', flexShrink: 0 }}>
+                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color, background: alpha(color, '20'), border: `1px solid ${alpha(color, '40')}`, borderRadius: 20, padding: '2px 8px', textTransform: 'uppercase', flexShrink: 0 }}>
                       {tc.status === 'passed' ? '✓ OK' : tc.status === 'failed' ? '✗ KO' : `— ${t('client_portal.uat_pending')}`}
                     </span>
                   </div>
@@ -566,11 +567,11 @@ function UATDetailModal({ session: initialSession, onClose }: { session: any; on
             {initialSession.issues.map((issue: any) => {
               const sevColor = SEV_COLORS[issue.severity] || 'var(--text-2)'
               return (
-                <div key={issue.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${issue.status === 'open' ? sevColor + '40' : 'var(--surface-4)'}`, borderRadius: 8 }}>
+                <div key={issue.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${issue.status === 'open' ? alpha(sevColor, '40') : 'var(--surface-4)'}`, borderRadius: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: sevColor, background: sevColor + '20', borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{issue.severity}</span>
+                        <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: sevColor, background: alpha(sevColor, '20'), borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{issue.severity}</span>
                         <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{issue.title}</span>
                       </div>
                       <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', margin: 0 }}>{issue.description}</p>
@@ -636,7 +637,7 @@ function FeatureRequestsTab({ projectId }: { projectId: any }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {frs.map(fr => (
-            <div key={fr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${fr.priority_color + '30'}`, borderRadius: 12 }}>
+            <div key={fr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${alpha(fr.priority_color, '30')}`, borderRadius: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
@@ -771,7 +772,7 @@ function DocumentsTab({ projectId }: { projectId: any }) {
           {docs.map((doc: any, i: number) => {
             const color = CAT_COLORS[doc.category] || 'var(--text-2)'
             return (
-              <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: i < docs.length - 1 ? '1px solid var(--surface-4)30' : 'none' }}>
+              <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: i < docs.length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none' }}>
                 <span style={{ fontSize: "var(--text-xl-em)", flexShrink: 0 }}>{CAT_LABELS[doc.category]?.split(' ')[0] || '📄'}</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{doc.title}</div>
@@ -871,7 +872,7 @@ function WikiPortalTab({ projectId }: { projectId: any }) {
       {pages.length > 0 && (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
           {pages.map((page: any, i: number) => (
-            <div key={page.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: i < pages.length - 1 ? '1px solid var(--surface-4)30' : 'none' }}>
+            <div key={page.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: i < pages.length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none' }}>
               <span style={{ fontSize: "var(--text-lg)" }}>📄</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{page.title}</div>
@@ -880,7 +881,7 @@ function WikiPortalTab({ projectId }: { projectId: any }) {
               <div style={{ display: 'flex', gap: 6 }}>
                 {Object.entries(VIS).map(([val, cfg]) => (
                   <button key={val} onClick={() => setVis({ id: page.id, visibility: val })}
-                    style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${(page.visibility || 'team') === val ? cfg.color + '60' : 'var(--surface-4)'}`, background: (page.visibility || 'team') === val ? cfg.color + '15' : 'transparent', color: (page.visibility || 'team') === val ? cfg.color : 'var(--text-3)', fontSize: "var(--text-xs)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${(page.visibility || 'team') === val ? alpha(cfg.color, '60') : 'var(--surface-4)'}`, background: (page.visibility || 'team') === val ? alpha(cfg.color, '15') : 'transparent', color: (page.visibility || 'team') === val ? cfg.color : 'var(--text-3)', fontSize: "var(--text-xs)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {cfg.label}
                   </button>
                 ))}

@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { predictionsApi } from '../../services/api'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { alpha } from '../../constants/theme'
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 
@@ -92,7 +93,7 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
         padding: '2px 8px', borderRadius: 20,
         background: cfg.bg, fontSize: 'var(--text-xs)', fontWeight: 500,
         color: cfg.color, cursor: 'default', userSelect: 'none',
-        border: `1px solid ${cfg.color}33`,
+        border: `1px solid ${alpha(cfg.color, '33')}`,
       }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />
         {cfg.label}

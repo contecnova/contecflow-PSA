@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { collabApi } from '../services/collaborationApi'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 type TFn = (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
 
@@ -467,7 +468,7 @@ function QualityBadge({ q, fallback, t }: { q: string; fallback: boolean; t: TFn
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
       padding: '3px 10px', borderRadius: 999,
-      background: `${m.color}25`, color: m.color, fontSize: 11, fontWeight: 700,
+      background: alpha(m.color, '25'), color: m.color, fontSize: 11, fontWeight: 700,
     }}>
       ●  {m.label}{fallback ? ` · ${t('call.audio_only_suffix')}` : ''}
     </span>

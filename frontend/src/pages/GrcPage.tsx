@@ -22,6 +22,7 @@ import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 // ── Catálogo de módulos, acciones y roles ────────────────────────────────────
 const MODULES = [
@@ -117,7 +118,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
           </button>
           {roles.map(r => (
             <button key={r.id} onClick={() => setSelRole(r.id)}
-              style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${selRole === r.id ? r.color : 'var(--surface-4)'}`, background: selRole === r.id ? `${r.color}15` : 'transparent', color: selRole === r.id ? r.color : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${selRole === r.id ? r.color : 'var(--surface-4)'}`, background: selRole === r.id ? alpha(r.color, '15') : 'transparent', color: selRole === r.id ? r.color : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
               {r.label}
             </button>
           ))}
@@ -315,7 +316,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
             {roles.map(r => (
               <button key={r.id} onClick={() => toggleRole(r.id)}
-                style={{ padding: '4px 12px', borderRadius: 6, border: `1px solid ${form.roles_conflict.includes(r.id) ? r.color : 'var(--surface-4)'}`, background: form.roles_conflict.includes(r.id) ? `${r.color}20` : 'transparent', color: form.roles_conflict.includes(r.id) ? r.color : 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '4px 12px', borderRadius: 6, border: `1px solid ${form.roles_conflict.includes(r.id) ? r.color : 'var(--surface-4)'}`, background: form.roles_conflict.includes(r.id) ? alpha(r.color, '20') : 'transparent', color: form.roles_conflict.includes(r.id) ? r.color : 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
                 {r.label}
               </button>
             ))}
@@ -403,7 +404,7 @@ function SodTab({ roles }: { roles: Role[] }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {violations.map((v: SodViolation, i: number) => (
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: "var(--text-sm)" }}>
-                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: `${RISK_COLOR[v.risk || '']}20`, color: RISK_COLOR[v.risk || ''], textTransform: 'uppercase', minWidth: 48, textAlign: 'center' }}>{v.risk}</span>
+                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: alpha(RISK_COLOR[v.risk || ''], '20'), color: RISK_COLOR[v.risk || ''], textTransform: 'uppercase', minWidth: 48, textAlign: 'center' }}>{v.risk}</span>
                 <span style={{ color: 'var(--text-1)' }}><strong>{v.conflicting_role}</strong> {t('grc.can')} {v.action_a} <em>{v.module_a}</em> {t('grc.and')} {v.action_b} <em>{v.module_b}</em></span>
                 {v.mitigated && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--success)', background: 'rgba(0,229,160,0.1)', padding: '1px 6px', borderRadius: 4 }}>✓ {t('grc.mitigated')}</span>}
               </div>
@@ -428,7 +429,7 @@ function SodTab({ roles }: { roles: Role[] }) {
               <div key={rule.id} style={{ ...card, borderLeft: `4px solid ${rc}`, padding: '14px 18px', opacity: rule.is_active ? 1 : 0.55 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, background: `${rc}20`, color: rc, padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase' }}>{rule.risk}</span>
+                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, background: alpha(rc, '20'), color: rc, padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase' }}>{rule.risk}</span>
                     <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{modA?.icon} {modA?.label} · {ACTION_LABEL[rule.action_a || ''] || rule.action_a}</span>
                     <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{traducir('grc.conflicto_con')}</span>
                     <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{modB?.icon} {modB?.label} · {ACTION_LABEL[rule.action_b || ''] || rule.action_b}</span>
@@ -455,7 +456,7 @@ function SodTab({ roles }: { roles: Role[] }) {
                     <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{traducir('grc.roles_con_conflicto')}</span>
                     {rule.roles_conflict?.map((r: string) => {
                       const role = roles.find((x: Role) => x.id === r)
-                      return role ? <span key={r} style={{ fontSize: "var(--text-xs)", background: `${role.color}20`, color: role.color, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{role.label}</span> : <span key={r} style={{ fontSize: "var(--text-xs)", background: 'var(--surface-3)', color: 'var(--text-2)', padding: '2px 8px', borderRadius: 4 }}>{r}</span>
+                      return role ? <span key={r} style={{ fontSize: "var(--text-xs)", background: alpha(role.color, '20'), color: role.color, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{role.label}</span> : <span key={r} style={{ fontSize: "var(--text-xs)", background: 'var(--surface-3)', color: 'var(--text-2)', padding: '2px 8px', borderRadius: 4 }}>{r}</span>
                     })}
                   </div>
                 )}
@@ -618,7 +619,7 @@ function AuditLogTab() {
                     <span style={{ fontSize: "var(--text-md-em)" }}>{ACTION_ICONS[e.action_type || ''] || '📋'}</span>
                     <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{(e.action_type || '').replace(/_/g, ' ')}</span>
                     {e.resource_type && <span style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', background: 'var(--surface-4)', color: 'var(--text-3)', borderRadius: 4 }}>{e.resource_type}</span>}
-                    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: sc, background: `${sc}15`, padding: '1px 6px', borderRadius: 4, textTransform: 'uppercase' }}>{e.severity}</span>
+                    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: sc, background: alpha(sc, '15'), padding: '1px 6px', borderRadius: 4, textTransform: 'uppercase' }}>{e.severity}</span>
                   </div>
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', whiteSpace: 'nowrap', marginLeft: 12 }}>{e.timestamp}</span>
                 </div>

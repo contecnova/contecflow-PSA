@@ -4123,6 +4123,7 @@ const zh = {
   },
   toast: {
     unexpected_error: "意外错误",
+    close: "关闭通知",
   },
   cmdb: {
     title: "CMDB",

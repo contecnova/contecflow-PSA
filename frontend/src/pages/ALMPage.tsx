@@ -14,6 +14,7 @@ import { sanitizeUrl } from '../utils/security'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { useOrgSettings } from '../hooks/useOrgSettings'
+import { alpha } from '../constants/theme'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const VENDOR_CATS = {
@@ -95,7 +96,7 @@ const StatusBadge = ({ status, cfg }: { status: any; cfg: any }) => {
   const c = cfg[status] || { label: status, color: 'var(--text-2)' }
   return (
     <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20,
-      background: c.color + '20', color: c.color, border: `1px solid ${c.color}40` }}>
+      background: alpha(c.color, '20'), color: c.color, border: `1px solid ${alpha(c.color, '40')}` }}>
       {c.label}
     </span>
   )
@@ -164,7 +165,7 @@ function ALMDashboard({ onNavigate }: { onNavigate: any }) {
               </div>
             ) : (
               renewals.map((c: any) => (
-                <div key={c.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--surface-4)30', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={c.id} style={{ padding: '10px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{c.title}</div>
                     <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{c.vendor_name}</div>
@@ -194,7 +195,7 @@ function ALMDashboard({ onNavigate }: { onNavigate: any }) {
             ].map(a => (
               <button key={a.tab} onClick={() => onNavigate(a.tab)}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-1)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit', marginBottom: 6, textAlign: 'left', transition: 'border-color 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = a.color + '60'}
+                onMouseEnter={e => e.currentTarget.style.borderColor = alpha(a.color, '60')}
                 onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
                 <span style={{ fontSize: "var(--text-lg)" }}>{a.icon}</span>
                 {a.label}
@@ -299,11 +300,11 @@ function VendorsTab() {
             const cat = (VENDOR_CATS as Record<string, any>)[v.category] || VENDOR_CATS.other
             return (
               <div key={v.id} style={{ ...card, padding: '18px 20px', transition: 'border-color 0.15s' }}
-                onPointerEnter={e => e.currentTarget.style.borderColor = cat.color + '50'}
+                onPointerEnter={e => e.currentTarget.style.borderColor = alpha(cat.color, '50')}
                 onPointerLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 9, background: cat.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg-em)" }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 9, background: alpha(cat.color, '20'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg-em)" }}>
                       {cat.icon}
                     </div>
                     <div>
@@ -322,7 +323,7 @@ function VendorsTab() {
                   {v.support_email   && <span>✉️ {v.support_email}</span>}
                   {v.website         && <a href={sanitizeUrl(v.website)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontSize: "var(--text-sm)" }}>🔗 {v.website}</a>}
                 </div>
-                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--surface-4)30', fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
                   {v.contracts_count} {t('alm.vendors_contracts_count')}
                 </div>
               </div>

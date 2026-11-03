@@ -16,6 +16,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import type { CSSProperties } from 'react'
+import { alpha } from '../constants/theme'
 
 type EntryType = 'feature' | 'bugfix' | 'improvement' | 'milestone' | 'breaking'
 
@@ -320,7 +321,7 @@ export default function ChangelogPage(): JSX.Element {
             const count = entries.filter(e => e.entry_type === k).length
             return count > 0 ? (
               <button key={k} onClick={() => setTypeFilter(k as EntryType)}
-                style={{ padding: '5px 14px', borderRadius: 20, border: `1px solid ${typeFilter === k ? v.color + '60' : 'var(--surface-4)'}`, background: typeFilter === k ? v.bg : 'var(--surface-2)', color: typeFilter === k ? v.color : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '5px 14px', borderRadius: 20, border: `1px solid ${typeFilter === k ? alpha(v.color, '60') : 'var(--surface-4)'}`, background: typeFilter === k ? v.bg : 'var(--surface-2)', color: typeFilter === k ? v.color : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {v.icon} {v.label} ({count})
               </button>
             ) : null

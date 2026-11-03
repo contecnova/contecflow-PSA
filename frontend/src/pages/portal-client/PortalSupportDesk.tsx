@@ -13,7 +13,6 @@ import {
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { CHART } from '../../constants/theme'
 import { CLIENT_API, useLang } from './portalClientContext'
 import {
   PortalPageHeader as PortalPageHeaderBase, PortalCard as PortalCardBase,
@@ -43,15 +42,15 @@ const PortalBanner = PortalBannerBase as unknown as AnyComp
 
 const PRIORITY_TONE: Record<string, string> = {
   p1_critical: 'danger',
-  p2_high:     'warning',
+  p2_high:     'orange',
   p3_medium:   'warning',
-  p4_low:      'success',
+  p4_low:      'default',
 }
 const PRIORITY_COLORS: Record<string, string> = {
   p1_critical: 'var(--danger)',
-  p2_high:     CHART?.orange || '#f97316',
+  p2_high:     'var(--orange)',
   p3_medium:   'var(--warning)',
-  p4_low:      'var(--success)',
+  p4_low:      'var(--text-2)',
 }
 const STATUS_TONE: Record<string, string> = {
   new: 'default', assigned: 'accent', in_progress: 'accent',

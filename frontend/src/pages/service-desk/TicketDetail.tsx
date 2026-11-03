@@ -8,7 +8,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, Spinner, Modal } from '../../components/ui'
 import AIInlineEditorRaw from '../../components/AIInlineEditor'
 import DocumentsPanelRaw from '../../components/DocumentsPanel'
-import { COLOR } from '../../constants/theme'
+import { COLOR, alpha } from '../../constants/theme'
 import { sdApprovalsApi, sdCannedApi, ticketsApi, usersApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { PBadge, SBadge, fmtDate, fmtMinutes, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
@@ -406,10 +406,10 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
             {!['resolved', 'closed', 'cancelled'].includes(ticket.status) && <>
               {ticket.status !== 'in_progress' && (
-                <button onClick={() => updateTicket({ status: 'in_progress' })} style={{ ...qaBtnStyle, background: `${COLOR.accent}20`, color: COLOR.accent }}>▶ {t('sd_cfg.qa_start')}</button>
+                <button onClick={() => updateTicket({ status: 'in_progress' })} style={{ ...qaBtnStyle, background: alpha(COLOR.accent, '20'), color: COLOR.accent }}>▶ {t('sd_cfg.qa_start')}</button>
               )}
-              <button onClick={() => { setTextoResolucion(ticket.resolution || ''); setResolviendo(true) }} style={{ ...qaBtnStyle, background: `${COLOR.success}20`, color: COLOR.success }}>✓ {t('sd_cfg.qa_resolve')}</button>
-              <button onClick={() => escalate()} style={{ ...qaBtnStyle, background: `${COLOR.warning}20`, color: COLOR.warning }}>↑ {t('sd_cfg.qa_escalate')}</button>
+              <button onClick={() => { setTextoResolucion(ticket.resolution || ''); setResolviendo(true) }} style={{ ...qaBtnStyle, background: alpha(COLOR.success, '20'), color: COLOR.success }}>✓ {t('sd_cfg.qa_resolve')}</button>
+              <button onClick={() => escalate()} style={{ ...qaBtnStyle, background: alpha(COLOR.warning, '20'), color: COLOR.warning }}>↑ {t('sd_cfg.qa_escalate')}</button>
               {(ticket.status === 'pending_client' || ticket.status === 'pending_third') && (
                 <button onClick={() => restorePending()} disabled={restoringPending} style={qaBtnStyle}>↺ Restaurar pendiente</button>
               )}
@@ -419,7 +419,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               <button onClick={() => setShowSplit(true)} style={qaBtnStyle}>✂ {t('service_desk.split_title_lbl')}</button>
             </>}
             {ticket.status === 'resolved' && (
-              <button onClick={() => updateTicket({ status: 'closed' })} style={{ ...qaBtnStyle, background: `${COLOR.text2}20`, color: 'var(--text-2)' }}>✕ Cerrar</button>
+              <button onClick={() => updateTicket({ status: 'closed' })} style={{ ...qaBtnStyle, background: alpha(COLOR.text2, '20'), color: 'var(--text-2)' }}>✕ Cerrar</button>
             )}
           </div>
         )}
@@ -453,7 +453,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               setRechazando={setRechazando} setMotivo={setMotivo} />
           )}
           {/* SLA status */}
-          <div style={{ background: 'var(--surface-2)', border: `1px solid ${slaColor}40`, borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div style={{ background: 'var(--surface-2)', border: `1px solid ${alpha(slaColor, '40')}`, borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{t('service_desk.detail_sla_response')}</div>
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: colorSla(ticket.sla_response_status) }}>
@@ -537,7 +537,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           {ticket.resolution && (
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: COLOR.success, marginBottom: 8, textTransform: 'uppercase' }}>{t('service_desk.edit_resolution')}</div>
-              <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', background: `${COLOR.success}08`, border: `1px solid ${COLOR.success}20`, borderRadius: 8, padding: '12px 14px', lineHeight: 1.5 }}>
+              <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', background: alpha(COLOR.success, '08'), border: `1px solid ${alpha(COLOR.success, '20')}`, borderRadius: 8, padding: '12px 14px', lineHeight: 1.5 }}>
                 {ticket.resolution}
               </div>
             </div>
@@ -700,7 +700,7 @@ function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, se
   const texto = a.status === 'pending' ? t('sd_cfg.apr_pending', { name: a.approver_name ?? '—' })
     : t(a.status === 'approved' ? 'sd_cfg.apr_approved' : 'sd_cfg.apr_rejected', { name: a.decided_by_name ?? '—' })
   return (
-    <div role="status" style={{ border: `1px solid ${color}60`, background: `${color}12`, borderRadius: 10,
+    <div role="status" style={{ border: `1px solid ${alpha(color, '60')}`, background: alpha(color, '12'), borderRadius: 10,
       padding: '12px 16px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color }}>{texto}</div>
       {a.comment && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{a.comment}</div>}

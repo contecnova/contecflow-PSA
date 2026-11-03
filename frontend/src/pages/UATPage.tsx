@@ -14,6 +14,7 @@ import { extractErr } from '../utils/helpers'
 import { ClipboardCheck } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import type { CSSProperties, ChangeEvent } from 'react'
+import { alpha } from '../constants/theme'
 
 type UATStatus = 'pending' | 'passed' | 'failed' | 'blocked' | 'skipped'
 type UATPriority = 'critical' | 'high' | 'medium' | 'low'
@@ -382,8 +383,8 @@ export default function UATPage() {
                       <span style={{ fontSize: "var(--text-lg)" }}>{st.icon}</span>
                       <span style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)' }}>{c.title}</span>
                       <span style={{
-                        fontSize: "var(--text-2xs)", fontWeight: 700, color: pr.color, background: pr.color + '20',
-                        borderRadius: 20, padding: '1px 7px', border: `1px solid ${pr.color}30`,
+                        fontSize: "var(--text-2xs)", fontWeight: 700, color: pr.color, background: alpha(pr.color, '20'),
+                        borderRadius: 20, padding: '1px 7px', border: `1px solid ${alpha(pr.color, '30')}`,
                       }}>{pr.label}</span>
                       {c.task_title && (
                         <span style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', background: 'var(--accent-muted)', borderRadius: 20, padding: '1px 8px' }}>

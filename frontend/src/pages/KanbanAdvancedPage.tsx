@@ -16,6 +16,7 @@ import PageHeader from '../components/layout/PageHeader'
 import { LayoutGrid, History, X } from 'lucide-react'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -146,7 +147,7 @@ function KanbanCard({ task, onDragStart, onClick, priorityLabels }: {
         {/* Priority badge */}
         <span style={{
           fontSize: "var(--text-3xs)", fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em',
-          color: priColor, background: priColor + '22', borderRadius: 4, padding: '2px 5px',
+          color: priColor, background: alpha(priColor, '22'), borderRadius: 4, padding: '2px 5px',
         }}>
           {priorityLabels[getPriority(task)]}
         </span>
@@ -244,7 +245,7 @@ function QuickAdd({ status, projectId, onCreated }: { status: string; projectId:
           fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'var(--font-sans)',
         }}
       />
-      <button onClick={submit} style={{ padding: '0 10px', background: 'var(--accent)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: "var(--text-base)" }}>✓</button>
+      <button onClick={submit} style={{ padding: '0 10px', background: 'var(--accent)', border: 'none', borderRadius: 6, color: 'var(--on-accent)', cursor: 'pointer', fontSize: "var(--text-base)" }}>✓</button>
       <button onClick={() => { setOpen(false); setTitle('') }} style={{ padding: '0 8px', background: 'var(--surface-4)', border: 'none', borderRadius: 6, color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-base)" }}>✕</button>
     </div>
   )
@@ -615,7 +616,7 @@ export default function KanbanAdvancedPage(): JSX.Element {
               <button key={p} onClick={() => setFilterPri(prev => active ? prev.filter(x => x !== p) : [...prev, p])} style={{
                 padding: '3px 9px', borderRadius: 12, cursor: 'pointer',
                 border: `1px solid ${active ? PRIORITY_COLORS[p] : 'var(--surface-4)'}`,
-                background: active ? PRIORITY_COLORS[p] + '22' : 'transparent',
+                background: active ? alpha(PRIORITY_COLORS[p], '22') : 'transparent',
                 color: active ? PRIORITY_COLORS[p] : 'var(--text-3)',
                 fontSize: "var(--text-xs)", fontFamily: 'var(--font-sans)', fontWeight: active ? 600 : 400,
               }}>
@@ -779,7 +780,7 @@ function StatusBadge({ status }: { status: string | undefined }) {
     <span style={{
       display: 'inline-block', padding: '1px 8px', borderRadius: 10,
       fontSize: 'var(--text-2xs)', fontWeight: 700, color,
-      background: `${color}18`, border: `1px solid ${color}44`,
+      background: alpha(color, '18'), border: `1px solid ${alpha(color, '44')}`,
       textTransform: 'uppercase', letterSpacing: '0.04em',
     }}>{status?.replace('_', ' ')}</span>
   )

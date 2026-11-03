@@ -110,7 +110,7 @@ function Hero({ navigate, userName, t }: HeroProps) {
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)',
             padding: '10px 18px', borderRadius: 'var(--radius-md)',
-            background: 'var(--accent)', color: '#fff', border: 'none',
+            background: 'var(--accent)', color: 'var(--on-accent)', border: 'none',
             fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
             boxShadow: '0 1px 3px rgba(79,142,247,0.3)', whiteSpace: 'nowrap',
             transition: 'transform 0.1s var(--easing), box-shadow 0.15s var(--easing)',

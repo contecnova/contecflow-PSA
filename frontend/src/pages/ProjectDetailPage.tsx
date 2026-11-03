@@ -9,6 +9,7 @@ import { useToast } from '../context/ToastContext'
 import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check, Sparkles } from 'lucide-react'
 import SmartScheduleModal from '../components/SmartScheduleModal'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 // LoadBar's inferred props are all-required; expose a loose signature for callers.
 const LoadBar = LoadBarRaw as (props: { value: number; max?: number; height?: number; label?: string; color?: string }) => JSX.Element
@@ -181,7 +182,7 @@ function TasksTab({ projectId }: { projectId?: string }) {
           )}
           <span style={{
             fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 4, flexShrink: 0,
-            background: `${STATUS_COLOR[task.status || ''] || 'var(--text-3)'}18`,
+            background: alpha(STATUS_COLOR[task.status || ''] || 'var(--text-3)', '18'),
             color: STATUS_COLOR[task.status || ''] || 'var(--text-3)', fontWeight: 700,
             textTransform: 'uppercase', letterSpacing: '0.05em',
           }}>
@@ -280,7 +281,7 @@ function RisksTab({ projectId }: { projectId?: string }) {
         const impColor = IMPACT_COLOR[risk.impact || risk.severity || ''] || 'var(--text-3)'
         return (
           <div key={risk.id || i} style={{
-            background: 'var(--surface-2)', border: `1px solid ${impColor}30`,
+            background: 'var(--surface-2)', border: `1px solid ${alpha(impColor, '30')}`,
             borderLeft: `3px solid ${impColor}`,
             borderRadius: 10, padding: '12px 16px',
           }}>
@@ -295,7 +296,7 @@ function RisksTab({ projectId }: { projectId?: string }) {
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 {(risk.impact || risk.severity) && (
-                  <span style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 4, background: `${impColor}18`, color: impColor, fontWeight: 700, textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 4, background: alpha(impColor, '18'), color: impColor, fontWeight: 700, textTransform: 'uppercase' }}>
                     {risk.impact || risk.severity}
                   </span>
                 )}
@@ -383,7 +384,7 @@ function EditProjectForm({ project, onSave, onCancel, isPending }: {
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={() => onSave(form)} disabled={isPending || !form.name.trim()}
-          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 18px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: isPending || !form.name.trim() ? 'not-allowed' : 'pointer', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit', opacity: !form.name.trim() ? 0.5 : 1 }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 18px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: 'var(--on-accent)', cursor: isPending || !form.name.trim() ? 'not-allowed' : 'pointer', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit', opacity: !form.name.trim() ? 0.5 : 1 }}>
           <Check size={13} />{isPending ? t('project_detail.saving') : t('project_detail.save_changes')}
         </button>
         <button onClick={onCancel} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px', borderRadius: 8, background: 'transparent', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
@@ -492,7 +493,7 @@ export default function ProjectDetailPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{
                 fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-                background: `${statusCfg.color}18`, border: `1px solid ${statusCfg.color}40`,
+                background: alpha(statusCfg.color, '18'), border: `1px solid ${alpha(statusCfg.color, '40')}`,
                 color: statusCfg.color, textTransform: 'uppercase', letterSpacing: '0.06em',
               }}>
                 {statusCfg.label}
@@ -500,7 +501,7 @@ export default function ProjectDetailPage() {
               {project.risk_level && (
                 <span style={{
                   fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-                  background: `${riskColor}15`, border: `1px solid ${riskColor}35`,
+                  background: alpha(riskColor, '15'), border: `1px solid ${alpha(riskColor, '35')}`,
                   color: riskColor, textTransform: 'uppercase', letterSpacing: '0.06em',
                 }}>
                   {t('project_detail.risk_label')} {project.risk_level}

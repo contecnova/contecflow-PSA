@@ -5,6 +5,7 @@ import { Network, Plus, X, ChevronLeft, Edit3, Download, Search } from 'lucide-r
 import { bpmnProcessesApi, apiErrorMsg } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import { useAppLang } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 // NOTE: bpmn-js (JS + CSS) is loaded dynamically inside useBpmnViewer so it
 // stays out of the initial bundle (~400 KB JS + assets). See audit #43, #81.
@@ -1392,9 +1393,9 @@ const tag = (color: string): CSSProperties => ({
   fontWeight: 700,
   padding: '2px 10px',
   borderRadius: 20,
-  background: color + '22',
+  background: alpha(color, '22'),
   color: color,
-  border: `1px solid ${color}44`,
+  border: `1px solid ${alpha(color, '44')}`,
 })
 const inp: CSSProperties = {
   width: '100%',
@@ -1724,7 +1725,7 @@ export default function BPMPage(): JSX.Element {
                     width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '9px 14px', border: 'none',
-                    background: active ? cat.color + '18' : 'transparent',
+                    background: active ? alpha(cat.color, '18') : 'transparent',
                     color: active ? cat.color : 'var(--text-1)',
                     cursor: 'pointer', fontFamily: 'inherit',
                     fontSize: 'var(--text-sm)', fontWeight: active ? 700 : 400,
@@ -1898,7 +1899,7 @@ export default function BPMPage(): JSX.Element {
                         key={proc.id}
                         style={{ ...card, width: '100%', textAlign: 'left' }}
                         onClick={() => { setSelectedProcess(proc); setEditMode(false); setShowAddForm(false) }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = color; e.currentTarget.style.boxShadow = `0 0 0 3px ${color}18` }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = color; e.currentTarget.style.boxShadow = `0 0 0 3px ${alpha(color, '18')}` }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.boxShadow = 'none' }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>

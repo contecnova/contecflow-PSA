@@ -15,6 +15,7 @@ import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
+import { alpha } from '../constants/theme'
 
 type IdType = string | number
 
@@ -69,7 +70,7 @@ function RoleCell({ role, onClick, editable }: { role?: string; onClick?: () => 
     fontWeight: 800, fontSize: "var(--text-base)", cursor: editable ? 'pointer' : 'default',
     background: meta ? meta.bg : 'var(--surface-3)',
     color: meta ? meta.color : 'var(--text-4)',
-    border: `1px solid ${meta ? meta.color + '40' : 'var(--surface-4)'}`,
+    border: `1px solid ${meta ? alpha(meta.color, '40') : 'var(--surface-4)'}`,
     transition: 'all .1s',
     userSelect: 'none',
   }
@@ -208,7 +209,7 @@ export default function RACIPage() {
       <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
         {Object.entries(ROLES_META).map(([k, v]) => (
           <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 12px',
-            background: v.bg, border: `1px solid ${v.color}40`, borderRadius: 20 }}>
+            background: v.bg, border: `1px solid ${alpha(v.color, '40')}`, borderRadius: 20 }}>
             <span style={{ fontWeight: 800, fontSize: "var(--text-base)", color: v.color }}>{k}</span>
             <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{v.label}</span>
             <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>— {v.desc}</span>

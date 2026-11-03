@@ -14,6 +14,7 @@ import { Button, Modal, EmptyState, useSort, SortableTH, ViewToggle, Tabs } from
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { STALE_5_MIN_MS } from '../constants/timings'
+import { alpha } from '../constants/theme'
 const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
@@ -189,7 +190,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: showSkillForm ? 12 : 0 }}>
             {(worker?.skills || []).map(s => (
               <span key={s.skill_id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: "var(--text-xs)", padding: '3px 8px', borderRadius: 20,
-                background: (LEVEL_COLOR[s.level] || 'var(--text-3)') + '18', color: LEVEL_COLOR[s.level] || 'var(--text-3)', border: `1px solid ${(LEVEL_COLOR[s.level] || 'var(--text-3)')}40` }}>
+                background: alpha((LEVEL_COLOR[s.level] || 'var(--text-3)'), '18'), color: LEVEL_COLOR[s.level] || 'var(--text-3)', border: `1px solid ${alpha((LEVEL_COLOR[s.level] || 'var(--text-3)'), '40')}` }}>
                 {s.skill_name}
                 <span style={{ opacity: 0.65, fontSize: "var(--text-2xs)" }}>({s.level})</span>
                 {s.certified && <span title={t('subcontractors.certified')}>🏆</span>}
@@ -308,9 +309,9 @@ function WorkersPanel({ subId }: { subId: string }) {
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                     {(w.skills || []).map(s => (
                       <span key={s.skill_id} style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 20,
-                        background: (LEVEL_COLOR[s.level] || 'var(--text-3)') + '18',
+                        background: alpha((LEVEL_COLOR[s.level] || 'var(--text-3)'), '18'),
                         color: LEVEL_COLOR[s.level] || 'var(--text-3)',
-                        border: `1px solid ${(LEVEL_COLOR[s.level] || 'var(--text-3)')}35` }}>
+                        border: `1px solid ${alpha((LEVEL_COLOR[s.level] || 'var(--text-3)'), '35')}` }}>
                         {s.skill_name}
                         {s.certified && ' 🏆'}
                       </span>
@@ -555,7 +556,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{inv.amount.toLocaleString('es-ES', {style:'currency',currency})}</td>
                       <td style={{ padding: '9px 14px', fontSize: "var(--text-base)", fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{inv.total.toLocaleString('es-ES', {style:'currency',currency})}</td>
                       <td style={{ padding: '9px 14px' }}>
-                        <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: (STATUS_COLOR[inv.status || ''] || 'var(--text-2)') + '20', color: STATUS_COLOR[inv.status || ''] || 'var(--text-2)', fontWeight: 700 }}>
+                        <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: alpha((STATUS_COLOR[inv.status || ''] || 'var(--text-2)'), '20'), color: STATUS_COLOR[inv.status || ''] || 'var(--text-2)', fontWeight: 700 }}>
                           {STATUS_LABEL[inv.status || ''] || inv.status}
                         </span>
                       </td>
@@ -824,7 +825,7 @@ export default function SubcontractorsPage() {
             <span>Acciones</span>
           </div>
           {sortedSubs.map(s => (
-            <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 100px', gap: 12, padding: '11px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', cursor: 'pointer' }}
+            <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 100px', gap: 12, padding: '11px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', cursor: 'pointer' }}
               role="button"
               tabIndex={0}
               onKeyDown={e => onKeyboardActivate(e, () => setSelected(s))}

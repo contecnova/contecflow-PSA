@@ -1,4 +1,4 @@
-import { CHART_COLORS_EXTENDED, COLOR } from '../constants/theme'
+import { CHART_COLORS_EXTENDED, COLOR, alpha } from '../constants/theme'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useState } from 'react'
@@ -312,7 +312,7 @@ export default function EpicsPage(): JSX.Element {
               const pri = PRIORITY_CFG[epic.priority ?? 'medium'] || PRIORITY_CFG.medium
               const progress = (epic.task_count ?? 0)>0 ? Math.round((epic.done_tasks||0)/(epic.task_count ?? 0)*100) : 0
               return (
-                <button key={epic.id} type="button" style={{...ps,padding:'16px 20px',border:`1px solid ${epic.color}30`,cursor:'pointer',width:'100%',textAlign:'left',fontFamily:'inherit'}}
+                <button key={epic.id} type="button" style={{...ps,padding:'16px 20px',border:`1px solid ${alpha(epic.color, '30')}`,cursor:'pointer',width:'100%',textAlign:'left',fontFamily:'inherit'}}
                   onClick={()=>setDetailEpic(epic)}>
                   <div style={{display:'flex',alignItems:'flex-start',gap:14}}>
                     <div style={{width:4,height:48,borderRadius:2,background:epic.color,flexShrink:0,marginTop:2}}/>

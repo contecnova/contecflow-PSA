@@ -33,17 +33,19 @@ const ICONS: Record<ToastType, string> = {
   info:    'ℹ',
 }
 
+// Tokens -bg y -border del tema: nada de pegar opacidad a un var(), que da
+// CSS inválido y el navegador descarta el fondo y el borde.
 interface ToastColor {
+  fg: string
   bg: string
-  text: string
   border: string
 }
 
 const COLORS: Record<ToastType, ToastColor> = {
-  success: { bg: 'var(--success)', text: 'var(--success-bg)', border: 'var(--success)' },
-  error:   { bg: 'var(--danger)', text: 'var(--danger-bg)', border: 'var(--danger)' },
-  warning: { bg: 'var(--warning)', text: 'var(--warning-bg)', border: 'var(--warning)' },
-  info:    { bg: 'var(--accent)', text: 'var(--surface-0)', border: 'var(--accent)' },
+  success: { fg: 'var(--success)', bg: 'var(--success-bg)',   border: 'var(--success-border)' },
+  error:   { fg: 'var(--danger)',  bg: 'var(--danger-bg)',    border: 'var(--danger-border)' },
+  warning: { fg: 'var(--warning)', bg: 'var(--warning-bg)',   border: 'var(--warning-border)' },
+  info:    { fg: 'var(--accent)',  bg: 'var(--accent-muted)', border: 'var(--accent-border)' },
 }
 
 let _id = 0
@@ -92,17 +94,18 @@ export function ToastProvider({ children }: ToastProviderProps) {
   return (
     <ToastContext.Provider value={toast}>
       {children}
-      {/* Toast container */}
-      <div style={containerStyle}>
+      {/* Toast container: región viva para que el lector de pantalla los lea;
+          los errores, con role="alert", interrumpen */}
+      <div role="status" aria-live="polite" style={containerStyle}>
         {toasts.map(item => {
           const c = COLORS[item.type]
           return (
-            <div key={item.id} style={{
+            <div key={item.id} role={item.type === 'error' ? 'alert' : undefined} style={{
               pointerEvents: 'all',
               display: 'flex', alignItems: 'center', gap: 12,
               background: 'var(--surface-1)',
-              border: `1px solid ${c.border}40`,
-              borderLeft: `4px solid ${c.bg}`,
+              border: `1px solid ${c.border}`,
+              borderLeft: `4px solid ${c.fg}`,
               borderRadius: 10,
               padding: '12px 16px',
               minWidth: 280, maxWidth: 420,
@@ -112,18 +115,18 @@ export function ToastProvider({ children }: ToastProviderProps) {
             }}>
               <div style={{
                 width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                background: c.bg + '20', border: `1px solid ${c.bg}40`,
+                background: c.bg, border: `1px solid ${c.border}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 'var(--text-md)', fontWeight: 800, color: c.bg,
-              }}>{ICONS[item.type]}</div>
+                fontSize: 'var(--text-md)', fontWeight: 800, color: c.fg,
+              }} aria-hidden="true">{ICONS[item.type]}</div>
               <div style={{ flex: 1, fontSize: 'var(--text-base)', color: 'var(--text-1)', lineHeight: 1.4 }}>
                 {item.message}
               </div>
-              <button onClick={() => dismiss(item.id)} style={{
+              <button type="button" onClick={() => dismiss(item.id)} aria-label={t('toast.close')} style={{
                 background: 'none', border: 'none', color: 'var(--text-2)',
                 cursor: 'pointer', fontSize: 'var(--text-lg)', padding: '0 2px', lineHeight: 1,
                 flexShrink: 0,
-              }}>×</button>
+              }}><span aria-hidden="true">×</span></button>
             </div>
           )
         })}

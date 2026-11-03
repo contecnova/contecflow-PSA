@@ -11,6 +11,7 @@ import PageShell from '../components/layout/PageShell'
 import { GitBranch } from 'lucide-react'
 import { Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import { alpha } from '../constants/theme'
 
 type PrStatus = 'open' | 'draft' | 'merged' | 'closed'
 type DeployStatus = 'pending' | 'running' | 'success' | 'failure' | 'cancelled'
@@ -61,7 +62,7 @@ function PRStatusPill({ status }: { status?: PrStatus }) {
   return (
     <span style={{
       background: s.bg, color: s.color,
-      border: `1px solid ${s.color}40`,
+      border: `1px solid ${alpha(s.color, '40')}`,
       borderRadius: 12, padding: '2px 10px', fontSize: "var(--text-xs)", fontWeight: 600,
     }}>{t(s.key)}</span>
   )
@@ -73,7 +74,7 @@ function DeployPill({ status }: { status?: DeployStatus }) {
   return (
     <span style={{
       background: s.bg, color: s.color,
-      border: `1px solid ${s.color}40`,
+      border: `1px solid ${alpha(s.color, '40')}`,
       borderRadius: 12, padding: '2px 10px', fontSize: "var(--text-xs)", fontWeight: 600,
     }}>{t(s.key)}</span>
   )

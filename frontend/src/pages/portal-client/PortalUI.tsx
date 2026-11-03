@@ -28,6 +28,8 @@ import {
 import { CLIENT_API, useClientAuth, useLang } from './portalClientContext'
 import PortalQuickCreateMenu from './PortalQuickCreateMenu'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { alpha } from '../../constants/theme'
+import { useTabListKeys } from '../../components/ui/Tabs'
 
 // ── Section configuration (grouped like the backoffice) ──────────────────────
 export const PORTAL_NAV_GROUPS = [
@@ -549,7 +551,7 @@ export function PortalKpi({ icon: Icon, label, value, sub, tone = 'default', tre
         {Icon && (
           <div style={{
             width: 30, height: 30, borderRadius: 8,
-            background: `${toneColor === 'var(--text-1)' ? 'var(--accent-muted)' : toneColor + '18'}`,
+            background: `${toneColor === 'var(--text-1)' ? 'var(--accent-muted)' : alpha(toneColor, '18')}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: toneColor === 'var(--text-1)' ? 'var(--accent)' : toneColor,
           }}><Icon size={15} /></div>
@@ -590,8 +592,9 @@ export function PortalSection({ title, hint, action, children, style = {} }: any
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 export function PortalTabs({ tabs, value, onChange, ariaLabel }: any) {
+  const { listRef, onKeyDown, focusId } = useTabListKeys(tabs.map((tab: any) => tab.id), value, onChange)
   return (
-    <div role="tablist" aria-label={ariaLabel} style={{
+    <div ref={listRef} role="tablist" aria-label={ariaLabel} onKeyDown={onKeyDown} style={{
       display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 20, flexWrap: 'wrap',
     }}>
       {tabs.map((tab: any) => {
@@ -599,6 +602,7 @@ export function PortalTabs({ tabs, value, onChange, ariaLabel }: any) {
         return (
           <button
             key={tab.id} role="tab" aria-selected={active}
+            data-tab-id={tab.id} tabIndex={tab.id === focusId ? 0 : -1}
             onClick={() => onChange(tab.id)}
             style={{
               background: 'transparent', border: 'none', borderBottom: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
@@ -677,6 +681,7 @@ export function PortalBadge({ children, tone = 'default', icon }: any) {
     success: { bg: 'var(--success-bg, rgba(16,185,129,0.12))', fg: 'var(--success)', bd: 'var(--success-border, rgba(16,185,129,0.3))' },
     warning: { bg: 'var(--warning-bg, rgba(245,158,11,0.12))', fg: 'var(--warning)', bd: 'var(--warning-border, rgba(245,158,11,0.3))' },
     danger:  { bg: 'var(--danger-bg, rgba(239,68,68,0.12))',  fg: 'var(--danger)',  bd: 'var(--danger-border, rgba(239,68,68,0.3))' },
+    orange:  { bg: 'var(--orange-bg)', fg: 'var(--orange)', bd: 'var(--orange-border)' },
     purple:  { bg: 'rgba(124,58,237,0.12)',  fg: 'var(--purple, #7c3aed)', bd: 'rgba(124,58,237,0.3)' },
   }
   const c = tones[tone] || tones.default
@@ -697,7 +702,7 @@ export function PortalBadge({ children, tone = 'default', icon }: any) {
 // ── Button ───────────────────────────────────────────────────────────────────
 export function PortalButton({ children, onClick, variant = 'primary', size = 'md', disabled, loading, icon, type = 'button', style = {} }: any) {
   const v = ({
-    primary:   { background: 'var(--accent)', color: '#fff', border: '1px solid var(--accent)' },
+    primary:   { background: 'var(--accent)', color: 'var(--on-accent)', border: '1px solid var(--accent)' },
     secondary: { background: 'var(--surface-3)', color: 'var(--text-1)', border: '1px solid var(--surface-4)' },
     danger:    { background: 'var(--danger-bg, rgba(239,68,68,0.12))', color: 'var(--danger)', border: '1px solid var(--danger-border, rgba(239,68,68,0.3))' },
     ghost:     { background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent-border, rgba(79,142,247,0.25))' },
