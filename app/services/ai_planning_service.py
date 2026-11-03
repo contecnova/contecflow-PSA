@@ -430,7 +430,9 @@ def accept_ticket_triage(ticket_id: str, accepted: bool, current_user_id: str, d
     if accepted:
         ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
         if ticket:
-            if triage.suggested_priority: ticket.priority = triage.suggested_priority
+            if triage.suggested_priority:
+                from app.services.service_desk.ticket_update_service import cambiar_prioridad
+                cambiar_prioridad(db, ticket, triage.suggested_priority)
             if triage.suggested_category: ticket.ticket_type = triage.suggested_category
             # Auditoria 2026-08: aqui habia `ticket.assignee_id = ...`, y esa
             # columna **no existe** en `sd_tickets` —`assignee_id` es la de

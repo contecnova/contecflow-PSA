@@ -364,12 +364,15 @@ def test_la_regla_de_reapertura_salta(db, gente):
                           organization_id=ORG))
     t = _ticket(db, number="INC-0122", status="in_progress")
     log_history(db, t.id, "status", "resolved", "in_progress")
+    t.sla_resolution_due = None
     db.commit()
     run_escalation_rules_engine(db)
     db.commit()
     db.refresh(t)
     assert t.priority.value == "p1_critical"
     assert db.query(EscalationLog).count() == 1
+    # Auditoria 2026-11: subir la prioridad recalcula los plazos del SLA.
+    assert t.sla_resolution_due is not None
 
 
 # ── Flujos que arrancan solos ────────────────────────────────────────────────

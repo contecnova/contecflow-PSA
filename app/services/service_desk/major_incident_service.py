@@ -106,5 +106,6 @@ def escalate_linked_tickets_to_major_incident(db: Session, ticket_ids: list[str]
     for tid in ticket_ids:
         ticket = db.query(Ticket).filter(Ticket.id == tid).first()
         if ticket:
-            ticket.priority = "p1_critical"
+            from app.services.service_desk.ticket_update_service import cambiar_prioridad
+            cambiar_prioridad(db, ticket, "p1_critical")
             ticket.support_level = "l3"

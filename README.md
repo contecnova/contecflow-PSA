@@ -74,7 +74,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 
 **Service Desk**
 - ~~The ticket panel cannot write an internal note.~~ Fixed 2026-11-03: the panel has an *Internal note* checkbox; internal notes show to agents with a badge and never reach the requester or the portal. [4]
-- ✔ Setting priority by hand does not recalculate SLA due dates; "Back to previous status" loses the paused time. [4]
+- ~~Setting priority by hand does not recalculate SLA due dates; "Back to previous status" loses the paused time.~~ Fixed 2026-11-03, also for escalation, major incident, AI triage and Jira sync. [4]
 - The autonomous agent runs every 5 minutes for every organization with no off switch. [4]
 
 **Features that look real but are not (or not fully)**
@@ -1901,8 +1901,8 @@ Opening `/service-desk?ticket=<id>` (the link in every notification) switches to
 **Limitations (code reading).**
 
 - ~~Internal notes cannot be written from the ticket panel.~~ Fixed 2026-11-03 (see *Comments* above; test `tests/test_ticket_nota_interna.py`). Before the fix the panel sent `is_internal`, which the API ignores, and the agent detail returned only public comments. The separate `/internal-comments` page still writes to a different table (`ticket_internal_comments`, legacy `cmdb_service`); it is not in the sidebar and does not generate ticket events.
-- **Changing priority from the UI does not recalculate SLA due dates.** Due dates are only recalculated, from the opening time, when `urgency` or `impact` change *and* `priority` is not in the payload (`_recalcular_prioridad` returns early otherwise). The edit modal always sends `priority`. The escalation action `elevate_priority` does not recalculate either.
-- **Back to previous** (`restore_pending_snapshot`) clears `sla_paused_at` without adding the paused minutes to `sla_pause_minutes`, unlike every other resume path. Time spent pending therefore counts against the SLA.
+- ~~Changing priority does not recalculate SLA due dates.~~ Fixed 2026-11-03: every priority change recalculates response and resolution due dates from the opening time (not from now), unless the ticket is resolved, closed or cancelled. This covers the edit modal, the escalation action `elevate_priority`, linking to a major incident (P1), accepting an AI triage, Jira sync and *Back to previous*; all go through `ticket_update_service.cambiar_prioridad`. Test: `tests/test_sla_prioridad_manual_y_pausa.py`.
+- ~~*Back to previous* loses the paused time.~~ Fixed 2026-11-03: it adds the paused minutes to `sla_pause_minutes` like every other resume path.
 - **Kanban.** Tickets in `new`, `assigned`, `closed` or `cancelled` all fall into the *Open* column, because the list is not filtered by status. Dropping a card on *Open* sends `status: "open"`, which is not a `TicketStatus` value. What the server then returns is **Not verified**; expected to be an error.
 - **My queue** shows at most 25 tickets (see above).
 - A code comment in `ServiceDeskPage.tsx` says the queue "only shows unassigned tickets". It is the opposite: it shows the tickets assigned to the current user.
@@ -2596,8 +2596,8 @@ Workflow `wait` timers do **not** run in Celery: they run in the API process's s
 **Ticket handling.**
 
 - ~~The ticket panel cannot write internal notes.~~ Fixed 2026-11-03.
-- Priority changes from the UI or from escalation do not recalculate SLA due dates.
-- *Back to previous* drops the paused time from the SLA calculation.
+- ~~Priority changes do not recalculate SLA due dates.~~ Fixed 2026-11-03.
+- ~~*Back to previous* drops the paused time.~~ Fixed 2026-11-03.
 - The Kanban board puts closed and cancelled tickets in *Open*, and dropping a card on *Open* sends an invalid status.
 - *My queue* shows at most 25 tickets.
 

@@ -340,7 +340,8 @@ def apply_jira_update_to_ticket(
             reverse_map.update({v.lower(): k for k, v in custom.items()})
         mapped_p = reverse_map.get(jira_priority)
         if mapped_p and mapped_p != ticket.priority.value:
-            ticket.priority = TicketPriority(mapped_p)
+            from app.services.service_desk.ticket_update_service import cambiar_prioridad
+            cambiar_prioridad(db, ticket, TicketPriority(mapped_p))
             changed = True
 
     if changed:

@@ -59,10 +59,12 @@ la prioridad, y **cuándo corre el reloj**:
 
 El reloj se para mientras el ticket está pendiente del cliente o de un tercero.
 Cambiar la **urgencia o el impacto** recalcula la prioridad con la matriz y,
-si cambia, los vencimientos desde la apertura (no desde ahora). Fijar la
-**prioridad a mano** —lo que hace el formulario de edición, que siempre la
-envía— **no recalcula los vencimientos**, y la acción de escalado «subir
-prioridad» tampoco (medido el 03-11-2026; ver Límites).
+si cambia, los vencimientos desde la apertura (no desde ahora). Lo mismo
+cualquier otro cambio de prioridad: fijarla a mano en el formulario, la acción
+de escalado «subir prioridad», vincular a un incidente mayor (P1), aceptar un
+triaje de IA, la sincronización con Jira y «Volver al estado anterior». Un
+ticket resuelto, cerrado o cancelado no se recalcula. «Volver al estado
+anterior» también suma los minutos en pausa, como cualquier reanudación.
 
 El estado del SLA (*En plazo*, *En riesgo*, *Incumplido*, *En pausa*) se revisa
 cada 5 minutos. *En riesgo* quiere decir que se ha consumido el porcentaje de
@@ -478,10 +480,6 @@ vectores no se pueden guardar.
 - La página aparte de comentarios internos (`/internal-comments`) escribe en
   otra tabla (`ticket_internal_comments`) y no genera eventos; la nota interna
   buena es la del panel del ticket.
-- **Fijar la prioridad a mano no recalcula los vencimientos del SLA** (solo los
-  recalcula cambiar urgencia o impacto sin enviar prioridad).
-- **«Volver al estado anterior» pierde el tiempo en pausa**: quita la pausa sin
-  sumar los minutos pausados, así que ese tiempo cuenta contra el SLA.
 - **El agente autónomo no tiene interruptor**: corre cada 5 min sobre los
   tickets nuevos de todas las organizaciones con umbrales fijos en el código, y
   uno de sus playbooks enlaza a una URL de ejemplo.

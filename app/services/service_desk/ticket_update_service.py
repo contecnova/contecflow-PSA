@@ -171,8 +171,31 @@ def _recalcular_prioridad(db, ticket, payload) -> None:
     )
     old_priority = ticket.priority
     ticket.priority = new_priority
-    if new_priority == old_priority:
-        return
+    if new_priority != old_priority:
+        _recalcular_vencimientos(db, ticket)
+
+
+def cambiar_prioridad(db, ticket, nueva) -> bool:
+    """Unica via para cambiar la prioridad fuera del PATCH: recalcula los plazos.
+
+    La usan la escalada, el incidente mayor, el triaje de IA, la sincronizacion
+    con Jira y «volver al estado anterior». Devuelve si cambio.
+    """
+    antes = _norm_enum(ticket.priority)
+    ticket.priority = nueva
+    if _norm_enum(ticket.priority) == antes:
+        return False
+    _recalcular_vencimientos(db, ticket)
+    return True
+
+
+def _recalcular_vencimientos(db, ticket) -> None:
+    """Vencimientos del SLA para la prioridad actual, desde la apertura.
+
+    Auditoria 2026-11: fijar la prioridad a mano no los recalculaba (solo lo
+    hacia la matriz de urgencia e impacto), y el ticket seguia venciendo con
+    los plazos de la prioridad anterior.
+    """
     if ticket.status in ("resolved", "closed", "cancelled"):
         return
     sla_policy = (
@@ -182,7 +205,7 @@ def _recalcular_prioridad(db, ticket, payload) -> None:
     )
     # Se recalcula desde la apertura: cambiar la prioridad no reinicia el reloj.
     resp_due, res_due = _calculate_sla_due(
-        new_priority, sla_policy, db=db,
+        _norm_enum(ticket.priority), sla_policy, db=db,
         org_id=ticket.organization_id, start=ticket.created_at,
     )
     ticket.sla_response_due = resp_due
@@ -214,6 +237,7 @@ def apply_ticket_update(
         if ticket.uc_started_at is not None and ticket.uc_vendor_responded_at is None:
             changes["uc_vendor_responded_at"] = datetime.now(timezone.utc)
 
+    prioridad_antes = _norm_enum(ticket.priority)
     for field, new_val in changes.items():
         old_val = getattr(ticket, field, None)
         _log_history(db, ticket_id, field, old_val, new_val, current_user_id)
@@ -226,6 +250,8 @@ def apply_ticket_update(
 
     if payload.urgency or payload.impact:
         _recalcular_prioridad(db, ticket, payload)
+    if payload.priority and _norm_enum(payload.priority) != prioridad_antes:
+        _recalcular_vencimientos(db, ticket)
 
     if payload.tags is not None:
         ticket.tags = payload.tags

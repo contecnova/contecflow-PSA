@@ -235,7 +235,8 @@ def _apply_rule_action(db: Session, rule: EscalationRule, ticket: Ticket) -> str
         action_desc += f" -> {rule.target_group.name if rule.target_group else rule.target_group_id}"
     elif rule.action == EscalationAction.elevate_priority and rule.target_priority:
         old_priority = _v(ticket.priority)
-        ticket.priority = TicketPriority(rule.target_priority)
+        from app.services.service_desk.ticket_update_service import cambiar_prioridad
+        cambiar_prioridad(db, ticket, TicketPriority(rule.target_priority))
         action_desc += f" {old_priority} -> {rule.target_priority}"
     destinatarios = _destinatarios_de_la_regla(db, rule, ticket)
     registrar(db, ticket, "escalated",

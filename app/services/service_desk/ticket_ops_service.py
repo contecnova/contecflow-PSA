@@ -128,8 +128,13 @@ def restore_pending_snapshot(db: Session, ticket: Ticket, current_user_id: str) 
     ticket.assigned_to_user_id = snap.get("assigned_to_user_id")
     ticket.assigned_group_id = snap.get("assigned_group_id")
     ticket.support_level = snap.get("support_level") or ticket.support_level
-    ticket.priority = snap.get("priority") or ticket.priority
-    ticket.sla_paused_at = None
+    # Auditoria 2026-11: antes se ponia `sla_paused_at = None` sin sumar los
+    # minutos en pausa, y ese tiempo contaba contra el SLA. Y si la prioridad
+    # vuelve a otra, sus vencimientos tambien.
+    from datetime import datetime, timezone
+    from app.services.service_desk.ticket_update_service import _reanudar_sla_pausado, cambiar_prioridad
+    _reanudar_sla_pausado(ticket, datetime.now(timezone.utc))
+    cambiar_prioridad(db, ticket, snap.get("priority") or ticket.priority)
     _log_history(db, ticket.id, "status", old_status, str(ticket.status), current_user_id)
 
     db.delete(row)
