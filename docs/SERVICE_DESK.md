@@ -244,23 +244,47 @@ que se editaba en la pantalla no se podía elegir en un ticket.
 - **Quién ve qué.** Cada organización ve sus CIs, sus agentes, su deriva y sus
   duplicados; la deduplicación nunca compara CIs de organizaciones distintas.
 
+### 14. Activos (Soporte → Licencias y activos)
+
+Hay **un solo inventario de activos**: el de *Licencias y activos* (ALM), con
+proveedores, contratos, licencias, instalaciones y centros de coste. Hasta
+noviembre de 2026 había otro, del Service Desk, sin pantalla.
+
+- **Enlace con la CMDB.** En la ficha de un activo, *Ciclo de vida y CMDB →
+  CI*, se elige el elemento de la CMDB que sostiene (el servidor físico del CI
+  «web-01», el portátil de un puesto…). Así el análisis de impacto de un CI
+  enseña sus activos, y el panel de un CI en la topología los lista.
+- **Fechas de ciclo de vida.** Además de la garantía: fin de vida del
+  fabricante, fin de leasing, próximo mantenimiento y su contrato.
+- **Vencen pronto.** Arriba de la pestaña *Activos*, la lista de fechas que
+  vencen en los próximos 30, 60, 90 o 180 días, de la más cercana a la más
+  lejana; en rojo lo que vence en una semana.
+- **Ticket de renovación.** El botón 🔁 de un activo (o *Abrir ticket de
+  renovación* en la lista) abre una petición de servicio con el CI del activo.
+  Si ya hay una abierta para ese activo, la enseña en vez de abrir otra.
+  Además, cada día a las 07:05 se abre sola para lo que vence dentro de
+  `SD_ASSET_REFRESH_DAYS` días (por defecto 7; 0 lo apaga).
+- **Historial.** El botón 📋 enseña cada cambio: estado, asignación, ubicación,
+  CI, fechas, quién y cuándo.
+
 ---
 
 ## Parte II — Instalación y operación
 
-### 14. Lo que corre en segundo plano (Celery beat)
+### 15. Lo que corre en segundo plano (Celery beat)
 
 | Tarea | Cada | Qué hace |
 |---|---|---|
 | `sd_procesar_eventos_de_ticket` | al confirmar cada cambio, y 1 min | Avisos, correo, webhooks y flujos de la bandeja `sd_ticket_events`. |
 | `sla_breach_scan` | 5 min | Estado del SLA, avisos de riesgo e incumplimiento, y escalado. |
 | `sd_leer_buzones` | 2 min | Lee el buzón de soporte de cada organización. |
+| `asset_expiry_scan` | diario, 07:05 | Abre el ticket de renovación de los activos que vencen dentro de `SD_ASSET_REFRESH_DAYS`. |
 
 Si el broker no responde al confirmar, la tarea periódica recoge los eventos.
 Un evento que falla se reintenta hasta `SD_EVENT_MAX_ATTEMPTS` veces y se queda
 con su último error en `sd_ticket_events.last_error`.
 
-### 15. Credenciales (Ajustes → Credenciales)
+### 16. Credenciales (Ajustes → Credenciales)
 
 | Proveedor | Para qué |
 |---|---|
@@ -272,7 +296,7 @@ con su último error en `sd_ticket_events.last_error`.
 | Twilio | SMS: la firma de Twilio es **obligatoria**; sin `auth_token` no entra ningún SMS. La organización sale del número que lo recibe (`from_number`). |
 | contecmind | `base_url`, `client_id`, `client_secret`. La organización de Contecflow tiene que estar dada de alta como tenant de esta aplicación en contecmind. |
 
-### 16. Ajustes (Ajustes → Config. dinámica)
+### 17. Ajustes (Ajustes → Config. dinámica)
 
 **SLA:** `SLA_BUSINESS_HOURS_ONLY`, `SLA_BUSINESS_START_HOUR`,
 `SLA_BUSINESS_END_HOUR`, `SLA_BUSINESS_DAYS` (jornada sin política; días ISO,
@@ -296,6 +320,7 @@ con su último error en `sd_ticket_events.last_error`.
 | `SD_ONCALL_PRIORITIES` / `SD_ONCALL_SMS` | P1,P2 / sí | Qué avisa a la guardia, y si por SMS. |
 | `SD_KB_REQUIRE_REVIEW` / `SD_KB_REVIEWER_GROUP_ID` | no / — | Revisión de artículos y quién revisa (sin cola: administradores). |
 | `SD_TIME_TO_TIMESHEET` | sí | El tiempo de un ticket con proyecto pasa a los partes. |
+| `SD_ASSET_REFRESH_DAYS` | 7 | Días antes de un vencimiento de un activo en que se abre solo su ticket de renovación; 0 lo apaga. |
 | `SD_EVENT_MAX_ATTEMPTS` / `SD_EVENT_BATCH_SIZE` | 5 / 200 | Reintentos y tamaño de pasada de la bandeja. |
 
 La búsqueda semántica de la base de conocimiento usa vectores guardados solo
@@ -303,7 +328,7 @@ con `SEMANTIC_EMBEDDINGS_BACKEND=transformer`. Con el respaldo TF-IDF busca por
 palabras, porque ese codificador fija su vocabulario en cada proceso y sus
 vectores no se pueden guardar.
 
-### 17. Monitorización: formato
+### 18. Monitorización: formato
 
 `POST /api/v1/sd/events/{origen}` con la cabecera `X-Contecflow-Event-Token`.
 
@@ -312,7 +337,7 @@ vectores no se pueden guardar.
 - **Genérico:** un objeto o una lista con `key` y `title` obligatorios, más
   `status` (firing/resolved), `severity`, `description` y `ci`.
 
-### 18. Seguridad y organizaciones (cambios de 2026-11)
+### 19. Seguridad y organizaciones (cambios de 2026-11)
 
 - `GET /sd/catalog`, `GET /sd/kb`, `GET /sd/kb/{id}` y `POST /sd/kb/{id}/helpful`
   piden un cliente del portal o un usuario. Antes respondían sin login con el
@@ -346,19 +371,36 @@ vectores no se pueden guardar.
   dispositivos SNMP. Ya no. Los CIs descubiertos nacen en la organización del
   proveedor (antes, sin organización), y la deriva, la salud de la
   reconciliación, los duplicados y los agentes se acotan por organización.
+- **Un solo inventario (migración 111).** `sd_assets` y `sd_asset_history`
+  desaparecen; sus filas pasan a `alm_assets` y a la nueva `alm_asset_history`
+  conservando el id. Un activo con el mismo número de serie que uno de ALM se
+  funde con él. Lo que ALM no tiene como columna (código, pedido, proveedor en
+  texto, licencia, etiquetas) queda en las notas. Tipos: `cloud` pasa a `vm` y
+  el resto a `other`; estados: `deployed` y `loaned` a `in_use`, `in_stock` y
+  `pending_order` a `available`, `disposed` a `retired`. `/sd/assets` ya no
+  existe; lo nuevo está en `/alm/assets`: `GET /expiring?days=`,
+  `GET /by-ci/{ci}`, `GET /{id}/history` y `POST /{id}/refresh-ticket`.
+- **Renovación de activos.** El escaneo diario buscaba si ya había ticket con un
+  `LIKE` sobre el título y lo creaba sin organización, así que no lo veía nadie.
+  Ahora el activo guarda su ticket abierto (`refresh_ticket_id`), no abre otro
+  mientras siga abierto, y el ticket nace en la organización del activo con el
+  numerador de siempre.
+- **Lo que no se trajo.** La amortización propia del inventario viejo (vida fija
+  de 5 años en el código): ALM ya calcula el valor contable con los años de
+  cada activo. Las auditorías de licencias y de software, que contaban butacas
+  escritas a mano en el activo: ALM las hace sobre licencias e instalaciones
+  (*Cumplimiento*).
 
-### 19. Límites conocidos
+### 20. Límites conocidos
 
 - Sin probar contra un IMAP, un Microsoft 365, un Alertmanager, un Twilio o un
   contecmind reales: las pruebas los sustituyen.
-- Hay dos inventarios de activos: ALM (con pantalla) y los activos del Service
-  Desk (`sd_assets`, sin pantalla). Falta decidir si se consolidan en ALM.
 - Las clases de CI y sus datos propios están fijas en el código
   (`CIType` en el servidor y `CI_TYPE_FIELDS` en la pantalla); no se pueden
   crear clases desde Administración.
 - Un CI que llegó sin organización, responsable ni proyecto, en una instalación
   con varias organizaciones, solo lo ve el superadministrador: la migración 110
-  no adivina de quién es (véase el apartado 18).
+  no adivina de quién es (véase el apartado 19).
 - El OLA tiene un único objetivo por cola, igual para todas las prioridades.
 - No hay contratos de soporte (UC). Los proveedores y sus contratos existen en
   ALM (`alm_vendors`, `alm_contracts`), pero un contrato no tiene objetivos de

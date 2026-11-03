@@ -24,7 +24,7 @@ from app.models.portal_conversations import (  # noqa: F401
 from app.models.service_desk import ServiceCategory, ServiceItem, SLAPolicy, ConfigurationItem, CIType, CIStatus, AgentGroup, AgentGroupMember, Ticket, TicketType, TicketStatus, TicketPriority, TicketUrgency, TicketImpact, SupportLevel, SLAStatus, TicketComment, TicketHistory, TicketTimeLog, Problem, ProblemStatus, KBArticle, KBArticleVersion, KBStatus, Announcement, AutonomousPlaybook, AutonomousPlaybookExecution, ITSMMetricSnapshot, ComplianceReport  # noqa: F401
 
 from app.models.clients import Client, ClientStatus, ClientIndustry, ClientContact, ClientContactRole, ClientPortalConfig, ClientLicenseLink, ClientContractLink  # noqa: F401
-from app.models.alm import ALMCostCenter, ALMVendor, ALMContract, ALMLicense, ALMAsset  # noqa: F401
+from app.models.alm import ALMCostCenter, ALMVendor, ALMContract, ALMLicense, ALMAsset, ALMAssetHistory  # noqa: F401
 from app.models.enterprise import (  # noqa: F401
     AuditLog, ProjectPermission, Webhook, WebhookDelivery, SSOConfig,
     Notification, Subcontractor, SubcontractorRate, SubcontractorAssignment,

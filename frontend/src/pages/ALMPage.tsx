@@ -4,7 +4,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi } from '../services/api'
+import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi, cmdbApi } from '../services/api'
 import { Button, Spinner, EmptyState, Modal, Tabs, Page } from '../components/ui'
 import {
   Layers, Building2, FileText, Key, Monitor, Briefcase,
@@ -426,6 +426,11 @@ const almAssetSchema = z.object({
   ram_gb: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0, 'No puede ser negativo').optional()),
   storage_gb: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0, 'No puede ser negativo').optional()),
   notes: z.string().optional(),
+  ci_id: z.string().optional(),
+  eol_date: z.string().optional(),
+  lease_expiry: z.string().optional(),
+  next_maintenance_date: z.string().optional(),
+  maintenance_contract: z.string().optional(),
 }).superRefine((values, ctx) => {
   if (values.purchase_date && values.warranty_expiry && values.warranty_expiry < values.purchase_date) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['warranty_expiry'], message: 'La garantia no puede terminar antes de la fecha de compra' })
@@ -992,7 +997,11 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: any; vendors: a
     ip_address: asset?.ip_address || '', hostname: asset?.hostname || '',
     os: asset?.os || '', cpu: asset?.cpu || '', ram_gb: asset?.ram_gb || '', storage_gb: asset?.storage_gb || '',
     notes: asset?.notes || '',
+    ci_id: asset?.ci_id || '', eol_date: asset?.eol_date || '', lease_expiry: asset?.lease_expiry || '',
+    next_maintenance_date: asset?.next_maintenance_date || '', maintenance_contract: asset?.maintenance_contract || '',
   })
+  // Los CIs de la CMDB: el activo físico y el elemento que sostiene.
+  const { data: cis = [] } = useQuery({ queryKey: ['cmdb-items', 'todos'], queryFn: () => cmdbApi.sdList({ page_size: 500 }).then(r => r.data ?? []) })
   const validation = useFormValidation(almAssetSchema)
   const s = (k: string) => (e: any) => {
     setForm((f: any) => ({ ...f, [k]: e.target.value }))
@@ -1088,6 +1097,21 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: any; vendors: a
             {validation.errors.storage_gb && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.storage_gb}</p>}
           </div>
         </>}
+        <div style={{ gridColumn: '1/-1', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
+          {t('alm.assets_lifecycle')}
+        </div>
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={ls} htmlFor="asset-ci">{t('alm.assets_label_ci')}</label>
+          <select id="asset-ci" value={form.ci_id} onChange={s('ci_id')} style={fs}>
+            <option value="">{t('alm.assets_none_ci')}</option>
+            {cis.map((c: any) => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}
+          </select>
+          <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t('alm.assets_ci_hint')}</p>
+        </div>
+        <div><label style={ls} htmlFor="asset-eol">{t('alm.assets_label_eol')}</label><input id="asset-eol" type="date" value={form.eol_date} onChange={s('eol_date')} style={fs} /></div>
+        <div><label style={ls} htmlFor="asset-lease">{t('alm.assets_label_lease')}</label><input id="asset-lease" type="date" value={form.lease_expiry} onChange={s('lease_expiry')} style={fs} /></div>
+        <div><label style={ls} htmlFor="asset-maint">{t('alm.assets_label_maintenance')}</label><input id="asset-maint" type="date" value={form.next_maintenance_date} onChange={s('next_maintenance_date')} style={fs} /></div>
+        <div><label style={ls} htmlFor="asset-maint-c">{t('alm.assets_label_maintenance_contract')}</label><input id="asset-maint-c" value={form.maintenance_contract} onChange={s('maintenance_contract')} style={fs} /></div>
         <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('alm.assets_label_notes')}</label><textarea value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
@@ -1097,6 +1121,75 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: any; vendors: a
         </Button>
       </div>
     </Modal>
+  )
+}
+
+const VENCIMIENTO_KEY: Record<string, string> = {
+  warranty_expiry: 'alm.expiry_warranty', eol_date: 'alm.expiry_eol',
+  lease_expiry: 'alm.expiry_lease', next_maintenance_date: 'alm.expiry_maintenance',
+}
+
+function AssetHistoryModal({ asset, onClose }: { asset: any; onClose: () => void }) {
+  const t = useAppT()
+  const { data: filas = [], isLoading } = useQuery({
+    queryKey: ['alm-asset-history', asset.id],
+    queryFn: () => assetsApi.history(asset.id).then(r => r.data ?? []),
+  })
+  return (
+    <Modal open onClose={onClose} title={t('alm.assets_history_of', { name: asset.name })} width={560}>
+      {isLoading ? <Spinner /> : filas.length === 0 ? (
+        <p style={{ color: 'var(--text-2)', textAlign: 'center', padding: 24 }}>{t('alm.assets_history_empty')}</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 460, overflowY: 'auto' }}>
+          {filas.map((h: any) => (
+            <div key={h.id} style={{ padding: '8px 12px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)" }}>
+              <div style={{ color: 'var(--text-2)', fontSize: "var(--text-xs)" }}>
+                {h.changed_at ? new Date(h.changed_at).toLocaleString() : ''}{h.user_name ? ` · ${h.user_name}` : ''}{h.note ? ` · ${h.note}` : ''}
+              </div>
+              <div style={{ wordBreak: 'break-word' }}>
+                <code style={{ background: 'var(--surface-3)', padding: '1px 5px', borderRadius: 4 }}>{h.field}</code>{' '}
+                {h.old_value ?? '—'} → <strong>{h.new_value ?? '—'}</strong>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Modal>
+  )
+}
+
+/** Lo que vence pronto: garantía, fin de vida, leasing o mantenimiento. */
+function ExpiringPanel({ assets, onRenew }: { assets: any[]; onRenew: (a: any) => void }) {
+  const t = useAppT()
+  const [dias, setDias] = useState(90)
+  const { data: filas = [] } = useQuery({
+    queryKey: ['alm-expiring', dias],
+    queryFn: () => assetsApi.expiring(dias).then(r => r.data ?? []),
+  })
+  return (
+    <div style={{ ...card, padding: '14px 18px', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: filas.length ? 10 : 0 }}>
+        <strong style={{ fontSize: "var(--text-base)" }}>{t('alm.expiring_title', { n: filas.length })}</strong>
+        <select aria-label={t('alm.expiring_window')} value={dias} onChange={e => setDias(Number(e.target.value))} style={{ ...fs, width: 'auto', padding: '4px 10px' }}>
+          {[30, 60, 90, 180].map(d => <option key={d} value={d}>{t('alm.expiring_days', { n: d })}</option>)}
+        </select>
+      </div>
+      {filas.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {filas.map((f: any) => (
+            <div key={`${f.asset_id}-${f.expiry_type}`} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: "var(--text-sm)", flexWrap: 'wrap' }}>
+              <span style={{ minWidth: 70, fontWeight: 700, color: f.days_remaining <= 7 ? 'var(--danger)' : f.days_remaining <= 30 ? 'var(--warning)' : 'var(--text-2)' }}>
+                {t('alm.expiring_in', { n: f.days_remaining })}
+              </span>
+              <span style={{ flex: 1, minWidth: 160 }}>{f.name} · {t(VENCIMIENTO_KEY[f.expiry_type] ?? f.expiry_type)} {fmtDate(f.expiry_date)}</span>
+              {f.refresh_ticket_id
+                ? <span style={{ color: 'var(--text-2)', fontSize: "var(--text-xs)" }}>{t('alm.renewal_open')}</span>
+                : <Button size="sm" variant="secondary" onClick={() => onRenew(assets.find(a => a.id === f.asset_id) ?? { id: f.asset_id, name: f.name })}>{t('alm.renewal_open_ticket')}</Button>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -1116,6 +1209,15 @@ function AssetsTab() {
   const { mutate: del } = useMutation({
     mutationFn: (id: any) => assetsApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['alm-assets'] }),
+    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
+  })
+  const [historyOf, setHistoryOf] = useState<any>(null)
+  const { mutate: renovar } = useMutation({
+    mutationFn: (a: any) => assetsApi.refreshTicket(a.id).then(r => r.data),
+    onSuccess: (d: any) => {
+      toast.success(t(d.created ? 'alm.renewal_created' : 'alm.renewal_exists', { number: d.number }))
+      qc.invalidateQueries({ queryKey: ['alm-assets'] }); qc.invalidateQueries({ queryKey: ['alm-expiring'] })
+    },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
@@ -1143,6 +1245,8 @@ function AssetsTab() {
         </select>
         <Button onClick={() => setModal({})} icon="＋">{t('alm.action_add_asset')}</Button>
       </div>
+
+      <ExpiringPanel assets={assets} onRenew={a => renovar(a)} />
 
       {filtered.length > 0 && (
         <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-base)", color: 'var(--text-2)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
@@ -1179,8 +1283,14 @@ function AssetsTab() {
                   {a.warranty_expiry  && <span style={{ color: a.warranty_expired ? 'var(--danger)' : 'var(--text-2)' }}>{t('alm.garantia')} {fmtDate(a.warranty_expiry)} {a.warranty_expired ? '⚠️' : ''}</span>}
                   {a.purchase_price   && <span>💰 {fmtCurrency(a.purchase_price)} → libros: {fmtCurrency(a.book_value || 0)}</span>}
                   {a.installed_licenses > 0 && <span>📦 {a.installed_licenses} licencia(s) instalada(s)</span>}
+                  {a.ci_id && <span>🔗 {t('alm.assets_label_ci')}: {a.ci_code} · {a.ci_name}</span>}
+                  {a.eol_date && <span>{t('alm.expiry_eol')} {fmtDate(a.eol_date)}</span>}
+                  {a.lease_expiry && <span>{t('alm.expiry_lease')} {fmtDate(a.lease_expiry)}</span>}
+                  {a.next_maintenance_date && <span>{t('alm.expiry_maintenance')} {fmtDate(a.next_maintenance_date)}</span>}
                 </div>
                 <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                  <button aria-label={t('alm.assets_history_of', { name: a.name })} title={t('alm.assets_history')} onClick={() => setHistoryOf(a)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>📋</button>
+                  <button aria-label={t('alm.renewal_open_ticket')} title={t('alm.renewal_open_ticket')} onClick={() => renovar(a)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🔁</button>
                   <button aria-label={`Editar activo ${a.name}`} onClick={() => setModal(a)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏️</button>
                   <button aria-label={`Eliminar activo ${a.name}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar el activo "${a.name}"?`, onConfirm: () => del(a.id), danger: true }) }}
                     style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
@@ -1191,6 +1301,7 @@ function AssetsTab() {
         </div>
       )}
       {modal !== null && <AssetModal asset={Object.keys(modal).length ? modal : null} vendors={vendors} users={users} onClose={() => setModal(null)} />}
+      {historyOf && <AssetHistoryModal asset={historyOf} onClose={() => setHistoryOf(null)} />}
     </div>
   )
 }

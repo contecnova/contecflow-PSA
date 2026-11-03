@@ -173,25 +173,6 @@ class EscalationAction(str, enum.Enum):
     notify_custom     = "notify_custom"      # enviar a lista custom
 
 
-class AssetType(str, enum.Enum):
-    hardware    = "hardware"    # servidores, PCs, móviles, periféricos
-    software    = "software"    # licencias, aplicaciones
-    license     = "license"     # licencia de software específica
-    consumable  = "consumable"  # fungibles (cartuchos, cables...)
-    cloud       = "cloud"       # recursos cloud (VMs, storage, etc.)
-    other       = "other"
-
-
-class AssetStatus(str, enum.Enum):
-    in_stock      = "in_stock"      # en almacén
-    deployed      = "deployed"      # en uso
-    in_repair     = "in_repair"     # en reparación
-    retired       = "retired"       # dado de baja
-    disposed      = "disposed"      # eliminado / reciclado
-    loaned        = "loaned"        # prestado temporalmente
-    pending_order = "pending_order" # pedido pero no recibido
-
-
 class StatusPageComponentStatus(str, enum.Enum):
     operational          = "operational"
     degraded_performance = "degraded_performance"

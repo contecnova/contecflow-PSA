@@ -187,11 +187,6 @@ def test_los_enumerados_homonimos_estan_declarados_aqui():
         # Dos dominios que no se hablan: la validación de un entregable en el
         # portal de cliente y el estado de una fila RACI.
         "UATStatus",
-        # `models/alm.py` clasifica dispositivos (laptop, desktop, server,
-        # mobile…); `models/service_desk/_enums.py` clasifica la naturaleza del
-        # activo (hardware, software, license, consumable, cloud). Nadie importa
-        # el de ALM fuera de ALM.
-        "AssetType",
         # `models/service_desk/_enums.py` -> standard, normal, emergency: es el
         # de la columna. El del servicio de automatización añade `pilot` y
         # `misc.py` lo importa **con alias** (`ChangeAutomationType`), derivando

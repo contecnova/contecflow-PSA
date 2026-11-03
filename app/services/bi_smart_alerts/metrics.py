@@ -1479,22 +1479,28 @@ def _serie_assets_total(ctx: _Ctx) -> Optional[list[float]]:
     if metric_key in ("assets_total","assets_deployed","assets_in_repair",
                        "license_seats_total","license_used_total","asset_value_total"):
         try:
-            from app.models.service_desk import Asset, AssetStatus
+            # Auditoria 2026-11: leia `sd_assets`, el inventario sin pantalla
+            # (cero filas medidas). Ahora ALM, que es el unico.
+            from app.models.alm import ALMAsset, ALMLicense, ALMLicenseAssignment
+            from app.core.serializers import AssetSerializer
             from sqlalchemy import func as sqf
+            activos = db.query(ALMAsset).filter(ALMAsset.is_active.is_(True))
             if metric_key == "assets_total":
-                return _current(float(db.query(Asset).count()))
+                return _current(float(activos.count()))
             if metric_key == "assets_deployed":
-                return _current(float(db.query(Asset).filter(Asset.status == AssetStatus.deployed).count()))
+                return _current(float(activos.filter(ALMAsset.status == "in_use").count()))
             if metric_key == "assets_in_repair":
-                return _current(float(db.query(Asset).filter(Asset.status == AssetStatus.in_repair).count()))
+                return _current(float(activos.filter(ALMAsset.status == "in_repair").count()))
             if metric_key == "license_seats_total":
-                v = db.query(sqf.sum(Asset.license_seats)).filter(Asset.license_seats != None).scalar() or 0
+                v = db.query(sqf.sum(ALMLicense.total_seats)).filter(
+                    ALMLicense.is_active.is_(True), ALMLicense.total_seats.isnot(None)).scalar() or 0
                 return _current(float(v))
             if metric_key == "license_used_total":
-                v = db.query(sqf.sum(Asset.license_used)).filter(Asset.license_used != None).scalar() or 0
+                v = db.query(sqf.count(ALMLicenseAssignment.id)).filter(ALMLicenseAssignment.is_active.is_(True)).scalar() or 0
                 return _current(float(v))
             if metric_key == "asset_value_total":
-                v = db.query(sqf.sum(Asset.current_value)).filter(Asset.current_value != None).scalar() or 0
+                # Valor contable: amortizacion lineal con los anos de cada activo.
+                v = sum(AssetSerializer(a).to_dict().get("book_value") or 0 for a in activos)
                 return _current(float(v))
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)

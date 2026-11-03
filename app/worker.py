@@ -1528,53 +1528,20 @@ def sync_connector_data(self, connector_id: str, org_id: str | None = None):
 
 @celery_app.task(name="app.worker.asset_expiry_scan")
 def asset_expiry_scan():
-    """Scan for assets expiring soon and create refresh tickets where needed.
+    """Un ticket de renovacion por activo de ALM que vence pronto.
 
-    - Expiring in \u22647 days  → P2 urgent ticket (if none exists)
-    - Expiring in \u226430 days → P3 informational ticket (if none exists)
-    Runs daily at 07:05 via beat schedule.
+    «Pronto» es `SD_ASSET_REFRESH_DAYS` de cada organizacion. Corre a diario a
+    las 07:05. La logica esta en `alm_ciclo_de_vida.escanear_vencimientos`.
     """
     from app.db.session import worker_db_session
-    from app.services.service_desk.asset_service import (
-        get_expiring_soon,
-        create_refresh_ticket,
-    )
-    from app.models.service_desk import Ticket
+    from app.services.alm_ciclo_de_vida import escanear_vencimientos
 
-    created = skipped = 0
     with worker_db_session() as db:
         try:
-            urgent = get_expiring_soon(db, days=7)
-            for entry in urgent:
-                asset_id = entry["asset_id"]
-                # Check if a refresh ticket already exists for this asset
-                existing = (
-                    db.query(Ticket)
-                    .filter(
-                        Ticket.title.like(f"%{entry['code']}%"),
-                        Ticket.status.notin_(["resolved", "closed"]),
-                    )
-                    .first()
-                )
-                if not existing:
-                    try:
-                        create_refresh_ticket(db, asset_id, acting_user_id=None)
-                        created += 1
-                    except Exception as inner:
-                        _worker_logger.warning(
-                            "asset_expiry_scan: could not create ticket for %s: %s",
-                            asset_id, inner,
-                        )
-                        skipped += 1
-                else:
-                    skipped += 1
-
+            resultado = escanear_vencimientos(db)
             db.commit()
-            _worker_logger.info(
-                "Asset expiry scan: urgent=%d created=%d skipped=%d",
-                len(urgent), created, skipped,
-            )
-            return {"urgent_found": len(urgent), "tickets_created": created, "skipped": skipped}
+            _worker_logger.info("Asset expiry scan: %s", resultado)
+            return resultado
         except Exception as exc:
             db.rollback()
             _worker_logger.error("asset_expiry_scan error: %s", exc)

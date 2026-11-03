@@ -177,7 +177,8 @@ class AssetSerializer(ModelSerializer):
               'status', 'condition', 'assigned_to_id', 'location', 'department_id',
               'project_id', 'vendor_id', 'purchase_date', 'purchase_price', 'currency',
               'warranty_expiry', 'depreciation_years', 'ip_address', 'hostname', 'os',
-              'cpu', 'ram_gb', 'storage_gb', 'notes']
+              'cpu', 'ram_gb', 'storage_gb', 'notes', 'ci_id', 'eol_date', 'lease_expiry',
+              'next_maintenance_date', 'maintenance_contract', 'refresh_ticket_id']
 
     def get_extra_fields(self, obj):
         age_years = None
@@ -194,4 +195,6 @@ class AssetSerializer(ModelSerializer):
             'age_years': round(age_years, 1) if age_years else None,
             'book_value': round(book_value, 2) if book_value is not None else None,
             'installed_licenses': len(obj.installs) if obj.installs else 0,
+            'ci_name': obj.ci.name if obj.ci else None,
+            'ci_code': obj.ci.code if obj.ci else None,
         }

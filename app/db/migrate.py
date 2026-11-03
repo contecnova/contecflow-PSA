@@ -199,11 +199,6 @@ MIGRATIONS = [
     ("sd_change_requests",  "auto_risk_score",        "FLOAT"),
     ("sd_change_requests",  "impact_analysis_json",   "TEXT"),
     ("sd_change_requests",  "suggested_window_json",  "TEXT"),
-    # Asset — lifecycle tracking
-    ("sd_assets",  "depreciation_type",      "VARCHAR(20)"),
-    ("sd_assets",  "depreciation_rate",      "FLOAT"),
-    ("sd_assets",  "next_maintenance_date",  "VARCHAR(10)"),
-    ("sd_assets",  "maintenance_contract",   "VARCHAR(255)"),
     # sd_autonomous_playbooks and sd_autonomous_playbook_executions are new tables
     # — created automatically via Base.metadata.create_all above
 

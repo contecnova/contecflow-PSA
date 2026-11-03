@@ -635,6 +635,9 @@ export const assetsApi = {
   create:  (data: unknown)     => api.post('/alm/assets', data),
   update:  (id: any, data: unknown) => api.patch(`/alm/assets/${id}`, data),
   delete:  (id: any)       => api.delete(`/alm/assets/${id}`),
+  history: (id: any)       => api.get(`/alm/assets/${id}/history`),
+  expiring: (days: number) => api.get('/alm/assets/expiring', { params: { days } }),
+  refreshTicket: (id: any) => api.post(`/alm/assets/${id}/refresh-ticket`),
 }
 
 export const licensesApi = {
@@ -838,7 +841,7 @@ export const cmdbApi = {
   deleteAgent:    (id: any)       => api.delete(`/sd/cmdb/agents/${id}`),
   agentDashboard: (agentId: any, days: any) => api.get(`/cmdb/agent-dashboard/${agentId}?days=${days}`),
   agentSnapshot:  (agentId: any)  => api.post(`/cmdb/agent-dashboard/${agentId}/snapshot`),
-  assetsByCI:     (ciId: any)     => api.get(`/sd/assets/by-ci/${ciId}`),
+  assetsByCI:     (ciId: any)     => api.get(`/alm/assets/by-ci/${ciId}`),
 }
 
 // ── Timesheets ────────────────────────────────────────────────────────────────

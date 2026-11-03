@@ -19,40 +19,28 @@ def _create_ci(client, token, name: str, ci_type: str = "service") -> str:
 
 def test_asset_create_rejects_nonexistent_ci(client, admin_token):
     res = client.post(
-        "/api/v1/sd/assets",
+        "/api/v1/alm/assets",
         headers=auth(admin_token),
-        json={
-            "name": "Laptop QA",
-            "asset_type": "hardware",
-            "ci_id": "non-existent-ci",
-        },
+        json={"name": "Laptop QA", "type": "laptop", "ci_id": "non-existent-ci"},
     )
-    assert res.status_code == 404
-    assert "linked ci" in res.json().get("detail", "").lower()
+    assert res.status_code == 422, res.text
 
 
 def test_assets_by_ci_lists_linked_assets(client, admin_token):
     ci_id = _create_ci(client, admin_token, "Auth Service", "service")
 
     create_res = client.post(
-        "/api/v1/sd/assets",
+        "/api/v1/alm/assets",
         headers=auth(admin_token),
-        json={
-            "name": "Auth API License",
-            "asset_type": "software",
-            "status": "deployed",
-            "ci_id": ci_id,
-        },
+        json={"name": "Auth host", "type": "server", "status": "in_use", "ci_id": ci_id},
     )
     assert create_res.status_code in (200, 201), create_res.text
 
-    res = client.get(f"/api/v1/sd/assets/by-ci/{ci_id}", headers=auth(admin_token))
+    res = client.get(f"/api/v1/alm/assets/by-ci/{ci_id}", headers=auth(admin_token))
     assert res.status_code == 200
-    data = res.json()["data"]
-    assert data["ci_id"] == ci_id
-    assert data["count"] >= 1
-    assert any(a["ci_id"] == ci_id for a in data["assets"])
-    assert any(a.get("ci_name") == "Auth Service" for a in data["assets"])
+    activos = res.json()["items"]
+    assert [a["name"] for a in activos] == ["Auth host"]
+    assert activos[0]["ci_name"] == "Auth Service"
 
 
 def test_cmdb_deprecation_impact_includes_impacted_assets(client, admin_token):
@@ -71,26 +59,16 @@ def test_cmdb_deprecation_impact_includes_impacted_assets(client, admin_token):
     assert rel_res.status_code == 200, rel_res.text
 
     asset_dep = client.post(
-        "/api/v1/sd/assets",
+        "/api/v1/alm/assets",
         headers=auth(admin_token),
-        json={
-            "name": "Billing License",
-            "asset_type": "software",
-            "status": "deployed",
-            "ci_id": ci_dep,
-        },
+        json={"name": "Billing VM", "type": "vm", "status": "in_use", "ci_id": ci_dep},
     )
     assert asset_dep.status_code in (200, 201), asset_dep.text
 
     asset_root = client.post(
-        "/api/v1/sd/assets",
+        "/api/v1/alm/assets",
         headers=auth(admin_token),
-        json={
-            "name": "DB Host",
-            "asset_type": "hardware",
-            "status": "deployed",
-            "ci_id": ci_root,
-        },
+        json={"name": "DB Host", "type": "server", "status": "in_use", "ci_id": ci_root},
     )
     assert asset_root.status_code in (200, 201), asset_root.text
 

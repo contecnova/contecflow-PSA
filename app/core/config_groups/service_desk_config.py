@@ -61,6 +61,12 @@ class ServiceDeskSettingsMixin:
     # ahi a la factura si es facturable), con las reglas de imputacion.
     SD_TIME_TO_TIMESHEET: bool = Field(default=True, env="SD_TIME_TO_TIMESHEET")
 
+    # ── Activos ──────────────────────────────────────────────────────────────
+    # Dias antes de que venza la garantia, el fin de vida, el leasing o el
+    # mantenimiento de un activo en que el escaneo diario abre su ticket de
+    # renovacion. 0 lo apaga.
+    SD_ASSET_REFRESH_DAYS: int = Field(default=7, ge=0, env="SD_ASSET_REFRESH_DAYS")
+
     # ── Bandeja de eventos ───────────────────────────────────────────────────
     SD_EVENT_MAX_ATTEMPTS: int = Field(default=5, env="SD_EVENT_MAX_ATTEMPTS")
     SD_EVENT_BATCH_SIZE: int = Field(default=200, env="SD_EVENT_BATCH_SIZE")

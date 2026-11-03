@@ -10,8 +10,7 @@ Sub-domains:
   templates   — ticket templates, canned responses, agent workspace, inbound email
   analytics   — stats, ITIL metrics, agent performance
   misc        — catalog, groups, problems, announcements, routing, changes,
-                 major incidents, assets, status page
-  assets      — hardware lifecycle, license management, software audit
+                 major incidents, status page
   smart_catalog — ML recommendations, dynamic forms, provisioning automation
   predictive  — severity prediction, resolution time, SLA breach probability
   autonomous  — bot-driven resolution, playbooks, execution audit
@@ -32,7 +31,6 @@ from app.api.v1.endpoints.service_desk import (
     connectors_marketplace,
     governance_ops,
     ai_auto_resolution,
-    assets,
     smart_catalog,
     predictive,
     autonomous,
@@ -79,7 +77,6 @@ router.include_router(workflow_designer.router)
 router.include_router(connectors_marketplace.router)
 router.include_router(governance_ops.router)
 router.include_router(ai_auto_resolution.router)
-router.include_router(assets.router)
 router.include_router(smart_catalog.router)
 router.include_router(predictive.router)
 router.include_router(autonomous.router)

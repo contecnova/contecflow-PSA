@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.cmdb import CMDBChangelog
 from app.models.project import Project
-from app.models.service_desk import Asset, ConfigurationItem
+from app.models.alm import ALMAsset
+from app.models.service_desk import ConfigurationItem
 from app.models.user import User
 from app.schemas.service_desk import CIIn
 from app.services.service_desk.cmdb_relation_service import get_ci_impact_payload
@@ -210,20 +211,19 @@ def get_ci_deprecation_impact_payload(
     if include_root_assets:
         impacted_ci_ids.add(ci_id)
 
-    # Only include active lifecycle assets as deprecation impact candidates.
-    assets_q = (
-        db.query(Asset)
-        .options(joinedload(Asset.assigned_user), joinedload(Asset.ci))
-        .filter(Asset.ci_id.in_(impacted_ci_ids))
-        .filter(Asset.status.notin_(["retired", "disposed"]))
+    # Solo los activos en vigor de ALM (auditoria 2026-11: un solo inventario).
+    impacted_assets = (
+        db.query(ALMAsset)
+        .options(joinedload(ALMAsset.assigned_to), joinedload(ALMAsset.ci))
+        .filter(ALMAsset.ci_id.in_(impacted_ci_ids), ALMAsset.is_active.is_(True),
+                ALMAsset.status != "retired")
+        .order_by(ALMAsset.name).all()
     )
-    impacted_assets = assets_q.order_by(Asset.code).all()
 
     assets_by_status: dict[str, int] = {}
     assets_by_type: dict[str, int] = {}
     for a in impacted_assets:
-        st = str(a.status.value if hasattr(a.status, "value") else a.status)
-        tp = str(a.asset_type.value if hasattr(a.asset_type, "value") else a.asset_type)
+        st, tp = str(_valor(a.status)), str(_valor(a.type))
         assets_by_status[st] = assets_by_status.get(st, 0) + 1
         assets_by_type[tp] = assets_by_type.get(tp, 0) + 1
 
@@ -251,7 +251,7 @@ def get_ci_deprecation_impact_payload(
         "Identificar y planificar reemplazo de activos desplegados ligados al CI deprecado.",
         "Definir ventana de cambio y rollback antes de retirar dependencias aguas abajo.",
     ]
-    if assets_by_status.get("deployed", 0) > 0:
+    if assets_by_status.get("in_use", 0) > 0:
         recommendations.append("Coordinar comunicación con usuarios propietarios de activos en estado deployed.")
     if impact.get("impacted_count", 0) > 0:
         recommendations.append("Ejecutar pruebas de regresión sobre CIs impactados directos e indirectos.")
@@ -280,12 +280,12 @@ def get_ci_deprecation_impact_payload(
         "impacted_assets": [
             {
                 "id": a.id,
-                "code": a.code,
+                "asset_tag": a.asset_tag,
                 "name": a.name,
-                "asset_type": str(a.asset_type.value if hasattr(a.asset_type, "value") else a.asset_type),
-                "status": str(a.status.value if hasattr(a.status, "value") else a.status),
-                "assigned_user_id": a.assigned_user_id,
-                "assigned_user_name": a.assigned_user.full_name if a.assigned_user else None,
+                "type": str(_valor(a.type)),
+                "status": str(_valor(a.status)),
+                "assigned_to_id": a.assigned_to_id,
+                "assigned_to_name": a.assigned_to.full_name if a.assigned_to else None,
                 "ci_id": a.ci_id,
                 "ci_name": a.ci.name if a.ci else None,
             }

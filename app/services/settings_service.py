@@ -212,6 +212,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("SD_KB_REQUIRE_REVIEW", "bool", "Knowledge — articles need a reviewer to be published"),
         ("SD_KB_REVIEWER_GROUP_ID", "str", "Knowledge — queue (group id) of reviewers; empty: admins"),
         ("SD_TIME_TO_TIMESHEET", "bool", "Time on tickets with a project goes to the agent's timesheet"),
+        ("SD_ASSET_REFRESH_DAYS", "int", "Assets — days before an expiry that open a renewal ticket (0: off)"),
         ("SD_EVENT_MAX_ATTEMPTS", "int", "Event delivery — max attempts"),
         ("SD_EVENT_BATCH_SIZE", "int", "Event delivery — events per run"),
     ],

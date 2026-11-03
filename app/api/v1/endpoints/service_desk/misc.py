@@ -16,7 +16,7 @@ from app.models.user import User
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.schemas.service_desk import (
     ProblemUpdateIn, ServiceCategoryIn, ServiceItemIn, ServiceItemUpdate, AgentGroupIn,
-    AnnouncementIn, AssetUpdate, StatusComponentIn, StatusIncidentIn,
+    AnnouncementIn, StatusComponentIn, StatusIncidentIn,
     StatusIncidentUpdateIn,
 )
 from app.services.service_desk.problem_service import (
@@ -56,9 +56,6 @@ from app.services.service_desk.change_management_service import (
 from app.services.service_desk.major_incident_service import (
     list_major_incidents_payload, declare_major_incident_record,
     update_major_incident_record, serialize_major_incident,
-)
-from app.services.service_desk.asset_service import (
-    asset_out as _asset_out, update_asset_record,
 )
 from app.services.service_desk.status_page_service import (
     build_public_status_page_payload, build_status_page_embed_script,
@@ -464,19 +461,8 @@ def update_major_incident(mi_id: str, payload: dict = Body(...), db: Session = D
     return APIResponse.ok(data=serialize_major_incident(mi))
 
 # ── Assets ────────────────────────────────────────────────────────────────────
-# NOTE: GET /assets, GET /assets/stats, GET /assets/{id}, POST /assets,
-# DELETE /assets/{id} and POST /assets/{id}/assign are canonically served by
-# assets.py (HAM/SAM module). Removed here to avoid duplicate routes.
-# PATCH /assets/{id} remains unique to this module (assets.py uses PUT).
-
-@router.patch("/assets/{asset_id}", summary="Actualizar activo")
-def update_asset(asset_id: str, payload: AssetUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
-    a = update_asset_record(db, asset_id, payload, current_user.id)
-    _commit_or_rollback(db); db.refresh(a)
-    return APIResponse.ok(data=_asset_out(a))
-
-# DELETE /assets/{id} and POST /assets/{id}/assign are canonically served by
-# assets.py. Removed here to avoid duplicate routes.
+# Viven en ALM (`/alm/assets`). Auditoria 2026-11: aqui habia un segundo
+# inventario (`sd_assets`); la migracion 111 lo fundio con ALM.
 
 # ── Status Page ───────────────────────────────────────────────────────────────
 

@@ -296,42 +296,6 @@ class EscalationRuleIn(BaseModel):
     is_active: bool = Field(True, description="Indica si la regla está activa")
 
 
-# ── Assets ────────────────────────────────────────────────────────────────────
-
-class AssetIn(BaseModel):
-    name: str = Field(..., description="Nombre del activo")
-    asset_type: str = Field(..., description="Tipo de activo (hardware, software, license, etc.)")
-    serial_number: Optional[str] = Field(None, description="Número de serie del activo")
-    model: Optional[str] = Field(None, description="Modelo del activo")
-    manufacturer: Optional[str] = Field(None, description="Fabricante del activo")
-    part_number: Optional[str] = Field(None, description="Número de pieza")
-    license_key: Optional[str] = Field(None, description="Clave de licencia si aplica")
-    license_seats: Optional[int] = Field(None, description="Número de asientos de licencia")
-    purchase_date: Optional[str] = Field(None, description="Fecha de compra en formato YYYY-MM-DD")
-    warranty_expiry: Optional[str] = Field(None, description="Fecha de expiración de la garantía")
-    eol_date: Optional[str] = Field(None, description="Fecha de fin de vida del activo")
-    lease_expiry: Optional[str] = Field(None, description="Fecha de expiración del leasing")
-    purchase_price: Optional[float] = Field(None, description="Precio de compra del activo")
-    current_value: Optional[float] = Field(None, description="Valor actual contable del activo")
-    currency: str = Field(settings.DEFAULT_CURRENCY, description="Moneda en formato ISO 4217")
-    po_number: Optional[str] = Field(None, description="Número de orden de compra")
-    vendor: Optional[str] = Field(None, description="Proveedor del activo")
-    vendor_contract: Optional[str] = Field(None, description="Contrato con el proveedor")
-    location: Optional[str] = Field(None, description="Ubicación física del activo")
-    assigned_user_id: Optional[str] = Field(None, description="ID del usuario que lo tiene asignado")
-    department: Optional[str] = Field(None, description="Departamento al que pertenece")
-    ci_id: Optional[str] = Field(None, description="ID del CI vinculado")
-    tags: Optional[str] = Field(None, description="Etiquetas separadas por comas")
-    notes: Optional[str] = Field(None, description="Notas internas sobre el activo")
-    managed_by_user_id: Optional[str] = Field(None, description="Usuario responsable de su gestión")
-
-
-class AssetUpdate(AssetIn):
-    name: Optional[str] = Field(None, description="Nuevo nombre del activo")
-    asset_type: Optional[str] = Field(None, description="Nuevo tipo de activo")
-    status: Optional[str] = Field(None, description="Nuevo estado del activo")
-
-
 # ── Status Page ───────────────────────────────────────────────────────────────
 
 class StatusComponentIn(BaseModel):

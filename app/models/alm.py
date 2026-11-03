@@ -312,14 +312,44 @@ class ALMAsset(Base):
     ram_gb              = Column(Integer,     nullable=True)
     storage_gb          = Column(Integer,     nullable=True)
 
+    # Ciclo de vida y CMDB (antes en `sd_assets`; migracion 111)
+    ci_id               = Column(String(36), ForeignKey("sd_configuration_items.id", ondelete="SET NULL"), nullable=True, index=True)
+    eol_date            = Column(Date, nullable=True)        # fin de vida del fabricante
+    lease_expiry        = Column(Date, nullable=True)
+    next_maintenance_date = Column(Date, nullable=True)
+    maintenance_contract = Column(String(255), nullable=True)
+    # El ticket de renovacion abierto: el escaneo diario no abre otro mientras siga abierto.
+    refresh_ticket_id   = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"), nullable=True)
+
     notes               = Column(Text, nullable=True)
     created_at          = Column(DateTime(timezone=True), server_default=func.now())
     updated_at          = Column(DateTime(timezone=True), onupdate=func.now())
 
     assigned_to         = relationship("User",       foreign_keys=[assigned_to_id])
+    ci                  = relationship("ConfigurationItem", foreign_keys=[ci_id])
+    history             = relationship("ALMAssetHistory", back_populates="asset", cascade="all, delete-orphan",
+                                       order_by="ALMAssetHistory.changed_at")
     vendor              = relationship("ALMVendor",  back_populates="assets")
     license_assignments = relationship("ALMLicenseAssignment", back_populates="asset")
     installs            = relationship("ALMSoftwareInstall",   back_populates="asset", cascade="all, delete-orphan")
+
+
+class ALMAssetHistory(Base):
+    """Cada cambio de un activo: estado, asignacion, ubicacion, CI, fechas..."""
+    __tablename__ = "alm_asset_history"
+
+    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    asset_id    = Column(String(36), ForeignKey("alm_assets.id", ondelete="CASCADE"), nullable=False, index=True)
+    field_name  = Column(String(100), nullable=False)
+    old_value   = Column(String(500), nullable=True)
+    new_value   = Column(String(500), nullable=True)
+    changed_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    note        = Column(String(255), nullable=True)
+    changed_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+    asset       = relationship("ALMAsset", back_populates="history")
+    changed_by_user = relationship("User", foreign_keys=[changed_by])
 
 
 class ALMSoftwareInstall(Base):

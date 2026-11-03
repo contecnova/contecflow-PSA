@@ -148,24 +148,24 @@ def test_un_sms_vacio_tambien_crea_ticket(db, agente):
 # -- Renovación de un activo -------------------------------------------------
 
 def test_EL_HALLAZGO_la_renovacion_de_un_activo_crea_su_ticket(db, agente):
-    from app.models.service_desk import Asset, AssetType, Ticket, TicketStatus
-    from app.services.service_desk import asset_service as svc
+    from app.models.alm import ALMAsset
+    from app.models.service_desk import Ticket, TicketStatus
+    from app.services.alm_ciclo_de_vida import abrir_ticket_de_renovacion
 
-    db.add(Asset(
-        id="act-vias", code="ACT-1", name="Portatil de dirección",
-        asset_type=AssetType.hardware, organization_id="org-vias"))
+    activo = ALMAsset(id="act-vias", name="Portatil de dirección", type="laptop", organization_id="org-vias")
+    db.add(activo)
     db.commit()
 
-    resultado = svc.create_refresh_ticket(
-        db, "act-vias", acting_user_id=agente.id)
+    resultado = abrir_ticket_de_renovacion(db, activo, agente.id)
     db.commit()
 
-    assert resultado, "la renovación no ha devuelto nada"
+    assert resultado["created"], "la renovación no ha devuelto nada"
     ticket = db.query(Ticket).first()
     assert ticket is not None, "no se ha creado el ticket de renovación"
     assert ticket.status == TicketStatus.new
     assert ticket.ticket_type == "service_request"
     assert ticket.requester_user_id == agente.id
+    assert ticket.organization_id == "org-vias"
 
 
 # -- La asimetría que lo destapó --------------------------------------------

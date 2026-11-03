@@ -561,16 +561,24 @@ def list_assets_records(
     return [serialize_asset(a) for a in query.order_by(ALMAsset.name).all()]
 
 
-def create_asset_record(data: dict, db: Session) -> dict:
+#: Fechas del activo que llegan como texto del formulario.
+FECHAS_DE_ACTIVO = ["purchase_date", "warranty_expiry", "eol_date", "lease_expiry", "next_maintenance_date"]
+
+
+def create_asset_record(data: dict, db: Session, current_user=None) -> dict:
+    from app.services.alm_ciclo_de_vida import anotar, exigir_ci
 
     clean = clean_input(
         data, ALMAsset,
-        date_fields=["purchase_date", "warranty_expiry"],
+        date_fields=FECHAS_DE_ACTIVO,
         int_fields=["depreciation_years", "ram_gb", "storage_gb"],
         float_fields=["purchase_price"],
     )
+    exigir_ci(db, clean.get("ci_id"), current_user)
     a = ALMAsset(**clean)
     db.add(a)
+    db.flush()
+    anotar(db, a, "status", None, a.status or "available", getattr(current_user, "id", None), "Alta")
     db.commit()
     db.refresh(a)
     return serialize_asset(a)
@@ -589,25 +597,28 @@ def get_asset_record(aid: str, db: Session) -> dict:
     return out
 
 
-def update_asset_record(aid: str, data: dict, db: Session) -> dict:
+def update_asset_record(aid: str, data: dict, db: Session, current_user=None) -> dict:
+    from app.services.alm_ciclo_de_vida import aplicar_con_historial, exigir_ci
 
     a = db.query(ALMAsset).filter(ALMAsset.id == aid, ALMAsset.is_active == True).first()
     if not a:
         raise HTTPException(404)
     clean = clean_input(
         data, ALMAsset,
-        date_fields=["purchase_date", "warranty_expiry"],
+        date_fields=FECHAS_DE_ACTIVO,
         int_fields=["depreciation_years", "ram_gb", "storage_gb"],
         float_fields=["purchase_price"],
     )
-    for k, v in clean.items():
-        setattr(a, k, v)
+    if "ci_id" in clean and clean["ci_id"] != a.ci_id:
+        exigir_ci(db, clean["ci_id"], current_user)
+    aplicar_con_historial(db, a, clean, getattr(current_user, "id", None))
     db.commit()
     db.refresh(a)
     return serialize_asset(a)
 
 
-def delete_asset_record(aid: str, db: Session) -> dict:
+def delete_asset_record(aid: str, db: Session, current_user=None) -> dict:
+    from app.services.alm_ciclo_de_vida import aplicar_con_historial
 
     a = db.query(ALMAsset).filter(ALMAsset.id == aid, ALMAsset.is_active == True).first()
     if not a:
@@ -625,21 +636,24 @@ def delete_asset_record(aid: str, db: Session) -> dict:
             400,
             f"No se puede eliminar: instalaciones={active_installs}, asignaciones={active_assignments}",
         )
+    aplicar_con_historial(db, a, {"status": "retired"}, getattr(current_user, "id", None))
     a.is_active = False
-    a.status = "retired"
     db.commit()
     return {"ok": True, "message": "Activo eliminado correctamente"}
 
 
-def assign_asset_record(aid: str, data: dict, db: Session) -> dict:
+def assign_asset_record(aid: str, data: dict, db: Session, current_user=None) -> dict:
+    from app.services.alm_ciclo_de_vida import aplicar_con_historial
 
     a = db.query(ALMAsset).filter(ALMAsset.id == aid, ALMAsset.is_active == True).first()
     if not a:
         raise HTTPException(404)
     uid = data.get("user_id") or None
-    a.assigned_to_id = uid
-    a.status = "in_use" if uid else "available"
-    a.location = data.get("location", a.location)
+    aplicar_con_historial(db, a, {
+        "assigned_to_id": uid,
+        "status": "in_use" if uid else "available",
+        "location": data.get("location", a.location),
+    }, getattr(current_user, "id", None))
     db.commit()
     db.refresh(a)
     return serialize_asset(a)
