@@ -56,13 +56,22 @@ def get_org_defaults(db: Session = Depends(get_db), current_user: User = Depends
         "tax_rate": g_float(db, "DEFAULT_TAX_RATE", org_id),
     })
 
+def _es_admin(user: User) -> bool:
+    return bool(user.is_superadmin) or getattr(user.role, "value", user.role) == "admin"
+
+
 @router.get("/general", response_model=APIListResponse[SettingOut])
 def get_general_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    items = _svc.get_general_settings(db)
+    # Sin secretos: ver `ajustes_generales_para`.
+    items = _svc.ajustes_generales_para(db, _es_admin(current_user))
     return APIListResponse.ok(items=items, total=len(items))
 
 @router.patch("/general/{key}", response_model=APIResponse[SettingOut])
 def update_setting(key: str, payload: SettingUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    # Por aqui solo los ajustes generales; el estado interno de los servicios
+    # (claves con punto, secretos) lo escribe cada servicio, no esta pantalla.
+    if not current_user.is_superadmin and not _svc.es_ajuste_general(key):
+        raise HTTPException(403, "Solo se pueden cambiar los ajustes generales")
     return APIResponse.ok(data=_svc.update_setting(key, payload.value, current_user.organization_id, db))
 
 

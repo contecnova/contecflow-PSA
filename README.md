@@ -60,10 +60,10 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 - `scripts/rotate_keys.sh` replaces `SECRET_KEY` without re-encrypting stored secrets, which then become unreadable; it also prints the new key. There is no working backup procedure in the repository. [7.7, 7.13]
 
 **Security**
-- ✔ `GET /api/v1/settings/general` is open to any signed-in user and returns every `app_settings` row. E-signature credentials (DocuSign/Adobe) are stored there in plain text, so any employee can read them once configured. [6]
+- **Fixed 2026-11-03:** `GET /api/v1/settings/general` (open to any signed-in user) returned every `app_settings` row, including e-signature tokens and secrets in plain text. It now returns only general settings to non-admins and masks sensitive values for everyone. The e-sign secrets are still stored unencrypted in the database. [6]
 - ✔ MFA enrolled on the `/mfa` screen does not protect sign-in: the screen writes `mfa_configs`, sign-in checks `users.mfa_secret`. [6]
 - Several endpoints accept wider roles than their screens (e.g. employees can read cost, GDPR and audit data); scheduled reports and the alert engine act across organizations; BI embed tokens are full access tokens. [5]
-- Org admins can overwrite a global setting shared by all organizations through `PATCH /settings/general/{key}`. [6]
+- **Fixed 2026-11-03:** org admins could overwrite a global setting shared by all organizations through `PATCH /settings/general/{key}`; writes now go to the organization's row and only general keys are accepted. [6]
 - Slack/Teams inbound commands resolve the user by partial name/email match without organization context. [6]
 
 **Wrong data shown**
@@ -3710,14 +3710,8 @@ This section covers every screen an administrator uses to configure contecflow-P
 | Audit | `GET /api/v1/settings/audit-log?scope=&key=&provider=&actor_id=` | `require_admin`. Table `settings_audit_log`. **There is no UI for it** (the client `settingsApi.auditLog` exists, but no page calls it) |
 
 **Limitations (measured).**
-- **`GET /settings/general` returns every `app_settings` row** visible to the tenant: the org's rows plus the global ones, with no key filter. The only guard is `get_current_user`. Three kinds of secret live in that table in plaintext:
-  - E-sign secrets (`esign.docusign_secret_key`, `esign.adobe_sign_client_secret`, `esign.*_access_token`);
-  - a `METRICS_AUTH_TOKEN` set through Config. dinámica;
-  - any other runtime key.
-
-  So **any authenticated user of that tenant can read them through the API.** The UI hides keys that contain a dot, but the API does not. This was found by code reading and not reproduced over HTTP. The Jira token is the exception: it is stored encrypted (`_SENSITIVE_SETTING_KEYS`).
-- **`PATCH /settings/general/{key}` accepts any key.** There is no whitelist and no type check, so it can overwrite runtime keys without the validation that `/settings/runtime` applies.
-- **Org admins can overwrite the global row.** When the admin's organization has no row for the key, `update_setting` overwrites the **global** row (`organization_id IS NULL`), and that row is shared by every tenant.
+- **Fixed 2026-11-03 — `GET /settings/general` leaked secrets.** It is read by every signed-in user (the idle timeout) and returned every `app_settings` row in plaintext, including e-sign tokens and secrets (`esign.*`), the JWT keyring and `METRICS_AUTH_TOKEN`. Now non-admins get only the general settings (factory keys and plain names, no dotted/internal keys), and nobody gets the value of a sensitive key (`token`, `secret`, `password`, `keyring`, `credential`, `*_key`, `client_id`): it comes back as `••••••••`. Admins still see the internal keys (read-only *System status* view), masked. Tests: `tests/test_ajustes_generales_sin_fugas.py`. **Still true:** the e-sign secrets are stored unencrypted in `app_settings` (only the Jira token is encrypted, `_SENSITIVE_SETTING_KEYS`); the API no longer returns them, but anyone with database access can read them.
+- **Fixed 2026-11-03 — `PATCH /settings/general/{key}` accepted any key and overwrote global rows.** Non-superadmins can now write only general settings (403 otherwise), and the write goes to the organization's own row, created on first change; before, when the organization had no row, the **global** row shared by every tenant was overwritten.
 - **`budget_alert_threshold`, `overload_threshold`, `work_days_per_week` and `company_logo_url` have no reader** in `app/` or `frontend/src` other than the seed and the label map. Editing them changes nothing.
 - **Alertas (`alert_configs`) is not read by the alert engine.** `alert_service.py` uses hard-coded thresholds (100 %, 85 %, 7 days). Only the CRUD service touches `alert_configs`.
 - **Roles (`custom_roles.module_access`) is not read by RBAC, ABAC or GRC.** Only the CRUD reads it. Authorization uses `User.role` plus the GRC matrix.
@@ -4100,7 +4094,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **15 
 - The provider calls live in `app/services/esign_providers.py`. Without configuration, envelopes fall back to manual mode.
 
 **Limitations (measured).**
-- **The `esign.*` secrets and access tokens are stored in plaintext in `app_settings`**, so they are exposed by `GET /settings/general` (see Settings).
+- **The `esign.*` secrets and access tokens are stored in plaintext in `app_settings`.** Since 2026-11-03 `GET /settings/general` masks them (see Settings); they remain readable to anyone with database access.
 - **The Credenciales → DocuSign / Adobe Sign providers are not read by e-sign.**
 - A PM can open the page but cannot create a request (`require_admin`).
 - A real round trip with DocuSign or Adobe is **Not verified**.
