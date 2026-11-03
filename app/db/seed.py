@@ -29,6 +29,7 @@ from app.db.seed_parts.v12 import seed_v12
 from app.db.seed_parts.v13 import seed_v13
 from app.db.seed_parts.config_versions import seed_v14, seed_v15, seed_v16
 from app.db.seed_parts.itsm import seed_itsm_v2
+from app.db.seed_parts.alm import seed_alm
 
 if __name__ == "__main__":
     # ── La consola de Windows no habla UTF-8, y el sembrado sí ───────────────
@@ -58,6 +59,7 @@ if __name__ == "__main__":
     seed_service_desk()
     seed_v10()
     seed_itsm_v2()
+    seed_alm()
     seed_enterprise()
     seed_v12()
     seed_v13()

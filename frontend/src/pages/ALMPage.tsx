@@ -1295,9 +1295,9 @@ function AssetsTab() {
                   {a.purchase_price   && <span>💰 {fmtCurrency(a.purchase_price)} → libros: {fmtCurrency(a.book_value || 0)}</span>}
                   {a.installed_licenses > 0 && <span>📦 {a.installed_licenses} licencia(s) instalada(s)</span>}
                   {a.ci_id && <span>🔗 {t('alm.assets_label_ci')}: {a.ci_code} · {a.ci_name}</span>}
-                  {a.eol_date && <span>{t('alm.expiry_eol')} {fmtDate(a.eol_date)}</span>}
-                  {a.lease_expiry && <span>{t('alm.expiry_lease')} {fmtDate(a.lease_expiry)}</span>}
-                  {a.next_maintenance_date && <span>{t('alm.expiry_maintenance')} {fmtDate(a.next_maintenance_date)}</span>}
+                  {a.eol_date && <span>{t('alm.expiry_eol')}: {fmtDate(a.eol_date)}</span>}
+                  {a.lease_expiry && <span>{t('alm.expiry_lease')}: {fmtDate(a.lease_expiry)}</span>}
+                  {a.next_maintenance_date && <span>{t('alm.expiry_maintenance')}: {fmtDate(a.next_maintenance_date)}</span>}
                 </div>
                 <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                   <button aria-label={t('alm.assets_history_of', { name: a.name })} title={t('alm.assets_history')} onClick={() => setHistoryOf(a)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>📋</button>
