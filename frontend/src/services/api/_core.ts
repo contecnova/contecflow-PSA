@@ -834,6 +834,8 @@ export const cmdbApi = {
   sdCreateRelation: (data: unknown)   => api.post('/sd/cmdb/relations', data),
   sdDeleteRelation: (id: any)     => api.delete(`/sd/cmdb/relations/${id}`),
   sdImpact:       (id: any)       => api.get(`/sd/cmdb/${id}/impact`),
+  classFields:    ()              => api.get('/sd/cmdb/class-fields'),
+  saveClassFields: (ciType: string, fields: unknown) => api.put(`/sd/cmdb/class-fields/${ciType}`, fields),
   topology:       (id: any, r: any)    => api.get(`/sd/cmdb/${id}/topology`, { params: { radius: r } }),
   // Agents
   agents:         ()         => api.get('/sd/cmdb/agents'),

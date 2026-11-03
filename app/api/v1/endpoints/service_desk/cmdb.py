@@ -21,6 +21,7 @@ from app.services.service_desk.cmdb_service import (
     build_ci, get_scoped_ci_or_404, apply_ci_update, get_ci_deprecation_impact_payload,
     delete_ci, ci_changelog,
 )
+from app.services.service_desk.cmdb_clases import campos as campos_de_clase, guardar_clase
 from app.services.service_desk.cmdb_relation_service import (
     get_ci_relations_payload, build_ci_relation, delete_ci_relation, get_ci_impact_payload,
     get_ci_topology_graph_payload, get_dependency_graph_d3, get_blast_radius_summary,
@@ -130,6 +131,19 @@ def remove_ci(ci_id: str, db: Session = Depends(get_db), current_user: User = De
     delete_ci(db, get_scoped_ci_or_404(db, current_user, ci_id), current_user)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
+
+
+@router.get("/cmdb/class-fields", summary="Datos propios de cada clase de CI (de la organización)")
+def get_class_fields(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return APIResponse.ok(data=campos_de_clase(db, current_user.organization_id))
+
+
+@router.put("/cmdb/class-fields/{ci_type}", summary="Sustituir los datos propios de una clase de CI")
+def put_class_fields(ci_type: str, payload: list[dict] = Body(...), db: Session = Depends(get_db),
+                     current_user: User = Depends(require_admin)):
+    datos = guardar_clase(db, current_user.organization_id, ci_type, payload)
+    _commit_or_rollback(db)
+    return APIResponse.ok(data=datos)
 
 
 @router.get("/cmdb/{ci_id}/changelog", summary="Historial de cambios del CI")

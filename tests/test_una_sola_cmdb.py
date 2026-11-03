@@ -131,3 +131,31 @@ def test_EL_HALLAZGO_la_correlacion_de_alertas_encuentra_la_raiz(db):
     db.add(CIRelation(source_ci_id="host", target_ci_id="app", relation_type=CIRelationType.hosts))
     db.commit()
     assert set(_expand_ci_dependencies(db, ["app"])) == {"db", "host"}
+
+
+# -- Clases de CI configurables ---------------------------------------------
+
+def test_sin_configurar_salen_los_de_fabrica_y_lo_dice(client, admin_token):
+    datos = client.get(f"{BASE}/class-fields", headers=auth(admin_token)).json()["data"]
+    assert datos["por_defecto"] is True
+    assert [c["key"] for c in datos["clases"]["database"]] == ["db_engine", "port", "size_gb", "backup_schedule"]
+
+
+def test_al_guardar_una_clase_la_organizacion_pasa_a_tener_las_suyas(client, admin_token):
+    h = auth(admin_token)
+    nuevos = [{"key": "motor", "label": "Motor", "field_type": "text"}, {"key": "puerto", "field_type": "number"}]
+    datos = client.put(f"{BASE}/class-fields/database", headers=h, json=nuevos).json()["data"]
+    assert datos["por_defecto"] is False
+    assert [c["key"] for c in datos["clases"]["database"]] == ["motor", "puerto"]
+    # Las demas clases se copiaron de fabrica: no se pierden ni las tapa nada.
+    assert [c["key"] for c in datos["clases"]["server"]][:2] == ["os", "cpu_cores"]
+    vacia = client.put(f"{BASE}/class-fields/storage", headers=h, json=[]).json()["data"]
+    assert vacia["clases"]["storage"] == [], "vaciar una clase la deja sin campos; no vuelve a los de fabrica"
+
+
+def test_los_campos_de_clase_se_validan(client, admin_token):
+    h = auth(admin_token)
+    for malo in ([{"key": "Con Espacios"}], [{"key": "a"}, {"key": "a"}], [{"key": "hostname"}],
+                 [{"key": "x", "field_type": "json"}]):
+        assert client.put(f"{BASE}/class-fields/server", headers=h, json=malo).status_code == 422, malo
+    assert client.put(f"{BASE}/class-fields/nave_espacial", headers=h, json=[]).status_code == 422

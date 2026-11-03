@@ -15,11 +15,17 @@ vi.mock('../services/api', () => ({
     sdCreateRelation: vi.fn(), sdDeleteRelation: vi.fn(), topology: vi.fn(),
     agents: vi.fn().mockResolvedValue({ data: [] }), registerAgent: vi.fn(), deleteAgent: vi.fn(),
     assetsByCI: vi.fn().mockResolvedValue({ data: [] }),
+    classFields: vi.fn().mockResolvedValue({ data: { por_defecto: true, clases: {
+      server: [{ key: 'os', label: null, field_type: 'text' }],
+      database: [{ key: 'db_engine', label: null, field_type: 'text' }, { key: 'puerto', label: 'Puerto propio', field_type: 'number' }],
+    } } }),
+    saveClassFields: vi.fn(),
   },
 }))
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
 vi.mock('../context/ConfirmContext', () => ({ openConfirmGlobal: vi.fn() }))
 vi.mock('../i18n/AppLangContext', () => ({ useAppT: () => (k: string) => k }))
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { role: 'admin' } }) }))
 vi.mock('../components/layout/PageHeader', () => ({ default: ({ actions }: { actions: JSX.Element }) => <div>{actions}</div> }))
 vi.mock('../components/layout/PageShell', () => ({ default: ({ children }: { children: JSX.Element }) => <div>{children}</div> }))
 
@@ -48,17 +54,19 @@ describe('CMDBPage', () => {
     expect(sdList).toHaveBeenCalledWith(expect.objectContaining({ page_size: 500 }))
   })
 
-  it('al crear envía sólo los atributos de la clase elegida', async () => {
+  it('al crear envía sólo los atributos de la clase elegida, según los campos del servidor', async () => {
     pintar()
     fireEvent.click(await screen.findByText('cmdb.new_ci'))
     fireEvent.change(screen.getByLabelText('cmdb.ci_name'), { target: { value: 'db-1' } })
-    fireEvent.change(screen.getByLabelText('cmdb.f_os'), { target: { value: 'Linux' } })
+    // Sin traducción (la prueba no carga idiomas) la etiqueta de fábrica es la clave.
+    fireEvent.change(await screen.findByLabelText('os'), { target: { value: 'Linux' } })
     fireEvent.change(document.getElementById('ci-form-type')!, { target: { value: 'database' } })
-    fireEvent.change(screen.getByLabelText('cmdb.f_db_engine'), { target: { value: 'PostgreSQL' } })
+    fireEvent.change(screen.getByLabelText('db_engine'), { target: { value: 'PostgreSQL' } })
+    fireEvent.change(screen.getByLabelText('Puerto propio'), { target: { value: '5432' } })
     fireEvent.click(screen.getByText('cmdb.create'))
     await waitFor(() => expect(sdCreate).toHaveBeenCalled())
     const enviado = sdCreate.mock.calls[0][0]
     expect(enviado).toMatchObject({ name: 'db-1', ci_type: 'database', status: 'operational', hostname: null })
-    expect(enviado.attributes).toEqual({ db_engine: 'PostgreSQL' })
+    expect(enviado.attributes).toEqual({ db_engine: 'PostgreSQL', puerto: '5432' })
   })
 })

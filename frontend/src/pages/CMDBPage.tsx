@@ -11,6 +11,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Database } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { useAuth } from '../context/AuthContext'
 // Auditoría 2026-08 (hallazgo 19). Este import era ESTÁTICO, y
 // CMDBTopologyGraph depende de react-plotly.js → plotly.js. Medido sobre el
 // build: eso ponía un import estático de `vendor-plotly` (4.633 kB, el 38 % de
@@ -60,22 +61,28 @@ const CI_TYPES = ['server','virtual_machine','application','database','network',
 const CI_TYPE_ICONS: Record<string, string> = {server:'🖥️',virtual_machine:'🧊',application:'📱',database:'🗄️',network:'🌐',service:'⚙️',container:'📦',cloud:'☁️',endpoint:'💻',storage:'💾',module:'🧩',integration:'🔌',other:'📌'}
 
 // Atributos propios de cada clase; se guardan en `attributes`. Host, IP y
-// versión son columnas comunes a todas y van aparte.
-type Campo = { k: string; type?: string }
-const CI_TYPE_FIELDS: Record<string, Campo[]> = {
-  server:          [{k:'os'},{k:'cpu_cores',type:'number'},{k:'ram_gb',type:'number'},{k:'serial_number'},{k:'location'}],
-  virtual_machine: [{k:'os'},{k:'cpu_cores',type:'number'},{k:'ram_gb',type:'number'},{k:'cluster'},{k:'resource_id'}],
-  application:     [{k:'url'},{k:'tech_stack'},{k:'repo_url'},{k:'owner_team'},{k:'sla_tier'}],
-  database:        [{k:'db_engine'},{k:'port'},{k:'size_gb',type:'number'},{k:'backup_schedule'}],
-  network:         [{k:'vendor'},{k:'model'},{k:'serial_number'},{k:'location'}],
-  service:         [{k:'url'},{k:'sla_tier'},{k:'owner_team'},{k:'dependencies'}],
-  container:       [{k:'image'},{k:'cluster'},{k:'namespace'},{k:'replicas',type:'number'}],
-  cloud:           [{k:'cloud_provider'},{k:'region'},{k:'resource_id'},{k:'instance_type'},{k:'monthly_cost',type:'number'}],
-  endpoint:        [{k:'os'},{k:'serial_number'},{k:'assigned_to'},{k:'warranty_date',type:'date'}],
-  storage:         [{k:'capacity_tb',type:'number'},{k:'used_tb',type:'number'},{k:'protocol'},{k:'vendor'}],
-  module:          [{k:'repo_url'},{k:'owner_team'}],
-  integration:     [{k:'url'},{k:'owner_team'}],
-  other:           [{k:'serial_number'},{k:'location'}],
+// versión son columnas comunes a todas y van aparte. Auditoría 2026-11:
+// estaban escritos aquí; ahora los configura cada organización (pestaña
+// «Clases») y los de fábrica viven en el servidor (cmdb_clases.py).
+type Campo = { key: string; label?: string | null; field_type: string }
+type CamposDeClase = { por_defecto: boolean; clases: Record<string, Campo[]> }
+
+function useCamposDeClase() {
+  return useQuery<CamposDeClase>({
+    queryKey: ['cmdb-class-fields'],
+    queryFn: () => cmdbApi.classFields().then(r => r.data),
+    staleTime: 60000,
+  })
+}
+
+/** La etiqueta escrita por la organización o, si no hay, la traducida de fábrica. */
+function useEtiquetaDeCampo() {
+  const t = useAppT()
+  return (c: Campo) => {
+    if (c.label) return c.label
+    const texto = t(`cmdb.f_${c.key}`)
+    return texto === `cmdb.f_${c.key}` ? c.key : texto
+  }
 }
 const STATUS_COLOR: Record<string, string> = { operational:'var(--success)', degraded:'var(--orange)', maintenance:'var(--warning)', retired:'var(--text-2)' }
 const ENV_COLOR: Record<string, string> = { production:'var(--danger)', staging:'var(--warning)', test:'var(--purple)', development:'var(--accent)' }
@@ -112,13 +119,15 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
   const [attrs, setAttrs] = useState<Record<string, string>>(
     Object.fromEntries(Object.entries(item?.attributes || {}).map(([k, v]) => [k, String(v ?? '')])))
   const set = (k: string) => (v: string) => setForm(f => ({ ...f, [k]: v }))
-  const campos = CI_TYPE_FIELDS[form.ci_type] || CI_TYPE_FIELDS.other
+  const { data: deClase } = useCamposDeClase()
+  const etiquetaDeCampo = useEtiquetaDeCampo()
+  const campos = deClase?.clases[form.ci_type] ?? []
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => {
       // Se envían solo los atributos de la clase elegida y con valor: cambiar
       // de clase no arrastra los de la anterior.
-      const propios = Object.fromEntries(campos.map(c => [c.k, attrs[c.k]]).filter(([, v]) => v))
+      const propios = Object.fromEntries(campos.map(c => [c.key, attrs[c.key]]).filter(([, v]) => v))
       const vacio = (v: string) => v.trim() || null
       const d = { ...form, description: vacio(form.description), ip_address: vacio(form.ip_address),
         hostname: vacio(form.hostname), version: vacio(form.version), attributes: propios }
@@ -179,10 +188,10 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
             {campos.map(c => (
-              <div key={c.k}>
-                <label style={ls} htmlFor={id(c.k)}>{t(`cmdb.f_${c.k}`)}</label>
-                <input id={id(c.k)} style={is} type={c.type || 'text'} value={attrs[c.k] ?? ''}
-                  onChange={e => setAttrs(a => ({ ...a, [c.k]: e.target.value }))} />
+              <div key={c.key}>
+                <label style={ls} htmlFor={id(c.key)}>{etiquetaDeCampo(c)}</label>
+                <input id={id(c.key)} style={is} type={c.field_type || 'text'} value={attrs[c.key] ?? ''}
+                  onChange={e => setAttrs(a => ({ ...a, [c.key]: e.target.value }))} />
               </div>
             ))}
           </div>
@@ -497,6 +506,66 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
   )
 }
 
+// ── Clases: los datos propios de cada clase, por organización ────────────────
+function ClasesTab() {
+  const t = useAppT()
+  const etiqueta = useEtiqueta()
+  const etiquetaDeCampo = useEtiquetaDeCampo()
+  const toast = useToast()
+  const qc = useQueryClient()
+  const { data } = useCamposDeClase()
+  const [clase, setClase] = useState('server')
+  const [filas, setFilas] = useState<Campo[] | null>(null)
+  const actuales = filas ?? data?.clases[clase] ?? []
+  const cambiar = (i: number, cambio: Partial<Campo>) =>
+    setFilas(actuales.map((f, j) => (j === i ? { ...f, ...cambio } : f)))
+  const mover = (i: number, d: number) => {
+    const otra = [...actuales]; const [f] = otra.splice(i, 1); otra.splice(i + d, 0, f); setFilas(otra)
+  }
+  const { mutate: guardar, isPending } = useMutation({
+    mutationFn: () => cmdbApi.saveClassFields(clase, actuales.map(f => ({ ...f, label: f.label || null }))),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['cmdb-class-fields'] }); setFilas(null); toast.success(t('cmdb.classes_saved')) },
+    onError: e => toast.error(extractErr(e, t('cmdb.save_error'))),
+  })
+  const btn: CSSProperties = { ...iconBtn, padding: '4px 8px' }
+
+  return (
+    <div style={{ ...ps, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <p style={{ margin: 0, color: 'var(--text-2)', fontSize: "var(--text-sm)" }}>
+        {t('cmdb.classes_help')} {data?.por_defecto ? t('cmdb.classes_factory') : ''}
+      </p>
+      <div>
+        <label style={ls} htmlFor="clase-ci">{t('cmdb.ci_type')}</label>
+        <select id="clase-ci" style={{ ...is, maxWidth: 280 }} value={clase} onChange={e => { setClase(e.target.value); setFilas(null) }}>
+          {CI_TYPES.map(c => <option key={c} value={c}>{CI_TYPE_ICONS[c]} {etiqueta('type_', c)}</option>)}
+        </select>
+      </div>
+      {actuales.length === 0 && <div style={{ color: 'var(--text-2)', fontSize: "var(--text-sm)" }}>{t('cmdb.classes_empty')}</div>}
+      {actuales.map((f, i) => (
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px,1fr) minmax(160px,1.4fr) 120px auto', gap: 8, alignItems: 'center' }}>
+          <input aria-label={t('cmdb.classes_key')} style={{ ...is, fontFamily: 'var(--font-mono)' }} value={f.key}
+            onChange={e => cambiar(i, { key: e.target.value })} />
+          <input aria-label={t('cmdb.classes_label')} style={is} value={f.label ?? ''} placeholder={etiquetaDeCampo({ ...f, label: null })}
+            onChange={e => cambiar(i, { label: e.target.value })} />
+          <select aria-label={t('cmdb.classes_type')} style={is} value={f.field_type} onChange={e => cambiar(i, { field_type: e.target.value })}>
+            {['text', 'number', 'date'].map(ft => <option key={ft} value={ft}>{t(`cmdb.classes_type_${ft}`)}</option>)}
+          </select>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button type="button" style={btn} disabled={i === 0} onClick={() => mover(i, -1)} aria-label={t('cmdb.classes_up')}>↑</button>
+            <button type="button" style={btn} disabled={i === actuales.length - 1} onClick={() => mover(i, 1)} aria-label={t('cmdb.classes_down')}>↓</button>
+            <button type="button" style={{ ...btn, color: 'var(--danger)', borderColor: 'var(--danger-border)' }}
+              onClick={() => setFilas(actuales.filter((_, j) => j !== i))} aria-label={t('cmdb.classes_remove')}>✕</button>
+          </div>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <Button variant="secondary" onClick={() => setFilas([...actuales, { key: '', label: '', field_type: 'text' }])}>{t('cmdb.classes_add')}</Button>
+        <Button onClick={() => guardar()} loading={isPending} disabled={filas === null || isPending}>{t('cmdb.save')}</Button>
+      </div>
+    </div>
+  )
+}
+
 /** Lo que se enseña en la columna de red: host, IP y el atributo que más dice de la clase. */
 function Red({ item }: { item: CI }) {
   const a = item.attributes || {}
@@ -514,6 +583,9 @@ function Red({ item }: { item: CI }) {
 export default function CMDBPage(): JSX.Element {
   const t = useAppT()
   const etiqueta = useEtiqueta()
+  const { data: deClase } = useCamposDeClase()
+  const etiquetaDeCampo = useEtiquetaDeCampo()
+  const { user } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -590,6 +662,7 @@ export default function CMDBPage(): JSX.Element {
           { id: 'topology', label: t('cmdb.tab_topology') },
           { id: '3d',       label: t('cmdb.tab_3d') },
           { id: 'agents',   label: t('cmdb.tab_agents') },
+          ...(user?.role === 'admin' ? [{ id: 'classes', label: t('cmdb.tab_classes') }] : []),
         ]}
         active={tab}
         onChange={setTab}
@@ -673,13 +746,13 @@ export default function CMDBPage(): JSX.Element {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                   {([
-                    ['f_hostname', drillCI.hostname], ['f_ip_address', drillCI.ip_address], ['f_version', drillCI.version],
-                    ...Object.entries(drillCI.attributes || {}).filter(([, v]) => typeof v !== 'object').map(([k, v]) => [`f_${k}`, v]),
+                    ['hostname', drillCI.hostname], ['ip_address', drillCI.ip_address], ['version', drillCI.version],
+                    ...Object.entries(drillCI.attributes || {}).filter(([, v]) => typeof v !== 'object'),
                   ] as [string, unknown][]).filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, value]) => {
-                    const texto = t(`cmdb.${k}`)
+                    const campo = deClase?.clases[drillCI.ci_type ?? '']?.find(c => c.key === k) ?? { key: k, field_type: 'text' }
                     return (
                       <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: "var(--text-sm)" }}>
-                        <span style={{ color: 'var(--text-2)', flexShrink: 0 }}>{texto === `cmdb.${k}` ? k.slice(2) : texto}</span>
+                        <span style={{ color: 'var(--text-2)', flexShrink: 0 }}>{etiquetaDeCampo(campo)}</span>
                         <span style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={String(value)}>{String(value)}</span>
                       </div>
                     )
@@ -829,6 +902,8 @@ export default function CMDBPage(): JSX.Element {
       )}
 
       {tab === 'agents' && <CMDBAgentsTab items={todos} />}
+
+      {tab === 'classes' && <ClasesTab />}
     </PageShell>
   )
 }

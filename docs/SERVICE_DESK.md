@@ -238,6 +238,12 @@ que se editaba en la pantalla no se podía elegir en un ticket.
   servidor, motor y puerto en una base de datos, imagen y clúster en un
   contenedor… Al cambiar de clase solo se guardan los datos de la nueva.
   Se busca por nombre, código, host o IP.
+- **Clases y sus datos (administradores).** En la pestaña *Clases* se decide
+  qué datos propios pide cada clase: se añaden, se quitan, se ordenan, se les
+  pone etiqueta y tipo (texto, número o fecha). Mientras la organización no
+  guarde ninguna, se usan los de fábrica y la pestaña lo dice; al guardar la
+  primera clase, los de todas pasan a ser suyos. Los datos ya guardados en un
+  CI no se borran al quitar un campo: dejan de pedirse.
 - **Relaciones.** Desde 🔗: *depende de*, *aloja a*, *conecta con*, *tiene
   copia en*, *lo monitoriza* y *forma parte de*. Se leen desde el CI que las
   tiene («web-01 aloja a Portal»). Alimentan el análisis de impacto, la
@@ -424,9 +430,10 @@ vectores no se pueden guardar.
 
 - Sin probar contra un IMAP, un Microsoft 365, un Alertmanager, un Twilio o un
   contecmind reales: las pruebas los sustituyen.
-- Las clases de CI y sus datos propios están fijas en el código
-  (`CIType` en el servidor y `CI_TYPE_FIELDS` en la pantalla); no se pueden
-  crear clases desde Administración.
+- Las clases de CI (servidor, base de datos, contenedor…) son fijas
+  (`CIType`): el descubrimiento y el impacto dependen de ellas. Lo
+  configurable son sus datos propios (pestaña *Clases*, tabla
+  `sd_ci_class_fields`, migración 114).
 - Un CI que llegó sin organización, responsable ni proyecto, en una instalación
   con varias organizaciones, solo lo ve el superadministrador: la migración 110
   no adivina de quién es (véase el apartado 19).
