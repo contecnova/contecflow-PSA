@@ -842,7 +842,6 @@ export const cmdbApi = {
   registerAgent:  (data: unknown)     => api.post('/sd/cmdb/agents/register', data),
   deleteAgent:    (id: any)       => api.delete(`/sd/cmdb/agents/${id}`),
   agentDashboard: (agentId: any, days: any) => api.get(`/cmdb/agent-dashboard/${agentId}?days=${days}`),
-  agentSnapshot:  (agentId: any)  => api.post(`/cmdb/agent-dashboard/${agentId}/snapshot`),
   assetsByCI:     (ciId: any)     => api.get(`/alm/assets/by-ci/${ciId}`),
 }
 

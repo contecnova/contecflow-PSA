@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import type { ReactElement } from 'react'
-import { extractErr } from '../utils/helpers'
-import { useToast } from '../context/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { usersApi, cmdbApi } from '../services/api'
-import { Button, Spinner } from '../components/ui'
+import { Spinner } from '../components/ui'
 import { Page } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
-import { BarChart2, Camera, User } from 'lucide-react'
+import { BarChart2, User } from 'lucide-react'
 
 interface UserItem {
   id: string | number
@@ -46,8 +44,6 @@ const TOOLTIP_STYLE = {
 
 export default function AgentDashboardPage(): JSX.Element {
   const t = useAppT()
-  const qc = useQueryClient()
-  const toast = useToast()
   const [agentId, setAgentId] = useState('')
   const [_inputId, _setInputId] = useState('')
   const [days, setDays] = useState(30)
@@ -60,12 +56,6 @@ export default function AgentDashboardPage(): JSX.Element {
     queryKey: ['agent-dash', agentId, days],
     queryFn: () => cmdbApi.agentDashboard(agentId, days).then(r => r.data).catch(() => null),
     enabled: !!agentId,
-  })
-
-  const { mutate: snapshot, isPending: snapping } = useMutation({
-    mutationFn: () => cmdbApi.agentSnapshot(agentId).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['agent-dash', agentId, days] }); toast.info(t('agent_dashboard.snapshot_created')) },
-    onError: (e: unknown) => toast.error(extractErr(e, t('agent_dashboard.snapshot_create_error'))),
   })
 
   const trend = dash?.trend || []
@@ -83,15 +73,10 @@ export default function AgentDashboardPage(): JSX.Element {
       icon={<BarChart2 size={18} />}
       title={t('agent_dashboard.title')}
       subtitle={t('agent_dashboard.subtitle')}
-      rightActions={
-        <Button onClick={() => snapshot()} disabled={!agentId || snapping}>
-          <Camera size={13} /> {snapping ? '...' : t('agent_dashboard.snapshot_today')}
-        </Button>
-      }
     >
       {/* Filters */}
       <div className="ds-card">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 'var(--space-3)', alignItems: 'flex-end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', alignItems: 'flex-end' }}>
           <div className="ds-field">
             <label className="ds-field__label">{t('agent_dashboard.agent')}</label>
             <select value={agentId} onChange={e => setAgentId(e.target.value)} className="ds-input">
@@ -109,9 +94,6 @@ export default function AgentDashboardPage(): JSX.Element {
               <option value={90}>90 {t('common.days')}</option>
             </select>
           </div>
-          <Button onClick={() => snapshot()} disabled={!agentId || snapping}>
-            <Camera size={13} /> {snapping ? '...' : t('agent_dashboard.snapshot_today')}
-          </Button>
         </div>
       </div>
 
@@ -126,12 +108,8 @@ export default function AgentDashboardPage(): JSX.Element {
 
       {agentId && !isLoading && !dash && (
         <div className="ds-empty">
-          <Camera size={36} className="ds-empty__icon" />
+          <BarChart2 size={36} className="ds-empty__icon" />
           <div className="ds-empty__title">{t('agent_dashboard.no_history')}</div>
-          <div className="ds-empty__desc">{t('agent_dashboard.no_history_desc')}</div>
-          <div style={{ marginTop: 'var(--space-3)' }}>
-            <Button onClick={() => snapshot()} disabled={snapping}>{snapping ? '...' : t('agent_dashboard.create_snapshot')}</Button>
-          </div>
         </div>
       )}
 
@@ -196,15 +174,6 @@ export default function AgentDashboardPage(): JSX.Element {
                 {t('agent_dashboard.trend_no_data')}
               </div>
             )}
-            <div className="ds-card">
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', lineHeight: 1.7 }}>
-                <strong style={{ color: 'var(--text-2)' }}>{t('agent_dashboard.instructions_label')}:</strong>{' '}
-                {t('agent_dashboard.instructions_text')}
-                <code style={{ color: 'var(--accent)', marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>
-                  POST /agent-dashboard/{'{agent_id}'}/snapshot
-                </code>
-              </div>
-            </div>
           </div>
         </>
       )}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { analyticsApi, dashboardApi } from '../services/api'
@@ -13,11 +13,19 @@ import AskDataWidget from '../components/bi/AskDataWidget'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { localeActivo } from '../utils/helpers'
 
+// Lo que devuelve `olap/query_engine.get_kpi_summary` (auditoria 2026-11: la
+// pagina leia `revenue_total`, `cost_total`… que no existen, y salia 0 €). Las
+// cifras de horas y coste son del mes en curso; no hay filtro por periodo.
 interface BiKpis {
-  projects_total?: number
-  revenue_total?: number
-  cost_total?: number
-  projects_active?: number
+  hours_mtd?: number
+  cost_mtd?: number
+  billability_pct?: number
+  active_projects?: number
+  avg_margin_pct?: number
+  high_risk_projects?: number
+  open_opps?: number
+  pipeline_weighted?: number
+  won_revenue?: number
 }
 
 interface BiProjectHealth {
@@ -26,19 +34,10 @@ interface BiProjectHealth {
   code?: string
   name?: string
   project_name?: string
-  client_name?: string
   status?: string
-  budget_amount?: number
-}
-
-function dateRange(days: number) {
-  const to = new Date()
-  const from = new Date(to)
-  from.setDate(from.getDate() - Number(days || 30))
-  return {
-    from: from.toISOString().slice(0, 10),
-    to: to.toISOString().slice(0, 10),
-  }
+  risk_level?: string
+  budget_used_pct?: number
+  progress_pct?: number
 }
 
 function getLocale(lang: string) {
@@ -51,32 +50,14 @@ function fmtCur(v: unknown, lang = 'es') {
   return new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Number(v))
 }
 
+function fmtNum(v: unknown, lang = 'es') {
+  if (v == null || Number.isNaN(Number(v))) return '—'
+  return new Intl.NumberFormat(getLocale(lang), { maximumFractionDigits: 1 }).format(Number(v))
+}
+
 function fmtPct(v: unknown) {
   if (v == null || Number.isNaN(Number(v))) return '—'
   return `${Number(v).toFixed(1)}%`
-}
-
-function PeriodButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        border: active ? '1px solid var(--accent)' : '1px solid var(--surface-4)',
-        background: active ? 'var(--accent-border-soft)' : 'transparent',
-        color: active ? 'var(--accent)' : 'var(--text-2)',
-        borderRadius: 8,
-        minHeight: 48,
-        minWidth: 48,
-        padding: '6px 10px',
-        fontSize: "var(--text-sm)",
-        fontWeight: 700,
-        cursor: 'pointer',
-      }}
-    >
-      {label}
-    </button>
-  )
 }
 
 function KpiCard({ label, value, note }: { label: string; value: ReactNode; note?: string }) {
@@ -101,19 +82,17 @@ function EmptyDash() {
 export default function BIPage(): JSX.Element {
   const t = useAppT()
   const { lang } = useAppLang()
-  const [days, setDays] = useState(30)
   const isMobile = useMediaQuery('(max-width: 900px)')
-  const params = useMemo(() => dateRange(days), [days])
-  const periodKey = `${days}d`
+  const periodKey = 'mtd'
 
   // Purge stale Dexie cache on first mount
   useEffect(() => { purgeExpiredBiCache() }, [])
 
   const { data: kpis, isLoading: loadingKpis } = useQuery<BiKpis | null>({
-    queryKey: ['bi-kpis', params],
+    queryKey: ['bi-kpis'],
     queryFn: async () => {
       try {
-        const data = await analyticsApi.olapKpis(params).then((r) => r.data)
+        const data = await analyticsApi.olapKpis().then((r) => r.data)
         await cacheBiKpis(periodKey, data)
         return data
       } catch {
@@ -124,10 +103,10 @@ export default function BIPage(): JSX.Element {
   })
 
   const { data: projectsHealth = [], isLoading: loadingHealth } = useQuery<BiProjectHealth[]>({
-    queryKey: ['bi-projects-health', params],
+    queryKey: ['bi-projects-health'],
     queryFn: async () => {
       try {
-        const data = await dashboardApi.projectsHealth(params).then((r) => r.data)
+        const data = await dashboardApi.projectsHealth().then((r) => r.data)
         await cacheBiProjects(periodKey, data)
         return data ?? []
       } catch {
@@ -146,33 +125,28 @@ export default function BIPage(): JSX.Element {
     )
   }
 
-  const totalProjects = Number(kpis?.projects_total || projectsHealth?.length || 0)
-  const revenue = Number(kpis?.revenue_total || 0)
-  const cost = Number(kpis?.cost_total || 0)
-  const margin = revenue - cost
-  const marginPct = revenue > 0 ? (margin / revenue) * 100 : null
-  const activeProjects = Number(kpis?.projects_active || 0)
+  const activeProjects = Number(kpis?.active_projects || 0)
+  const hayDatos = activeProjects > 0 || (projectsHealth?.length || 0) > 0 || Number(kpis?.open_opps || 0) > 0
 
   return (
     <PageShell dense style={{ paddingLeft: isMobile ? 12 : undefined, paddingRight: isMobile ? 12 : undefined }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
         <PageHeader icon={<PieChartIcon size={18} />} title={t('bi.title')} subtitle="Dashboard ejecutivo de KPIs" />
-        <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-          {[7, 30, 90, 365].map((d) => (
-            <PeriodButton key={d} active={days === d} label={d === 365 ? '1a' : `${d}d`} onClick={() => setDays(d)} />
-          ))}
-        </div>
       </div>
 
-      {!totalProjects && !revenue ? (
+      {!hayDatos ? (
         <EmptyDash />
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginBottom: 16 }}>
-            <KpiCard label="Revenue" value={fmtCur(revenue, lang)} />
-            <KpiCard label="Coste" value={fmtCur(cost, lang)} />
-            <KpiCard label="Margen" value={fmtCur(margin, lang)} note={`Margen %: ${fmtPct(marginPct)}`} />
-            <KpiCard label="Proyectos" value={totalProjects} note={`Activos: ${activeProjects}`} />
+            <KpiCard label={`${t('bi.kpi_coste')} · ${t('bi.kpi_mes')}`} value={fmtCur(kpis?.cost_mtd, lang)} />
+            <KpiCard label={`${t('bi.kpi_horas')} · ${t('bi.kpi_mes')}`} value={fmtNum(kpis?.hours_mtd, lang)}
+              note={`${t('bi.kpi_facturables')}: ${fmtPct(kpis?.billability_pct)}`} />
+            <KpiCard label={t('bi.kpi_margen')} value={fmtPct(kpis?.avg_margin_pct)} note={t('bi.kpi_margen_nota')} />
+            <KpiCard label={t('bi.kpi_pipeline')} value={fmtCur(kpis?.pipeline_weighted, lang)}
+              note={`${t('bi.kpi_abiertas')}: ${kpis?.open_opps ?? 0} · ${t('bi.kpi_ganado')}: ${fmtCur(kpis?.won_revenue, lang)}`} />
+            <KpiCard label={t('bi.kpi_proyectos')} value={activeProjects}
+              note={`${t('bi.kpi_riesgo_alto')}: ${kpis?.high_risk_projects ?? 0}`} />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12, marginBottom: 16 }}>
@@ -199,9 +173,8 @@ export default function BIPage(): JSX.Element {
                     <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
                       {p.name || p.project_name || p.code || '—'}
                     </div>
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 3 }}>Cliente: {p.client_name || '—'}</div>
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 3 }}>Estado: {p.status || '—'}</div>
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', fontWeight: 700 }}>Budget: {fmtCur(p.budget_amount, lang)}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 3 }}>{t('bi.col_estado')}: {p.status || '—'} · {t('bi.col_riesgo')}: {p.risk_level || '—'}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', fontWeight: 700 }}>{t('bi.col_presupuesto')}: {fmtPct(p.budget_used_pct)} · {t('bi.col_avance')}: {fmtPct(p.progress_pct)}</div>
                   </div>
                 ))}
               </div>
@@ -210,19 +183,21 @@ export default function BIPage(): JSX.Element {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-sm)" }}>
                   <thead>
                     <tr style={{ background: 'var(--surface-2)' }}>
-                      <th style={{ textAlign: 'left', padding: '10px 12px' }}>Proyecto</th>
-                      <th style={{ textAlign: 'left', padding: '10px 12px' }}>Cliente</th>
-                      <th style={{ textAlign: 'left', padding: '10px 12px' }}>Estado</th>
-                      <th style={{ textAlign: 'right', padding: '10px 12px' }}>Budget</th>
+                      <th style={{ textAlign: 'left', padding: '10px 12px' }}>{t('bi.col_proyecto')}</th>
+                      <th style={{ textAlign: 'left', padding: '10px 12px' }}>{t('bi.col_estado')}</th>
+                      <th style={{ textAlign: 'left', padding: '10px 12px' }}>{t('bi.col_riesgo')}</th>
+                      <th style={{ textAlign: 'right', padding: '10px 12px' }}>{t('bi.col_presupuesto')}</th>
+                      <th style={{ textAlign: 'right', padding: '10px 12px' }}>{t('bi.col_avance')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(projectsHealth || []).slice(0, 12).map((p) => (
                       <tr key={p.id || p.project_id || p.code} style={{ borderTop: '1px solid var(--surface-4)' }}>
                         <td style={{ padding: '9px 12px', color: 'var(--text-1)' }}>{p.name || p.project_name || p.code || '—'}</td>
-                        <td style={{ padding: '9px 12px', color: 'var(--text-2)' }}>{p.client_name || '—'}</td>
                         <td style={{ padding: '9px 12px', color: 'var(--text-2)' }}>{p.status || '—'}</td>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', color: 'var(--text-1)' }}>{fmtCur(p.budget_amount, lang)}</td>
+                        <td style={{ padding: '9px 12px', color: 'var(--text-2)' }}>{p.risk_level || '—'}</td>
+                        <td style={{ padding: '9px 12px', textAlign: 'right', color: 'var(--text-1)' }}>{fmtPct(p.budget_used_pct)}</td>
+                        <td style={{ padding: '9px 12px', textAlign: 'right', color: 'var(--text-1)' }}>{fmtPct(p.progress_pct)}</td>
                       </tr>
                     ))}
                   </tbody>

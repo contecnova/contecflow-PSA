@@ -69,7 +69,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 **Wrong data shown**
 - ~~Finance dashboard: revenue, cost and margin always show 0, and PMs get 403 on the profitability summary.~~ Fixed 2026-11-03, with the pipeline KPIs and the project table that read fields the API does not send. The period selector still does nothing. [3]
 - The Approval Inbox only receives documents and client-portal requests, plus (since 2026-11-03) expenses, timesheets and absences when the organization has a default workflow for them. Change requests from `/changes`, purchases and invoices still never reach it. [1]
-- Executive dashboard KPIs always show €0; the agent dashboard (`/agent-dashboard`) shows zeros; resource forecast counts deleted bookings and ignores absences. [5, 4, 2]
+- ~~Executive dashboard KPIs always show €0; the agent dashboard (`/agent-dashboard`) shows zeros.~~ Fixed 2026-11-03. Resource forecast counts deleted bookings and ignores absences. [5, 4, 2]
 - Many lists stop at 50 (or 25) items without pagination. [1, 4]
 
 **Service Desk**
@@ -2386,10 +2386,13 @@ What each tool actually does, from the code and the Spanish manual:
 
 *Roles:* admin, pm (UI). Backend: `GET` needs any authenticated user; the snapshot needs admin/pm.
 
-**How to use it.** Pick a user and a period. The page shows the trend and KPIs from `GET /cmdb/agent-dashboard/{agent_id}?days=` (legacy `cmdb` router). *Snapshot* calls `POST /cmdb/agent-dashboard/{agent_id}/snapshot`.
+**How to use it.** Pick a user and a period (7–90 days). The page shows open tickets now, tickets resolved in the period, average resolution time (hours), SLA compliance (% of resolved tickets without a resolution-SLA breach), average CSAT, and per-day charts of resolved tickets, SLA and CSAT.
 
-**Limitations (code reading, important).** The dashboard reads only `agent_metric_snapshots`, and the only writer is `create_agent_snapshot`. It fills `open_tickets` and writes `resolved_today=0`, `avg_resolution_h=0`, `sla_compliant=0` and `sla_breached=0`, with no CSAT. No scheduled job writes snapshots. As a result, *resolved*, *average resolution*, *SLA compliance* and *CSAT* are always 0 or empty. Use the Support dashboard's agent performance instead.
+**Technical notes.** `GET /cmdb/agent-dashboard/{agent_id}?days=` (legacy `cmdb` router), admin or PM (since 2026-11-03; before, any user). Computed on request from `sd_tickets`: tickets assigned to the user with `resolved_at` in the period (days in the viewer's time zone), `resolution_minutes`, `sla_resolution_breached` and `csat_score`; open = assigned and not resolved, closed or cancelled. Test: `tests/test_panel_de_agente_desde_tickets.py`.
 
+**Limitations.**
+- ~~Everything except open tickets was always 0.~~ Fixed 2026-11-03: it used to read `agent_metric_snapshots`, filled only by a manual *Snapshot* button with zeros. The button and its endpoint were removed; the table `agent_metric_snapshots` remains in the schema, unused.
+- Credit goes to the **current** assignee: if a ticket was reassigned after being resolved, it counts for the new one.
 ---
 
 ### CMDB — `/cmdb`
@@ -2711,11 +2714,11 @@ If the chosen provider fails, every other active provider is tried once. If none
 **Purpose.** A one-page executive view with KPI cards, an AI narrative, natural-language questions and a project health table.
 
 **How to use it.**
-1. Choose a period: **7d / 30d / 90d / 1a**.
-2. Read the KPI cards: **Revenue**, **Coste**, **Margen** (with "Margen %"), and **Proyectos** (with "Activos: N").
+1. There is no period selector: cost and hours are month to date; margin, pipeline and projects are current.
+2. Read the KPI cards (since 2026-11-03, what the server computes): **Cost · month to date**, **Hours · month to date** (with billable %), **Average margin** of active projects, **Weighted pipeline** (with open opportunities and won revenue) and **Active projects** (with high-risk count).
 3. Expand the narrative card. The refresh icon ("Regenerar narrativa") forces a new narrative.
 4. Type a question in the Ask the Data box, or open "Ver preguntas de ejemplo". The result table has a show-SQL toggle.
-5. Scroll to the project status table (Proyecto / Cliente / Estado / Budget, first 12 rows). If the fetch fails, the page falls back to an offline Dexie cache.
+5. Scroll to the project status table (Project / Status / Risk / Budget used / Progress, first 12 rows). If the fetch fails, the page falls back to an offline Dexie cache.
 
 **Configuration.**
 - An LLM provider is optional for the narrative and required for Ask the Data (see the intro).
@@ -2729,9 +2732,8 @@ If the chosen provider fails, every other active provider is tried once. If none
 - `POST /api/v1/analytics/ask` → `services/ask_the_data.ask`, described under Data Explorer.
 
 **Limitations (measured).**
-- **The KPI cards show €0 / "—" / 0 regardless of the data.** The page reads `revenue_total`, `cost_total`, `projects_total` and `projects_active`, but `get_kpi_summary` returns `hours_mtd`, `cost_mtd`, `active_projects`, `avg_margin_pct`, `pipeline_weighted` and similar. "Proyectos" is just the length of the health list.
-- **The period buttons do not filter anything.** Neither backend handler accepts dates; only the client cache key changes.
-- **Cliente and Budget are always "—".** The `ProjectHealthItem` schema has no `client_name` or `budget_amount`.
+- ~~The KPI cards show €0 regardless of the data; the period buttons filter nothing; Cliente and Budget are always "—".~~ Fixed 2026-11-03: the page reads the keys `get_kpi_summary` returns (`cost_mtd`, `hours_mtd`, `billability_pct`, `avg_margin_pct`, `pipeline_weighted`, `open_opps`, `won_revenue`, `active_projects`, `high_risk_projects`); the period buttons were removed; the table shows `risk_level`, `budget_used_pct` and `progress_pct`. Test: `frontend/src/__tests__/BIPage.test.tsx`.
+- There is no revenue KPI: `get_kpi_summary` does not compute revenue. Revenue is on the Finance dashboard.
 - Narrative issues:
   - A provider *error* ("⚠️ AI provider error…") does not match the fallback check, so the error text is displayed and cached for 1 h.
   - The cache key ignores the language.

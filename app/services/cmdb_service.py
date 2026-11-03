@@ -3,7 +3,7 @@ CMDB Service — Business logic extracted from cmdb.py router.
 Covers: wiki tags, internal comments, CMDB CRUD + changelog,
 agent dashboard, wiki export, kanban, sprint planning, SLA calendars.
 """
-from datetime import date, timedelta
+from datetime import date, timedelta, timezone
 from typing import Optional, List
 import json
 import logging
@@ -17,7 +17,7 @@ from app.models.task import Task
 from app.models.epics import WikiSpace, WikiPage
 from app.models.cmdb import (
     WikiTag, WikiPageTag, TicketInternalComment,
-    AgentMetricSnapshot, WikiExportJob,
+    WikiExportJob,
     KanbanConfig, KanbanColumn,
     SprintPlan, SprintPlanTask,
     SLACalendar, V21SLAHoliday,
@@ -159,64 +159,67 @@ def delete_internal_comment(ticket_id: str, comment_id: str, user_id: str, db: S
 # ──────────────────────────────────────────────────────────────────────────────
 
 def get_agent_dashboard(agent_id: str, days: int, db: Session) -> dict:
-    since = (timeutil.today() - timedelta(days=days)).isoformat()
-    snaps = db.query(AgentMetricSnapshot).filter(
-        AgentMetricSnapshot.agent_id == agent_id,
-        AgentMetricSnapshot.snap_date >= since
-    ).order_by(AgentMetricSnapshot.snap_date).all()
+    """Rendimiento del agente calculado sobre sus tickets.
 
-    total_resolved = sum(s.resolved_today for s in snaps)
-    avg_resolution = sum(s.avg_resolution_h for s in snaps) / len(snaps) if snaps else 0
-    sla_ok   = sum(s.sla_compliant for s in snaps)
-    sla_fail = sum(s.sla_breached for s in snaps)
-    sla_rate = round(sla_ok / (sla_ok + sla_fail) * 100) if (sla_ok + sla_fail) > 0 else 0
-    csat_vals = [s.csat_score for s in snaps if s.csat_score is not None]
-    avg_csat  = round(sum(csat_vals) / len(csat_vals), 2) if csat_vals else None
-    latest = snaps[-1] if snaps else None
+    Auditoria 2026-11: leia `agent_metric_snapshots`, que solo escribia un boton
+    con `open_tickets` y ceros en todo lo demas; ningun job la alimentaba, y el
+    panel ensenaba 0 resueltos, 0 h, 0 % de SLA y sin CSAT. Los tickets ya
+    guardan todo: quien los tiene, cuando se resolvieron, cuanto tardaron, si
+    incumplieron el SLA y la valoracion. Los dias son los de la zona de quien
+    mira (`timeutil`).
+    """
+    from app.models.service_desk import Ticket
+    days = max(1, min(int(days or 30), 366))
+    zona = timeutil.current_zone()
+    hoy = timeutil.today()
+    primer_dia = hoy - timedelta(days=days - 1)
+    desde, _ = timeutil.day_bounds_in(primer_dia, zona)
 
+    abiertos = db.query(func.count(Ticket.id)).filter(
+        Ticket.assigned_to_user_id == agent_id,
+        Ticket.status.notin_(["resolved", "closed", "cancelled"]),
+    ).scalar() or 0
+    resueltos = db.query(Ticket).filter(
+        Ticket.assigned_to_user_id == agent_id,
+        Ticket.resolved_at.isnot(None),
+        Ticket.resolved_at >= desde,
+    ).all()
+
+    por_dia = {primer_dia + timedelta(days=n): {"resolved": 0, "sla_ok": 0, "sla_fail": 0, "csat": []}
+               for n in range(days)}
+    horas = []
+    for t in resueltos:
+        cuando = t.resolved_at if t.resolved_at.tzinfo else t.resolved_at.replace(tzinfo=timezone.utc)
+        dia = por_dia.get(cuando.astimezone(zona).date())
+        if dia is None:
+            continue
+        dia["resolved"] += 1
+        dia["sla_fail" if t.sla_resolution_breached else "sla_ok"] += 1
+        if t.csat_score is not None:
+            dia["csat"].append(t.csat_score)
+        if t.resolution_minutes is not None:
+            horas.append(t.resolution_minutes / 60)
+
+    total = sum(d["resolved"] for d in por_dia.values())
+    ok = sum(d["sla_ok"] for d in por_dia.values())
+    csat = [c for d in por_dia.values() for c in d["csat"]]
     return {
         "agent_id": agent_id,
         "period_days": days,
-        "current": {"open_tickets": latest.open_tickets if latest else 0},
+        "current": {"open_tickets": abiertos},
         "kpis": {
-            "total_resolved": total_resolved,
-            "avg_resolution_hours": round(avg_resolution, 1),
-            "sla_compliance_pct": sla_rate,
-            "avg_csat": avg_csat,
+            "total_resolved": total,
+            "avg_resolution_hours": round(sum(horas) / len(horas), 1) if horas else 0,
+            "sla_compliance_pct": round(ok / total * 100) if total else 0,
+            "avg_csat": round(sum(csat) / len(csat), 2) if csat else None,
         },
         "trend": [
-            {"date": s.snap_date, "resolved": s.resolved_today,
-             "sla_ok": s.sla_compliant, "sla_fail": s.sla_breached,
-             "csat": s.csat_score}
-            for s in snaps
+            {"date": dia.isoformat(), "resolved": d["resolved"], "sla_ok": d["sla_ok"],
+             "sla_fail": d["sla_fail"],
+             "csat": round(sum(d["csat"]) / len(d["csat"]), 2) if d["csat"] else None}
+            for dia, d in sorted(por_dia.items())
         ],
     }
-
-
-def create_agent_snapshot(agent_id: str, db: Session) -> dict:
-    today_str = timeutil.today().isoformat()
-    open_tickets = 0
-    try:
-        from app.models.service_desk import Ticket
-        open_tickets = db.query(Ticket).filter(
-            Ticket.assigned_to_user_id == agent_id,
-            Ticket.status.notin_(["resolved", "closed"])
-        ).count()
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
-        logger.debug("create_agent_snapshot: fallo best-effort ignorado", exc_info=True)
-
-    db.query(AgentMetricSnapshot).filter(
-        AgentMetricSnapshot.agent_id == agent_id,
-        AgentMetricSnapshot.snap_date == today_str
-    ).delete()
-    snap = AgentMetricSnapshot(
-        agent_id=agent_id, snap_date=today_str,
-        open_tickets=open_tickets, resolved_today=0,
-        avg_resolution_h=0.0, sla_compliant=0, sla_breached=0,
-    )
-    db.add(snap); db.commit()
-    return {"snapshot_created": True, "date": today_str, "open_tickets": open_tickets}
 
 
 # ──────────────────────────────────────────────────────────────────────────────

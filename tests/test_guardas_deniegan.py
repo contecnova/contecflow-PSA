@@ -110,7 +110,9 @@ RUTAS = _rutas_guardadas()
 # (/cmdb/items|relations|categories y /sd/assets, migraciones 110 y 111) y
 # entran 5 con guarda (/sd/cmdb borrar CI y relacion, clases de CI, y
 # /alm/assets/{aid}/refresh-ticket). Medido con el diff de RUTAS.
-RUTAS_ESPERADAS = 985
+# 984 desde 2026-11-03 (tarde): sale POST /cmdb/agent-dashboard/{id}/snapshot;
+# el panel de agente se calcula sobre los tickets y la «foto» ya no se usa.
+RUTAS_ESPERADAS = 984
 
 
 def test_se_sondean_todas_las_rutas_con_guarda():

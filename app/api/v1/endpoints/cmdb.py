@@ -144,14 +144,11 @@ def delete_internal_comment_route(ticket_id: str, comment_id: str,
 
 @router.get("/agent-dashboard/{agent_id}")
 def agent_dashboard(agent_id: str, days: int = 30,
-                    db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+                    db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+    # Auditoria 2026-11: admin y PM, como la pantalla (antes cualquier usuario
+    # leia el rendimiento de cualquier agente). Se calcula sobre los tickets;
+    # la «foto» que habia que pedir a mano ya no hace falta.
     return APIResponse.ok(data=svc.get_agent_dashboard(agent_id, days, db))
-
-
-@router.post("/agent-dashboard/{agent_id}/snapshot")
-def create_agent_snapshot(agent_id: str, db: Session = Depends(get_db),
-                          cu: User = Depends(require_admin_or_pm)):
-    return APIResponse.ok(data=svc.create_agent_snapshot(agent_id, db))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
