@@ -17,6 +17,7 @@ Funciones exportadas:
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from datetime import date, timedelta
 from typing import Optional
@@ -618,13 +619,15 @@ def get_preferences_payload(user_id: str, db: Session) -> dict:
     pref = db.query(UserPreference).filter(UserPreference.user_id == user_id).first()
     if not pref:
         return {
-            "dashboard_widgets": None, "accent_color": "#4f8ef7",
+            "dashboard_widgets": None, "accent_color": None,
             "theme_mode": "freight", "sidebar_collapsed": False,
             "language": settings.DEFAULT_LANGUAGE, "ui_density": "normal", "extra": None,
         }
     return {
         "dashboard_widgets": json.loads(pref.dashboard_widgets) if pref.dashboard_widgets else None,
-        "accent_color":      pref.accent_color or "#4f8ef7",
+        # Vacio: el acento del tema. Auditoria 2026-11: se devolvia #4f8ef7 y
+        # tapaba siempre el acento propio de cada tema (el dorado de freight).
+        "accent_color":      pref.accent_color,
         "theme_mode":        pref.theme_mode or "freight",
         "sidebar_collapsed": pref.sidebar_collapsed or False,
         "language":          pref.language or settings.DEFAULT_LANGUAGE,
@@ -726,7 +729,9 @@ def update_preferences_record(user_id: str, payload: dict, db: Session) -> dict:
 
     if "dashboard_widgets" in payload:
         pref.dashboard_widgets = json.dumps(payload["dashboard_widgets"]) if payload["dashboard_widgets"] is not None else None
-    if "accent_color"      in payload: pref.accent_color      = payload["accent_color"]
+    if payload.get("accent_color") is not None and not re.fullmatch(r"#[0-9a-fA-F]{6}", str(payload["accent_color"])):
+        raise HTTPException(422, "El acento es un color #rrggbb, o vacío para usar el del tema")
+    if "accent_color"      in payload: pref.accent_color      = payload["accent_color"] or None
     if payload.get("theme_mode") is not None and payload["theme_mode"] not in TEMAS:
         raise HTTPException(422, f"Tema desconocido: {payload['theme_mode']}")
     if payload.get("ui_density") is not None and payload["ui_density"] not in DENSIDADES:

@@ -401,9 +401,10 @@ Se cambia en **Perfil → Apariencia**:
 - **Tema:** Freight Pro (por defecto), Oscuro clásico, Midnight, Slate, Claro,
   Alto contraste o Sistema (sigue al sistema operativo). Todos se leen bien:
   el texto cumple el contraste mínimo de accesibilidad (WCAG AA) en los seis.
-- **Color de acento:** el de los botones principales y lo seleccionado. El
-  texto de encima se pone blanco o negro solo, el que se lea mejor con el
-  color elegido.
+- **Color de acento:** el de los botones principales y lo seleccionado. Por
+  defecto, *Acento del tema* (cada tema trae el suyo: dorado en Freight, azul
+  en Oscuro…); también se puede elegir uno. El texto de encima se pone blanco
+  o negro solo, el que se lea mejor con el color elegido.
 - **Densidad:** *Compacta* reduce un punto la letra y el margen de la página
   para ver más a la vez; *Confortable* los aumenta para leer mejor.
 

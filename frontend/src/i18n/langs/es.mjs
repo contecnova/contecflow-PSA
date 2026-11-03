@@ -5274,6 +5274,8 @@ const es = {
     las_contrasenas_no_coinciden: '✗ Las contraseñas no coinciden',
     la_contrasena_se_gestiona_desde_tu_proveedor: '). La contraseña se gestiona desde tu proveedor de identidad corporativo.',
     autenticacion_de_dos_factores_mfa: 'Autenticación de dos factores (MFA)',
+    acento_del_tema: 'Acento del tema',
+    color_personalizado: 'Color personalizado',
   },
   riskscores: {
     cartera_de_proyectos_ml: 'Cartera de proyectos — ML',

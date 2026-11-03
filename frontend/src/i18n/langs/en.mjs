@@ -5946,6 +5946,8 @@ const en = {
     las_contrasenas_no_coinciden: '✗ The passwords do not match',
     la_contrasena_se_gestiona_desde_tu_proveedor: '). Your password is managed by your corporate identity provider.',
     autenticacion_de_dos_factores_mfa: 'Two-factor authentication (MFA)',
+    acento_del_tema: 'Theme accent',
+    color_personalizado: 'Custom colour',
   },
   riskscores: {
     cartera_de_proyectos_ml: 'Project portfolio — ML',

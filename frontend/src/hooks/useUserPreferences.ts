@@ -14,7 +14,7 @@ export type UIDensity = 'compact' | 'normal' | 'comfortable' | string
 
 export interface UserPreferences {
   dashboard_widgets: unknown
-  accent_color: string
+  accent_color: string | null  // vacío: el acento del tema
   theme_mode: ThemeMode
   sidebar_collapsed: boolean
   language: string
@@ -32,7 +32,7 @@ export interface UseUserPreferencesResult {
 // Defaults
 const DEFAULTS: UserPreferences = {
   dashboard_widgets: null,
-  accent_color:      '#4f8ef7',
+  accent_color:      null,
   theme_mode:        'freight',
   sidebar_collapsed: false,
   language:          'es',
@@ -71,7 +71,7 @@ export function useUserPreferences(): UseUserPreferencesResult {
     }
 
     // Accent color (y el texto que va encima, --on-accent)
-    if (prefs.accent_color) applyAccent(prefs.accent_color)
+    applyAccent(prefs.accent_color)  // sin acento propio, el del tema
     // Tema (freight / dark / light / high-contrast / midnight / slate / system)
     const theme = prefs.theme_mode || 'freight'
     if (theme === 'system') {
@@ -90,7 +90,7 @@ export function useUserPreferences(): UseUserPreferencesResult {
     // Actualizar caché inmediatamente (optimistic)
     qc.setQueryData(['user-preferences'], (old: UserPreferences | undefined) => ({ ...(old ?? DEFAULTS), ...patch }))
     // Aplicar cambios CSS inmediatos
-    if (patch.accent_color) applyAccent(patch.accent_color)
+    if ('accent_color' in patch) applyAccent(patch.accent_color)
     if (patch.theme_mode) {
       if (patch.theme_mode === 'system') {
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches

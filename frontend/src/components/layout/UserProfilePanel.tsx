@@ -17,7 +17,6 @@ import useUserPreferences from '../../hooks/useUserPreferences'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Avatar } from '../ui'
 import { AVAILABLE_LANGUAGES } from '../../i18n/appTranslations'
-import { alpha } from '../../constants/theme'
 import { applyAccent as applyAccentToDom } from '../../utils/appearance'
 
 // ── Temas disponibles ─────────────────────────────────────────────────────────
@@ -110,10 +109,9 @@ export default function UserProfilePanel({ onClose }: Props) {
 
   // ── Apariencia ──────────────────────────────────────────────────────────────
   const [localTheme,   setLocalTheme]   = useState<string>(prefs?.theme_mode  || 'freight')
-  const [localAccent,  setLocalAccent]  = useState<string>(
-    (prefs?.accent_color && /^#[0-9a-fA-F]{6}$/.test(prefs.accent_color))
-      ? prefs.accent_color
-      : '#4f8ef7'
+  // null: el acento del tema (cada tema trae el suyo)
+  const [localAccent,  setLocalAccent]  = useState<string | null>(
+    (prefs?.accent_color && /^#[0-9a-fA-F]{6}$/.test(prefs.accent_color)) ? prefs.accent_color : null
   )
   const [localDensity, setLocalDensity] = useState<string>(prefs?.ui_density  || 'normal')
 
@@ -127,7 +125,7 @@ export default function UserProfilePanel({ onClose }: Props) {
     }
   }
 
-  const applyAccent = (color: string) => {
+  const applyAccent = (color: string | null) => {
     setLocalAccent(color)
     applyAccentToDom(color)
   }
@@ -333,6 +331,13 @@ export default function UserProfilePanel({ onClose }: Props) {
                   textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
                   {traducir('userprofile.color_de_acento')}
                 </div>
+                <button onClick={() => applyAccent(null)} aria-pressed={localAccent === null}
+                  style={{ marginBottom: 8, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
+                    fontSize: "var(--text-sm)", border: '1px solid var(--surface-4)',
+                    background: localAccent === null ? 'var(--accent-muted)' : 'var(--surface-3)',
+                    color: localAccent === null ? 'var(--accent)' : 'var(--text-1)' }}>
+                  {localAccent === null ? '✓ ' : ''}{traducir('userprofile.acento_del_tema')}
+                </button>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 6, marginBottom: 10 }}>
                   {ACCENT_PRESETS.map(p => (
                     <button key={p.color} onClick={() => applyAccent(p.color)}
@@ -345,22 +350,22 @@ export default function UserProfilePanel({ onClose }: Props) {
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                  <input type="color" value={localAccent}
+                  <input type="color" value={localAccent ?? '#4f8ef7'} aria-label={traducir('userprofile.color_personalizado')}
                     onChange={e => applyAccent(e.target.value)}
                     style={{ width: 36, height: 36, border: 'none', borderRadius: 7,
                       cursor: 'pointer', padding: 0, background: 'none' }} />
                   <div>
                     <div style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>
-                      {localAccent}
+                      {localAccent ?? traducir('userprofile.acento_del_tema')}
                     </div>
                     <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>Color personalizado</div>
                   </div>
                   {/* Preview */}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
                     <div style={{ width: 28, height: 28, borderRadius: 6,
-                      background: localAccent }} />
+                      background: 'var(--accent)' }} />
                     <div style={{ width: 28, height: 28, borderRadius: 6,
-                      background: alpha(localAccent, '20'), border: `1px solid ${localAccent}` }} />
+                      background: 'var(--accent-muted)', border: '1px solid var(--accent)' }} />
                   </div>
                 </div>
               </div>

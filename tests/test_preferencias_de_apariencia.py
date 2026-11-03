@@ -37,3 +37,15 @@ def test_un_tema_desconocido_se_rechaza_y_uno_valido_se_guarda(client, admin_tok
     prefs = client.get(url, headers=auth(admin_token)).json()
     prefs = prefs.get("data", prefs)
     assert (prefs["theme_mode"], prefs["ui_density"]) == ("high-contrast", "comfortable")
+
+
+def test_sin_elegir_acento_manda_el_del_tema(client, admin_token):
+    """Auditoria 2026-11: se devolvia #4f8ef7 y tapaba el acento de cada tema."""
+    url = "/api/v1/users/me/preferences"
+    h = auth(admin_token)
+    assert client.get(url, headers=h).json()["data"]["accent_color"] is None
+    assert client.patch(url, headers=h, json={"accent_color": "rojo"}).status_code == 422
+    assert client.patch(url, headers=h, json={"accent_color": "#a78bfa"}).status_code == 200
+    assert client.get(url, headers=h).json()["data"]["accent_color"] == "#a78bfa"
+    assert client.patch(url, headers=h, json={"accent_color": None}).status_code == 200
+    assert client.get(url, headers=h).json()["data"]["accent_color"] is None

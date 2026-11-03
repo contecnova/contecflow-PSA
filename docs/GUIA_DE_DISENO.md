@@ -171,10 +171,16 @@ cuatro (`surface-0` a `surface-3`) quedan dos por debajo, que este arreglo no
 tocó: `--danger` en freight sobre `surface-3` (4,36) y en el claro sobre
 `surface-1` (4,41).
 
-**Con el acento del perfil** (que es lo que ve quien ha iniciado sesión), el
-texto del botón sale de `applyAccent()`: Índigo `#4f8ef7` 6,54 · Violeta 7,72 ·
-Teal 6,20 · Azul 8,26 · Rosa 5,72 · Ámbar 9,78 · Verde 10,92 · Coral 9,28. Antes,
-en blanco, iban de 1,92 a 3,67.
+**Con un acento elegido en el perfil**, el texto del botón sale de
+`applyAccent()`: Índigo `#4f8ef7` 6,54 · Violeta 7,72 · Teal 6,20 · Azul 8,26 ·
+Rosa 5,72 · Ámbar 9,78 · Verde 10,92 · Coral 9,28. Antes, en blanco, iban de 1,92
+a 3,67.
+
+**Sin elegir, manda el acento del tema** (opción *Acento del tema* del perfil).
+Hasta la migración 112 el perfil nacía con `#4f8ef7` y el servidor lo devolvía
+cuando faltaba, así que tapaba siempre el acento del tema: con sesión iniciada
+nadie veía el dorado de `freight`. En una solución nueva, el acento del usuario
+es opcional y vacío por defecto.
 
 ---
 

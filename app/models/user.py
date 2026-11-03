@@ -163,7 +163,7 @@ class UserPreference(Base):
     # Dashboard configurable
     dashboard_widgets  = Column(Text, nullable=True)   # JSON: lista ordenada de widgets con size/visible
     # Theming
-    accent_color       = Column(String(20), default="#4f8ef7")  # CSS hex
+    accent_color       = Column(String(20), nullable=True)  # CSS hex; vacio = el del tema
     theme_mode         = Column(String(20), default="freight")  # uno de user_service.TEMAS
     sidebar_collapsed  = Column(Boolean, default=False)
     # Idioma

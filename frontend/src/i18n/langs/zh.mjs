@@ -5957,6 +5957,8 @@ const zh = {
     las_contrasenas_no_coinciden: '✗ 两次输入的密码不一致',
     la_contrasena_se_gestiona_desde_tu_proveedor: '）。密码由贵公司的身份提供商统一管理。',
     autenticacion_de_dos_factores_mfa: '双因素认证（MFA）',
+    acento_del_tema: '主题强调色',
+    color_personalizado: '自定义颜色',
   },
   riskscores: {
     cartera_de_proyectos_ml: '项目组合 — 机器学习',
