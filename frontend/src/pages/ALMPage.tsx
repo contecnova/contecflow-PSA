@@ -349,6 +349,7 @@ const almContractSchema = z.object({
   notice_days: z.coerce.number().int('Debe ser un entero').min(0, 'No puede ser negativo'),
   // UC: vacío se envía como null para poder quitar el plazo al editar.
   resolution_hours: z.preprocess((v) => (v === '' || v === undefined ? null : v), z.union([z.null(), z.coerce.number().positive('Horas mayores que cero')])),
+  response_hours: z.preprocess((v) => (v === '' || v === undefined ? null : v), z.union([z.null(), z.coerce.number().positive('Horas mayores que cero')])),
   total_value: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0, 'No puede ser negativo').optional()),
   annual_value: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0, 'No puede ser negativo').optional()),
   billing_cycle: z.enum(['one_time', 'monthly', 'quarterly', 'annual', 'biennial']),
@@ -458,6 +459,7 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
     auto_renew: contract?.auto_renew ?? false,
     notice_days: contract?.notice_days ?? 30,
     resolution_hours: contract?.resolution_hours ?? '',
+    response_hours: contract?.response_hours ?? '',
     total_value: contract?.total_value || '',
     annual_value: contract?.annual_value || '',
     billing_cycle: contract?.billing_cycle || 'annual',
@@ -552,6 +554,11 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
           {validation.errors.resolution_hours
             ? <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.resolution_hours}</p>
             : <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t('alm.contracts_uc_hint')}</p>}
+        </div>
+        <div>
+          <label style={ls} htmlFor="contract-uc-resp">{t('alm.contracts_label_uc_response')}</label>
+          <input id="contract-uc-resp" type="number" min={0} step="0.5" value={form.response_hours} onChange={s('response_hours')} style={validation.inputStyle(fs, 'response_hours')} />
+          {validation.errors.response_hours && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.response_hours}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_total_value')}</label>

@@ -122,3 +122,54 @@ def test_el_plazo_del_contrato_se_guarda_y_se_valida(client, admin_token):
     r = client.patch(f"/api/v1/alm/contracts/{cid}", headers=h, json={"resolution_hours": "", "total_value": ""})
     assert r.status_code == 200, r.text
     assert r.json()["data"]["resolution_hours"] is None
+
+
+# -- Plazo de respuesta del proveedor -----------------------------------------
+
+def _con_respuesta(db, horas=2):
+    from app.models.alm import ALMContract
+    c = db.get(ALMContract, "con-1")
+    c.response_hours = horas
+    db.commit()
+
+
+def test_sin_respuesta_del_proveedor_se_incumple_el_plazo_de_respuesta_una_vez(db, gente, proveedor):
+    from app.models.service_desk import SLAEvent
+    from app.services.service_desk.sla_monitor_service import escanear
+    _con_respuesta(db)
+    t = _esperando(db, gente)
+    r = escanear(db, ahora=AHORA)
+    db.refresh(t)
+    # Lleva 5 h: incumple la respuesta (2 h) y la resolucion (4 h).
+    assert r["uc_incumplidos"] == 2 and t.uc_response_breached and t.uc_breached
+    assert t.uc_response_due.replace(tzinfo=timezone.utc) == AHORA - timedelta(hours=3)
+    tipos = sorted(e.sla_type for e in db.query(SLAEvent).filter(SLAEvent.ticket_id == t.id))
+    assert tipos == ["uc", "uc_response"]
+    escanear(db, ahora=AHORA + timedelta(minutes=5))
+    assert db.query(SLAEvent).filter(SLAEvent.ticket_id == t.id).count() == 2, "avisa cada pasada"
+
+
+def test_si_el_proveedor_responde_a_tiempo_no_se_incumple(db, client, admin_token, gente, proveedor):
+    from app.services.service_desk.sla_monitor_service import escanear
+    _con_respuesta(db, horas=10)
+    t = _esperando(db, gente)
+    url = f"/api/v1/sd/tickets/{t.id}"
+    assert client.patch(url, headers=auth(admin_token), json={"uc_vendor_responded": True}).status_code == 200
+    db.refresh(t)
+    assert t.uc_vendor_responded_at is not None
+    escanear(db, ahora=AHORA + timedelta(hours=8))
+    db.refresh(t)
+    assert not t.uc_response_breached, "anotada la respuesta, el reloj de respuesta se para"
+
+
+def test_volver_a_esperar_empieza_la_respuesta_de_cero(db, gente, proveedor):
+    from app.models.service_desk import TicketStatus
+    t = _esperando(db, gente)
+    t.uc_vendor_responded_at = AHORA
+    t.uc_response_breached = True
+    db.commit()
+    t.status = TicketStatus.in_progress
+    db.commit()
+    t.status = TicketStatus.pending_third
+    db.commit()
+    assert t.uc_vendor_responded_at is None and not t.uc_response_breached

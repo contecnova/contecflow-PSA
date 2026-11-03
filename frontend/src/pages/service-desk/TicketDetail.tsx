@@ -310,7 +310,12 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
     queryKey: ['alm-contracts'],
     queryFn: () => almExtApi.contracts().then(r => r.data ?? []),
     enabled: conUc,
-    select: (cs: any[]) => cs.filter(c => c.resolution_hours > 0 && c.status === 'active'),
+    select: (cs: any[]) => cs.filter(c => (c.resolution_hours > 0 || c.response_hours > 0) && c.status === 'active'),
+  })
+  const { mutate: anotarRespuesta, isPending: anotando } = useMutation({
+    mutationFn: () => ticketsApi.update(ticketId, { uc_vendor_responded: true }),
+    onSuccess: invalidate,
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: elegirUc } = useMutation({
     mutationFn: (id: string) => ticketsApi.update(ticketId, { uc_contract_id: id }),
@@ -493,16 +498,27 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                 <label htmlFor="uc-contrato" style={{ display: 'block', fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>
                   {t('sd_cfg.uc_of_vendor')}
                 </label>
+                {ticket.uc_response_due && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: 4,
+                    color: ticket.uc_vendor_responded_at ? 'var(--text-2)' : colorSla(ticket.uc_response_breached ? 'breached' : 'ok') }}>
+                    <span>{t('sd_cfg.uc_response')}: {ticket.uc_vendor_responded_at
+                      ? t('sd_cfg.uc_responded_at', { fecha: fmtDate(ticket.uc_vendor_responded_at) })
+                      : `${textoSla(ticket.uc_response_breached ? 'breached' : 'ok')} · ${fmtDate(ticket.uc_response_due)}`}</span>
+                    {!ticket.uc_vendor_responded_at && ticket.status === 'pending_third' && (
+                      <button onClick={() => anotarRespuesta()} disabled={anotando} style={qaBtnStyle}>{t('sd_cfg.uc_vendor_responded')}</button>
+                    )}
+                  </div>
+                )}
                 {ticket.uc_due && (
                   <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: 4, color: colorSla(ticket.uc_breached ? 'breached' : 'ok') }}>
-                    {textoSla(ticket.uc_breached ? 'breached' : 'ok')} · {fmtDate(ticket.uc_due)}
+                    {t('sd_cfg.uc_resolution')}: {textoSla(ticket.uc_breached ? 'breached' : 'ok')} · {fmtDate(ticket.uc_due)}
                   </div>
                 )}
                 <select id="uc-contrato" value={ticket.uc_contract_id ?? ''} onChange={e => e.target.value && elegirUc(e.target.value)}
                   style={{ ...IS_STYLE, padding: '6px 10px' }}>
                   <option value="">{contratosUc.length ? t('sd_cfg.uc_choose') : t('sd_cfg.uc_none')}</option>
                   {contratosUc.map((c: any) => (
-                    <option key={c.id} value={c.id}>{c.vendor_name ? `${c.vendor_name} · ` : ''}{c.title} ({t('sd_cfg.uc_hours', { n: c.resolution_hours })})</option>
+                    <option key={c.id} value={c.id}>{c.vendor_name ? `${c.vendor_name} · ` : ''}{c.title} ({[c.response_hours && t('sd_cfg.uc_resp_h', { n: c.response_hours }), c.resolution_hours && t('sd_cfg.uc_hours', { n: c.resolution_hours })].filter(Boolean).join(' / ')})</option>
                   ))}
                 </select>
               </div>

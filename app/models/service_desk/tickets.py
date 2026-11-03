@@ -119,6 +119,10 @@ class Ticket(Base):
     uc_started_at = Column(DateTime(timezone=True), nullable=True)
     uc_due = Column(DateTime(timezone=True), nullable=True)
     uc_breached = Column(Boolean, default=False, nullable=False, server_default=sa_false())
+    # Respuesta del proveedor: la anota el agente («El proveedor ha respondido»).
+    uc_vendor_responded_at = Column(DateTime(timezone=True), nullable=True)
+    uc_response_due = Column(DateTime(timezone=True), nullable=True)
+    uc_response_breached = Column(Boolean, default=False, nullable=False, server_default=sa_false())
 
     # Phase 2 — Predictive Intelligence
     predicted_severity = Column(String(20), nullable=True)

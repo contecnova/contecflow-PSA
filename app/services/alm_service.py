@@ -329,10 +329,11 @@ def _limpiar_contrato(data: dict) -> dict:
         data, ALMContract,
         date_fields=["start_date", "end_date", "renewal_date"],
         int_fields=["notice_days"],
-        float_fields=["total_value", "annual_value", "resolution_hours"],
+        float_fields=["total_value", "annual_value", "resolution_hours", "response_hours"],
     )
-    if clean.get("resolution_hours") is not None and clean["resolution_hours"] <= 0:
-        raise HTTPException(422, "El plazo del proveedor (UC) son horas mayores que cero, o vacío")
+    for campo in ("resolution_hours", "response_hours"):
+        if clean.get(campo) is not None and clean[campo] <= 0:
+            raise HTTPException(422, "Los plazos del proveedor (UC) son horas mayores que cero, o vacío")
     return clean
 
 

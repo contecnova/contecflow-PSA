@@ -2379,6 +2379,7 @@ const es = {
     renewal_exists: 'Ya había un ticket abierto: {number}',
     contracts_label_uc_hours: 'Plazo del proveedor (UC, horas)',
     contracts_uc_hint: 'Horas que tiene el proveedor cuando un ticket queda pendiente de él. Vacío: no es un contrato de soporte.',
+    contracts_label_uc_response: 'Respuesta del proveedor (UC, horas)',
   },
 
   global_search: {
@@ -6077,6 +6078,11 @@ const es = {
     uc_hours: '{n} h',
     ntf_uc_breached_agent: 'UC del proveedor incumplido',
     ev_uc_breached: 'Se incumple el UC del proveedor',
+    uc_response: 'Respuesta',
+    uc_resolution: 'Resolución',
+    uc_responded_at: 'respondió el {fecha}',
+    uc_vendor_responded: 'El proveedor ha respondido',
+    uc_resp_h: 'resp. {n} h',
   },
 };
 export default es;

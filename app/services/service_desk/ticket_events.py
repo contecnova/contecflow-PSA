@@ -156,6 +156,9 @@ def _sellar_uc(ticket: Ticket) -> None:
     ticket.uc_started_at = datetime.now(timezone.utc) if esperando else None
     ticket.uc_due = None
     ticket.uc_breached = False
+    ticket.uc_vendor_responded_at = None
+    ticket.uc_response_due = None
+    ticket.uc_response_breached = False
 
 
 def _al_cambiar_ticket(session, ticket: Ticket) -> None:

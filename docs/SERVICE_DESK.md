@@ -103,9 +103,15 @@ horas)*; un contrato sin plazo no es de soporte.
   estado se para, y al volver empieza de cero. No se para con la pausa del SLA
   del cliente, porque esperar al tercero es justo lo que mide. Cuenta en el
   calendario del SLA del ticket.
-- **Al vencer** avisa una vez (campana y correo) al agente y a los
+- **Respuesta del proveedor.** Si el contrato tiene también *Respuesta del
+  proveedor (UC, horas)*, corre ese plazo desde que se empieza a esperar. Cuando
+  el proveedor contesta, el agente pulsa *El proveedor ha respondido* en el
+  bloque SLA del ticket y ese reloj se para. Al volver a esperar al tercero,
+  los dos plazos empiezan de cero.
+- **Al vencer** cada plazo avisa una vez (campana y correo) al agente y a los
   responsables de la cola, con el proveedor y el contrato, y puede arrancar un
-  flujo (*UC incumplido*). Queda como evento de SLA de tipo `uc`.
+  flujo (*UC incumplido*). Queda como evento de SLA de tipo `uc` (resolución)
+  o `uc_response` (respuesta).
 
 ### 3. Escalado
 
@@ -415,6 +421,10 @@ vectores no se pueden guardar.
   SLA lo evalúa en la misma pasada que el OLA (`uc_incumplidos`). Además, el
   cambio de un contrato de ALM limpia los valores como el alta: un número vacío
   ya no llega a una columna numérica.
+- **UC con plazo de respuesta (migración 115).** `alm_contracts.response_hours`
+  y en `sd_tickets` `uc_vendor_responded_at`, `uc_response_due` y
+  `uc_response_breached`. La respuesta se anota con
+  `PATCH /sd/tickets/{id}` y `{"uc_vendor_responded": true}`.
 - **Renovación de activos.** El escaneo diario buscaba si ya había ticket con un
   `LIKE` sobre el título y lo creaba sin organización, así que no lo veía nadie.
   Ahora el activo guarda su ticket abierto (`refresh_ticket_id`), no abre otro
@@ -438,8 +448,6 @@ vectores no se pueden guardar.
   con varias organizaciones, solo lo ve el superadministrador: la migración 110
   no adivina de quién es (véase el apartado 19).
 - El OLA tiene un único objetivo por cola, igual para todas las prioridades.
-- El UC mide solo el plazo de resolución del proveedor; no hay plazo de
-  respuesta del proveedor, porque nada registra cuándo contesta.
 - La búsqueda por vectores compara en Python contra todos los artículos
   publicados. Con decenas de miles de artículos haría falta un índice
   vectorial (pgvector).

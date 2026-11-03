@@ -3422,6 +3422,7 @@ const zh = {
     renewal_exists: '已有未关闭的工单：{number}',
     contracts_label_uc_hours: '供应商时限（UC，小时）',
     contracts_uc_hint: '工单等待供应商时，供应商可用的小时数。为空：不是支持合同。',
+    contracts_label_uc_response: '供应商响应时限（UC，小时）',
   },
   global_search: {
     placeholder: "搜索项目、任务、工单、用户…",
@@ -6760,6 +6761,11 @@ const zh = {
     uc_hours: '{n} 小时',
     ntf_uc_breached_agent: '供应商 UC 违约',
     ev_uc_breached: '供应商 UC 违约',
+    uc_response: '响应',
+    uc_resolution: '解决',
+    uc_responded_at: '已于 {fecha} 响应',
+    uc_vendor_responded: '供应商已响应',
+    uc_resp_h: '响应 {n} 小时',
   },
 };
 export default zh;

@@ -3428,6 +3428,7 @@ const en = {
     renewal_exists: 'A ticket was already open: {number}',
     contracts_label_uc_hours: 'Vendor target (UC, hours)',
     contracts_uc_hint: 'Hours the vendor has when a ticket is waiting on them. Empty: not a support contract.',
+    contracts_label_uc_response: 'Vendor response (UC, hours)',
   },
   global_search: {
     placeholder: 'Search projects, tasks, tickets, users...',
@@ -6749,6 +6750,11 @@ const en = {
     uc_hours: '{n} h',
     ntf_uc_breached_agent: 'Vendor UC breached',
     ev_uc_breached: 'The vendor UC is breached',
+    uc_response: 'Response',
+    uc_resolution: 'Resolution',
+    uc_responded_at: 'responded on {fecha}',
+    uc_vendor_responded: 'Vendor has responded',
+    uc_resp_h: 'resp. {n} h',
   },
 };
 export default en;

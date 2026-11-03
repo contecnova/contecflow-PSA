@@ -208,6 +208,11 @@ def apply_ticket_update(
         changes["status"] = normalized_status
     if changes.get("uc_contract_id"):
         _exigir_contrato_uc(db, changes["uc_contract_id"], ticket.organization_id)
+    if changes.pop("uc_vendor_responded", None):
+        # Una sola vez y solo mientras se espera al tercero: es lo que para el
+        # reloj de respuesta del UC.
+        if ticket.uc_started_at is not None and ticket.uc_vendor_responded_at is None:
+            changes["uc_vendor_responded_at"] = datetime.now(timezone.utc)
 
     for field, new_val in changes.items():
         old_val = getattr(ticket, field, None)
@@ -246,5 +251,6 @@ def _exigir_contrato_uc(db: Session, contrato_id: str, org_id) -> None:
 
     c = db.get(ALMContract, contrato_id)
     ajeno = c is not None and c.organization_id not in (None, org_id)
-    if c is None or ajeno or not c.is_active or not c.resolution_hours or c.resolution_hours <= 0:
+    sin_plazo = (c.resolution_hours or 0) <= 0 and (c.response_hours or 0) <= 0 if c is not None else True
+    if c is None or ajeno or not c.is_active or sin_plazo:
         raise HTTPException(422, "El contrato no existe o no tiene plazo del proveedor (UC)")

@@ -197,6 +197,8 @@ class ALMContract(Base):
     # UC: plazo de resolucion que el proveedor se compromete a cumplir cuando
     # un ticket queda pendiente de el. Vacio: el contrato no es de soporte.
     resolution_hours = Column(Float, nullable=True)
+    # Y en cuanto tiempo tiene que contestar (vacio: sin plazo de respuesta).
+    response_hours = Column(Float, nullable=True)
     created_at       = Column(DateTime(timezone=True), server_default=func.now())
     updated_at       = Column(DateTime(timezone=True), onupdate=func.now())
     created_by       = Column(String(36), ForeignKey("users.id"), nullable=True)

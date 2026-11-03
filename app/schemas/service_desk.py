@@ -52,6 +52,7 @@ class TicketUpdateIn(BaseModel):
     assigned_group_id: Optional[str] = Field(None, description="Nuevo grupo asignado")
     ci_id: Optional[str] = Field(None, description="Nuevo configuration item asociado")
     uc_contract_id: Optional[str] = Field(None, description="Contrato de soporte del proveedor (UC) mientras se espera a un tercero")
+    uc_vendor_responded: Optional[bool] = Field(None, description="True: el proveedor ha respondido ahora (para el plazo de respuesta del UC)")
     project_id: Optional[str] = Field(None, description="Nuevo proyecto asociado")
     tags: Optional[str] = Field(None, description="Nuevas etiquetas")
     resolution: Optional[str] = Field(None, description="Texto de resolución del ticket")
