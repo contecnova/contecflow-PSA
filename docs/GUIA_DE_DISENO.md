@@ -158,8 +158,8 @@ leyendo los valores de `index.css`. AA pide 4,5:1 para texto normal.
 | Tema | text-1 | text-2 | text-3 | accent | success | warning | danger | orange | `--on-accent` sobre el acento |
 |---|---|---|---|---|---|---|---|---|---|
 | dark (`:root`) | 16,13 | 8,85 | 5,00 | 5,53 | 9,23 | 8,26 | 6,41 | 7,84 | 6,10 (`#080c14`) |
-| freight | 14,24 | 9,40 | 5,41 | 6,72 | 7,09 | 6,99 | 5,10 | 7,04 | 8,29 (`#0a0b0f`) |
-| light | 17,85 | 7,58 | 5,02 | 5,17 | 5,02 | 5,02 | 4,83 | 5,18 | 5,17 (`#ffffff`) |
+| freight | 14,24 | 9,40 | 5,41 | 6,72 | 7,09 | 6,99 | 6,40 | 7,04 | 8,29 (`#0a0b0f`) |
+| light | 17,85 | 7,58 | 5,02 | 5,17 | 5,02 | 5,02 | 5,79 | 5,18 | 5,17 (`#ffffff`) |
 | high-contrast | 18,88 | 14,99 | 8,13 | 7,43 | 10,84 | 11,31 | 6,83 | 8,34 | 8,26 (`#000000`) |
 | midnight | 16,71 | 5,95 | 5,39 | 6,86 | 9,95 | 8,91 | 6,92 | 8,46 | 7,35 (`#02040a`) |
 | slate | 13,70 | 6,64 | 5,26 | 5,22 | 8,42 | 7,54 | 5,85 | 7,15 | 6,11 (`#0d1117`) |
@@ -167,9 +167,12 @@ leyendo los valores de `index.css`. AA pide 4,5:1 para texto normal.
 `system` escribe `dark` o `light`, así que hereda sus filas. Todo pasa AA sobre
 las tarjetas. El script recorrió 246 pares (10 colores × 4 superficies × 6
 temas, más el texto del botón en cada tema). Mirando el peor fondo de los
-cuatro (`surface-0` a `surface-3`) quedan dos por debajo, que este arreglo no
-tocó: `--danger` en freight sobre `surface-3` (4,36) y en el claro sobre
-`surface-1` (4,41).
+cuatro (`surface-0` a `surface-3`) quedaban dos por debajo: `--danger` en
+freight sobre `surface-3` (4,36) y en el claro sobre `surface-1` (4,41). Y el
+botón de peligro, que pone el rojo sobre su propio fondo teñido
+(`--danger-bg`), bajaba a 3,80 y 3,89. Arreglado el 03-11-2026: freight
+`#e68b8b` y claro `#c62020`, con sus `-bg` y `-border`; el peor caso de
+texto y de botón, en los seis temas, es ahora 4,65.
 
 **Con un acento elegido en el perfil**, el texto del botón sale de
 `applyAccent()`: Índigo `#4f8ef7` 6,54 · Violeta 7,72 · Teal 6,20 · Azul 8,26 ·
@@ -573,8 +576,12 @@ puede traer de vuelta. El 9 se corrigió en la guía corta. Los puntos 13, 14,
 | 15 | Tres capas de alias de color (`--bg`, `--surface`, `--color-background-primary`…) | Heredadas de versiones anteriores | Un solo nombre por token |
 | 17 | Cuatro familias de fuente cargadas | DM Sans, Geist, Geist Mono y Space Mono, con varios pesos | Una familia de texto y una monoespaciada, sólo con los pesos usados (400, 600, 700) |
 
-**Pendiente, medido y fuera de este arreglo:** `--danger` no llega a 4,5 sobre
-`surface-3` en freight (4,36) ni sobre `surface-1` en el claro (4,41).
+**Arreglado después (03-11-2026):** `--danger` no llegaba a 4,5 sobre
+`surface-3` en freight (4,36) ni sobre `surface-1` en el claro (4,41), y el
+botón de peligro sobre su fondo teñido bajaba a 3,80 y 3,89. Con freight
+`#e68b8b` y claro `#c62020`, el peor caso en los seis temas es 4,65. Al
+elegir un rojo, medirlo también sobre su propio `-bg`, no solo sobre las
+superficies.
 
 ---
 

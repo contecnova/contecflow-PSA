@@ -42,7 +42,7 @@ function resolveTokens(): ChartThemeTokens {
     surface4: get('--surface-4') || '#3a3f49',
     accent:   get('--accent')    || '#caa34c',
     success:  get('--success')   || '#59c08c',
-    danger:   get('--danger')    || '#e07070',
+    danger:   get('--danger')    || '#e68b8b',
     warning:  get('--warning')   || '#d5a441',
     info:     get('--info')      || '#77b5ff',
     textColor: get('--text-2')   || '#c3c7cf',
