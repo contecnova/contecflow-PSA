@@ -382,14 +382,23 @@ def create_client(payload, db: Session) -> dict:
     if db.query(ClientUser).filter(ClientUser.email == payload.email).first():
         raise ValueError("Ya existe un usuario de portal con ese email")
     company = payload.company
-    if payload.client_org_id and not company:
-        org = db.query(ClientOrg).filter(ClientOrg.id == payload.client_org_id).first()
-        if org:
-            company = org.name
+    empresa = db.query(ClientOrg).filter(ClientOrg.id == payload.client_org_id).first() if payload.client_org_id else None
+    if empresa and not company:
+        company = empresa.name
+    # Auditoria 2026-11: la organizacion la ponia el sellado de la sesion (la
+    # del empleado que lo crea), no la del cliente; el filtro de organizacion
+    # del portal le ocultaba entonces sus proyectos. Es la de la empresa
+    # cliente o, sin ella, la de su primer proyecto. Mismo arreglo que
+    # `client_service.create_portal_user` (la otra via de alta).
+    organizacion = empresa.organization_id if empresa else None
+    if organizacion is None and all_project_ids:
+        primero = db.query(ProjectModel).filter(ProjectModel.id == all_project_ids[0]).first()
+        organizacion = primero.organization_id if primero else None
     create_data = {k: v for k, v in payload.model_dump().items()
-                   if k not in ("password", "company", "project_ids", "project_id")}
+                   if k not in ("password", "company", "project_ids", "project_id", "organization_id")}
     client = ClientUser(
         **create_data,
+        organization_id=organizacion,
         project_id=payload.project_id or (all_project_ids[0] if all_project_ids else None),
         company=company,
         hashed_password=hash_password(payload.password),
