@@ -22,7 +22,7 @@ monitorización.
 | Entra en una cola sin agente | Los miembros de la cola. |
 | Un agente responde en público | El solicitante, por correo. |
 | El solicitante responde | El agente y los observadores. |
-| Comentario interno | El agente y los observadores. **Nunca** el solicitante. |
+| Comentario interno | El agente y los observadores. **Nunca** el solicitante. Ojo: el panel del ticket **no puede escribir uno** (ver Límites): todo comentario desde el panel es público. |
 | Se resuelve | El solicitante, con el texto de la resolución. |
 | Cambia de estado o de prioridad | Los observadores (la prioridad, solo en la campana). |
 | SLA en riesgo o incumplido | El agente (o la cola) y los responsables de la cola. |
@@ -58,8 +58,11 @@ la prioridad, y **cuándo corre el reloj**:
 - **Horario propio**: jornada, días y zona de la propia política.
 
 El reloj se para mientras el ticket está pendiente del cliente o de un tercero.
-Cambiar la prioridad recalcula los vencimientos desde la apertura, no desde
-ahora.
+Cambiar la **urgencia o el impacto** recalcula la prioridad con la matriz y,
+si cambia, los vencimientos desde la apertura (no desde ahora). Fijar la
+**prioridad a mano** —lo que hace el formulario de edición, que siempre la
+envía— **no recalcula los vencimientos**, y la acción de escalado «subir
+prioridad» tampoco (medido el 03-11-2026; ver Límites).
 
 El estado del SLA (*En plazo*, *En riesgo*, *Incumplido*, *En pausa*) se revisa
 cada 5 minutos. *En riesgo* quiere decir que se ha consumido el porcentaje de
@@ -131,9 +134,9 @@ ticket sigue parado otras tantas horas. Debajo se ven las últimas escaladas.
 - Cada correo al buzón de soporte abre un ticket; quien escribe se reconoce
   como contacto del portal o como usuario.
 - Una respuesta con `[INC-0042]` en el asunto se añade al ticket como
-  comentario, sin el correo anterior citado. Si estaba resuelto, se reabre; si
-  estaba pendiente del cliente, vuelve a curso; si estaba cerrado, se abre uno
-  nuevo enlazado.
+  comentario, sin el correo anterior citado. Si estaba resuelto, se reabre
+  (salvo con `SD_REOPEN_ON_REPLY` apagado); si estaba pendiente del cliente o
+  de un tercero, vuelve a curso; si estaba cerrado, se abre uno nuevo enlazado.
 - Alguien ajeno que cite un número no puede comentar un ticket que no es suyo:
   se le abre uno nuevo.
 - Las respuestas automáticas (fuera de oficina, rebotes, listas) se descartan,
@@ -148,7 +151,7 @@ que se hizo con cada uno.
 Un servicio del catálogo puede pedir aprobación e indica **quién aprueba**. El
 ticket nace *pendiente de aprobación* y no se puede empezar, resolver ni cerrar
 hasta que se decide. El aprobador recibe el aviso y lo ve en la pestaña **Por
-aprobar**. Aprobar libera el ticket; **rechazar pide el motivo** y cancela el
+aprobar**; también puede decidir un administrador. Aprobar libera el ticket; **rechazar pide el motivo** y cancela el
 ticket. El solicitante recibe la decisión. En el portal se ve *Pendiente de
 aprobación*.
 
@@ -301,12 +304,27 @@ noviembre de 2026 había otro, del Service Desk, sin pantalla.
 
 ### 15. Lo que corre en segundo plano (Celery beat)
 
+Medido en `app/worker.py` (03-11-2026). Las horas van en `DEFAULT_TIMEZONE`.
+
 | Tarea | Cada | Qué hace |
 |---|---|---|
 | `sd_procesar_eventos_de_ticket` | al confirmar cada cambio, y 1 min | Avisos, correo, webhooks y flujos de la bandeja `sd_ticket_events`. |
-| `sla_breach_scan` | 5 min | Estado del SLA, avisos de riesgo e incumplimiento, y escalado. |
+| `sla_breach_scan` | 5 min | Estado del SLA, OLA y UC, avisos de riesgo e incumplimiento, y escalado. |
 | `sd_leer_buzones` | 2 min | Lee el buzón de soporte de cada organización. |
-| `asset_expiry_scan` | diario, 07:05 | Abre el ticket de renovación de los activos que vencen dentro de `SD_ASSET_REFRESH_DAYS`. |
+| `asset_expiry_scan` | diario, 07:05 | Ticket de renovación de los activos que vencen dentro de `SD_ASSET_REFRESH_DAYS`. |
+| `autonomous_agent_scan` | 5 min | Agente autónomo sobre tickets nuevos (playbooks; puede autorresolver). Sin interruptor (ver Límites). |
+| `cmdb_discovery_run` | 15 min | Descubrimiento de los proveedores con la ventana vencida. |
+| `change_impact_batch_score` | 10 min | Puntuación de impacto de los cambios. |
+| `alert_correlation_scan` | 30 min | Agrupa alertas abiertas y busca el CI raíz. |
+| `predictive_scan` | 30 min | Predicción de riesgo de los tickets abiertos. |
+| `predictive_model_eval_retrain` | 6 h | Evalúa y reentrena el modelo predictivo. |
+| `problem_auto_detect` | cada hora (:05) | Propone problemas a partir de incidentes repetidos. |
+| `routing_outcome_scan` | cada hora (:20) | Registra el resultado de las asignaciones para la recomendada. |
+| `analytics_snapshot` | cada hora (:50) | Foto de métricas ITSM. |
+| `catalog_popularity_update` | 6 h | Popularidad de los servicios del catálogo. |
+| `kedb_expiry_scan` | diario, 06:30 | Errores conocidos caducados. |
+| `kedb_effectiveness_scan` | diario, 07:00 | Eficacia de los workarounds. |
+| `compliance_check` | lunes, 06:00 | Informe de cumplimiento ITSM. |
 
 Si el broker no responde al confirmar, la tarea periódica recoge los eventos.
 Un evento que falla se reintenta hasta `SD_EVENT_MAX_ATTEMPTS` veces y se queda
@@ -456,6 +474,23 @@ vectores no se pueden guardar.
   (*Cumplimiento*).
 
 ### 20. Límites conocidos
+
+- **El panel del ticket no puede escribir un comentario interno**: envía
+  `is_internal: false`, que el servidor ignora, y `is_public` vale `true` por
+  defecto, así que todo comentario del panel es público y se envía por correo
+  al solicitante. La página aparte de comentarios internos escribe en otra
+  tabla (`ticket_internal_comments`) y no genera eventos.
+- **Fijar la prioridad a mano no recalcula los vencimientos del SLA** (solo los
+  recalcula cambiar urgencia o impacto sin enviar prioridad).
+- **«Volver al estado anterior» pierde el tiempo en pausa**: quita la pausa sin
+  sumar los minutos pausados, así que ese tiempo cuenta contra el SLA.
+- **El agente autónomo no tiene interruptor**: corre cada 5 min sobre los
+  tickets nuevos de todas las organizaciones con umbrales fijos en el código, y
+  uno de sus playbooks enlaza a una URL de ejemplo.
+- **El panel del agente (`/agent-dashboard`) enseña ceros**: lo único que lo
+  escribe guarda los abiertos y pone 0 en el resto; ningún job lo alimenta.
+- Kanban: los tickets cerrados y cancelados aparecen en la columna *Abierto*.
+  *Mi cola* enseña como mucho 25 tickets.
 
 - Sin probar contra un IMAP, un Microsoft 365, un Alertmanager, un Twilio o un
   contecmind reales: las pruebas los sustituyen.
