@@ -177,7 +177,6 @@ The destination table `app_settings` already exists at
 | `SLACK_API_BASE` | ⚪ | Standard Slack URL |
 | `SLACK_SIGNING_SECRET` | 🟠 | Per-org Slack app secret |
 | `TEAMS_BOT_APP_ID` | 🟠 | Per-org Teams bot |
-| `GOOGLE_CHART_URL` | ⚪ | Public asset URL |
 
 ## 15. Payments (Stripe)
 

@@ -383,7 +383,6 @@ Pragmáticamente env: URLs públicas estables y constantes de presentación. No 
 | Key | Default |
 |---|---|
 | `SLACK_API_BASE` | `https://slack.com/api` |
-| `GOOGLE_CHART_URL` | (URL pública Google Charts) |
 | `XERO_API_BASE` | `https://api.xero.com/api.xro/2.0` |
 | `QB_API_BASE` | `https://quickbooks.api.intuit.com/v3/company` |
 | `WEBAUTHN_RP_NAME` | "Contecflow PSA" (display only) |

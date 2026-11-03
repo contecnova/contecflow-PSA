@@ -14,7 +14,6 @@ import secrets
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from app.core.config import settings
 from app.core.encryption import encrypt_value, decrypt_value
 from app.models.user import User
 from app.models.mfa import (
@@ -48,6 +47,54 @@ def get_mfa_status(user_id: str, db: Session) -> dict:
     }
 
 
+def qr_local(uri: str) -> str:
+    """QR como data URI, generado aqui.
+
+    Auditoria 2026-11: antes se pedia a un servicio de graficas externo con la
+    URI en la consulta, es decir, se le enviaba el secreto TOTP.
+    """
+    import base64
+    import io
+    import qrcode
+    buf = io.BytesIO()
+    qrcode.make(uri).save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def _sincronizar_login(user: User, secreto_cifrado: str | None, db: Session) -> None:
+    """Lo que comprueba el login: `users.mfa_secret` y `users.mfa_enabled`.
+
+    Auditoria 2026-11: la pantalla /mfa solo escribia `mfa_configs` y el login
+    mira el usuario, asi que el segundo factor activado ahi no protegia la
+    entrada. Al desactivar se conserva `mfa_enabled` si quedan passkeys.
+    """
+    from app.services.auth_service import user_has_passkeys
+    user.mfa_secret = secreto_cifrado
+    user.mfa_enabled = bool(secreto_cifrado) or bool(user_has_passkeys(db, user.id))
+
+
+def apagar_config_de_pantalla(user: User, db: Session) -> None:
+    """Baja por `/auth/mfa/disable`: que la pantalla /mfa no siga diciendo «activado»."""
+    db.query(MFAConfig).filter(MFAConfig.user_id == user.id).update({"is_enabled": False})
+
+
+def consumir_codigo_de_respaldo(user: User, code: str, db: Session) -> bool:
+    """Gasta un codigo de respaldo de la pantalla /mfa; True si valia."""
+    import bcrypt
+    config = db.query(MFAConfig).filter(
+        MFAConfig.user_id == user.id, MFAConfig.is_enabled == True,
+    ).first()
+    if not config or not code:
+        return False
+    for bc in db.query(MFABackupCode).filter(
+        MFABackupCode.mfa_id == config.id, MFABackupCode.used_at == None,
+    ):
+        if bcrypt.checkpw(code.strip().upper().encode(), bc.code_hash.encode()):
+            bc.used_at = config.last_used_at = datetime.now(timezone.utc)
+            return True
+    return False
+
+
 def setup_mfa(user: User, db: Session) -> dict:
     pyotp = get_totp_lib()
     if not pyotp:
@@ -75,7 +122,7 @@ def setup_mfa(user: User, db: Session) -> dict:
     return {
         "secret": secret,
         "provisioning_uri": uri,
-        "qr_url": f"{settings.GOOGLE_CHART_URL}?chs=200x200&chld=M|0&cht=qr&chl={uri}",
+        "qr_url": qr_local(uri),
         "instructions": "Escanea el QR con Google Authenticator, Authy o similar. Luego llama a POST /mfa/verify con el código de 6 dígitos para activar.",
     }
 
@@ -95,6 +142,7 @@ def verify_and_activate_mfa(user: User, code: str, db: Session) -> dict:
         raise ValueError("Código incorrecto o caducado")
 
     config.is_enabled = True
+    _sincronizar_login(user, config.totp_secret, db)
     config.verified_at = datetime.now(timezone.utc)
     config.last_used_at = datetime.now(timezone.utc)
 
@@ -165,6 +213,7 @@ def disable_mfa(user: User, code: str, db: Session) -> dict:
     if not totp.verify(code, valid_window=1):
         raise ValueError("Código incorrecto")
     config.is_enabled = False
+    _sincronizar_login(user, None, db)
     audit_log(db, user, "MFA_DISABLED", "users", user.id, user.email)
     db.commit()
     return {"ok": True}

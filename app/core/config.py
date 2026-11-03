@@ -369,11 +369,6 @@ class Settings(
     TEAMS_BOT_ISSUER: str = Field(
         default="https://api.botframework.com", env="TEAMS_BOT_ISSUER")
 
-    # ── QR code service (MFA provisioning) ───────────────────────────────────
-    GOOGLE_CHART_URL: str = Field(
-        default="https://chart.googleapis.com/chart", env="GOOGLE_CHART_URL"
-    )
-
     # NOTE: AI cost alerting lives in AISettingsMixin.
 
     # ── Stripe payment gateway (v23.8) ────────────────────────────────────────

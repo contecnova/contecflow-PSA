@@ -268,6 +268,8 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
   const qc = useQueryClient()
   const toast = useToast()
   const [commentText, setCommentText] = useState('')
+  // Nota interna: no la ve el solicitante ni se le envia por correo.
+  const [notaInterna, setNotaInterna] = useState(false)
   const [showCanned, setShowCanned] = useState(false)
   const [timeMin, setTimeMin] = useState('')
   const [timeUnit, setTimeUnit] = useState('minutes')
@@ -324,7 +326,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
   })
 
   const { mutate: addComment, isPending: commenting } = useMutation({
-    mutationFn: () => ticketsApi.comment(ticketId, { body: commentText, is_internal: false }),
+    mutationFn: () => ticketsApi.comment(ticketId, { body: commentText, is_public: !notaInterna }),
     onSuccess: () => { invalidate(); setCommentText(''); toast.success(t('service_desk.comment_added')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -635,7 +637,10 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               {(ticket.comments || []).map((c: any) => (
                 <div key={c.id} style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '12px 14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{c.author_name}</span>
+                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>
+                      {c.author_name}
+                      {c.is_public === false && <span style={{ marginLeft: 8, fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--warning)' }}>{t('service_desk.internal_note')}</span>}
+                    </span>
                     <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{fmtDate(c.created_at)}</span>
                   </div>
                   <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{c.body}</div>
@@ -663,6 +668,10 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               </button>
             </div>
             {sugerencia && <ApoyoDeLaSugerencia s={sugerencia} />}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 8 }}>
+              <input type="checkbox" checked={notaInterna} onChange={e => setNotaInterna(e.target.checked)} />
+              {t('service_desk.internal_note')}
+            </label>
             <Button onClick={() => addComment()} disabled={commenting || !commentText} loading={commenting} style={{ width: '100%' }}>
               {t('service_desk.detail_send_comment')}
             </Button>

@@ -160,6 +160,10 @@ def mfa_validate(
 
     totp  = pyotp.TOTP(decrypt_value(user.mfa_secret) or "")
     valid = totp.verify(code, valid_window=1)
+    if not valid:
+        # Codigos de respaldo que entrega la pantalla /mfa al activarse.
+        from app.services.mfa_service import consumir_codigo_de_respaldo
+        valid = consumir_codigo_de_respaldo(user, code, db)
 
     if not valid:
         try:
@@ -231,6 +235,9 @@ def mfa_disable(
         raise HTTPException(401, "Código incorrecto")
 
     current_user.mfa_secret = None
+    # Y la configuracion de la pantalla /mfa, para que no diga «activado».
+    from app.services.mfa_service import apagar_config_de_pantalla
+    apagar_config_de_pantalla(current_user, db)
     has_passkeys = _svc.user_has_passkeys(db, current_user.id)
     current_user.mfa_enabled = bool(has_passkeys)
     _svc.commit_db(db)

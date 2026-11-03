@@ -61,7 +61,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 
 **Security**
 - **Fixed 2026-11-03:** `GET /api/v1/settings/general` (open to any signed-in user) returned every `app_settings` row, including e-signature tokens and secrets in plain text. It now returns only general settings to non-admins and masks sensitive values for everyone. The e-sign secrets are still stored unencrypted in the database. [6]
-- ✔ MFA enrolled on the `/mfa` screen does not protect sign-in: the screen writes `mfa_configs`, sign-in checks `users.mfa_secret`. [6]
+- ~~MFA enrolled on the `/mfa` screen does not protect sign-in; its QR sent the TOTP secret to Google.~~ Fixed 2026-11-03: enrolling there now sets the factor sign-in checks, its backup codes work at sign-in, and the QR is generated locally. [6]
 - Several endpoints accept wider roles than their screens (e.g. employees can read cost, GDPR and audit data); scheduled reports and the alert engine act across organizations; BI embed tokens are full access tokens. [5]
 - **Fixed 2026-11-03:** org admins could overwrite a global setting shared by all organizations through `PATCH /settings/general/{key}`; writes now go to the organization's row and only general keys are accepted. [6]
 - Slack/Teams inbound commands resolve the user by partial name/email match without organization context. [6]
@@ -73,7 +73,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 - Many lists stop at 50 (or 25) items without pagination. [1, 4]
 
 **Service Desk**
-- ✔ The ticket panel cannot write an internal note: every comment written there is public and emailed to the requester. [4]
+- ~~The ticket panel cannot write an internal note.~~ Fixed 2026-11-03: the panel has an *Internal note* checkbox; internal notes show to agents with a badge and never reach the requester or the portal. [4]
 - ✔ Setting priority by hand does not recalculate SLA due dates; "Back to previous status" loses the paused time. [4]
 - The autonomous agent runs every 5 minutes for every organization with no off switch. [4]
 
@@ -1884,7 +1884,7 @@ Opening `/service-desk?ticket=<id>` (the link in every notification) switches to
 - **SLA / OLA / UC block.** It shows the response and resolution due dates and their status (`ok`, `at_risk`, `breached`, `paused`), *OLA · queue* with its due date, and *UC · vendor contract*:
   - The contract is chosen from `GET /alm/contracts` and saved with `PATCH {uc_contract_id}`.
   - *Vendor has responded* sends `PATCH {uc_vendor_responded: true}`.
-- **Comments.** `POST /sd/tickets/{id}/comments`.
+- **Comments.** `POST /sd/tickets/{id}/comments` with `{body, is_public}`. Tick **Internal note** under the comment box to write a note only agents see: it is shown in the panel with an *Internal note* label, it is not emailed to the requester and the client portal does not return it (`ticket_out(..., include_internal=True)` only in the agent detail). The checkbox stays as you left it between comments. A public comment from an agent stamps the first response; an internal note does not.
 - **Suggest reply.** `POST /sd/tickets/{id}/ai-suggest` returns an AI draft with related KB articles and, if contecmind is configured, related documents. If the AI is unavailable, the panel says so and shows no draft.
 - **Canned replies.**
 - **Time logging.** `POST /sd/tickets/{id}/time-log` takes `{minutes, unit, billable}`, where unit is `minutes`, `hours` or `days`. Days use `DEFAULT_WORKING_HOURS_PER_DAY`.
@@ -1904,7 +1904,7 @@ Opening `/service-desk?ticket=<id>` (the link in every notification) switches to
 
 **Limitations (code reading).**
 
-- **Internal notes cannot be written from the ticket panel.** The comment box posts `{body, is_internal: false}`. `CommentIn` has no `is_internal` field, only `is_public` (default `True`). Every comment written in the panel is therefore public and emailed to the requester. The event logic does handle internal comments (`is_public=false` never reaches the requester), but only API callers can create them. The separate `/internal-comments` page writes to a different table (`ticket_internal_comments`, legacy `cmdb_service`). It is not in the sidebar and does not generate ticket events.
+- ~~Internal notes cannot be written from the ticket panel.~~ Fixed 2026-11-03 (see *Comments* above; test `tests/test_ticket_nota_interna.py`). Before the fix the panel sent `is_internal`, which the API ignores, and the agent detail returned only public comments. The separate `/internal-comments` page still writes to a different table (`ticket_internal_comments`, legacy `cmdb_service`); it is not in the sidebar and does not generate ticket events.
 - **Changing priority from the UI does not recalculate SLA due dates.** Due dates are only recalculated, from the opening time, when `urgency` or `impact` change *and* `priority` is not in the payload (`_recalcular_prioridad` returns early otherwise). The edit modal always sends `priority`. The escalation action `elevate_priority` does not recalculate either.
 - **Back to previous** (`restore_pending_snapshot`) clears `sla_paused_at` without adding the paused minutes to `sla_pause_minutes`, unlike every other resume path. Time spent pending therefore counts against the SLA.
 - **Kanban.** Tickets in `new`, `assigned`, `closed` or `cancelled` all fall into the *Open* column, because the list is not filtered by status. Dropping a card on *Open* sends `status: "open"`, which is not a `TicketStatus` value. What the server then returns is **Not verified**; expected to be an error.
@@ -2599,7 +2599,7 @@ Workflow `wait` timers do **not** run in Celery: they run in the API process's s
 
 **Ticket handling.**
 
-- The ticket panel cannot write internal notes: every comment is public.
+- ~~The ticket panel cannot write internal notes.~~ Fixed 2026-11-03.
 - Priority changes from the UI or from escalation do not recalculate SLA due dates.
 - *Back to previous* drops the paused time from the SLA calculation.
 - The Kanban board puts closed and cancelled tickets in *Open*, and dropping a card on *Open* sends an invalid status.
@@ -4162,17 +4162,15 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **15 
 
 **How to use it.** Click **Setup** (QR and secret appear), scan it with an authenticator app, enter a code to **Verify**, and store the backup codes. **Disable** requires a valid code.
 
-**Technical notes.** `GET /api/v1/mfa/status`, `POST /mfa/setup`, `POST /mfa/verify`, `POST /mfa/validate`, `DELETE /mfa/disable`. Tables `mfa_configs` (`totp_secret` encrypted) and `mfa_backup_codes`. Requires `pyotp`.
+**What happens at sign-in.** Once verified, every sign-in with the password asks for a 6-digit code. A backup code can be typed instead of the code; each backup code works once. **Disable** removes the factor and sign-in no longer asks for it (unless the user has passkeys).
 
-**Limitations (measured, important).**
-- **Two independent MFA stacks exist:**
-  - **`/mfa/*`** (this page) writes `mfa_configs`.
-  - **`/auth/mfa/*`** writes `users.mfa_secret` / `users.mfa_enabled`, plus `webauthn_credentials` for passkeys.
-- **Login (`routers/auth_core.py`) only checks `users.mfa_enabled AND users.mfa_secret`, or passkeys.** `mfa_configs` has no reader outside `mfa_service.py`.
+**Technical notes.** `GET /api/v1/mfa/status`, `POST /mfa/setup`, `POST /mfa/verify`, `POST /mfa/validate`, `DELETE /mfa/disable`. Tables `mfa_configs` (`totp_secret` encrypted) and `mfa_backup_codes`. Requires `pyotp` and `qrcode`. The QR is a local `data:image/png` (nothing is sent to a third party).
+- Sign-in (`routers/auth_core.py`) checks `users.mfa_enabled AND users.mfa_secret`, or passkeys. Since 2026-11-03 `mfa_service.verify_and_activate_mfa` copies the encrypted secret to `users.mfa_secret` and sets `users.mfa_enabled`; `disable_mfa` clears it (keeping `mfa_enabled` if passkeys exist). `/auth/mfa/validate` also accepts unused `mfa_backup_codes`. `/auth/mfa/disable` also turns `mfa_configs.is_enabled` off. Test: `tests/test_mfa_pantalla_protege_login.py`.
 
-  **So enrolling on `/mfa` does not add a second factor to login.**
+**Limitations (measured).**
+- Two endpoint families still exist (`/mfa/*` for this page and `/auth/mfa/*`); they now write the same fields, but enrolling through `/auth/mfa/setup` creates no backup codes and leaves this page showing "not enabled".
 - The front end has **no screen** for `/auth/mfa/setup`, `/auth/mfa/verify-setup` or WebAuthn registration. It only calls `/auth/mfa/validate` and WebAuthn *authenticate* during login.
-- If an organization sets `require_mfa=true`, **which is API-only** (`PATCH /organizations/{id}`), users without a factor in the `users` table / passkeys are refused at login with 403, **even if they enrolled on `/mfa`**.
+- If an organization sets `require_mfa=true`, **which is API-only** (`PATCH /organizations/{id}`), users without a TOTP factor or passkey are refused at login with 403.
 
 ---
 
@@ -4825,7 +4823,6 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `TEAMS_BOT_APP_ID` | `''` | Teams bot app id. |
 | `TEAMS_BOT_OPENID_METADATA_URL` | `'https://login.botframework.com/v1/.well-known/openidconfiguration'` | Bot Framework OpenID metadata. |
 | `TEAMS_BOT_ISSUER` | `'https://api.botframework.com'` | Bot Framework issuer. |
-| `GOOGLE_CHART_URL` | `'https://chart.googleapis.com/chart'` | QR image service used by `/api/v1/mfa/setup` (see Security, known issue). |
 | `STRIPE_SECRET_KEY` | `None` | Stripe. |
 | `STRIPE_PUBLISHABLE_KEY` | `None` | Stripe. |
 | `STRIPE_WEBHOOK_SECRET` | `None` | Stripe webhook signature. |
@@ -5121,7 +5118,7 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 
 #### 7.6 Known security issues found while measuring
 
-- **MFA QR via a third party:** the SPA's MFA page (`frontend/src/pages/MFAPage.tsx` → `POST /api/v1/mfa/setup` → `app/services/mfa_service.py:78`) renders `<img src="https://chart.googleapis.com/chart?…&chl=otpauth://…secret=…">`. The TOTP secret goes to Google in a URL, unencoded. The nginx CSP allows `img-src https:`. The other endpoint `/api/v1/auth/mfa/setup` returns a local `data:` PNG. Whether Google still serves that chart API is **not verified**.
+- ~~**MFA QR via a third party.**~~ Fixed 2026-11-03: `/api/v1/mfa/setup` now returns a local `data:` PNG, like `/api/v1/auth/mfa/setup`; the `GOOGLE_CHART_URL` setting was removed.
 - `/health` and `/ready` are unauthenticated and include the raw database or Redis exception text when a check fails.
 - The CSRF exemption list contains stale paths (§6.3).
 
@@ -5270,7 +5267,7 @@ DOCS.md §16 lists generic steps (activate the venv, check `DATABASE_URL`, `alem
 4. **`RATE_LIMIT_DEFAULT` is probably inert** (no `SlowAPIMiddleware`); only 117 decorated routes are limited, and behind nginx the key is the proxy IP (§6.5).
 5. **nginx forwards WebSocket upgrades only for `/api/v1/ws/`**; 3 other WS endpoints and `/status`, `/ready` and the widgets are not routed (§6.6, §9).
 6. **Rotating `SECRET_KEY` breaks stored ciphertexts**; `scripts/rotate_keys.sh` has no re-encryption (§7.5).
-7. **MFA setup on the SPA leaks the TOTP secret to `chart.googleapis.com`** (§7.6).
+7. ~~MFA setup on the SPA leaks the TOTP secret to `chart.googleapis.com`.~~ Fixed 2026-11-03: the QR is generated locally (§7.6).
 8. **`setup.sh clean`, `setup.bat start clean` and the seed have no ENVIRONMENT gate.** Only `sync_demo_passwords` is gated (§3.2, §5).
 9. **`scripts/deploy.sh` targets a compose layout that no longer exists**, and there is no working backup procedure in the repo (§5).
 10. **Several AI features are Anthropic-only** despite the 8-provider catalogue (§1.5).

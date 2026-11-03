@@ -22,7 +22,7 @@ monitorización.
 | Entra en una cola sin agente | Los miembros de la cola. |
 | Un agente responde en público | El solicitante, por correo. |
 | El solicitante responde | El agente y los observadores. |
-| Comentario interno | El agente y los observadores. **Nunca** el solicitante. Ojo: el panel del ticket **no puede escribir uno** (ver Límites): todo comentario desde el panel es público. |
+| Comentario interno | El agente y los observadores. **Nunca** el solicitante. Se escribe desde el panel del ticket marcando **Nota interna** bajo la caja de comentario; el agente la ve con la etiqueta *Nota interna* y el portal del cliente no la devuelve. |
 | Se resuelve | El solicitante, con el texto de la resolución. |
 | Cambia de estado o de prioridad | Los observadores (la prioridad, solo en la campana). |
 | SLA en riesgo o incumplido | El agente (o la cola) y los responsables de la cola. |
@@ -475,11 +475,9 @@ vectores no se pueden guardar.
 
 ### 20. Límites conocidos
 
-- **El panel del ticket no puede escribir un comentario interno**: envía
-  `is_internal: false`, que el servidor ignora, y `is_public` vale `true` por
-  defecto, así que todo comentario del panel es público y se envía por correo
-  al solicitante. La página aparte de comentarios internos escribe en otra
-  tabla (`ticket_internal_comments`) y no genera eventos.
+- La página aparte de comentarios internos (`/internal-comments`) escribe en
+  otra tabla (`ticket_internal_comments`) y no genera eventos; la nota interna
+  buena es la del panel del ticket.
 - **Fijar la prioridad a mano no recalcula los vencimientos del SLA** (solo los
   recalcula cambiar urgencia o impacto sin enviar prioridad).
 - **«Volver al estado anterior» pierde el tiempo en pausa**: quita la pausa sin

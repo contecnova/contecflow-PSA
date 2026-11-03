@@ -224,7 +224,7 @@ def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticke
 
     from app.services.service_desk import catalog_approval_service as _aprobacion
     payload = {
-        **ticket_out(ticket, include_comments=True),
+        **ticket_out(ticket, include_comments=True, include_internal=True),
         "dynamic_fields": get_ticket_dynamic_fields(db, ticket.id),
         "approval": _aprobacion.serializar(_aprobacion.ultima(db, ticket.id)),
         "fulfillment_tasks": [{

@@ -77,7 +77,6 @@ Cada fila indica el destino exacto y el estado del consumer.
 | `GEMINI_DOCS_URL` | ⚪ keep-env |
 | `GITHUB_WEBHOOK_SECRET` | 🔐 Webhooks 🔒 |
 | `GITLAB_WEBHOOK_SECRET` | 🔐 Webhooks 🔒 |
-| `GOOGLE_CHART_URL` | ⚪ keep-env |
 | `GOOGLE_OAUTH_BASE` | ⚪ keep-env |
 | `GOOGLE_STT_API_KEY` | 🔐 AI providers 🔒 |
 | `GOOGLE_STT_LANGUAGE` | 🎛 IA ⚠️ |

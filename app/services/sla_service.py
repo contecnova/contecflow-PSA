@@ -613,7 +613,7 @@ def _estado_mostrado(due, pause_minutes, guardado, paused_at, now) -> str:
     return "at_risk" if valor == "at_risk" else "ok"
 
 
-def ticket_out(t: "Ticket", include_comments: bool = False) -> dict:
+def ticket_out(t: "Ticket", include_comments: bool = False, include_internal: bool = False) -> dict:
     """Serialize a Ticket ORM object to a response dict."""
     pri = PRIORITY_LABELS.get(t.priority, {"label": t.priority, "color": "#7a8aaa"})
     sta = STATUS_LABELS.get(t.status, {"label": t.status, "color": "#7a8aaa"})
@@ -748,7 +748,9 @@ def ticket_out(t: "Ticket", include_comments: bool = False) -> dict:
                 "created_at": str(c.created_at)[:16],
             }
             for c in t.comments
-            if c.is_public
+            # Las notas internas solo en la vista del agente (`include_internal`);
+            # el portal del cliente nunca las recibe.
+            if c.is_public or include_internal
         ]
         result["history"] = [
             {
