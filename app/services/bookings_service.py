@@ -525,11 +525,17 @@ def list_api_keys_records(user_id, is_superadmin: bool, db) -> list:
 
 
 def create_api_key_record(payload, user_id, db) -> dict:
+    from app.core.credenciales_delegadas import ALCANCES_VALIDOS, huella
+    invalidos = sorted(set(payload.scopes) - set(ALCANCES_VALIDOS))
+    if invalidos or not payload.scopes:
+        raise HTTPException(422, f"Alcances no válidos: {', '.join(invalidos) or 'ninguno'}. "
+                                 f"Válidos: {', '.join(ALCANCES_VALIDOS)}")
     raw_key    = f"nxpm_{secrets.token_hex(24)}"
     key_prefix = raw_key[:12]
     api_key = ApiKey(
         name=payload.name,
         key_hash=_hash_api_key(raw_key),
+        key_digest=huella(raw_key),
         key_prefix=key_prefix,
         user_id=user_id,
         scopes=json.dumps(payload.scopes),
@@ -560,25 +566,14 @@ def revoke_api_key_record(key_id: str, user_id, db) -> dict:
 
 
 def verify_api_key_record(raw_key: str, db) -> dict:
+    """Comprueba una clave (la misma logica que la autenticacion) y cuenta el uso."""
+    from app.core.credenciales_delegadas import _clave_de_api
     if not raw_key.startswith("nxpm_"):
         raise HTTPException(401, "API key inválida")
-    prefix = raw_key[:12]
-    keys = db.query(ApiKey).filter(ApiKey.key_prefix == prefix, ApiKey.is_active == True).all()
-    for key in keys:
-        if _verify_api_key(raw_key, key.key_hash):
-            if key.expires_at and key.expires_at < datetime.now(timezone.utc):
-                raise HTTPException(401, "API key expirada")
-            if key.requests_today >= key.rate_limit_per_day:
-                raise HTTPException(429, "Límite diario de requests alcanzado")
-            if key.requests_this_hour >= key.rate_limit_per_hour:
-                raise HTTPException(429, "Límite por hora de requests alcanzado")
-            key.last_used_at      = datetime.now(timezone.utc)
-            key.requests_today    = (key.requests_today or 0) + 1
-            key.requests_this_hour = (key.requests_this_hour or 0) + 1
-            db.commit()
-            return {"valid": True, "user_id": key.user_id,
-                    "scopes": json.loads(key.scopes) if key.scopes else [], "name": key.name}
-    raise HTTPException(401, "API key inválida o inactiva")
+    user_id, scopes, _ = _clave_de_api(db, raw_key)
+    key = db.query(ApiKey).filter(ApiKey.user_id == user_id, ApiKey.key_prefix == raw_key[:12]).first()
+    db.commit()
+    return {"valid": True, "user_id": user_id, "scopes": scopes, "name": key.name if key else None}
 
 
 # ── Recurring Invoices ────────────────────────────────────────────────────────

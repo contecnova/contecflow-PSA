@@ -45,6 +45,8 @@ class Settings(
     # re-cifra). Se pueden vaciar cuando scripts/reencrypt_secrets.py dice 0.
     SECRET_KEY_PREVIOUS: str = Field(default="", env="SECRET_KEY_PREVIOUS")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+    # Vida de los tokens del portal de desarrolladores (client_credentials).
+    DEVELOPER_TOKEN_TTL_MINUTES: int = Field(default=60, env="DEVELOPER_TOKEN_TTL_MINUTES")
     ACCESS_TOKEN_MAX_MINUTES: int = Field(default=30, env="ACCESS_TOKEN_MAX_MINUTES")
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=30, env="REFRESH_TOKEN_EXPIRE_DAYS")
 

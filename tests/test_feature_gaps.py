@@ -237,19 +237,17 @@ class TestPipelineStageConfig:
 # ── Automation wait_step + conditional_branch ─────────────────────────────────
 
 class TestAutomationWorkflow:
-    def test_create_rule_with_wait_step(self, client, admin_token, db):
+    def test_create_rule_with_wait_step_is_rejected(self, client, admin_token, db):
+        """Auditoria 2026-11: `wait_step` solo anotaba «esperado» y seguia; no se ofrece."""
         res = client.post("/api/v1/automations", json={
             "name": "Regla con espera",
             "trigger_type": "task_overdue",
-            "is_global": True,
             "actions": [
-                {"type": "wait_step", "params": {"delay_hours": 24, "label": "Esperar 24h"}},
-                {"type": "send_alert", "params": {"title": "Alerta post-espera", "message": "Escalado"}},
+                {"type": "wait_step", "params": {"delay_hours": 24}},
+                {"type": "send_alert", "params": {"message": "Escalado"}},
             ],
         }, headers=auth(admin_token))
-        assert res.status_code in (200, 201), res.text
-        data = res.json()["data"]
-        assert data["name"] == "Regla con espera"
+        assert res.status_code == 422, res.text
 
     def test_create_rule_with_conditional_branch(self, client, admin_token, db):
         res = client.post("/api/v1/automations", json={
@@ -272,25 +270,6 @@ class TestAutomationWorkflow:
         assert data["name"] == "Regla condicional"
         # Verify actions structure is preserved
         assert data["actions"][0]["type"] == "conditional_branch"
-
-    def test_test_rule_with_wait_step_executes(self, client, admin_token, db):
-        rule = client.post("/api/v1/automations", json={
-            "name": "Test wait rule",
-            "trigger_type": "task_overdue",
-            "is_global": True,
-            "actions": [
-                {"type": "wait_step", "params": {"delay_hours": 1, "label": "Esperar 1h"}},
-            ],
-        }, headers=auth(admin_token)).json()["data"]
-
-        res = client.post(f"/api/v1/automations/{rule['id']}/test", headers=auth(admin_token))
-        assert res.status_code == 200
-        data = res.json()
-        # result should show the wait_step was logged
-        results = data.get("results", [])
-        if results:
-            assert any(r.get("action") == "wait_step" for r in results)
-
 
 # ── Currency Conversion ───────────────────────────────────────────────────────
 

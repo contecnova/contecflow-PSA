@@ -291,6 +291,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("ACCESS_TOKEN_EXPIRE_MINUTES", "int", "Access token TTL (minutes)"),
         ("ACCESS_TOKEN_MAX_MINUTES", "int", "Access token max TTL (minutes)"),
         ("REFRESH_TOKEN_EXPIRE_DAYS", "int", "Refresh token TTL (days)"),
+        ("DEVELOPER_TOKEN_TTL_MINUTES", "int", "Developer-portal app token TTL (minutes)"),
     ],
     "key_rotation": [
         ("KEY_ROTATION_ENABLED", "bool", "Auto rotation enabled"),

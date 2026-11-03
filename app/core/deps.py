@@ -25,6 +25,12 @@ def get_current_user(
     else:
         token = request.cookies.get("access_token")
 
+    # Auditoria 2026-11: clave de API o token del portal de desarrolladores.
+    from app.core import credenciales_delegadas as _delegadas
+    delegada = _delegadas.resolver(db, request, credentials.credentials if credentials else None)
+    if delegada is not None:
+        return _usuario_de_credencial_delegada(db, request, *delegada)
+
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -73,6 +79,25 @@ def get_current_user(
     # can be emitted without passing actor as an explicit parameter.
     db.info["current_user"] = user
 
+    return user
+
+
+def _usuario_de_credencial_delegada(db: Session, request: Request, user_id: str, alcances: list, tipo: str) -> User:
+    from app.core import credenciales_delegadas as _delegadas
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="El dueño de la credencial no existe o está inactivo")
+    _delegadas.comprobar_alcance(request.method, request.url.path, alcances)
+    db.commit()  # contadores de uso de la clave
+    if getattr(user, "is_superadmin", False):
+        db.info["organization_id"] = None
+        db.info["is_superadmin"] = True
+    else:
+        db.info["organization_id"] = getattr(user, "organization_id", None)
+        db.info["is_superadmin"] = False
+    db.info["current_user"] = user
+    request.state.credencial_delegada = {"tipo": tipo, "alcances": alcances}
     return user
 
 

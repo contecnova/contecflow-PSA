@@ -63,6 +63,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 - **Fixed 2026-11-03:** `GET /api/v1/settings/general` (open to any signed-in user) returned every `app_settings` row, including e-signature tokens and secrets in plain text. It now returns only general settings to non-admins and masks sensitive values for everyone. Since 2026-11-03 the e-sign credentials are also stored encrypted (migration 117 encrypts the existing ones). [6]
 - ~~MFA enrolled on the `/mfa` screen does not protect sign-in; its QR sent the TOTP secret to Google.~~ Fixed 2026-11-03: enrolling there now sets the factor sign-in checks, its backup codes work at sign-in, and the QR is generated locally. [6]
 - ~~Several endpoints accept wider roles than their screens (employees can read cost, GDPR and audit data); BI embed tokens are full access tokens.~~ Fixed 2026-11-03 for the routes listed in section 5 (report builder, Data Explorer previews, GDPR and governance reads, M365, ETL, AI narrative, scheduled reports) and for special-purpose tokens. The earlier claim that scheduled reports and the alert engine act across organizations was wrong: measured, the tenant filter scopes both. [5]
+- ~~API keys and developer-portal tokens cannot authenticate API calls.~~ Fixed 2026-11-03: both authenticate on the whole API as their owner, cut down by scope, never for managing credentials; portal tokens were stored so they could never be found, now fixed (migration 119). [6]
 - **Fixed 2026-11-03:** org admins could overwrite a global setting shared by all organizations through `PATCH /settings/general/{key}`; writes now go to the organization's row and only general keys are accepted. [6]
 - ~~Slack/Teams inbound commands resolve the user by partial name/email match without organization context.~~ Fixed 2026-11-03: exact, unambiguous match, and the command runs in that user's organization. [6]
 
@@ -79,10 +80,10 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 
 **Features that look real but are not (or not fully)**
 - Most "AI" features are rules or statistics; only NexusAssist, NexusAgent, the BI narrative, Ask the Data, the AI-assignment tie-break and AI Hub test/sync call an LLM provider. ML extras (Prophet, LightGBM, sentence-transformers) are not in the Docker image. [5]
-- BPM is a diagram editor without an execution engine. [5] (Automations now fire on their own; see their section.)
+- ~~Automations never fire on their own (only "Test" runs them, and it runs the real actions).~~ Fixed 2026-11-03: rules fire on record changes and on a periodic scan, per organization; "Test" simulates (migration 118). [5]
+- BPM is a diagram editor without an execution engine. [5]
 - Sprint Planning "AI" is a greedy fill by story points. [1]
 - Custom roles, role `module_access`, project permissions and issue types are stored but not enforced. [2, 6]
-- API keys and developer-portal tokens cannot authenticate API calls. [6]
 
 ---
 
@@ -4298,7 +4299,15 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **15 
 **Auditoría.** `GET /api/v1/enterprise/audit-log`. The UI shows the general log and password-reset events.
 
 **API Keys.**
-- Endpoints: `GET|POST /api/v1/bookings/api-keys`, `DELETE /bookings/api-keys/{id}`. Table `api_keys` (hashed, with a prefix).
+- Endpoints: `GET|POST /api/v1/bookings/api-keys` (create: `require_any_manager`), `DELETE /bookings/api-keys/{id}`. Table `api_keys`: bcrypt hash, SHA-256 `key_digest` (migration 119) and the visible prefix. The key (`nxpm_…`) is shown once.
+- **Using a key:** send `X-API-Key: nxpm_…` (or `Authorization: Bearer nxpm_…`) to any endpoint. The key acts **as its owner** (role and organization) and its scopes cut it down:
+  - `read`: GET/HEAD/OPTIONS only; `write` or `admin`: also writes;
+  - area scopes `projects`, `tasks`, `timesheets`, `billing`, `expenses`: read and write inside `/api/v1/<area>` (timesheets also `/imputations`; billing `/invoices` and `/billing-reports`) and nothing else.
+  - Unknown scopes are rejected with 422.
+- **Never valid for managing credentials:** `/auth/*` (except `GET /auth/me`), `/mfa`, `/bookings/api-keys`, `/developer/apps`, `/enterprise/sso`, `/bookings/sso` → 403.
+- Per-key limits `rate_limit_per_hour` / `rate_limit_per_day` return 429; the counters reset each hour and each day (before, they never reset). Expired or revoked keys → 401.
+- Keys created before migration 119 get their digest the first time they are used (one bcrypt check by prefix).
+- `POST /bookings/api-keys/verify` (unauthenticated) uses the same check and counts as a use.
 
 **Limitations (measured).**
 - **`/oauth-integrations/{id}/sync` is partly simulated** (`cab_service.py`):
@@ -4308,7 +4317,6 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **15 
   - **jira** calls Jira.
   - **slack/teams** sync does nothing.
 - **SAML is not implemented.** `POST /bookings/sso/saml/callback` always returns 503, but the SSO tab still offers "SAML 2.0".
-- **API keys cannot authenticate API calls.** No dependency or middleware accepts them (grep). The only consumer is the **unauthenticated** `POST /api/v1/bookings/api-keys/verify`, which tells any caller whether a key is valid.
 - **Outbound webhooks** (`/api/v1/enterprise/webhooks[/{id}[/test|/deliveries]]`, `/enterprise/webhooks/events`; tables `webhooks`, `webhook_deliveries`) are **API-only**: no screen calls them. Delivery happens in `app/worker.py`, signed with HMAC (`services/webhooks._sign_payload`) and re-checked against SSRF at send time. It requires the worker to be running.
 
 ---
@@ -4395,14 +4403,15 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **15 
 1. Create an app: name, description, homepage, redirect URIs (one per line), and scopes from `read`, `write`, `projects`, `tasks`, `timesheets`, `billing`, `admin`.
 2. **Copy the client secret now.** It is shown once.
 3. **Rotate the secret** if needed.
-4. Request a token with `POST /api/v1/developer/token`, body `{grant_type:"client_credentials", client_id, client_secret, scope:"read …"}`. The response carries `access_token` and `expires_in: 3600`.
+4. Request a token with `POST /api/v1/developer/token`, body `{grant_type:"client_credentials", client_id, client_secret, scope:"read …"}`. The response carries `access_token` and `expires_in` (`DEVELOPER_TOKEN_TTL_MINUTES`, default 60, Settings → Tokens).
+5. Call the API with `Authorization: Bearer <access_token>`. The token acts as the app owner, with the same scope rules and forbidden paths as API keys (see Enterprise → API Keys). `GET /developer/userinfo` returns the owner; `POST /developer/token/revoke` revokes it.
 
 **Technical notes.** `GET|POST /api/v1/developer/apps`, `GET|PATCH|DELETE /developer/apps/{id}`, `POST /developer/apps/{id}/rotate-secret`, `POST /developer/token`, `POST /developer/token/revoke`, `GET /developer/userinfo`. Tables `oauth_apps` (`client_secret_hash`) and `oauth_tokens` (`access_token_hash`).
 
 **Limitations (measured).**
 - **Only `client_credentials` is supported.** `authorization_code` returns 400, so the redirect URIs are unused.
-- **The issued tokens are accepted only by `GET /developer/userinfo`.** No other API dependency looks up `oauth_tokens` (grep), so a developer token cannot call `/api/v1/projects` or any other business endpoint. **The portal does not currently provide third-party API access.**
-- Scopes are validated against the app when the token is issued, but they are not enforced anywhere else.
+- Tokens issued before this revision were stored with a salted PBKDF2 hash and looked up by that hash, so they never matched (not even in `/userinfo`). They expire on their own; tokens are now stored as a SHA-256 digest.
+- There is no refresh token; request a new one when it expires.
 
 ---
 
@@ -5092,7 +5101,7 @@ The remaining 92 segments have ≤ 12 routes each. `/api/v1` responses carry `x-
 - **MFA:** TOTP and WebAuthn under `/api/v1/auth/mfa/*` (QR returned as a `data:` PNG), plus a second, older set at `/api/v1/mfa/*` that the SPA's MFA page uses (see §7.6). Per-org enforcement exists (`074_org_require_mfa`).
 - **Roles:** `UserRole` = `admin` (tenant admin), `pm`, `team_lead`, `hr`, `employee`, `subcontractor`; `is_superadmin` is a separate platform flag. Shortcuts: `require_admin`, `require_admin_or_hr`, `require_admin_or_pm`, `require_any_manager`, `require_internal_user`, `require_superadmin`.
 - **Client portal:** separate JWTs (`CLIENT_PORTAL_SECRET`, `JWT_ALGORITHM`, cookie `portal_access_token`, `get_current_client`).
-- **API keys:** there is **no generic API-key authentication** for the main API. Domain-specific tokens exist: booking API keys (`/api/v1/bookings/api-keys`, with a public `/verify`), BI embed tokens, the SCIM bearer (`SCIM_BEARER_TOKEN`, `/api/v1/scim/v2/{org_id}/…`), OAuth apps in the developer portal (`MAX_APPS_PER_USER`), and the client-portal widget token (`/widget/ticket.js`).
+- **API keys:** `X-API-Key` (keys from `/api/v1/bookings/api-keys`) and developer-portal bearer tokens authenticate on the whole API as their owner, cut down by scope (see Enterprise → API Keys). Other domain-specific tokens: BI embed tokens, the SCIM bearer (`SCIM_BEARER_TOKEN`, `/api/v1/scim/v2/{org_id}/…`), OAuth apps in the developer portal (`MAX_APPS_PER_USER`), and the client-portal widget token (`/widget/ticket.js`).
 
 #### 6.4 Response envelope
 

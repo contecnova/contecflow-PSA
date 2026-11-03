@@ -29,6 +29,7 @@ from app.core.abac_enforce import enforce_abac
 from app.models.user import User, UserRole
 from app.services import developer_portal_service as svc
 from app.core.responses import APIListResponse, APIResponse
+from app.core.credenciales_delegadas import ALCANCES_VALIDOS, huella, ttl_de_token
 
 router = APIRouter(prefix="/developer", tags=["Developer Portal"])
 
@@ -71,6 +72,12 @@ _verify_secret = svc.verify_secret
 _app_out = svc.serialize_app
 
 
+def _alcances_validos(scopes) -> None:
+    invalidos = sorted(set(scopes or []) - set(ALCANCES_VALIDOS))
+    if invalidos:
+        raise HTTPException(422, f"Alcances no válidos: {', '.join(invalidos)}. Válidos: {', '.join(ALCANCES_VALIDOS)}")
+
+
 # ── App management endpoints ────────────────────────────────────────────────────
 
 @router.get("/apps", summary="Listar mis aplicaciones OAuth")
@@ -91,6 +98,7 @@ def create_app(
     if app_count >= _MAX_APPS_PER_USER:
         raise HTTPException(400, f"Límite máximo de {_MAX_APPS_PER_USER} aplicaciones por usuario alcanzado")
 
+    _alcances_validos(payload.scopes)
     raw_secret = secrets.token_urlsafe(32)
     app = svc.create_app(
         db,
@@ -128,6 +136,7 @@ def update_app(
         raise HTTPException(404, "Aplicación no encontrada")
     if app.owner_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(403, "Acceso denegado")
+    _alcances_validos(payload.scopes)
     app = svc.update_app(db, app, payload.model_dump(exclude_none=True))
     return APIResponse.ok(data=_app_out(app))
 
@@ -185,13 +194,16 @@ def oauth_token(
             raise HTTPException(400, "Esta app no tiene propietario configurado")
 
         raw_token = secrets.token_urlsafe(32)
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        vida = ttl_de_token(db)
+        expires_at = datetime.now(timezone.utc) + vida
         scopes_list = payload.scope.split() if payload.scope else ["read"]
+        # Auditoria 2026-11: antes PBKDF2 con sal aleatoria, que luego se
+        # buscaba por igualdad y no coincidia nunca. La huella SHA-256 si.
         svc.create_token(
             db,
             app_id=app.id,
             user_id=owner_id,
-            token_hash=_hash_secret(raw_token),
+            token_hash=huella(raw_token),
             scopes=scopes_list,
             expires_at=expires_at,
         )
@@ -199,7 +211,7 @@ def oauth_token(
         return {
             "access_token": raw_token,
             "token_type": "bearer",
-            "expires_in": 3600,
+            "expires_in": int(vida.total_seconds()),
             "scope": payload.scope or "read",
         }
 
@@ -216,8 +228,7 @@ def revoke_token(
     if not auth.startswith("Bearer "):
         raise HTTPException(401, "Token requerido en cabecera Authorization: Bearer <token>")
     raw_token = auth.removeprefix("Bearer ").strip()
-    hashed = _hash_secret(raw_token)
-    token = svc.get_token_by_hash(db, hashed)
+    token = svc.get_token_by_hash(db, huella(raw_token))
     if token:
         svc.revoke_token(db, token)
     return {"ok": True}
@@ -233,11 +244,11 @@ def oauth_userinfo(
     if not auth.startswith("Bearer "):
         raise HTTPException(401, "Token requerido")
     raw_token = auth.removeprefix("Bearer ").strip()
-    hashed = _hash_secret(raw_token)
-    token_obj = svc.get_active_token_by_hash(db, hashed)
+    token_obj = svc.get_active_token_by_hash(db, huella(raw_token))
     if not token_obj:
         raise HTTPException(401, "Token inválido o revocado")
-    if token_obj.expires_at and token_obj.expires_at < datetime.now(timezone.utc):
+    vence = token_obj.expires_at
+    if vence and (vence if vence.tzinfo else vence.replace(tzinfo=timezone.utc)) < datetime.now(timezone.utc):
         raise HTTPException(401, "Token expirado")
 
     user = svc.get_user_by_id(db, token_obj.user_id)
@@ -246,7 +257,7 @@ def oauth_userinfo(
 
     return {
         "sub": user.id,
-        "name": f"{user.first_name} {user.last_name}".strip(),
+        "name": user.full_name or f"{user.first_name or ''} {user.last_name or ''}".strip(),
         "email": user.email,
         "role": user.role.value if hasattr(user.role, 'value') else user.role,
         "organization_id": user.organization_id,

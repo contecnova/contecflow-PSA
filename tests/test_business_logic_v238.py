@@ -249,7 +249,8 @@ class TestAutomationsV238:
         # Envelope canónico: {"items": [{"type": ..., "label": ...}, ...], "meta": ...}
         triggers = data["items"]
         keys = [t["type"] for t in triggers]
-        assert "custom_field_changed" in keys
+        # Auditoria 2026-11: nada lo emitia; solo se ofrece lo que salta.
+        assert "custom_field_changed" not in keys
 
     def test_trigger_types_contains_opportunity_stage_changed(self, client, admin_token, db):
         r = client.get("/api/v1/automations/trigger-types", headers=auth(admin_token))
@@ -265,14 +266,15 @@ class TestAutomationsV238:
         # Envelope canónico: {"items": [{"type": ..., "label": ...}, ...], "meta": ...}
         actions = data["items"]
         keys = [a["type"] for a in actions]
-        assert "create_jira_issue" in keys
+        # Auditoria 2026-11: no tenia ejecutor; solo se ofrece lo que se ejecuta.
+        assert "create_jira_issue" not in keys
 
     def test_action_types_contains_hubspot(self, client, admin_token, db):
         r = client.get("/api/v1/automations/action-types", headers=auth(admin_token))
         data = r.json()
         actions = data["items"]
         keys = [a["type"] for a in actions]
-        assert "create_hubspot_deal" in keys
+        assert "create_hubspot_deal" not in keys
 
     def test_trigger_types_all_have_label_and_description(self, client, admin_token, db):
         r = client.get("/api/v1/automations/trigger-types", headers=auth(admin_token))
