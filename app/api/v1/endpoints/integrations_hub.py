@@ -477,6 +477,17 @@ async def _ejecutar_comando_del_bot(texto: str, usuario, db, *, canal: str) -> d
     manejador = _COMANDOS.get(verbo)
     if manejador is None:
         return _slack_help()
+    if usuario is None:
+        # Auditoria 2026-11: sin usuario se creaban tareas y tickets anonimos y
+        # se consultaban codigos de cualquier organizacion.
+        return {"response_type": "ephemeral",
+                "text": f"❌ No encuentro un único usuario de Contecflow para ti en {canal}. "
+                        "Tu nombre de usuario o la parte de tu correo antes de la @ (Slack), o tu "
+                        "nombre completo (Teams), tienen que coincidir exactamente con los de Contecflow."}
+    # Todo el comando corre en la organizacion de ese usuario.
+    from app.db.session import publicar_contexto_de_tenant
+    publicar_contexto_de_tenant(db, usuario)
+    db.info["is_superadmin"] = False
     try:
         return await manejador(resto, usuario, db)
     except Exception as exc:

@@ -64,7 +64,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 - ~~MFA enrolled on the `/mfa` screen does not protect sign-in; its QR sent the TOTP secret to Google.~~ Fixed 2026-11-03: enrolling there now sets the factor sign-in checks, its backup codes work at sign-in, and the QR is generated locally. [6]
 - ~~Several endpoints accept wider roles than their screens (employees can read cost, GDPR and audit data); BI embed tokens are full access tokens.~~ Fixed 2026-11-03 for the routes listed in section 5 (report builder, Data Explorer previews, GDPR and governance reads, M365, ETL, AI narrative, scheduled reports) and for special-purpose tokens. The earlier claim that scheduled reports and the alert engine act across organizations was wrong: measured, the tenant filter scopes both. [5]
 - **Fixed 2026-11-03:** org admins could overwrite a global setting shared by all organizations through `PATCH /settings/general/{key}`; writes now go to the organization's row and only general keys are accepted. [6]
-- Slack/Teams inbound commands resolve the user by partial name/email match without organization context. [6]
+- ~~Slack/Teams inbound commands resolve the user by partial name/email match without organization context.~~ Fixed 2026-11-03: exact, unambiguous match, and the command runs in that user's organization. [6]
 
 **Wrong data shown**
 - ~~Finance dashboard: revenue, cost and margin always show 0, and PMs get 403 on the profitability summary.~~ Fixed 2026-11-03, with the pipeline KPIs and the project table that read fields the API does not send. The period selector still does nothing. [3]
@@ -4447,7 +4447,8 @@ Other endpoints:
 - Teams: requires `TEAMS_BOT_APP_ID` and validates the Bot Framework JWT (`TEAMS_BOT_OPENID_METADATA_URL`, `TEAMS_BOT_ISSUER`).
 
 **Limitations (measured).**
-- **Slack user mapping matches by `username ==` or `email ILIKE '%<slack user_name>%'`.** **Teams mapping matches by `full_name ILIKE '%<name>%'`.** These are partial-match lookups with no tenant context (public endpoint), so a command can run **as a different user, in a different organization**. Do not enable the bots in a multi-tenant deployment without fixing this.
+- **User mapping (since 2026-11-03).** Slack: an active user whose `username`, or the part of the email before `@`, equals the Slack `user_name` (case-insensitive). Teams: an active user whose full name equals the Teams display name (case-insensitive, spaces collapsed). If none or more than one match (across all organizations), the bot answers "No encuentro un único usuario…" and does nothing; only the help works without a user. The command then runs with that user's organization as tenant context, so project and task codes resolve only inside it, and new tasks, tickets and time entries are stamped with it. Before, the lookup was a partial match (`%name%`) taking the first user of any organization, commands without a user created anonymous rows, and codes were looked up in every organization. Test: `tests/test_bot_slack_teams_usuario_exacto.py`.
+- There is no workspace-to-organization mapping: one Slack app (one `SLACK_SIGNING_SECRET`) and one Teams bot serve the whole installation; a name that exists in two organizations is refused.
 - Saving a Slack webhook in Credenciales does not route product notifications there.
 - **No automatic Slack or Teams dispatch from `integration_configs`.** `notify_event` is called only from the manual `/integrations-hub/notify-event` endpoint.
 

@@ -607,21 +607,38 @@ def link_jira_to_task(db, task_id: str, jira_key: str) -> None:
         db.commit()
 
 
+def _uno_solo(candidatos):
+    """El usuario si hay exactamente uno; si no, nadie.
+
+    Auditoria 2026-11: se buscaba por coincidencia parcial («%ana%» casaba con
+    juana@…) y se cogia el primero de CUALQUIER organizacion; el comando se
+    ejecutaba en nombre de otra persona. Antes «no se quien eres» que a medias.
+    """
+    return candidatos[0] if len(candidatos) == 1 else None
+
+
 def find_user_by_slack_name(db, user_name: str):
-    """Find a Contecflow user by Slack username or partial email match."""
-    return db.query(User).filter(
-        (User.username == user_name) | (User.email.ilike(f"%{user_name}%"))
-    ).first()
+    """Usuario de Slack: nombre de usuario o parte local del correo, exactos y sin ambiguedad."""
+    nombre = (user_name or "").strip().lower()
+    if not nombre:
+        return None
+    from sqlalchemy import func
+    return _uno_solo(db.query(User).filter(
+        User.is_active == True,  # noqa: E712
+        (func.lower(User.username) == nombre) | (func.lower(User.email).like(f"{nombre}@%")),
+    ).limit(2).all())
 
 
 def find_user_by_teams_name(db, teams_name: str):
-    """Find a Contecflow user by Teams display name (full then first-name fallback)."""
-    user = db.query(User).filter(User.full_name.ilike(f"%{teams_name}%")).first()
-    if not user:
-        name_parts = teams_name.split()
-        if name_parts:
-            user = db.query(User).filter(User.full_name.ilike(f"%{name_parts[0]}%")).first()
-    return user
+    """Usuario de Teams: nombre completo exacto (sin mayusculas) y sin ambiguedad."""
+    nombre = " ".join((teams_name or "").split()).lower()
+    if not nombre:
+        return None
+    from sqlalchemy import func
+    return _uno_solo(db.query(User).filter(
+        User.is_active == True,  # noqa: E712
+        func.lower(User.full_name) == nombre,
+    ).limit(2).all())
 
 
 def slack_create_task_from_text(db, text: str, user) -> dict:
