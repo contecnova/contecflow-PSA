@@ -75,13 +75,10 @@ def _deserialize_model(data: bytes):
         return joblib.load(io.BytesIO(data))
 
     sig, raw = data[:32], data[32:]
-    from app.core.config import settings as _settings
-    expected = _hmac.new(
-        _settings.SECRET_KEY.encode(),
-        raw,
-        hashlib.sha256,
-    ).digest()
-    if not _hmac.compare_digest(sig, expected):
+    from app.core.encryption import claves_secretas
+    # Firmado con la clave actual o con una anterior (rotacion de SECRET_KEY).
+    if not any(_hmac.compare_digest(sig, _hmac.new(c.encode(), raw, hashlib.sha256).digest())
+               for c in claves_secretas()):
         raise ValueError(
             "ML model integrity check failed — model bytes may have been tampered with"
         )

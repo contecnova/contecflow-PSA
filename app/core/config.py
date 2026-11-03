@@ -38,6 +38,10 @@ class Settings(
 
     # ── Auth / Tokens ────────────────────────────────────────────────────────
     SECRET_KEY: str = Field(..., env="SECRET_KEY")
+    # Claves anteriores, separadas por comas: solo para DESCIFRAR lo guardado
+    # antes de una rotacion (scripts/rotate_keys.sh las rellena y luego
+    # re-cifra). Se pueden vaciar cuando scripts/reencrypt_secrets.py dice 0.
+    SECRET_KEY_PREVIOUS: str = Field(default="", env="SECRET_KEY_PREVIOUS")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15, env="ACCESS_TOKEN_EXPIRE_MINUTES")
     ACCESS_TOKEN_MAX_MINUTES: int = Field(default=30, env="ACCESS_TOKEN_MAX_MINUTES")
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=30, env="REFRESH_TOKEN_EXPIRE_DAYS")

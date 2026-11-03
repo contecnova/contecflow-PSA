@@ -37,9 +37,19 @@ def _kms_client():
         kwargs["region_name"] = settings.AWS_KMS_REGION
     return boto3.client("kms", **kwargs)
 
+def claves_secretas() -> list[str]:
+    """SECRET_KEY y despues las anteriores (SECRET_KEY_PREVIOUS).
+
+    Auditoria 2026-11: cambiar SECRET_KEY dejaba ilegible todo lo cifrado.
+    Ahora se descifra con cualquiera de estas y se cifra siempre con la actual.
+    """
+    anteriores = [c.strip() for c in (settings.SECRET_KEY_PREVIOUS or "").split(",") if c.strip()]
+    return [settings.SECRET_KEY] + [c for c in anteriores if c != settings.SECRET_KEY]
+
+
 # ── v1 legacy: deterministic global key ───────────────────────────────────────
 
-def _derive_key() -> bytes:
+def _derive_key(secret: Optional[str] = None) -> bytes:
     """Derive a 32-byte Fernet key from SECRET_KEY via PBKDF2 (v1 legacy)."""
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
     from cryptography.hazmat.primitives import hashes
@@ -49,7 +59,7 @@ def _derive_key() -> bytes:
         salt=b"contecflow_field_enc_v1",
         iterations=100_000,
     )
-    return base64.urlsafe_b64encode(kdf.derive(settings.SECRET_KEY.encode()))
+    return base64.urlsafe_b64encode(kdf.derive((secret or settings.SECRET_KEY).encode()))
 
 
 _KEY: Optional[bytes] = None
@@ -64,7 +74,7 @@ def _get_key() -> bytes:
 
 # ── v2 current: per-record HKDF key ───────────────────────────────────────────
 
-def _derive_record_key(salt: bytes) -> bytes:
+def _derive_record_key(salt: bytes, secret: Optional[str] = None) -> bytes:
     """Derive a per-record 32-byte Fernet key from SECRET_KEY + random salt via HKDF."""
     from cryptography.hazmat.primitives.kdf.hkdf import HKDF
     from cryptography.hazmat.primitives import hashes
@@ -74,7 +84,7 @@ def _derive_record_key(salt: bytes) -> bytes:
         salt=salt,
         info=b"contecflow_field_enc_v2",
     )
-    return base64.urlsafe_b64encode(hkdf.derive(settings.SECRET_KEY.encode()))
+    return base64.urlsafe_b64encode(hkdf.derive((secret or settings.SECRET_KEY).encode()))
 
 
 def encrypt_value(plaintext: str) -> str:
@@ -121,17 +131,25 @@ def decrypt_value(ciphertext: str) -> Optional[str]:
             rest = ciphertext[3:]
             salt_b64, token = rest.split(".", 1)
             salt = base64.urlsafe_b64decode(salt_b64 + "==")  # pad for urlsafe_b64decode
-            key = _derive_record_key(salt)
-            return Fernet(key).decrypt(token.encode()).decode()
+            from cryptography.fernet import InvalidToken
+            for secreto in claves_secretas():
+                try:
+                    return Fernet(_derive_record_key(salt, secreto)).decrypt(token.encode()).decode()
+                except InvalidToken:
+                    continue
+            raise InvalidToken()
         else:
             # Backward compatibility path:
-            # 1) Try legacy v1 deterministic Fernet key.
+            # 1) Try legacy v1 deterministic Fernet key (actual y anteriores).
             # 2) If it fails, treat the value as plaintext (old deployments).
-            try:
-                return Fernet(_get_key()).decrypt(ciphertext.encode()).decode()
-            except Exception:
-                logger.warning("Decrypt fallback: treating legacy value as plaintext")
-                return ciphertext
+            for secreto in claves_secretas():
+                try:
+                    clave = _get_key() if secreto == settings.SECRET_KEY else _derive_key(secreto)
+                    return Fernet(clave).decrypt(ciphertext.encode()).decode()
+                except Exception:
+                    continue
+            logger.warning("Decrypt fallback: treating legacy value as plaintext")
+            return ciphertext
     except Exception as exc:
         logger.warning(f"Decryption failed (value may be unencrypted plaintext): {exc}")
         return None

@@ -189,11 +189,13 @@ async def handle_callback(state: str, code: str) -> tuple[Optional[str], Optiona
 
 # ── Encryption (Fernet con clave derivada de SECRET_KEY existente) ──────────
 def _fernet():
-    from cryptography.fernet import Fernet
-    from app.core.config import settings
-    raw = (settings.SECRET_KEY or "dev-secret").encode()
-    key = base64.urlsafe_b64encode(hashlib.sha256(raw + b"|collab-integrations").digest())
-    return Fernet(key)
+    """Cifra con SECRET_KEY y descifra tambien con las anteriores (rotacion)."""
+    from cryptography.fernet import Fernet, MultiFernet
+    from app.core.encryption import claves_secretas
+    return MultiFernet([
+        Fernet(base64.urlsafe_b64encode(hashlib.sha256(c.encode() + b"|collab-integrations").digest()))
+        for c in claves_secretas()
+    ])
 
 
 def encrypt(value: str | None) -> Optional[str]:

@@ -57,7 +57,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 
 **Operation**
 - **Fixed 2026-11-03:** `setup.sh` did not start Celery, so 48 of the 52 scheduled jobs (SLA/OLA/UC scan, mailbox reading, the ticket event outbox that sends notifications, emails, webhooks and workflows) never ran locally. It now starts a worker and beat (verified: beat enqueued the ticket-event job and the worker ran it; the SLA scan, mailbox and asset-expiry jobs ran on the worker). `setup.bat` got the same change (`--pool=solo`; **not verified on Windows**). The Docker stack ran APScheduler in the API and the `beat` container at the same time; it now sets `ENABLE_APSCHEDULER=0`/`ENABLE_CELERY_BEAT=1`. Performance reminders, which only existed in APScheduler, are now a beat entry. [7.3, 7.8]
-- `scripts/rotate_keys.sh` replaces `SECRET_KEY` without re-encrypting stored secrets, which then become unreadable; it also prints the new key. There is no working backup procedure in the repository. [7.7, 7.13]
+- ~~`scripts/rotate_keys.sh` replaces `SECRET_KEY` without re-encrypting stored secrets and prints the new key.~~ Fixed 2026-11-03 (`SECRET_KEY_PREVIOUS` + `scripts/reencrypt_secrets.py`). There is still no working backup procedure in the repository. [7.7, 7.13]
 
 **Security**
 - **Fixed 2026-11-03:** `GET /api/v1/settings/general` (open to any signed-in user) returned every `app_settings` row, including e-signature tokens and secrets in plain text. It now returns only general settings to non-admins and masks sensitive values for everyone. The e-sign secrets are still stored unencrypted in the database. [6]
@@ -4700,6 +4700,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `ENVIRONMENT` | `'development'` | `development`/`test`/`staging`/`production` (validator rejects anything else). Drives secret hardening, Secure cookies, HSTS, docs exposure, schema-drift enforcement. |
 | `LOG_LEVEL` | `'INFO'` | Root/uvicorn log level. |
 | `SECRET_KEY` | *(required)* | **Required.** JWT legacy key and the root of field-level encryption (PBKDF2/HKDF). ≥32 chars, ≥10 distinct chars, no placeholder. |
+| `SECRET_KEY_PREVIOUS` | `''` | Comma-separated previous keys, used only to **decrypt** after a rotation; filled by `scripts/rotate_keys.sh` (§7.5). |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `15` | Access-token TTL; effective TTL is `min(this, ACCESS_TOKEN_MAX_MINUTES)`. Runtime-overridable. |
 | `ACCESS_TOKEN_MAX_MINUTES` | `30` | Upper clamp for access-token TTL. Runtime-overridable. |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `30` | Refresh-token/cookie TTL. Runtime-overridable. |
@@ -5121,7 +5122,8 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 #### 7.5 Secrets and key rotation
 
 - **Field encryption** (`app/core/encryption.py`): `v2:<salt>.<fernet>` with HKDF from **`SECRET_KEY`** plus a per-record salt; legacy v1 uses PBKDF2 from `SECRET_KEY`; `kmsv1:` when `KMS_PROVIDER=aws`. `decrypt_value` returns `None` on failure (and treats undecryptable non-prefixed values as plaintext).
-- **Rotation:** the app rotates the JWT keyring and re-encrypts integration secrets (new salt, same `SECRET_KEY`) on schedule (APScheduler or beat, §8). **`scripts/rotate_keys.sh` replaces `SECRET_KEY` in `.env` and does nothing else.** Every `v1`/`v2` ciphertext (integration credentials, TOTP secrets, …) is derived from the old key and would decrypt to `None` afterwards. The script also prints the new key to stdout. Do not use it on a populated database without a re-encryption step. This is derived from the code; **not tested at runtime.** `make rotate-keys` only prints a reminder.
+- **Rotation:** the app rotates the JWT keyring and re-encrypts integration secrets (new salt, same `SECRET_KEY`) on schedule (APScheduler or beat, §8).
+- **Rotating `SECRET_KEY`** (since 2026-11-03): run `bash scripts/rotate_keys.sh` from the repository root with the database reachable. It copies `.env` to `.env.bak.<timestamp>` (mode 600; it holds the old key), writes a new random `SECRET_KEY`, prepends the old one to `SECRET_KEY_PREVIOUS`, and runs `scripts/reencrypt_secrets.py`. That script walks every text column of every table with a single-column primary key, finds values encrypted with a previous key (`v2:…` of `app.core.encryption`, and bare Fernet tokens of the v1 format or of the collaboration integrations), re-encrypts them with the current key and prints, per column, how many encrypted values it looked at. No key is printed. Then restart API, worker and beat; open sessions end. `venv/bin/python scripts/reencrypt_secrets.py --check` counts without writing and exits 1 while anything still needs the old key; when it reports 0, `SECRET_KEY_PREVIOUS` can be emptied. Until then the application decrypts with both (`encryption.claves_secretas()`); ML model signatures and collaboration tokens also accept the previous keys. Values under `kmsv1:` do not depend on `SECRET_KEY`. If the key also lives in a secrets manager or server variables, update it there by hand. Test: `tests/test_rotacion_de_secret_key.py` (the shell script was exercised on a scratch copy, not on a real deployment). `make rotate-keys` only prints a reminder.
 - **`.env` is versioned on purpose** (`.gitignore` header: private repository, so a fresh clone boots with the same configuration); `.env.*` files (`.env.local`, `.env.produccion`) are ignored. Anyone with read access to the repo therefore has the development secrets — treat repository access as secret access and never commit production values to `.env`. `.gitleaks.toml` is present; `setup.sh` generates missing secrets per installation.
 
 #### 7.6 Known security issues found while measuring
@@ -5274,7 +5276,7 @@ DOCS.md §16 lists generic steps (activate the venv, check `DATABASE_URL`, `alem
 3. **Schedules are in `DEFAULT_TIMEZONE`**, not UTC, contrary to names and comments (§8.1).
 4. **`RATE_LIMIT_DEFAULT` is probably inert** (no `SlowAPIMiddleware`); only 117 decorated routes are limited, and behind nginx the key is the proxy IP (§6.5).
 5. **nginx forwards WebSocket upgrades only for `/api/v1/ws/`**; 3 other WS endpoints and `/status`, `/ready` and the widgets are not routed (§6.6, §9).
-6. **Rotating `SECRET_KEY` breaks stored ciphertexts**; `scripts/rotate_keys.sh` has no re-encryption (§7.5).
+6. ~~Rotating `SECRET_KEY` breaks stored ciphertexts.~~ Fixed 2026-11-03: `SECRET_KEY_PREVIOUS` and `scripts/reencrypt_secrets.py` (§7.5).
 7. ~~MFA setup on the SPA leaks the TOTP secret to `chart.googleapis.com`.~~ Fixed 2026-11-03: the QR is generated locally (§7.6).
 8. **`setup.sh clean`, `setup.bat start clean` and the seed have no ENVIRONMENT gate.** Only `sync_demo_passwords` is gated (§3.2, §5).
 9. **`scripts/deploy.sh` targets a compose layout that no longer exists**, and there is no working backup procedure in the repo (§5).
@@ -5312,7 +5314,7 @@ DOCS.md §16 lists generic steps (activate the venv, check `DATABASE_URL`, `alem
 | §10: hook `frontend/src/hooks/useOrgSettings.js` | `useOrgSettings.ts` |
 | §12: "Rate limiting: 116 endpoints" | 117 `@limiter.limit` decorators |
 | §12: tenant filter "covers 390 of 391 models" | 395 mapped classes: 383 `organization_id` + 11 `org_id` + 1 exempt |
-| §12 Rotación de claves: `scripts/rotate_keys.sh` | Only rewrites `SECRET_KEY`; breaks encrypted data (§7.5) |
+| §12 Rotación de claves: `scripts/rotate_keys.sh` | Was only rewriting `SECRET_KEY`; fixed 2026-11-03, see §7.5 |
 | §14 Observability: "logs, Sentry and OpenTelemetry" | Also Prometheus `/metrics` and an observability compose profile |
 | §15 E-sign: `frontend/src/services/api.js` | `api.ts`; there is no `api.js` |
 
