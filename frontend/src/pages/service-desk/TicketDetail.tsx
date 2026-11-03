@@ -206,7 +206,7 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
           <label style={LS}>{t('common.status')}</label>
           <select value={form.status} onChange={set('status')} style={IS}>
             {[['new', t('service_desk.status_new')], ['assigned', t('service_desk.status_assigned')], ['in_progress', t('service_desk.status_in_progress')],
-              ['pending_client', t('service_desk.status_waiting_client')], ['pending_third', t('service_desk.status_pending_change')],
+              ['pending_client', t('service_desk.status_waiting_client')], ['pending_third', t('service_desk.status_pending_third')],
               ['resolved', t('service_desk.status_resolved')], ['closed', t('service_desk.status_closed')], ['cancelled', t('service_desk.status_cancelled')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
@@ -350,8 +350,8 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
   })
   const { mutate: restorePending, isPending: restoringPending } = useMutation({
     mutationFn: () => ticketsApi.restorePending(ticketId),
-    onSuccess: () => { invalidate(); toast.success('Estado previo restaurado') },
-    onError: e => toast.error(extractErr(e, 'Error al restaurar estado pendiente')),
+    onSuccess: () => { invalidate(); toast.success(t('service_desk.qa_back_ok')) },
+    onError: e => toast.error(extractErr(e, t('service_desk.qa_back_error'))),
   })
   const { mutate: updateTicket } = useMutation({
     mutationFn: (data: Record<string, unknown>) => ticketsApi.update(ticketId, data),
@@ -425,12 +425,12 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               <button onClick={() => { setTextoResolucion(ticket.resolution || ''); setResolviendo(true) }} style={{ ...qaBtnStyle, background: alpha(COLOR.success, '20'), color: COLOR.success }}>✓ {t('sd_cfg.qa_resolve')}</button>
               <button onClick={() => escalate()} style={{ ...qaBtnStyle, background: alpha(COLOR.warning, '20'), color: COLOR.warning }}>↑ {t('sd_cfg.qa_escalate')}</button>
               {(ticket.status === 'pending_client' || ticket.status === 'pending_third') && (
-                <button onClick={() => restorePending()} disabled={restoringPending} style={qaBtnStyle}>↺ Restaurar pendiente</button>
+                <button onClick={() => restorePending()} disabled={restoringPending} style={qaBtnStyle}>↺ {t('service_desk.qa_back_to_previous')}</button>
               )}
               {ticket.sla_paused_at
-                ? <button onClick={() => resumeSLA()} style={qaBtnStyle}>▶ {t('service_desk.sla_resumed')}</button>
-                : <button onClick={() => pauseSLA()} style={qaBtnStyle}>⏸ {t('service_desk.sla_paused')}</button>}
-              <button onClick={() => setShowSplit(true)} style={qaBtnStyle}>✂ {t('service_desk.split_title_lbl')}</button>
+                ? <button onClick={() => resumeSLA()} style={qaBtnStyle}>▶ {t('service_desk.qa_resume_sla')}</button>
+                : <button onClick={() => pauseSLA()} style={qaBtnStyle}>⏸ {t('service_desk.qa_pause_sla')}</button>}
+              <button onClick={() => setShowSplit(true)} style={qaBtnStyle}>✂ {t('service_desk.qa_split')}</button>
             </>}
             {ticket.status === 'resolved' && (
               <button onClick={() => updateTicket({ status: 'closed' })} style={{ ...qaBtnStyle, background: alpha(COLOR.text2, '20'), color: 'var(--text-2)' }}>✕ Cerrar</button>

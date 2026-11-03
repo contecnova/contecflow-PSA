@@ -5,6 +5,8 @@
 import { useState, useEffect } from 'react'
 import { COLOR, alpha } from '../../constants/theme'
 import { formateadorDeFecha } from '../../utils/helpers'
+import { useAppT } from '../../i18n/AppLangContext'
+import { traducirSinHook } from '../../i18n/traducirSinHook'
 
 // ── Priority / Status maps ─────────────────────────────────────────────────────
 export const PRIORITY_COLOR = {
@@ -13,10 +15,13 @@ export const PRIORITY_COLOR = {
   p3_medium:   COLOR.warning,
   p4_low:      COLOR.text2,
 }
-export const PRIORITY_LABEL: Record<string, string> = {
-  p1_critical: 'P1 Crítico', p2_high: 'P2 Alto',
-  p3_medium: 'P3 Medio', p4_low: 'P4 Bajo',
-}
+// Se traduce al leerlo, en el idioma activo. Auditoría 2026-11: eran literales
+// en español y salían así también en inglés y en chino; con getters, los 25
+// sitios que leen el mapa siguen igual.
+const PRIORITY_KEY = { p1_critical: 'priority_p1', p2_high: 'priority_p2', p3_medium: 'priority_p3', p4_low: 'priority_p4' }
+export const PRIORITY_LABEL: Record<string, string> = Object.defineProperties({}, Object.fromEntries(
+  Object.entries(PRIORITY_KEY).map(([k, clave]) => [k, { enumerable: true, get: () => traducirSinHook(`service_desk.${clave}`) }]),
+))
 export const STATUS_COLOR = {
   new: COLOR.accent, assigned: COLOR.accent, in_progress: 'var(--sky-blue)',
   pending_client: COLOR.warning, pending_third: COLOR.warning,
@@ -79,7 +84,23 @@ export function PBadge({ v }: { v?: string }) {
     </span>
   )
 }
+/** Estado del ticket → clave de traducción. Auditoría 2026-11: se pintaba el
+ *  código tal cual («pending third», «in progress»). */
+const STATUS_KEY: Record<string, string> = {
+  new: 'status_new', assigned: 'status_assigned', in_progress: 'status_in_progress',
+  pending_client: 'status_waiting_client', pending_third: 'status_pending_third',
+  resolved: 'status_resolved', closed: 'status_closed', cancelled: 'status_cancelled',
+}
+
+/** Un código del Service Desk (estado de cambio, de problema...) en el idioma
+ *  activo: `service_desk.<grupo>_<valor>`. Auditoría 2026-11: se pintaban
+ *  con `.replace(/_/g, ' ')`, en inglés y en minúsculas. */
+export function etiquetaSd(grupo: 'chg_st' | 'chg_type' | 'prb_st' | 'mi_st' | 'type', valor?: string | null): string {
+  return valor ? traducirSinHook(`service_desk.${grupo}_${valor}`) : '—'
+}
+
 export function SBadge({ v }: { v: string }) {
+  const t = useAppT()
   const color = STATUS_COLOR[v as keyof typeof STATUS_COLOR] || COLOR.text2
   return (
     <span style={{
@@ -87,7 +108,7 @@ export function SBadge({ v }: { v: string }) {
       padding: '2px 8px', borderRadius: 4,
       background: alpha(color, '15'), whiteSpace: 'nowrap',
     }}>
-      {v?.replace(/_/g, ' ')}
+      {STATUS_KEY[v] ? t(`service_desk.${STATUS_KEY[v]}`) : v?.replace(/_/g, ' ')}
     </span>
   )
 }

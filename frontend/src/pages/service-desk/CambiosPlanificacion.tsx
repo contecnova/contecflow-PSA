@@ -14,6 +14,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, EmptyState, Modal, Spinner } from '../../components/ui'
 import { COLOR, alpha } from '../../constants/theme'
 import { sdChangePlanningApi } from '../../services/api'
+import { etiquetaSd } from './sdUtils'
 
 type Choque = { change_id: string; number: string; cis: string[] }
 type CambioCal = { id: string; number: string; title: string; status: string; change_type: string; risk: string; planned_start: string; planned_end?: string | null; conflicts: Choque[]; in_blackout: boolean }
@@ -84,7 +85,7 @@ export function CalendarioCambios({ onOpen }: { onOpen: (id: string) => void }) 
                   </span>
                   <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{c.number}</span>
                   <span style={{ flex: 1, minWidth: 160 }}>{c.title}</span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{c.status.replace(/_/g, ' ')}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{etiquetaSd('chg_st', c.status)}</span>
                   {c.in_blackout && <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: COLOR.danger }}>❄ {t('sd_cfg.chg_in_blackout')}</span>}
                   {c.conflicts.length > 0 && (
                     <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: COLOR.warning }}>
@@ -202,7 +203,7 @@ export function Versiones({ onOpen }: { onOpen: (id: string) => void }) {
             {(r.changes ?? []).length === 0 ? <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('sd_cfg.chg_no_changes')}</span>
               : (r.changes ?? []).map(c => (
                 <button key={c.id} type="button" onClick={() => onOpen(c.id)} style={{ border: '1px solid var(--surface-4)', borderRadius: 999, padding: '3px 10px', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-xs)', color: 'var(--text-1)' }}>
-                  {c.number} · {c.status.replace(/_/g, ' ')}
+                  {c.number} · {etiquetaSd('chg_st', c.status)}
                 </button>
               ))}
           </div>

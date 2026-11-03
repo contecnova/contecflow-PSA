@@ -8,53 +8,11 @@ import { COLOR, alpha } from '../../constants/theme'
 import { useAppT } from '../../i18n/AppLangContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
+import { PBadge, PRIORITY_LABEL, SBadge, etiquetaSd } from './sdUtils'
 
-const PRIORITY_COLOR: Record<string, string> = {
-  p1_critical: COLOR.danger,
-  p2_high: COLOR.orange,
-  p3_medium: COLOR.warning,
-  p4_low: COLOR.text2,
-}
-
-const PRIORITY_LABEL: Record<string, string> = {
-  p1_critical: 'P1 Crítico',
-  p2_high: 'P2 Alto',
-  p3_medium: 'P3 Medio',
-  p4_low: 'P4 Bajo',
-}
-
-const STATUS_COLOR: Record<string, string> = {
-  new: COLOR.accent,
-  assigned: COLOR.accent,
-  in_progress: 'var(--sky-blue)',
-  pending_client: COLOR.warning,
-  pending_third: COLOR.warning,
-  resolved: COLOR.success,
-  closed: COLOR.text2,
-  cancelled: COLOR.text3,
-}
-
-function PBadge({ v }: { v?: string }) {
-  const color = PRIORITY_COLOR[v || ''] || COLOR.text2
-  return (
-    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color, padding: '2px 7px',
-      borderRadius: 4, border: `1px solid ${alpha(color, '30')}`, background: alpha(color, '12'),
-      whiteSpace: 'nowrap' }}>
-      {PRIORITY_LABEL[v || ''] || v}
-    </span>
-  )
-}
-
-function SBadge({ v }: { v?: string }) {
-  const color = STATUS_COLOR[v || ''] || COLOR.text2
-  const label = v?.replace(/_/g, ' ')
-  return (
-    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 600, color, padding: '2px 8px',
-      borderRadius: 4, background: alpha(color, '15'), whiteSpace: 'nowrap' }}>
-      {label}
-    </span>
-  )
-}
+// PBadge y SBadge vienen de sdUtils. Auditoría 2026-11: aquí había una copia
+// local de los dos (y de sus mapas de color), y por eso la lista seguía
+// pintando el estado como código cuando se tradujo el compartido.
 
 function fmtDate(d?: string | Date | null) {
   if (!d) return '—'
@@ -91,7 +49,7 @@ function TRow({ t: ticket, onClick }: { t: Ticket; onClick: () => void }) {
       </td>
       <td style={{ padding: '10px 8px' }}><PBadge v={ticket.priority} /></td>
       <td style={{ padding: '10px 8px' }}><SBadge v={ticket.status} /></td>
-      <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{ticket.ticket_type?.replace(/_/g, ' ')}</td>
+      <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{String(ticket.type_label ?? ticket.ticket_type ?? '')}</td>
       <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: overdue ? COLOR.danger : 'var(--text-2)', whiteSpace: 'nowrap' }}>
         {due ? `${overdue ? '⚠ ' : ''}${fmtDate(due)}` : '—'}
       </td>
@@ -267,7 +225,7 @@ export function MajorIncidents() {
                     <span style={{ fontSize: "var(--text-xs)", fontWeight: 600,
                       color: m.status === 'active' ? COLOR.danger : COLOR.success,
                       background: m.status === 'active' ? alpha(COLOR.danger, '15') : alpha(COLOR.success, '15'),
-                      padding: '2px 8px', borderRadius: 4 }}>{m.status}</span>
+                      padding: '2px 8px', borderRadius: 4 }}>{etiquetaSd('mi_st', m.status)}</span>
                   </td>
                   <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{m.commander || '—'}</td>
                   <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{fmtDate(m.declared_at)}</td>

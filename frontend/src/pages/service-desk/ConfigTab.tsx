@@ -13,7 +13,7 @@ import { EscalationConfig, NotificationsConfig } from './ConfigEscaladoYAvisos'
 import ConfigCorreoEntrante from './ConfigCorreoEntrante'
 import { GuardiasConfig, MonitorizacionConfig } from './ConfigGuardiasYMonitor'
 import ConfigPaginaDeEstado from './ConfigPaginaDeEstado'
-import { PRIORITY_LABEL, PBadge } from './sdUtils'
+import { PRIORITY_LABEL, PBadge, etiquetaSd } from './sdUtils'
 import { RoutingRules } from './QueueAndRoutingSections'
 
 // ── Local types ─────────────────────────────────────────────────────────────
@@ -118,7 +118,7 @@ function CatalogConfig() {
                   {(cat.services ?? []).map((svc: Svc) => (
                     <tr key={svc.id} style={{ borderBottom:'1px solid var(--surface-4)' }}>
                       <td style={{ padding:'10px 18px', fontSize: "var(--text-base)", color:'var(--text-1)', fontWeight:500 }}>{svc.name}</td>
-                      <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{svc.ticket_type?.replace(/_/g,' ')}</td>
+                      <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{etiquetaSd('type', svc.ticket_type)}</td>
                       <td style={{ padding:'10px 8px' }}><PBadge v={svc.default_priority} /></td>
                       <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>R:{svc.sla_response_hours}h / Res:{svc.sla_resolution_hours}h</td>
                       <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{svc.requires_approval ? '🔐' : ''}</td>
@@ -752,7 +752,7 @@ function TemplatesConfig() {
               <div>
                 <div style={{ fontSize: "var(--text-base)", fontWeight:600, color:'var(--text-1)', marginBottom:4 }}>{tmpl.name}</div>
                 <span style={{ fontSize: "var(--text-xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>
-                  {tmpl.ticket_type?.replace(/_/g,' ')}
+                  {etiquetaSd('type', tmpl.ticket_type)}
                 </span>
               </div>
               <div style={{ display:'flex', gap:6 }}>

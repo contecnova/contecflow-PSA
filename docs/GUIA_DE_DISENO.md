@@ -477,6 +477,17 @@ En una solución nueva, esos dos objetos son las clases `.ds-input` y
 
 ---
 
+**Un código nunca llega a la pantalla.** Estados, tipos y prioridades se
+guardan como códigos (`pending_third`, `cab_review`, `p2_high`) y se enseñan
+siempre traducidos. Medido el 03-11-2026: el Service Desk pintaba 12 con
+`.replace(/_/g, ' ')` («pending third», «cab review», en inglés con la
+interfaz en español), y los nombres de prioridad eran literales en español
+también en inglés y en chino. La lista de tickets tenía además su propia
+copia de `SBadge`, así que traducir el compartido no la arreglaba. En
+contecflow: `SBadge`, `PBadge`, `PRIORITY_LABEL` y `etiquetaSd(grupo, valor)`
+de `pages/service-desk/sdUtils.tsx`. En una solución nueva: un mapa por
+dominio, una sola copia, y una prueba que falle si se pinta el código.
+
 ## 11. Iconos e imagen
 
 - **Iconos:** `lucide-react` (140 ficheros), a 14–20 px. El icono decorativo

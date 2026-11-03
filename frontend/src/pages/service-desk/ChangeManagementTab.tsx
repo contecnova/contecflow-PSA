@@ -12,6 +12,7 @@ import { Button, Spinner, EmptyState, Modal, useSort, SortableTH } from '../../c
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { useTabListKeys } from '../../components/ui/Tabs'
+import { etiquetaSd } from './sdUtils'
 
 type ChangeId = string | number
 type ChangeRisk = 'low' | 'medium' | 'high' | 'critical' | string
@@ -143,9 +144,9 @@ function ChangeDetailPanel({
           <div style={{ flex: 1, marginRight: 12 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
               <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 700 }}>{c.number}</span>
-              <span style={{ fontSize: "var(--text-xs)", background: alpha(sc, '15'), color: sc, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{c.status?.replace(/_/g, ' ')}</span>
+              <span style={{ fontSize: "var(--text-xs)", background: alpha(sc, '15'), color: sc, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{etiquetaSd('chg_st', c.status)}</span>
               <span style={{ fontSize: "var(--text-xs)", color: rc, fontWeight: 600 }}>⚠ {c.risk}</span>
-              <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{c.change_type?.replace(/_/g, ' ')}</span>
+              <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{etiquetaSd('chg_type', c.change_type)}</span>
             </div>
             <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, color: 'var(--text-1)', lineHeight: 1.3 }}>{c.title}</div>
           </div>
@@ -375,7 +376,7 @@ export default function ChangeManagementTab() {
       {vista === 'blackouts' && <Congelaciones />}
       {vista === 'list' && <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ display: 'flex', gap: 10 }}><select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={IS}><option value="">{t('changemanagement.todos_los_estados')}</option>{['draft', 'submitted', 'cab_review', 'approved', 'scheduled', 'in_progress', 'implemented', 'post_review', 'closed_success', 'closed_failed'].map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}</select></div>
+        <div style={{ display: 'flex', gap: 10 }}><select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={IS}><option value="">{t('changemanagement.todos_los_estados')}</option>{['draft', 'submitted', 'cab_review', 'approved', 'scheduled', 'in_progress', 'implemented', 'post_review', 'closed_success', 'closed_failed'].map(s => <option key={s} value={s}>{etiquetaSd('chg_st', s)}</option>)}</select></div>
         <Button onClick={() => setShowNew(true)}>{t('changemanagement.nuevo_change_request_2')}</Button>
       </div>
 
@@ -392,9 +393,9 @@ export default function ChangeManagementTab() {
                   <tr key={c.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
                     <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600 }}>{c.number}</td>
                     <td style={{ padding: '10px 8px', fontSize: "var(--text-base)", color: 'var(--text-1)', maxWidth: 220 }}><button onClick={() => setDetail(c)} style={{ background: 'none', border: 'none', color: 'var(--text-1)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', fontSize: "var(--text-base)", padding: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>{c.title}</button></td>
-                    <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{c.change_type?.replace(/_/g, ' ')}</td>
+                    <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{etiquetaSd('chg_type', c.change_type)}</td>
                     <td style={{ padding: '10px 8px' }}><span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: rc }}>{c.risk}</span></td>
-                    <td style={{ padding: '10px 8px' }}><span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: sc, background: alpha(sc, '15'), padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>{c.status?.replace(/_/g, ' ')}</span></td>
+                    <td style={{ padding: '10px 8px' }}><span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: sc, background: alpha(sc, '15'), padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>{etiquetaSd('chg_st', c.status)}</span></td>
                     <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmtDate(c.planned_start)}</td>
                     <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{c.owner || '—'}</td>
                     <td style={{ padding: '10px 8px' }}><div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap' }}><button onClick={() => setEditing(c)} style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>✏ Editar</button>{actions.map(a => <button key={a.label} onClick={() => handleAction(c, a)} style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${alpha(a.color, '40')}`, background: alpha(a.color, '10'), color: a.color, fontSize: "var(--text-2xs)", cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{a.label}</button>)}</div></td>

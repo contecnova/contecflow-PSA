@@ -38,7 +38,7 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
     { id: 'open',           label: t('service_desk.status_open'),           color: '#4f8ef7' },
     { id: 'in_progress',    label: t('service_desk.status_in_progress'),    color: '#7F77DD' },
     { id: 'pending_client', label: t('service_desk.status_waiting_client'), color: '#fb923c' },
-    { id: 'pending_third',  label: t('service_desk.status_pending_change'), color: '#fb923c' },
+    { id: 'pending_third',  label: t('service_desk.status_pending_third'), color: '#fb923c' },
     { id: 'resolved',       label: t('service_desk.status_resolved'),       color: '#34d399' },
   ]
 

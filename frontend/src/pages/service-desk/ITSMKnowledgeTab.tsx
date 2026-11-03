@@ -12,6 +12,7 @@ import { useToast } from '../../context/ToastContext'
 import { sdKbApi, problemsApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { COLOR, alpha } from '../../constants/theme'
+import { etiquetaSd, SBadge } from './sdUtils'
 
 type Priority = 'p1_critical' | 'p2_high' | 'p3_medium' | 'p4_low' | string
 type ProblemStatus = 'open' | 'investigating' | 'known_error' | 'resolved' | 'closed' | string
@@ -98,7 +99,7 @@ function KELinkedTickets({ kedbId }: { kedbId: string | number }) {
           <div key={tk.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-4)', borderRadius: 6, padding: '6px 10px' }}>
             <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)' }}>#{tk.id}</span>
             <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', flex: 1 }}>{tk.title}</span>
-            <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{tk.status}</span>
+            <SBadge v={String(tk.status ?? '')} />
           </div>
         ))}
       </div>
@@ -324,7 +325,7 @@ function Problems() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                         <span style={{ fontSize: "var(--text-xs)", color: COLOR.warning, fontWeight: 700 }}>{p.number}</span>
                         <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: sc, background: alpha(sc, '15'), padding: '2px 8px', borderRadius: 4 }}>
-                          {p.status?.replace(/_/g, ' ')}
+                          {etiquetaSd('prb_st', p.status)}
                         </span>
                         <PBadge v={p.priority} />
                         {(p.related_tickets ?? []).length > 0 && (
