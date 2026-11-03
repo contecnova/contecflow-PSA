@@ -1699,6 +1699,7 @@ const zh = {
     no_assignee: '未分配',
     new_task: '新建任务',
     filter_priority: '优先级',
+    issue_type: "问题类型",
     estimated_hours: '预估工时',
     due_date: '截止日期',
     description_hint: '任务描述（可选）',

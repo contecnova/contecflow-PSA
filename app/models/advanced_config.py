@@ -15,7 +15,9 @@ class CustomRole(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    name = Column(String(100), unique=True, nullable=False)
+    # Auditoria 2026-11: unico por organizacion (antes global, y la segunda
+    # organizacion que abria Ajustes > Roles chocaba al sembrar «admin»).
+    name = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
     color = Column(String(20), default="#7a8aaa")
     is_active = Column(Boolean, default=True)
@@ -29,6 +31,8 @@ class CustomRole(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (UniqueConstraint("organization_id", "name", name="uq_custom_roles_org_name"),)
 
 
 # ── Project Templates ─────────────────────────────────────────────────────────

@@ -1738,6 +1738,7 @@ const es = {
     assignee: 'Asignado a',
     ai_analyze: 'Analizar con IA',
     no_assignee: 'Sin asignar',
+    issue_type: 'Tipo de incidencia',
     estimated_hours: 'Horas estimadas',
     date_start: 'Fecha de inicio',
     due_date: 'Fecha límite',

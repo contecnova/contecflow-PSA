@@ -378,8 +378,12 @@ def scope_projects_query(q, db: Session, current_user):
     if not current_user.is_superadmin and current_user.organization_id:
         q = q.filter(Project.organization_id == current_user.organization_id)
 
+    # Auditoria 2026-11: los permisos por proyecto se aplican (`permisos_de_proyecto`).
+    from app.core.permisos_de_proyecto import vetados_y_concedidos
+    vetados, concedidos = vetados_y_concedidos(db, current_user)
+
     if current_user.role == UserRole.pm:
-        q = q.filter(Project.pm_id == current_user.id)
+        q = q.filter((Project.pm_id == current_user.id) | Project.id.in_(concedidos or [""]))
     elif current_user.role in (UserRole.employee, UserRole.subcontractor):
         project_ids = db.query(func.distinct(Imputation.project_id)).filter(
             Imputation.user_id == current_user.id
@@ -388,8 +392,11 @@ def scope_projects_query(q, db: Session, current_user):
             _Task.assignee_id == current_user.id,
             _Task.project_id.isnot(None),
         ).subquery()
-        q = q.filter((Project.id.in_(project_ids)) | (Project.id.in_(task_project_ids)))
+        q = q.filter((Project.id.in_(project_ids)) | (Project.id.in_(task_project_ids))
+                     | Project.id.in_(concedidos or [""]))
 
+    if vetados:
+        q = q.filter(Project.id.notin_(vetados))
     return q
 
 

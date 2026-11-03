@@ -88,6 +88,8 @@ class User(Base):
     # ondelete cambia a RESTRICT porque NULL ya no es permitido.
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True)
     manager_id      = Column(String(36), ForeignKey("users.id",         ondelete="SET NULL"), nullable=True, index=True)
+    # Rol personalizado: restringe modulos por encima del rol base (`app/core/modulos.py`).
+    custom_role_id  = Column(String(36), ForeignKey("custom_roles.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Timestamps
     sso_provider = Column(String(30), nullable=True)   # azure_ad | okta | google | saml

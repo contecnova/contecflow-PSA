@@ -23,6 +23,9 @@ class CustomRoleUpdate(BaseModel):
     name: Optional[str] = None
     display_name: Optional[str] = None
     description: Optional[str] = None
+    color: Optional[str] = None
+    # Auditoria 2026-11: faltaba, y la pantalla lo enviaba: se descartaba.
+    module_access: Optional[dict] = None
     permissions: Optional[dict] = None
     is_active: Optional[bool] = None
 

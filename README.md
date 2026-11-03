@@ -83,7 +83,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 - ~~Automations never fire on their own (only "Test" runs them, and it runs the real actions).~~ Fixed 2026-11-03: rules fire on record changes and on a periodic scan, per organization; "Test" simulates (migration 118). [5]
 - BPM is a diagram editor without an execution engine. [5]
 - Sprint Planning "AI" is a greedy fill by story points. [1]
-- Custom roles, role `module_access`, project permissions and issue types are stored but not enforced. [2, 6]
+- ~~Custom roles, role `module_access`, project permissions and issue types are stored but not enforced.~~ Fixed 2026-11-03: module access closes API routes and screens, custom roles can be assigned, project permissions restrict per project, and tasks carry an issue type from the project catalogue (migration 120). What still is not enforced: the role `permissions` JSON (no screen edits it), `can_see_rates`, and levels never grant more than the base role. [2, 6]
 
 ---
 
@@ -932,7 +932,16 @@ Mismatches found:
 - `employee` and `team_lead` can't open `/performance-reviews`, yet that page is the only place to fill in a review assigned to them. The assignment notification, the assignment e-mail and the daily reminder all send them there (`action_url="/performance-reviews"` in `performance_service.py` and `perf_reminder_service.py`), and the route redirects them to `/403`. The e-mail link is also relative (`href='/performance-reviews'`), so it won't open from a mail client. **Practical effect: only admin/pm/hr can complete self, peer or upward reviews from the UI.**
 - The frontend `Role` type also lists `finance`, `sales` and `client`, which the backend `UserRole` doesn't have.
 
-**Custom roles.** The `custom_roles` table (`app/models/advanced_config.py`) has `module_access` and `permissions` JSON and can be edited from Settings. No guard reads it: `grep` finds `CustomRole`/`module_access` only in the model, its CRUD endpoint/service and `SettingsPageSections.tsx`. In other words it is stored but not enforced.
+**Custom roles and module access** (`app/core/modulos.py`, since 2026-11-03).
+- Settings → Roles lists one *system* row per base role and organization, plus the custom roles. Each has a `module_access` map over 19 modules (dashboard, projects, tasks, imputations, timesheets, resources, capacity, profitability, pipeline, contracts, risks, changes, deliverables, skills, absences, reports, alerts, exports, settings).
+- A module set to off is **closed**: its API routes return 403 ("Tu rol no tiene acceso al módulo …"), its screens disappear from the menu and their routes redirect to /403. A module missing from the map stays open.
+- The effective row is the **custom role assigned to the person** (Settings → Usuarios → Editar → *Rol personalizado*, `users.custom_role_id`), or else the system row of their base role in their organization.
+- It **only restricts**: the base role (`users.role`) still decides what a person may do. An **admin is never restricted** (so nobody can lock the organization out), nor is the superadmin.
+- Always open even with *settings* closed: `GET /settings/org-defaults` and `GET /settings/general` (the app needs them to start).
+- `GET /auth/me` and the login response carry `blocked_routes` (screen routes closed for that user).
+- Validation: unknown module keys → 422; a custom role cannot use a base-role name; a custom role from another organization cannot be assigned (422); the *Rol* field accepts only base roles (it used to list custom roles and saving one failed).
+- Not enforced: the `permissions` JSON of a role (no screen edits it).
+- Before this revision role names were unique across the whole installation, so the second organization that opened Settings → Roles failed when seeding `admin`; they are now unique per organization (migration 120).
 
 **Who may edit a person** (`_autorizar_edicion` in `app/services/user_service.py`): an admin may change anything. Anyone else may edit only their own record, and only the fields of `UserSelfUpdate`: `email, first_name, last_name, full_name, phone, job_title, avatar_url, timezone`. HR can't edit other users.
 
@@ -3750,7 +3759,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 - **Fixed 2026-11-03 — `PATCH /settings/general/{key}` accepted any key and overwrote global rows.** Non-superadmins can now write only general settings (403 otherwise), and the write goes to the organization's own row, created on first change; before, when the organization had no row, the **global** row shared by every tenant was overwritten.
 - **`budget_alert_threshold`, `overload_threshold`, `work_days_per_week` and `company_logo_url` have no reader** in `app/` or `frontend/src` other than the seed and the label map. Editing them changes nothing.
 - **Alertas (`alert_configs`) is not read by the alert engine.** `alert_service.py` uses hard-coded thresholds (100 %, 85 %, 7 days). Only the CRUD service touches `alert_configs`.
-- **Roles (`custom_roles.module_access`) is not read by RBAC, ABAC or GRC.** Only the CRUD reads it. Authorization uses `User.role` plus the GRC matrix.
+- Roles: see *Custom roles and module access* above. Editing the modules of an existing role used to be dropped silently (`module_access` was missing from the update schema); fixed.
 - **Tipos tarea (`task_types`) and Campos extra (`custom_fields`) have no reader** outside their own CRUD and settings tab.
 - **Nivel de log changes only the worker process that handled the request.** It is not persisted and not broadcast. With several Uvicorn workers or a Celery worker, other processes keep their level until restart.
 - `TemplatesSection` (`/advanced-config/templates`) is defined in `SettingsPageSections.tsx` but **no tab renders it** (dead code).
@@ -4067,7 +4076,9 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **15 
 
 **Technical notes.** `GET|POST /api/v1/issue-types/{project_id}`, `POST …/init`, `PATCH|DELETE …/{type_id}`. Tables `issue_types`, `issue_type_fields`. The same router also serves `/task-dependencies`, `/epic-dependencies` and `/fts/*`.
 
-**Limitations (measured).** `tasks.issue_type` exists, but **no task schema in `app/schemas` exposes `issue_type`** (grep: 0 matches), and the Tasks UI does not set it. Only the Jira and Git integrations reference it. The catalogue is therefore not connected to normal task create or edit.
+**Using it in tasks (since 2026-11-03).** The task detail (Tasks → open a task → edit) has a *Tipo de incidencia* select fed by the project's catalogue. `POST /tasks` and `PATCH /tasks/{id}` accept and return `issue_type`. A value outside the project's active catalogue is rejected with 422; a project without its own catalogue accepts the 7 system values.
+
+**Limitations (measured).** The per-type fields (`issue_type_fields`) are not shown in the task form.
 
 ---
 
@@ -4100,9 +4111,18 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **15 
 - `GET|POST /api/v1/permissions/{project_id}`, `PATCH|DELETE …/{permission_id}`.
 - The duplicate API `/api/v1/enterprise/project-permissions/{project_id}[/{id}]` works on the same table, `project_permissions`.
 
+**How it is enforced (since 2026-11-03, `app/core/permisos_de_proyecto.py`).** On every request with `{project_id}` in its route, an active, non-expired row for that person and project applies:
+- `none`: 403, and the project disappears from their project list;
+- `viewer`: read only (GET/HEAD/OPTIONS);
+- `member`, `manager`, `owner`: whatever the base role already allows;
+- `can_see_financials = false`: EVM, profitability, revenue and budget routes of the project → 403;
+- `can_export = false`: export routes of the project → 403.
+A `viewer` (or higher) row also makes the project appear in the list of a PM or employee who would not see it by role. Admins are never restricted.
+
 **Limitations (measured).**
-- **The level and the flags are not used by any access check.** The only reader outside the CRUD is `services/notifications.py`, which uses the rows as a recipient list. Project visibility is decided by role, tenant and ABAC, not by this table.
-- `can_see_financials` and `can_see_rates` have no reader outside the CRUD.
+- A level never grants more than the base role: an employee who is `manager` of a project still cannot do PM-only actions.
+- `can_see_rates` has no project route to apply to; it is still not enforced.
+- Routes that identify the project only through another record (for example a task id) are not checked against this table; the task's own rules apply.
 
 ---
 

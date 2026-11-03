@@ -79,6 +79,7 @@ DEFAULT_MODULES = [
     "deliverables", "skills", "absences", "reports", "alerts", "exports", "settings",
 ]
 
+# Los mismos modulos que aplica `app/core/modulos.py`.
 DEFAULT_SYSTEM_ROLES = [
     ("admin",          "Dirección / Admin",         "#ff4757", True),
     ("pm",             "Project Manager",            "#00d4ff", True),
@@ -127,16 +128,31 @@ def seed_numbering(db: Session):
     db.commit()
 
 
-def seed_system_roles(db: Session):
+def seed_system_roles(db: Session, org_id: Optional[str] = None):
+    """Una fila por rol base y organizacion (la de la sesion si no se da).
+
+    Auditoria 2026-11: sembraba una sola vez en toda la instalacion, la fila
+    quedaba sellada con la organizacion de quien abria la pantalla y la
+    siguiente organizacion chocaba con el unico global del nombre.
+    """
+    org_id = org_id or db.info.get("organization_id")
+    if not org_id:
+        return
+    from app.db.session import sin_filtro_de_tenant
+    with sin_filtro_de_tenant(db):
+        existentes = {n for (n,) in db.query(CustomRole.name).filter(CustomRole.organization_id == org_id)}
     all_modules = {m: True for m in DEFAULT_MODULES}
+    nuevos = False
     for name, description, color, is_system in DEFAULT_SYSTEM_ROLES:
-        if not db.query(CustomRole).filter(CustomRole.name == name).first():
+        if name not in existentes:
             db.add(CustomRole(
-                name=name, description=description, color=color,
+                name=name, description=description, color=color, organization_id=org_id,
                 is_system=is_system, is_active=True,
                 module_access=json.dumps(all_modules),
             ))
-    db.commit()
+            nuevos = True
+    if nuevos:
+        db.commit()
 
 
 # ── Vacation balances ─────────────────────────────────────────────────────────
@@ -307,7 +323,14 @@ def list_roles(db: Session) -> list:
     ]
 
 
+_ROLES_BASE = {name for name, *_ in DEFAULT_SYSTEM_ROLES}
+
+
 def create_role(data: dict, db: Session) -> dict:
+    from app.core.modulos import validar_acceso
+    if data["name"] in _ROLES_BASE:
+        raise HTTPException(422, "Ese nombre es el de un rol base")
+    validar_acceso(data.get("module_access"))
     r = CustomRole(
         name=data["name"],
         description=data.get("description"),
@@ -322,17 +345,21 @@ def create_role(data: dict, db: Session) -> dict:
 
 
 def update_role(role_id: str, data: dict, db: Session) -> dict:
+    from app.core.modulos import validar_acceso
     r = db.query(CustomRole).filter(CustomRole.id == role_id).first()
     if not r:
         raise NotFoundError("Rol no encontrado")
     if "name" in data and r.is_system and data["name"] != r.name:
         raise ValueError("No se puede renombrar un rol del sistema")
+    if "name" in data and not r.is_system and data["name"] in _ROLES_BASE:
+        raise ValueError("Ese nombre es el de un rol base")
+    validar_acceso(data.get("module_access"))
     for k, v in data.items():
         if k == "module_access" and v is not None:
             r.module_access = json.dumps(v)
         elif k == "permissions" and v is not None:
             r.permissions = json.dumps(v)
-        elif hasattr(r, k):
+        elif hasattr(r, k) and k not in ("id", "organization_id", "is_system"):
             setattr(r, k, v)
     db.commit()
     db.refresh(r)

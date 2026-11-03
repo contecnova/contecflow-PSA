@@ -5,7 +5,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { tasksApi, projectsApi, customFieldsApi, semanticApi, projectWorkflowsApi } from '../services/api'
+import { tasksApi, projectsApi, customFieldsApi, semanticApi, projectWorkflowsApi, issueTypesApi } from '../services/api'
 import { Badge as _Badge, Button, Modal, EmptyState, Avatar as _Avatar, useSort, SortableTH, Tabs } from '../components/ui'
 import { SkeletonTable } from '../components/ui/Skeletons'
 import _VirtualList from '../components/ui/VirtualList'
@@ -189,6 +189,7 @@ function TaskDetailModal({ task, open, onClose }: { task: any; open: boolean; on
         due_date:        task.due_date        ? task.due_date.split('T')[0] : '',
         blocked_reason:  task.blocked_reason  || '',
         tags:            task.tags            || '',
+        issue_type:      task.issue_type      || '',
       })
     }
   }, [task])
@@ -200,6 +201,13 @@ function TaskDetailModal({ task, open, onClose }: { task: any; open: boolean; on
 
   const statusOptions = useWorkflowStatusOptions(task?.project_id, t)
 
+  // Auditoría 2026-11: el catálogo de /issue-types no llegaba a las tareas.
+  const { data: issueTypes = [] } = useQuery<any[]>({
+    queryKey: ['issue-types', task?.project_id],
+    queryFn: () => issueTypesApi.list(task.project_id).then(r => (Array.isArray(r.data) ? r.data : [])).catch(() => []),
+    enabled: !!task?.project_id,
+    retry: false,
+  })
   const { data: customFields = [] } = useQuery<any[]>({
     queryKey: ['custom-fields', task?.project_id],
     queryFn: () => customFieldsApi.list(task.project_id).then(r => r.data).catch(() => []),
@@ -290,6 +298,7 @@ function TaskDetailModal({ task, open, onClose }: { task: any; open: boolean; on
       due_date:        task.due_date        ? task.due_date.split('T')[0] : '',
       blocked_reason:  task.blocked_reason  || '',
       tags:            task.tags            || '',
+      issue_type:      task.issue_type      || '',
     })
     setSemSuggestion(null); setSemEffort(null)
     setIsEditing(false)
@@ -522,6 +531,16 @@ function TaskDetailModal({ task, open, onClose }: { task: any; open: boolean; on
             )}
           </div>
 
+          <div>
+            <label style={ls} htmlFor="task-issue-type">{t('tasks.issue_type')}</label>
+            <select id="task-issue-type" value={form.issue_type} onChange={set('issue_type')} style={fs}>
+              <option value="">—</option>
+              {issueTypes.filter((it: any) => it.is_active !== false).map((it: any) => (
+                <option key={it.id} value={it.value}>{it.icon} {it.name}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Horas + Fechas */}
           <div>
             <label style={ls}>{t('tasks.estimated_hours')}</label>
@@ -606,7 +625,7 @@ function TaskDetailModal({ task, open, onClose }: { task: any; open: boolean; on
             </button>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button variant="secondary" onClick={cancelEdit}>{t('common.cancel')}</Button>
-              <Button onClick={() => saveTask({ taskData: form, cfValues: customValues, cfFields: customFields, taskId: task.id, projectId: task.project_id })} disabled={saving || !form.title}>
+              <Button onClick={() => saveTask({ taskData: { ...form, issue_type: form.issue_type || null }, cfValues: customValues, cfFields: customFields, taskId: task.id, projectId: task.project_id })} disabled={saving || !form.title}>
                 {saving ? t('common.saving') : `💾 ${t('tasks.save_changes')}`}
               </Button>
             </div>

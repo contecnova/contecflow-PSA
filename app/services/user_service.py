@@ -448,6 +448,28 @@ def _validar_correo_unico(payload, user: User, db: Session) -> None:
         raise HTTPException(status_code=400, detail="Email ya registrado")
 
 
+def _validar_rol(payload, user: User, db: Session) -> None:
+    """Rol base valido y rol personalizado de la misma organizacion.
+
+    Auditoria 2026-11: la pantalla ofrecia los roles personalizados en el
+    selector del rol base, y guardar uno daba error (no es un `UserRole`).
+    """
+    enviados = payload.model_dump(exclude_unset=True)
+    if enviados.get("role") is not None and enviados["role"] not in {r.value for r in UserRole}:
+        raise HTTPException(422, f"Rol base desconocido: {enviados['role']}")
+    if "custom_role_id" not in enviados:
+        return
+    if not enviados["custom_role_id"]:
+        payload.custom_role_id = None
+        return
+    from app.models.advanced_config import CustomRole
+    rol = db.query(CustomRole).filter(CustomRole.id == enviados["custom_role_id"],
+                                      CustomRole.is_active.is_(True),
+                                      CustomRole.organization_id == user.organization_id).first()
+    if rol is None or rol.is_system:
+        raise HTTPException(422, "Rol personalizado no encontrado en la organización del usuario")
+
+
 def _aplicar_campos(payload, user: User) -> None:
     """Copia al usuario los campos enviados.
 
@@ -496,6 +518,7 @@ def update_user_record(user_id: str, payload, current_user, db: Session):
         payload, current_user, db
     )
     _validar_correo_unico(payload, user, db)
+    _validar_rol(payload, user, db)
     _aplicar_campos(payload, user)
 
     cambia_de_organizacion = payload_org_ids is not None or payload_org_id is not None

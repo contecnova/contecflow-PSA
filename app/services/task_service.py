@@ -222,6 +222,8 @@ def create_task_record(db: Session, payload, current_user):
     project = project_for_user(db, payload.project_id, current_user)
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    from app.services.issue_type_service import validar_tipo
+    validar_tipo(project.id, payload.issue_type, db)
 
     task = Task(
         **payload.model_dump(),
@@ -372,6 +374,8 @@ def update_task_record(db: Session, task_id: str, payload, current_user):
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
     _autorizar_edicion_de_tarea(task, project, current_user)
+    from app.services.issue_type_service import validar_tipo
+    validar_tipo(project.id, getattr(payload, "issue_type", None), db)
 
     # Se capturan **antes** de mutar nada: después, `task` ya no sabe de dónde
     # venía.

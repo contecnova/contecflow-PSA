@@ -36,6 +36,23 @@ SYSTEM_ISSUE_TYPES = [
 # SERIALIZERS
 # ════════════════════════════════════════════════════════════════
 
+def tipos_validos(project_id: str, db: Session) -> set[str]:
+    """Los del catalogo activo del proyecto; sin catalogo, los de sistema."""
+    propios = {v for (v,) in db.query(IssueType.value).filter(
+        IssueType.project_id == project_id, IssueType.is_active.is_(True))}
+    return propios or {v for _, v, *_ in SYSTEM_ISSUE_TYPES}
+
+
+def validar_tipo(project_id: str, valor: Optional[str], db: Session) -> None:
+    if not valor:
+        return
+    validos = tipos_validos(project_id, db)
+    if valor not in validos:
+        from fastapi import HTTPException
+        raise HTTPException(422, f"Tipo de incidencia «{valor}» no existe en el proyecto. "
+                                 f"Válidos: {', '.join(sorted(validos))}")
+
+
 def serialize_issue_type(it: IssueType) -> dict:
     return {
         "id": it.id, "project_id": it.project_id,

@@ -235,7 +235,8 @@ def _abrir_sesion(db: Session, user, request: Request, response: Response):
         )
 
     _set_auth_cookies(response, access_token, refresh_token)
-    return TokenResponse(user=UserPublic.model_validate(user))
+    from app.core.modulos import con_rutas_cerradas
+    return TokenResponse(user=UserPublic.model_validate(con_rutas_cerradas(db, user)))
 
 
 @router.post("/login", response_model=TokenResponse, summary="Login con credenciales locales")
@@ -403,8 +404,9 @@ def password_reset(request: Request, payload: PasswordResetRequest, db: Session 
 
 
 @router.get("/me", response_model=UserPublic)
-def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.core.modulos import con_rutas_cerradas
+    return con_rutas_cerradas(db, current_user)
 
 
 @router.post("/change-password", summary="Cambiar contraseña propia")

@@ -43,6 +43,7 @@ class UserUpdate(BaseModel):
     timezone: Optional[str] = Field(default=None, description="Zona horaria del usuario")
     organization_id: Optional[str] = Field(default=None, description="ID de la organización principal del usuario")
     organization_ids: Optional[list[str]] = Field(default=None, description="IDs de organizaciones a las que pertenece el usuario")
+    custom_role_id: Optional[str] = Field(default=None, description="Rol personalizado (restringe modulos); vacio para quitarlo")
 
 
 class UserSelfUpdate(BaseModel):
@@ -77,6 +78,8 @@ class UserPublic(UserBase):
     manager_name: Optional[str] = Field(default=None, description="Nombre del manager del usuario")
     phone: Optional[str] = Field(default=None, description="Teléfono de contacto del usuario")
     organizations: Optional[list[UserOrganizationOut]] = Field(default=None, description="Organizaciones a las que pertenece el usuario")
+    custom_role_id: Optional[str] = Field(default=None, description="Rol personalizado asignado")
+    blocked_routes: list[str] = Field(default_factory=list, description="Rutas de pantalla cerradas por el rol (solo en /auth/me y el login)")
 
     class Config:
         from_attributes = True

@@ -1135,8 +1135,8 @@ interface NavSearchResultsProps {
   t?: TFn | null
 }
 
-function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigate, text, t }: NavSearchResultsProps) {
-  const allItems = useMemo(() => NAV_GROUPS.flatMap(g => g.items || []).filter(i => !i.divider), [])
+function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigate, text, t, groups = NAV_GROUPS }: NavSearchResultsProps & { groups?: NavGroupConfig[] }) {
+  const allItems = useMemo(() => groups.flatMap(g => g.items || []).filter(i => !i.divider), [groups])
   const q = query.toLowerCase().trim()
   const matches = allItems.filter(i => {
     if (i.roles && !i.roles.some(r => hasRole(r))) return false
@@ -1177,7 +1177,7 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
 }
 
 export default function Layout({ children }: { children?: React.ReactNode }) {
-  const { user, logout, hasRole } = useAuth()
+  const { user, logout, hasRole, canOpen = () => true } = useAuth()
   const navigate = useNavigate()
   const { prefs, save } = useUserPreferences()
   const { t, lang } = useAppLang()
@@ -1190,8 +1190,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const location = useLocation()
   const [pinned, setPinned] = useState<string[]>(() => _lsGet(PINNED_KEY))
 
-  // Build helpers once
-  const allNavItems = useMemo(() => NAV_GROUPS.flatMap(g => g.items || []).filter(i => !i.divider), [])
+  // Auditoría 2026-11: los módulos que cierra el rol desaparecen del menú.
+  const navGroups = useMemo(() => NAV_GROUPS.map(g => ({
+    ...g, items: (g.items || []).filter(i => i.divider || !i.to || canOpen(i.to)),
+  })), [canOpen])
+  const allNavItems = useMemo(() => navGroups.flatMap(g => g.items || []).filter(i => !i.divider), [navGroups])
 
   // Quick access items based on user role
   const quickItems = useMemo(() => {
@@ -1405,7 +1408,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             </div>
           )}
 
-          {NAV_GROUPS.map(group => {
+          {navGroups.map(group => {
             const visible = group.items.some(i => !i.divider && (!i.roles || i.roles.some(r => hasRole(r))))
             if (!visible) return null
             if (!group.single && workspace !== 'all' && !WORKSPACE_GROUPS[workspace]?.includes(group.id || '')) return null
@@ -1436,7 +1439,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           })}
           {navSearch.trim() && !collapsed && (
             <NavSearchResults
-              query={navSearch} hasRole={hasRole}
+              query={navSearch} hasRole={hasRole} groups={navGroups}
               alertCount={alertCount} approvalCount={approvalCount}
               onNavigate={() => setNavSearch('')}
               text={text}

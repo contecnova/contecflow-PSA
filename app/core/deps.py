@@ -79,6 +79,12 @@ def get_current_user(
     # can be emitted without passing actor as an explicit parameter.
     db.info["current_user"] = user
 
+    # Auditoria 2026-11: el acceso por modulo del rol y los permisos por
+    # proyecto se aplican.
+    from app.core import modulos as _modulos, permisos_de_proyecto as _permisos
+    _modulos.comprobar(db, user, request)
+    _permisos.comprobar(db, user, request)
+
     return user
 
 
@@ -98,6 +104,9 @@ def _usuario_de_credencial_delegada(db: Session, request: Request, user_id: str,
         db.info["is_superadmin"] = False
     db.info["current_user"] = user
     request.state.credencial_delegada = {"tipo": tipo, "alcances": alcances}
+    from app.core import modulos as _modulos, permisos_de_proyecto as _permisos
+    _modulos.comprobar(db, user, request)
+    _permisos.comprobar(db, user, request)
     return user
 
 

@@ -309,6 +309,7 @@ const userFormSchemaBase = z.object({
   timezone: z.union([z.literal(''), z.string()]).optional(),
   organization_ids: z.array(z.string()).optional(),
   organization_id: z.union([z.literal(''), z.string()]).optional(),
+  custom_role_id: z.union([z.literal(''), z.string()]).optional(),
 })
 const userCreateSchema = userFormSchemaBase.extend({
   password: z.string().min(6, 'Mínimo 6 caracteres').max(128, 'Máximo 128 caracteres'),
@@ -334,6 +335,7 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
       ? user.organization_ids
       : (user?.organization_id ? [user.organization_id] : []),
     organization_id: user?.organization_id || '',
+    custom_role_id: user?.custom_role_id || '',
     password: '',
   })
   const validation = useFormValidation(isEdit ? userEditSchema : userCreateSchema)
@@ -368,11 +370,12 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         <div><label style={ls}>Usuario *</label><input value={form.username} onChange={set('username')} style={validation.inputStyle(fs, 'username')} />{errField('username')}</div>
         <div><label style={ls}>Email *</label><input type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />{errField('email')}</div>
         <div><label style={ls}>Rol</label><select value={form.role} onChange={set('role')} style={validation.inputStyle(fs, 'role')}>
-          {roles.length > 0
-            ? roles.map((r: any) => <option key={r.name} value={r.name}>{r.description || r.name}</option>)
-            : Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)
-          }
+          {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>{errField('role')}</div>
+        {isEdit && <div><label style={ls}>Rol personalizado (cierra módulos)</label><select value={form.custom_role_id} onChange={set('custom_role_id')} style={fs}>
+          <option value="">Ninguno — el de su rol base</option>
+          {roles.filter((r: any) => !r.is_system).map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
+        </select></div>}
         <div><label style={ls}>Departamento</label><select value={form.department} onChange={set('department')} style={fs}>
           <option value="">{t('settings.sin_departamento')}</option>
           {departments.filter((d: any) => d.is_active !== false).map((d: any) => <option key={d.id} value={d.name}>{d.name}</option>)}
@@ -431,7 +434,7 @@ function RolesSection() {
   const { mutate: deleteRole } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.deleteRole, onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-roles'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
 
   return (
-    <Section icon="🔐" title="Roles y permisos" description="Define accesos avanzados por modulo">
+    <Section icon="🔐" title="Roles y permisos" description="Cierra módulos por rol. Los roles de sistema se aplican a todos los de ese rol base; un rol personalizado se asigna a una persona en Usuarios y manda sobre el de su rol base. Solo restringe: nunca da más de lo que permite el rol base. Al rol admin no se le cierra nada.">
       <div style={styles.colGap8}>
         {isLoading ? <Spinner /> : roles.map((r: any) => (
           <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'var(--surface-2)', border: `1px solid ${alpha(r.color, '30')}`, borderRadius: 10 }}>

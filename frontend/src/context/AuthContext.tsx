@@ -72,6 +72,8 @@ export interface AuthContextValue extends AuthState {
   acceptSession: (userData: User) => void
   logout: () => Promise<void>
   hasRole: (...roles: Role[]) => boolean
+  /** False when the user's role closes the module this route belongs to. */
+  canOpen: (path: string) => boolean
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
@@ -190,6 +192,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     localStorage.setItem(SESSION_HINT_KEY, '1')
     setUser(userData)
     setSessionExpired(false)
+    // Las rutas cerradas por el rol llegan completas en /auth/me (el paso de
+    // MFA o de passkey devuelve un usuario sin ellas).
+    api.get('/auth/me').then((res: { data: User }) => setUser(res.data)).catch(() => { /* la sesión ya está */ })
   }, [])
 
   const login = useCallback(async (username: string, password: string): Promise<User> => {
@@ -219,6 +224,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return roles.includes(user.role)
   }, [user])
 
+  const canOpen = useCallback((path: string): boolean => {
+    const blocked = Array.isArray(user?.blocked_routes) ? (user?.blocked_routes as string[]) : []
+    return !blocked.some(b => path === b || path.startsWith(b + '/'))
+  }, [user])
+
   // Idle timeout — only active when user is logged in
   const { showWarning, secondsLeft, dismiss } = useIdleTimeout({
     enabled: !!user && idleEnabled,
@@ -228,7 +238,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   })
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, acceptSession, logout, hasRole, sessionExpired }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, acceptSession, logout, hasRole, canOpen, sessionExpired }}>
       {children}
       {showWarning && (
         <div style={{

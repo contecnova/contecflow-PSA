@@ -289,14 +289,14 @@ interface ProtectedRouteProps {
 }
 function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
   const location = useLocation()
-  const { user, loading, hasRole } = useAuth()
+  const { user, loading, hasRole, canOpen = () => true } = useAuth()
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-0)' }}>
       <Spinner size={32} />
     </div>
   )
   if (!user) return <Navigate to="/login" replace />
-  if (roles && !hasRole(...roles)) {
+  if ((roles && !hasRole(...roles)) || !canOpen(location.pathname)) {
     return <Navigate to="/403" state={{ from: location.pathname }} replace />
   }
   return <>{children}</>

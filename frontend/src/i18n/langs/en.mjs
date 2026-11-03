@@ -1665,6 +1665,7 @@ const en = {
     no_assignee: 'Unassigned',
     new_task: 'New task',
     filter_priority: 'Priority',
+    issue_type: 'Issue type',
     estimated_hours: 'Estimated hours',
     due_date: 'Due date',
     description_hint: 'Task description (optional)',

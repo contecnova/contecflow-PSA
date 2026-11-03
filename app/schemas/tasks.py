@@ -20,6 +20,8 @@ class TaskBase(BaseModel):
     story_points: Optional[int] = Field(None, gt=0, description="Story points (debe ser positivo)")
     start_date: Optional[date] = Field(default=None, description="Fecha de inicio planificada de la tarea")
     due_date: Optional[date] = Field(default=None, description="Fecha límite de la tarea")
+    # Auditoria 2026-11: la columna existia y ningun esquema la exponia.
+    issue_type: Optional[str] = Field(default=None, description="Tipo de incidencia (catalogo /issue-types del proyecto)")
 
 
 class TaskCreate(TaskBase):
@@ -37,6 +39,7 @@ class TaskUpdate(BaseModel):
     due_date: Optional[date] = Field(default=None, description="Fecha límite de la tarea")
     blocked_reason: Optional[str] = Field(default=None, description="Motivo por el cual la tarea está bloqueada")
     tags: Optional[str] = Field(default=None, description="Etiquetas asociadas a la tarea")
+    issue_type: Optional[str] = Field(default=None, description="Tipo de incidencia (catalogo /issue-types del proyecto)")
     move_reason: Optional[str] = Field(None, max_length=500, description="Motivo del movimiento (para trazabilidad)")
 
 
