@@ -365,7 +365,12 @@ def _apply_entity_final_decision(req, final_decision: str, actor, db: Session) -
 
     Currently handles:
       - entity_type == "document": updates Document.approval_status, approved_by, approved_at
+      - expense, timesheet, leave: la revision de su pantalla (`fuentes.aplicar`)
     """
+    from app.services.approval_engine import fuentes
+    if req.entity_type in fuentes.TIPOS:
+        fuentes.aplicar(req, final_decision, actor, db)
+        return
     if req.entity_type != "document":
         return
     try:

@@ -108,6 +108,9 @@ def review_expense(
             resource="expenses", resource_id=expense.id, action_url="/expenses",
         )
 
+    from app.services.approval_engine import fuentes
+    fuentes.cerrar(db, "expense", expense.id, "approved" if approved else "rejected",
+                   f"Decidido en Gastos por {current_user.full_name}")
     audit_log(
         db, current_user,
         "APPROVE" if approved else "REJECT",
@@ -469,6 +472,10 @@ def submit_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
     emit(db, EventType.EXPENSE_SUBMITTED,
          {"amount": expense.amount, "category": expense.category, "project_id": expense.project_id},
          resource_type="expense", resource_id=expense_id, project_id=expense.project_id)
+    from app.services.approval_engine import fuentes
+    fuentes.abrir(db, "expense", expense.id,
+                  f"Gasto {expense.code or ''} · {expense.description or ''} · {expense.amount} {expense.currency}",
+                  user_id, {"amount": expense.amount, "category": str(getattr(expense.category, "value", expense.category))})
     return {"ok": True}
 
 
@@ -483,6 +490,8 @@ def recall_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
         raise HTTPException(400, "Solo se pueden retirar gastos enviados")
     expense.status = ExpenseStatus.draft
     expense.submitted_at = None
+    from app.services.approval_engine import fuentes
+    fuentes.cerrar(db, "expense", expense.id, "cancelled", "Retirado por quien lo envió")
     db.commit()
     return {"ok": True}
 

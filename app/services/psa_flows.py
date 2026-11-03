@@ -91,6 +91,9 @@ def review_timesheet_flow(
         raise HTTPException(status_code=400, detail="Solo se pueden revisar timesheets enviados")
 
     ts.status = TimesheetStatus.approved if approved else TimesheetStatus.rejected
+    from app.services.approval_engine import fuentes
+    fuentes.cerrar(db, "timesheet", ts.id, "approved" if approved else "rejected",
+                   f"Decidido en Partes de horas por {current_user.full_name}")
     ts.reviewed_by = current_user.id
     ts.reviewed_at = datetime.now(timezone.utc)
     ts.review_notes = notes
@@ -190,6 +193,9 @@ def submit_timesheet_flow(db: Session, user_id: str, week_start: date) -> Timesh
     ts.submitted_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ts)
+    from app.services.approval_engine import fuentes
+    fuentes.abrir(db, "timesheet", ts.id, f"Parte de horas semana {ts.week_start} · {ts.total_hours} h",
+                  user_id, {"hours": ts.total_hours, "billable_hours": ts.billable_hours})
     return ts
 
 
@@ -201,6 +207,8 @@ def send_back_timesheet_flow(db: Session, timesheet_id: str, current_user: User,
         raise HTTPException(status_code=400, detail="Solo se pueden devolver timesheets en estado enviado")
 
     ts.status = TimesheetStatus.rejected
+    from app.services.approval_engine import fuentes
+    fuentes.cerrar(db, "timesheet", ts.id, "rejected", f"Devuelto para corrección por {current_user.full_name}")
     ts.reviewed_by = current_user.id
     ts.reviewed_at = datetime.now(timezone.utc)
     note_prefix = "[Devuelto para correccion]"

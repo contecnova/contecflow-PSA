@@ -243,12 +243,17 @@ def create_absence(
     db.add(absence)
     db.commit()
     db.refresh(absence)
+    from app.services.approval_engine import fuentes
+    fuentes.abrir(db, "leave", absence.id, f"Ausencia {type} {start_date} → {end_date} · {working_days} días",
+                  user_id, {"days": working_days, "type": str(type)})
     return absence
 
 
 def cancel_absence(db: Session, absence: Absence) -> None:
     absence.status = AbsenceStatus.cancelled
     absence.is_active = False
+    from app.services.approval_engine import fuentes
+    fuentes.cerrar(db, "leave", absence.id, "cancelled", "Cancelada por quien la pidió")
     db.commit()
 
 
@@ -281,6 +286,8 @@ def review_absence(
     rejection_reason: Optional[str],
 ) -> Absence:
     absence.status = AbsenceStatus.approved if approved else AbsenceStatus.rejected
+    from app.services.approval_engine import fuentes
+    fuentes.cerrar(db, "leave", absence.id, "approved" if approved else "rejected", "Decidida en Ausencias")
     absence.approved_by = approver_id
     absence.approved_at = datetime.now(timezone.utc)
     absence.rejection_reason = rejection_reason

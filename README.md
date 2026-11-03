@@ -68,7 +68,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 
 **Wrong data shown**
 - ~~Finance dashboard: revenue, cost and margin always show 0, and PMs get 403 on the profitability summary.~~ Fixed 2026-11-03, with the pipeline KPIs and the project table that read fields the API does not send. The period selector still does nothing. [3]
-- ✔ The Approval Inbox only receives documents and client-portal requests; expenses, timesheets, absences and change requests never reach it. [1]
+- The Approval Inbox only receives documents and client-portal requests, plus (since 2026-11-03) expenses, timesheets and absences when the organization has a default workflow for them. Change requests from `/changes`, purchases and invoices still never reach it. [1]
 - Executive dashboard KPIs always show €0; the agent dashboard (`/agent-dashboard`) shows zeros; resource forecast counts deleted bookings and ignores absences. [5, 4, 2]
 - Many lists stop at 50 (or 25) items without pagination. [1, 4]
 
@@ -482,7 +482,14 @@ Rules enforced in `imputation_service.py`:
   - documents with *requires approval*
   - client-portal feature requests converted to change requests (if a default `change_request` workflow exists)
   - portal conversation messages
-- **Most other approvals bypass this inbox.** Expenses, timesheets, absences and change requests created in `/changes` use their own review endpoints and never create an `ApprovalRequest`. The designer offers many entity types (`timesheet`, `expense`, `leave`, `purchase`, `invoice`, …), but for these no code opens requests.
+- **Expenses, timesheets and absences** (since 2026-11-03; `app/services/approval_engine/fuentes.py`, test `tests/test_bandeja_gastos_horas_ausencias.py`):
+  - To route them here, create an **active, default** workflow with entity type *Expense* (`expense`), *Timesheet* (`timesheet`) or *Absence* (`leave`). Without one, nothing changes: they are reviewed only on their own screens.
+  - A request is opened when an expense is **submitted**, a timesheet is **submitted** or an absence is **requested**. Context for auto-approval rules and step conditions: expense `amount`, `category`; timesheet `hours`, `billable_hours`; absence `days`, `type`.
+  - The inbox's final decision applies the same review as the original screen: the expense is approved or rejected (the note is the rejection reason); the timesheet is approved (its hours are marked approved) or rejected; the absence is approved or rejected.
+  - Reviewing on the original screen (or returning a timesheet, recalling an expense, cancelling an absence) closes the pending request with that outcome, so it leaves the inbox.
+  - Both paths stay open: an approver on the original screen does not need to be the workflow's approver.
+  - The hourly timeout job does not apply its *reject* to the entity (same as for documents); the request is closed but the expense, timesheet or absence stays pending on its screen.
+- **Other types still bypass this inbox.** Change requests created in `/changes`, purchases, invoices and the other designer types (`purchase`, `invoice`, `contract`, `budget`, …) have no code that opens requests.
 - **No UI to create a request by hand.** The frontend hook `useCreateApprovalRequest` has no caller.
 
 ### Portfolio health (Salud del portfolio) — `/projects-dashboard`
