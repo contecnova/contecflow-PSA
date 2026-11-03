@@ -425,6 +425,18 @@ vectores no se pueden guardar.
   y en `sd_tickets` `uc_vendor_responded_at`, `uc_response_due` y
   `uc_response_breached`. La respuesta se anota con
   `PATCH /sd/tickets/{id}` y `{"uc_vendor_responded": true}`.
+- **KB con pgvector (migración 116).** Si el Postgres tiene la extensión
+  `vector`, la migración crea `sd_kb_articles.embedding_vec`, la rellena con
+  los vectores guardados, y la búsqueda de sugerencias (agente y portal) la
+  hace la base: distancia del coseno con índice HNSW, que se crea la primera
+  vez que se guarda un vector (su dimensión depende del modelo). Sin la
+  extensión no se crea nada y se compara en Python. Para activarlo en una
+  instalación existente: usar la imagen `pgvector/pgvector:pg16` y ejecutar
+  `python -c "from app.db.session import engine; from app.services.service_desk.kb_vectores import preparar; c=engine.begin().__enter__(); preparar(c)"`.
+  Ojo: pasar de `postgres:16-alpine` (musl) a esa imagen (glibc) cambia el
+  orden del texto; hay que hacer `REINDEX DATABASE` antes de usarla. La
+  columna no está en el modelo ORM a propósito (en una base sin pgvector cada
+  consulta fallaría); la prueba de paridad la admite solo a ella.
 - **Renovación de activos.** El escaneo diario buscaba si ya había ticket con un
   `LIKE` sobre el título y lo creaba sin organización, así que no lo veía nadie.
   Ahora el activo guarda su ticket abierto (`refresh_ticket_id`), no abre otro
@@ -448,9 +460,11 @@ vectores no se pueden guardar.
   con varias organizaciones, solo lo ve el superadministrador: la migración 110
   no adivina de quién es (véase el apartado 19).
 - El OLA tiene un único objetivo por cola, igual para todas las prioridades.
-- La búsqueda por vectores compara en Python contra todos los artículos
-  publicados. Con decenas de miles de artículos haría falta un índice
-  vectorial (pgvector).
+- La búsqueda por vectores solo usa el índice si el Postgres tiene pgvector
+  (ver *KB con pgvector* en el apartado 19); con la imagen `postgres:16-alpine`
+  de la pila local compara en Python, como antes. Y solo hay vectores con el
+  modelo de frases (`SEMANTIC_EMBEDDINGS_BACKEND=transformer`); sin él se
+  busca por palabras.
 - La migración 100 (numeración por organización) y la 097 solo cambian
   restricciones en PostgreSQL; en SQLite el esquema sigue saliendo de la cadena
   como antes.

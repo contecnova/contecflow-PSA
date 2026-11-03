@@ -305,7 +305,15 @@ def test_alembic_upgrade_head_sobre_postgres_coincide_con_los_modelos():
         objeto = x[1] if x[0] in ("add_table", "remove_table") else None
         return objeto is not None and objeto.name.startswith(PREFIJO_MODELOS_DE_TEST)
 
-    reales = [d for d in diffs if tipo(d) not in DIFERENCIAS_ADMITIDAS and not es_de_test(d)]
+    def es_columna_fuera_del_modelo(d):
+        # `sd_kb_articles.embedding_vec` (pgvector) no esta en el modelo a
+        # proposito: en una base sin pgvector cada consulta fallaria. Ver
+        # app/services/service_desk/kb_vectores.py. Solo esa columna.
+        x = d[0] if isinstance(d, list) else d
+        return x[0] == "remove_column" and x[2] == "sd_kb_articles" and x[3].name == "embedding_vec"
+
+    reales = [d for d in diffs if tipo(d) not in DIFERENCIAS_ADMITIDAS and not es_de_test(d)
+              and not es_columna_fuera_del_modelo(d)]
     assert not reales, (
         f"{len(reales)} diferencias entre el esquema de Postgres y los modelos "
         f"(de {len(diffs)} encontradas):\n" + "\n".join(str(d)[:300] for d in reales[:40])

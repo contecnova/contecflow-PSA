@@ -130,11 +130,11 @@ def build_kb_article(db: Session, payload, author_id: str) -> KBArticle:
     from app.services.service_desk.kb_sugerencias import refrescar_vector
 
     article = KBArticle(number=_next_kb_number(db), author_id=author_id, **payload.model_dump())
-    if payload.status == "published":
-        article.published_at = datetime.now(timezone.utc)
-        refrescar_vector(article)
     db.add(article)
     db.flush()
+    if payload.status == "published":
+        article.published_at = datetime.now(timezone.utc)
+        refrescar_vector(article, db=db)
     _snapshot_kb_version(db, article, author_id, change_note="initial version")
     return article
 
@@ -182,7 +182,7 @@ def apply_kb_article_update(
     }
     if before != after and getattr(article.status, "value", article.status) == KBStatus.published.value:
         from app.services.service_desk.kb_sugerencias import refrescar_vector
-        refrescar_vector(article)
+        refrescar_vector(article, db=db)
     if before != after:
         _snapshot_kb_version(
             db=db,
@@ -378,7 +378,7 @@ def revisar(db: Session, article: KBArticle, user: User, publicar: bool, comenta
     if publicar:
         article.status = KBStatus.published
         article.published_at = article.published_at or datetime.now(timezone.utc)
-        refrescar_vector(article)
+        refrescar_vector(article, db=db)
     else:
         article.status = KBStatus.draft
     if article.author_id and article.author_id != user.id:

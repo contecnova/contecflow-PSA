@@ -50,13 +50,23 @@ def texto_de(article: KBArticle) -> str:
     return f"{article.title or ''}\n{article.summary or ''}\n{article.body or ''}".strip()
 
 
-def refrescar_vector(article: KBArticle, modelo=None) -> None:
-    """Guarda el vector del articulo; sin modelo lo deja vacio (busqueda por palabras)."""
+def refrescar_vector(article: KBArticle, modelo=None, db: Optional[Session] = None) -> None:
+    """Guarda el vector del articulo; sin modelo lo deja vacio (busqueda por palabras).
+
+    Con `db`, lo copia tambien a la columna de pgvector si la hay.
+    """
+    from app.services.service_desk import kb_vectores
+
     modelo = modelo or _modelo()
     if modelo is None or not texto_de(article):
         article.embedding = None
+        if db is not None and article.id:
+            kb_vectores.guardar(db, article.id, None)
         return
-    article.embedding = json.dumps(_a_lista(modelo.encode([texto_de(article)], show_progress_bar=False)[0]))
+    vector = _a_lista(modelo.encode([texto_de(article)], show_progress_bar=False)[0])
+    article.embedding = json.dumps(vector)
+    if db is not None and article.id:
+        kb_vectores.guardar(db, article.id, vector)
 
 
 def _por_vector(db: Session, q, texto: str, limite: int) -> Optional[list[tuple[float, KBArticle]]]:
@@ -65,11 +75,19 @@ def _por_vector(db: Session, q, texto: str, limite: int) -> Optional[list[tuple[
     modelo = _modelo()
     if modelo is None:
         return None
+    from app.services.service_desk import kb_vectores
+
     consulta = _a_lista(modelo.encode([texto], show_progress_bar=False)[0])
+    for a in q.filter(KBArticle.embedding.is_(None)).all():
+        refrescar_vector(a, modelo, db)
+    if kb_vectores.disponible(db):
+        # La base ordena (pgvector): solo viajan ids, no vectores.
+        ids = [i for (i,) in q.with_entities(KBArticle.id).all()]
+        encontrados = kb_vectores.buscar(db, ids, consulta, limite)
+        por_id = {a.id: a for a in q.filter(KBArticle.id.in_([i for _, i in encontrados])).all()}
+        return [(s, por_id[i]) for s, i in encontrados if s > 0 and i in por_id]
     puntuados = []
     for a in q.all():
-        if not a.embedding:
-            refrescar_vector(a, modelo)
         if a.embedding:
             puntuados.append((float(_cosine(consulta, json.loads(a.embedding))), a))
     puntuados.sort(key=lambda x: x[0], reverse=True)
