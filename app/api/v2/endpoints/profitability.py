@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user, require_admin_or_pm
 from app.models.user import User
 from app.core.config import settings
 from app.api.v1.endpoints import profitability as profitability_v1
@@ -48,7 +48,7 @@ def _normalize_project_revenues(projects: list, db: Session, org_currency: str) 
 def get_profitability_summary_v2(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_admin_or_pm),
     response: Response = None,
 ):
     _resp = profitability_v1.get_profitability_summary(

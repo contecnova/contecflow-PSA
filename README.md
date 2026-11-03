@@ -67,7 +67,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 - Slack/Teams inbound commands resolve the user by partial name/email match without organization context. [6]
 
 **Wrong data shown**
-- ✔ Finance dashboard: revenue, cost and margin always show 0 (the page reads `total_revenue` at the top level; the API returns it under `portfolio`), and PMs get 403 on the profitability summary. [3]
+- ~~Finance dashboard: revenue, cost and margin always show 0, and PMs get 403 on the profitability summary.~~ Fixed 2026-11-03, with the pipeline KPIs and the project table that read fields the API does not send. The period selector still does nothing. [3]
 - ✔ The Approval Inbox only receives documents and client-portal requests; expenses, timesheets, absences and change requests never reach it. [1]
 - Executive dashboard KPIs always show €0; the agent dashboard (`/agent-dashboard`) shows zeros; resource forecast counts deleted bookings and ignores absences. [5, 4, 2]
 - Many lists stop at 50 (or 25) items without pagination. [1, 4]
@@ -1339,12 +1339,8 @@ General notes that apply to every module here:
 - `GET /api/v1/user-costs/summary`
 
 **Limitations (measured in the code).** Several KPIs do not show what their label says:
-- **Revenue, cost and margin are always 0.** The page reads `total_revenue` and `total_cost` at the top level of the response, but `/profitability/summary` returns them under `portfolio` (`app/api/v1/endpoints/profitability.py:61-71`).
-- **PMs get an error toast.** `/profitability/summary` requires `require_admin`, so for a PM it returns 403 and the toast "No se pudieron cargar los datos de rentabilidad" appears.
+- ~~Revenue, cost and margin are always 0~~, ~~PMs get an error toast~~, ~~Pipeline KPI and pipeline-by-stage always 0~~, ~~"Open opportunities" counts won and lost deals~~, ~~"Top clients by revenue" and the project table use budget as revenue and 0 as cost~~. Fixed 2026-11-03: the page reads `portfolio.total_revenue/total_cost`, the projects' `billing_revenue/internal_cost`, and the opportunities' `expected_revenue` and `stage` (open = not `won`/`lost`; the Pipeline KPI sums open ones only); `/profitability/summary` (v1 and v2) and `/profitability/projects` accept admin and PM, like the screen. Test: `frontend/src/__tests__/FinanceDashboardPage.test.tsx`, `tests/test_rentabilidad_roles_de_pantalla.py`.
 - **The period selector does nothing.** `/profitability/summary` and `/profitability/projects` accept only `status`, so `date_from` and `date_to` are ignored.
-- **The Pipeline KPI and pipeline-by-stage values are always 0.** The page sums `o.value || o.amount`, but the API sends `expected_revenue` and `weighted_revenue` (`pipeline_service.serialize_opportunity`).
-- **"Open opportunities" counts won and lost deals.** It filters on `o.status !== 'closed_won'/'closed_lost'`, but opportunities have `stage` with values `won`/`lost`, so nothing is ever excluded.
-- **"Top clients by revenue" actually uses budget.** It reads `p.revenue_actual ?? p.budget_amount`, and `revenue_actual` is not in the payload, so it always falls back to `budget_amount`.
 - **Cost per hour is hidden from PMs.** `/user-costs/summary` is `require_admin_or_hr`, so PMs get `null` and the card is empty.
 - **Saving an exchange rate fails for PMs.** `POST /currency/rates` is `require_admin`, so a PM gets 403.
 - **Errors are hidden.** The client, pipeline and invoice lists use `.catch(() => [])`, so a failure looks like "no data".
@@ -1555,11 +1551,11 @@ General notes that apply to every module here:
 **Configuration.** Exchange rates for multi-currency projects. No dedicated runtime settings were found.
 
 **Technical notes.**
-- **Endpoints:** `GET /api/v1/profitability/summary` (`require_admin`), `GET /profitability/projects`, `GET /profitability/{project_id}`, `GET/POST/PATCH/DELETE /profitability/{pid}/milestones[/{id}]`. There is also a v2 router, `/api/v2/profitability`.
+- **Endpoints:** `GET /api/v1/profitability/summary` and `GET /profitability/projects` (admin or PM since 2026-11-03; `/projects` was open to every user), `GET /profitability/{project_id}` (admin or PM, checked in the handler), `GET/POST/PATCH/DELETE /profitability/{pid}/milestones[/{id}]`. There is also a v2 router, `/api/v2/profitability`.
 - **Tables:** `projects`, `imputations`, `project_milestones`, currency rates.
 
 **Limitations.**
-- **PMs cannot see the list.** It comes from `/profitability/summary`, which is admin-only, so a PM gets 403.
+- ~~PMs cannot see the list.~~ Fixed 2026-11-03: `/profitability/summary` accepts admin and PM.
 - **"Facturar" only flips a flag.** It sends `PATCH {is_billed: true, billed_at}`. No invoice is created, and `billing_status` is not changed.
 - **Percentage-only milestones add no revenue.** They count as 0 here, because revenue sums `billing_amount` only.
 

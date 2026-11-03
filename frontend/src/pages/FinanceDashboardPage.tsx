@@ -16,7 +16,9 @@ import {
 import { alpha } from '../constants/theme'
 
 interface ClientItem { status?: string }
-interface PipelineItem { status?: string; stage?: string; value?: number; amount?: number }
+// Campos de `pipeline_service` (auditoria 2026-11: se leian `value`/`amount` y
+// `status`, que no vienen: el pipeline salia a 0 y contaba ganadas y perdidas).
+interface PipelineItem { stage?: string; expected_revenue?: number }
 interface InvoiceItem { status?: string; total?: number; amount?: number }
 interface ProjectProfitItem {
   project_id?: string | number
@@ -24,9 +26,11 @@ interface ProjectProfitItem {
   project_name?: string
   name?: string
   client_name?: string
-  revenue_actual?: number
-  budget_amount?: number
-  cost_actual?: number
+  // Nombres de `calc_project_profitability` (auditoria 2026-11: se leian
+  // `revenue_actual`/`cost_actual`, que no existen, y salia el presupuesto como
+  // ingreso con coste 0).
+  billing_revenue?: number
+  internal_cost?: number
 }
 interface CurrencyRate {
   id: string | number
@@ -41,9 +45,10 @@ interface CostSummary {
   total_users: number
   users_missing_cost: number
 }
+// El resumen trae los totales dentro de `portfolio` (auditoria 2026-11: se leian
+// en la raiz y el panel enseñaba siempre 0).
 interface ProfitSummary {
-  total_revenue?: number
-  total_cost?: number
+  portfolio?: { total_revenue?: number; total_cost?: number }
 }
 interface RateFormState {
   from_currency: string
@@ -134,8 +139,8 @@ export default function FinanceDashboardPage(): JSX.Element {
     if (profitError) toast.error('No se pudieron cargar los datos de rentabilidad')
   }, [profitError]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const revenue   = profitSummary?.total_revenue ?? 0
-  const costs     = profitSummary?.total_cost ?? 0
+  const revenue   = profitSummary?.portfolio?.total_revenue ?? 0
+  const costs     = profitSummary?.portfolio?.total_cost ?? 0
   const margin    = revenue - costs
   const marginPct = revenue > 0 ? Math.round((margin / revenue) * 100) : null
   const marginColor = marginPct == null ? COLOR.accent : marginPct >= 30 ? COLOR.success : marginPct >= 15 ? COLOR.warning : COLOR.danger
@@ -147,12 +152,13 @@ export default function FinanceDashboardPage(): JSX.Element {
   const overdueAmount   = overdueInvoices.reduce((s, i) => s + (i.total || i.amount || 0), 0)
 
   const activeClients    = clients.filter(c => c.status === 'active').length
-  const pipelineValue    = pipeline.reduce((s, o) => s + (o.value || o.amount || 0), 0)
-  const openOpportunities = pipeline.filter(o => o.status !== 'closed_won' && o.status !== 'closed_lost').length
+  const abiertas         = pipeline.filter(o => o.stage !== 'won' && o.stage !== 'lost')
+  const pipelineValue    = abiertas.reduce((s, o) => s + (o.expected_revenue || 0), 0)
+  const openOpportunities = abiertas.length
 
   const revenueByClient = topProjects.reduce<Record<string, number>>((acc, p) => {
     const name = p.client_name || 'Sin cliente'
-    const rev = p.revenue_actual ?? p.budget_amount ?? 0
+    const rev = p.billing_revenue ?? 0
     if (rev > 0) acc[name] = (acc[name] || 0) + rev
     return acc
   }, {})
@@ -163,10 +169,10 @@ export default function FinanceDashboardPage(): JSX.Element {
   const maxRevenue = clientRows[0]?.revenue || 1
 
   const pipelineByStage = pipeline.reduce<Record<string, { count: number; value: number }>>((acc, o) => {
-    const stage = o.stage || o.status || 'Sin etapa'
+    const stage = o.stage || 'Sin etapa'
     if (!acc[stage]) acc[stage] = { count: 0, value: 0 }
     acc[stage].count += 1
-    acc[stage].value += (o.value || o.amount || 0)
+    acc[stage].value += (o.expected_revenue || 0)
     return acc
   }, {})
   const stageRows = Object.entries(pipelineByStage)
@@ -305,8 +311,8 @@ export default function FinanceDashboardPage(): JSX.Element {
               </thead>
               <tbody>
                 {topProjects.slice(0, 8).map((p, idx) => {
-                  const rev  = p.revenue_actual ?? p.budget_amount ?? 0
-                  const cost = p.cost_actual ?? 0
+                  const rev  = p.billing_revenue ?? 0
+                  const cost = p.internal_cost ?? 0
                   const mgn  = rev - cost
                   const pct  = rev > 0 ? Math.round((mgn / rev) * 100) : 0
                   const mColor = pct >= 30 ? COLOR.success : pct >= 15 ? COLOR.warning : COLOR.danger

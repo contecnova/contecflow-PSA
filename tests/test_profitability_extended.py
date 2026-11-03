@@ -32,8 +32,9 @@ def test_profitability_summary_with_status_filter(client, admin_token, db):
     assert res.status_code == 200
 
 
-def test_profitability_summary_requires_admin(client, pm_token, db):
-    res = client.get("/api/v1/profitability/summary", headers=auth(pm_token))
+def test_profitability_summary_requires_admin_or_pm(client, dev_token, db):
+    # Auditoria 2026-11: el PM entra (sus dos pantallas son de admin y PM).
+    res = client.get("/api/v1/profitability/summary", headers=auth(dev_token))
     assert res.status_code in (401, 403)
 
 

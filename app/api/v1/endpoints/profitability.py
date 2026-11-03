@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import date, timedelta
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_any_manager
+from app.core.deps import get_current_user, require_admin, require_admin_or_pm, require_any_manager
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
@@ -29,7 +29,7 @@ def _milestone_out(m) -> dict:
 def get_profitability_summary(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_admin_or_pm),  # auditoria 2026-11: las dos pantallas son de admin y PM,
     response: Response = None,
 ):
     projects = profitability_service.get_summary_projects(db, status)
@@ -75,7 +75,7 @@ def get_profitability_summary(
 def get_profitability_projects(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),  # auditoria 2026-11: margenes, no para cualquier empleado,
     response: Response = None,
 ):
     """Returns a flat list of projects with profitability metrics (margin_pct, revenue, cost, etc.)."""
