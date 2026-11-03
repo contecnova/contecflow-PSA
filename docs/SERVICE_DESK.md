@@ -489,7 +489,7 @@ vectores no se pueden guardar.
   playbooks, estadísticas y registro solo por API (`/sd/autonomous/*`).
 - **El panel del agente (`/agent-dashboard`) enseña ceros**: lo único que lo
   escribe guarda los abiertos y pone 0 en el resto; ningún job lo alimenta.
-- Kanban: los tickets cerrados y cancelados aparecen en la columna *Abierto*.
+- El Kanban carga como mucho 200 tickets vivos y avisa si hay más; para el resto, la lista *Todos* (paginada, con búsqueda en el servidor).
   *Mi cola* enseña como mucho 25 tickets.
 
 - Sin probar contra un IMAP, un Microsoft 365, un Alertmanager, un Twilio o un

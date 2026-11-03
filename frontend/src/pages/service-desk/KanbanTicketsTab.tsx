@@ -22,6 +22,9 @@ interface KanbanTicket {
   [key: string]: unknown
 }
 
+const ESTADOS_DEL_TABLERO = ['new', 'assigned', 'in_progress', 'pending_client', 'pending_third', 'resolved']
+const KANBAN_MAX = 200
+
 interface DragState {
   ticket: KanbanTicket
   fromCol: string
@@ -42,22 +45,29 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
     { id: 'resolved',       label: t('service_desk.status_resolved'),       color: '#34d399' },
   ]
 
-  const { data: raw = {}, isLoading } = useQuery<Record<string, KanbanTicket[]>>({
+  // Auditoria 2026-11: se pedian los 200 mas recientes de cualquier estado y
+  // todo lo que no tenia columna (nuevo, asignado, pero tambien cerrado y
+  // cancelado) caia en «Abierto»; y soltar ahi enviaba `open`, que no es un
+  // estado. Ahora se piden solo los estados de las columnas y «Abierto» son
+  // los nuevos y asignados.
+  const { data: tablero, isLoading } = useQuery<{ cols: Record<string, KanbanTicket[]>; total: number; vistos: number }>({
     queryKey: ['sd-tickets-kanban'],
-    queryFn: () => ticketsApi.list({ page_size: 200 }).then((r: { data: unknown }) => {
-      const d = r.data as { tickets?: KanbanTicket[] } | KanbanTicket[]
-      const tickets: KanbanTicket[] = Array.isArray(d) ? d : (d?.tickets || [])
-      const cols: Record<string, KanbanTicket[]> = {}
-      KANBAN_COLS.forEach(c => { cols[c.id] = [] })
-      tickets.forEach(ticket => {
-        const s = ticket.status ?? ''
-        if (cols[s]) cols[s].push(ticket)
-        else cols['open'] = [...(cols['open'] || []), ticket]
-      })
-      return cols
-    }),
+    queryFn: () => ticketsApi.list({ page_size: KANBAN_MAX, status: ESTADOS_DEL_TABLERO.join(',') })
+      .then((r: { data: unknown; meta?: { total?: number } }) => {
+        const d = r.data as { tickets?: KanbanTicket[] } | KanbanTicket[]
+        const tickets: KanbanTicket[] = Array.isArray(d) ? d : (d?.tickets || [])
+        const cols: Record<string, KanbanTicket[]> = {}
+        KANBAN_COLS.forEach(c => { cols[c.id] = [] })
+        tickets.forEach(ticket => {
+          const s = ticket.status ?? ''
+          const col = s === 'new' || s === 'assigned' ? 'open' : s
+          if (cols[col]) cols[col].push(ticket)
+        })
+        return { cols, total: Number(r.meta?.total ?? tickets.length), vistos: tickets.length }
+      }),
     staleTime: 30000,
   })
+  const raw = tablero?.cols ?? {}
 
   const { mutate: moveTicket } = useMutation({
     mutationFn: ({ id, status }: { id: string | number; status: string }) => ticketsApi.update(id, { status }),
@@ -77,19 +87,27 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
     e.preventDefault()
     setDragOverCol(null)
     if (!dragging || dragging.fromCol === toColId) { setDragging(null); return }
-    moveTicket({ id: dragging.ticket.id, status: toColId })
+    const estado = toColId === 'open' ? (dragging.ticket.assigned_to_id ? 'assigned' : 'new') : toColId
+    moveTicket({ id: dragging.ticket.id, status: estado })
     setDragging(null)
   }
 
   if (isLoading) return <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>
 
   return (
+    <>
+    {tablero && tablero.total > tablero.vistos && (
+      <div role="status" style={{ fontSize: 'var(--text-sm)', color: 'var(--warning)', marginBottom: 8 }}>
+        {t('service_desk.kanban_truncado').replace('{vistos}', String(tablero.vistos)).replace('{total}', String(tablero.total))}
+      </div>
+    )}
     <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, minHeight: 400 }}>
       {KANBAN_COLS.map(col => {
         const tickets = raw[col.id] || []
         return (
           <div
             key={col.id}
+            data-col={col.id}
             role="presentation"
             onDragOver={onDragOver}
             onDragEnter={e => onDragEnter(e, col.id)}
@@ -178,5 +196,6 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
         )
       })}
     </div>
+    </>
   )
 }

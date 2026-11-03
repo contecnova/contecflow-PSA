@@ -1,9 +1,10 @@
-import { useMemo, useState, useId } from 'react'
+import { useEffect, useMemo, useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../../context/ToastContext'
 import { sdRoutingApi, sdGroupsApi, sdSlaPoliciesApi, usersApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH } from '../../components/ui'
+import Pagination from '../../components/ui/Pagination'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppT } from '../../i18n/AppLangContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
@@ -60,43 +61,64 @@ function TRow({ t: ticket, onClick }: { t: Ticket; onClick: () => void }) {
   )
 }
 
+const TICKETS_POR_PAGINA = 50
+
 export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSelect: (tk: Ticket) => void }) {
   const t = useAppT()
   const [search, setSearch] = useState('')
   const [filterPrio, setFilterPrio] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterType, setFilterType] = useState('')
+  // Auditoria 2026-11: «Mi cola» se quedaba en 25 y «Todos» en 100, y la
+  // busqueda solo miraba esos 100. Ahora se pagina en el servidor y, en
+  // «Todos», la busqueda va al servidor.
+  const [page, setPage] = useState(1)
+  const [busqueda, setBusqueda] = useState('')
+  useEffect(() => {
+    const espera = setTimeout(() => { setBusqueda(search.trim()); setPage(1) }, 300)
+    return () => clearTimeout(espera)
+  }, [search])
+  useEffect(() => { setPage(1) }, [filterPrio, filterStatus, filterType])
 
-  const { data: tickets = [], isLoading } = useQuery<Ticket[]>({
-    queryKey: ['sd-tickets', queueOnly, filterPrio, filterStatus, filterType],
+  const { data: pagina, isLoading } = useQuery<{ items: Ticket[]; total: number }>({
+    queryKey: ['sd-tickets', queueOnly, filterPrio, filterStatus, filterType, queueOnly ? '' : busqueda, page],
     queryFn: () => {
+      const leer = (r: { data: unknown; meta?: { total?: number } }) => {
+        const d = r.data as Ticket[] | { tickets?: Ticket[]; items?: Ticket[] }
+        const items = Array.isArray(d) ? d : (d?.tickets || d?.items || [])
+        return { items, total: Number(r.meta?.total ?? items.length) }
+      }
       if (queueOnly) {
-        return sdRoutingApi.queue(undefined).then(r => r.data)
+        return sdRoutingApi.queue({ page, page_size: TICKETS_POR_PAGINA }).then(leer)
       }
       return sdRoutingApi.tickets({
         priority: filterPrio || undefined,
         status: filterStatus || undefined,
         ticket_type: filterType || undefined,
-        page_size: 100,
-      }).then(r => {
-        const d = r.data
-        return Array.isArray(d) ? d : (d?.tickets || d?.items || [])
-      })
+        search: busqueda || undefined,
+        page,
+        page_size: TICKETS_POR_PAGINA,
+      }).then(leer)
     },
     staleTime: 15000,
     refetchInterval: 60000,
   })
+  const tickets = useMemo(() => pagina?.items ?? [], [pagina])
+  const total = pagina?.total ?? 0
+  const paginas = Math.max(1, Math.ceil(total / TICKETS_POR_PAGINA))
 
   const filtered = useMemo(() => {
     const list = Array.isArray(tickets) ? tickets : []
-    if (!search) return list
+    // «Todos» ya viene filtrado por el servidor; «Mi cola» no tiene busqueda en
+    // la API y se filtra la pagina cargada.
+    if (!search || !queueOnly) return list
     const q = search.toLowerCase()
     return list.filter(tk =>
       tk.title?.toLowerCase().includes(q) ||
       tk.number?.toLowerCase().includes(q) ||
       tk.requester_name?.toLowerCase().includes(q)
     )
-  }, [tickets, search])
+  }, [tickets, search, queueOnly])
 
   const { sort: ticketSort, setSort: setTicketSort, sortedData: sortedTickets } = useSort(filtered, 'number')
 
@@ -116,7 +138,7 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
         </select>
         <select aria-label={t('service_desk.filter_all_statuses')} value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={IS}>
           <option value="">{t('service_desk.filter_all_statuses')}</option>
-          {['new', 'assigned', 'in_progress', 'pending_client', 'resolved', 'closed'].map(s =>
+          {['new', 'assigned', 'in_progress', 'pending_client', 'pending_third', 'resolved', 'closed', 'cancelled'].map(s =>
             <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
         </select>
         <select aria-label={t('service_desk.filter_all_types')} value={filterType} onChange={e => setFilterType(e.target.value)} style={IS}>
@@ -145,8 +167,9 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
             {sortedTickets.map(tk => <TRow key={tk.id} t={tk} onClick={() => onSelect(tk)} />)}
           </tbody>
         </table>
-        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', padding: '10px 4px' }}>
-          {filtered.length} ticket{filtered.length !== 1 ? 's' : ''}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: "var(--text-xs)", color: 'var(--text-3)', padding: '10px 4px', flexWrap: 'wrap' }}>
+          <span>{total} ticket{total !== 1 ? 's' : ''}</span>
+          {paginas > 1 && <Pagination page={page} totalPages={paginas} onChange={setPage} />}
         </div>
       </div>}
     </div>

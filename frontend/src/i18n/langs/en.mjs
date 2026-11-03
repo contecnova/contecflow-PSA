@@ -2225,6 +2225,7 @@ const en = {
     descripcion: 'Description',
   },
   service_desk: {
+    kanban_truncado: 'Showing {vistos} of {total} tickets; use the filtered list to see the rest.',
     time_spent: 'Time spent',
     ticket_urgency: 'Urgency',
     ticket_updated: 'Ticket updated',

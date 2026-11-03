@@ -1973,6 +1973,7 @@ const es = {
   },
 
   service_desk: {
+    kanban_truncado: 'Se muestran {vistos} de {total} tickets; usa la lista con filtros para ver el resto.',
     title: 'Service Desk',
     subtitle: 'Gestión centralizada de tickets, incidencias y solicitudes de soporte', new_ticket: 'Nuevo ticket', my_queue: 'Mi cola',
     all_tickets: 'Todos los tickets', ticket_title: 'Título del ticket',

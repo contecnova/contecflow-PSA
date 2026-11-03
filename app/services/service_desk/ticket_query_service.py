@@ -68,9 +68,12 @@ def build_ticket_list_query(
     )
     q = _acotar_a_lo_visible(q, db, current_user)
 
-    estado = normalize_ticket_status(status)
-    if estado:
-        q = q.filter(Ticket.status == estado)
+    # Varios estados separados por comas (el Kanban pide solo los vivos).
+    estados = [e for e in (normalize_ticket_status(x.strip()) for x in (status or "").split(",")) if e]
+    if len(estados) == 1:
+        q = q.filter(Ticket.status == estados[0])
+    elif estados:
+        q = q.filter(Ticket.status.in_(estados))
 
     for parametro, columna in _FILTROS_DE_IGUALDAD:
         if valores.get(parametro):

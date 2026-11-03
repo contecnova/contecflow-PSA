@@ -2222,6 +2222,7 @@ const zh = {
     descripcion: '说明',
   },
   service_desk: {
+    kanban_truncado: '显示 {total} 个工单中的 {vistos} 个；请使用带筛选的列表查看其余工单。',
     time_spent: '耗时',
     ticket_urgency: '紧急程度',
     ticket_updated: '工单已更新',

@@ -70,7 +70,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 - ~~Finance dashboard: revenue, cost and margin always show 0, and PMs get 403 on the profitability summary.~~ Fixed 2026-11-03, with the pipeline KPIs and the project table that read fields the API does not send. The period selector still does nothing. [3]
 - The Approval Inbox only receives documents and client-portal requests, plus (since 2026-11-03) expenses, timesheets and absences when the organization has a default workflow for them. Change requests from `/changes`, purchases and invoices still never reach it. [1]
 - ~~Executive dashboard KPIs always show €0; the agent dashboard (`/agent-dashboard`) shows zeros.~~ Fixed 2026-11-03, as is the resource forecast counting deleted bookings and ignoring absences. [5, 4, 2]
-- Many lists stop at 50 (or 25) items without pagination. [1, 4]
+- Many lists stop at 50 (or 25) items without pagination; the Service Desk ticket lists (*My queue*, *All*, Kanban) were fixed on 2026-11-03. [1, 4]
 
 **Service Desk**
 - ~~The ticket panel cannot write an internal note.~~ Fixed 2026-11-03: the panel has an *Internal note* checkbox; internal notes show to agents with a badge and never reach the requester or the portal. [4]
@@ -1848,9 +1848,9 @@ Conventions:
 
 | Tab | What it shows |
 |---|---|
-| My queue | `GET /sd/tickets/my-queue`. Tickets **assigned to me** that are not `resolved`/`closed`/`cancelled`, ordered by priority, then creation date. The UI sends no paging parameters, so the default `page_size=25` applies: only the first 25 are shown. |
-| All | `GET /sd/tickets?page_size=100`, with filters for priority, status and type, plus a client-side search. |
-| Kanban | First 200 tickets. Columns: Open, In progress, Pending client, Pending third party, Resolved. Drag and drop sends `PATCH {status}`. |
+| My queue | `GET /sd/tickets/my-queue`. Tickets **assigned to me** that are not `resolved`/`closed`/`cancelled`, ordered by priority, then creation date. Paged by 50 with the total and page buttons under the list (since 2026-11-03; before, only the first 25 were shown). The search box filters the loaded page. |
+| All | `GET /sd/tickets?page=&page_size=50&search=`, with filters for priority, status and type. The search goes to the server (title, number, requester…) and the list is paged with the total shown (since 2026-11-03; before, the 100 newest only, searched in the browser). |
+| Kanban | Up to 200 live tickets (`status=new,assigned,in_progress,pending_client,pending_third,resolved`), with a notice when there are more. Columns: Open (`new` + `assigned`), In progress, Pending client, Pending third party, Resolved. Drag and drop sends `PATCH {status}`. |
 | To approve | Shown only when `GET /sd/approvals/mine` returns at least one item (polled every 60 s). |
 | Changes | Change management, with four views: List, Calendar, Releases, Blackouts. |
 | Major incidents | `GET/POST /sd/major-incidents`, `PATCH /sd/major-incidents/{id}`. Statuses: `active`, `resolved`, `closed`. |
@@ -1911,8 +1911,8 @@ Opening `/service-desk?ticket=<id>` (the link in every notification) switches to
 - ~~Internal notes cannot be written from the ticket panel.~~ Fixed 2026-11-03 (see *Comments* above; test `tests/test_ticket_nota_interna.py`). Before the fix the panel sent `is_internal`, which the API ignores, and the agent detail returned only public comments. The separate `/internal-comments` page still writes to a different table (`ticket_internal_comments`, legacy `cmdb_service`); it is not in the sidebar and does not generate ticket events.
 - ~~Changing priority does not recalculate SLA due dates.~~ Fixed 2026-11-03: every priority change recalculates response and resolution due dates from the opening time (not from now), unless the ticket is resolved, closed or cancelled. This covers the edit modal, the escalation action `elevate_priority`, linking to a major incident (P1), accepting an AI triage, Jira sync and *Back to previous*; all go through `ticket_update_service.cambiar_prioridad`. Test: `tests/test_sla_prioridad_manual_y_pausa.py`.
 - ~~*Back to previous* loses the paused time.~~ Fixed 2026-11-03: it adds the paused minutes to `sla_pause_minutes` like every other resume path.
-- **Kanban.** Tickets in `new`, `assigned`, `closed` or `cancelled` all fall into the *Open* column, because the list is not filtered by status. Dropping a card on *Open* sends `status: "open"`, which is not a `TicketStatus` value. What the server then returns is **Not verified**; expected to be an error.
-- **My queue** shows at most 25 tickets (see above).
+- ~~Kanban put closed and cancelled tickets in *Open*, and dropping on *Open* sent `status: "open"`.~~ Fixed 2026-11-03: the board asks only for `new,assigned,in_progress,pending_client,pending_third,resolved` (the `status` filter now accepts several values separated by commas); *Open* holds `new` and `assigned`; dropping on *Open* sets `assigned` if the ticket has an assignee, otherwise `new`. It loads at most 200 tickets and says so when there are more. Tests: `frontend/src/__tests__/KanbanTicketsTab.test.tsx`, `tests/test_tickets_filtro_varios_estados.py`.
+- ~~My queue shows at most 25 tickets.~~ Fixed 2026-11-03: *My queue* and *All* are paged on the server (`frontend/src/__tests__/TicketListPaginada.test.tsx`).
 - A code comment in `ServiceDeskPage.tsx` says the queue "only shows unassigned tickets". It is the opposite: it shows the tickets assigned to the current user.
 
 ---
@@ -2613,7 +2613,7 @@ Workflow `wait` timers do **not** run in Celery: they run in the API process's s
 - ~~Priority changes do not recalculate SLA due dates.~~ Fixed 2026-11-03.
 - ~~*Back to previous* drops the paused time.~~ Fixed 2026-11-03.
 - The Kanban board puts closed and cancelled tickets in *Open*, and dropping a card on *Open* sends an invalid status.
-- *My queue* shows at most 25 tickets.
+- ~~*My queue* shows at most 25 tickets.~~ Fixed 2026-11-03.
 
 **Other modules.**
 
