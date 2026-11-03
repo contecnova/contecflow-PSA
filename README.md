@@ -69,7 +69,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 **Wrong data shown**
 - ~~Finance dashboard: revenue, cost and margin always show 0, and PMs get 403 on the profitability summary.~~ Fixed 2026-11-03, with the pipeline KPIs and the project table that read fields the API does not send. The period selector still does nothing. [3]
 - The Approval Inbox only receives documents and client-portal requests, plus (since 2026-11-03) expenses, timesheets and absences when the organization has a default workflow for them. Change requests from `/changes`, purchases and invoices still never reach it. [1]
-- ~~Executive dashboard KPIs always show €0; the agent dashboard (`/agent-dashboard`) shows zeros.~~ Fixed 2026-11-03. Resource forecast counts deleted bookings and ignores absences. [5, 4, 2]
+- ~~Executive dashboard KPIs always show €0; the agent dashboard (`/agent-dashboard`) shows zeros.~~ Fixed 2026-11-03, as is the resource forecast counting deleted bookings and ignoring absences. [5, 4, 2]
 - Many lists stop at 50 (or 25) items without pagination. [1, 4]
 
 **Service Desk**
@@ -1071,9 +1071,10 @@ Status per week: `overloaded` >100 %, `high` >85 %, `medium` >50 %, `low` >10 %,
 - Performance: the heatmap runs one query set per user per week (a nested loop in the endpoint), so cost grows with users × weeks. Not measured.
 
 **Limitations (code reading, not reproduced at runtime).**
-- **Deleted bookings and deleted capacity plans are still counted.** Neither query in `get_user_week_hours` filters `is_active`, while both deletes are soft deletes.
+- ~~Deleted bookings and deleted capacity plans are still counted; absences are not subtracted from capacity.~~ Fixed 2026-11-03: `get_user_week_hours` skips rows with `is_active = false`; approved absences (working days × `DEFAULT_WORKING_HOURS_PER_DAY`, before a fixed 8 h) are subtracted from that week's capacity in the heatmap, the person detail, *availability* and the summary, and each week returns `absence_hours`. A week with zero capacity and some committed hours shows 100 %. Test: `tests/test_proyeccion_recursos_ausencias_y_borrados.py`.
+- `GET /resource-forecast/users/{id}` is limited to admin, pm, team_lead, hr or the person themself (since 2026-11-03; before, any user could read anyone's load).
 - **`soft` (tentative) bookings count the same as `hard` ones.**
-- Absence hours are computed (fixed at 8 h/day) and returned as `absence_hours`, but are **not subtracted** from capacity.
+- Public holidays are not subtracted from capacity.
 - Backend tests: `tests/test_resource_forecast.py` exists. No frontend tests.
 
 ### Visual scheduler — `/resource-scheduler`
@@ -1098,7 +1099,7 @@ Cell shading comes from the forecast endpoint.
 **Limitations.**
 - **Mouse-only.** Drag handling uses `mousedown/mousemove/mouseup`; there are no touch handlers, so it won't work on a touchscreen.
 - No capacity or absence check when creating or moving a booking.
-- The shading inherits the forecast issues above (deleted bookings and plans counted, soft counted as hard).
+- The shading inherits the forecast rules above (soft counted as hard; holidays not subtracted).
 - No frontend tests.
 
 ### Skills — `/skills`

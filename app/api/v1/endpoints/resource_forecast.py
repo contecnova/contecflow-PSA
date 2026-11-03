@@ -52,6 +52,15 @@ def _compute_user_week_hours(user_id: str, week_start: "date", db) -> dict:
     return _svc_user_week_hours(db, user_id, week_start)
 
 
+def _capacidad(base: float, hw: dict) -> float:
+    """Capacidad de esa semana: la del usuario menos sus ausencias aprobadas.
+
+    Auditoria 2026-11: las ausencias se calculaban y no se restaban; una semana
+    de vacaciones salia libre.
+    """
+    return max(0.0, base - hw.get("absence_hours", 0.0))
+
+
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
 @router.get("/weeks", summary="Heatmap de carga por persona y semana (6-52 semanas)")
@@ -85,8 +94,9 @@ def forecast_heatmap(
         for w in week_dates:
             hw = _compute_user_week_hours(u.id, w, db)
             committed = hw["committed_hours"]
-            load_pct  = round((committed / capacity) * 100, 1) if capacity > 0 else 0
-            available = max(0, round(capacity - committed, 1))
+            cap = _capacidad(capacity, hw)
+            load_pct  = round((committed / cap) * 100, 1) if cap > 0 else (100.0 if committed > 0 else 0)
+            available = max(0, round(cap - committed, 1))
             total_load += load_pct
 
             status = (
@@ -103,6 +113,7 @@ def forecast_heatmap(
                 "load_pct":        load_pct,
                 "committed_hours": committed,
                 "available_hours": available,
+                "absence_hours":   hw["absence_hours"],
                 "status":          status,
                 "projects":        hw["projects"],
             })
@@ -137,6 +148,13 @@ def forecast_user_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Auditoria 2026-11: la ve un responsable (como el resto de la proyeccion)
+    # o la propia persona; antes cualquiera leia la carga de cualquiera.
+    from app.models.user import UserRole
+    if current_user.id != user_id and current_user.role not in (
+            UserRole.admin, UserRole.pm, UserRole.team_lead, UserRole.hr):
+        from fastapi import HTTPException
+        raise HTTPException(403, "Solo responsables o la propia persona")
     u = get_forecast_user_by_id(db, user_id)
     if not u:
         from fastapi import HTTPException
@@ -153,7 +171,8 @@ def forecast_user_detail(
     for w in week_dates:
         hw       = _compute_user_week_hours(u.id, w, db)
         committed = hw["committed_hours"]
-        load_pct  = round((committed / capacity) * 100, 1) if capacity > 0 else 0
+        cap       = _capacidad(capacity, hw)
+        load_pct  = round((committed / cap) * 100, 1) if cap > 0 else (100.0 if committed > 0 else 0)
 
         # Breakdown por proyecto con nombre
         breakdown = []
@@ -162,7 +181,7 @@ def forecast_user_detail(
                 "project_id":   pid,
                 "project_name": project_names.get(pid, "Sin proyecto"),
                 "hours":        hours,
-                "pct_of_week":  round((hours / capacity) * 100, 1) if capacity > 0 else 0,
+                "pct_of_week":  round((hours / cap) * 100, 1) if cap > 0 else 0,
             })
         breakdown.sort(key=lambda x: x["hours"], reverse=True)
 
@@ -171,7 +190,8 @@ def forecast_user_detail(
             "week_start":      str(w),
             "load_pct":        load_pct,
             "committed_hours": committed,
-            "available_hours": max(0, round(capacity - committed, 1)),
+            "available_hours": max(0, round(cap - committed, 1)),
+            "absence_hours":   hw["absence_hours"],
             "breakdown":       breakdown,
         })
 
@@ -211,7 +231,7 @@ def find_available(
         availabilities = []
         for w in week_dates:
             hw        = _compute_user_week_hours(u.id, w, db)
-            available = max(0, capacity - hw["committed_hours"])
+            available = max(0, _capacidad(capacity, hw) - hw["committed_hours"])
             availabilities.append(available)
 
         avg_available = round(sum(availabilities) / len(availabilities), 1) if availabilities else 0
@@ -265,7 +285,7 @@ def forecast_summary(
             "risk_weeks": [],
         })
 
-    total_capacity_hrs  = sum(u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS for u in users) * weeks
+    total_capacity_hrs  = 0.0
     total_committed_hrs = 0.0
     risk_weeks          = set()
     overloaded_users    = set()
@@ -275,14 +295,15 @@ def forecast_summary(
         week_committed = 0.0
         week_capacity  = 0.0
         for u in users:
-            cap = u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
             hw  = _compute_user_week_hours(u.id, w, db)
+            cap = _capacidad(u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS, hw)
             committed = hw["committed_hours"]
             week_committed += committed
             week_capacity  += cap
             if committed > cap * 1.0:
                 overloaded_users.add(u.id)
         total_committed_hrs += week_committed
+        total_capacity_hrs  += week_capacity
         load = round((week_committed / week_capacity) * 100, 1) if week_capacity > 0 else 0
         week_loads.append({"week": _week_label(w), "load_pct": load})
         if load > 85:

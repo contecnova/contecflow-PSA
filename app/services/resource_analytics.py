@@ -483,6 +483,9 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
         ResourceBooking.user_id == user_id,
         ResourceBooking.start_date <= week_end,
         ResourceBooking.end_date >= week_start,
+        # Auditoria 2026-11: borrar una reserva o un plan es un borrado logico,
+        # y se seguian contando.
+        ResourceBooking.is_active.isnot(False),
     ).all()
 
     booking_hours = 0.0
@@ -503,6 +506,7 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
     cp = db.query(CapacityPlan).filter(
         CapacityPlan.user_id == user_id,
         CapacityPlan.week_start == week_start,
+        CapacityPlan.is_active.isnot(False),
     ).all()
     capacity_hours = sum(c.planned_hours for c in cp)
     for c in cp:
@@ -526,7 +530,7 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
                 1 for i in range(days)
                 if (ov_start + timedelta(days=i)).weekday() < 5
             )
-            absence_hours += work_days * 8
+            absence_hours += work_days * settings.DEFAULT_WORKING_HOURS_PER_DAY
     except Exception:
         logger.warning("Error calculando absence_hours, se usa 0.0", exc_info=True)
         absence_hours = 0.0
