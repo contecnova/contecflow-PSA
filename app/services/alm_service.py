@@ -318,14 +318,27 @@ def list_contracts_records(
     return [serialize_contract(c, db) for c in query.order_by(ALMContract.renewal_date.nullsfirst()).all()]
 
 
-def create_contract_record(data: dict, created_by_id: str, db: Session) -> dict:
+def _limpiar_contrato(data: dict) -> dict:
+    """Lo mismo para el alta y el cambio.
 
+    Auditoria 2026-11: el cambio guardaba los valores tal como llegaban, asi
+    que un numero vacio («») iba a una columna `Float` (error en Postgres) y
+    una fecha mal escrita se perdia sin decirlo solo en ese camino.
+    """
     clean = clean_input(
         data, ALMContract,
         date_fields=["start_date", "end_date", "renewal_date"],
         int_fields=["notice_days"],
-        float_fields=["total_value", "annual_value"],
+        float_fields=["total_value", "annual_value", "resolution_hours"],
     )
+    if clean.get("resolution_hours") is not None and clean["resolution_hours"] <= 0:
+        raise HTTPException(422, "El plazo del proveedor (UC) son horas mayores que cero, o vacío")
+    return clean
+
+
+def create_contract_record(data: dict, created_by_id: str, db: Session) -> dict:
+
+    clean = _limpiar_contrato(data)
     clean["created_by"] = created_by_id
     c = ALMContract(**clean)
     db.add(c)
@@ -347,18 +360,8 @@ def update_contract_record(cid: str, data: dict, db: Session) -> dict:
     c = db.query(ALMContract).filter(ALMContract.id == cid, ALMContract.is_active == True).first()
     if not c:
         raise HTTPException(404)
-    for k, v in data.items():
-        if k in PROTECTED_FIELDS:
-            continue
-        if hasattr(c, k):
-            if k in ["start_date", "end_date", "renewal_date"] and isinstance(v, str) and v:
-                try:
-                    parts = v.split("-")
-                    v = date(int(parts[0]), int(parts[1]), int(parts[2]))
-                except Exception:
-                    logger.debug("ALM contract update: invalid date %s=%r for cid=%s → None", k, v, cid, exc_info=True)
-                    v = None
-            setattr(c, k, v)
+    for k, v in _limpiar_contrato(data).items():
+        setattr(c, k, v)
     db.commit()
     db.refresh(c)
     return serialize_contract(c, db)

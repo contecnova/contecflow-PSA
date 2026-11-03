@@ -51,6 +51,7 @@ class TicketUpdateIn(BaseModel):
     assigned_to_user_id: Optional[str] = Field(None, description="Nuevo usuario asignado")
     assigned_group_id: Optional[str] = Field(None, description="Nuevo grupo asignado")
     ci_id: Optional[str] = Field(None, description="Nuevo configuration item asociado")
+    uc_contract_id: Optional[str] = Field(None, description="Contrato de soporte del proveedor (UC) mientras se espera a un tercero")
     project_id: Optional[str] = Field(None, description="Nuevo proyecto asociado")
     tags: Optional[str] = Field(None, description="Nuevas etiquetas")
     resolution: Optional[str] = Field(None, description="Texto de resolución del ticket")
@@ -58,7 +59,7 @@ class TicketUpdateIn(BaseModel):
     problem_id: Optional[str] = Field(None, description="ID del problema vinculado")
     dynamic_fields: Optional[dict] = Field(None, description="Nuevos valores de campos dinámicos")
 
-    @field_validator('assigned_to_user_id', 'assigned_group_id', 'ci_id',
+    @field_validator('assigned_to_user_id', 'assigned_group_id', 'ci_id', 'uc_contract_id',
                      'project_id', 'problem_id', mode='before')
     @classmethod
     def empty_str_to_none(cls, v):

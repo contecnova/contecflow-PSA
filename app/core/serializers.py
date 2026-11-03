@@ -127,7 +127,7 @@ class ContractSerializer(ModelSerializer):
               'start_date', 'end_date', 'renewal_date', 'auto_renew', 'notice_days',
               'total_value', 'annual_value', 'billing_cycle', 'currency',
               'payment_method', 'po_number', 'cost_center_id', 'owner_id',
-              'project_id', 'document_url', 'notes', 'tags']
+              'project_id', 'document_url', 'notes', 'tags', 'resolution_hours']
 
     def get_extra_fields(self, obj):
         today = timeutil.today()

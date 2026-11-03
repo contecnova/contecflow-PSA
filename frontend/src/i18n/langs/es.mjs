@@ -2349,6 +2349,8 @@ const es = {
     renewal_open_ticket: 'Abrir ticket de renovación',
     renewal_created: 'Ticket {number} abierto',
     renewal_exists: 'Ya había un ticket abierto: {number}',
+    contracts_label_uc_hours: 'Plazo del proveedor (UC, horas)',
+    contracts_uc_hint: 'Horas que tiene el proveedor cuando un ticket queda pendiente de él. Vacío: no es un contrato de soporte.',
   },
 
   global_search: {
@@ -6026,6 +6028,12 @@ const es = {
     ev_sla_breached: 'El SLA se incumple',
     ev_ola_breached: 'Se incumple el OLA de su cola',
     ev_escalated: 'Se escala',
+    uc_of_vendor: 'UC · contrato del proveedor',
+    uc_choose: 'Elegir contrato…',
+    uc_none: 'Ningún contrato con plazo del proveedor',
+    uc_hours: '{n} h',
+    ntf_uc_breached_agent: 'UC del proveedor incumplido',
+    ev_uc_breached: 'Se incumple el UC del proveedor',
   },
 };
 export default es;

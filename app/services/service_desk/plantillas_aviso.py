@@ -15,7 +15,7 @@ from __future__ import annotations
 VARIABLES = (
     "ticket_number", "ticket_title", "ticket_status", "ticket_priority",
     "requester_name", "assignee_name", "group_name", "comment_author",
-    "comment_body", "resolution", "sla_due", "link", "org_name",
+    "comment_body", "resolution", "sla_due", "link", "org_name", "vendor_name",
 )
 
 _PIE_ES = (
@@ -130,6 +130,16 @@ POR_DEFECTO: dict[str, dict[str, tuple[str, str]]] = {
         "en": ("OLA breached in {{group_name}}: {{ticket_number}}",
                "<p><strong>{{ticket_number}}</strong> ({{ticket_priority}}, {{assignee_name}}) "
                "missed the internal target of the {{group_name}} queue, due {{sla_due}}.</p>" + _BOTON_EN),
+    },
+    "sd.uc_breached.agent": {
+        "es": ("UC incumplido: {{ticket_number}} ({{vendor_name}})",
+               "<p><strong>{{ticket_number}}</strong> ({{ticket_priority}}, {{assignee_name}}) "
+               "lleva esperando al proveedor más de lo que fija su contrato ({{vendor_name}}); "
+               "vencía {{sla_due}}.</p>" + _BOTON_ES),
+        "en": ("UC breached: {{ticket_number}} ({{vendor_name}})",
+               "<p><strong>{{ticket_number}}</strong> ({{ticket_priority}}, {{assignee_name}}) "
+               "has waited on the vendor longer than its contract allows ({{vendor_name}}); "
+               "due {{sla_due}}.</p>" + _BOTON_EN),
     },
     "sd.escalated.agent": {
         "es": ("Escalado: {{ticket_number}} {{ticket_title}}",

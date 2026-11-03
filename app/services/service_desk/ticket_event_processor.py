@@ -54,6 +54,7 @@ TIPO_DE_AVISO = {
     "sla_warning": "ticket_sla_warning",
     "sla_breached": "ticket_sla_breached",
     "ola_breached": "ticket_sla_breached",
+    "uc_breached": "ticket_sla_breached",
     "escalated": "ticket_escalated",
     "approval_requested": "approval_requested",
     "approval_decided": "ticket_updated",
@@ -195,6 +196,8 @@ def _variables(db: Session, ev: TicketEvent, ticket: Ticket, data: dict, dest: D
         "assignee_name": ticket.assigned_to.full_name if ticket.assigned_to else et["unassigned"],
         # El OLA nombra la cola que lo incumplio, aunque el ticket ya este en otra.
         "group_name": data.get("group") or (ticket.assigned_group.name if ticket.assigned_group else et["no_group"]),
+        # El UC nombra el contrato y su proveedor tal como estaban al vencer.
+        "vendor_name": " · ".join(x for x in (data.get("vendor"), data.get("contract")) if x),
         "comment_author": autor,
         "comment_body": comentario.body if comentario is not None else (data.get("note") or data.get("action") or ""),
         "resolution": et.get(decision, decision) if decision else (ticket.resolution or ""),
@@ -356,6 +359,9 @@ def destinatarios(db: Session, ev: TicketEvent, ticket: Ticket, data: dict) -> l
         # A la cola que lo tenia cuando vencio, aunque ya se haya movido.
         agentes("sd.ola_breached.agent",
                 _quien_atiende(db, ticket) + _miembros_del_grupo(db, data.get("group_id"), solo_responsables=True))
+    elif kind == "uc_breached":
+        agentes("sd.uc_breached.agent",
+                _quien_atiende(db, ticket) + _miembros_del_grupo(db, ticket.assigned_group_id, solo_responsables=True))
     elif kind == "escalated":
         agentes("sd.escalated.agent", _usuarios(db, data.get("recipients") or []))
     elif kind == "approval_requested":

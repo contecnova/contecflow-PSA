@@ -206,6 +206,8 @@ def apply_ticket_update(
     exigir_aprobado(ticket, normalized_status)
     if "status" in changes:
         changes["status"] = normalized_status
+    if changes.get("uc_contract_id"):
+        _exigir_contrato_uc(db, changes["uc_contract_id"], ticket.organization_id)
 
     for field, new_val in changes.items():
         old_val = getattr(ticket, field, None)
@@ -235,3 +237,14 @@ def apply_ticket_update(
         "reassigned": bool(payload.assigned_to_user_id and old_assigned_to and payload.assigned_to_user_id != old_assigned_to),
         "record_routing_outcome": normalized_status in ("resolved", "closed"),
     }
+
+
+def _exigir_contrato_uc(db: Session, contrato_id: str, org_id) -> None:
+    """Un UC es un contrato de ALM activo, con plazo del proveedor y de la organizacion del ticket."""
+    from fastapi import HTTPException
+    from app.models.alm import ALMContract
+
+    c = db.get(ALMContract, contrato_id)
+    ajeno = c is not None and c.organization_id not in (None, org_id)
+    if c is None or ajeno or not c.is_active or not c.resolution_hours or c.resolution_hours <= 0:
+        raise HTTPException(422, "El contrato no existe o no tiene plazo del proveedor (UC)")

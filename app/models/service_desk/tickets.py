@@ -111,6 +111,14 @@ class Ticket(Base):
     ola_due = Column(DateTime(timezone=True), nullable=True)
     ola_pause_base = Column(Integer, nullable=True)
     ola_breached = Column(Boolean, default=False, nullable=False, server_default=sa_false())
+    # UC: el contrato de soporte del proveedor mientras el ticket espera a un
+    # tercero. El reloj lo sella `ticket_events` al entrar en `pending_third`
+    # y lo vigila `sla_monitor_service`; el plazo es `resolution_hours` del
+    # contrato (ALM).
+    uc_contract_id = Column(String(36), ForeignKey("alm_contracts.id", ondelete="SET NULL"), nullable=True)
+    uc_started_at = Column(DateTime(timezone=True), nullable=True)
+    uc_due = Column(DateTime(timezone=True), nullable=True)
+    uc_breached = Column(Boolean, default=False, nullable=False, server_default=sa_false())
 
     # Phase 2 — Predictive Intelligence
     predicted_severity = Column(String(20), nullable=True)
@@ -142,6 +150,7 @@ class Ticket(Base):
     requester_user = relationship("User", foreign_keys=[requester_user_id])
     requester_client = relationship("ClientUser", foreign_keys=[requester_client_id])
     assigned_to = relationship("User", foreign_keys=[assigned_to_user_id])
+    uc_contract = relationship("ALMContract", foreign_keys=[uc_contract_id])
     client       = relationship("Client", foreign_keys=[client_id])
     created_by = relationship("User", foreign_keys=[created_by_user_id])
     assigned_group = relationship("AgentGroup")

@@ -158,6 +158,73 @@ def _escanear_olas(db: Session, calendarios: "_Calendarios", ahora: datetime) ->
     return incumplidos, errores
 
 
+def contrato_uc(db: Session, ticket: Ticket):
+    """El contrato de soporte que aplica al ticket, o `None`.
+
+    El elegido en el ticket; si no hay, el del proveedor del activo de ALM
+    enlazado al CI del ticket, solo si es uno: con dos candidatos no se elige
+    por el agente. Un contrato aplica si esta activo y tiene plazo.
+    """
+    from app.models.alm import ALMAsset, ALMContract
+
+    if ticket.uc_contract_id:
+        return db.get(ALMContract, ticket.uc_contract_id)
+    if not ticket.ci_id:
+        return None
+    proveedores = {v for (v,) in db.query(ALMAsset.vendor_id).filter(
+        ALMAsset.ci_id == ticket.ci_id, ALMAsset.is_active.is_(True), ALMAsset.vendor_id.isnot(None))}
+    if not proveedores:
+        return None
+    candidatos = db.query(ALMContract).filter(
+        ALMContract.vendor_id.in_(proveedores), ALMContract.is_active.is_(True),
+        ALMContract.status == "active", ALMContract.resolution_hours > 0,
+    ).limit(2).all()
+    return candidatos[0] if len(candidatos) == 1 else None
+
+
+def evaluar_uc(db: Session, ticket: Ticket, cal, ahora: datetime) -> bool:
+    """Pone el vencimiento del UC y anota el incumplimiento. True si incumple ahora.
+
+    No se para con la pausa del SLA: esperar al tercero es justo lo que mide.
+    """
+    contrato = contrato_uc(db, ticket)
+    if contrato is None or not contrato.resolution_hours or contrato.resolution_hours <= 0:
+        return False
+    if ticket.uc_contract_id is None:
+        ticket.uc_contract_id = contrato.id
+    due = sumar_horas_sla(ticket.uc_started_at, contrato.resolution_hours, cal)
+    if ticket.uc_due is None or aware(ticket.uc_due) != due:
+        ticket.uc_due = due
+    if ahora <= due:
+        return False
+    ticket.uc_breached = True
+    db.add(SLAEvent(
+        organization_id=ticket.organization_id, ticket_id=ticket.id,
+        event_type=SLAEventType.breached, sla_type="uc",
+    ))
+    registrar(db, ticket, "uc_breached", {
+        "contract_id": contrato.id, "contract": contrato.title,
+        "vendor": contrato.vendor.name if contrato.vendor else None, "due": due.isoformat(),
+    }, actor_user_id=None)
+    return True
+
+
+def _escanear_ucs(db: Session, calendarios: "_Calendarios", ahora: datetime) -> tuple[int, int]:
+    tickets = db.query(Ticket).filter(
+        Ticket.status == TicketStatus.pending_third,
+        Ticket.uc_started_at.isnot(None),
+        Ticket.uc_breached == False,  # noqa: E712
+    ).all()
+    incumplidos = errores = 0
+    for ticket in tickets:
+        try:
+            incumplidos += evaluar_uc(db, ticket, calendarios.de(ticket), ahora)
+        except ValueError:
+            logger.exception("UC de %s no evaluado: calendario invalido", ticket.number)
+            errores += 1
+    return incumplidos, errores
+
+
 def escanear(db: Session, ahora: Optional[datetime] = None) -> dict:
     """Una pasada sobre los tickets abiertos con vencimiento. Confirma al final."""
     from app.services.service_desk.escalation_service import run_escalation_rules_engine
@@ -187,9 +254,10 @@ def escanear(db: Session, ahora: Optional[datetime] = None) -> dict:
             errores += 1
         revisados += 1
     olas, errores_ola = _escanear_olas(db, calendarios, ahora)
+    ucs, errores_uc = _escanear_ucs(db, calendarios, ahora)
     db.flush()
     escalado = run_escalation_rules_engine(db, ahora=ahora)
     db.commit()
-    return {"revisados": revisados, "cambiados": cambiados, "errores": errores + errores_ola,
-            "ola_incumplidos": olas,
+    return {"revisados": revisados, "cambiados": cambiados, "errores": errores + errores_ola + errores_uc,
+            "ola_incumplidos": olas, "uc_incumplidos": ucs,
             "escalados": escalado["escalations_fired"]}

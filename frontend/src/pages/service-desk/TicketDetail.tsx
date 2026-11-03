@@ -9,7 +9,7 @@ import { Button, Spinner, Modal } from '../../components/ui'
 import AIInlineEditorRaw from '../../components/AIInlineEditor'
 import DocumentsPanelRaw from '../../components/DocumentsPanel'
 import { COLOR, alpha } from '../../constants/theme'
-import { sdApprovalsApi, sdCannedApi, ticketsApi, usersApi } from '../../services/api'
+import { almExtApi, sdApprovalsApi, sdCannedApi, ticketsApi, usersApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { PBadge, SBadge, fmtDate, fmtMinutes, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
 
@@ -304,6 +304,20 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
     qc.invalidateQueries({ queryKey: ['sd-tickets'] })
   }
 
+  // UC: solo hace falta mientras se espera a un tercero (o si ya hay contrato).
+  const conUc = ticket?.status === 'pending_third' || !!ticket?.uc_contract_id
+  const { data: contratosUc = [] } = useQuery({
+    queryKey: ['alm-contracts'],
+    queryFn: () => almExtApi.contracts().then(r => r.data ?? []),
+    enabled: conUc,
+    select: (cs: any[]) => cs.filter(c => c.resolution_hours > 0 && c.status === 'active'),
+  })
+  const { mutate: elegirUc } = useMutation({
+    mutationFn: (id: string) => ticketsApi.update(ticketId, { uc_contract_id: id }),
+    onSuccess: invalidate,
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+
   const { mutate: addComment, isPending: commenting } = useMutation({
     mutationFn: () => ticketsApi.comment(ticketId, { body: commentText, is_internal: false }),
     onSuccess: () => { invalidate(); setCommentText(''); toast.success(t('service_desk.comment_added')) },
@@ -472,6 +486,25 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                 <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: colorSla(ticket.ola_breached ? 'breached' : 'ok') }}>
                   {textoSla(ticket.ola_breached ? 'breached' : 'ok')} · {fmtDate(ticket.ola_due)}
                 </div>
+              </div>
+            )}
+            {conUc && (
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label htmlFor="uc-contrato" style={{ display: 'block', fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>
+                  {t('sd_cfg.uc_of_vendor')}
+                </label>
+                {ticket.uc_due && (
+                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: 4, color: colorSla(ticket.uc_breached ? 'breached' : 'ok') }}>
+                    {textoSla(ticket.uc_breached ? 'breached' : 'ok')} · {fmtDate(ticket.uc_due)}
+                  </div>
+                )}
+                <select id="uc-contrato" value={ticket.uc_contract_id ?? ''} onChange={e => e.target.value && elegirUc(e.target.value)}
+                  style={{ ...IS_STYLE, padding: '6px 10px' }}>
+                  <option value="">{contratosUc.length ? t('sd_cfg.uc_choose') : t('sd_cfg.uc_none')}</option>
+                  {contratosUc.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.vendor_name ? `${c.vendor_name} · ` : ''}{c.title} ({t('sd_cfg.uc_hours', { n: c.resolution_hours })})</option>
+                  ))}
+                </select>
               </div>
             )}
           </div>

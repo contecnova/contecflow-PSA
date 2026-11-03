@@ -91,6 +91,22 @@ deja vacío, la cola no tiene OLA.
 - Los tickets que ya estaban abiertos y en una cola al instalar la migración
   108 empiezan a contar desde ese momento, porque no se sabe cuándo entraron.
 
+**UC: el plazo del proveedor.** Cuando un ticket queda *Pendiente de un
+tercero*, corre el reloj del contrato de soporte del proveedor (UC). El plazo
+se pone en *Licencias y activos → Contratos → Plazo del proveedor (UC,
+horas)*; un contrato sin plazo no es de soporte.
+
+- **Qué contrato.** El que se elija en el bloque SLA del ticket (*UC · contrato
+  del proveedor*). Si no se elige, el del proveedor del activo de ALM enlazado
+  al CI del ticket, solo si es uno: con dos contratos posibles no se adivina.
+- **Cuándo corre.** Solo mientras el ticket espera al tercero: al salir de ese
+  estado se para, y al volver empieza de cero. No se para con la pausa del SLA
+  del cliente, porque esperar al tercero es justo lo que mide. Cuenta en el
+  calendario del SLA del ticket.
+- **Al vencer** avisa una vez (campana y correo) al agente y a los
+  responsables de la cola, con el proveedor y el contrato, y puede arrancar un
+  flujo (*UC incumplido*). Queda como evento de SLA de tipo `uc`.
+
 ### 3. Escalado
 
 *Configuración → Escalado.* Cada regla dice **cuándo** (SLA en riesgo, SLA
@@ -387,6 +403,12 @@ vectores no se pueden guardar.
   no recibía nada en vivo. Ahora las guardas no evalúan los WebSocket, que se
   autentican con su ticket de un solo uso (`GET /ws/ticket`). Hay que
   **reiniciar el servidor** para que lo coja.
+- **UC (migración 113).** `alm_contracts.resolution_hours` (plazo del
+  proveedor) y en `sd_tickets` el contrato aplicado y su reloj
+  (`uc_contract_id`, `uc_started_at`, `uc_due`, `uc_breached`). El monitor de
+  SLA lo evalúa en la misma pasada que el OLA (`uc_incumplidos`). Además, el
+  cambio de un contrato de ALM limpia los valores como el alta: un número vacío
+  ya no llega a una columna numérica.
 - **Renovación de activos.** El escaneo diario buscaba si ya había ticket con un
   `LIKE` sobre el título y lo creaba sin organización, así que no lo veía nadie.
   Ahora el activo guarda su ticket abierto (`refresh_ticket_id`), no abre otro
@@ -409,9 +431,8 @@ vectores no se pueden guardar.
   con varias organizaciones, solo lo ve el superadministrador: la migración 110
   no adivina de quién es (véase el apartado 19).
 - El OLA tiene un único objetivo por cola, igual para todas las prioridades.
-- No hay contratos de soporte (UC). Los proveedores y sus contratos existen en
-  ALM (`alm_vendors`, `alm_contracts`), pero un contrato no tiene objetivos de
-  respuesta ni de resolución y no se enlaza con los tickets.
+- El UC mide solo el plazo de resolución del proveedor; no hay plazo de
+  respuesta del proveedor, porque nada registra cuándo contesta.
 - La búsqueda por vectores compara en Python contra todos los artículos
   publicados. Con decenas de miles de artículos haría falta un índice
   vectorial (pgvector).

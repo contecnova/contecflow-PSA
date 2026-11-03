@@ -3398,6 +3398,8 @@ const en = {
     renewal_open_ticket: 'Open renewal ticket',
     renewal_created: 'Ticket {number} opened',
     renewal_exists: 'A ticket was already open: {number}',
+    contracts_label_uc_hours: 'Vendor target (UC, hours)',
+    contracts_uc_hint: 'Hours the vendor has when a ticket is waiting on them. Empty: not a support contract.',
   },
   global_search: {
     placeholder: 'Search projects, tasks, tickets, users...',
@@ -6698,6 +6700,12 @@ const en = {
     ev_sla_breached: 'Its SLA is breached',
     ev_ola_breached: 'Its queue OLA is breached',
     ev_escalated: 'It is escalated',
+    uc_of_vendor: 'UC · vendor contract',
+    uc_choose: 'Choose contract…',
+    uc_none: 'No contract with a vendor target',
+    uc_hours: '{n} h',
+    ntf_uc_breached_agent: 'Vendor UC breached',
+    ev_uc_breached: 'The vendor UC is breached',
   },
 };
 export default en;

@@ -143,11 +143,38 @@ def _sellar_cola(ticket: Ticket) -> None:
     ticket.ola_breached = False
 
 
+ESPERA_A_TERCERO = "pending_third"
+
+
+def _sellar_uc(ticket: Ticket) -> None:
+    """Arranca o para el reloj del UC: corre solo mientras se espera a un tercero.
+
+    Como el OLA: aqui, porque el estado lo cambian muchas vias. Lo vigila el
+    monitor, que sabe el plazo del contrato y tiene el calendario.
+    """
+    esperando = _valor(ticket.status) == ESPERA_A_TERCERO
+    ticket.uc_started_at = datetime.now(timezone.utc) if esperando else None
+    ticket.uc_due = None
+    ticket.uc_breached = False
+
+
 def _al_cambiar_ticket(session, ticket: Ticket) -> None:
     estado = inspect(ticket)
     grupo = estado.attrs["assigned_group_id"].history
     if grupo.has_changes() and (grupo.deleted[:1] or [None])[0] != (grupo.added[:1] or [None])[0]:
         _sellar_cola(ticket)
+    # Por el estado de ahora y no por el anterior: tras un commit el atributo
+    # caduca y la historia no trae el valor de antes.
+    if estado.attrs["status"].history.has_changes():
+        esperando = _valor(ticket.status) == ESPERA_A_TERCERO
+        if esperando != (ticket.uc_started_at is not None):
+            _sellar_uc(ticket)
+    contrato = estado.attrs["uc_contract_id"].history
+    if contrato.has_changes() and contrato.deleted and contrato.deleted[0] is not None:
+        # Se cambia un contrato que ya habia: otro plazo, que el monitor
+        # recalcula; la espera sigue. Elegirlo por primera vez no reinicia nada.
+        ticket.uc_due = None
+        ticket.uc_breached = False
     for campo, kind in CAMPOS_VIGILADOS.items():
         hist = estado.attrs[campo].history
         if not hist.has_changes():
@@ -164,6 +191,8 @@ def _antes_de_guardar(session, flush_context, instances) -> None:
         if isinstance(obj, Ticket):
             if obj.assigned_group_id and obj.group_assigned_at is None:
                 _sellar_cola(obj)
+            if _valor(obj.status) == ESPERA_A_TERCERO and obj.uc_started_at is None:
+                _sellar_uc(obj)
             _al_crear_ticket(session, obj)
         elif isinstance(obj, TicketComment):
             _al_comentar(session, obj)

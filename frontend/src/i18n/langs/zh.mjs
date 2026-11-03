@@ -3392,6 +3392,8 @@ const zh = {
     renewal_open_ticket: '创建续订工单',
     renewal_created: '已创建工单 {number}',
     renewal_exists: '已有未关闭的工单：{number}',
+    contracts_label_uc_hours: '供应商时限（UC，小时）',
+    contracts_uc_hint: '工单等待供应商时，供应商可用的小时数。为空：不是支持合同。',
   },
   global_search: {
     placeholder: "搜索项目、任务、工单、用户…",
@@ -6709,6 +6711,12 @@ const zh = {
     ev_sla_breached: 'SLA 违约',
     ev_ola_breached: '其队列 OLA 违约',
     ev_escalated: '被升级',
+    uc_of_vendor: 'UC · 供应商合同',
+    uc_choose: '选择合同…',
+    uc_none: '没有带供应商时限的合同',
+    uc_hours: '{n} 小时',
+    ntf_uc_breached_agent: '供应商 UC 违约',
+    ev_uc_breached: '供应商 UC 违约',
   },
 };
 export default zh;

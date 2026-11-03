@@ -707,6 +707,13 @@ def ticket_out(t: "Ticket", include_comments: bool = False) -> dict:
         "group_assigned_at": t.group_assigned_at.isoformat() if t.group_assigned_at else None,
         "ola_due": str(t.ola_due)[:16] if t.ola_due else None,
         "ola_breached": bool(t.ola_breached),
+        "uc_contract_id": t.uc_contract_id,
+        "uc_contract_name": " · ".join(x for x in (
+            t.uc_contract.vendor.name if t.uc_contract and t.uc_contract.vendor else None,
+            t.uc_contract.title if t.uc_contract else None) if x) or None,
+        "uc_started_at": t.uc_started_at.isoformat() if t.uc_started_at else None,
+        "uc_due": str(t.uc_due)[:16] if t.uc_due else None,
+        "uc_breached": bool(t.uc_breached),
         "time_spent_minutes": t.time_spent_minutes,
         "time_to_response_hours": time_to_response,
         "time_to_resolution_hours": time_to_resolution,
