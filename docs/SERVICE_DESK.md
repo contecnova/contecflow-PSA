@@ -480,9 +480,13 @@ vectores no se pueden guardar.
 - La página aparte de comentarios internos (`/internal-comments`) escribe en
   otra tabla (`ticket_internal_comments`) y no genera eventos; la nota interna
   buena es la del panel del ticket.
-- **El agente autónomo no tiene interruptor**: corre cada 5 min sobre los
-  tickets nuevos de todas las organizaciones con umbrales fijos en el código, y
-  uno de sus playbooks enlaza a una URL de ejemplo.
+- El agente autónomo está **apagado por defecto**. Se enciende por
+  organización en *Ajustes → Service Desk* (`SD_AUTONOMOUS_AGENT_ENABLED`), con
+  sus umbrales (`SD_AUTONOMY_RESOLVE_THRESHOLD`, 0,80, y
+  `SD_AUTONOMY_SUGGEST_THRESHOLD`, 0,50). Evalúa cada ticket nuevo una sola
+  vez, prueba primero los playbooks de la organización y deja constancia en el
+  registro de ejecuciones. Su comentario es **público**. No tiene pantalla:
+  playbooks, estadísticas y registro solo por API (`/sd/autonomous/*`).
 - **El panel del agente (`/agent-dashboard`) enseña ceros**: lo único que lo
   escribe guarda los abiertos y pone 0 en el resto; ningún job lo alimenta.
 - Kanban: los tickets cerrados y cancelados aparecen en la columna *Abierto*.

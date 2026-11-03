@@ -30,6 +30,13 @@ class ServiceDeskSettingsMixin:
     SD_MAIL_MAX_PER_RUN: int = Field(default=50, env="SD_MAIL_MAX_PER_RUN")
     SD_MAIL_MAX_ATTACHMENT_MB: int = Field(default=15, env="SD_MAIL_MAX_ATTACHMENT_MB")
 
+    # ── Agente autonomo ──────────────────────────────────────────────────────
+    # Barrido cada 5 min de los tickets nuevos: comenta y, con un playbook que
+    # lo permita, resuelve. Apagado por defecto: escribe al solicitante.
+    SD_AUTONOMOUS_AGENT_ENABLED: bool = Field(default=False, env="SD_AUTONOMOUS_AGENT_ENABLED")
+    SD_AUTONOMY_RESOLVE_THRESHOLD: float = Field(default=0.80, env="SD_AUTONOMY_RESOLVE_THRESHOLD")
+    SD_AUTONOMY_SUGGEST_THRESHOLD: float = Field(default=0.50, env="SD_AUTONOMY_SUGGEST_THRESHOLD")
+
     # ── Cambios ──────────────────────────────────────────────────────────────
     # Cola (AgentGroup) que hace de comite de cambios; en emergencias votan
     # solo sus responsables. Regla: majority, all o any.

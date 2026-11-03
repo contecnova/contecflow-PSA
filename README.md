@@ -13,7 +13,7 @@ This README is the complete functional and technical documentation of the soluti
 | Backend tests | 4,021 collected; last full run 3,997 passed, 22 skipped, 1 xfailed, 0 failed |
 | Frontend tests | 31 files, 114 tests, all passing |
 | Celery beat entries | 53 (over 35 tasks); `setup.sh`, `setup.bat` and Docker run them with Celery beat (APScheduler off) |
-| Runtime settings (editable in Admin) | 120 keys in 15 groups |
+| Runtime settings (editable in Admin) | 123 keys in 15 groups |
 | UI languages | Spanish, English, Chinese |
 
 ## How to read this document
@@ -75,7 +75,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 **Service Desk**
 - ~~The ticket panel cannot write an internal note.~~ Fixed 2026-11-03: the panel has an *Internal note* checkbox; internal notes show to agents with a badge and never reach the requester or the portal. [4]
 - ~~Setting priority by hand does not recalculate SLA due dates; "Back to previous status" loses the paused time.~~ Fixed 2026-11-03, also for escalation, major incident, AI triage and Jira sync. [4]
-- The autonomous agent runs every 5 minutes for every organization with no off switch. [4]
+- ~~The autonomous agent runs every 5 minutes for every organization with no off switch.~~ Fixed 2026-11-03: off by default, switch and thresholds per organization; each ticket is evaluated once. [4]
 
 **Features that look real but are not (or not fully)**
 - Most "AI" features are rules or statistics; only NexusAssist, NexusAgent, the BI narrative, Ask the Data, the AI-assignment tie-break and AI Hub test/sync call an LLM provider. ML extras (Prophet, LightGBM, sentence-transformers) are not in the Docker image. [5]
@@ -2356,14 +2356,14 @@ What each tool actually does, from the code and the Spanish manual:
 - **Call assistant.** Classifies already-transcribed turns by keyword (`/sd/voice/*`). There is no telephony and no speech recognition, although `/sd/voice/webhook/twilio*` routes exist.
 - **Predictive analytics** (`/sd/predictive/*`). Statistics over history plus rules.
 
-**Autonomous agent — a critical note (code reading).**
+**Autonomous agent.**
 
-- The `autonomous_agent_scan` beat job runs **every 5 minutes on the first 100 `new`/`assigned` tickets of all organisations**. There is no setting to turn it off.
-- It matches built-in playbooks (`_BUILTIN_PLAYBOOKS`: password reset, VPN, email, printer, slow PC).
-- Three of them have `auto_resolve: True`. If the composite score reaches the hard-coded `AUTONOMY_RESOLVE_THRESHOLD = 0.80`, it posts the playbook comment and resolves the ticket. The score is an AI score plus a 0.20 playbook boost.
-- The password-reset text points to a placeholder URL (`https://account.company.com/reset`).
-- How often this triggers in practice depends on `score_auto_resolution` and is **Not verified**.
-- The thresholds are constants, not settings.
+- **Off by default.** Turn it on per organisation in *Settings → Service Desk*: `SD_AUTONOMOUS_AGENT_ENABLED`. Thresholds: `SD_AUTONOMY_RESOLVE_THRESHOLD` (default 0.80, confidence to resolve on its own) and `SD_AUTONOMY_SUGGEST_THRESHOLD` (default 0.50, confidence to post the playbook comment).
+- The `autonomous_agent_scan` beat job runs every 5 minutes over up to 100 `new`/`assigned` tickets **that it has not evaluated yet**, skipping organisations where it is off. Each evaluation writes a row in `sd_autonomous_playbook_executions` (`success` or `skipped`, score, reason, `triggered_by` = `celery` or `api`); that row is what the stats and log endpoints read, and what stops the scan from processing the ticket again. P1 tickets are never handled.
+- Playbooks: the organisation's own (`sd_autonomous_playbooks`, created through `POST /sd/autonomous/playbooks`; conditions `trigger_keywords`, `trigger_categories`, `max_priority`, `auto_resolve`) are tried first, then the built-in ones (password reset, VPN, email, printer, slow PC). The score is the auto-resolution score plus 0.20 when a playbook matches.
+- An `auto_resolve` playbook above the resolve threshold posts its comment **publicly** and resolves the ticket; below it, but above the suggest threshold, it only posts the comment.
+- Before 2026-11-03 there was no switch, the thresholds were constants, an assisted ticket received the same public comment every 5 minutes, custom playbooks were never used, nothing wrote the execution log, and built-in texts linked to example URLs (`company.com`). Test: `tests/test_agente_autonomo_interruptor.py`.
+- There is no screen for the agent: playbooks, stats and the log are API-only (`/api/v1/sd/autonomous/*`). How often the score reaches the thresholds on real data is **Not verified**.
 
 ---
 
@@ -2515,6 +2515,8 @@ The `sla` group also has `SLA_PREDICTION_HOURS_*` and `SLA_PREDICTION_SEVERITY_*
 | `SD_CAB_GROUP_ID` | "" | Queue acting as the CAB; required for normal and emergency changes |
 | `SD_CAB_APPROVAL_RULE` | `majority` | `majority`, `all` or `any` |
 | `SD_CHANGE_AUTO_APPROVE_MAX_RISK` | 30 | Standard changes up to this risk score approve themselves |
+| `SD_AUTONOMOUS_AGENT_ENABLED` | false | Autonomous agent scans new tickets every 5 min (comments publicly and may resolve) |
+| `SD_AUTONOMY_RESOLVE_THRESHOLD` / `SD_AUTONOMY_SUGGEST_THRESHOLD` | 0.80 / 0.50 | Confidence to resolve on its own / to post the playbook comment |
 | `SD_EVENT_SEVERITY_MAP` | JSON (see Monitoring) | Alert severity → priority |
 | `SD_EVENT_AUTO_RESOLVE` | true | Resolve the incident on recovery if untouched |
 | `SD_ONCALL_PRIORITIES` / `SD_ONCALL_SMS` | `p1_critical,p2_high` / true | Which priorities page on-call, and whether by SMS |
@@ -2608,7 +2610,7 @@ Workflow `wait` timers do **not** run in Celery: they run in the API process's s
 - OLA is one target per queue for every priority.
 - CMDB discovery, drift, reconciliation and SNMP are API only. The *Agents* tab returns 403 for a pm.
 - CI classes are fixed (`CIType`); only their fields are configurable.
-- The autonomous agent runs on every organisation with no on/off setting and hard-coded thresholds. Its built-in playbooks can auto-resolve tickets with a placeholder URL.
+- ~~The autonomous agent runs on every organisation with no on/off setting and hard-coded thresholds.~~ Fixed 2026-11-03: off by default, per-organisation switch and thresholds.
 - CSAT is only requested when a ticket is closed and only in the portal; no email is sent.
 
 **Access.** `team_lead` sees *Service Desk* in the menu but gets 403.
@@ -3813,7 +3815,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **15 groups, 120 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **15 groups, 123 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4671,7 +4673,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 #### 4.1 Two layers
 
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
-2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **120 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 120 keys listed there are editable.
+2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
 #### 4.2 Settings fields (`Settings`, 248)
 

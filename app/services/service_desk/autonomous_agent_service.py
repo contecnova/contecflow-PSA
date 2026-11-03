@@ -46,8 +46,38 @@ from app.services.service_desk.incident_intelligence_service import (
 logger = logging.getLogger(__name__)
 
 # ── Confidence threshold for full autonomous resolution ───────────────────────
-AUTONOMY_RESOLVE_THRESHOLD = 0.80
-AUTONOMY_SUGGEST_THRESHOLD = 0.50  # below this → human routing
+# Auditoria 2026-11: los umbrales eran constantes y el agente no tenia
+# interruptor. Ahora son ajustes por organizacion (Admin > Service Desk):
+# SD_AUTONOMOUS_AGENT_ENABLED (apagado por defecto),
+# SD_AUTONOMY_RESOLVE_THRESHOLD y SD_AUTONOMY_SUGGEST_THRESHOLD.
+
+
+def _ajuste(db: Session, clave: str, org_id):
+    from app.services import settings_service
+    lector = settings_service.get_runtime_bool if clave == "SD_AUTONOMOUS_AGENT_ENABLED" \
+        else settings_service.get_runtime_float
+    return lector(db, clave, org_id)
+
+
+def _playbooks_de_la_organizacion(db: Session, org_id) -> list[dict]:
+    """Los playbooks creados en la API, en el formato de `match_playbook`.
+
+    Auditoria 2026-11: se guardaban y nunca se usaban; solo valian los de serie.
+    """
+    from app.models.service_desk import AutonomousPlaybook
+    filas = db.query(AutonomousPlaybook).filter(
+        AutonomousPlaybook.is_active.is_(True), AutonomousPlaybook.organization_id == org_id).all()
+    salida = []
+    for r in filas:
+        cond = _safe_json(r.conditions_json, {}) or {}
+        salida.append({
+            "id": r.id, "name": r.name, "steps": _safe_json(r.steps_json, []) or [],
+            "trigger_keywords": cond.get("trigger_keywords", []),
+            "trigger_categories": cond.get("trigger_categories", []),
+            "max_priority": cond.get("max_priority", "p3_medium"),
+            "auto_resolve": bool(cond.get("auto_resolve", False)),
+        })
+    return salida
 
 # ── Built-in playbooks ────────────────────────────────────────────────────────
 # Each playbook has:
@@ -68,7 +98,7 @@ _BUILTIN_PLAYBOOKS = [
                 "type": "comment",
                 "content": (
                     "Hola,\n\nPara restablecer tu contraseña, sigue estos pasos:\n"
-                    "1. Ve a https://account.company.com/reset\n"
+                    "1. Abre el portal de restablecimiento de contraseña de tu organización\n"
                     "2. Introduce tu correo corporativo\n"
                     "3. Sigue el enlace recibido en tu correo\n\n"
                     "Si el problema persiste en 15 minutos, este ticket será asignado a un agente."
@@ -92,7 +122,7 @@ _BUILTIN_PLAYBOOKS = [
                     "Hola,\n\nPara problemas de VPN, por favor intenta:\n"
                     "1. Desconectar y reconectar el cliente VPN\n"
                     "2. Reiniciar el adaptador de red\n"
-                    "3. Comprobar el estado del servicio en https://status.company.com\n\n"
+                    "3. Comprobar el estado del servicio en la página de estado\n\n"
                     "Tu ticket ha sido asignado con alta prioridad para revisión por el equipo de red."
                 ),
             },
@@ -114,7 +144,7 @@ _BUILTIN_PLAYBOOKS = [
                     "1. Conexión a internet activa\n"
                     "2. Outlook: Archivo → Info → Configuración de cuenta → Probar conexión\n"
                     "3. Caché de Outlook: cierra Outlook, borra el perfil OST y reabre\n"
-                    "4. Estado del servidor en https://status.company.com\n\n"
+                    "4. Comprueba el estado del servidor en la página de estado\n\n"
                     "Si el problema persiste tras estos pasos, responde a este ticket."
                 ),
             },
@@ -136,7 +166,7 @@ _BUILTIN_PLAYBOOKS = [
                     "1. Comprueba que la impresora está encendida y conectada\n"
                     "2. Cancela todos los trabajos de impresión en cola\n"
                     "3. Windows: Servicios → Print Spooler → Reiniciar\n"
-                    "4. Reinstala el driver: https://drivers.company.com\n\n"
+                    "4. Reinstala el driver desde la web del fabricante\n\n"
                     "Si el problema persiste, un técnico se pondrá en contacto contigo."
                 ),
             },
@@ -366,14 +396,16 @@ def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket) -> dict:
     except Exception:
         ai_score = 0.0
 
-    # Try to find a matching playbook
-    playbook = match_playbook(ticket)
+    # Try to find a matching playbook (los de la organizacion primero)
+    playbook = match_playbook(ticket, _playbooks_de_la_organizacion(db, ticket.organization_id))
+    umbral_resolver = _ajuste(db, "SD_AUTONOMY_RESOLVE_THRESHOLD", ticket.organization_id)
+    umbral_sugerir = _ajuste(db, "SD_AUTONOMY_SUGGEST_THRESHOLD", ticket.organization_id)
 
     # Compute composite score
     playbook_boost = 0.20 if playbook else 0.0
     composite = min(1.0, ai_score + playbook_boost)
 
-    if composite >= AUTONOMY_RESOLVE_THRESHOLD and playbook and playbook.get("auto_resolve"):
+    if composite >= umbral_resolver and playbook and playbook.get("auto_resolve"):
         return {
             "eligible": True,
             "action": "auto_resolve",
@@ -381,7 +413,7 @@ def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket) -> dict:
             "playbook": playbook,
             "reason": f"High confidence ({composite:.0%}) + playbook '{playbook['name']}' matched",
         }
-    elif composite >= AUTONOMY_SUGGEST_THRESHOLD and playbook:
+    elif composite >= umbral_sugerir and playbook:
         return {
             "eligible": True,
             "action": "playbook_assist",
@@ -401,10 +433,24 @@ def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket) -> dict:
 
 # ── Main orchestrator ─────────────────────────────────────────────────────────
 
+def _anotar(db: Session, ticket: Ticket, evaluation: dict, estado: str, origen: str) -> None:
+    """Fila del registro de ejecuciones: lo que leen las estadisticas y lo que
+    impide que el barrido evalue dos veces el mismo ticket."""
+    from app.models.service_desk import AutonomousPlaybookExecution
+    pb = evaluation.get("playbook") or {}
+    db.add(AutonomousPlaybookExecution(
+        organization_id=ticket.organization_id, ticket_id=ticket.id,
+        playbook_type=str(pb.get("id") or evaluation.get("action") or "none")[:50],
+        status=estado, confidence_score=evaluation.get("score"),
+        resolution_note=(evaluation.get("reason") or "")[:2000], triggered_by=origen,
+    ))
+
+
 def run_autonomous_resolution(
     db: Session,
     ticket_id: str,
     acting_user_id: Optional[str] = None,
+    origen: str = "api",
 ) -> dict:
     """Attempt to autonomously resolve or assist with a ticket.
 
@@ -424,6 +470,8 @@ def run_autonomous_resolution(
     evaluation = evaluate_ticket_for_autonomy(db, ticket)
 
     if not evaluation["eligible"]:
+        _anotar(db, ticket, evaluation, "skipped", origen)
+        db.commit()
         return {
             "ticket_id": ticket_id,
             "action": evaluation["action"],
@@ -434,6 +482,7 @@ def run_autonomous_resolution(
 
     playbook = evaluation["playbook"]
     execution = execute_playbook(db, ticket, playbook, acting_user_id)
+    _anotar(db, ticket, evaluation, "success", origen)
 
     try:
         db.commit()
@@ -470,20 +519,31 @@ def run_autonomous_scan(db: Session) -> dict:
     Returns:
         {"evaluated": N, "auto_resolved": N, "assisted": N, "skipped": N}
     """
+    from app.models.service_desk import AutonomousPlaybookExecution
+    ya_evaluados = db.query(AutonomousPlaybookExecution.ticket_id)
     open_tickets = (
         db.query(Ticket)
         .filter(
             Ticket.status.in_(["new", "assigned"]),
+            # Una vez por ticket: antes, un «assist» dejaba el ticket en `new` y
+            # cada 5 minutos se repetia el mismo comentario publico.
+            ~Ticket.id.in_(ya_evaluados),
         )
         .limit(100)  # process in batches to avoid long lock times
         .all()
     )
 
     evaluated = auto_resolved = assisted = skipped = 0
+    encendido: dict = {}
 
     for ticket in open_tickets:
+        org = ticket.organization_id
+        if org not in encendido:
+            encendido[org] = bool(_ajuste(db, "SD_AUTONOMOUS_AGENT_ENABLED", org))
+        if not encendido[org]:
+            continue
         try:
-            result = run_autonomous_resolution(db, ticket.id, acting_user_id=None)
+            result = run_autonomous_resolution(db, ticket.id, acting_user_id=None, origen="celery")
             evaluated += 1
             if result.get("skipped"):
                 skipped += 1
