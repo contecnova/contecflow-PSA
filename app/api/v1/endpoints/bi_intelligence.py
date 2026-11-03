@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
 from app.core.config import settings
-from app.core.deps import get_current_user, require_admin, require_internal_user
+from app.core.deps import require_admin_or_pm, get_current_user, require_admin, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.core.security import create_access_token, decode_token
 from app.services.ws_service import (
@@ -175,7 +175,7 @@ def connector_sync_log(
 
 
 @router.get("/bi/intelligence/reports/presets", summary="Presets de Report Builder avanzado BI Intelligence")
-def phase2_report_presets(current_user: User = Depends(get_current_user)):
+def phase2_report_presets(current_user: User = Depends(require_admin)):
     _ = current_user
     return APIListResponse.ok(items=svc.list_advanced_report_presets())
 
@@ -184,7 +184,7 @@ def phase2_report_presets(current_user: User = Depends(get_current_user)):
 def phase2_report_preview(
     payload: AdvancedPreviewIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
@@ -216,7 +216,7 @@ def phase2_visual_query_builder_schema(current_user: User = Depends(get_current_
 def phase2_visual_query_builder_preview(
     payload: VisualQueryPreviewIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:

@@ -130,7 +130,7 @@ def resolve_bi_comment(
 @router.get("/bi/governance/overview", summary="Overview de governance BI Collaboration")
 def governance_overview(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.governance_overview(db, organization_id=org_id))
@@ -139,7 +139,7 @@ def governance_overview(
 @router.get("/bi/governance/rules", summary="Leer reglas de governance BI Collaboration")
 def governance_rules(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.get_governance_rules(db, organization_id=org_id))
@@ -170,7 +170,7 @@ def run_governance_checks(
 @router.get("/bi/governance/last-run", summary="Última ejecución de checks governance BI")
 def last_governance_run(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data={"result": svc.get_last_governance_run(db, organization_id=org_id)})

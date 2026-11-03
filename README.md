@@ -62,7 +62,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 **Security**
 - **Fixed 2026-11-03:** `GET /api/v1/settings/general` (open to any signed-in user) returned every `app_settings` row, including e-signature tokens and secrets in plain text. It now returns only general settings to non-admins and masks sensitive values for everyone. The e-sign secrets are still stored unencrypted in the database. [6]
 - ~~MFA enrolled on the `/mfa` screen does not protect sign-in; its QR sent the TOTP secret to Google.~~ Fixed 2026-11-03: enrolling there now sets the factor sign-in checks, its backup codes work at sign-in, and the QR is generated locally. [6]
-- Several endpoints accept wider roles than their screens (e.g. employees can read cost, GDPR and audit data); scheduled reports and the alert engine act across organizations; BI embed tokens are full access tokens. [5]
+- ~~Several endpoints accept wider roles than their screens (employees can read cost, GDPR and audit data); BI embed tokens are full access tokens.~~ Fixed 2026-11-03 for the routes listed in section 5 (report builder, Data Explorer previews, GDPR and governance reads, M365, ETL, AI narrative, scheduled reports) and for special-purpose tokens. The earlier claim that scheduled reports and the alert engine act across organizations was wrong: measured, the tenant filter scopes both. [5]
 - **Fixed 2026-11-03:** org admins could overwrite a global setting shared by all organizations through `PATCH /settings/general/{key}`; writes now go to the organization's row and only general keys are accepted. [6]
 - Slack/Teams inbound commands resolve the user by partial name/email match without organization context. [6]
 
@@ -2738,11 +2738,11 @@ If the chosen provider fails, every other active provider is tried once. If none
 - Narrative issues:
   - A provider *error* ("⚠️ AI provider error…") does not match the fallback check, so the error text is displayed and cached for 1 h.
   - The cache key ignores the language.
-  - Any authenticated user can force a paid LLM call with `force_refresh`.
+  - ~~Any authenticated user can force a paid LLM call with `force_refresh`.~~ Fixed 2026-11-03 (test `tests/test_api_con_los_roles_de_sus_pantallas.py`): `/analytics/narrative` is admin or PM, like its screens.
   - The fallback template is Spanish only for `lang=es`; every other language gets English.
 
 ### Data Explorer — `/data-explorer`
-*Roles:* admin, pm (route). Backend: schema reads use any authenticated user; previews use `require_internal_user`, so employees can call them directly.
+*Roles:* admin, pm (route). Backend (since 2026-11-03): admin or PM for schema, templates, presets and previews (before, any user, or `require_internal_user` for previews); `/bi/intelligence/reports/*` is admin-only, like `/data-platform`.
 
 **Purpose.** Ad-hoc exploration: the AI narrative, Ask the Data, and two query builders.
 
@@ -2789,7 +2789,7 @@ If the chosen provider fails, every other active provider is tried once. If none
 - **Without a provider, Ask the Data returns an error.** The result is "SQL no permitido: Only SELECT queries are allowed", unless the question matches one of the 3 fallback keyword patterns, which then fail as above.
 - **Grouped totals are wrong above 5,000 rows, without warning.** Group-by and aggregation run in Python over at most 5,000 base rows.
 - **Two builders on the same engine.** Both appear on the page, with separate storage.
-- **Employees can read cost data the route hides.** Because previews need only `require_internal_user`, an employee calling the API can read `users.hourly_rate` and `imputations.cost_amount` for the whole organization.
+- ~~Employees can read cost data the route hides.~~ Fixed 2026-11-03 (test `tests/test_api_con_los_roles_de_sus_pantallas.py`).
 
 ### Reports — `/reports`
 *Roles:* the route has **no role restriction** (any authenticated user); the menu shows it to admin, pm, hr and employee. Backend: catalogue and query use any authenticated user; scheduled-report writes use `require_any_manager`.
@@ -2834,7 +2834,7 @@ If the chosen provider fails, every other active provider is tried once. If none
   - **📄 PDF opens a wrong path** (`/api/v1/scheduled-reports/...` instead of `/api/v1/billing-reports/...`). The correct endpoint renders placeholder rows anyway.
   - **Without SMTP, nothing is sent but the run reports success.** The run is marked `success`, and "Enviar ahora" shows "Informe enviado a: …".
   - **The schedule ignores send hour and day.** `send_hour`, `day_of_week` and `day_of_month` are ignored; the next run is simply now + 1 day/week, or the 1st of the month at 08:00.
-  - **Any authenticated user sees every tenant's scheduled reports.** The list has no organization or user filter, so recipient emails are exposed. PATCH copies any field in the body onto the model (mass assignment) and has no ABAC check.
+  - ~~Any user sees the scheduled reports and PATCH copies any field.~~ Fixed 2026-11-03 (`tests/test_informes_programados_roles_y_campos.py`): the list is for admin, pm, team_lead and hr (the *Programados* tab is hidden for the rest), and PATCH accepts only the editable fields (422 otherwise) and runs the ABAC check. Measured: the list was already limited to the user's organization by the tenant filter.
 - Worker `send_weekly_report` (Monday 09:00) is a stub that only collects admin emails.
 
 ### Report Builder — `/report-builder`
@@ -2873,7 +2873,7 @@ There is also a **⚡ Presets BI** tab; see Limitations.
 - **The CSV is silently capped at 2,000 rows.** The frontend sends no paging, and the `X-Total-Count` header is ignored.
 - **Builder reports cannot be scheduled.**
 - **⚡ Presets BI never returns data.** `bi_report_builder_v2_service.execute_preset_with_controls` calls `execute_report` with arguments that do not match its signature (checked with `inspect.signature.bind`: TypeError). The error is caught, so every preset preview and export returns `rows=[]` with `degraded=true`. Export with `format=csv|xlsx` still returns JSON. The existing tests only check the response shape.
-- **No row-level filter by role.** An employee calling the API can read the `users` entity, including `hourly_rate`, and imputation costs for the whole organization.
+- ~~No row-level filter by role: an employee can read `hourly_rate` and imputation costs.~~ Fixed 2026-11-03: the endpoints are admin or PM. Within those roles there is still no row-level filter (a PM reads the whole organization).
 
 ### Predictions — `/predictions`
 *Roles:* admin, pm (route). Backend: `require_internal_user` for writes and calculations.
@@ -2975,7 +2975,7 @@ There is also a **⚡ Presets BI** tab; see Limitations.
 
 **Limitations (measured).**
 - **Thresholds are hardcoded; the Settings values are inert.** `burnout_risk` and `hours_deviation` exist as alert types, but nothing generates them.
-- **"Run" alerts every tenant.** The engine queries all users and projects without an organization filter, so an organization admin pressing ⚡ generates alerts for every tenant.
+- ~~"Run" alerts every tenant.~~ Wrong: measured on 2026-11-03 with two organizations, ⚡ pressed by an org admin only created alerts for that organization (the request's tenant filter scopes the engine's queries). The daily job runs without a tenant and covers all organizations; each alert takes the organization of its user or project.
 - **Units are mislabelled.** Budget percentages are shown as "€", and deadline days as "%". The user name never appears: the page reads `display_name`, but the API returns `full_name`.
 - Smart alerts:
   - **Evaluated only when you press "Evaluar ahora".** No worker evaluates them.
@@ -3231,11 +3231,11 @@ There are no filters.
 - **Streaming:**
   - In production and staging the socket is closed with code 4003 (token in the URL), and the client reconnects every 2 s indefinitely.
   - With Redis, the frame type sent (`bi_kpi_snapshot`) differs from the one the UI accepts (`bi_intelligence_snapshot`).
-- **Embed and realtime tokens are ordinary full-access JWTs.** Nothing checks the `bi_embed` claim. The `window.ContecflowBIEmbed` SDK is not implemented, and `allowed_origins` defaults to `["*"]`.
-- **M365 activity and raw ETL data are open to every role.** Any authenticated user can read per-user Microsoft 365 activity (`/bi/o365/*`) and raw ETL records (`/bi/etl/data/{id}`).
+- ~~Embed and realtime tokens are ordinary full-access JWTs.~~ Fixed 2026-11-03 (test `tests/test_api_con_los_roles_de_sus_pantallas.py`): `get_current_user` rejects tokens carrying `bi_embed`, `bi_intelligence_stream`, `ws` or `document_file_access`; each is accepted only by its own receiver (the realtime stream and the WebSocket check their claim; nothing consumes `bi_embed` yet, so that token currently opens nothing). `POST /bi/embed/token` was already separate (type `embed`, its own secret). The `window.ContecflowBIEmbed` SDK is not implemented, and `allowed_origins` defaults to `["*"]`.
+- ~~M365 activity and raw ETL data are open to every role.~~ Fixed 2026-11-03 (test `tests/test_api_con_los_roles_de_sus_pantallas.py`): `/bi/o365/*` and `/bi/etl/*` reads are admin-only, like `/data-platform`.
 
 ### Data Governance — `/data-governance`
-*Roles:* admin (route). Backend: GDPR and governance writes use `require_admin`; most reads use any authenticated user.
+*Roles:* admin (route). Backend: GDPR and governance writes and (since 2026-11-03) reads use `require_admin`.
 
 **Purpose.** GDPR requests, consent records, field masks, data policies, access audit, lineage, field classification, dashboard collaboration and governance checks.
 
@@ -3267,7 +3267,7 @@ There are no filters.
 - **The policy editor saves nothing.** The backend accepts only 3 fields, yet the UI says "Política creada". "Anomalías detectadas" and "Checks ejecutados" are always 0.
 - **Erasure is narrow.** It does not touch other tables, consent history or DuckDB `dim_user`. Resolving the DSR afterwards re-records the subject id.
 - **Masks and classifications are stored but never enforced.** Consent is keyed by user only, so a new purpose overwrites the previous one.
-- **Personal data is readable by any role.** Any authenticated user can read DSRs (subject emails), consents, masks and the access audit (IPs and browsers).
+- ~~Personal data is readable by any role.~~ Fixed 2026-11-03 (test `tests/test_api_con_los_roles_de_sus_pantallas.py`): DSRs, consents, masks, stats, the access audit, lineage, sensitivity and governance reads are admin-only.
 
 ### NexusAgent — `/nexus-agent`
 *Roles:* admin, pm (route). Backend: `require_any_manager`.

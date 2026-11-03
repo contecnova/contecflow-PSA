@@ -110,7 +110,9 @@ EXENTAS_REVISADAS = {
 #: alguien ha dejado de poner una guarda; si baja, una exención dejó de hacer
 #: falta y la foto se quedó vieja. Las dos cosas hay que mirarlas.
 EXENCIONES_ESPERADAS = {
-    "acotada al propio usuario": 94,
+    # 92 desde 2026-11-03: POST y DELETE /reports/templates pasan a admin o PM,
+    # como su pantalla (el generador de informes).
+    "acotada al propio usuario": 92,
     "superficie: API key": 7,
     "superficie: portal de cliente": 21,
     # 38 desde 2026-11-02: POST /sd/events/{source} autentica el token de la

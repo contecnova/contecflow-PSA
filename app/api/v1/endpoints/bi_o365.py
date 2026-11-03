@@ -52,7 +52,7 @@ class SyncRequest(BaseModel):
 def o365_get_config(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=get_config(db, str(org_id) if org_id else None))
@@ -108,7 +108,7 @@ def o365_report_data(
     request: Request,
     report_name: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     if report_name not in _SUPPORTED_REPORTS:
         raise HTTPException(status_code=404, detail=f"Report '{report_name}' not supported. Available: {_SUPPORTED_REPORTS}")
@@ -121,7 +121,7 @@ def o365_report_data(
 def o365_adoption(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=get_adoption_summary(db, str(org_id) if org_id else None))
@@ -133,7 +133,7 @@ def o365_sync_log(
     request: Request,
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     log = get_sync_log(db, str(org_id) if org_id else None, limit=limit)

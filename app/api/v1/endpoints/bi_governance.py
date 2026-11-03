@@ -42,7 +42,7 @@ class PolicyIn(BaseModel):
 def get_governance_config(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, 'organization_id', None)
     return APIResponse.ok(data=svc._get_json(db, GOVERNANCE_CONFIG_KEY, org_id, _DEFAULT_CONFIG))
@@ -72,7 +72,7 @@ def update_governance_config(
 def list_policies(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, 'organization_id', None)
     policies = svc._get_json(db, GOVERNANCE_POLICIES_KEY, org_id, [])
@@ -111,7 +111,7 @@ def get_audit_log(
     request: Request,
     days: int = Query(30, ge=1, le=90),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, 'organization_id', None)
     items = svc.get_access_history(db, organization_id=org_id, days=days)
@@ -176,7 +176,7 @@ def list_access_history(
     entity_type: Optional[str] = Query(None),
     action: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, 'organization_id', None)
     items = svc.get_access_history(
@@ -196,7 +196,7 @@ def list_lineage(
     request: Request,
     target_table: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, 'organization_id', None)
     items = svc.list_lineage(db, organization_id=org_id, target_table=target_table)
@@ -230,7 +230,7 @@ def list_fields(
     request: Request,
     dataset_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, 'organization_id', None)
     items = svc.list_field_sensitivity(db, organization_id=org_id, dataset_id=dataset_id)

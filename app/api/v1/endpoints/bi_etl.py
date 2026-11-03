@@ -64,7 +64,7 @@ class SyncRequest(BaseModel):
 def list_connectors(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     state = _get_connectors_state(db, str(org_id) if org_id else None)
@@ -87,7 +87,7 @@ def get_connector_detail(
     request: Request,
     connector_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     if connector_id not in _CONNECTOR_IDS:
         raise HTTPException(status_code=404, detail="Connector not found")
@@ -146,7 +146,7 @@ def get_sync_log(
     connector_id: str,
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     if connector_id not in _CONNECTOR_IDS:
         raise HTTPException(status_code=404, detail="Connector not found")
@@ -163,7 +163,7 @@ def get_synced_data(
     request: Request,
     connector_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     if connector_id not in _CONNECTOR_IDS:
         raise HTTPException(status_code=404, detail="Connector not found")

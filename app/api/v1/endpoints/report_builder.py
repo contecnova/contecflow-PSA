@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user, get_db, require_internal_user
+from app.core.deps import require_admin_or_pm, get_current_user, get_db, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.report_builder_service as _svc
@@ -53,7 +53,7 @@ class ReportTemplate(BaseModel):
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.get("/schema", summary="Obtener esquema de entidades disponibles")
-def get_schema(_: User = Depends(get_current_user)):
+def get_schema(_: User = Depends(require_admin_or_pm)):
     return APIResponse.ok(data={
         "entities":  _svc.ENTITIES,
         "operators": _svc.OPERATORS,
@@ -65,7 +65,7 @@ def get_schema(_: User = Depends(get_current_user)):
 def preview_report(
     q: ReportQuery,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     if q.entity not in _svc.ENTITIES:
@@ -89,7 +89,7 @@ def export_report(
     page: int = Query(1, ge=1, description="Número de página para exportación paginada"),
     page_size: int = Query(2000, ge=1, le=10000, description="Tamaño de página para exportación paginada"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     if q.entity not in _svc.ENTITIES:
@@ -106,7 +106,7 @@ def export_report(
 @router.get("/templates", summary="Listar plantillas de informes")
 def list_templates(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
 ):
     return APIListResponse.ok(items=_svc.load_user_templates(str(current_user.id), db))
 
@@ -115,7 +115,7 @@ def list_templates(
 def save_template(
     tpl: ReportTemplate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
 ):
     if tpl.query.entity not in _svc.ENTITIES:
         raise HTTPException(400, f"Entidad '{tpl.query.entity}' desconocida")
@@ -131,7 +131,7 @@ def save_template(
 def delete_template(
     template_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
 ):
     enforce_abac(db, current_user, "report_template", template_id, action="delete")
     templates = _svc.load_user_templates(str(current_user.id), db)

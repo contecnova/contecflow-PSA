@@ -112,7 +112,8 @@ RUTAS = _rutas_guardadas()
 # /alm/assets/{aid}/refresh-ticket). Medido con el diff de RUTAS.
 # 984 desde 2026-11-03 (tarde): sale POST /cmdb/agent-dashboard/{id}/snapshot;
 # el panel de agente se calcula sobre los tickets y la «foto» ya no se usa.
-RUTAS_ESPERADAS = 984
+# 986: entran POST y DELETE /reports/templates (admin o PM, como la pantalla).
+RUTAS_ESPERADAS = 986
 
 
 def test_se_sondean_todas_las_rutas_con_guarda():

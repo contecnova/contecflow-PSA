@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user, require_internal_user
+from app.core.deps import require_admin_or_pm, get_current_user, require_internal_user
 from app.core.ratelimit import limiter
 from app.core.responses import APIResponse
 from app.db.session import get_db
@@ -74,7 +74,7 @@ class PreviewQueryIn(BaseModel):
 @limiter.limit("60/minute")
 def get_schema(
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
 ):
     return APIResponse.ok(data=svc.get_schema())
 
@@ -84,7 +84,7 @@ def get_schema(
 def list_queries(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_queries(db, org_id=org_id)
@@ -133,7 +133,7 @@ def preview_query(
     request: Request,
     body: PreviewQueryIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:

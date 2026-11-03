@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_internal_user
+from app.core.deps import require_admin_or_pm, get_current_user, require_internal_user
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -40,7 +40,7 @@ def list_presets(
     category: Optional[str] = Query(None, description="Filtrar por categoría"),
     grouped: bool = Query(False, description="Agrupar por categoría"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
 ):
     org_id = getattr(current_user, "organization_id", None)
     if grouped:
@@ -113,7 +113,7 @@ def preview_preset(
     preset_id: str,
     limit: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -127,7 +127,7 @@ def export_preset(
     preset_id: str,
     format: str = Query("json", pattern="^(json|csv|xlsx)$"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -166,7 +166,7 @@ def execute_preset_controlled(
 def get_controlled_execution(
     execution_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:

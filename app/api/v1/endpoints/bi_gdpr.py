@@ -88,7 +88,7 @@ def get_consent(
     request: Request,
     user_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     result = svc.get_consent(db, user_id=user_id, org_id=org_id)
@@ -103,7 +103,7 @@ def get_consent_history(
     request: Request,
     user_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     history = svc.get_consent_history(db, user_id=user_id, org_id=org_id)
@@ -116,7 +116,7 @@ def get_consent_compat(
     request: Request,
     user_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     if user_id:
@@ -133,7 +133,7 @@ def get_consent_compat(
 def list_consents(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_consents(db, org_id=org_id)
@@ -145,7 +145,7 @@ def list_consents(
 def gdpr_stats(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.get_dsr_stats(db, org_id=org_id))
@@ -157,7 +157,7 @@ def get_dsr(
     request: Request,
     dsr_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     dsr = svc.get_dsr(db, dsr_id=dsr_id, org_id=org_id)
@@ -310,7 +310,7 @@ def list_dsrs(
     request: Request,
     status: Optional[str] = Query(None, description="pending | completed"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     if status == "resolved":
@@ -340,7 +340,7 @@ def set_field_mask(
 def list_field_masks(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_field_masks(db, org_id=org_id)

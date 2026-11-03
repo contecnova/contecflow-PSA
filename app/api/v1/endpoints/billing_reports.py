@@ -579,7 +579,9 @@ def smartmatch(
 @router.get("/scheduled-reports", response_model=APIListResponse[ScheduledReportOut], summary="Listar informes programados")
 def list_scheduled_reports(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    # Auditoria 2026-11: los mismos roles que crean (antes cualquiera veia los
+    # informes de su organizacion y sus destinatarios).
+    current_user: User = Depends(require_any_manager),
 ):
     items = _svc.list_scheduled_reports(db)
     return APIListResponse.ok(items=items, total=len(items))
@@ -601,6 +603,7 @@ def update_scheduled_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "scheduled_report", report_id, action="update")
     return APIResponse.ok(data=_svc.update_scheduled_report(report_id, payload, db))
 
 

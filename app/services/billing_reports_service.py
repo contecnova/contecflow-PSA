@@ -911,14 +911,25 @@ def create_scheduled_report(payload, current_user: User, db: Session) -> dict:
     return {"ok": True, "id": r.id}
 
 
+# Lo que se puede cambiar de un informe programado. Auditoria 2026-11: se
+# copiaba cualquier campo del cuerpo, `organization_id` y `created_by` incluidos.
+CAMPOS_EDITABLES_INFORME = {
+    "name", "metric", "frequency", "recipients", "is_active", "include_pdf", "filters_json",
+    "report_type", "include_narrative", "day_of_week", "day_of_month", "send_hour", "recipients_extra",
+}
+
+
 def update_scheduled_report(report_id: str, payload: dict, db: Session) -> dict:
     r = db.query(ScheduledReport).filter(ScheduledReport.id == report_id).first()
     if not r:
         raise HTTPException(404, "Informe no encontrado")
+    ajenos = sorted(set(payload) - CAMPOS_EDITABLES_INFORME)
+    if ajenos:
+        raise HTTPException(422, f"Campos no editables: {', '.join(ajenos)}")
     for k, v in payload.items():
-        if k == "recipients":
+        if k in ("recipients", "recipients_extra"):
             setattr(r, k, json.dumps(v))
-        elif hasattr(r, k):
+        else:
             setattr(r, k, v)
     db.commit()
     return serialize_scheduled_report(r)

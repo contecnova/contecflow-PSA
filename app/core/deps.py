@@ -10,6 +10,9 @@ from app.models.user import User, UserRole
 security = HTTPBearer(auto_error=False)
 
 
+TOKENS_DE_USO_CONCRETO = ("bi_embed", "bi_intelligence_stream", "ws", "document_file_access")
+
+
 def get_current_user(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -34,6 +37,15 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido o expirado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    # Auditoria 2026-11: los tokens de uso concreto (incrustar un panel BI, el
+    # flujo en tiempo real, el WebSocket) eran tokens de acceso completos: con
+    # uno se llamaba a toda la API. Cada uno lo valida su propio receptor.
+    if any(payload.get(c) for c in TOKENS_DE_USO_CONCRETO):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Este token solo vale para su uso concreto",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

@@ -1107,7 +1107,9 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: any[]; sup
 export default function ReportsPage() {
   const traducir = useAppT()
   const t = useAppT()
-  const { _user } = useAuth() as any
+  const { _user, hasRole } = useAuth() as any
+  // Los programados son de responsables (la API solo los sirve a ellos).
+  const veProgramados = hasRole('admin', 'pm', 'team_lead', 'hr')
   const [mode, setMode] = useState<any>('explorer') // explorer | dashboard | presets
   const [saved, setSavedState] = useState<any[]>(() => getSaved())
   const [editingReport, setEditingReport] = useState<any>(null)
@@ -1144,7 +1146,7 @@ export default function ReportsPage() {
     { id: 'presets',   label: 'Plantillas',       Icon: Zap },
     { id: 'advanced',  label: 'Visualizaciones',  Icon: TrendingUp },
     { id: 'dashboard', label: `Guardados${saved.length ? ` (${saved.length})` : ''}`, Icon: Pin },
-    { id: 'scheduled', label: 'Programados',      Icon: Calendar },
+    ...(veProgramados ? [{ id: 'scheduled', label: 'Programados', Icon: Calendar }] : []),
   ]
 
   return (
@@ -1222,7 +1224,7 @@ export default function ReportsPage() {
       {mode === 'advanced' && <BiAdvancedViz />}
 
       {/* Scheduled Reports */}
-      {mode === 'scheduled' && <ScheduledReportsTab />}
+      {mode === 'scheduled' && veProgramados && <ScheduledReportsTab />}
     </Page>
   )
 }
