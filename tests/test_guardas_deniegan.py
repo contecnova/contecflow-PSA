@@ -113,7 +113,10 @@ RUTAS = _rutas_guardadas()
 # 984 desde 2026-11-03 (tarde): sale POST /cmdb/agent-dashboard/{id}/snapshot;
 # el panel de agente se calcula sobre los tickets y la «foto» ya no se usa.
 # 986: entran POST y DELETE /reports/templates (admin o PM, como la pantalla).
-RUTAS_ESPERADAS = 986
+# 989 desde 2026-11-04: entran las escrituras del motor BPMN —arrancar
+# (/bpmn-processes/{id}/instances) y cancelar (admin o PM), y completar un paso
+# (usuario interno)—.
+RUTAS_ESPERADAS = 989
 
 
 def test_se_sondean_todas_las_rutas_con_guarda():

@@ -112,6 +112,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.automations_escanear",
         "schedule": crontab(minute=f"*/{max(1, settings.AUTOMATIONS_SCAN_MINUTES)}"),
     },
+    # BPM: temporizadores vencidos de las instancias de proceso.
+    "bpmn-timers": {
+        "task": "app.worker.bpmn_vencer_temporizadores",
+        "schedule": crontab(minute="*"),
+    },
     # Problem auto-detection — every hour at :05
     "problem-auto-detect": {
         "task": "app.worker.problem_auto_detect",
@@ -1202,6 +1207,16 @@ def automations_escanear():
 
     with worker_db_session() as db:
         return escanear(db)
+
+
+@celery_app.task(name="app.worker.bpmn_vencer_temporizadores")
+def bpmn_vencer_temporizadores():
+    """Despierta los temporizadores BPMN vencidos y sigue cada instancia."""
+    from app.db.session import worker_db_session
+    from app.services.bpmn_engine import vencer_temporizadores
+
+    with worker_db_session() as db:
+        return vencer_temporizadores(db)
 
 
 @celery_app.task(name="app.worker.problem_auto_detect")

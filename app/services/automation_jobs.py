@@ -18,3 +18,11 @@ def escanear_job() -> None:
     from app.services.automations_service import escanear
     with worker_db_session() as db:
         logger.info("Automatizaciones, barrido: %s", escanear(db))
+
+
+def bpmn_temporizadores_job() -> None:
+    from app.services.bpmn_engine import vencer_temporizadores
+    with worker_db_session() as db:
+        resultado = vencer_temporizadores(db)
+    if resultado.get("timers_fired"):
+        logger.info("BPM: %s", resultado)

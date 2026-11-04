@@ -1903,6 +1903,16 @@ export const bpmnProcessesApi = {
   versions:    (id: any)            => api.get(`/bpmn-processes/${id}/versions`),
   getVersion:  (id: any, v: any)         => api.get(`/bpmn-processes/${id}/versions/${v}`),
   publish:     (id: any, v: any)         => api.post(`/bpmn-processes/${id}/versions/${v}/publish`),
+  start:       (id: any, variables: Record<string, unknown> = {}) => api.post(`/bpmn-processes/${id}/instances`, { variables }),
+}
+
+// Auditoría 2026-11: motor BPMN (instancias y bandeja de pasos humanos).
+export const bpmnInstancesApi = {
+  list:     (params?: any)  => api.get('/bpmn-instances', { params }),
+  inbox:    ()              => api.get('/bpmn-instances/inbox'),
+  get:      (id: any)       => api.get(`/bpmn-instances/${id}`),
+  complete: (id: any, stepId: any, variables: Record<string, unknown> = {}) => api.post(`/bpmn-instances/${id}/steps/${stepId}/complete`, { variables }),
+  cancel:   (id: any)       => api.post(`/bpmn-instances/${id}/cancel`),
 }
 
 // ── Nexus AI Agent ────────────────────────────────────────────────────────────

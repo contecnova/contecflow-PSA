@@ -351,6 +351,14 @@ def _arrancar_planificador(_enable_apscheduler, _celery_beat_enabled):
                 misfire_grace_time=300,
                 coalesce=True,
             )
+            _scheduler.add_job(
+                "app.services.automation_jobs:bpmn_temporizadores_job",
+                CronTrigger(minute="*"),
+                id="bpmn_timers",
+                replace_existing=True,
+                misfire_grace_time=300,
+                coalesce=True,
+            )
             try:
                 from app.core.metrics import attach_apscheduler_metrics
                 attach_apscheduler_metrics(_scheduler)

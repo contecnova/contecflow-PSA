@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { CSSProperties, RefObject } from 'react'
 import { Button, Page } from '../components/ui'
-import { Network, Plus, X, ChevronLeft, Edit3, Download, Search } from 'lucide-react'
+import { Network, Plus, X, ChevronLeft, Edit3, Download, Search, Play } from 'lucide-react'
+import BpmRunPanel from './bpm/BpmRunPanel'
 import { bpmnProcessesApi, apiErrorMsg } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import { useAppLang } from '../i18n/AppLangContext'
@@ -1513,6 +1514,8 @@ export default function BPMPage(): JSX.Element {
   const [newProcess, setNewProcess]           = useState<NewProcess>({ name: '', category: 'proyectos', description: '', owner: '', sla: '' })
   const [search, setSearch]                   = useState('')
   const [saving, setSaving]                   = useState(false)
+  // Auditoría 2026-11: además del catálogo, la ejecución (bandeja e instancias).
+  const [view, setView]                       = useState<'catalog' | 'run'>('catalog')
   const containerRef                          = useRef<HTMLDivElement>(null)
   // NOTE (latent bug): the toast API exposes success/error/warning/info, not
   // `push`. Preserved as-is to avoid changing runtime behavior; cast so it
@@ -1679,6 +1682,20 @@ export default function BPMPage(): JSX.Element {
     }
   }
 
+  async function handleStart() {
+    if (!selectedProcess?._backendId) return
+    try {
+      const r = await bpmnProcessesApi.start(selectedProcess._backendId)
+      const inst = r.data as any
+      if (inst?.status === 'failed') toast.error(inst.error || traducir('bpm.estado_failed'))
+      else toast.success(traducir('bpm.instancia_iniciada'))
+      setSelectedProcess(null)
+      setView('run')
+    } catch (e) {
+      toast.error(apiErrorMsg(e, traducir('bpm.no_se_pudo_iniciar')))
+    }
+  }
+
   const catColor = selectedProcess ? CAT_COLOR[selectedProcess.category] : 'var(--accent)'
 
   return (
@@ -1687,11 +1704,18 @@ export default function BPMPage(): JSX.Element {
       title={traducir('bpm.bpm_procesos_de_negocio')}
       subtitle={`${allProcesses.length} procesos · ${PROCESS_CATALOG.length} del sistema · ${allProcesses.filter(p => (p as any).isCustom).length} personalizados`}
       rightActions={
-        <Button onClick={() => { setShowAddForm(true); setSelectedProcess(null) }}>
-          <Plus size={13} /> {traducir('bpm.nuevo_proceso')}
-        </Button>
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <div className="ds-segmented" role="group" aria-label={traducir('bpm.vista')}>
+            <button type="button" aria-pressed={view === 'catalog'} onClick={() => setView('catalog')}>{traducir('bpm.catalogo')}</button>
+            <button type="button" aria-pressed={view === 'run'} onClick={() => { setView('run'); setSelectedProcess(null) }}>{traducir('bpm.ejecucion')}</button>
+          </div>
+          <Button onClick={() => { setShowAddForm(true); setSelectedProcess(null); setView('catalog') }}>
+            <Plus size={13} /> {traducir('bpm.nuevo_proceso')}
+          </Button>
+        </div>
       }
     >
+      {view === 'run' ? <BpmRunPanel /> : (
       <div style={{ display: 'flex', gap: 'var(--space-4)', height: 'calc(100vh - 180px)', minHeight: 600 }}>
 
         {/* ── SIDEBAR ─────────────────────────────────────────────── */}
@@ -1810,6 +1834,13 @@ export default function BPMPage(): JSX.Element {
                 >
                   <Download size={13} /> Exportar BPMN
                 </button>
+                {!editMode && (
+                  selectedProcess._backendId ? (
+                    <Button onClick={handleStart}><Play size={13} /> {traducir('bpm.iniciar')}</Button>
+                  ) : (
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('bpm.guarda_para_iniciar')}</span>
+                  )
+                )}
                 {editMode ? (
                   <Button onClick={handleSaveCustom} disabled={saving}>
                     {saving ? 'Guardando…' : '💾 Guardar diseño'}
@@ -1931,6 +1962,7 @@ export default function BPMPage(): JSX.Element {
           )}
         </div>
       </div>
+      )}
     </Page>
   )
 }

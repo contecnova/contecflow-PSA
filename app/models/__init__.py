@@ -139,6 +139,7 @@ from app.models.workflow_designer import (  # noqa: F401
     WorkflowRun, WorkflowRunStatus, WorkflowRunStep, WorkflowRunStepStatus,
 )
 from app.models.bpmn_process import (  # noqa: F401
+    BPMNInstance, BPMNInstanceStep,
     BPMNProcess, BPMNProcessVersion, BPMNProcessStatus,
 )
 from app.models.user_cost import (  # noqa: F401

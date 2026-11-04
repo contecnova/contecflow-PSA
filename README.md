@@ -81,7 +81,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 **Features that look real but are not (or not fully)**
 - Most "AI" features are rules or statistics; only NexusAssist, NexusAgent, the BI narrative, Ask the Data, the AI-assignment tie-break and AI Hub test/sync call an LLM provider. ML extras (Prophet, LightGBM, sentence-transformers) are not in the Docker image. [5]
 - ~~Automations never fire on their own (only "Test" runs them, and it runs the real actions).~~ Fixed 2026-11-03: rules fire on record changes and on a periodic scan, per organization; "Test" simulates (migration 118). [5]
-- BPM is a diagram editor without an execution engine. [5]
+- ~~BPM is a diagram editor without an execution engine.~~ Fixed 2026-11-04: saved diagrams run (human tasks in an inbox, exclusive and parallel gateways, timers), with a documented subset of BPMN; anything outside it is refused at start (migration 121). [5]
 - Sprint Planning "AI" is a greedy fill by story points. [1]
 - ~~Custom roles, role `module_access`, project permissions and issue types are stored but not enforced.~~ Fixed 2026-11-03: module access closes API routes and screens, custom roles can be assigned, project permissions restrict per project, and tasks carry an issue type from the project catalogue (migration 120). What still is not enforced: the role `permissions` JSON (no screen edits it), `can_see_rates`, and levels never grant more than the base role. [2, 6]
 
@@ -3494,7 +3494,7 @@ An action that fails is recorded and the next ones still run. A rule's action ca
 ### BPM Procesos — `/bpm`
 *Roles:* admin, pm, team_lead (route). Backend: reads use any user; all writes use `require_admin_or_pm`, so a team_lead sees "Editar" and "Nuevo proceso" but gets 403 on save.
 
-**Purpose.** A BPMN 2.0 process catalogue and diagram editor. **This is documentation, not execution: there is no process engine.**
+**Purpose.** A BPMN 2.0 process catalogue and diagram editor, and (since 2026-11-04) an engine that runs the saved diagrams.
 
 **How to use it.**
 1. Search ("Buscar proceso...") or pick one of the 7 categories.
@@ -3502,6 +3502,25 @@ An action that fails is recorded and the next ones still run. A rule's action ca
 3. Use **Exportar BPMN** to download the `.bpmn` file.
 4. To change it, press **Editar**, then **💾 Guardar diseño**.
 5. To add a process, press **Nuevo proceso**, fill in name, category, Responsable, SLA and description, then press **Crear y diseñar**.
+
+**Running a process** (admin, pm).
+1. Open a **saved** process (a catalogue card that was never saved shows "Guarda el diseño para poder iniciarlo") and press **▶ Iniciar**. The engine uses the published version, or the latest saved one if none is published.
+2. The view switches to **Ejecución**: *Mi bandeja* lists the human steps waiting for you; *Instancias* lists every instance of your organization with its status and pending steps (**Ver** shows the full history and lets admin/pm cancel).
+3. **Completar** a step; optionally type variables, one per line (`aprobada=true`, `importe=900`). They feed the gateway conditions.
+
+What the engine runs (`app/services/bpmn_engine.py`):
+| Element | Behaviour |
+|---|---|
+| startEvent | Start (the one without an event definition if there are several) |
+| task, userTask, manualTask | Waits for a person. If the task is in a **lane** named after a base role (admin, pm, team_lead, hr, employee, or Dirección, Project Manager, Team Lead, RRHH, Empleado), only that role (or an admin) sees and completes it; otherwise anyone in the organization |
+| serviceTask, scriptTask, sendTask, businessRuleTask | Recorded as done; **they execute nothing** |
+| exclusiveGateway | First outgoing flow whose condition holds, else the default flow, else the instance fails with the reason. Conditions: `variable op value` (`== != > < >= <=`) joined by `and`/`or` (`&&`/`||`), optional `${…}`; a condition that cannot be evaluated is false |
+| parallelGateway | Splits to all outgoing flows; with several incoming flows it waits for all of them |
+| intermediateCatchEvent + timer | `timeDuration` (ISO 8601: `PT2H`, `P1D`) or `timeDate`; woken by a job every minute |
+| intermediateThrowEvent (none) | Passes |
+| endEvent | Consumes the token; `terminateEventDefinition` ends the whole instance |
+
+Anything else (sub-processes, call activities, boundary events, inclusive/event-based gateways, messages, signals, several pools with a start) makes **Iniciar** return 422 with the list of unsupported elements. A loop of automatic steps without a wait fails the instance after `BPMN_MAX_AUTOMATIC_STEPS` (500, Settings → Automatizaciones).
 
 **Configuration.** None. No external services.
 
@@ -3515,11 +3534,15 @@ An action that fails is recorded and the next ones still run. A rule's action ca
   - `POST /api/v1/bpmn-processes`
   - `POST /api/v1/bpmn-processes/{id}/versions`
 
+- Engine endpoints: `POST /api/v1/bpmn-processes/{id}/instances` (admin, pm), `GET /api/v1/bpmn-instances[?status=&process_id=]`, `GET /bpmn-instances/inbox`, `GET /bpmn-instances/{id}`, `POST /bpmn-instances/{id}/steps/{step}/complete` (internal users, role of the lane), `POST /bpmn-instances/{id}/cancel` (admin, pm). Tables `bpmn_instances`, `bpmn_instance_steps` (each element crossed is a row: that is the history). Timer job: Celery `bpmn_vencer_temporizadores` and APScheduler `bpmn_timers`, every minute.
+
 **Limitations (measured).**
-- **Nothing in a diagram is executed.** There are no process instances, user-task inbox, timers or gateway evaluation, and no process mining. Gateways and service tasks are drawn only, and "publish" only sets a flag. The Service Desk workflow engine is separate and not connected to `/bpm`.
+- **Service and script tasks do nothing**: there is nothing to bind them to yet. Use the Automations module for actions.
+- No process mining, no SLA per step, no reassignment of a human step, and no variables form defined by the diagram (variables are typed free-form).
+- The catalogue processes cannot be started until they are saved once. The Service Desk workflow engine is separate and not connected to `/bpm`.
 - **Owner and SLA from "Nuevo proceso" are lost on reload.** They are never sent to the backend.
 - **Some operations exist in the API with no UI:** version history, publish, delete, duplicate and seed. The backend has a second, different catalogue (55 linear processes) behind `POST /seed`.
-- **Read and write by id have no organization check.** Only delete calls ABAC. Cross-tenant access appears possible; not verified over HTTP.
+- ~~Read and write by id have no organization check.~~ Measured 2026-11-04 (`tests/test_motor_bpmn.py`): GET, PATCH and saving a version of another organization's process return 404; the tenant filter scopes them.
 - The page loads each process with a separate GET (N+1).
 
 ### AI Hub / Connectors — `/ai-hub`
@@ -3639,7 +3662,6 @@ No job evaluates smart alerts, takes CFD snapshots, computes EVM, runs the Oracl
 **Not verified in this section.** None of the following was run against a live server:
 - live LLM responses from any provider, and Azure / o-series compatibility
 - real SMTP delivery and the rendered PDFs
-- the cross-tenant by-id accesses in BPM
 - the rollback of NexusAgent streaming writes (inferred from code)
 - the TF-IDF vector-length collapse in AI Assignment (inferred)
 - the Portfolio empty-date 422 end to end

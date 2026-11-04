@@ -78,3 +78,48 @@ class BPMNProcessVersion(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     process = relationship("BPMNProcess", back_populates="versions")
+
+
+# ── Ejecucion ────────────────────────────────────────────────────────────────
+# Auditoria 2026-11: /bpm era un editor sin motor. `app/services/bpmn_engine.py`
+# ejecuta los diagramas guardados: una instancia por arranque y un paso por
+# elemento que la ficha atraviesa.
+
+class BPMNInstance(Base):
+    __tablename__ = "bpmn_instances"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    process_id = Column(String(36), ForeignKey("bpmn_processes.id", ondelete="CASCADE"), nullable=False, index=True)
+    version = Column(Integer, nullable=False)
+    status = Column(String(20), nullable=False, default="running", index=True)  # running | completed | cancelled | failed
+    variables = Column(Text, nullable=True)       # JSON
+    error = Column(String(500), nullable=True)
+    started_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+
+    steps = relationship("BPMNInstanceStep", back_populates="instance", cascade="all, delete-orphan",
+                         order_by="BPMNInstanceStep.created_at")
+
+
+class BPMNInstanceStep(Base):
+    __tablename__ = "bpmn_instance_steps"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    instance_id = Column(String(36), ForeignKey("bpmn_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    element_id = Column(String(120), nullable=False)
+    element_type = Column(String(40), nullable=False)
+    name = Column(String(255), nullable=True)
+    # active: espera (tarea humana, temporizador, union paralela); completed: hecho.
+    status = Column(String(20), nullable=False, default="active", index=True)
+    candidate_role = Column(String(40), nullable=True)   # de la calle (lane) del diagrama
+    due_at = Column(DateTime(timezone=True), nullable=True)   # temporizadores
+    arrived = Column(Integer, nullable=False, default=1)      # fichas llegadas (union paralela)
+    completed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    result = Column(Text, nullable=True)          # JSON: variables que aporto quien lo completo
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    instance = relationship("BPMNInstance", back_populates="steps")

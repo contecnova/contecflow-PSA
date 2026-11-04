@@ -228,6 +228,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("AUTOMATIONS_DEADLINE_DAYS", "int", "\"Task due soon\": days before the due date"),
         ("AUTOMATIONS_TIMESHEET_WEEKDAY", "int", "\"Timesheet not submitted\": from this weekday (ISO, 1=Mon … 7=Sun)"),
         ("AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS", "int", "Webhook action — timeout (s)"),
+        ("BPMN_MAX_AUTOMATIC_STEPS", "int", "BPM — automatic steps in a row before an instance fails (loop guard)"),
     ],
     "health": [
         ("HEALTH_NPS_LOOKBACK_DAYS", "int", "NPS lookback (days)"),
