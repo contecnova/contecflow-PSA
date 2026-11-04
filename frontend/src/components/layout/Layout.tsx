@@ -604,25 +604,24 @@ interface NavGroupProps {
   t?: TFn | null
   pinned?: string[]
   onPin: (to: string) => void
-  workspace: string
+  /** Acordeón: solo un grupo abierto a la vez (lo decide `Layout`). */
+  open: boolean
+  onToggle: () => void
+  onActive: () => void
 }
 
-function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pinned, onPin, workspace }: NavGroupProps) {
+function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pinned, onPin, open, onToggle, onActive }: NavGroupProps) {
   const location = useLocation()
   const isAnyChildActive = group.items.filter(i => !i.divider).some(
     i => location.pathname === i.to || location.pathname.startsWith(i.to + '/')
   )
-  const [open, setOpen] = useState<boolean>(isAnyChildActive)
   const [hoverOpen, setHoverOpen] = useState<boolean>(false)
   const [hoverTop, setHoverTop] = useState<number>(0)
   const groupRef = useRef<HTMLDivElement | null>(null)
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Keep open when the active child lives here; respect forceOpen override
-  useEffect(() => { if (isAnyChildActive) setOpen(true) }, [isAnyChildActive])
-
-  // Auto-open when workspace switches to a specific view that shows this group
-  useEffect(() => { if (workspace !== 'all') setOpen(true) }, [workspace])
+  // Al navegar a una pantalla de este grupo, se abre (y se cierran los demás).
+  useEffect(() => { if (isAnyChildActive) onActive() }, [isAnyChildActive]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleItems = group.items.filter(i => i.divider || !i.roles || i.roles.some(r => hasRole(r)))
   const realVisible = visibleItems.filter(i => !i.divider)
@@ -683,7 +682,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
 
   return (
     <div style={{ marginBottom: 1 }}>
-      <button onClick={() => setOpen(o => !o)} aria-expanded={open} aria-controls={`nav-group-${group.id}`} style={{
+      <button onClick={onToggle} aria-expanded={open} aria-controls={`nav-group-${group.id}`} style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 6,
         padding: '6px 8px', border: 'none', borderRadius: 5, cursor: 'pointer',
         fontFamily: 'inherit', background: 'transparent',
@@ -1189,6 +1188,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
   const location = useLocation()
   const [pinned, setPinned] = useState<string[]>(() => _lsGet(PINNED_KEY))
+  // Auditoría 2026-11: acordeón. Abrir un grupo del menú cierra los demás.
+  const [openGroup, setOpenGroup] = useState<string | null>(null)
 
   // Auditoría 2026-11: los módulos que cierra el rol desaparecen del menú.
   const navGroups = useMemo(() => NAV_GROUPS.map(g => ({
@@ -1217,14 +1218,27 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     onSwipeRight: () => setMobileOpen(true),
     onSwipeLeft:  () => setMobileOpen(false),
   })
-  const [searchOpen, setSearchOpen] = useState<boolean>(false)
-  const [aiOpen, setAiOpen] = useState<boolean>(false)
-  const [chatOpen, setChatOpen] = useState<boolean>(false)
-  const [profileOpen, setProfileOpen] = useState<boolean>(false)
-  const [shortcutsOpen, setShortcutsOpen] = useState<boolean>(false)
-  const [alertsDrawerOpen, setAlertsDrawerOpen] = useState<boolean>(false)
-  const [quickCreateOpen, setQuickCreateOpen] = useState<boolean>(false)
-  const [voiceOpen, setVoiceOpen] = useState<boolean>(false)
+  // Auditoría 2026-11: un solo panel de la barra abierto a la vez. Abrir uno
+  // (búsqueda, IA, chat, perfil, atajos, alertas, crear, voz) cierra el resto.
+  const [panel, setPanel] = useState<string | null>(null)
+  const setters = useMemo(() => {
+    const de = (id: string) => (v: boolean | ((actual: boolean) => boolean)) =>
+      setPanel(p => {
+        const actual = p === id
+        const nuevo = typeof v === 'function' ? v(actual) : v
+        return nuevo ? id : (actual ? null : p)
+      })
+    return { search: de('search'), ai: de('ai'), chat: de('chat'), profile: de('profile'),
+      shortcuts: de('shortcuts'), alerts: de('alerts'), quick: de('quick'), voice: de('voice') }
+  }, [])
+  const searchOpen = panel === 'search', setSearchOpen = setters.search
+  const aiOpen = panel === 'ai', setAiOpen = setters.ai
+  const chatOpen = panel === 'chat', setChatOpen = setters.chat
+  const profileOpen = panel === 'profile', setProfileOpen = setters.profile
+  const shortcutsOpen = panel === 'shortcuts', setShortcutsOpen = setters.shortcuts
+  const alertsDrawerOpen = panel === 'alerts', setAlertsDrawerOpen = setters.alerts
+  const quickCreateOpen = panel === 'quick', setQuickCreateOpen = setters.quick
+  const voiceOpen = panel === 'voice', setVoiceOpen = setters.voice
   const [navSearch, setNavSearch] = useState<string>('')
   const [workspace, setWorkspace] = useState<string>(() => localStorage.getItem(NAV_WORKSPACE_KEY) || 'all')
   const [timerElapsed, setTimerElapsed] = useState<number>(0)
@@ -1254,6 +1268,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem(NAV_WORKSPACE_KEY, workspace)
+    // Un workspace concreto abre su grupo; en «Todo» manda el acordeón (uno a
+    // la vez: el de la pantalla actual, o el que abra el usuario).
+    if (workspace !== 'all') setOpenGroup(WORKSPACE_GROUPS[workspace]?.[0] ?? null)
   }, [workspace])
 
   useEffect(() => {
@@ -1293,7 +1310,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [])
+  }, [setSearchOpen, setAiOpen, setShortcutsOpen, setProfileOpen])
 
   const _currentDensity = prefs?.ui_density || 'normal'
   const _setDensity = (d: string) => save({ ui_density: d })
@@ -1434,7 +1451,10 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             return (
               <NavGroup key={group.id} group={group} collapsed={collapsed}
                 alertCount={alertCount} approvalCount={approvalCount} hasRole={hasRole} t={t}
-                pinned={pinned} onPin={togglePin} workspace={workspace} />
+                pinned={pinned} onPin={togglePin}
+                open={openGroup === group.id}
+                onToggle={() => setOpenGroup(g => (g === group.id ? null : group.id))}
+                onActive={() => setOpenGroup(group.id)} />
             )
           })}
           {navSearch.trim() && !collapsed && (
