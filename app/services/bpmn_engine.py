@@ -457,3 +457,49 @@ def serializar_paso(s: BPMNInstanceStep) -> dict:
         "completed_at": s.completed_at.isoformat() if s.completed_at else None,
         "human": s.element_type in HUMANOS,
     }
+
+
+# ── Consultas para la API (la capa API no consulta la base) ─────────────────
+
+def _de_la_organizacion(q, modelo, user):
+    return q if getattr(user, "is_superadmin", False) else q.filter(modelo.organization_id == user.organization_id)
+
+
+def proceso_para_arrancar(db: Session, process_id: str, user) -> Optional[BPMNProcess]:
+    return _de_la_organizacion(db.query(BPMNProcess).filter(BPMNProcess.id == process_id,
+                                                            BPMNProcess.is_active.is_(True)), BPMNProcess, user).first()
+
+
+def instancia(db: Session, instance_id: str, user) -> BPMNInstance:
+    inst = _de_la_organizacion(db.query(BPMNInstance).filter(BPMNInstance.id == instance_id),
+                               BPMNInstance, user).first()
+    if inst is None:
+        raise HTTPException(404, "Instancia no encontrada")
+    return inst
+
+
+def _nombres(db: Session, ids) -> dict:
+    return dict(db.query(BPMNProcess.id, BPMNProcess.name).filter(BPMNProcess.id.in_(set(ids) or {""})).all())
+
+
+def listar(db: Session, user, status: Optional[str], process_id: Optional[str], limite: int) -> list[dict]:
+    q = _de_la_organizacion(db.query(BPMNInstance), BPMNInstance, user)
+    if status:
+        q = q.filter(BPMNInstance.status == status)
+    if process_id:
+        q = q.filter(BPMNInstance.process_id == process_id)
+    filas = q.order_by(BPMNInstance.started_at.desc()).limit(limite).all()
+    nombres = _nombres(db, {i.process_id for i in filas})
+    return [{**serializar(i, con_pasos=False), "process_name": nombres.get(i.process_id)} for i in filas]
+
+
+def bandeja(db: Session, user) -> list[dict]:
+    pasos = _de_la_organizacion(
+        db.query(BPMNInstanceStep).join(BPMNInstance, BPMNInstance.id == BPMNInstanceStep.instance_id).filter(
+            BPMNInstanceStep.status == "active", BPMNInstanceStep.element_type.in_(HUMANOS),
+            BPMNInstance.status == "running"),
+        BPMNInstanceStep, user).order_by(BPMNInstanceStep.created_at).all()
+    mios = [p for p in pasos if puede_completar(p, user)]
+    nombres = _nombres(db, {p.instance.process_id for p in mios})
+    return [{**serializar_paso(p), "process_id": p.instance.process_id,
+             "process_name": nombres.get(p.instance.process_id), "variables": _variables(p.instance)} for p in mios]
