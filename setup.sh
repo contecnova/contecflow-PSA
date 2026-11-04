@@ -694,6 +694,12 @@ setup_backend() {
     else
       log "Dependencias ML sin cambios, omitiendo pip install"
     fi
+    # LightGBM (churn) necesita la libreria OpenMP del sistema. En macOS no
+    # viene de serie: sin ella el import falla y el churn cae a las reglas.
+    if [ "$(uname)" = "Darwin" ] && check_command brew && ! brew list libomp >/dev/null 2>&1; then
+      log "Instalando libomp (OpenMP para LightGBM)..."
+      brew install libomp || warn "No se pudo instalar libomp: el churn usará las reglas de respaldo."
+    fi
   fi
 
   # Dependencias opcionales: CMDB auto-discovery (boto3=AWS, kubernetes=K8s)

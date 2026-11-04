@@ -36,7 +36,10 @@ def _get_cfg(integration_type: str, db: Session) -> dict:
             f"Integración '{integration_type}' no configurada o inactiva. "
             "Configúrala en Enterprise → Integraciones.",
         )
-    return json.loads(cfg.config or "{}")
+    # Enterprise guarda los tokens cifrados (`encrypt_config_secrets`): sin
+    # descifrar se mandaba el texto cifrado a Xero/QuickBooks.
+    from app.core.secret_utils import decrypt_config_secrets
+    return decrypt_config_secrets(json.loads(cfg.config or "{}"))
 
 
 # ── Test de conexión ───────────────────────────────────────────────────────────
@@ -145,38 +148,10 @@ def push_invoices_bulk(
     """
     Envía todas las facturas en estado 'sent' que no han sido sincronizadas aún.
     """
-    from app.services.integrations import push_invoice_to_xero, push_invoice_to_quickbooks
-
     provider = payload.get("provider", "xero")
     limit    = int(payload.get("limit", 50))
-
-    invoices = accounting_hub_service.get_unsent_invoices(db, limit)
     cfg      = _get_cfg(provider, db)
-    push_fn  = push_invoice_to_xero if provider == "xero" else push_invoice_to_quickbooks
-
-    results = []
-    for inv in invoices:
-        if inv.internal_notes and f"[{provider.upper()} sync" in inv.internal_notes:
-            results.append({"invoice_number": inv.number, "status": "already_synced"})
-            continue
-        inv_data = {
-            "number":      inv.number,
-            "client_name": inv.client_name or "Cliente",
-            "issue_date":  str(inv.issue_date) if inv.issue_date else "",
-            "due_date":    str(inv.due_date)   if inv.due_date   else "",
-            "subtotal":    inv.subtotal or 0,
-            "total":       inv.total    or 0,
-            "notes":       inv.notes    or "",
-            "lines":       [],
-        }
-        r = push_fn(cfg, inv_data)
-        if r.get("ok"):
-            accounting_hub_service.append_bulk_sync_note(inv, provider)
-            results.append({"invoice_number": inv.number, "status": "synced"})
-        else:
-            results.append({"invoice_number": inv.number, "status": "error", "error": r.get("error")})
-
-    accounting_hub_service.commit(db)
+    results  = accounting_hub_service.enviar_facturas_pendientes(db, provider, cfg, limit)
 
     synced = sum(1 for r in results if r["status"] == "synced")
     return APIResponse.ok(data={

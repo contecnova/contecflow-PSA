@@ -83,6 +83,23 @@ import PortalAIChatWidget from './portal-client/PortalAIChatWidget'
 import { useTabListKeys } from '../components/ui/Tabs'
 
 // ── Inner app (con cliente autenticado) ──────────────────────────────────────
+// El tema del portal se guarda aparte del de la aplicacion interna. Se aplica
+// al entrar en el portal (login incluido). Antes solo lo aplicaba «My profile»
+// al abrirse: hasta entonces el portal heredaba el tema que hubiera en la
+// pagina y, al entrar en el perfil, cambiaba de golpe.
+const CLAVE_TEMA_PORTAL = 'portal_theme_mode'
+
+function temaGuardadoDelPortal(): string {
+  try { return localStorage.getItem(CLAVE_TEMA_PORTAL) || 'freight' } catch { return 'freight' }
+}
+
+function aplicarTemaDelPortal(id: string) {
+  const efectivo = id === 'system'
+    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : id
+  document.documentElement.setAttribute('data-theme', efectivo)
+}
+
 function PortalApp({ changeLang }: { changeLang: ChangeLangFn }) {
   const qc = useQueryClient()
   const { client } = (useClientAuth() ?? { client: null }) as ClientAuthValue
@@ -268,7 +285,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
   const [pwdError, setPwdError] = useState('')
   const [savedProfile, setSavedProfile] = useState(false)
   const [savedLanguage, setSavedLanguage] = useState(false)
-  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('portal_theme_mode') || 'freight')
+  const [themeMode, setThemeMode] = useState(temaGuardadoDelPortal)
 
   const { data: me } = useQuery<Record<string, unknown>>({
     queryKey: ['portal-me'],
@@ -298,20 +315,12 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
   ]
   const teclas = useTabListKeys(TABS.map(x => x.id), tab, setTab)
 
+  // Elegir un tema lo previsualiza; si se sale sin guardar, vuelve el guardado.
   const applyTheme = (id: string) => {
     setThemeMode(id)
-    if (id === 'system') {
-      const dark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
-    } else {
-      document.documentElement.setAttribute('data-theme', id)
-    }
+    aplicarTemaDelPortal(id)
   }
-  // Aplica el tema una sola vez al montar (los cambios manuales pasan por applyTheme directamente).
-  useEffect(() => {
-    applyTheme(themeMode)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  useEffect(() => () => aplicarTemaDelPortal(temaGuardadoDelPortal()), [])
 
   const { mutate: saveProfile, isPending: saving } = useMutation({
     mutationFn: (d: Record<string, unknown>) => CLIENT_API.patch('/portal/auth/me', d).then(r => r.data),
@@ -358,7 +367,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
   }
 
   const saveAppearance = () => {
-    localStorage.setItem('portal_theme_mode', themeMode)
+    try { localStorage.setItem(CLAVE_TEMA_PORTAL, themeMode) } catch { /* sin almacenamiento */ }
     applyTheme(themeMode)
     toast.success('Apariencia guardada')
   }
@@ -568,6 +577,7 @@ export default function PortalClientePage() {
 
 function PortalClienteInner({ changeLang, currentLang }: { changeLang: ChangeLangFn; currentLang: string }) {
   const _toast = useToast()
+  useEffect(() => { aplicarTemaDelPortal(temaGuardadoDelPortal()) }, [])
   const { client } = (useClientAuth() ?? { client: null }) as ClientAuthValue
   return client
     ? <PortalApp changeLang={changeLang} />

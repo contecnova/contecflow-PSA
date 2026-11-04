@@ -123,3 +123,37 @@ def get_sync_status(db: Session) -> dict:
             for c in active_integrations
         ],
     }
+
+
+def enviar_facturas_pendientes(db: Session, provider: str, cfg: dict, limit: int = 50) -> list:
+    """Envia a Xero/QuickBooks las facturas enviadas que aun no se han sincronizado.
+
+    Lo usan el envio en lote de Contabilidad y el «Sync» de Enterprise →
+    Integraciones (antes este ultimo solo contaba facturas y no enviaba nada).
+    Devuelve una fila por factura: `synced`, `already_synced` o `error`.
+    """
+    from app.services.integrations import push_invoice_to_quickbooks, push_invoice_to_xero
+    push_fn = push_invoice_to_xero if provider == "xero" else push_invoice_to_quickbooks
+    results = []
+    for inv in get_unsent_invoices(db, limit):
+        if inv.internal_notes and f"[{provider.upper()} sync" in inv.internal_notes:
+            results.append({"invoice_number": inv.number, "status": "already_synced"})
+            continue
+        inv_data = {
+            "number":      inv.number,
+            "client_name": inv.client_name or "Cliente",
+            "issue_date":  str(inv.issue_date) if inv.issue_date else "",
+            "due_date":    str(inv.due_date)   if inv.due_date   else "",
+            "subtotal":    inv.subtotal or 0,
+            "total":       inv.total    or 0,
+            "notes":       inv.notes    or "",
+            "lines":       [],
+        }
+        r = push_fn(cfg, inv_data)
+        if r.get("ok"):
+            append_bulk_sync_note(inv, provider)
+            results.append({"invoice_number": inv.number, "status": "synced"})
+        else:
+            results.append({"invoice_number": inv.number, "status": "error", "error": r.get("error")})
+    db.commit()
+    return results

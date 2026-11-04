@@ -41,8 +41,8 @@ class AISettingsMixin:
 
     # Tiempos de espera de las llamadas a los proveedores (revision 2026-11:
     # antes 60, 120 y 30 s escritos en `ai_provider_service`, 90 en el agente).
-    # Editables en Admin → Ajustes → ai. Ollama y los modelos locales tardan mas.
-    AI_HTTP_TIMEOUT_SECONDS: int = Field(default=60, env="AI_HTTP_TIMEOUT_SECONDS")
+    # Editables en Admin → Ajustes → Timeouts. El de la nube es el ya existente
+    # `OUTBOUND_AI_TIMEOUT_SECONDS`. Ollama y los modelos locales tardan mas.
     AI_LOCAL_HTTP_TIMEOUT_SECONDS: int = Field(default=120, env="AI_LOCAL_HTTP_TIMEOUT_SECONDS")
     AI_AGENT_TURN_TIMEOUT_SECONDS: int = Field(default=90, env="AI_AGENT_TURN_TIMEOUT_SECONDS")
     AI_MODELS_LIST_TIMEOUT_SECONDS: int = Field(default=30, env="AI_MODELS_LIST_TIMEOUT_SECONDS")

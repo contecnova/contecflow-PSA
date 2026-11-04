@@ -194,7 +194,7 @@ def _call_anthropic(api_key, model, messages, system, max_tokens, temperature) -
     if system:
         body["system"] = system
     resp = httpx.post(f"{settings.ANTHROPIC_API_URL.rstrip('/')}/messages",
-                      json=body, headers=headers, timeout=espera_de_ia("AI_HTTP_TIMEOUT_SECONDS"))
+                      json=body, headers=headers, timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
         raise Exception(f"Anthropic {resp.status_code}: {resp.text[:200]}")
     data  = resp.json()
@@ -216,7 +216,7 @@ def _call_openai_compat(base_url, api_key, model, messages, system, max_tokens, 
         all_messages.append({"role": "system", "content": system})
     all_messages.extend(messages)
     body = {"model": model, "messages": all_messages, "max_tokens": max_tokens, "temperature": temperature}
-    resp = httpx.post(endpoint, json=body, headers=headers, timeout=espera_de_ia("AI_HTTP_TIMEOUT_SECONDS"))
+    resp = httpx.post(endpoint, json=body, headers=headers, timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
         raise Exception(f"API {resp.status_code}: {resp.text[:200]}")
     data  = resp.json()
@@ -240,7 +240,7 @@ def _call_gemini(api_key, model, messages, system, max_tokens, temperature) -> d
         "contents": contents,
         "generationConfig": {"maxOutputTokens": max_tokens, "temperature": temperature},
     }
-    resp = httpx.post(url, json=body, timeout=espera_de_ia("AI_HTTP_TIMEOUT_SECONDS"))
+    resp = httpx.post(url, json=body, timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
         raise Exception(f"Gemini {resp.status_code}: {resp.text[:200]}")
     data  = resp.json()
@@ -259,9 +259,9 @@ def espera_de_ia(clave: str) -> float:
     """
     try:
         from app.db.session import SessionLocal
-        from app.services.settings_service import get_runtime_int
+        from app.services.settings_service import get_runtime_float
         with SessionLocal() as _db:
-            v = get_runtime_int(_db, clave)
+            v = get_runtime_float(_db, clave)
         if v:
             return float(v)
     except Exception:

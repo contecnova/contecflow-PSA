@@ -230,6 +230,26 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS", "int", "Webhook action — timeout (s)"),
         ("BPMN_MAX_AUTOMATIC_STEPS", "int", "BPM — automatic steps in a row before an instance fails (loop guard)"),
     ],
+    "risk": [
+        ("RISK_WEIGHT_SCHEDULE", "float", "Risk score — weight of schedule (0-1)"),
+        ("RISK_WEIGHT_BUDGET", "float", "Risk score — weight of budget (0-1)"),
+        ("RISK_WEIGHT_SCOPE", "float", "Risk score — weight of scope (0-1)"),
+        ("RISK_WEIGHT_RESOURCE", "float", "Risk score — weight of resources (0-1)"),
+        ("RISK_LEVEL_CRITICAL", "float", "Risk score — critical from (0-100)"),
+        ("RISK_LEVEL_HIGH", "float", "Risk score — high from (0-100)"),
+        ("RISK_LEVEL_MEDIUM", "float", "Risk score — medium from (0-100)"),
+        ("RISK_SCHEDULE_FACTOR", "float", "Schedule — points per % behind plan"),
+        ("RISK_BUDGET_WARN_PCT", "float", "Budget — % spent where risk starts"),
+        ("RISK_BUDGET_WARN_FACTOR", "float", "Budget — points per % above the warning"),
+        ("RISK_BUDGET_OVER_FACTOR", "float", "Budget — points per % above 100 %"),
+        ("RISK_POINTS_PER_OPEN_CR", "float", "Scope — points per open change request"),
+        ("RISK_POINTS_PER_HIGH_RISK", "float", "Resources — points per open high-probability risk"),
+        ("RISK_DELAY_FACTOR", "float", "Delay probability — % per score point"),
+        ("RISK_DELAY_MAX_PCT", "float", "Delay probability — maximum (%)"),
+        ("RISK_DELAY_PCT_PER_WEEK", "float", "Predicted delay — probability % per week"),
+        ("RISK_CACHE_MINUTES", "int", "Scores are reused for (minutes)"),
+        ("RISK_HISTORY_POINTS", "int", "Detail — history points shown"),
+    ],
     "health": [
         ("HEALTH_NPS_LOOKBACK_DAYS", "int", "NPS lookback (days)"),
         ("HEALTH_TICKET_LOOKBACK_DAYS", "int", "Ticket lookback (days)"),
@@ -307,10 +327,6 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("SEMANTIC_EMBEDDINGS_BACKEND", "str", "Embeddings backend"),
         ("OPENAI_STT_MODEL", "str", "OpenAI STT model"),
         ("AI_COST_ALERT_USD_PER_DAY", "float", "AI daily cost alert ($)"),
-        ("AI_HTTP_TIMEOUT_SECONDS", "int", "AI provider call — timeout (s)"),
-        ("AI_LOCAL_HTTP_TIMEOUT_SECONDS", "int", "Ollama (local model) call — timeout (s)"),
-        ("AI_AGENT_TURN_TIMEOUT_SECONDS", "int", "NexusAgent — timeout per model turn (s)"),
-        ("AI_MODELS_LIST_TIMEOUT_SECONDS", "int", "\"Sync models\" — timeout (s)"),
         ("STT_PROVIDER", "str", "Primary STT provider"),
         ("STT_FALLBACK_PROVIDERS", "str", "STT fallback providers (CSV)"),
         ("AZURE_SPEECH_REGION", "str", "Azure Speech region"),
@@ -341,6 +357,9 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
     "timeouts": [
         ("OUTBOUND_HTTP_TIMEOUT_SECONDS", "float", "Outbound HTTP timeout (seconds)"),
         ("OUTBOUND_AI_TIMEOUT_SECONDS", "float", "Outbound AI calls timeout (seconds)"),
+        ("AI_LOCAL_HTTP_TIMEOUT_SECONDS", "int", "Ollama (local model) call — timeout (s)"),
+        ("AI_AGENT_TURN_TIMEOUT_SECONDS", "int", "NexusAgent — timeout per model turn (s)"),
+        ("AI_MODELS_LIST_TIMEOUT_SECONDS", "int", "AI \"Sync models\" — timeout (s)"),
         ("SSO_HTTP_TIMEOUT_SECONDS", "float", "SSO — timeout calling the identity provider (seconds)"),
         ("SSO_CLOCK_SKEW_SECONDS", "int", "SSO — clock skew tolerated when validating the id_token (seconds)"),
     ],
@@ -365,7 +384,7 @@ def outbound_http_timeout(db=None, default: float = 10.0) -> float:
     return getattr(app_settings, "OUTBOUND_HTTP_TIMEOUT_SECONDS", default)
 
 
-def outbound_ai_timeout(db=None, default: float = 30.0) -> float:
+def outbound_ai_timeout(db=None, default: float = 60.0) -> float:
     """Return effective timeout for outbound AI/LLM calls."""
     if db is not None:
         try:

@@ -216,9 +216,36 @@ The destination table `app_settings` already exists at
 | `LOGIN_ATTEMPT_WINDOW_SECONDS` | 🟢 | Read per request |
 | `LOGIN_LOCKOUT_SECONDS` | 🟢 | Read per request |
 | `OUTBOUND_HTTP_TIMEOUT_SECONDS` | 🟢 | Read per call |
-| `OUTBOUND_AI_TIMEOUT_SECONDS` | 🟢 | Read per call |
+| `OUTBOUND_AI_TIMEOUT_SECONDS` | 🟢 | Read per call. Cloud AI providers (`call_provider`) and the legacy Anthropic paths; default 60 since 2026-11-04 |
+| `AI_LOCAL_HTTP_TIMEOUT_SECONDS` | 🟢 | Read per call (Ollama) |
+| `AI_AGENT_TURN_TIMEOUT_SECONDS` | 🟢 | Read per NexusAgent turn |
+| `AI_MODELS_LIST_TIMEOUT_SECONDS` | 🟢 | Read per "Sync models" |
 | `CELERY_AGENT_TASK_TIME_LIMIT` | 🔴 | Decorator binding |
 | `CELERY_AGENT_TASK_SOFT_TIME_LIMIT` | 🔴 | Decorator binding |
+
+## 18b. Project risk score (group `risk`, since 2026-11-04)
+
+| Setting | Tag | Notes |
+|---|---|---|
+| `RISK_WEIGHT_SCHEDULE` | 🟢 | Read once per score computation |
+| `RISK_WEIGHT_BUDGET` | 🟢 | Read once per score computation |
+| `RISK_WEIGHT_SCOPE` | 🟢 | Read once per score computation |
+| `RISK_WEIGHT_RESOURCE` | 🟢 | Read once per score computation |
+| `RISK_LEVEL_CRITICAL` | 🟢 | Read once per score computation |
+| `RISK_LEVEL_HIGH` | 🟢 | Read once per score computation |
+| `RISK_LEVEL_MEDIUM` | 🟢 | Read once per score computation |
+| `RISK_SCHEDULE_FACTOR` | 🟢 | Read once per score computation |
+| `RISK_BUDGET_WARN_PCT` | 🟢 | Read once per score computation |
+| `RISK_BUDGET_WARN_FACTOR` | 🟢 | Read once per score computation |
+| `RISK_BUDGET_OVER_FACTOR` | 🟢 | Read once per score computation |
+| `RISK_POINTS_PER_OPEN_CR` | 🟢 | Read once per score computation |
+| `RISK_POINTS_PER_HIGH_RISK` | 🟢 | Read once per score computation |
+| `RISK_DELAY_FACTOR` | 🟢 | Read once per score computation |
+| `RISK_DELAY_MAX_PCT` | 🟢 | Read once per score computation |
+| `RISK_DELAY_PCT_PER_WEEK` | 🟢 | Read once per score computation |
+| `RISK_CACHE_MINUTES` | 🟢 | Read once per score computation |
+| `RISK_HISTORY_POINTS` | 🟢 | Read once per score computation |
+| `SCENARIO_CAPACITY_ROLES` | 🟢 | Group `locale`; read per scenario computation |
 
 ## 19. Locale / business defaults
 

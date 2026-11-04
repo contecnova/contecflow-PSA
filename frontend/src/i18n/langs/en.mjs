@@ -6061,6 +6061,7 @@ const en = {
     cartera_de_proyectos_ml: 'Project portfolio — ML',
     sin_predicciones_ml: 'No ML predictions',
     sin_datos_para_predecir: '{n} active projects without enough data to predict (no tasks): not counted as low risk.',
+    evolucion: 'Trend',
     usa_el_historial_de_proyectos_cerrados_para: 'Uses the history of closed projects to train the cost-overrun and delay prediction model.',
     versiones_del_modelo: 'Model versions',
     sin_modelos_entrenados: 'No trained models',

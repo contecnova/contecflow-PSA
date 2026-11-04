@@ -385,7 +385,56 @@ def test_EL_HALLAZGO_el_tiempo_de_espera_de_la_IA_es_un_ajuste(db, monkeypatch):
     from app.services.ai_provider_service import espera_de_ia
     monkeypatch.setattr("app.db.session.SessionLocal", lambda: contextlib.nullcontext(db))
     assert espera_de_ia("AI_LOCAL_HTTP_TIMEOUT_SECONDS") == 120
-    settings_service.set_runtime_value(db, "ai", "AI_LOCAL_HTTP_TIMEOUT_SECONDS", 300, None)
+    settings_service.set_runtime_value(db, "timeouts", "AI_LOCAL_HTTP_TIMEOUT_SECONDS", 300, None)
     db.commit()
     settings_service.invalidate_cache()
     assert espera_de_ia("AI_LOCAL_HTTP_TIMEOUT_SECONDS") == 300
+
+
+def test_EL_HALLAZGO_los_pesos_del_riesgo_se_cambian_desde_admin(db):
+    from app.services import settings_service
+    from app.services.cab_service import compute_risk_score
+    p = _proyecto(db, code="PES", start_date=date.today() - timedelta(days=50),
+                  end_date_planned=date.today() + timedelta(days=50))
+    from app.models.task import Task
+    db.add(Task(code="TSK-PES", project_id=p.id, title="T", status="todo", organization_id="1"))
+    db.commit()
+    antes = compute_risk_score(db, p)
+    assert antes["schedule_risk"] == pytest.approx(75, abs=1)   # 50 % de tiempo, 0 hecho, × 1,5
+    settings_service.set_runtime_value(db, "risk", "RISK_WEIGHT_SCHEDULE", 1.0, None)
+    settings_service.set_runtime_value(db, "risk", "RISK_LEVEL_CRITICAL", 90, None)
+    settings_service.set_runtime_value(db, "risk", "RISK_LEVEL_HIGH", 70, None)
+    db.commit()
+    settings_service.invalidate_cache()
+    despues = compute_risk_score(db, p)
+    assert despues["overall_score"] == pytest.approx(despues["schedule_risk"], abs=0.1)
+    assert despues["level"] == "high"
+
+
+def test_EL_HALLAZGO_el_detalle_tiene_historial_y_no_escribe_en_cada_clic(db):
+    from app.models.cab import ProjectRiskScore
+    from app.services.cab_service import get_project_risk_score
+    p = _proyecto(db, code="HIS")
+    for _ in range(3):
+        d = get_project_risk_score(p.id, db)
+    assert db.query(ProjectRiskScore).filter(ProjectRiskScore.project_id == p.id).count() == 1
+    previa = db.query(ProjectRiskScore).filter(ProjectRiskScore.project_id == p.id).one()
+    previa.overall_score = 99   # una puntuacion anterior distinta, de hace una hora
+    previa.computed_at = datetime.now(timezone.utc) - timedelta(hours=1)
+    db.commit()
+    d = get_project_risk_score(p.id, db)
+    assert [h["overall_score"] for h in d["history"]] == [99]
+    d = get_project_risk_score(p.id, db)
+    assert [h["overall_score"] for h in d["history"]][0] == 99 and len(d["history"]) == 2
+
+
+def test_EL_HALLAZGO_ver_la_cartera_no_repite_el_historial(db):
+    from app.models.ml_model import MLPredictionLog
+    from app.models.task import Task
+    from app.services.ml_trainer import portfolio_risk_summary
+    p = _proyecto(db, code="REP", budget_amount=1000)
+    db.add(Task(code="TSK-REP", project_id=p.id, title="T", status="todo", organization_id="1"))
+    db.commit()
+    for _ in range(3):
+        portfolio_risk_summary(db, "1")
+    assert db.query(MLPredictionLog).filter(MLPredictionLog.project_id == p.id).count() == 1

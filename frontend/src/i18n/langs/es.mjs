@@ -5389,6 +5389,7 @@ const es = {
     cartera_de_proyectos_ml: 'Cartera de proyectos — ML',
     sin_predicciones_ml: 'Sin predicciones ML',
     sin_datos_para_predecir: '{n} proyectos activos sin datos suficientes para predecir (sin tareas): no se cuentan como riesgo bajo.',
+    evolucion: 'Evolución',
     usa_el_historial_de_proyectos_cerrados_para: 'Usa el historial de proyectos cerrados para entrenar el modelo de predicción de sobrecoste/retraso.',
     versiones_del_modelo: 'Versiones del modelo',
     sin_modelos_entrenados: 'Sin modelos entrenados',

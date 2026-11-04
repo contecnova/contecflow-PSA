@@ -208,6 +208,10 @@ def _risk_level(cost_prob: float, sched_prob: float) -> str:
     return "low"
 
 
+class _SinCambios(Exception):
+    """La prediccion es la misma que la ultima registrada: no se repite."""
+
+
 def predict_project(db: Session, project_id: str, organization_id: str,
                     *, is_superadmin: bool = False) -> dict:
     """
@@ -305,8 +309,16 @@ def predict_project(db: Session, project_id: str, organization_id: str,
 
     risk = _risk_level(ml_result["cost_overrun_prob"], ml_result["schedule_overrun_prob"])
 
-    # Persist prediction log (best-effort)
+    # Persist prediction log (best-effort). Revision 2026-11: solo si cambia
+    # respecto a la ultima; antes cada vista de la cartera escribia una fila
+    # por proyecto y el historial eran copias.
     try:
+        ultima = db.query(MLPredictionLog).filter(
+            MLPredictionLog.project_id == project_id,
+        ).order_by(MLPredictionLog.predicted_at.desc()).first()
+        if ultima and (ultima.risk_level, ultima.cost_overrun_prob, ultima.schedule_overrun_prob) == (
+                risk, ml_result["cost_overrun_prob"], ml_result["schedule_overrun_prob"]):
+            raise _SinCambios
         log = MLPredictionLog(
             id=str(uuid.uuid4()),
             organization_id=organization_id,
@@ -320,6 +332,8 @@ def predict_project(db: Session, project_id: str, organization_id: str,
         )
         db.add(log)
         db.commit()
+    except _SinCambios:
+        pass
     except Exception:
         logger.warning("Fallo persistiendo MLPredictionLog para project=%s", project_id, exc_info=True)
         db.rollback()

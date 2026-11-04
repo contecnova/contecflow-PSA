@@ -238,6 +238,26 @@ class Settings(
     DEFAULT_WEEKLY_CAPACITY_HOURS: float = Field(default=40.0, env="DEFAULT_WEEKLY_CAPACITY_HOURS")
     # Escenarios: roles cuya capacidad cuenta (los que trabajan en proyectos).
     SCENARIO_CAPACITY_ROLES: str = Field(default="pm,team_lead,employee,subcontractor", env="SCENARIO_CAPACITY_ROLES")
+    # Puntuacion de riesgo por senales (Riesgo del proyecto). Hasta 2026-11
+    # todos estos numeros estaban escritos en `cab_service`.
+    RISK_WEIGHT_SCHEDULE: float = Field(default=0.4, env="RISK_WEIGHT_SCHEDULE")
+    RISK_WEIGHT_BUDGET: float = Field(default=0.3, env="RISK_WEIGHT_BUDGET")
+    RISK_WEIGHT_SCOPE: float = Field(default=0.15, env="RISK_WEIGHT_SCOPE")
+    RISK_WEIGHT_RESOURCE: float = Field(default=0.15, env="RISK_WEIGHT_RESOURCE")
+    RISK_LEVEL_CRITICAL: float = Field(default=75.0, env="RISK_LEVEL_CRITICAL")
+    RISK_LEVEL_HIGH: float = Field(default=50.0, env="RISK_LEVEL_HIGH")
+    RISK_LEVEL_MEDIUM: float = Field(default=25.0, env="RISK_LEVEL_MEDIUM")
+    RISK_SCHEDULE_FACTOR: float = Field(default=1.5, env="RISK_SCHEDULE_FACTOR")
+    RISK_BUDGET_WARN_PCT: float = Field(default=85.0, env="RISK_BUDGET_WARN_PCT")
+    RISK_BUDGET_WARN_FACTOR: float = Field(default=3.0, env="RISK_BUDGET_WARN_FACTOR")
+    RISK_BUDGET_OVER_FACTOR: float = Field(default=2.0, env="RISK_BUDGET_OVER_FACTOR")
+    RISK_POINTS_PER_OPEN_CR: float = Field(default=20.0, env="RISK_POINTS_PER_OPEN_CR")
+    RISK_POINTS_PER_HIGH_RISK: float = Field(default=25.0, env="RISK_POINTS_PER_HIGH_RISK")
+    RISK_DELAY_FACTOR: float = Field(default=0.8, env="RISK_DELAY_FACTOR")
+    RISK_DELAY_MAX_PCT: float = Field(default=95.0, env="RISK_DELAY_MAX_PCT")
+    RISK_DELAY_PCT_PER_WEEK: float = Field(default=20.0, env="RISK_DELAY_PCT_PER_WEEK")
+    RISK_CACHE_MINUTES: int = Field(default=60, env="RISK_CACHE_MINUTES")
+    RISK_HISTORY_POINTS: int = Field(default=12, env="RISK_HISTORY_POINTS")
     # Último recurso para valorar simulaciones de proyecto cuando no hay tarifa
     # de facturación en el proyecto ni tarifas en los usuarios asignados
     # (auditoría 2026-08, P2-20: antes era un literal 80.0 en activity_service).
@@ -410,7 +430,8 @@ class Settings(
     OUTBOUND_HTTP_TIMEOUT_SECONDS: float = Field(default=10.0, env="OUTBOUND_HTTP_TIMEOUT_SECONDS")
     # Timeout más largo para llamadas a proveedores de IA (modelos LLM,
     # transcripción) donde la latencia es naturalmente mayor.
-    OUTBOUND_AI_TIMEOUT_SECONDS: float = Field(default=30.0, env="OUTBOUND_AI_TIMEOUT_SECONDS")
+    # 60: lo que ya esperaban las llamadas a proveedores; las rutas antiguas a Anthropic usaban 30.
+    OUTBOUND_AI_TIMEOUT_SECONDS: float = Field(default=60.0, env="OUTBOUND_AI_TIMEOUT_SECONDS")
 
     # NOTE: customer & project health weights/thresholds live in HealthSettingsMixin
     # (app/core/config_groups/health_config.py).

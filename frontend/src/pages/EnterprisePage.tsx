@@ -331,7 +331,7 @@ function IntegrationsTab() {
 
   const { mutate: sync } = useMutation({
     mutationFn: (id: string) => oauthIntegrationsApi.sync(id, {}),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success('Sincronización completada') },
+    onSuccess: (r: any) => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success(`Sincronizados: ${r?.data?.synced ?? 0} elementos${r?.data?.errors?.length ? ` · ${r.data.errors.length} con error` : ''}`) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 

@@ -408,7 +408,9 @@ def _webhook_de_la_integracion(db: Session, tipo, context: dict) -> Optional[str
     if not cfg:
         return None
     try:
-        return (json.loads(cfg.config or "{}") or {}).get("webhook_url")
+        from app.core.secret_utils import decrypt_config_secrets
+        # `webhook_url` se guarda cifrado: sin descifrar no llegaba ningun aviso.
+        return (decrypt_config_secrets(json.loads(cfg.config or "{}")) or {}).get("webhook_url")
     except ValueError:
         return None
 

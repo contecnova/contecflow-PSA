@@ -337,7 +337,7 @@ async def _emitir_anthropic(active_provider, system, messages, collected):
     }
     try:
         from app.services.ai_provider_service import espera_de_ia
-        async with httpx.AsyncClient(timeout=espera_de_ia("AI_HTTP_TIMEOUT_SECONDS")) as client:
+        async with httpx.AsyncClient(timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS")) as client:
             async with client.stream(
                 "POST", settings.ANTHROPIC_API_URL, json=body, headers=headers
             ) as resp:

@@ -90,6 +90,7 @@ type RiskDetail = {
   recommendation?: string
   delay_probability_pct?: number
   predicted_delay_weeks?: number
+  history?: Array<{ computed_at: string; overall_score: number; level: RiskLevel }>
 }
 
 type RadarDatum = {
@@ -484,6 +485,17 @@ export default function RiskScoresPage() {
               <div style={{ fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', marginBottom:6, textTransform:'uppercase', letterSpacing:'.06em' }}>{t('riskscores.recomendacion')}</div>
               <div style={{ fontSize: "var(--text-sm)", color:'var(--text-1)' }}>{detail.recommendation}</div>
             </div>
+
+            {(detail.history?.length ?? 0) > 1 && (
+              <div style={{ marginTop:12, background:'var(--surface-2)', borderRadius:8, padding:'12px 14px' }}>
+                <div style={{ fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', marginBottom:6, textTransform:'uppercase', letterSpacing:'.06em' }}>{t('riskscores.evolucion')}</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6, fontSize: "var(--text-xs)", color:'var(--text-2)' }}>
+                  {detail.history!.map((h, i) => (
+                    <span key={i} title={h.computed_at}>{i > 0 && '→ '}<strong style={{ color:'var(--text-1)' }}>{Math.round(h.overall_score)}</strong> <span style={{ color:'var(--text-3)' }}>{h.computed_at.slice(5, 10)}</span></span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {((detail.delay_probability_pct ?? 0) > 0) && (
               <div style={{ marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>

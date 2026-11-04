@@ -1766,6 +1766,7 @@ General notes that apply to every module here:
    - **Facturas**: list, approve or reject (`GET /portal/invoices`, `POST /portal/invoices/{id}/approve`).
    - **Encuestas**: `GET /portal/surveys`, `POST /portal/surveys/{id}/respond`.
    - **Mi perfil**: profile, appearance, language, password, via `PATCH /portal/auth/me`. Profile and password changes are allowed or blocked per client by `allow_profile_edit` and `allow_pwd_change`.
+   - **Theme.** The portal keeps its own theme in the browser (`portal_theme_mode`, default Freight Pro) and applies it on entering the portal, login included. Choosing one in Appearance previews it; leaving without saving restores the saved one. Until 2026-11-04 only the profile applied it, so the theme changed when the client opened My profile.
    - An AI chat widget on every page (`POST /portal/ai-chat`).
 
 **Recent fixes (commit `89bd5c1`, 2026-11-03).**
@@ -2706,12 +2707,12 @@ Measured against a copy of the database with a local Ollama model. Tests: `tests
 | Portal AI chat | Fed other clients' projects to the model when the client had no company; showed an internal instruction when there was no provider | Assigned projects only; a project summary when there is no provider |
 | Prediction history, at-risk projects, anomalies | Project id instead of name; no CPI/SPI; no month per anomaly | Name, CPI/SPI and `period` (`YYYY-MM`) |
 | Risk (signal score and ML) | Budget at 80 €/h; team load fixed at 85 %; overloaded members always 0; training label in hours; no-data projects counted as low risk | Real internal cost; measured team load and overloaded members; label in euros; `without_data` count |
-| AI timeouts | Hardcoded 60/120/90/30 s | Admin settings (group `ai`) |
+| AI timeouts | Hardcoded 60/120/90/30 s | Admin settings (group `timeouts`) |
 | Forecast chart | Bands never drawn (`lower_bound`/`upper_bound` were not read); a MAPE label nobody filled | Bands drawn; MAPE label removed (the backend does not compute it) |
 | Semantic engine offline | Only `ImportError` fell back | Any load error falls back to TF-IDF with a warning |
 
 **Still open (not fixed in this review):**
-- LightGBM does not load in the local macOS venv (`libomp.dylib` missing: `brew install libomp`). Churn then uses the 5 rules.
+- LightGBM needs OpenMP. On macOS `setup.sh` now installs `libomp` with Homebrew when the ML requirements are installed (it was missing and churn fell back to the 5 rules).
 - Similar-task suggestions need `imputations.task_id`; time logged without a task does not count.
 - 8 old `ai_usage_logs` rows from before the fix are marked `success=true` although they were warnings.
 - `/bi/kpi` WebSocket pushes need Redis; without it `bi_kpi_push` computes and drops the snapshot.
@@ -2771,7 +2772,7 @@ If the chosen provider fails, every other active provider is tried once. If none
 **Cross-cutting LLM limitations (measured):**
 - **`AI_MODEL` is effectively required for the `.env` provider.** Without it, the literal model name `"default"` is sent.
 - **Temperature 0.0 is honoured** since 2026-11-04 (it used to become 0.7). 0.7 is used only when the provider has no temperature set. Ollama now receives the temperature and records its token counts (`prompt_eval_count`/`eval_count`).
-- **Timeouts are settings** (since 2026-11-04, Admin → Settings → `ai`): `AI_HTTP_TIMEOUT_SECONDS` 60, `AI_LOCAL_HTTP_TIMEOUT_SECONDS` 120 (Ollama), `AI_AGENT_TURN_TIMEOUT_SECONDS` 90, `AI_MODELS_LIST_TIMEOUT_SECONDS` 30. The `ai_providers.timeout_seconds` column is still never read: no API or screen sets it, and its default of 30 s would cut local models short.
+- **Timeouts are settings** (since 2026-11-04, Admin → Settings → **Timeouts**): `OUTBOUND_AI_TIMEOUT_SECONDS` 60 (cloud providers and the legacy Anthropic paths; it was 30 and only used by the latter), `AI_LOCAL_HTTP_TIMEOUT_SECONDS` 120 (Ollama), `AI_AGENT_TURN_TIMEOUT_SECONDS` 90, `AI_MODELS_LIST_TIMEOUT_SECONDS` 30. The `ai_providers.timeout_seconds` column is still never read: no API or screen sets it, and its default of 30 s would cut local models short.
 - **No retries.** Any exception marks the provider `status="error"`, and it is excluded from selection until an admin edits, tests or syncs it.
 - **Usage and cost go to `ai_usage_logs`,** using catalog prices. Models that "Sync models" discovers but that are not in the catalog cost $0, and Ollama is always $0. `AI_COST_ALERT_USD_PER_DAY` only writes a log warning.
 - **PII redaction is regex-based** (`app/services/ai_governance.py`). It applies only if the organization has active `AIGuardrailPolicy` rows. None are seeded and there is no UI to create them, so by default nothing is redacted. It checks only the last user message, not the system prompt, which carries the tenant data context.
@@ -3206,7 +3207,7 @@ There are no filters.
   - Click a project for a radar chart, the recommendation and the delay estimate.
 - Tab **🤖 Predicciones ML:** KPIs, at-risk projects, **Entrenar ahora**, Versiones del modelo and Historial de predicciones.
 
-**Configuration.** No thresholds are configurable. `AI_REVENUE_HOURLY_RATE_FALLBACK` (85) is used only for the ML features.
+**Configuration.** Admin → Settings → **Riesgo del proyecto** (group `risk`, since 2026-11-04): the four weights, the level thresholds, the schedule, budget, scope and resource factors, the delay probability, the cache minutes (`RISK_CACHE_MINUTES`, 60) and the history points (`RISK_HISTORY_POINTS`, 12). `AI_REVENUE_HOURLY_RATE_FALLBACK` (85) is the last-resort hourly cost.
 
 **Technical notes.**
 - **Signal score** (`app/api/v1/endpoints/cab.py`, `cab_service.compute_risk_score`). This is **a weighted heuristic, not ML or LLM**.
@@ -3236,12 +3237,12 @@ There are no filters.
   - Worker `ml-model-retrain` runs on day 1 of each month at 03:00.
 
 **Limitations (measured).**
-- **Every threshold and weight is hardcoded.** The detail's `history` is an empty stub. `overloaded_members` is measured since 2026-11-04: people who logged time on the project in the last 4 weeks and whose total hours (all projects) exceed their capacity.
-- **Opening a project's detail writes a row.** The detail GET recomputes and inserts a `project_risk_scores` row on every click; the table is never pruned.
+- **Thresholds and weights are settings** (see Configuration). The detail shows the score history (one point per change). `overloaded_members` is measured since 2026-11-04: people who logged time on the project in the last 4 weeks and whose total hours (all projects) exceed their capacity.
+- **The detail writes a row only when the score changes** or the last one is older than the cache (it used to insert one per click). The table is never pruned.
 - **Training label and cost feature in euros** (fixed 2026-11-04). Both used to fall back to summing **hours** against a budget in euros when `cost_amount` was empty; they now use the same internal cost as NexusOracle and profitability.
 - **Team load is measured** (fixed 2026-11-04; it was a fixed 85, so "team overloaded" could never fire). It is the total hours of the people who logged time on the project in the last 4 weeks against their weekly capacity. With nobody logging time, no load rule applies.
 - **Projects without data are not "low risk"** (fixed 2026-11-04). A project with no tasks, or a prediction error, is reported in `without_data` and shown under the KPIs.
-- **Each portfolio-risk GET writes one log row per project.**
+- **The ML prediction history records changes only** (since 2026-11-04; each portfolio view used to write one row per project).
 
 ### Data Export — `/exports`
 *Roles:* admin, pm, hr (route). Backend: imputations use `get_current_user`; projects use `require_any_manager`.
@@ -4433,12 +4434,16 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 - `POST /bookings/api-keys/verify` (unauthenticated) uses the same check and counts as a use.
 
 **Limitations (measured).**
-- **`/oauth-integrations/{id}/sync` is partly simulated** (`cab_service.py`):
-  - **github/gitlab** writes **fake commit links** for up to 5 tasks: `external_id="demo_<code>"`, URL `…/commit/abc123def456`, author `developer@empresa.com`.
-  - **google_calendar/outlook** writes local calendar events from sprints. It is labelled "Simulate" and does not call Google or Microsoft.
-  - **quickbooks/xero** only counts sent invoices.
-  - **jira** calls Jira.
-  - **slack/teams** sync does nothing.
+- **`/oauth-integrations/{id}/sync` calls the real services** (since 2026-11-04, `cab_service.sync_*`; it used to be simulated and invent data):
+  - **github**: reads the repository's last 50 pull requests (`GET /repos/{repo}/pulls`) and processes each one like the webhook does (`git_service.handle_github_pr`): it records the PR, links it to the task named in the branch or title, and a merged PR closes its task. **gitlab** has no pull sync: it works through the Git webhook.
+  - **google_calendar**: publishes every sprint with dates as an all-day event in the configured calendar; later syncs update the same event (by Google's id) instead of duplicating it. **outlook** goes through Microsoft 365.
+  - **quickbooks/xero**: sends the sent invoices not yet synced, with the same code as Accounting → bulk push.
+  - **jira**: brings each linked issue's status into its task (Done, In Progress, To Do, In Review).
+  - **slack/teams**: there is nothing to sync; the button answers 400 and points to "Probar".
+  - If the provider fails and nothing was synced, the call answers 400 with the provider's error (it used to say "Sincronización completada").
+  - Migration `124_integraciones_reales` deletes the commit links and calendar events the old simulation had invented.
+  - Not verified against the real GitHub, Google, Xero, QuickBooks or Jira: the tests replace them with doubles (`tests/test_integraciones_reales.py`).
+- **Secrets were read encrypted** (fixed 2026-11-04). Integration secrets (`access_token`, `api_token`, `webhook_url`) are stored encrypted, and three readers used them without decrypting: Slack/Teams event notices, the automations' Slack/Teams actions, and Accounting's Xero/QuickBooks calls. They now decrypt.
 - SAML is not implemented and no longer offered (see SSO above).
 - **Outbound webhooks** (`/api/v1/enterprise/webhooks[/{id}[/test|/deliveries]]`, `/enterprise/webhooks/events`; tables `webhooks`, `webhook_deliveries`) are **API-only**: no screen calls them. Delivery happens in `app/worker.py`, signed with HMAC (`services/webhooks._sign_payload`) and re-checked against SSRF at send time. It requires the worker to be running.
 

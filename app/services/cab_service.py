@@ -10,10 +10,10 @@ Provides:
   - AVAILABLE_WIDGETS         — dashboard widget catalog
   - default_widget_layout     — default layout by role
   - compute_risk_score        — rule-based project risk engine
-  - sync_git_commits          — GitHub/GitLab commit sync
-  - sync_calendar             — Google Calendar / Outlook sync
-  - sync_accounting           — QuickBooks/Xero sync
-  - sync_jira                 — Jira bidirectional sync
+  - sync_git_commits          — GitHub: pull requests reales
+  - sync_calendar             — Google Calendar: sprints como eventos
+  - sync_accounting           — QuickBooks/Xero: envio de facturas
+  - sync_jira                 — Jira → tareas: estado
 """
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ import json
 import logging
 import re
 from datetime import date, datetime, timedelta, timezone
+from types import SimpleNamespace
 from typing import Optional
 
 from sqlalchemy import func
@@ -62,7 +63,7 @@ from app.models.service_desk import Ticket
 from app.models.sprints import Sprint
 from app.models.user import User as UserModel
 from app.services.audit import audit_log
-from app.services.integrations import get_jira_issue, update_jira_issue
+from app.services.integrations import get_jira_issue
 from collections import defaultdict
 from fastapi import HTTPException
 from sqlalchemy import or_ as _or
@@ -275,7 +276,31 @@ def default_widget_layout(role: str) -> list:
 
 # ─── Project risk scoring ─────────────────────────────────────────────────────
 
-def _risk_schedule(db: Session, project: Project, today: date) -> float:
+_CLAVES_DE_RIESGO = {
+    "RISK_WEIGHT_SCHEDULE": "float", "RISK_WEIGHT_BUDGET": "float",
+    "RISK_WEIGHT_SCOPE": "float", "RISK_WEIGHT_RESOURCE": "float",
+    "RISK_LEVEL_CRITICAL": "float", "RISK_LEVEL_HIGH": "float", "RISK_LEVEL_MEDIUM": "float",
+    "RISK_SCHEDULE_FACTOR": "float", "RISK_BUDGET_WARN_PCT": "float",
+    "RISK_BUDGET_WARN_FACTOR": "float", "RISK_BUDGET_OVER_FACTOR": "float",
+    "RISK_POINTS_PER_OPEN_CR": "float", "RISK_POINTS_PER_HIGH_RISK": "float",
+    "RISK_DELAY_FACTOR": "float", "RISK_DELAY_MAX_PCT": "float", "RISK_DELAY_PCT_PER_WEEK": "float",
+    "RISK_CACHE_MINUTES": "int", "RISK_HISTORY_POINTS": "int",
+}
+
+
+def _ajustes_de_riesgo(db: Session, org_id=None) -> SimpleNamespace:
+    """Pesos y umbrales de la puntuacion (Admin → Ajustes → risk; si no, `.env`).
+
+    Revision 2026-11: estaban escritos en las funciones de abajo. Se leen una
+    vez por calculo, no una por regla.
+    """
+    from app.services.settings_service import get_runtime_namespace
+    leidos = get_runtime_namespace(db, _CLAVES_DE_RIESGO, org_id)
+    return SimpleNamespace(**{
+        k: (getattr(leidos, k, None) if getattr(leidos, k, None) is not None else getattr(settings, k))
+        for k in _CLAVES_DE_RIESGO})
+
+def _risk_schedule(db: Session, project: Project, today: date, aj=None) -> float:
     """Compute schedule risk component (0-100)."""
     if not (project.start_date and project.end_date_planned):
         return 0.0
@@ -290,40 +315,44 @@ def _risk_schedule(db: Session, project: Project, today: date) -> float:
     ).scalar() or 0
     completion_pct = done_tasks / total_tasks * 100
     behind_pct = max(time_pct - completion_pct, 0)
-    return min(behind_pct * 1.5, 100)
+    aj = aj or _ajustes_de_riesgo(db, project.organization_id)
+    return min(behind_pct * aj.RISK_SCHEDULE_FACTOR, 100)
 
 
-def _risk_budget(db: Session, project: Project) -> float:
+def _risk_budget(db: Session, project: Project, aj=None) -> float:
     """Compute budget risk component (0-100)."""
     if not (project.budget_amount and project.budget_amount > 0):
         return 0.0
     # Coste interno real (antes horas × 80 €/h escrito aqui).
     from app.services.ml_features import coste_real
     budget_pct = coste_real(db, project.id) / project.budget_amount * 100
+    aj = aj or _ajustes_de_riesgo(db, project.organization_id)
     if budget_pct > 100:
-        return min((budget_pct - 100) * 2, 100)
-    if budget_pct > 85:
-        return (budget_pct - 85) * 3
+        return min((budget_pct - 100) * aj.RISK_BUDGET_OVER_FACTOR, 100)
+    if budget_pct > aj.RISK_BUDGET_WARN_PCT:
+        return min((budget_pct - aj.RISK_BUDGET_WARN_PCT) * aj.RISK_BUDGET_WARN_FACTOR, 100)
     return 0.0
 
 
-def _risk_scope(db: Session, project: Project) -> float:
+def _risk_scope(db: Session, project: Project, aj=None) -> float:
     """Compute scope risk (open CRs)."""
     open_crs = db.query(func.count(ChangeRequest.id)).filter(
         ChangeRequest.project_id == project.id,
         ChangeRequest.status.in_(["submitted", "under_review"]),
     ).scalar() or 0
-    return min(open_crs * 20, 100)
+    aj = aj or _ajustes_de_riesgo(db, project.organization_id)
+    return min(open_crs * aj.RISK_POINTS_PER_OPEN_CR, 100)
 
 
-def _risk_resource(db: Session, project: Project) -> float:
+def _risk_resource(db: Session, project: Project, aj=None) -> float:
     """Compute resource risk (open high-priority risks)."""
     high_risks = db.query(func.count(Risk.id)).filter(
         Risk.project_id == project.id,
         Risk.status.in_(["identified", "analyzing", "mitigating", "monitoring"]),
         Risk.probability.in_(["high", "very_high"]),
     ).scalar() if hasattr(Risk, 'project_id') else 0
-    return min((high_risks or 0) * 25, 100)
+    aj = aj or _ajustes_de_riesgo(db, project.organization_id)
+    return min((high_risks or 0) * aj.RISK_POINTS_PER_HIGH_RISK, 100)
 
 
 def _risk_recommendation(level: str) -> str:
@@ -343,29 +372,32 @@ def compute_risk_score(db: Session, project: Project) -> dict:
     Rule-based risk scoring. Returns score components and overall risk level.
     """
     today = timeutil.today()
+    aj = _ajustes_de_riesgo(db, project.organization_id)
     score = {
-        "schedule_risk": round(_risk_schedule(db, project, today), 1),
-        "budget_risk": round(_risk_budget(db, project), 1),
-        "scope_risk": _risk_scope(db, project),
-        "resource_risk": _risk_resource(db, project),
+        "schedule_risk": round(_risk_schedule(db, project, today, aj), 1),
+        "budget_risk": round(_risk_budget(db, project, aj), 1),
+        "scope_risk": _risk_scope(db, project, aj),
+        "resource_risk": _risk_resource(db, project, aj),
         # Antes siempre 0: quienes imputan al proyecto y pasan de su capacidad.
         "overloaded_members": carga_del_equipo(db, project.id, today)["overloaded_members"],
     }
 
     overall = (
-        score["schedule_risk"] * 0.40 +
-        score["budget_risk"] * 0.30 +
-        score["scope_risk"] * 0.15 +
-        score["resource_risk"] * 0.15
+        score["schedule_risk"] * aj.RISK_WEIGHT_SCHEDULE +
+        score["budget_risk"] * aj.RISK_WEIGHT_BUDGET +
+        score["scope_risk"] * aj.RISK_WEIGHT_SCOPE +
+        score["resource_risk"] * aj.RISK_WEIGHT_RESOURCE
     )
     score["overall_score"] = round(overall, 1)
 
-    level = "critical" if overall >= 75 else "high" if overall >= 50 else "medium" if overall >= 25 else "low"
+    level = ("critical" if overall >= aj.RISK_LEVEL_CRITICAL else "high" if overall >= aj.RISK_LEVEL_HIGH
+             else "medium" if overall >= aj.RISK_LEVEL_MEDIUM else "low")
     score["level"] = level
 
-    delay_prob = min(overall * 0.8, 95)
+    delay_prob = min(overall * aj.RISK_DELAY_FACTOR, aj.RISK_DELAY_MAX_PCT)
+    por_semana = aj.RISK_DELAY_PCT_PER_WEEK or 1
     score["delay_probability_pct"] = round(delay_prob, 1)
-    score["predicted_delay_weeks"] = round(delay_prob / 20, 1) if delay_prob > 20 else None
+    score["predicted_delay_weeks"] = round(delay_prob / por_semana, 1) if delay_prob > por_semana else None
     score["recommendation"] = _risk_recommendation(level)
 
     return score
@@ -373,96 +405,130 @@ def compute_risk_score(db: Session, project: Project) -> dict:
 
 # ─── Integration sync helpers ─────────────────────────────────────────────────
 
-def sync_git_commits(db: Session, config, payload: dict):
-    """Simulate GitHub/GitLab commit sync."""
-    cfg = decrypt_config_secrets(json.loads(config.config or "{}"))
-    repo = cfg.get("repo", "org/repo")
-    task_pattern = re.compile(r'([A-Z]{2,5}-\d{3}-T\d{3})', re.IGNORECASE)  # noqa: F841
+# Revision 2026-11: `sync_git_commits`, `sync_calendar` y `sync_accounting`
+# eran simulaciones: creaban enlaces a commits inventados
+# («abc123def456», «developer@empresa.com») en las cinco primeras tareas,
+# eventos de calendario que no se enviaban a ningun sitio y una cuenta de
+# facturas que no se mandaban. `sync_jira` reescribia el titulo y nunca traia
+# el estado. Ahora cada una llama al servicio de verdad, o dice que no puede.
 
-    tasks = db.query(Task).options(joinedload(Task.project)).filter(Task.code != None).limit(5).all()
+def _config_de(config) -> dict:
+    """La configuracion de la integracion, con sus secretos descifrados."""
+    from app.core.encryption import decrypt_value
+    cfg = decrypt_config_secrets(json.loads(config.config or "{}"))
+    if not cfg.get("access_token") and config.access_token:
+        cfg["access_token"] = decrypt_value(config.access_token) or config.access_token
+    return cfg
+
+
+def _espera(db: Session) -> float:
+    from app.services.settings_service import outbound_http_timeout
+    return outbound_http_timeout(db)
+
+
+def sync_git_commits(db: Session, config, payload: dict):
+    """GitHub: trae los pull requests del repositorio y los procesa como el webhook."""
+    import httpx
+    from app.services.git_service import handle_github_pr
+    if config.integration_type != "github":
+        return 0, ["GitLab se integra por webhook: Configuración → Git."]
+    cfg = _config_de(config)
+    repo, token = (cfg.get("repo") or "").strip(), cfg.get("access_token")
+    if not repo or not token:
+        return 0, ["Faltan el repositorio (owner/repo) o el token."]
+    try:
+        r = httpx.get(f"https://api.github.com/repos/{repo}/pulls",
+                      params={"state": "all", "per_page": 50},
+                      headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+                      timeout=_espera(db))
+    except httpx.HTTPError as exc:
+        return 0, [f"GitHub: {exc}"[:200]]
+    if r.status_code != 200:
+        return 0, [f"GitHub {r.status_code}: {r.text[:150]}"]
     synced = 0
-    for task in tasks:
-        if task.code:
-            existing = db.query(CommitLink).filter(
-                CommitLink.task_id == task.id,
-                CommitLink.external_id == f"demo_{task.code}",
-            ).first()
-            if not existing:
-                db.add(CommitLink(
-                    task_id=task.id,
-                    integration_id=config.id,
-                    link_type="commit",
-                    external_id=f"demo_{task.code}",
-                    title=f"feat: implement {task.title[:50]}",
-                    url=f"https://github.com/{repo}/commit/abc123def456",
-                    author="developer@empresa.com",
-                    state="merged",
-                ))
-                synced += 1
+    for pr in r.json():
+        pr = dict(pr, merged=bool(pr.get("merged_at")))
+        handle_github_pr(db, {"action": "closed" if pr.get("closed_at") else "opened",
+                              "pull_request": pr, "repository": {"full_name": repo}})
+        synced += 1
     db.flush()
     return synced, []
 
 
 def sync_calendar(db: Session, config, payload: dict):
-    """Simulate Google Calendar / Outlook sync."""
-    sprints = db.query(Sprint).filter(
-        Sprint.start_date != None,
-        Sprint.end_date != None,
-    ).limit(10).all()
-    synced = 0
+    """Google Calendar: publica los sprints con fechas como eventos de dia completo.
+
+    Cada evento se recuerda por su id de Google: la siguiente vez se actualiza
+    en vez de duplicarse.
+    """
+    import httpx
+    if config.integration_type != "google_calendar":
+        return 0, ["Outlook se integra con Microsoft 365: Configuración → Microsoft 365."]
+    cfg = _config_de(config)
+    calendario, token = (cfg.get("calendar_id") or "primary").strip(), cfg.get("access_token")
+    if not token:
+        return 0, ["Falta el token de acceso de Google."]
+    base = f"https://www.googleapis.com/calendar/v3/calendars/{calendario}/events"
+    cabeceras = {"Authorization": f"Bearer {token}"}
+    sprints = db.query(Sprint).filter(Sprint.start_date != None, Sprint.end_date != None).all()
+    ya = {e.sprint_id: e for e in db.query(CalendarEvent).filter(
+        CalendarEvent.integration_id == config.id, CalendarEvent.sprint_id != None).all()}
+    synced, errors = 0, []
     for sprint in sprints:
-        external_id = f"contecflow_sprint_{sprint.id}"
-        existing = db.query(CalendarEvent).filter(
-            CalendarEvent.external_id == external_id
-        ).first()
-        if not existing:
+        cuerpo = {"summary": f"Sprint: {sprint.name}",
+                  "start": {"date": sprint.start_date.isoformat()},
+                  "end": {"date": (sprint.end_date + timedelta(days=1)).isoformat()}}
+        previo = ya.get(sprint.id)
+        try:
+            if previo:
+                r = httpx.put(f"{base}/{previo.external_id}", json=cuerpo, headers=cabeceras, timeout=_espera(db))
+            else:
+                r = httpx.post(base, json=cuerpo, headers=cabeceras, timeout=_espera(db))
+        except httpx.HTTPError as exc:
+            errors.append(f"Google: {exc}"[:200])
+            continue
+        if r.status_code not in (200, 201):
+            errors.append(f"Google {r.status_code}: {r.text[:150]}")
+            continue
+        if previo is None:
             db.add(CalendarEvent(
-                integration_id=config.id,
-                external_id=external_id,
-                title=f"Sprint: {sprint.name}",
+                integration_id=config.id, external_id=r.json().get("id"),
+                title=cuerpo["summary"], all_day=True, sprint_id=sprint.id, project_id=sprint.project_id,
                 start_dt=datetime.combine(sprint.start_date, datetime.min.time()),
                 end_dt=datetime.combine(sprint.end_date, datetime.min.time()),
-                all_day=True,
-                sprint_id=sprint.id,
-                project_id=sprint.project_id,
                 sync_direction="push",
             ))
-            synced += 1
+        synced += 1
     db.flush()
-    return synced, []
+    return synced, errors
 
 
 def sync_accounting(db: Session, config, payload: dict):
-    """Simulate QuickBooks/Xero sync."""
-    invoices = db.query(Invoice).filter(
-        Invoice.status == "sent",
-    ).limit(5).all()
-    synced = len(invoices)
-    return synced, []
+    """Xero / QuickBooks: envia las facturas pendientes (lo mismo que Contabilidad)."""
+    from app.services.accounting_hub_service import enviar_facturas_pendientes
+    filas = enviar_facturas_pendientes(db, config.integration_type, _config_de(config))
+    errores = [f"{f['invoice_number']}: {f.get('error')}"[:200] for f in filas if f["status"] == "error"]
+    return sum(1 for f in filas if f["status"] == "synced"), errores
+
+
+_ESTADO_DESDE_JIRA = {"done": "done", "in progress": "in_progress", "to do": "todo", "in review": "in_review"}
 
 
 def sync_jira(db: Session, config, payload: dict):
-    """Sync Jira bidireccional: actualiza estados de tareas con jira_issue_key."""
-
-    cfg_dict = decrypt_config_secrets(json.loads(config.config or "{}"))
-    tasks_with_jira = db.query(Task).filter(Task.jira_issue_key != None).limit(50).all()
-
-    synced = 0
-    errors = []
-    STATUS_MAP = {
-        "done": "Done", "in_progress": "In Progress",
-        "todo": "To Do", "in_review": "In Review",
-    }
-    for task in tasks_with_jira:
+    """Jira → Contecflow: el estado de cada incidencia enlazada pasa a su tarea."""
+    cfg_dict = _config_de(config)
+    synced, errors = 0, []
+    for task in db.query(Task).filter(Task.jira_issue_key != None).limit(200).all():
         result = get_jira_issue(cfg_dict, task.jira_issue_key)
-        if result.get("ok"):
-            jira_status = result["data"].get("fields", {}).get("status", {}).get("name", "")
-            contecflow_status = STATUS_MAP.get(str(task.status).lower(), str(task.status))
-            if jira_status.lower() != contecflow_status.lower():
-                update_jira_issue(cfg_dict, task.jira_issue_key, {"summary": task.title})
-            synced += 1
-        elif "error" in result:
-            errors.append(f"{task.jira_issue_key}: {result['error'][:100]}")
+        if not result.get("ok"):
+            errors.append(f"{task.jira_issue_key}: {str(result.get('error', ''))[:100]}")
+            continue
+        nombre = (result["data"].get("fields", {}).get("status", {}).get("name") or "").lower()
+        nuevo = _ESTADO_DESDE_JIRA.get(nombre)
+        if nuevo and str(getattr(task.status, "value", task.status)) != nuevo:
+            task.status = nuevo
+        synced += 1
+    db.flush()
     return synced, errors[:5]
 
 
@@ -1213,11 +1279,17 @@ def run_integration_sync(integration_id: str, payload: dict, db: Session) -> dic
         synced, errors = sync_accounting(db, config, payload)
     elif config.integration_type == "jira":
         synced, errors = sync_jira(db, config, payload)
+    else:
+        # Slack y Teams solo envian avisos: no hay nada que sincronizar.
+        raise ValueError(f"La integración «{config.integration_type}» no tiene sincronización; usa «Probar».")
 
     config.last_sync_at = datetime.now(timezone.utc)
     config.sync_errors = len(errors)
     config.last_error = errors[0] if errors else None
     db.commit()
+    if errors and not synced:
+        # Antes respondia «ok» y la pantalla decia «Sincronización completada».
+        raise ValueError(errors[0])
     return {"ok": True, "synced": synced, "errors": errors[:5]}
 
 
@@ -1559,7 +1631,8 @@ def get_risk_scores(refresh: bool, db: Session) -> dict:
         cached = db.query(ProjectRiskScore).filter(
             ProjectRiskScore.project_id == project.id
         ).order_by(ProjectRiskScore.computed_at.desc()).first()
-        if not refresh and _is_risk_cache_fresh(cached):
+        ttl = _ajustes_de_riesgo(db, project.organization_id).RISK_CACHE_MINUTES
+        if not refresh and _is_risk_cache_fresh(cached, ttl):
             results.append(_serialize_cached_risk(project, cached))
             continue
         score_data = compute_risk_score(db, project)
@@ -1590,15 +1663,26 @@ def get_project_risk_score(project_id: str, db: Session) -> dict:
     if not project:
         raise ValueError("Proyecto no encontrado")
     score_data = compute_risk_score(db, project)
-    _persist_risk_score(db, project_id, score_data)
-    db.commit()
+    aj = _ajustes_de_riesgo(db, project.organization_id)
+    previas = db.query(ProjectRiskScore).filter(
+        ProjectRiskScore.project_id == project_id,
+    ).order_by(ProjectRiskScore.computed_at.desc()).limit(max(1, aj.RISK_HISTORY_POINTS)).all()
+    # Antes cada apertura del detalle insertaba una fila. Ahora solo si la
+    # puntuacion cambia o la ultima ya ha caducado: el historial es de cambios.
+    ultima = previas[0] if previas else None
+    if not (ultima and ultima.overall_score == score_data["overall_score"]
+            and _is_risk_cache_fresh(ultima, aj.RISK_CACHE_MINUTES)):
+        _persist_risk_score(db, project_id, score_data)
+        db.commit()
+    historial = [{"computed_at": str(r.computed_at)[:16], "overall_score": r.overall_score, "level": r.level}
+                 for r in reversed(previas)]
     return {
         "project_id": project_id,
         "project_name": project.name,
         "project_code": project.code,
         "client_name": project.client_name,
         **score_data,
-        "history": [],
+        "history": historial,
     }
 
 

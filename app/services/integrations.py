@@ -328,7 +328,9 @@ def notify_event(
 
     results = []
     for cfg in configs:
-        cfg_dict = json.loads(cfg.config or "{}")
+        from app.core.secret_utils import decrypt_config_secrets
+        # `webhook_url` se guarda cifrado: sin descifrar no llegaba ningun aviso.
+        cfg_dict = decrypt_config_secrets(json.loads(cfg.config or "{}"))
 
         # Verificar que el evento está suscrito
         subscribed = cfg_dict.get("events", [])
