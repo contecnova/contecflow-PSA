@@ -10,8 +10,8 @@ This README is the complete functional and technical documentation of the soluti
 | HTTP API routes | 2,051 (2,043 under `/api/v1`, 3 under `/api/v2`, 5 public) and 6 WebSockets |
 | Mapped database models | 395 (394 scoped by organization, 1 exempt) |
 | Alembic migrations | 71, one linear chain, head `117_esign_secretos_cifrados` |
-| Backend tests | 4,079 collected; last full run (2026-11-03) 4,055 passed, 22 skipped, 1 xfailed, 1 failed — that test was adapted to the bot change and passes on its own |
-| Frontend tests | 36 files, 123 tests, all passing |
+| Backend tests | Last full run (2026-11-04): 4,139 passed, 22 skipped, 1 xfailed, 2 failed — both structural checks on the new BPM endpoints, fixed in the next commit and passing on their own |
+| Frontend tests | 40 files, 130 tests, all passing |
 | Celery beat entries | 53 (over 35 tasks); `setup.sh`, `setup.bat` and Docker run them with Celery beat (APScheduler off) |
 | Runtime settings (editable in Admin) | 123 keys in 15 groups |
 | UI languages | Spanish, English, Chinese |
