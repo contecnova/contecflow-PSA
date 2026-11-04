@@ -97,7 +97,6 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     # ── Contenido deliberadamente público (portal/status page) ───────────────
     ("GET", "/api/v1/sd/status-page"): "página de estado pública",
     ("GET", "/api/v1/sd/status-page/embed.js"): "widget embebible de la página de estado",
-    ("GET", "/api/v1/sd/announcements"): "avisos públicos",
     ("GET", "/api/v1/collaboration/push/public-key"): "clave pública VAPID",
     ("GET", "/api/v1/collaboration/slash/help"): "ayuda estática de comandos",
     ("GET", "/api/v1/ai-governance/pii-types"): "catálogo estático de tipos de PII",

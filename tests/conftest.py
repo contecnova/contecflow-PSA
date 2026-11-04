@@ -170,9 +170,13 @@ def fila_global(sesion):
     los salta el sellado, así que esos no lo necesitan.
     """
     previo = sesion.info.pop("organization_id", None)
+    # Auditoria 2026-11: sin organizacion en la sesion el sellado la deriva del
+    # proyecto o del usuario de la fila; esta marca lo impide aqui.
+    sesion.info["fila_global"] = True
     try:
         yield sesion
     finally:
+        sesion.info.pop("fila_global", None)
         if previo is not None:
             sesion.info["organization_id"] = previo
 

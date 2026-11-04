@@ -18,12 +18,16 @@ def list_active_announcements(
     page: int,
     page_size: int,
     response: Optional[Response] = None,
+    solo_clientes: bool = False,
 ) -> List[Announcement]:
     now = datetime.now(timezone.utc)
     q = db.query(Announcement).filter(
         Announcement.is_active == True,
         or_(Announcement.ends_at == None, Announcement.ends_at > now),
-    ).order_by(Announcement.created_at.desc())
+    )
+    if solo_clientes:
+        q = q.filter(Announcement.show_to_clients == True)
+    q = q.order_by(Announcement.created_at.desc())
     announcements, _, _ = paginate_query(q, page, page_size, response)
     return announcements
 

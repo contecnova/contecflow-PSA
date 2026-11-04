@@ -337,6 +337,9 @@ def build_client_portal_ticket(db: Session, payload: TicketCreateIn, client: Cli
         impact=payload.impact,
         priority=priority,
         project_id=client.project_id,
+        # Auditoria 2026-11: el ticket del portal quedaba sin organizacion y no
+        # contaba en el panel del cliente (ni en el de la organizacion).
+        organization_id=getattr(client, "organization_id", None),
         client_id=client.client_org_id,
         contract_id=payload.contract_id,
         ci_id=payload.ci_id,

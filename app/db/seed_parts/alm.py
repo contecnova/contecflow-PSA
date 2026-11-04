@@ -17,7 +17,8 @@ def seed_alm() -> None:
     from app.models.service_desk import ConfigurationItem
     from app.models.user import User
 
-    db = SessionLocal()
+    from app.db.seed_parts._sesion import sesion_de_siembra
+    db = sesion_de_siembra()
     try:
         if db.query(ALMVendor).first():
             return

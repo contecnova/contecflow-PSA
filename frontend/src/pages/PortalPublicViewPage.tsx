@@ -18,7 +18,9 @@ export default function PortalPublicViewPage(): JSX.Element {
   const { token } = useParams<{ token: string }>()
   const { data, isLoading, error } = useQuery<PortalPublicView>({
     queryKey: ['portal-public-view', token],
-    queryFn: () => API.get(`/portal/view/${token}`).then(r => r.data),
+    // Auditoría 2026-11: la respuesta es {data: {...}, meta}; se leía `r.data.project`
+    // y la página salía vacía.
+    queryFn: () => API.get(`/portal/view/${token}`).then(r => (r.data?.data ?? r.data) as PortalPublicView),
     enabled: !!token,
   })
 

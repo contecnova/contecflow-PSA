@@ -17,7 +17,8 @@ def seed_v10():
     from app.db.session import engine as _eng_v10
     Base.metadata.create_all(bind=_eng_v10)
 
-    db = SessionLocal()
+    from app.db.seed_parts._sesion import sesion_de_siembra
+    db = sesion_de_siembra()
     print("  Seeding v10 modules: Sprints, Expenses, Automations...")
 
     admin = db.query(User).filter(User.username == "admin").first()

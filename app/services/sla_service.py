@@ -657,6 +657,9 @@ def ticket_out(t: "Ticket", include_comments: bool = False, include_internal: bo
     result = {
         "id": t.id,
         "number": t.number,
+        # Auditoria 2026-11: el portal mostraba las estrellas de satisfaccion solo
+        # con `csat_requested_at`, que no venia nunca: no se podia valorar.
+        "csat_requested_at": t.csat_requested_at.isoformat() if getattr(t, "csat_requested_at", None) else None,
         "ticket_type": t.ticket_type,
         "type_label": typ["label"],
         "type_icon": typ["icon"],

@@ -17,7 +17,8 @@ def seed_itsm_v2():
     # Asegurar que todas las tablas nuevas existen (migraciones implícitas)
     Base.metadata.create_all(bind=_engine)
 
-    db = SessionLocal()
+    from app.db.seed_parts._sesion import sesion_de_siembra
+    db = sesion_de_siembra()
 
     if db.query(RoutingRule).count() > 0:
         db.close()

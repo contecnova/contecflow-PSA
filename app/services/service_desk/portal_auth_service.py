@@ -49,8 +49,15 @@ def get_current_portal_client(
     - Es imposible olvidar la llamada o descartar su valor de retorno, que es
       exactamente el fallo que provocó los IDOR de CSAT y comentarios de portal
       (auditoría 2026-07, docs/AUDIT_2026_07_FULL.md §1.1 y §1.2).
+
+    Auditoria 2026-11: publica la organizacion del cliente en la sesion, como
+    `get_portal_client_or_user`. Sin esto lo que creaba el portal (tickets)
+    quedaba sin organizacion.
     """
-    return require_portal_client(authorization, portal_access_token, db)
+    from app.db.session import publicar_contexto_de_tenant
+    cliente = require_portal_client(authorization, portal_access_token, db)
+    publicar_contexto_de_tenant(db, cliente, es_cliente=True)
+    return cliente
 
 
 class Lector:

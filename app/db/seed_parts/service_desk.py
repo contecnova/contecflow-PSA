@@ -20,7 +20,8 @@ def seed_service_desk():
     from app.db.base import Base as _Base
     from app.db.session import engine as _eng
     _Base.metadata.create_all(bind=_eng)
-    db = SessionLocal()
+    from app.db.seed_parts._sesion import sesion_de_siembra
+    db = sesion_de_siembra()
 
     if db.query(ServiceCategory).count() > 0:
         db.close()

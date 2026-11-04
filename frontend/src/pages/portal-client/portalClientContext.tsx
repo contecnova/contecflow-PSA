@@ -142,7 +142,9 @@ function _pickClientUiFields(client: ClienteDelPortal | null) {
     can_request_changes,
     can_view_budget,
     can_view_team,
-  } = client
+    phone,
+    job_title,
+  } = client as ClienteDelPortal & { phone?: string | null; job_title?: string | null }
   return {
     id,
     email,
@@ -158,6 +160,10 @@ function _pickClientUiFields(client: ClienteDelPortal | null) {
     can_request_changes: Boolean(can_request_changes),
     can_view_budget: Boolean(can_view_budget),
     can_view_team: Boolean(can_view_team),
+    // Auditoría 2026-11: sin estos dos, el perfil se abría vacío y al guardar
+    // los borraba.
+    phone: phone ?? null,
+    job_title: job_title ?? null,
   }
 }
 

@@ -21,7 +21,8 @@ def seed_v13():
     from app.db.base import Base as _Base
     from app.db.session import engine as _eng
     _Base.metadata.create_all(bind=_eng)
-    db = SessionLocal()
+    from app.db.seed_parts._sesion import sesion_de_siembra
+    db = sesion_de_siembra()
     print("  Seeding v13 modules...")
 
     if db.query(SLASchedule).count() > 0:

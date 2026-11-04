@@ -1760,7 +1760,7 @@ General notes that apply to every module here:
    - **UAT**: list sessions, submit results, report issues. Uses `GET /portal/uat`, `POST /portal/uat/{id}/submit-result`, `POST /portal/uat/{id}/issues`.
    - **Solicitudes** (feature requests): create, edit, decide on a quote, withdraw. Uses `/portal/feature-requests`, `…/{id}/decide`, `…/{id}/withdraw`.
    - **Service Desk**: my tickets, new ticket from the public catalog or dynamic forms, comments, CSAT, and knowledge-base suggestions with deflection tracking. Uses `/sd/tickets/client*`, `/sd/catalog?public_only=true`, `/sd/dynamic-forms/public`, `/sd/kb*`, `/sd/announcements`. These belong to the Service Desk section.
-   - **Mensajes**: `/portal/collaboration/conversations|messages`.
+   - **Mensajes**: chat (`/portal/collaboration/conversations|messages`) and the *Solicitudes formales* tab: governed conversations with the team (`/portal/conversations`, create, message, bot reply).
    - **Documentos**: list and sign. `POST /portal/documents/{id}/sign` records name, job title, IP and timestamp and generates a signature PDF. It is a click-to-sign record, not a qualified e-signature.
    - **Wiki**: `/portal/wiki/pages`.
    - **Facturas**: list, approve or reject (`GET /portal/invoices`, `POST /portal/invoices/{id}/approve`).
@@ -1773,6 +1773,20 @@ General notes that apply to every module here:
 - **Organization.** Portal users now inherit their client's organization on both creation paths (`89bd5c1` and `bdd6fdf`), so the portal's organization filter no longer hides their projects ("El proyecto asignado no existe").
 - **Not re-verified.** I did not re-run these fixes in a browser for this README. The commit message says they were checked in the browser and with 139 portal and client tests.
 
+**Review of 2026-11-04 (measured with the demo client on a copy of the database).** Every route the portal calls exists, the 24 reads return 200, and data stays within the client's projects (another project's id gives 403, another client's ticket 404, no cookie 401). Fixed:
+- **The client saw almost nothing.** The demo seed and everything a superadmin created had no organization, and the organization filter hid it: the dashboard showed 0 hours, 0 milestones, 0 deliverables, 0 tickets; UAT, documents, surveys, the public knowledge base and the catalogue were empty. Now the seed publishes its organization, rows without one take it from their project or user (`db/session.py: _org_del_registro`), and migration 123 fixes existing data. Measured after the migration: 465 h, 3 milestones, 3 deliverables, 1 open ticket; 3 public KB articles and 4 catalogue items.
+- Tickets created in the portal now carry the client's organization (the portal Service Desk dependency did not publish it), so they count in the dashboard and CSAT.
+- **Requests could not be edited or withdrawn** (always 400) and the buttons never showed: the status comparison used `str()` of an enum.
+- **CSAT stars never showed**: the ticket detail lacked `csat_requested_at`.
+- **Invoice approve/reject buttons never showed**: `client_approval_status` did not exist. Now a sent invoice is *pending* until the client decides; the decision is stored (migration 123).
+- **The public share page was empty** (it read the response without unwrapping `{data}`).
+- **Saving the profile erased phone and job title** (they were not loaded into the form; `/portal/auth/me` did not return the phone).
+- The password rule on screen said 6 characters; the server requires 8. It now says 8.
+- **`GET /sd/announcements` needed no login** and returned internal announcements of every organization. It now requires a user or a portal client, and clients get only `show_to_clients` ones.
+- Signed documents now return `signed_at`.
+- The conversations router was mounted twice, once with a doubled prefix (`/portal/conversations/conversations/…`). Only the working mount remains.
+Still open: times are shown in UTC; the profile password change does not ask for the current password; `GET /portal/documents/{id}/signed-pdf` has no button; the wiki has no content to show in the demo.
+
 **Configuration.**
 - `CLIENT_PORTAL_SECRET` is required. In staging and production it must be at least 32 characters and not a placeholder.
 - `CLIENT_TOKEN_EXPIRE_HOURS`, `PORTAL_SHARE_LINK_EXPIRE_HOURS` (both default 72), `COLLAB_PORTAL_MESSAGE_PER_MIN` (default 25).
@@ -1781,7 +1795,7 @@ General notes that apply to every module here:
 
 **Technical notes.**
 - **Tables:** `client_users`, `client_user_projects`, `client_portal_configs`, `client_surveys`, `client_messages`, and the UAT, feature-request and document tables of `app/models/client_portal.py`.
-- **Router:** `app/api/v1/endpoints/client_portal.py`, service `app/services/client_portal_service.py`. Conversations are mounted twice: `/portal/conversations` (current) and `/portal` (legacy, hidden from the schema).
+- **Router:** `app/api/v1/endpoints/client_portal.py`, service `app/services/client_portal_service.py`. Conversations: `/portal/conversations/*` (one mount since 2026-11-04). WebSockets: `/ws/portal-ticket`, `/ws/portal-notifications`.
 - **Base URL.** `CLIENT_API` uses a hardcoded `baseURL: '/api/v1'` and ignores `VITE_API_URL`, unlike the main client.
 
 **Limitations (measured).**
@@ -1799,7 +1813,7 @@ General notes that apply to every module here:
 
 **Limitations.**
 - **No screen creates the link.** There is no frontend call to `/portal/share-link`.
-- **The page probably shows nothing.** It uses a bare axios instance with no envelope unwrapping. The endpoint returns `APIResponse.ok(data={project, milestones, deliverables})`, i.e. `{data, meta}`, while the page reads `data.project`, `data.milestones` and `data.deliverables` from the raw body. Reading the code, it would show the fallback project name and empty lists. This is the same class of defect fixed for login in `89bd5c1`. Not verified in a browser; there is no frontend test for this page.
+- ~~The page shows nothing.~~ Fixed 2026-11-04: it unwraps `{data, meta}`. (Old note, kept for context: it read `data.project`, `data.milestones` and `data.deliverables` from the raw body. Reading the code, it would show the fallback project name and empty lists. This is the same class of defect fixed for login in `89bd5c1`. Not verified in a browser; there is no frontend test for this page.
 
 ### Client portal administration (internal) — `/client-portal`
 *Roles:* admin, pm. Component: `pages/ClientPortalPage.tsx`.

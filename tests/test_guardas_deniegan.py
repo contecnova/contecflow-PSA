@@ -116,7 +116,11 @@ RUTAS = _rutas_guardadas()
 # 989 desde 2026-11-04: entran las escrituras del motor BPMN —arrancar
 # (/bpmn-processes/{id}/instances) y cancelar (admin o PM), y completar un paso
 # (usuario interno)—.
-RUTAS_ESPERADAS = 989
+# 983 desde 2026-11-04 (tarde): salen 6 duplicados con guarda de
+# /portal/conversations/conversations/team/... (un segundo montaje del router de
+# conversaciones con el prefijo repetido); las 6 de /portal/conversations/team
+# siguen.
+RUTAS_ESPERADAS = 983
 
 
 def test_se_sondean_todas_las_rutas_con_guarda():

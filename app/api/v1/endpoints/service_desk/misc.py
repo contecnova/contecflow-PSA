@@ -1,6 +1,6 @@
 """Service Desk — Miscellaneous subdomain router (catalog, groups, problems, announcements, routing, changes, major incidents, assets, status page)."""
 from fastapi import APIRouter, Depends, Query, Body, Response, HTTPException, Request
-from app.services.service_desk.portal_auth_service import get_portal_client_or_user
+from app.services.service_desk.portal_auth_service import Lector, get_portal_client_or_user
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -205,8 +205,12 @@ def link_ticket_to_problem(request: Request, problem_id: str, ticket_id: str, db
 # ── Announcements ─────────────────────────────────────────────────────────────
 
 @router.get("/announcements", summary="Anuncios activos")
-def list_announcements(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200), response: Response = None, db: Session = Depends(get_db)):
-    return APIListResponse.ok(items=serialize_announcements(list_active_announcements(db, page, page_size, response)), page=page, page_size=page_size)
+def list_announcements(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200), response: Response = None,
+                       db: Session = Depends(get_db), lector: Lector = Depends(get_portal_client_or_user)):
+    # Auditoria 2026-11: se servian sin login, sin organizacion y sin mirar
+    # `show_to_clients` (un anonimo leia los internos de todas).
+    return APIListResponse.ok(items=serialize_announcements(list_active_announcements(
+        db, page, page_size, response, solo_clientes=lector.solo_publico)), page=page, page_size=page_size)
 
 @router.post("/announcements", summary="Crear anuncio")
 def create_announcement(payload: AnnouncementIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):

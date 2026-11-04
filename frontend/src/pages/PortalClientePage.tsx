@@ -352,7 +352,8 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
   const handlePwdChange = () => {
     setPwdError('')
     if (pwdForm.new_pwd !== pwdForm.confirm) { setPwdError('Las contraseñas no coinciden'); return }
-    if (pwdForm.new_pwd.length < 6) { setPwdError('Mínimo 6 caracteres'); return }
+    // El servidor exige 8 (antes la pantalla aceptaba 6 y el servidor lo rechazaba).
+    if (pwdForm.new_pwd.length < 8) { setPwdError('Mínimo 8 caracteres'); return }
     savePwd(pwdForm)
   }
 
@@ -514,7 +515,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
 
       {tab === 'security' && (
         <PortalCard>
-          <PortalSection title={traducir('portalcliente.cambiar_contrasena')} hint="Mínimo 6 caracteres">
+          <PortalSection title={traducir('portalcliente.cambiar_contrasena')} hint="Mínimo 8 caracteres">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <PortalField label={traducir('portalcliente.nueva_contrasena')}>
                 <PortalInput type="password" value={pwdForm.new_pwd}

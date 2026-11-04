@@ -207,6 +207,8 @@ class Invoice(Base):
     status      = Column(Enum(InvoiceStatus), default=InvoiceStatus.draft, index=True)
     notes       = Column(Text, nullable=True)
     internal_notes = Column(Text, nullable=True)
+    # Decision del cliente en el portal: None, approved o rejected (auditoria 2026-11).
+    client_approval_status = Column(String(20), nullable=True)
     po_reference = Column(String(100), nullable=True)
 
     # Period

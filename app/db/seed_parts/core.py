@@ -129,6 +129,14 @@ def _sembrar_organizacion(db):
     db.commit()
     return org
 
+def _es_org_vacia_por_defecto(db, org_id) -> bool:
+    from app.models.mfa import Organization
+    from app.models.project import Project
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    return bool(org and org.slug == "default"
+                and not db.query(Project.id).filter(Project.organization_id == org_id).first())
+
+
 def _sembrar_usuarios(db, org):
     """Los usuarios de la demostracion. Devuelve (usuarios, contrasena).
 
@@ -185,7 +193,9 @@ def _sembrar_usuarios(db, org):
             u.hashed_password = get_password_hash(pwd_usuario)
             if hasattr(u, "is_active"):
                 u.is_active = True
-            if not u.organization_id:
+            if not u.organization_id or _es_org_vacia_por_defecto(db, u.organization_id):
+                # Tras un «clean» el superadmin vive en «Default Organization»,
+                # sin datos; la demo se siembra en otra y le salia todo a cero.
                 u.organization_id = org.id
             db.flush()
             print(f"  User: {ud['full_name']} (credenciales resincronizadas desde .env)")
@@ -676,6 +686,8 @@ def seed():
     _sembrar_departamentos(db)
     _sembrar_festivos(db)
     org = _sembrar_organizacion(db)
+    # Auditoria 2026-11: lo que se siembra desde aqui lleva la organizacion.
+    db.info["organization_id"] = org.id
     users, seed_pwd = _sembrar_usuarios(db, org)
     skills = _sembrar_catalogo_de_habilidades(db)
     _sembrar_habilidades_de_usuario(db, skills, users)

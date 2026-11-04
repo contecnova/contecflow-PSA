@@ -656,11 +656,53 @@ def publicar_contexto_de_tenant(session, sujeto, *, es_cliente=False) -> None:
     session.info["current_client" if es_cliente else "current_user"] = sujeto
 
 
+def _org_del_registro(session, obj):
+    """La organizacion del proyecto o del usuario al que pertenece el registro.
+
+    Auditoria 2026-11: lo que creaba un superadmin (su sesion no lleva
+    organizacion) o un job quedaba con `organization_id` NULL, y el filtro de
+    tenant lo escondia a todos los demas: una sesion UAT, un documento o una
+    encuesta que el cliente nunca veia en el portal.
+    """
+    for campo, modelo_ruta in (("project_id", "app.models.project:Project"), ("user_id", "app.models.user:User")):
+        ref = getattr(obj, campo, None) if hasattr(type(obj), campo) else None
+        if not ref:
+            continue
+        modulo, nombre = modelo_ruta.split(":")
+        import importlib
+        modelo = getattr(importlib.import_module(modulo), nombre)
+        with session.no_autoflush:
+            fila = session.get(modelo, ref)
+        org = getattr(fila, "organization_id", None)
+        if org:
+            return org
+    return None
+
+
 def _sellar_organizacion(session) -> None:
-    """Pone la organizacion de la sesion en las filas nuevas que no la traigan."""
+    """Pone la organizacion de la sesion en las filas nuevas que no la traigan.
+
+    Sin organizacion en la sesion (superadmin, jobs), la del proyecto o del
+    usuario del propio registro.
+    """
     info = getattr(session, "info", {}) or {}
     org_id = info.get("organization_id")
     if org_id is None:
+        if info.get("fila_global"):
+            # Quien crea declara que quiere filas globales (organizacion NULL).
+            return
+        for obj in list(session.new):
+            cls = type(obj)
+            if getattr(cls, "_tenant_exempt", False) or getattr(cls, "_tenant_filter_include_global", False):
+                continue
+            if not hasattr(cls, "organization_id") or getattr(obj, "organization_id", None) is not None:
+                continue
+            try:
+                derivada = _org_del_registro(session, obj)
+                if derivada:
+                    obj.organization_id = derivada
+            except Exception:
+                logging.getLogger(__name__).debug("sin organizacion derivable en %s", cls.__name__, exc_info=True)
         return
     for obj in session.new:
         cls = type(obj)

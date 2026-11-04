@@ -313,6 +313,8 @@ def doc_out(d) -> dict:
         "file_url": d.file_url, "file_name": d.file_name, "file_size_kb": d.file_size_kb,
         "requires_signature": d.requires_signature, "signed_by_client": d.signed_by_client,
         "is_visible_to_client": d.is_visible_to_client,
+        # Auditoria 2026-11: la pantalla mostraba «Firmado {signed_at}» y no venia.
+        "signed_at": d.signed_at.isoformat() if getattr(d, "signed_at", None) else None,
         "created_at": str(d.created_at)[:10],
     }
 
@@ -511,6 +513,9 @@ def get_me(current_client, db: Session) -> dict:
     return {
         "id": current_client.id, "full_name": current_client.full_name,
         "email": current_client.email, "job_title": current_client.job_title,
+        # Auditoria 2026-11: sin el telefono, el formulario de perfil lo enviaba
+        # vacio al guardar y lo borraba.
+        "phone": getattr(current_client, "phone", None),
         "company": current_client.company, "project_id": current_client.project_id,
         "project_ids": project_ids,
         "projects": projects_info,
@@ -604,6 +609,10 @@ def list_client_invoices(status: Optional[str], current_client, db: Session) -> 
         "due_date": str(i.due_date) if i.due_date else None,
         "paid_date": str(i.paid_date) if i.paid_date else None,
         "notes": i.notes,
+        # Auditoria 2026-11: la pantalla mostraba Aprobar/Rechazar solo con este
+        # campo en «pending», y no existia: los botones no salian nunca.
+        "client_approval_status": i.client_approval_status or (
+            "pending" if getattr(i.status, "value", i.status) in ("sent", "overdue") else None),
     } for i in invoices]
 
 
@@ -629,6 +638,7 @@ def approve_client_invoice(invoice_id: str, approved: bool, reason: str, current
     inv.internal_notes = f"{existing}\n{note_line}".strip() if existing else note_line
     if approved and inv.status == InvoiceStatus.draft:
         inv.status = InvoiceStatus.sent
+    inv.client_approval_status = "approved" if approved else "rejected"
 
     db.add(ClientMessage(
         project_id=inv.project_id,
@@ -926,7 +936,9 @@ def list_feature_requests(status: Optional[str], current_client, db: Session) ->
     result = []
     for f in frs:
         item = fr_out(f)
-        item["can_edit_by_client"] = f.client_id == current_client.id and str(f.status) in {
+        # Auditoria 2026-11: `str()` de un enum de texto da «FeatureRequestStatus.new»
+        # en Python 3.12: nunca coincidia y el cliente no podia editar ni retirar.
+        item["can_edit_by_client"] = f.client_id == current_client.id and getattr(f.status, "value", f.status) in {
             FeatureRequestStatus.new.value, FeatureRequestStatus.reviewing.value,
         }
         result.append(item)
@@ -1005,7 +1017,7 @@ def update_feature_request(fr_id: str, payload, current_client, db: Session) -> 
     ).first()
     if not fr:
         raise ValueError("FR no encontrada")
-    if str(fr.status) not in {FeatureRequestStatus.new.value, FeatureRequestStatus.reviewing.value}:
+    if getattr(fr.status, "value", fr.status) not in {FeatureRequestStatus.new.value, FeatureRequestStatus.reviewing.value}:
         raise ValueError("Solo puedes editar solicitudes nuevas o en revisión")
     data = payload.model_dump(exclude_unset=True)
     target_project_id = data.pop("project_id", None)
@@ -1032,7 +1044,7 @@ def withdraw_feature_request(fr_id: str, reason: Optional[str], current_client, 
     ).first()
     if not fr:
         raise ValueError("FR no encontrada")
-    if str(fr.status) not in {FeatureRequestStatus.new.value, FeatureRequestStatus.reviewing.value}:
+    if getattr(fr.status, "value", fr.status) not in {FeatureRequestStatus.new.value, FeatureRequestStatus.reviewing.value}:
         raise ValueError("Solo puedes retirar solicitudes nuevas o en revisión")
     fr.status = FeatureRequestStatus.rejected
     fr.client_approved = False
