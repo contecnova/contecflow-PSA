@@ -69,8 +69,8 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 - ~~Slack/Teams inbound commands resolve the user by partial name/email match without organization context.~~ Fixed 2026-11-03: exact, unambiguous match, and the command runs in that user's organization. [6]
 
 **Wrong data shown**
-- ~~Finance dashboard: revenue, cost and margin always show 0, and PMs get 403 on the profitability summary.~~ Fixed 2026-11-03, with the pipeline KPIs and the project table that read fields the API does not send. The period selector still does nothing. [3]
-- The Approval Inbox only receives documents and client-portal requests, plus (since 2026-11-03) expenses, timesheets and absences when the organization has a default workflow for them. Change requests from `/changes`, purchases and invoices still never reach it. [1]
+- ~~Finance dashboard: revenue, cost and margin always show 0, and PMs get 403 on the profitability summary.~~ Fixed 2026-11-03, with the pipeline KPIs and the project table that read fields the API does not send. Since 2026-11-04 the period selector (30/90/365 days) filters revenue, cost, margin and the project table on the server (imputations by date, milestones by billing date). [3]
+- The Approval Inbox receives documents and client-portal requests, plus expenses, timesheets and absences (2026-11-03) and change requests from `/changes` and invoices (2026-11-04) when the organization has a default workflow for them. Timeouts now reach the entity. Purchases have no entity in the data model, so there is nothing to route. [1]
 - ~~Executive dashboard KPIs always show €0; the agent dashboard (`/agent-dashboard`) shows zeros.~~ Fixed 2026-11-03, as is the resource forecast counting deleted bookings and ignoring absences. [5, 4, 2]
 - ~~Many lists stop at 50 (or 25) items without pagination.~~ Fixed: the Service Desk ticket lists on 2026-11-03; on 2026-11-04 the project, people, task and absence lists the screens and pickers load now walk every page (`frontend/src/services/api/todasLasPaginas.ts`), `/absences` pages with a total, and `/tasks` honours the calendar's date range. Lists with a fixed cap by design (portfolio risks top 50, CSV 2,000 rows) are unchanged. [1, 4]
 
@@ -490,8 +490,17 @@ Rules enforced in `imputation_service.py`:
   - The inbox's final decision applies the same review as the original screen: the expense is approved or rejected (the note is the rejection reason); the timesheet is approved (its hours are marked approved) or rejected; the absence is approved or rejected.
   - Reviewing on the original screen (or returning a timesheet, recalling an expense, cancelling an absence) closes the pending request with that outcome, so it leaves the inbox.
   - Both paths stay open: an approver on the original screen does not need to be the workflow's approver.
-  - The hourly timeout job does not apply its *reject* to the entity (same as for documents); the request is closed but the expense, timesheet or absence stays pending on its screen.
-- **Other types still bypass this inbox.** Change requests created in `/changes`, purchases, invoices and the other designer types (`purchase`, `invoice`, `contract`, `budget`, …) have no code that opens requests.
+- **Change requests and invoices** (since 2026-11-04, same file, test `tests/test_aprobaciones_cambios_facturas_caducidad.py`):
+  - With a default *change_request* workflow, **submitting** a change in `/changes` opens a request (context `cost_impact`, `schedule_impact_days`, `impact`). The final decision approves or rejects the change; reviewing it in `/changes` closes the request.
+  - With a default *invoice* workflow, moving an invoice from draft to **sent** opens a request and the invoice stays in draft (the API answers 409 with the reason; asking again while pending answers 409 too). Approving it in the inbox marks it sent; rejecting leaves it in draft.
+  - Segregation of duties applies: whoever requested it cannot approve it.
+- **Timeouts** (hourly job, `on_timeout` per step; fixed 2026-11-04):
+  - `reject` closes the request **and applies the rejection to the entity** (expense, timesheet, absence, change, document). Before, the entity stayed pending.
+  - `auto_approve` moves to the next applicable step or, if it was the last, approves and applies it. Before, it added 1 to the step and the request stayed pending on a step that does not exist.
+  - `escalate` keeps the step, restarts its clock and notifies the step's *escalate to* user, who can now decide it. Before, it skipped the step. If it times out again after escalating, or there is nobody to escalate to, it is rejected.
+  - Decisions taken by the clock are signed by the step's approver, else the escalation user, else an active admin of the organization. Each request is processed in its own organization; one failure does not stop the rest.
+  - `on_timeout` only accepts `escalate`, `auto_approve` or `reject` (`auto_reject`, which the API documented and the job ignored, is stored as `reject`).
+- **Other types still bypass this inbox.** `purchase`, `contract`, `budget` and the rest of the designer types have no code that opens requests (there is no purchase entity at all).
 - **No UI to create a request by hand.** The frontend hook `useCreateApprovalRequest` has no caller.
 
 ### Portfolio health (Salud del portfolio) — `/projects-dashboard`
@@ -1359,7 +1368,7 @@ General notes that apply to every module here:
 
 **Limitations (measured in the code).** Several KPIs do not show what their label says:
 - ~~Revenue, cost and margin are always 0~~, ~~PMs get an error toast~~, ~~Pipeline KPI and pipeline-by-stage always 0~~, ~~"Open opportunities" counts won and lost deals~~, ~~"Top clients by revenue" and the project table use budget as revenue and 0 as cost~~. Fixed 2026-11-03: the page reads `portfolio.total_revenue/total_cost`, the projects' `billing_revenue/internal_cost`, and the opportunities' `expected_revenue` and `stage` (open = not `won`/`lost`; the Pipeline KPI sums open ones only); `/profitability/summary` (v1 and v2) and `/profitability/projects` accept admin and PM, like the screen. Test: `frontend/src/__tests__/FinanceDashboardPage.test.tsx`, `tests/test_rentabilidad_roles_de_pantalla.py`.
-- **The period selector does nothing.** `/profitability/summary` and `/profitability/projects` accept only `status`, so `date_from` and `date_to` are ignored.
+- ~~The period selector does nothing.~~ Fixed 2026-11-04: `/profitability/summary` (v1 and v2) and `/profitability/projects` accept `date_from`/`date_to`; costs and hourly revenue count imputations in the range, fixed-price revenue counts milestones billed in the range. The clients, pipeline and invoices cards are not period-bound.
 - **Cost per hour is hidden from PMs.** `/user-costs/summary` is `require_admin_or_hr`, so PMs get `null` and the card is empty.
 - **Saving an exchange rate fails for PMs.** `POST /currency/rates` is `require_admin`, so a PM gets 403.
 - **Errors are hidden.** The client, pipeline and invoice lists use `.catch(() => [])`, so a failure looks like "no data".

@@ -84,6 +84,13 @@ def submit_change_request(db: Session, cr: ChangeRequest) -> ChangeRequest:
     cr.status = ChangeRequestStatus.submitted
     cr.submitted_at = datetime.now(timezone.utc)
     db.commit()
+    # Auditoria 2026-11: con flujo por defecto, a la bandeja de aprobaciones.
+    from app.services.approval_engine import fuentes
+    solicitante = cr.requested_by or getattr(db.info.get("current_user"), "id", None)
+    if solicitante:
+        fuentes.abrir(db, "change_request", cr.id, f"{cr.code} — {cr.title}", solicitante,
+                      {"cost_impact": cr.cost_impact or 0, "schedule_impact_days": cr.schedule_impact_days or 0,
+                       "impact": getattr(cr.impact, "value", cr.impact), "project_id": cr.project_id})
     return cr
 
 
@@ -99,6 +106,9 @@ def review_change_request(
     cr.approved_by = reviewer_id if approved else None
     cr.approved_at = datetime.now(timezone.utc) if approved else None
     cr.resolution_notes = resolution_notes
+    from app.services.approval_engine import fuentes
+    fuentes.cerrar(db, "change_request", cr.id, "approved" if approved else "rejected",
+                   resolution_notes or "Revisado en Cambios")
     db.commit()
     return cr
 

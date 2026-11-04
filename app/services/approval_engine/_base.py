@@ -205,6 +205,10 @@ def _is_authorized(step, current_user: User, requested_by: str, db: Session) -> 
     """
     if _esta_en_el_grupo(step, current_user, db):
         return True
+    # Auditoria 2026-11: la persona de escalado del paso tambien puede
+    # resolverlo (antes se le avisaba y la bandeja le negaba la decision).
+    if step.escalate_to_user_id and step.escalate_to_user_id == current_user.id:
+        return True
     if step.approver_type == "group":
         # Ya se ha comprobado arriba; si no estaba en el grupo, no hay más vías.
         return False

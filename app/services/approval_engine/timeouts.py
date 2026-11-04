@@ -12,9 +12,66 @@ from datetime import timedelta
 
 from app.services.approval_engine._base import _FINANCIAL_ENTITY_TYPES
 
+# Auditoria 2026-11. Tres defectos: el rechazo por caducidad cerraba la
+# solicitud pero no tocaba la entidad (el gasto seguia pendiente en su
+# pantalla); auto-aprobar y escalar sumaban 1 al paso sin mirar si era el
+# ultimo, y la solicitud se quedaba «pendiente» de un paso que no existe; y
+# escalar se SALTABA el paso en vez de pasarselo a la persona de escalado.
+
+def _actor(req, step, db: Session):
+    """Quien firma lo que decide el reloj: el aprobador del paso, la persona de
+    escalado o, si no hay, un admin activo de la organizacion de la solicitud."""
+    from app.models.user import User, UserRole
+    for uid in (getattr(step, "approver_user_id", None), getattr(step, "escalate_to_user_id", None)):
+        if uid:
+            u = db.query(User).filter(User.id == uid).first()
+            if u:
+                return u
+    q = db.query(User).filter(User.role == UserRole.admin, User.is_active.is_(True))
+    if req.organization_id:
+        q = q.filter(User.organization_id == req.organization_id)
+    return q.first()
+
+
+def _cerrar(req, decision: str, nota: str, now: datetime, actor, db: Session) -> None:
+    from app.services.approval_engine._base import _apply_entity_final_decision
+    req.status = decision
+    req.final_decision = decision
+    req.final_note = nota
+    req.completed_at = now
+    db.flush()
+    if actor is not None:
+        _apply_entity_final_decision(req, decision, actor, db)
+
+
+def _siguiente_o_cerrar(req, step, now: datetime, nota: str, db: Session) -> str:
+    """Tras aprobar un paso: el siguiente aplicable o, si era el ultimo, aprobada."""
+    from app.services.approval_engine._base import notify_approver
+    from app.services.approval_engine.requests import _step_condition_met
+    pasos = db.query(ApprovalStep).filter(ApprovalStep.workflow_id == req.workflow_id).order_by(
+        ApprovalStep.step_order).all()
+    siguientes = [s for s in pasos if s.step_order > req.current_step and not s.is_optional
+                  and _step_condition_met(s, req)]
+    if siguientes:
+        req.current_step = siguientes[0].step_order
+        req.step_started_at = now
+        notify_approver(req, siguientes[0], db)
+        return "auto_approved"
+    _cerrar(req, "approved", nota, now, _actor(req, step, db), db)
+    return "auto_approved"
+
+
+def _ya_escalado(req, step) -> bool:
+    return any(d.step_order == step.step_order and d.decision == "delegated"
+               and (d.note or "").startswith("Escalado automáticamente")
+               for d in (req.decisions or []))
+
+
 def _handle_timeout_escalate(req, step, now: datetime, info: dict, db: Session) -> str:
-    """Apply 'escalate' timeout action. Returns counter bucket name."""
-    if step.escalate_to_user_id:
+    """Pasa el paso a la persona de escalado (sin saltarlo). Si ya se escalo y
+    vuelve a caducar, o no hay a quien escalar, se rechaza."""
+    from app.services.approval_engine._base import notify_approver
+    if step.escalate_to_user_id and not _ya_escalado(req, step):
         db.add(ApprovalDecision(
             request_id=req.id,
             step_order=step.step_order,
@@ -23,36 +80,35 @@ def _handle_timeout_escalate(req, step, now: datetime, info: dict, db: Session) 
             note="Escalado automáticamente por timeout",
             decided_at=now,
         ))
-        req.current_step += 1
         req.step_started_at = now
+        notify_approver(req, step, db, explicit_user_id=step.escalate_to_user_id)
         info["escalated_to"] = step.escalate_to_user_id
         return "escalated"
-    req.status = "rejected"
-    req.final_decision = "rejected"
-    req.final_note = "Rechazado automáticamente por timeout (sin escalado)"
-    req.completed_at = now
+    _cerrar(req, "rejected", "Rechazado automáticamente por timeout (sin escalado posible)", now,
+            _actor(req, step, db), db)
     info["rejected"] = True
     return "rejected"
 
+
 def _handle_timeout_auto_approve(req, step, now: datetime, info: dict, db: Session) -> str:
+    firma = _actor(req, step, db)
+    if firma is None:
+        # Nadie en cuyo nombre aprobar: no se aprueba a ciegas.
+        return _handle_timeout_reject(req, step, now, info, db)
     db.add(ApprovalDecision(
         request_id=req.id,
         step_order=step.step_order,
-        approver_id=step.approver_user_id,
+        approver_id=firma.id,
         decision="approved",
         note="Aprobado automáticamente por timeout",
         decided_at=now,
     ))
-    req.current_step += 1
-    req.step_started_at = now
     info["auto_approved"] = True
-    return "auto_approved"
+    return _siguiente_o_cerrar(req, step, now, "Aprobado automáticamente por timeout", db)
+
 
 def _handle_timeout_reject(req, step, now: datetime, info: dict, db: Session) -> str:
-    req.status = "rejected"
-    req.final_decision = "rejected"
-    req.final_note = "Rechazado automáticamente por timeout"
-    req.completed_at = now
+    _cerrar(req, "rejected", "Rechazado automáticamente por timeout", now, _actor(req, step, db), db)
     info["rejected"] = True
     return "rejected"
 
@@ -74,7 +130,10 @@ def _log_timeout_audit_event(req, step, action: str, now: datetime, db: Session)
 def _step_is_expired(step, req, now: datetime) -> bool:
     if not step or not step.timeout_hours or not req.step_started_at:
         return False
-    timeout_at = req.step_started_at + timedelta(hours=step.timeout_hours)
+    inicio = req.step_started_at
+    if inicio.tzinfo is None:
+        inicio = inicio.replace(tzinfo=timezone.utc)
+    timeout_at = inicio + timedelta(hours=step.timeout_hours)
     return now >= timeout_at
 
 def process_approval_timeouts(db: Session) -> dict:
@@ -103,14 +162,22 @@ def process_approval_timeouts(db: Session) -> dict:
 
         action = (step.on_timeout or "escalate").lower()
         info = {"request_id": req.id, "step": step.step_order, "action": action}
-
-        if action == "escalate":
-            bucket = _handle_timeout_escalate(req, step, now, info, db)
-        elif action == "auto_approve":
-            bucket = _handle_timeout_auto_approve(req, step, now, info, db)
-        elif action == "reject":
-            bucket = _handle_timeout_reject(req, step, now, info, db)
-        else:
+        manejador = {"escalate": _handle_timeout_escalate, "auto_approve": _handle_timeout_auto_approve,
+                     "reject": _handle_timeout_reject, "auto_reject": _handle_timeout_reject}.get(action)
+        if manejador is None:
+            continue
+        # Cada solicitud en su organizacion. Lo que se aplica a la entidad
+        # (revisar un gasto…) confirma por su cuenta, asi que no cabe en un
+        # savepoint: si falla se deshace lo pendiente y se sigue con las demas.
+        from app.services.service_desk.ticket_events import como_organizacion
+        try:
+            with como_organizacion(db, req.organization_id):
+                bucket = manejador(req, step, now, info, db)
+                db.commit()
+        except Exception:
+            import logging
+            db.rollback()
+            logging.getLogger(__name__).exception("timeout de la aprobacion %s", req.id)
             continue
 
         counters[bucket] = counters.get(bucket, 0) + 1

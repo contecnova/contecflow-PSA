@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
+from datetime import date
 from typing import Optional
 
 from app.db.session import get_db
@@ -47,12 +48,16 @@ def _normalize_project_revenues(projects: list, db: Session, org_currency: str) 
 )
 def get_profitability_summary_v2(
     status: Optional[str] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
     response: Response = None,
 ):
     _resp = profitability_v1.get_profitability_summary(
         status=status,
+        date_from=date_from,
+        date_to=date_to,
         db=db,
         current_user=current_user,
     )

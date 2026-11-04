@@ -293,6 +293,9 @@ class TestInvoiceSerializationConflicts:
             patch("app.services.billing_reports_service._scope_invoice_query", return_value=query),
             patch("app.services.billing_reports_service.audit_log"),
             patch("app.services.billing_reports_service.is_postgres", return_value=False),
+            # Con la base simulada, el MagicMock pasaria por flujo de aprobacion
+            # de facturas; aqui se mide solo el conflicto de serializacion.
+            patch("app.services.billing_reports_service._aprobacion_antes_de_enviar"),
         ):
             with pytest.raises(HTTPException) as exc_info:
                 update_invoice_status("inv-1", {"status": "sent"}, current_user, db)

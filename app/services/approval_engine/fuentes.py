@@ -12,7 +12,10 @@ nunca los veia. Ahora:
 - si se revisa desde la pantalla de origen, la solicitud pendiente se cierra
   con esa decision, para que no se quede en la bandeja.
 
-Tipos (los del disenador): `expense`, `timesheet` y `leave`.
+Tipos (los del disenador): `expense`, `timesheet` y `leave`; desde el
+04-11-2026 tambien `change_request` (Cambios: al enviar) e `invoice` (facturas:
+al pasar de borrador a enviada; la aprobacion la envia, el rechazo la deja en
+borrador).
 """
 from __future__ import annotations
 
@@ -25,7 +28,7 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
-TIPOS = ("expense", "timesheet", "leave")
+TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice")
 
 
 def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id: str,
@@ -70,6 +73,18 @@ def aplicar(req, decision: str, actor, db: Session) -> None:
             if ausencia and ausencia.status == AbsenceStatus.pending:
                 absence_service.review_absence(db, ausencia, approved=aprobado, approver_id=actor.id,
                                                rejection_reason=None if aprobado else nota)
+        elif req.entity_type == "change_request":
+            from app.services import change_service
+            cr = change_service.get_by_id(db, req.entity_id)
+            if cr and getattr(cr.status, "value", cr.status) in ("submitted", "under_review"):
+                change_service.review_change_request(db, cr, approved=aprobado, reviewer_id=actor.id,
+                                                     resolution_notes=nota)
+        elif req.entity_type == "invoice":
+            from app.models.billing_reports import Invoice, InvoiceStatus
+            inv = db.query(Invoice).filter(Invoice.id == req.entity_id).first()
+            if aprobado and inv and getattr(inv.status, "value", inv.status) == "draft":
+                inv.status = InvoiceStatus.sent
+                db.commit()
     except HTTPException as exc:
         # Ya no estaba pendiente (revisada, retirada o cancelada en su pantalla).
         logger.info("aprobacion %s: %s %s no aplicada: %s", req.id, req.entity_type, req.entity_id, exc.detail)
@@ -89,3 +104,12 @@ def cerrar(db: Session, tipo: str, entidad_id: str, estado: str, nota: str) -> N
         req.final_decision = estado
         req.final_note = nota
         req.completed_at = datetime.now(timezone.utc)
+
+
+def estado(db: Session, tipo: str, entidad_id: str) -> Optional[str]:
+    """Estado de la ultima solicitud de esa entidad (pending, approved…), o None."""
+    from app.models.billing_reports import ApprovalRequest
+    req = db.query(ApprovalRequest).filter(
+        ApprovalRequest.entity_type == tipo, ApprovalRequest.entity_id == entidad_id,
+    ).order_by(ApprovalRequest.created_at.desc()).first()
+    return req.status if req else None

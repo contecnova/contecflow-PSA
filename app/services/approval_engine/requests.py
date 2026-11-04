@@ -153,7 +153,10 @@ def _validate_decision_authorization(
 
     existing_vote = next(
         (d for d in (req.decisions or [])
-         if d.step_order == req.current_step and d.approver_id == current_user.id),
+         if d.step_order == req.current_step and d.approver_id == current_user.id
+         # Auditoria 2026-11: la fila «delegated» del escalado por caducidad
+         # registra a quien se pasa el paso; no es un voto suyo.
+         and d.decision != "delegated"),
         None
     )
     if existing_vote:

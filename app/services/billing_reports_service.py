@@ -568,6 +568,29 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
     return invoice_out(inv)
 
 
+def _aprobacion_antes_de_enviar(inv, current_user: User, db: Session) -> None:
+    """Con un flujo por defecto para facturas, enviarla pasa por la bandeja.
+
+    Auditoria 2026-11: el disenador ofrecia el tipo «factura» y nada abria la
+    solicitud. Sin flujo, todo sigue igual. Con flujo: la primera vez se abre
+    la solicitud y la factura se queda en borrador (409 con el motivo); al
+    aprobarse en la bandeja pasa a enviada.
+    """
+    from app.services.approval_engine import fuentes
+    from app.services.approval_engine._base import find_default_workflow
+    if not find_default_workflow("invoice", db):
+        return
+    estado = fuentes.estado(db, "invoice", inv.id)
+    if estado == "approved":
+        return
+    if estado == "pending":
+        raise HTTPException(409, "La factura está pendiente de aprobación en la bandeja")
+    db.rollback()
+    fuentes.abrir(db, "invoice", inv.id, f"Factura {inv.number} — {inv.client_name or ''}".strip(" —"),
+                  current_user.id, {"amount": float(inv.total or 0), "project_id": inv.project_id})
+    raise HTTPException(409, "La factura necesita aprobación: se ha enviado a la bandeja de aprobaciones")
+
+
 def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db: Session) -> dict:
     _set_serializable_if_postgres(db)
     inv_q = _scope_invoice_query(db).filter(Invoice.id == invoice_id)
@@ -591,6 +614,8 @@ def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db
         return invoice_out(inv)
     if new_status not in allowed_transitions.get(old_status, []):
         raise HTTPException(400, f"Transición de estado no permitida: {old_status} → {new_status}")
+    if old_status == "draft" and new_status == "sent":
+        _aprobacion_antes_de_enviar(inv, current_user, db)
     # Assign as Enum if possible
     from app.models.billing_reports import InvoiceStatus
     try:

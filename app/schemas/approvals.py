@@ -114,7 +114,7 @@ class StepIn(BaseModel):
     approver_department: Optional[str] = Field(None, description="Departamento aprobador si aplica")
     is_optional: bool = Field(False, description="Indica si el paso puede omitirse")
     timeout_hours: int = Field(72, description="Horas hasta que se considera vencido el paso")
-    on_timeout: str = Field("escalate", description="Acción al vencer el SLA (escalate, auto_approve, auto_reject)")
+    on_timeout: str = Field("escalate", description="Acción al vencer el SLA (escalate, auto_approve, reject)")
     escalate_to_user_id: Optional[str] = Field(None, description="Usuario al que se escala en caso de timeout")
     # v2 enterprise
     approver_group_id: Optional[str] = Field(None, description="ID del grupo de aprobadores")
@@ -128,6 +128,16 @@ class StepIn(BaseModel):
     @classmethod
     def _empty_str_to_none(cls, v):
         return None if v == "" else v
+
+    @field_validator("on_timeout", mode="before")
+    @classmethod
+    def _accion_de_caducidad(cls, v):
+        # Auditoria 2026-11: se guardaba cualquier texto, y `auto_reject` (el que
+        # documentaba este campo) no lo reconocia el job: nunca actuaba.
+        v = {"auto_reject": "reject"}.get(v, v)
+        if v not in ("escalate", "auto_approve", "reject"):
+            raise ValueError("on_timeout debe ser escalate, auto_approve o reject")
+        return v
 
 
 class ApprovalRequestIn(BaseModel):

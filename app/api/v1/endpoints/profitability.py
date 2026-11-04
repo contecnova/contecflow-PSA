@@ -28,6 +28,9 @@ def _milestone_out(m) -> dict:
 @router.get("/summary", summary="Rentabilidad de todos los proyectos")
 def get_profitability_summary(
     status: Optional[str] = None,
+    # Auditoria 2026-11: el panel de finanzas mandaba el rango y se ignoraba.
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),  # auditoria 2026-11: las dos pantallas son de admin y PM,
     response: Response = None,
@@ -35,8 +38,10 @@ def get_profitability_summary(
     projects = profitability_service.get_summary_projects(db, status)
     project_ids = [p.id for p in projects]
 
-    imputation_totals_by_project = profitability_service.get_imputation_totals_by_project(db, project_ids)
-    billed_milestones_by_project = profitability_service.get_billed_milestones_total_by_project(db, project_ids)
+    imputation_totals_by_project = profitability_service.get_imputation_totals_by_project(
+        db, project_ids, date_from, date_to)
+    billed_milestones_by_project = profitability_service.get_billed_milestones_total_by_project(
+        db, project_ids, date_from, date_to)
 
     results = [
         profitability_service.calc_project_profitability(
@@ -44,6 +49,8 @@ def get_profitability_summary(
             db,
             imputation_totals=imputation_totals_by_project.get(p.id, {}),
             billed_milestones_total=billed_milestones_by_project.get(p.id, 0),
+            desde=date_from,
+            hasta=date_to,
         )
         for p in projects
     ]
@@ -74,6 +81,9 @@ def get_profitability_summary(
 @router.get("/projects", summary="Lista de proyectos con datos de rentabilidad (para dashboards)")
 def get_profitability_projects(
     status: Optional[str] = None,
+    # Auditoria 2026-11: el panel de finanzas mandaba el rango y se ignoraba.
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),  # auditoria 2026-11: margenes, no para cualquier empleado,
     response: Response = None,
@@ -86,8 +96,10 @@ def get_profitability_projects(
     projects = profitability_service.get_summary_projects(db, status)
     project_ids = [p.id for p in projects]
 
-    imputation_totals_by_project = profitability_service.get_imputation_totals_by_project(db, project_ids)
-    billed_milestones_by_project = profitability_service.get_billed_milestones_total_by_project(db, project_ids)
+    imputation_totals_by_project = profitability_service.get_imputation_totals_by_project(
+        db, project_ids, date_from, date_to)
+    billed_milestones_by_project = profitability_service.get_billed_milestones_total_by_project(
+        db, project_ids, date_from, date_to)
 
     results = [
         profitability_service.calc_project_profitability(
@@ -95,6 +107,8 @@ def get_profitability_projects(
             db,
             imputation_totals=imputation_totals_by_project.get(p.id, {}),
             billed_milestones_total=billed_milestones_by_project.get(p.id, 0),
+            desde=date_from,
+            hasta=date_to,
         )
         for p in projects
     ]
