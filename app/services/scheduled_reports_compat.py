@@ -56,9 +56,13 @@ def summarize_scheduled_reports(db: Session) -> dict[str, Any]:
 
     # Sólo las columnas disponibles: `SELECT *` traería las que no se usan y
     # un nombre fijo fallaría en las instalaciones que no lo tienen.
-    filas = db.execute(
-        text(f"SELECT {', '.join(interesantes)} FROM scheduled_reports")  # noqa: S608
-    ).fetchall()
+    # Revision multitenant 2026-11: el SQL a mano no pasa por el filtro de
+    # tenant y contaba los informes de todas las empresas.
+    sql, params = f"SELECT {', '.join(interesantes)} FROM scheduled_reports", {}  # noqa: S608
+    if "organization_id" in columnas and not db.info.get("is_superadmin", True):
+        sql += " WHERE organization_id = :org"
+        params["org"] = db.info.get("organization_id")
+    filas = db.execute(text(sql), params).fetchall()
 
     por_frecuencia: dict[str, int] = defaultdict(int)
     activos = con_error = con_slack = 0

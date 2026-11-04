@@ -74,6 +74,8 @@ def get_current_user(
     else:
         db.info["organization_id"] = getattr(user, "organization_id", None)
         db.info["is_superadmin"] = False
+        from app.db.session import exigir_organizacion_activa
+        exigir_organizacion_activa(db, db.info["organization_id"])
 
     # Make the authenticated user available to the service layer so events
     # can be emitted without passing actor as an explicit parameter.
@@ -102,6 +104,8 @@ def _usuario_de_credencial_delegada(db: Session, request: Request, user_id: str,
     else:
         db.info["organization_id"] = getattr(user, "organization_id", None)
         db.info["is_superadmin"] = False
+        from app.db.session import exigir_organizacion_activa
+        exigir_organizacion_activa(db, db.info["organization_id"])
     db.info["current_user"] = user
     request.state.credencial_delegada = {"tipo": tipo, "alcances": alcances}
     from app.core import modulos as _modulos, permisos_de_proyecto as _permisos
@@ -189,4 +193,8 @@ def get_current_client(
     client = verify_client_token(token, db)
     if not client:
         raise HTTPException(status_code=401, detail="Token de cliente inválido")
+    # Revision 2026-11: no publicaba el tenant, y `TenantSession` sin contexto
+    # no filtra (las rutas de colaboracion y conversaciones del portal).
+    from app.db.session import publicar_contexto_de_tenant
+    publicar_contexto_de_tenant(db, client, es_cliente=True)
     return client

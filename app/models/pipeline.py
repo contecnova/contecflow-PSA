@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Date, Integer, Enum, Boolean
+from sqlalchemy import Index, Column, String, Float, DateTime, ForeignKey, Text, Date, Integer, Enum, Boolean
 from app.models.money import Money, Rate
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -41,10 +41,13 @@ class OpportunityStage(str, enum.Enum):
 
 class Opportunity(Base):
     __tablename__ = "opportunities"
+    # Unico por organizacion (revision multitenant 2026-11): antes era global y
+    # una segunda empresa no podia repetir el codigo/nombre de otra.
+    __table_args__ = (Index("uq_opportunities_org_code", "organization_id", "code", unique=True),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    code = Column(String(20), unique=True, nullable=False)  # OPP-001
+    code = Column(String(20), nullable=False)  # OPP-001
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
 
@@ -145,10 +148,13 @@ class ContractType(str, enum.Enum):
 
 class Contract(Base):
     __tablename__ = "contracts"
+    # Unico por organizacion (revision multitenant 2026-11): antes era global y
+    # una segunda empresa no podia repetir el codigo/nombre de otra.
+    __table_args__ = (Index("uq_contracts_org_code", "organization_id", "code", unique=True),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    code = Column(String(30), unique=True, nullable=False)  # CTR-001
+    code = Column(String(30), nullable=False)  # CTR-001
     name = Column(String(255), nullable=False)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
@@ -189,10 +195,13 @@ class Contract(Base):
 
 class WorkOrder(Base):
     __tablename__ = "work_orders"
+    # Unico por organizacion (revision multitenant 2026-11): antes era global y
+    # una segunda empresa no podia repetir el codigo/nombre de otra.
+    __table_args__ = (Index("uq_work_orders_org_code", "organization_id", "code", unique=True),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    code = Column(String(30), unique=True, nullable=False)  # WO-001
+    code = Column(String(30), nullable=False)  # WO-001
     contract_id = Column(String(36), ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
 

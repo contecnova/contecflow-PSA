@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Date, Boolean, Integer, Enum
+from sqlalchemy import Index, Column, String, Float, DateTime, ForeignKey, Text, Date, Boolean, Integer, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -27,10 +27,13 @@ class SkillCategory(str, enum.Enum):
 class Skill(Base):
     """Skill/competency catalog."""
     __tablename__ = "skills"
+    # Unico por organizacion (revision multitenant 2026-11): antes era global y
+    # una segunda empresa no podia repetir el codigo/nombre de otra.
+    __table_args__ = (Index("uq_skills_org_name", "organization_id", "name", unique=True),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    name = Column(String(100), unique=True, nullable=False)
+    name = Column(String(100), nullable=False)
     category = Column(Enum(SkillCategory), nullable=False)
     description = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True)

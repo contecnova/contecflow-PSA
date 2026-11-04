@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, Integer, DateTime, Enum, Text, ForeignKey, Boolean, Date
+from sqlalchemy import Index, Column, String, Float, Integer, DateTime, Enum, Text, ForeignKey, Boolean, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -38,6 +38,9 @@ class Project(Base):
     tareas, miembros, imputaciones y presupuesto. Soporta multi-tenancy
     por organización y diferentes modos de facturación."""
     __tablename__ = "projects"
+    # Unico por organizacion (revision multitenant 2026-11): antes era global y
+    # una segunda empresa no podia repetir el codigo/nombre de otra.
+    __table_args__ = (Index("uq_projects_org_code", "organization_id", "code", unique=True),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
@@ -45,7 +48,7 @@ class Project(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
-    code = Column(String(20), unique=True, nullable=False, index=True)  # e.g. PRJ-001
+    code = Column(String(20), nullable=False, index=True)  # e.g. PRJ-001
     name = Column(String(255), nullable=False)
     description = Column(Text)
 

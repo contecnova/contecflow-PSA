@@ -104,17 +104,20 @@ def save_pending_snapshot(db: Session, ticket: Ticket) -> None:
     }
     serialized = json.dumps(snapshot, ensure_ascii=False)
     key = _pending_snapshot_key(ticket.id)
-    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == None).first()
+    # Revision multitenant 2026-11: con la organizacion del ticket (antes
+    # global, y salia en los ajustes generales de todas las empresas).
+    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == ticket.organization_id).first()
     if row:
         row.value = serialized
         row.description = "Ticket pending snapshot"
     else:
-        db.add(AppSetting(key=key, organization_id=None, value=serialized, description="Ticket pending snapshot"))
+        db.add(AppSetting(key=key, organization_id=ticket.organization_id, value=serialized,
+                          description="Ticket pending snapshot"))
 
 
 def restore_pending_snapshot(db: Session, ticket: Ticket, current_user_id: str) -> dict:
     key = _pending_snapshot_key(ticket.id)
-    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == None).first()
+    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == ticket.organization_id).first()
     if not row or not row.value:
         return {"ok": False, "restored": False, "detail": "No pending snapshot"}
 

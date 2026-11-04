@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Date, UniqueConstraint
+from sqlalchemy import Index, Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Date, UniqueConstraint
 from app.models.money import Rate
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -124,11 +124,14 @@ class TemplateDeliverable(Base):
 
 class TaskType(Base):
     __tablename__ = "task_types"
+    # Unico por organizacion (revision multitenant 2026-11): antes era global y
+    # una segunda empresa no podia repetir el codigo/nombre de otra.
+    __table_args__ = (Index("uq_task_types_org_value", "organization_id", "value", unique=True), Index("uq_task_types_org_name", "organization_id", "name", unique=True),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    name = Column(String(100), unique=True, nullable=False)
-    value = Column(String(50), unique=True, nullable=False)
+    name = Column(String(100), nullable=False)
+    value = Column(String(50), nullable=False)
     icon = Column(String(10), default="📋")
     color = Column(String(20), default="#7a8aaa")
     is_billable_default = Column(Boolean, default=True)
@@ -142,10 +145,13 @@ class TaskType(Base):
 class AlertConfig(Base):
     """Configurable thresholds and recipients for each alert type."""
     __tablename__ = "alert_configs"
+    # Unico por organizacion (revision multitenant 2026-11): antes era global y
+    # una segunda empresa no podia repetir el codigo/nombre de otra.
+    __table_args__ = (Index("uq_alert_configs_org_alert_type", "organization_id", "alert_type", unique=True),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    alert_type = Column(String(50), unique=True, nullable=False)
+    alert_type = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
     is_enabled = Column(Boolean, default=True)

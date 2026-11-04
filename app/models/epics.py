@@ -7,7 +7,7 @@ Contecflow v19 — 5 módulos del roadmap:
   5. @Menciones y comentarios threaded
 """
 import uuid
-from sqlalchemy import Column, String, Boolean, Integer, Text, DateTime, ForeignKey
+from sqlalchemy import Index, Column, String, Boolean, Integer, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
@@ -18,11 +18,14 @@ from app.db.base import Base
 class WikiSpace(Base):
     """Espacio wiki que agrupa páginas relacionadas (por proyecto u organizacional)."""
     __tablename__ = "wiki_spaces"
+    # Unico por organizacion (revision multitenant 2026-11): antes era global y
+    # una segunda empresa no podia repetir el codigo/nombre de otra.
+    __table_args__ = (Index("uq_wiki_spaces_org_slug", "organization_id", "slug", unique=True),)
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     name        = Column(String(200), nullable=False)
-    slug        = Column(String(100), nullable=False, unique=True, index=True)
+    slug        = Column(String(100), nullable=False, index=True)
     is_active   = Column(Boolean, default=True)
     description = Column(Text, nullable=True)
     is_public   = Column(Boolean, default=False)

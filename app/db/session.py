@@ -654,6 +654,26 @@ def publicar_contexto_de_tenant(session, sujeto, *, es_cliente=False) -> None:
         else bool(getattr(sujeto, "is_superadmin", False))
     )
     session.info["current_client" if es_cliente else "current_user"] = sujeto
+    if not session.info["is_superadmin"]:
+        exigir_organizacion_activa(session, session.info["organization_id"])
+
+
+def exigir_organizacion_activa(session, organization_id) -> None:
+    """Corta la peticion si la organizacion esta desactivada.
+
+    Revision 2026-11: desactivar una organizacion solo frenaba el SSO y la
+    passkey. El login con contrasena y las sesiones ya abiertas (usuarios,
+    claves de API, portal, WebSockets) seguian funcionando.
+    """
+    if not organization_id:
+        return
+    if not hasattr(session, "get"):
+        return  # dobles de sesion de las pruebas
+    from app.models.mfa import Organization
+    org = session.get(Organization, organization_id)
+    if org is not None and not org.is_active:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="La organización está desactivada")
 
 
 def _org_del_registro(session, obj):

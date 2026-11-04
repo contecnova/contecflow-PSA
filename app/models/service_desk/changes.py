@@ -1,6 +1,6 @@
 """service_desk.changes models — split from the former 1385-LOC god-file."""
 
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum
+from sqlalchemy import Index, Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum
 from sqlalchemy.orm import relationship, synonym
 from sqlalchemy.sql import func
 import uuid
@@ -12,10 +12,13 @@ from app.models.service_desk._enums import ChangeRisk, ChangeStatus, ChangeType,
 class ITSMChangeRequest(Base):
     """Change Management ITIL completo — separado del ChangeRequest de proyectos."""
     __tablename__ = "sd_change_requests"
+    # Unico por organizacion (revision multitenant 2026-11): antes era global y
+    # una segunda empresa no podia repetir el codigo/nombre de otra.
+    __table_args__ = (Index("uq_sd_change_requests_org_number", "organization_id", "number", unique=True),)
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    number      = Column(String(20), unique=True, nullable=False, index=True, default=lambda: f"CHG-{uuid.uuid4().hex[:8].upper()}")
+    number      = Column(String(20), nullable=False, index=True, default=lambda: f"CHG-{uuid.uuid4().hex[:8].upper()}")
     title       = Column(String(500), nullable=False)
     description = Column(Text, nullable=False)
 

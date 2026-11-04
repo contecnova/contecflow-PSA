@@ -13,6 +13,7 @@ Resource AI  : AIResourceInsight
 Financial AI : AIFinancialInsight
 Client Portal: AIClientSession, AIClientMessage
 """
+from sqlalchemy import Index
 from sqlalchemy import (
     Column, String, Float, DateTime, ForeignKey, Text,
     Boolean, Integer
@@ -165,10 +166,13 @@ class AIAnomaly(Base):
 class AIGovernanceConfig(Base):
     """Per-module AI governance settings (trust levels, approval requirements)."""
     __tablename__ = "ai_governance_configs"
+    # Unico por organizacion (revision multitenant 2026-11): antes era global y
+    # una segunda empresa no podia repetir el codigo/nombre de otra.
+    __table_args__ = (Index("uq_ai_governance_configs_org_module", "organization_id", "module", unique=True),)
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    module          = Column(String(50), nullable=False, unique=True)
+    module          = Column(String(50), nullable=False)
     # nexusassist | nexusagent | nexusoracle | meeting_assistant | contract_intelligence | ...
     is_enabled      = Column(Boolean, default=True)
     requires_approval_for = Column(Text, default='[]')         # JSON: list of tool names requiring approval

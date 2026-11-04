@@ -266,6 +266,10 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
         _rechazar_credenciales(bucket, db=db, user=user, request=request)
 
     _clear_login_failure(bucket)
+    if not user.is_superadmin:
+        # Revision 2026-11: SSO y passkey ya lo comprobaban; la contrasena no.
+        from app.db.session import exigir_organizacion_activa
+        exigir_organizacion_activa(db, user.organization_id)
 
     user.last_login = datetime.now(timezone.utc)
     audit_log(db, user, "LOGIN", "users", user.id, user.full_name)

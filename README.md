@@ -3775,6 +3775,15 @@ This section covers every screen an administrator uses to configure contecflow-P
   - `assert_same_org`.
   - `assert_org_id_is_own`: strict check for a client-supplied org id; 404 unless it matches or the caller is a superadmin.
   - `organizacion_existe`.
+- **Measured on 2026-11-04 with two companies** (copy of the database, a second organization with its own admin, scripts in the session scratchpad):
+  - **Reads:** the second company's admin called the 578 GET routes without parameters (streaming excluded) looking for any id, email or project name of the first. One route showed them: `/settings/general` listed per-ticket settings (dynamic fields, on-hold snapshot) stored as **global** rows. Fixed: they are stored under the ticket's organization, and migration 125 moves the existing ones.
+  - **Reads by id:** 278 one-parameter GET routes; 145 could be fed ids of the first company (371 requests). None returned its data; 12 echo the requested id with empty content.
+  - **Writes by id:** 296 one-parameter PATCH/PUT/DELETE routes; 118 could be fed ids of the first company (174 requests). None changed or deleted its rows. 178 write routes and 133 read routes have no table deducible from the parameter name and were not probed.
+  - **Unique values were global:** 19 business uniques (project code, invoice number, contract, opportunity, work order and change numbers, task types, statuses, departments, skills, wiki space slug, asset tag and serial, AI governance module, alert type, embedding cache) were unique across all companies. The second company could not use "PRJ-0001", and its task types screen returned 500 when seeding "bug". Migration 125 makes them unique per organization; `tests/test_unicos_por_organizacion.py` fails if a new global unique appears without a written reason (48 deliberate ones listed: login identity, tokens, public URLs, rows unique inside their parent).
+  - **Deactivating an organization** stopped only SSO and passkey sign-in. Password login, already issued tokens, API keys, the client portal and WebSockets kept working. Now `exigir_organizacion_activa` (`app/db/session.py`) runs on every request (403 "La organización está desactivada") and at password login.
+  - **`deps.get_current_client`** (portal collaboration and conversations) did not publish the tenant, and an uninitialised `TenantSession` does not filter. It does now.
+  - **Hand-written SQL:** the scheduled-reports summary counted every company's reports; it is now scoped.
+  - **No database-level isolation:** there is no Postgres RLS (0 tables) and the application connects as a superuser role. Isolation relies entirely on `TenantSession`.
 - **Single active org per user.** Filtering uses `users.organization_id` only. `user_organization_memberships` rows (added by `assign-user`) do **not** change what a user sees, and no "switch organization" endpoint exists in the route table.
 - **Limitations (measured):**
   - Writes (UPDATE/DELETE) are **not** narrowed by the listener; each endpoint's own WHERE clause has to be correct.

@@ -12,7 +12,7 @@ Tablas:
 """
 import uuid
 import enum
-from sqlalchemy import Column, String, Text, Float, Boolean, Integer, DateTime, ForeignKey, Enum
+from sqlalchemy import Index, Column, String, Text, Float, Boolean, Integer, DateTime, ForeignKey, Enum
 from sqlalchemy.sql import func
 from app.db.base import Base
 
@@ -55,12 +55,15 @@ class SemProfile(Base):
 class SemEmbeddingCache(Base):
     """Embeddings de ítems ya procesados (tickets/tareas) — equivalente al Expert Cache de Ficosa."""
     __tablename__ = "sem_embedding_cache"
+    # Unico por organizacion (revision multitenant 2026-11): antes era global y
+    # una segunda empresa no podia repetir el codigo/nombre de otra.
+    __table_args__ = (Index("uq_sem_embedding_cache_org_text_hash", "organization_id", "text_hash", unique=True),)
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     item_type       = Column(String(20), nullable=False)   # ticket | task
     item_id         = Column(String(36), nullable=False, index=True)
-    text_hash       = Column(String(64), nullable=False, unique=True, index=True)  # SHA-256
+    text_hash       = Column(String(64), nullable=False, index=True)  # SHA-256
     text_snippet    = Column(String(500), nullable=True)
     embedding       = Column(Text, nullable=True)          # JSON list of floats
     assigned_user_id= Column(String(36), nullable=True)    # quién lo resolvió

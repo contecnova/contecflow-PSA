@@ -4,6 +4,7 @@ Gestión de proveedores, contratos, licencias, activos y suscripciones.
 """
 import uuid
 import enum
+from sqlalchemy import Index
 from sqlalchemy import (Column, String, Float, Integer, Boolean, Date,
                         DateTime, Text, ForeignKey, Enum, UniqueConstraint)
 from sqlalchemy.orm import relationship
@@ -280,6 +281,9 @@ class ALMLicenseAssignment(Base):
 class ALMAsset(Base):
     """Activo físico o virtual (laptop, servidor, VM, móvil…)."""
     __tablename__ = "alm_assets"
+    # Unico por organizacion (revision multitenant 2026-11): antes era global y
+    # una segunda empresa no podia repetir el codigo/nombre de otra.
+    __table_args__ = (Index("uq_alm_assets_org_serial_number", "organization_id", "serial_number", unique=True), Index("uq_alm_assets_org_asset_tag", "organization_id", "asset_tag", unique=True),)
 
     id                  = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
@@ -287,8 +291,8 @@ class ALMAsset(Base):
     type                = Column(Enum(AssetType, name='alm_assettype'), nullable=False)
     brand               = Column(String(100), nullable=True)
     model               = Column(String(200), nullable=True)
-    serial_number       = Column(String(200), nullable=True, unique=True)
-    asset_tag           = Column(String(100), nullable=True, unique=True)  # etiqueta física
+    serial_number       = Column(String(200), nullable=True)
+    asset_tag           = Column(String(100), nullable=True)  # etiqueta física
 
     status              = Column(Enum(ALMAssetStatus, name='alm_assetstatus'), default=ALMAssetStatus.available)
     condition           = Column(Enum(AssetCondition), default=AssetCondition.good)

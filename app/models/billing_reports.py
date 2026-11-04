@@ -7,6 +7,7 @@ v12 models:
   - ReportDefinition / ScheduledReport: saved + scheduled reports
   - ResourceMatch : SmartMatch recommendations cache
 """
+from sqlalchemy import Index
 from sqlalchemy import (
     Column, String, Float, DateTime, ForeignKey, Text,
     Boolean, Integer, Enum, Date
@@ -178,10 +179,13 @@ class InvoiceStatus(str, enum.Enum):
 class Invoice(Base):
     """Client invoice generated from timesheets/expenses/milestones."""
     __tablename__ = "invoices"
+    # Unico por organizacion (revision multitenant 2026-11): antes era global y
+    # una segunda empresa no podia repetir el codigo/nombre de otra.
+    __table_args__ = (Index("uq_invoices_org_number", "organization_id", "number", unique=True),)
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    number      = Column(String(30), nullable=False, unique=True)   # INV-2025-001
+    number      = Column(String(30), nullable=False)   # INV-2025-001
     project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
     client_id   = Column(String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True)
     contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True)
