@@ -11,7 +11,7 @@ from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, require_admin_or_pm, require_internal_user
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
-from app.models.task import TaskStatus, TaskPriority
+from app.models.task import Task, TaskStatus, TaskPriority
 from app.schemas import (
     TaskCreate, TaskUpdate, TaskOut, TaskCommentCreate, TaskCommentOut, BulkTaskUpdatePayload
 )
@@ -97,6 +97,9 @@ def list_tasks(
     search: Optional[str] = None,
     overdue_only: bool = False,
     assigned_to_me: bool = False,            # filtrar por usuario autenticado
+    # Auditoria 2026-11: el calendario los mandaba y se ignoraban.
+    due_date_from: Optional[date] = None,
+    due_date_to: Optional[date] = None,
     limit: Optional[int] = None,             # alias de page_size para compatibilidad
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
@@ -120,6 +123,10 @@ def list_tasks(
         search=search,
         overdue_only=overdue_only,
     )
+    if due_date_from:
+        q = q.filter(Task.due_date >= due_date_from)
+    if due_date_to:
+        q = q.filter(Task.due_date <= due_date_to)
 
     total = q.count()
     tasks = q.offset((page - 1) * effective_page_size).limit(effective_page_size).all()

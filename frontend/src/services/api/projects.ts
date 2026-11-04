@@ -3,6 +3,7 @@
  */
 import type { AxiosResponse } from 'axios'
 import api from './_core'
+import { todasLasPaginas } from './todasLasPaginas'
 
 export interface ProjectListItem {
   id: string
@@ -69,7 +70,8 @@ export interface RaciEntry {
 
 export const projectsApi = {
   list: (params?: ProjectListParams): Promise<AxiosResponse<ProjectListItem[]>> =>
-    api.get('/projects', { params }),
+    // Auditoría 2026-11: sin `page`, todas las páginas (antes, solo las 50 primeras).
+    todasLasPaginas('/projects', params as Record<string, unknown> | undefined),
 
   get: (id: string): Promise<AxiosResponse<ProjectListItem>> =>
     api.get(`/projects/${id}`),

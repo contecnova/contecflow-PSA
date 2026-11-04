@@ -1085,6 +1085,15 @@ start_services() {
     setup_frontend
   fi
 
+  # Auditoría 2026-11: `start` no migraba. Tras un `git pull` con revisiones
+  # nuevas, el código leía columnas que la base aún no tenía (users.custom_role_id,
+  # migración 120) y nadie podía entrar. `upgrade head` es idempotente.
+  log "Aplicando migraciones pendientes..."
+  if ! "$PY_BIN" -m alembic upgrade head; then
+    error "Las migraciones han fallado. La aplicación NO se arranca con un esquema a medias."
+    exit 1
+  fi
+
   # Always sync demo passwords before starting — ensures hash matches .env even on 'start'
   sync_demo_passwords
 

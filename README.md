@@ -47,6 +47,7 @@ This README is the complete functional and technical documentation of the soluti
 - Web app: <http://localhost:3000> — sign in as user `admin` (or `admin@company.com`) with `SUPERADMIN_PASSWORD` from `.env`. In demo mode the admin's email comes from `seed_users_data.json` and `SUPERADMIN_EMAIL` is ignored; other demo users and password caveats are in [7.3.6](#36-first-login).
 - Client portal: <http://localhost:3000/portal> — portal users are created in *Clients → (client) → Portal → Accesos*.
 - API documentation (OpenAPI): <http://localhost:8000/docs>.
+- `setup.sh start` applies pending migrations before starting (since 2026-11-04; before, only `demo`/`clean`/`update` did, and a `git pull` with new revisions left the API reading columns the database did not have).
 - `setup.sh start`/`demo` also start a **Celery worker and Celery beat** (logs in `/tmp/contecflow-worker.log` and `/tmp/contecflow-beat.log`) and run the API with `ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1`, so every scheduled job runs exactly once. Redis must be up (the setup starts it with Docker).
 
 All modes of `setup.sh`/`setup.bat`, the Docker stack and manual installation are in [7.3](#3-requirements-and-installation).
@@ -71,7 +72,7 @@ Each item was measured in the code; the ones marked ✔ were re-checked by hand 
 - ~~Finance dashboard: revenue, cost and margin always show 0, and PMs get 403 on the profitability summary.~~ Fixed 2026-11-03, with the pipeline KPIs and the project table that read fields the API does not send. The period selector still does nothing. [3]
 - The Approval Inbox only receives documents and client-portal requests, plus (since 2026-11-03) expenses, timesheets and absences when the organization has a default workflow for them. Change requests from `/changes`, purchases and invoices still never reach it. [1]
 - ~~Executive dashboard KPIs always show €0; the agent dashboard (`/agent-dashboard`) shows zeros.~~ Fixed 2026-11-03, as is the resource forecast counting deleted bookings and ignoring absences. [5, 4, 2]
-- Many lists stop at 50 (or 25) items without pagination; the Service Desk ticket lists (*My queue*, *All*, Kanban) were fixed on 2026-11-03. [1, 4]
+- ~~Many lists stop at 50 (or 25) items without pagination.~~ Fixed: the Service Desk ticket lists on 2026-11-03; on 2026-11-04 the project, people, task and absence lists the screens and pickers load now walk every page (`frontend/src/services/api/todasLasPaginas.ts`), `/absences` pages with a total, and `/tasks` honours the calendar's date range. Lists with a fixed cap by design (portfolio risks top 50, CSV 2,000 rows) are unchanged. [1, 4]
 
 **Service Desk**
 - ~~The ticket panel cannot write an internal note.~~ Fixed 2026-11-03: the panel has an *Internal note* checkbox; internal notes show to agents with a badge and never reach the requester or the portal. [4]
@@ -98,7 +99,7 @@ Everything here was checked against the code (`frontend/src/App.tsx`, `frontend/
 
 **Cross-cutting limitations (measured)**
 
-- **Lists stop at the backend's default page size.** `GET /api/v1/projects` defaults to `page_size=50` and the project pickers in Tasks, Kanban, Sprints, Gantt, Epics, Risks, Documents, RACI, Changelog, UAT, Deliverables, Changes and Dependencies call it without `page_size`. With more than 50 visible projects, the extra ones never show up in those pickers. `ProjectsPage` has no pagination UI either. `GET /api/v1/tasks` has the same default of 50, and `TasksPage` sends no `page_size`.
+- ~~Lists stop at the backend's default page size.~~ Fixed 2026-11-04: `projectsApi.list`, `usersApi.list`, `tasksApi.list` and `absencesApi.list` request every page (200 per request) unless the caller asks for a specific `page`, so the pickers in Tasks, Kanban, Sprints, Gantt, Epics, Risks, Documents, RACI, Changelog, UAT, Deliverables, Changes and Dependencies, and ProjectsPage, show all visible items. With thousands of projects this loads them all; there is still no pagination UI on ProjectsPage.
 - **Hidden buttons don't match backend permissions.** Most delivery pages (Sprints, RACI, UAT, Changelog, Epics, Risks, Dependencies, Wiki, Meeting Assistant, Documents) contain no `hasRole` check. Users who can open the page see create/edit buttons that the backend answers with 403.
 - **UI text is not fully translated.** Many labels, toasts and prompts are hard-coded in Spanish rather than going through `useAppT()`. Examples: month names in Calendar, the Expenses form, the Kanban "reopen" prompt, the CAB buttons and the Projects table columns.
 - **Few frontend tests.** The frontend has 32 `*.test.ts(x)` files. Only one touches these screens (`GanttChart.test.tsx`). Backend tests exist for most endpoint families. No test file references `/cmdb/sprint-plans`, `/ai-modules/meetings` or `/ai-modules/smart-schedule`.
@@ -258,7 +259,7 @@ Task status values must still be one of the `TaskStatus` enum values; the Pydant
 
 **Limitations.**
 - **Bulk edit skips the transition rules.** `POST /tasks/bulk-update` does not call `validate_task_transition` (`services/tasks/bulk.py`), so it can make jumps that the single edit rejects (e.g. `cancelled → todo`).
-- **List limited to 50.** The list view requests no `page_size`, so it shows at most 50 tasks (backend default) and has no pagination.
+- ~~List limited to 50.~~ Fixed 2026-11-04: the list loads every page.
 - **Kanban without a project hides two statuses.** It groups the flat list into the 5 columns above; `backlog` and `cancelled` tasks are not shown.
 - **team_lead gets 403 on two actions.** Auto-planificar's apply step (`bulk-dates`) and task deletion require admin or pm, but the UI shows them to team_lead.
 
@@ -337,7 +338,7 @@ Rules enforced in `imputation_service.py`:
 **Technical notes.** `GET /api/v1/tasks`, `GET /api/v1/projects/milestones?date_from&date_to`, `GET /api/v1/sprints?limit=20`, `GET /api/v1/absences?date_from&date_to&limit=50`.
 
 **Limitations.**
-- **Tasks are not filtered by month on the server.** The page sends `due_date_from`, `due_date_to` and `limit=100`. `list_tasks` accepts none of the date filters. Its `limit` alias only applies when smaller than `page_size` (50). So the page gets the first 50 tasks visible to the user and shows only those whose due date falls in the month. Other tasks in that month are missing.
+- ~~Tasks are not filtered by month on the server.~~ Fixed 2026-11-04: `GET /tasks` accepts `due_date_from`/`due_date_to`, and the page loads every task of the month.
 - **Sprints are not filtered by month either.** It shows at most 20 sprints org-wide.
 - **Absences appear only on their start date.**
 - **Two event types are never loaded.** The legend has `contract` and `license` event types, but no query loads them.
@@ -984,7 +985,7 @@ There are no actions on this page.
 **Limitations (measured in code).**
 - **The utilisation gauge never shows.** The page reads `avg_utilization_pct`, but `analytics_service.get_advanced_utilization` returns `summary.actual_utilization_pct`/`booked_utilization_pct` and no `avg_utilization_pct`. The period selector is also sent as `date_from/date_to`, which that endpoint ignores (it only takes `weeks_ahead`).
 - **The "pending reviews" KPI shows the viewer's own pending reviews** (`/performance/my-reviews`), not the team's. Its "completed" sub-count checks status `completed`, which doesn't exist (`ReviewStatus` is `pending | submitted | approved`), so it is always 0.
-- Truncation: users are capped at 200. Absences use the endpoint's default `limit=50` (the page sends `page_size`, which `/absences` ignores). OKRs are only those of the current year (the endpoint defaults `year` to the current year).
+- Truncation: users and absences now load every page (2026-11-04; `/absences` accepts `page`/`page_size` and returns the total, `limit` is kept as an alias). OKRs are only those of the current year (the endpoint defaults `year` to the current year).
 - The period selector affects none of the other cards either: none of their queries takes the dates.
 
 ### Resources — `/resources`
@@ -1056,7 +1057,7 @@ Cell colour: >100 % red, >85 % amber, >60 % accent, otherwise green.
 **Limitations.**
 - **Moving a plan by drag-and-drop skips both the over-capacity check and the absence check.** `capacity_service.update_capacity_plan` just sets the fields.
 - **`POST /capacity/plans` and `GET /capacity/board` only require a logged-in user** (`get_current_user`). Through the API, an employee or subcontractor can read the whole board and create plans for any `user_id`; only move/delete require a manager.
-- People come from `GET /users` with no `page_size`, so the server default of 50 applies: the board shows **at most 50 people**. Projects come from `projectsApi.list({})`, so the same truncation probably applies (Not verified for the projects endpoint).
+- ~~People and projects stop at 50.~~ Fixed 2026-11-04: both lists load every page.
 - Capacity plans are not shown on the Resources heatmap or in the Visual Scheduler, which read bookings only.
 
 ### Resource forecast — `/resource-forecast`
@@ -1160,7 +1161,7 @@ Cell shading comes from the forecast endpoint.
 
 **Limitations.**
 - **hr can open the page but gets 403 when selecting another person's approval chain**, because that endpoint is admin/pm only.
-- `GET /users` uses the default page size of 50, so selectors and the Posiciones table show at most 50 people.
+- ~~`GET /users` stops at 50 people in selectors.~~ Fixed 2026-11-04: every page is loaded.
 - Saving a node makes two sequential calls (profile, then manager). If the second fails, the first is already saved.
 
 ### OKRs — `/okrs`
@@ -5330,7 +5331,8 @@ Structural guard tests worth knowing (all in `tests/`):
 | `Dual scheduler mode detected` | `ENABLE_APSCHEDULER=1` and `ENABLE_CELERY_BEAT=1` in the same process | Disable one |
 | `ENABLE_SUPERADMIN_BYPASS=1 is only allowed …` | Bypass outside development+SQLite | Remove the flag |
 | `Schema drift detectado` / `No existe tabla alembic_version` | DB behind the Alembic heads (fatal in staging/production) | `python -m alembic upgrade head` |
-| `./setup.sh start` serves an old schema after `git pull` | `start` does not migrate | `./setup.sh update` or `alembic upgrade head` |
+| A page with a Plotly chart (CMDB topology, box, violin, 3D) breaks in dev with `ReferenceError: global is not defined` | `plotly.js/lib/*` is CommonJS that reads Node's `global`; Vite's dev pre-bundle does not translate it (the production build does). Fixed 2026-11-04 with `src/charts/globalShim.ts`, imported before plotly | Reload the page |
+| `./setup.sh start` served an old schema after `git pull` | `start` did not migrate (fixed 2026-11-04: it now runs `alembic upgrade head` and refuses to start if it fails) | Restart with `./setup.sh stop && ./setup.sh start` |
 | Backend not ready after 60 s | Port 8000 busy, import error | `tail -20 /tmp/contecflow-backend.log`, `lsof -i :8000` |
 | `SQLite quick_check` fails | WAL/SHM leftovers | `setup.sh` removes `contecflow.db-wal/-shm` itself. Its fallback message suggests `python -m app.db.migrate`, which is the legacy `create_all` path the project abandoned; use `rm -f contecflow.db* && python -m alembic upgrade head` instead |
 | `setup.sh` silently ends up on SQLite | Docker daemon not ready, `up` failed, or Postgres not ready in 30 s | Check `docker compose ps`, re-run |

@@ -37,6 +37,8 @@
 // un `@ts-expect-error` sobre cada import por si acaso, y `noUnusedLocals`
 // —bueno, `TS2578`— los delató como innecesarios. Quitarlos importa: un
 // `@ts-expect-error` de más silencia el error que sí aparezca mañana.
+// Antes que plotly: ver globalShim.ts.
+import './globalShim'
 import Plotly from 'plotly.js/lib/core'
 import box from 'plotly.js/lib/box'
 import violin from 'plotly.js/lib/violin'

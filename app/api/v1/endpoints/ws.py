@@ -462,7 +462,12 @@ async def ws_notifications(
                         logging.getLogger(__name__).warning(f"WS notifications malformed message: {e}")
                     except Exception as e:
                         logging.getLogger(__name__).error(f"Unexpected error processing ws message: {e}")
-            except WebSocketDisconnect:
+            except (WebSocketDisconnect, RuntimeError):
+                # Auditoria 2026-11: si el cliente cierra mientras el sondeo
+                # escribe, Starlette da RuntimeError («not connected») y no
+                # WebSocketDisconnect: salia como traza en el log.
+                pass
+            finally:
                 poll_task.cancel()
         finally:
             manager.disconnect(websocket, user_id if user_id else 'unknown')

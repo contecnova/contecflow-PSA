@@ -34,7 +34,9 @@ def list_absences(
     user_id: Optional[str] = None,
     status: Optional[str] = None,
     limit: int = 50,
-) -> list[Absence]:
+    page: int = 1,
+) -> tuple[list[Absence], int]:
+    """(pagina de ausencias, total). Auditoria 2026-11: antes solo las 50 primeras."""
 
     q = db.query(Absence).options(joinedload(Absence.user)).filter(Absence.is_active == True)
     if not is_superadmin and organization_id:
@@ -55,7 +57,9 @@ def list_absences(
     if status:
         q = q.filter(Absence.status == status)
 
-    return q.order_by(Absence.start_date.desc()).limit(limit).all()
+    total = q.count()
+    filas = q.order_by(Absence.start_date.desc()).offset((page - 1) * limit).limit(limit).all()
+    return filas, total
 
 
 def get_my_absences(db: Session, user_id: str) -> list[Absence]:

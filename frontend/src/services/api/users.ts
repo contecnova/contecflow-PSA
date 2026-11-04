@@ -3,6 +3,7 @@
  */
 import type { AxiosResponse } from 'axios'
 import api from './_core'
+import { todasLasPaginas } from './todasLasPaginas'
 
 export interface UserListItem {
   id: string
@@ -60,7 +61,8 @@ export interface ApprovalChainNode {
 
 export const usersApi = {
   list: (params?: UserListParams): Promise<AxiosResponse<UserListItem[]>> =>
-    api.get('/users', { params }),
+    // Auditoría 2026-11: sin `page`, todas las páginas (antes, solo las 50 primeras).
+    todasLasPaginas('/users', params as Record<string, unknown> | undefined),
 
   withRates: (): Promise<AxiosResponse<UserListItem[]>> =>
     api.get('/users/with-rates'),

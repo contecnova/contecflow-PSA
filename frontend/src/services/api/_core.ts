@@ -616,7 +616,7 @@ export const trainingApi = {
 
 // ── Absences ──────────────────────────────────────────────────────────────────
 export const absencesApi = {
-  list:           (params?: any)    => api.get('/absences', { params }),
+  list:           (params?: any)    => import('./todasLasPaginas').then(m => m.todasLasPaginas<any>('/absences', params)) as Promise<any>,
   my:             (params?: any)    => api.get('/absences/my', { params }),
   pending:        ()          => api.get('/absences/pending'),
   team:           (params?: any)    => api.get('/absences/team', { params }),

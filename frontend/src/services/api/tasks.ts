@@ -3,6 +3,7 @@
  */
 import type { AxiosResponse } from 'axios'
 import api from './_core'
+import { todasLasPaginas } from './todasLasPaginas'
 
 export type TaskStatus =
   | 'todo'
@@ -83,7 +84,8 @@ export interface MovementLogEntry {
 
 export const tasksApi = {
   list: (params?: TaskListParams): Promise<AxiosResponse<TaskListItem[]>> =>
-    api.get('/tasks', { params }),
+    // Auditoría 2026-11: sin `page`, todas las páginas (antes, solo las 50 primeras).
+    todasLasPaginas('/tasks', params as Record<string, unknown> | undefined),
 
   kanban: (projectId: string): Promise<AxiosResponse<KanbanResponse>> =>
     api.get(`/tasks/kanban/${projectId}`),

@@ -25,12 +25,16 @@ def list_absences(
     date_to:   Optional[date] = None,
     user_id:   Optional[str]  = None,
     status:    Optional[str]  = None,
-    limit:     int = Query(50, ge=1, le=200),
+    limit:     Optional[int] = Query(None, ge=1, le=200),
+    page:      int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Lista ausencias con filtros opcionales de fecha y usuario.
+    Lista ausencias con filtros opcionales de fecha y usuario, paginada.
+    `limit` se conserva como alias de `page_size` (auditoria 2026-11: la
+    pantalla mandaba `page_size` y se ignoraba).
     Admins/managers ven todas; empleados solo las suyas.
     """
     absences = absence_service.list_absences(
@@ -43,10 +47,12 @@ def list_absences(
         date_to=date_to,
         user_id=user_id,
         status=status,
-        limit=limit,
+        limit=limit or page_size,
+        page=page,
     )
+    absences, total = absences
     items = [_absence_out(a) for a in absences]
-    return APIListResponse.ok(items=items, total=len(items))
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=limit or page_size)
 
 
 @router.get("/my", response_model=APIListResponse[dict], summary="Mis ausencias")
