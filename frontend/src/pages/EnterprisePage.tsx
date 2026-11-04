@@ -619,11 +619,29 @@ function SSOTab() {
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [testResult, setTestResult] = useState<{valid?:boolean; issues?:string[]}|null>(null)
-  const [form, setForm] = useState({
+  // Auditoría 2026-11: el formulario solo tenía cliente y discovery; no se
+  // podía activar (el PATCH no existía en el cliente), ni elegir rol por
+  // defecto, mapear grupos a roles o limitar dominios.
+  const VACIO = {
     provider: 'azure_ad', name: '',
     oidc_client_id: '', oidc_client_secret: '',
-    oidc_discovery_url: '', is_active: true,
-  })
+    oidc_discovery_url: '', oidc_scopes: 'openid email profile', is_active: true,
+    default_role: 'employee', auto_create_users: true, allowed_domains: '',
+    groups_claim: 'groups', role_mapping_text: '',
+  }
+  const [form, setForm] = useState(VACIO)
+  const [editId, setEditId] = useState<string | null>(null)
+  const aPayload = (f: typeof VACIO) => {
+    const role_mapping: Record<string, string> = {}
+    f.role_mapping_text.split('\n').map(l => l.trim()).filter(Boolean).forEach(l => {
+      const i = l.lastIndexOf('=')
+      if (i > 0) role_mapping[l.slice(0, i).trim()] = l.slice(i + 1).trim()
+    })
+    const { role_mapping_text: _omit, ...resto } = f
+    const datos: Record<string, unknown> = { ...resto, role_mapping }
+    if (editId) { delete datos.provider; if (!f.oidc_client_secret) delete datos.oidc_client_secret }
+    return datos
+  }
 
   const { data: configs = [] } = useQuery({
     queryKey: ['sso-cfg'],
@@ -631,10 +649,27 @@ function SSOTab() {
   })
 
   const { mutate: create, isPending: creating } = useMutation({
-    mutationFn: (d: any) => enterpriseApi.ssoCreate(d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sso-cfg'] }); setShowCreate(false); toast.success('SSO creado') },
+    mutationFn: (d: any) => (editId ? enterpriseApi.ssoUpdate(editId, d) : enterpriseApi.ssoCreate(d)),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sso-cfg'] }); setShowCreate(false); setEditId(null); setForm(VACIO); toast.success('SSO guardado') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
+
+  const { mutate: toggle } = useMutation({
+    mutationFn: (c: any) => enterpriseApi.ssoUpdate(c.id, { is_active: !c.is_active }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sso-cfg'] }),
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  const editar = (c: any) => {
+    setEditId(c.id)
+    setForm({
+      ...VACIO, provider: c.provider, name: c.name || '', oidc_client_id: c.oidc_client_id || '',
+      oidc_discovery_url: c.oidc_discovery_url || '', oidc_scopes: c.oidc_scopes || VACIO.oidc_scopes,
+      is_active: !!c.is_active, default_role: c.default_role || 'employee', auto_create_users: c.auto_create_users !== false,
+      allowed_domains: c.allowed_domains || '', groups_claim: c.groups_claim || 'groups',
+      role_mapping_text: Object.entries(c.role_mapping || {}).map(([g, r]) => `${g}=${r}`).join('\n'),
+    })
+    setShowCreate(true)
+  }
 
   const { mutate: del } = useMutation({
     mutationFn: (id: string) => enterpriseApi.ssoDelete(id),
@@ -659,7 +694,6 @@ function SSOTab() {
     okta:     { label: 'Okta',                icon: '🟠', discovery: 'https://{your-domain}.okta.com/.well-known/openid-configuration' },
     google:   { label: 'Google Workspace',    icon: '🔴', discovery: 'https://accounts.google.com/.well-known/openid-configuration' },
     oidc:     { label: 'OIDC Genérico',       icon: '🔑', discovery: 'https://your-idp.com/.well-known/openid-configuration' },
-    saml:     { label: 'SAML 2.0',            icon: '🔐', discovery: '' },
   }
 
   const cardStyle: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', marginBottom: 10 }
@@ -671,9 +705,9 @@ function SSOTab() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>Single Sign-On (SSO)</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>Configura Azure AD, Okta, Google o cualquier proveedor OIDC/SAML</div>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>Configura Azure AD / Entra ID, Okta, Google o cualquier proveedor OpenID Connect</div>
         </div>
-        <button onClick={() => setShowCreate(s => !s)} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 8, padding: '6px 14px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+        <button onClick={() => { setShowCreate(s => !s); setEditId(null); setForm(VACIO) }} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 8, padding: '6px 14px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
           {showCreate ? '✕ Cancelar' : '+ Añadir proveedor'}
         </button>
       </div>
@@ -683,7 +717,7 @@ function SSOTab() {
         <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--purple)', marginBottom: 8 }}>{traducir('enterprise.como_integrar_sso')}</div>
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', lineHeight: 1.7 }}>
           {traducir('enterprise.1_registra_contecflow_como_aplicacion_en_tu')}<br/>
-          {traducir('enterprise.2_configura_el')} <strong style={{ color: 'var(--text-1)' }}>Redirect URI</strong>: <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4 }}>{window.location.origin}/auth/sso/callback</code><br/>
+          {traducir('enterprise.2_configura_el')} <strong style={{ color: 'var(--text-1)' }}>Redirect URI</strong>: <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4 }}>{window.location.origin}/login</code><br/>
           {traducir('enterprise.3_copia_el_client_id_y_client')}<br/>
           {traducir('enterprise.4_anade_el_boton_de_login_sso')} <strong style={{ color: 'var(--text-1)' }}>Ajustes {'>'} Seguridad</strong>.
         </div>
@@ -692,11 +726,11 @@ function SSOTab() {
       {/* Formulario de creación */}
       {showCreate && (
         <div style={{ ...cardStyle, borderColor: 'var(--accent-glow)' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', marginBottom: 14 }}>{traducir('enterprise.nuevo_proveedor_sso')}</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', marginBottom: 14 }}>{editId ? traducir('enterprise.sso_editar') : traducir('enterprise.nuevo_proveedor_sso')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
             <div>
               <label style={labelStyle}>Proveedor</label>
-              <select value={form.provider} onChange={e => {
+              <select value={form.provider} disabled={!!editId} onChange={e => {
                 const info: { label?: string; icon?: string; discovery?: string } = PROVIDER_INFO[e.target.value] || {}
                 setForm(f => ({ ...f, provider: e.target.value, oidc_discovery_url: info.discovery || '' }))
               }} style={inputStyle}>
@@ -719,10 +753,40 @@ function SSOTab() {
               <label style={labelStyle}>Discovery URL (OpenID Connect)</label>
               <input value={form.oidc_discovery_url} onChange={e => setForm(f=>({...f,oidc_discovery_url:e.target.value}))} style={inputStyle} placeholder={PROVIDER_INFO[form.provider]?.discovery} />
             </div>
+            <div>
+              <label style={labelStyle}>{traducir('enterprise.sso_scopes')}</label>
+              <input value={form.oidc_scopes} onChange={e => setForm(f=>({...f,oidc_scopes:e.target.value}))} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>{traducir('enterprise.sso_dominios')}</label>
+              <input value={form.allowed_domains} onChange={e => setForm(f=>({...f,allowed_domains:e.target.value}))} style={inputStyle} placeholder="empresa.com, filial.es" />
+            </div>
+            <div>
+              <label style={labelStyle}>{traducir('enterprise.sso_rol_defecto')}</label>
+              <select value={form.default_role} onChange={e => setForm(f=>({...f,default_role:e.target.value}))} style={inputStyle}>
+                {['employee','team_lead','pm','hr','admin','subcontractor'].map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>{traducir('enterprise.sso_claim_grupos')}</label>
+              <input value={form.groups_claim} onChange={e => setForm(f=>({...f,groups_claim:e.target.value}))} style={inputStyle} />
+            </div>
+            <div style={{ gridColumn: '1/-1' }}>
+              <label style={labelStyle}>{traducir('enterprise.sso_mapeo')}</label>
+              <textarea rows={3} value={form.role_mapping_text} onChange={e => setForm(f=>({...f,role_mapping_text:e.target.value}))} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} placeholder={'Contecflow-Admins=admin\nContecflow-PM=pm'} />
+            </div>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'var(--text-sm)' }}>
+              <input type="checkbox" checked={form.auto_create_users} onChange={e => setForm(f=>({...f,auto_create_users:e.target.checked}))} />
+              {traducir('enterprise.sso_autocrear')}
+            </label>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'var(--text-sm)' }}>
+              <input type="checkbox" checked={form.is_active} onChange={e => setForm(f=>({...f,is_active:e.target.checked}))} />
+              {traducir('enterprise.sso_activo')}
+            </label>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
-            <button onClick={() => create(form)} disabled={creating || !form.oidc_client_id} style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent-border-strong)', borderRadius: 7, padding: '6px 14px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600 }}>
+            <button onClick={() => create(aPayload(form))} disabled={creating || !form.oidc_client_id} style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent-border-strong)', borderRadius: 7, padding: '6px 14px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600 }}>
               {creating ? '⟳ Guardando...' : '✓ Guardar SSO'}
             </button>
           </div>
@@ -758,6 +822,10 @@ function SSOTab() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => toggle(c)} aria-pressed={!!c.is_active} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: c.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                    {c.is_active ? traducir('enterprise.sso_desactivar') : traducir('enterprise.sso_activar')}
+                  </button>
+                  <button onClick={() => editar(c)} aria-label={`${traducir('enterprise.sso_editar')} ${c.name || c.provider}`} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
                   <button onClick={() => testSSO(c.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                     🔧 Verificar config
                   </button>

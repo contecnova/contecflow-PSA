@@ -293,6 +293,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("ACCESS_TOKEN_MAX_MINUTES", "int", "Access token max TTL (minutes)"),
         ("REFRESH_TOKEN_EXPIRE_DAYS", "int", "Refresh token TTL (days)"),
         ("DEVELOPER_TOKEN_TTL_MINUTES", "int", "Developer-portal app token TTL (minutes)"),
+        ("PASSKEY_PASSWORDLESS_ENABLED", "bool", "Allow signing in with a passkey alone (no password)"),
     ],
     "key_rotation": [
         ("KEY_ROTATION_ENABLED", "bool", "Auto rotation enabled"),
@@ -335,6 +336,8 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
     "timeouts": [
         ("OUTBOUND_HTTP_TIMEOUT_SECONDS", "float", "Outbound HTTP timeout (seconds)"),
         ("OUTBOUND_AI_TIMEOUT_SECONDS", "float", "Outbound AI calls timeout (seconds)"),
+        ("SSO_HTTP_TIMEOUT_SECONDS", "float", "SSO — timeout calling the identity provider (seconds)"),
+        ("SSO_CLOCK_SKEW_SECONDS", "int", "SSO — clock skew tolerated when validating the id_token (seconds)"),
     ],
 }
 

@@ -79,6 +79,9 @@ class UserPublic(UserBase):
     phone: Optional[str] = Field(default=None, description="Teléfono de contacto del usuario")
     organizations: Optional[list[UserOrganizationOut]] = Field(default=None, description="Organizaciones a las que pertenece el usuario")
     custom_role_id: Optional[str] = Field(default=None, description="Rol personalizado asignado")
+    # Auditoria 2026-11: el panel de perfil lo leia para ocultar el cambio de
+    # contrasena a quien entra por SSO, y no venia nunca.
+    sso_provider: Optional[str] = Field(default=None, description="Proveedor SSO con el que entra, si lo hay")
     blocked_routes: list[str] = Field(default_factory=list, description="Rutas de pantalla cerradas por el rol (solo en /auth/me y el login)")
 
     class Config:

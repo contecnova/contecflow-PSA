@@ -112,7 +112,9 @@ EXENTAS_REVISADAS = {
 EXENCIONES_ESPERADAS = {
     # 92 desde 2026-11-03: POST y DELETE /reports/templates pasan a admin o PM,
     # como su pantalla (el generador de informes).
-    "acotada al propio usuario": 92,
+    # 93 desde 2026-11-04: PATCH /auth/mfa/webauthn/credentials/{id} (renombrar
+    # una passkey propia).
+    "acotada al propio usuario": 93,
     "superficie: API key": 7,
     "superficie: portal de cliente": 21,
     # 38 desde 2026-11-02: POST /sd/events/{source} autentica el token de la

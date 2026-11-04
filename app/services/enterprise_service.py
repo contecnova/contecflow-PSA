@@ -150,7 +150,7 @@ def serialize_webhook(h) -> dict:
 def serialize_sso(s) -> dict:
     import json
     return {
-        "id": s.id, "provider": s.provider,
+        "id": s.id, "provider": s.provider, "name": s.name, "groups_claim": s.groups_claim,
         "is_active": s.is_active, "is_default": s.is_default,
         "saml_entity_id": s.saml_entity_id,
         "saml_sso_url": s.saml_sso_url,
@@ -169,9 +169,7 @@ def serialize_sso(s) -> dict:
         "default_role": s.default_role,
         "allowed_domains": s.allowed_domains,
         "created_at": str(s.created_at)[:10] if s.created_at else None,
-        "sp_entity_id": f"{settings.BASE_URL}/api/v1/auth/saml/metadata",
-        "sp_acs_url": f"{settings.BASE_URL}/api/v1/auth/saml/callback",
-        "sp_slo_url": f"{settings.BASE_URL}/api/v1/auth/saml/logout",
+        # Auditoria 2026-11: se anunciaban URL de SAML (ACS, SLO) que no existen.
     }
 
 
@@ -349,7 +347,8 @@ def validate_sso_config(config) -> dict:
         "valid": len(issues) == 0,
         "issues": issues,
         "provider": config.provider,
-        "sp_metadata_url": "GET /api/v1/auth/saml/metadata",
+        # El redirect URI que hay que registrar en el IdP es el login de la app.
+        "redirect_uri_hint": "<origen de la aplicación>/login",
     }
 
 

@@ -4257,7 +4257,12 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 
 **Limitations (measured).**
 - Two endpoint families still exist (`/mfa/*` for this page and `/auth/mfa/*`); they now write the same fields, but enrolling through `/auth/mfa/setup` creates no backup codes and leaves this page showing "not enabled".
-- The front end has **no screen** for `/auth/mfa/setup`, `/auth/mfa/verify-setup` or WebAuthn registration. It only calls `/auth/mfa/validate` and WebAuthn *authenticate* during login.
+- **Passkeys (since 2026-11-04).** Profile → Seguridad → *Passkeys*: add one (browser prompt: fingerprint, Face ID, security key), rename ✏ or remove 🗑. Registration asks for a discoverable credential when the authenticator can (`residentKey: preferred`) and always requires user verification.
+  - **Sign in with a passkey alone:** *Entrar con passkey* on the login page (`POST /auth/passkey/login/start|finish`) needs no user name or password; the passkey identifies the user. Because user verification is required it counts as two factors, so no TOTP follows. It can be switched off with `PASSKEY_PASSWORDLESS_ENABLED` (Settings → Tokens). Before, the button sent the user name with an **empty password** to `/auth/login`: always 401, and a failed attempt counted towards lockout.
+  - **Passkey as second factor:** after the password or SSO, the second-factor step shows *Usar mi passkey* when the user has one. Backup codes (8 characters) can now be typed there; the field used to accept only 6 digits, so they could not be used from the screen.
+  - Endpoints: `/auth/mfa/webauthn/register/start|finish`, `GET /auth/mfa/webauthn/credentials`, `PATCH|DELETE /auth/mfa/webauthn/credentials/{id}`.
+  - Not verified with a physical authenticator: the browser ceremony was checked with mocks (`frontend/src/__tests__/LoginSsoPasskey.test.tsx`); the server checks with a simulated credential.
+- The front end still has no screen for `/auth/mfa/setup` / `/auth/mfa/verify-setup` (the `/mfa` page uses the older `/mfa/*` endpoints).
 - If an organization sets `require_mfa=true`, **which is API-only** (`PATCH /organizations/{id}`), users without a TOTP factor or passkey are refused at login with 403.
 
 ---
@@ -4310,7 +4315,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 **Technical notes.** `GET|POST /api/v1/organizations`, `GET|PATCH /organizations/{id}`, `POST /organizations/{id}/assign-user`, `DELETE /organizations/{id}/remove-user/{user_id}`. Tables `organizations` (`_tenant_exempt`) and `user_organization_memberships`. Changes to `require_mfa` are audited.
 
 **Limitations (measured).**
-- `max_users` is checked **only** in `assign-user` (`check_org_user_limit`). It is not checked when users are created through `/users`, SCIM or SSO.
+- `max_users` is checked in `assign-user` (`check_org_user_limit`) and, since 2026-11-04, when SSO creates a user. It is not checked when users are created through `/users` or SCIM.
 - **`max_projects` and `plan` have no enforcement anywhere** (grep).
 - **`organizations.is_active=false` does not block password login.** It is checked only by SSO auto-provisioning, SCIM, the worker and ML training.
 - `assign-user` sets `users.organization_id` only if it was empty. A second membership does not change the user's tenant (see the multi-tenant model).
@@ -4342,11 +4347,19 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 - Catalogue: slack, teams, jira, github, google_calendar, xero, quickbooks.
 - Test buttons call `POST /api/v1/integrations-hub/{slack|teams|jira}/test`.
 
-**SSO.**
-- OIDC providers: Azure AD/Entra, Okta, Google, generic OIDC. A SAML option is also offered.
-- Admin endpoints: `GET|POST /api/v1/enterprise/sso`, `PATCH|DELETE /enterprise/sso/{id}`, `POST /enterprise/sso/{id}/test`. Table `sso_configs`.
-- Login uses `GET /api/v1/auth/sso/providers`, `GET /auth/sso/{id}/authorize`, `POST /auth/sso/{id}/callback`. The flow uses PKCE S256, a nonce, an HMAC-signed state and redirect-URI allow-listing against `ALLOWED_ORIGINS` + `FRONTEND_URL`.
-- Users are auto-provisioned into the provider's `organization_id`, which must exist and be active.
+**SSO (OpenID Connect; reviewed and fixed 2026-11-04).**
+- Providers: Azure AD / Entra ID, Okta, Google Workspace, generic OIDC. **SAML is not offered**: it was listed but never implemented (every SAML callback returned 503), and contecintelligence, the reference, has no SAML either. Creating a SAML provider returns 422.
+- **Configure it** (Enterprise → SSO → *Añadir proveedor*):
+  1. Register Contecflow in the IdP with redirect URI **`<app origin>/login`** (the tab shows the exact value; before, it showed a `/auth/sso/callback` path that does not exist).
+  2. Fill in provider, button name, client id and secret, discovery URL, scopes, allowed e-mail domains (empty = any), role for new users, groups claim (default `groups`) and the *IdP group = role* mapping, one per line. Tick *Crear el usuario en su primer acceso* to provision on first sign-in, and *Activo* to show the button.
+  3. Each card has *Activar/Desactivar*, ✏ (edit; leave the secret empty to keep it), *Verificar config* and 🗑.
+- **Sign-in:** the login page lists active providers (`GET /auth/sso/providers`; it returned an empty list before because it read a column that did not exist). The button calls `/auth/sso/{id}/authorize`; the IdP returns to `/login?code=…&state=…`, and the page now exchanges the code (`POST /auth/sso/{id}/callback`). Before, nothing exchanged it, so no SSO sign-in could complete. If the user has TOTP or passkeys, the second-factor step follows.
+- **Checks on the id_token:** JWKS signature (RS/ES/PS 256-512; the JWKS client is reused), audience, expiry, **issuer** (from the discovery document; Azure multi-tenant issuers with `{tenantid}` are not compared literally), `nonce`, PKCE S256, one-time HMAC `state`, `email_verified`, and clock skew `SSO_CLOCK_SKEW_SECONDS` (60). Timeouts: `SSO_HTTP_TIMEOUT_SECONDS` (10). Both in Settings → Timeouts. The callback and authorize are rate-limited (`SSO_RATE_LIMIT`, `20/minute`, environment).
+- **Users:** looked up by e-mail **within the provider's organization**; an e-mail that belongs to another organization is refused (409). The e-mail domain must be in *allowed domains* if set (403). New users are created in the provider's organization (the organization's user limit applies) with the mapped role or the default role. **The role is re-synchronized from the groups on every sign-in** when a mapping exists (the most privileged match wins; a superadmin is never changed). Existing users of an inactive organization are refused. `/auth/me` returns `sso_provider`, so the profile shows "your account uses SSO" instead of the password form.
+- Admin endpoints: `GET|POST /api/v1/enterprise/sso`, `PATCH|DELETE /enterprise/sso/{id}` (PATCH is partial; before, it required `provider` and nothing could be switched on), `POST /enterprise/sso/{id}/test`. Table `sso_configs` (+ `name`, `groups_claim`, migration 122).
+- The second, broken SSO under `/bookings/sso/*` (unauthenticated, read columns that do not exist) was removed.
+- Compared with contecintelligence (2026-11-04): it has OIDC by id_token POST only, no authorize/redirect flow, no SAML and no passkeys. Contecflow now covers everything it has (issuer check, algorithm set, clock skew, group → role mapping with re-sync, tenant-scoped JIT with seat limit, inactive-organization check, rate limit) and more.
+- Not verified against a real IdP: only with a simulated IdP that signs real RS256 tokens (`tests/test_sso_oidc_y_passkeys.py`). The Okta token URL is built as `{issuer}/v1/token`, which fits custom authorization servers; org-level Okta issuers may need the generic OIDC type.
 
 **Auditoría.** `GET /api/v1/enterprise/audit-log`. The UI shows the general log and password-reset events.
 
@@ -4368,7 +4381,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
   - **quickbooks/xero** only counts sent invoices.
   - **jira** calls Jira.
   - **slack/teams** sync does nothing.
-- **SAML is not implemented.** `POST /bookings/sso/saml/callback` always returns 503, but the SSO tab still offers "SAML 2.0".
+- SAML is not implemented and no longer offered (see SSO above).
 - **Outbound webhooks** (`/api/v1/enterprise/webhooks[/{id}[/test|/deliveries]]`, `/enterprise/webhooks/events`; tables `webhooks`, `webhook_deliveries`) are **API-only**: no screen calls them. Delivery happens in `app/worker.py`, signed with HMAC (`services/webhooks._sign_payload`) and re-checked against SSRF at send time. It requires the worker to be running.
 
 ---
@@ -5149,7 +5162,7 @@ The remaining 92 segments have ≤ 12 routes each. `/api/v1` responses carry `x-
 - **Staff:** `get_current_user` (`app/core/deps.py`) accepts `Authorization: Bearer <JWT>` **or** the `access_token` cookie. It requires `type=access` and an active user. JWTs are HS256 with a `kid` header from a DB keyring (`app/services/key_management.py`: active key plus grace keys, rotated every `JWT_KEY_ROTATION_DAYS`, `JWT_KEY_RETENTION_COUNT` kept).
 - **Cookies** (set by `auth_service.set_auth_cookies`): `access_token` (httpOnly, SameSite=Lax, `max_age` = `ACCESS_TOKEN_EXPIRE_MINUTES`); `refresh_token` (httpOnly, SameSite=**Strict**, `path=/api/v1/auth/refresh`); `csrf_token` (JS-readable). `Secure` is set in staging/production.
 - **CSRF** (`app/core/csrf.py`): for POST/PUT/PATCH/DELETE **that use cookie auth and no `Authorization` header**, `Origin` (or `Referer`) must be in `ALLOWED_ORIGINS`, otherwise 403. A missing Origin is also rejected. `CSRF_DOUBLE_SUBMIT=1` adds a header/cookie match (constant-time). Exempt prefixes: webhooks, SCIM, `/health`, `/status`, `/metrics`. API clients that send a Bearer token are unaffected. Three of those prefixes do not match real routes (`/api/v1/integrations_hub/…`, while the real path is `integrations-hub`; `/api/v1/esign/docusign/webhook`, while the real path is `/api/v1/esign/webhooks/docusign`; `/api/v1/service-desk/…`, while the real path is `/api/v1/sd/…`). Webhook callers do not send cookies, so the practical effect is nil.
-- **Login endpoints:** `POST /api/v1/auth/login` (5/min), `/auth/refresh`, `/auth/logout`, `/auth/me`; SSO (`auth_sso`: OIDC with JWKS, PKCE S256, one-time HMAC `state`, `nonce`, according to `DOCS.md`; the SSO internals are **not verified** here); SAML (`auth_saml`); session management (`auth_sessions`).
+- **Login endpoints:** `POST /api/v1/auth/login` (5/min), `/auth/refresh`, `/auth/logout`, `/auth/me`; SSO (`auth_sso`: OIDC with JWKS, PKCE S256, one-time HMAC `state`, `nonce`, issuer and clock skew — see Enterprise → SSO); passkey sign-in without password (`/auth/passkey/login/*`); `auth_saml` only serves a metadata stub, SAML sign-in is not implemented; session management (`auth_sessions`).
 - **MFA:** TOTP and WebAuthn under `/api/v1/auth/mfa/*` (QR returned as a `data:` PNG), plus a second, older set at `/api/v1/mfa/*` that the SPA's MFA page uses (see §7.6). Per-org enforcement exists (`074_org_require_mfa`).
 - **Roles:** `UserRole` = `admin` (tenant admin), `pm`, `team_lead`, `hr`, `employee`, `subcontractor`; `is_superadmin` is a separate platform flag. Shortcuts: `require_admin`, `require_admin_or_hr`, `require_admin_or_pm`, `require_any_manager`, `require_internal_user`, `require_superadmin`.
 - **Client portal:** separate JWTs (`CLIENT_PORTAL_SECRET`, `JWT_ALGORITHM`, cookie `portal_access_token`, `get_current_client`).

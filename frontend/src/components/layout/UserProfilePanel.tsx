@@ -16,6 +16,7 @@ import { useToast } from '../../context/ToastContext'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Avatar } from '../ui'
+import PasskeysSection from '../security/PasskeysSection'
 import { AVAILABLE_LANGUAGES } from '../../i18n/appTranslations'
 import { applyAccent as applyAccentToDom } from '../../utils/appearance'
 import { localeActivo } from '../../utils/helpers'
@@ -527,6 +528,8 @@ export default function UserProfilePanel({ onClose }: Props) {
                   {user?.mfa_enabled ? 'Gestionar MFA' : '🛡 Activar MFA'}
                 </button>
               </div>
+
+              <PasskeysSection />
 
               {!user?.sso_provider && (
                 <button

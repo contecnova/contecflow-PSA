@@ -257,7 +257,10 @@ def webauthn_register_start(
 ):
     try:
         from webauthn import generate_registration_options, options_to_json
-        from webauthn.helpers.structs import PublicKeyCredentialDescriptor, UserVerificationRequirement
+        from webauthn.helpers.structs import (
+            AuthenticatorSelectionCriteria, PublicKeyCredentialDescriptor, ResidentKeyRequirement,
+            UserVerificationRequirement,
+        )
     except ImportError:
         raise HTTPException(503, "webauthn no instalado — ejecuta: pip install webauthn")
 
@@ -274,7 +277,12 @@ def webauthn_register_start(
         user_name=current_user.email,
         user_display_name=current_user.full_name,
         exclude_credentials=exclude_credentials,
-        user_verification=UserVerificationRequirement.REQUIRED,
+        # Auditoria 2026-11: credencial descubrible (si el autenticador puede)
+        # para poder entrar sin escribir usuario ni contrasena.
+        authenticator_selection=AuthenticatorSelectionCriteria(
+            resident_key=ResidentKeyRequirement.PREFERRED,
+            user_verification=UserVerificationRequirement.REQUIRED,
+        ),
     )
     challenge = _b64url_encode(options.challenge)
     challenge_token = _create_ephemeral_token(
@@ -352,6 +360,24 @@ def webauthn_list_credentials(
         }
         for c in creds
     ]
+
+
+@router.patch("/mfa/webauthn/credentials/{credential_id}", summary="Renombrar passkey")
+def webauthn_rename_credential(
+    credential_id: str,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    cred = _svc.get_active_webauthn_credential(db, credential_id, current_user.id)
+    if not cred:
+        raise HTTPException(404, "Passkey no encontrada")
+    nombre = str(payload.get("name") or "").strip()[:100]
+    if not nombre:
+        raise HTTPException(422, "El nombre no puede estar vacío")
+    cred.name = nombre
+    _svc.commit_db(db)
+    return {"ok": True, "id": cred.id, "name": cred.name}
 
 
 @router.delete("/mfa/webauthn/credentials/{credential_id}", summary="Eliminar passkey")
@@ -499,3 +525,93 @@ def webauthn_auth_finish(
             "role": user.role.value if hasattr(user.role, "value") else str(user.role),
         }
     }
+
+
+# ── Passkey sin contrasena ───────────────────────────────────────────────────
+# Auditoria 2026-11: el boton «Entrar con passkey» del login llamaba a
+# /auth/login con la contrasena vacia: 401 y un intento fallido mas en la
+# cuenta. Ahora hay un flujo propio: el navegador ofrece las passkeys
+# descubribles de este sitio, el usuario elige una y verifica (huella, PIN) y
+# la credencial identifica al usuario. La verificacion de usuario es
+# obligatoria, asi que cuenta como dos factores (tener el dispositivo y
+# desbloquearlo): no se pide TOTP despues.
+
+def _sin_contrasena_permitido(db: Session) -> bool:
+    from app.services.settings_service import get_runtime_bool
+    v = get_runtime_bool(db, "PASSKEY_PASSWORDLESS_ENABLED")
+    return settings.PASSKEY_PASSWORDLESS_ENABLED if v is None else bool(v)
+
+
+@router.post("/passkey/login/start", summary="Iniciar acceso con passkey (sin contraseña)")
+@limiter.limit("15/minute")
+def passkey_login_start(request: Request, db: Session = Depends(get_db)):
+    try:
+        from webauthn import generate_authentication_options, options_to_json
+        from webauthn.helpers.structs import UserVerificationRequirement
+    except ImportError:
+        raise HTTPException(503, "webauthn no instalado — ejecuta: pip install webauthn")
+    if not _sin_contrasena_permitido(db):
+        raise HTTPException(403, "El acceso con passkey sin contraseña está desactivado")
+    options = generate_authentication_options(
+        rp_id=settings.WEBAUTHN_RP_ID,
+        allow_credentials=[],
+        user_verification=UserVerificationRequirement.REQUIRED,
+    )
+    token = _create_ephemeral_token(
+        token_type="webauthn_passwordless_challenge",  # noqa: S106
+        subject="passwordless",
+        challenge=_b64url_encode(options.challenge),
+    )
+    return {"options": json.loads(options_to_json(options)), "webauthn_challenge_token": token}
+
+
+@router.post("/passkey/login/finish", summary="Completar acceso con passkey (sin contraseña)")
+@limiter.limit("15/minute")
+def passkey_login_finish(
+    request: Request,
+    response: Response,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+):
+    try:
+        from webauthn import verify_authentication_response
+    except ImportError:
+        raise HTTPException(503, "webauthn no instalado — ejecuta: pip install webauthn")
+    if not _sin_contrasena_permitido(db):
+        raise HTTPException(403, "El acceso con passkey sin contraseña está desactivado")
+    credential = payload.get("credential") or {}
+    datos = _read_ephemeral_token(payload.get("webauthn_challenge_token") or "", "webauthn_passwordless_challenge")
+    cred = _svc.get_credential_by_credential_id(db, credential.get("id") or "")
+    if not cred or not cred.is_active:
+        raise HTTPException(401, "Passkey no reconocida")
+    try:
+        verification = verify_authentication_response(
+            credential=credential,
+            expected_challenge=datos.get("challenge", ""),
+            expected_rp_id=settings.WEBAUTHN_RP_ID,
+            expected_origin=settings.WEBAUTHN_ORIGIN,
+            credential_public_key=_b64url_decode(cred.public_key),
+            credential_current_sign_count=cred.sign_count,
+            require_user_verification=True,
+        )
+    except Exception as exc:
+        raise HTTPException(401, f"Autenticación WebAuthn inválida: {exc}")
+    user = _svc.lookup_user_by_id_active(db, cred.user_id)
+    if not user:
+        raise HTTPException(401, "Usuario no encontrado o desactivado")
+    from app.models.mfa import Organization
+    org = db.query(Organization).filter(Organization.id == user.organization_id).first()
+    if org is not None and not org.is_active:
+        raise HTTPException(403, "La organización de este usuario está desactivada")
+
+    cred.sign_count = int(getattr(verification, "new_sign_count", cred.sign_count))
+    cred.last_used_at = datetime.now(timezone.utc)
+    access_token = create_access_token(subject=user.id, extra={"role": user.role})
+    new_refresh_token, new_jti = create_refresh_token(subject=user.id)
+    register_or_rotate_user_session(db=db, user_id=user.id, request=request,
+                                    refresh_token_jti=new_jti, auth_method="passkey")
+    _svc.commit_db(db)
+    _set_auth_cookies(response, access_token, new_refresh_token)
+    from app.core.modulos import con_rutas_cerradas
+    from app.schemas.users import UserPublic
+    return {"token_type": "bearer", "user": UserPublic.model_validate(con_rutas_cerradas(db, user)).model_dump(mode="json")}

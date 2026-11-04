@@ -94,6 +94,29 @@ export const authApi = {
   authorizeSso: (providerId: string, redirectUri: string): Promise<AxiosResponse<{ authorization_url?: string }>> =>
     api.get(`/auth/sso/${providerId}/authorize`, { params: { redirect_uri: redirectUri } }),
 
+  // Auditoría 2026-11: la vuelta del proveedor no se procesaba en ningún sitio.
+  ssoCallback: (providerId: string, payload: { code: string; state: string; redirect_uri: string }): Promise<AxiosResponse<LoginResponse>> =>
+    api.post(`/auth/sso/${providerId}/callback`, payload),
+
+  // Gestión de passkeys del propio usuario (Perfil → Seguridad).
+  passkeyRegisterStart: (): Promise<AxiosResponse<{ options: Record<string, unknown>; webauthn_challenge_token: string }>> =>
+    api.post('/auth/mfa/webauthn/register/start'),
+  passkeyRegisterFinish: (payload: { webauthn_challenge_token: string; credential: Record<string, unknown>; name?: string }): Promise<AxiosResponse<{ ok: boolean }>> =>
+    api.post('/auth/mfa/webauthn/register/finish', payload),
+  passkeyList: (): Promise<AxiosResponse<Array<{ id: string; name: string | null; created_at: string; last_used_at: string | null }>>> =>
+    api.get('/auth/mfa/webauthn/credentials'),
+  passkeyRename: (id: string, name: string): Promise<AxiosResponse<unknown>> =>
+    api.patch(`/auth/mfa/webauthn/credentials/${id}`, { name }),
+  passkeyDelete: (id: string): Promise<AxiosResponse<unknown>> =>
+    api.delete(`/auth/mfa/webauthn/credentials/${id}`),
+
+  // Acceso solo con passkey (credencial descubrible), sin usuario ni contraseña.
+  passkeyLoginStart: (): Promise<AxiosResponse<{ options: Record<string, unknown>; webauthn_challenge_token: string }>> =>
+    api.post('/auth/passkey/login/start'),
+
+  passkeyLoginFinish: (payload: { webauthn_challenge_token: string; credential: Record<string, unknown> }): Promise<AxiosResponse<LoginResponse>> =>
+    api.post('/auth/passkey/login/finish', payload),
+
   forgotPassword: (payload: ForgotPasswordPayload): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.post('/auth/password/forgot', payload),
 

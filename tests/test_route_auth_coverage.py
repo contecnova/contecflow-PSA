@@ -49,6 +49,9 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/auth/refresh"): "rota el token vía cookie",
     ("POST", "/api/v1/auth/mfa/validate"): "segundo factor durante el login",
     ("POST", "/api/v1/auth/mfa/webauthn/authenticate/start"): "reto WebAuthn previo al login",
+    # Auditoria 2026-11: acceso con passkey sin contrasena; la passkey es la credencial.
+    ("POST", "/api/v1/auth/passkey/login/start"): "reto WebAuthn del acceso sin contraseña",
+    ("POST", "/api/v1/auth/passkey/login/finish"): "acceso sin contraseña: verifica la passkey",
     ("POST", "/api/v1/auth/mfa/webauthn/authenticate/finish"): "respuesta WebAuthn que emite el token",
     ("GET", "/api/v1/auth/sso/{config_id}/authorize"): "redirección al IdP",
     ("POST", "/api/v1/auth/password/forgot"): "recuperación de contraseña",
@@ -58,9 +61,6 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/auth/sso/{config_id}/callback"): "callback del IdP",
     ("POST", "/api/v1/portal/auth/login"): "emite el token de portal",
     ("POST", "/api/v1/portal/auth/logout"): "revoca sesión de portal",
-    ("GET", "/api/v1/bookings/sso/initiate/{config_id}"): "inicio de SSO",
-    ("POST", "/api/v1/bookings/sso/oidc/callback"): "callback OIDC",
-    ("POST", "/api/v1/bookings/sso/saml/callback"): "callback SAML",
     ("POST", "/api/v1/bookings/api-keys/verify"): "verificación de API key (rate-limit aparte)",
     # ── OAuth2 como proveedor (developer portal) ─────────────────────────────
     ("POST", "/api/v1/developer/token"): "token endpoint OAuth2: autentica por client_credentials",

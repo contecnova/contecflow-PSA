@@ -257,21 +257,10 @@ def get_wallboard(db: Session = Depends(get_db),
 
 
 # ── SSO ───────────────────────────────────────────────────────────────────────
-
-@router.get("/sso/initiate/{config_id}")
-def initiate_sso(config_id: str, redirect_to: str = Query(""),
-                 db: Session = Depends(get_db)):
-    return APIResponse.ok(data=svc.initiate_sso_record(config_id, redirect_to, db))
-
-
-@router.post("/sso/saml/callback")
-def saml_callback(payload: dict = Body(...), db: Session = Depends(get_db)):
-    return APIResponse.ok(data=svc.process_saml_callback(payload, db))
-
-
-@router.post("/sso/oidc/callback")
-def oidc_callback(payload: dict = Body(...), db: Session = Depends(get_db)):
-    return APIResponse.ok(data=svc.process_oidc_callback(payload, db))
+# Auditoria 2026-11: aqui habia un segundo SSO (/bookings/sso/initiate,
+# /oidc/callback, /saml/callback) sin autenticar y roto: leia columnas que no
+# existen (issuer, jwks_uri, client_id), toda vuelta acababa en 401, y SAML
+# devolvia 503. El SSO de la aplicacion es /auth/sso/* (routers/auth_sso.py).
 
 
 # ── Workflow Engine ───────────────────────────────────────────────────────────

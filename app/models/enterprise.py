@@ -202,6 +202,10 @@ class SSOConfig(Base):
 
     # Role mapping from SSO groups to Contecflow roles
     role_mapping         = Column(Text, nullable=True)  # JSON: {"SSO_GROUP": "pm", ...}
+    # Auditoria 2026-11: el texto del boton del login (la pantalla lo mandaba y
+    # se perdia) y el claim del id_token donde vienen los grupos del IdP.
+    name                 = Column(String(120), nullable=True)
+    groups_claim         = Column(String(100), nullable=True, default="groups")
     organization_id      = Column(String(36), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Auto-provisioning

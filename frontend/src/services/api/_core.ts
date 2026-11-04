@@ -1497,6 +1497,7 @@ export const enterpriseApi = {
   auditLog:                (params?: any) => api.get('/enterprise/audit-log', { params }),
   ssoList:                 ()       => api.get('/enterprise/sso'),
   ssoCreate:               (data: unknown)   => api.post('/enterprise/sso', data),
+  ssoUpdate:               (id: any, data: unknown) => api.patch(`/enterprise/sso/${id}`, data),
   ssoDelete:               (id: any)     => api.delete(`/enterprise/sso/${id}`),
   ssoTest:                 (id: any)     => api.post(`/enterprise/sso/${id}/test`),
   notifications:           (params?: any) => api.get('/enterprise/notifications', { params }),

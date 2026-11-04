@@ -11,6 +11,7 @@ import urllib.parse
 import urllib.request
 
 from app.core.outbound_url import validate_outbound_url
+from app.core.ratelimit import limiter
 import json as _json
 import hmac as _hmac
 import hashlib as _hashlib
@@ -34,6 +35,48 @@ from app.services.auth_service import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _timeout() -> float:
+    """Auditoria 2026-11: antes 5 y 10 s escritos aqui."""
+    try:
+        from app.db.session import SessionLocal
+        from app.services.settings_service import get_runtime_float
+        with SessionLocal() as _db:
+            v = get_runtime_float(_db, "SSO_HTTP_TIMEOUT_SECONDS")
+        return float(v) if v else float(settings.SSO_HTTP_TIMEOUT_SECONDS)
+    except Exception:
+        return float(settings.SSO_HTTP_TIMEOUT_SECONDS)
+
+
+def _descubrimiento(config) -> dict:
+    """El documento OIDC del proveedor (authorization, token, jwks, issuer)."""
+    if not config.oidc_discovery_url:
+        raise HTTPException(400, "Falta oidc_discovery_url")
+    url = _validate_https_discovery_url(config.oidc_discovery_url)
+    try:
+        with urllib.request.urlopen(url, timeout=_timeout()) as resp:  # noqa: S310
+            return _json.loads(resp.read())
+    except _json.JSONDecodeError as exc:
+        logger.warning("SSO: discovery JSON inválido url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
+        raise HTTPException(502, "El discovery document del proveedor no es JSON válido")
+    except OSError as exc:
+        logger.warning("SSO: error de red al obtener discovery url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
+        raise HTTPException(502, "No se pudo obtener el discovery document")
+
+
+_CLIENTES_JWKS: dict = {}
+
+
+def _cliente_jwks(jwks_uri: str):
+    """PyJWKClient guarda las claves; antes se creaba uno por inicio de sesion."""
+    import jwt as _jwt
+    if jwks_uri not in _CLIENTES_JWKS:
+        _CLIENTES_JWKS[jwks_uri] = _jwt.PyJWKClient(jwks_uri, cache_keys=True)
+    return _CLIENTES_JWKS[jwks_uri]
+
+
+_ALGORITMOS = ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "PS256", "PS384", "PS512"]
 
 
 def _safe_url(url: str) -> str:
@@ -93,7 +136,9 @@ def list_sso_providers(db: Session = Depends(get_db)):
 
 
 @router.get("/sso/{config_id}/authorize", summary="Iniciar flujo OAuth2 OIDC")
+@limiter.limit(settings.SSO_RATE_LIMIT)
 def sso_authorize(
+    request: Request,
     config_id: str,
     redirect_uri: str = Query(...),
     db: Session = Depends(get_db),
@@ -132,24 +177,14 @@ def sso_authorize(
         _register_sso_state(state_raw, {"code_verifier": code_verifier, "nonce": nonce})
 
         # Determine authorization endpoint via OIDC discovery document
-        if config.oidc_discovery_url:
-            try:
-                discovery_url = _validate_https_discovery_url(config.oidc_discovery_url)
-                with urllib.request.urlopen(discovery_url, timeout=5) as resp:  # noqa: S310
-                    disc = _json.loads(resp.read())
-                    auth_url = disc.get("authorization_endpoint", "")
-            except HTTPException:
-                raise
-            except _json.JSONDecodeError as exc:
-                logger.warning("SSO authorize: discovery document JSON inválido url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
-                raise HTTPException(502, "El discovery document del proveedor no es JSON válido")
-            except OSError as exc:
-                logger.warning("SSO authorize: error de red al obtener discovery url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
-                raise HTTPException(502, "No se pudo obtener el discovery document")
-        else:
-            raise HTTPException(400, "Falta oidc_discovery_url para proveedor OIDC genérico")
+        auth_url = _descubrimiento(config).get("authorization_endpoint", "")
+        if not auth_url:
+            raise HTTPException(502, "El discovery document no trae authorization_endpoint")
 
-        scope = "openid profile email"
+        # Auditoria 2026-11: los scopes guardados se ignoraban.
+        scope = config.oidc_scopes or "openid profile email"
+        if "openid" not in scope.split():
+            scope = "openid " + scope
         params = {
             "client_id":             config.oidc_client_id,
             "response_type":        "code",
@@ -247,22 +282,9 @@ def _resolver_token_endpoint(config) -> str:
     elif config.provider == "google":
         token_url = settings.GOOGLE_TOKEN_URL
     else:
-        if config.oidc_discovery_url:
-            try:
-                discovery_url = _validate_https_discovery_url(config.oidc_discovery_url)
-                with urllib.request.urlopen(discovery_url, timeout=5) as resp:  # noqa: S310
-                    disc = _json.loads(resp.read())
-                    token_url = disc.get("token_endpoint", "")
-            except HTTPException:
-                raise
-            except _json.JSONDecodeError as exc:
-                logger.warning("SSO callback: discovery JSON inválido url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
-                raise HTTPException(502, "El discovery document del proveedor no es JSON válido")
-            except OSError as exc:
-                logger.warning("SSO callback: error de red al obtener discovery url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
-                raise HTTPException(502, "No se pudo obtener el token_endpoint")
-        else:
-            raise HTTPException(400, "Falta oidc_discovery_url")
+        token_url = _descubrimiento(config).get("token_endpoint", "")
+        if not token_url:
+            raise HTTPException(502, "No se pudo obtener el token_endpoint")
     return token_url
 
 
@@ -292,7 +314,7 @@ def _intercambiar_codigo_por_tokens(config, code: str, redirect_uri: str, code_v
     req = urllib.request.Request(validate_outbound_url(token_url, field="token_url"), data=token_data,  # noqa: S310
                                  headers={"Content-Type": "application/x-www-form-urlencoded"})
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=_timeout()) as resp:  # noqa: S310
             tokens = _json.loads(resp.read())
     except _json.JSONDecodeError as exc:
         logger.warning("SSO callback: token response JSON inválido url=%r: %s", _safe_url(token_url), exc)
@@ -354,39 +376,30 @@ def _validar_id_token_y_extraer_identidad(
     try:
         import jwt as _jwt
         # Obtener JWKS URI desde el discovery document para validar la firma
-        jwks_uri = None
-        if config.oidc_discovery_url:
-            try:
-                discovery_url = _validate_https_discovery_url(config.oidc_discovery_url)
-                with urllib.request.urlopen(discovery_url, timeout=5) as resp:  # noqa: S310
-                    disc = _json.loads(resp.read())
-                    jwks_uri = disc.get("jwks_uri")
-            except (OSError, _json.JSONDecodeError) as exc:
-                logger.warning(
-                    "SSO callback: no se pudo obtener JWKS URI url=%r: %s",
-                    config.oidc_discovery_url,
-                    exc,
-                )
-
-        if jwks_uri:
-            _validate_https_discovery_url(jwks_uri)
-
-        if jwks_uri:
-            jwks_client = _jwt.PyJWKClient(jwks_uri)
-            signing_key = jwks_client.get_signing_key_from_jwt(id_token)
-            claims = _jwt.decode(
-                id_token,
-                signing_key.key,
-                algorithms=["RS256", "ES256"],
-                audience=config.oidc_client_id,
-                options={"verify_exp": True},
-            )
-        else:
-            # No se puede obtener la URI de JWKS: rechazar la autenticación.
+        disc = _descubrimiento(config) if config.oidc_discovery_url else {}
+        jwks_uri = disc.get("jwks_uri")
+        if not jwks_uri:
             raise HTTPException(
                 status_code=502,
                 detail="No se pudo obtener JWKS URI del proveedor SSO. Imposible verificar la firma del id_token.",
             )
+        _validate_https_discovery_url(jwks_uri)
+        signing_key = _cliente_jwks(jwks_uri).get_signing_key_from_jwt(id_token)
+        # Auditoria 2026-11 (como contecintelligence, `security/sso.py`): se
+        # comprueba el emisor del discovery, se aceptan RS/ES/PS 256-512 y hay
+        # tolerancia de reloj. Antes no se miraba `iss`.
+        issuer = disc.get("issuer")
+        # Azure AD multi-tenant publica un issuer con {tenantid}: no se puede comparar literal.
+        verificar_iss = bool(issuer) and "{tenantid}" not in issuer
+        claims = _jwt.decode(
+            id_token,
+            signing_key.key,
+            algorithms=_ALGORITMOS,
+            audience=config.oidc_client_id,
+            issuer=issuer if verificar_iss else None,
+            leeway=settings.SSO_CLOCK_SKEW_SECONDS,
+            options={"verify_exp": True, "verify_iss": verificar_iss, "require": ["exp", "iat"]},
+        )
     # intentional: chained re-raise preserves context
     except HTTPException:
         raise
@@ -410,6 +423,7 @@ def _validar_id_token_y_extraer_identidad(
 
 
 @router.post("/sso/{config_id}/callback", summary="Callback OIDC — intercambiar code por token")
+@limiter.limit(settings.SSO_RATE_LIMIT)
 def sso_callback(
     config_id: str,
     request: Request,

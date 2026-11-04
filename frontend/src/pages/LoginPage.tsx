@@ -28,6 +28,9 @@ function extractErrorMsg(
 
 // ── styles (inline, using Contecflow CSS vars) ────────────────────────────────
 
+// Proveedor SSO elegido, para canjear el código cuando el IdP vuelva a /login.
+const SSO_CONFIG_KEY = 'cf_sso_config'
+
 const st: Record<string, CSSProperties> = {
   page: {
     minHeight: '100vh',
@@ -203,6 +206,32 @@ export default function LoginPage(): JSX.Element {
     || logoutReason === 'token_reuse'
     || logoutReason === 'backend_refresh_failed'
 
+  // ── Vuelta del proveedor SSO (?code=…&state=…) ─────────────────────────────
+  // Auditoría 2026-11: el proveedor redirigía aquí y nada canjeaba el código.
+  useEffect(() => {
+    const code = searchParams.get('code')
+    const state = searchParams.get('state')
+    const configId = sessionStorage.getItem(SSO_CONFIG_KEY)
+    if (!code || !state || !configId) return
+    sessionStorage.removeItem(SSO_CONFIG_KEY)
+    window.history.replaceState({}, '', '/login')
+    setSsoLoading(true); setError('')
+    authApi.ssoCallback(configId, { code, state, redirect_uri: `${window.location.origin}/login` })
+      .then(({ data }) => {
+        const parsed = resolveLoginResponse(data as Record<string, unknown>)
+        if (parsed.kind === 'mfa') {
+          setMfaChallengeToken(parsed.mfaChallengeToken)
+          setMfaMethods(parsed.mfaMethods)
+          return
+        }
+        const user = extractUser(data)
+        acceptSession(user)
+        navAfterLogin(user)
+      })
+      .catch(e => setError(extractErrorMsg(e, t('login.sso_error'))))
+      .finally(() => setSsoLoading(false))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     let mounted = true
     authApi.listSsoProviders()
@@ -271,6 +300,7 @@ export default function LoginPage(): JSX.Element {
   async function handleSso(provider: { id: string; name: string }) {
     setSsoLoading(true); setError('')
     try {
+      sessionStorage.setItem(SSO_CONFIG_KEY, provider.id)
       const { data } = await authApi.authorizeSso(provider.id, `${window.location.origin}/login`)
       const url = (data as { authorization_url?: string }).authorization_url
       if (url) { window.location.assign(url); return }
@@ -283,31 +313,45 @@ export default function LoginPage(): JSX.Element {
   }
 
   // ── Passkey ───────────────────────────────────────────────────────────────
+  // Auditoría 2026-11: antes llamaba a /auth/login con la contraseña vacía (401
+  // y un intento fallido más en la cuenta). Ahora: passkey sola, sin usuario.
   async function handlePasskeyLogin() {
-    if (!username.trim()) { setError(t('login.passkey_no_username')); return }
     if (!webauthnSupported()) { setError(t('login.passkey_not_supported')); return }
     setPasskeyLoading(true); setError('')
     try {
-      // Initial login to obtain MFA challenge token (passkey goes through MFA flow)
-      const { data: loginData } = await authApi.login({ username, password: '' })
-      const parsed = resolveLoginResponse(loginData as Record<string, unknown>)
-      if (parsed.kind !== 'mfa') {
-        setError(t('login.passkey_not_supported')); return
-      }
-      const { data: startData } = await authApi.startPasskeyAuth({
-        mfa_challenge_token: parsed.mfaChallengeToken,
-      })
+      const { data: startData } = await authApi.passkeyLoginStart()
       const credential = await startAuthentication(startData.options)
-      const { data: finishData } = await authApi.finishPasskeyAuth({
-        mfa_challenge_token: parsed.mfaChallengeToken,
-        webauthn_challenge_token: startData.webauthn_challenge_token,
-        credential,
+      const { data } = await authApi.passkeyLoginFinish({
+        webauthn_challenge_token: startData.webauthn_challenge_token, credential,
       })
-      const user = extractUser(finishData)
+      const user = extractUser(data)
       acceptSession(user)
       navAfterLogin(user)
     } catch (e) {
-      setError(extractErrorMsg(e, t('login.credentials_error')))
+      setError(extractErrorMsg(e, t('login.passkey_error')))
+    } finally {
+      setPasskeyLoading(false)
+    }
+  }
+
+  // Passkey como segundo factor (después de la contraseña o del SSO).
+  async function handleMfaPasskey() {
+    if (!mfaChallengeToken) return
+    if (!webauthnSupported()) { setError(t('login.passkey_not_supported')); return }
+    setPasskeyLoading(true); setError('')
+    try {
+      const { data: startData } = await authApi.startPasskeyAuth({ mfa_challenge_token: mfaChallengeToken })
+      const credential = await startAuthentication(startData.options)
+      const { data } = await authApi.finishPasskeyAuth({
+        mfa_challenge_token: mfaChallengeToken,
+        webauthn_challenge_token: startData.webauthn_challenge_token,
+        credential,
+      })
+      const user = extractUser(data)
+      acceptSession(user)
+      navAfterLogin(user)
+    } catch (e) {
+      setError(extractErrorMsg(e, t('login.passkey_error')))
     } finally {
       setPasskeyLoading(false)
     }
@@ -381,17 +425,21 @@ export default function LoginPage(): JSX.Element {
                 autoComplete="one-time-code"
                 autoFocus
                 value={mfaCode}
-                onChange={e => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={e => setMfaCode(e.target.value.replace(/[^0-9a-fA-F]/g, '').toUpperCase().slice(0, 8))}
                 style={st.inputTracked as CSSProperties}
                 onFocus={focusIn}
                 onBlur={focusOut}
               />
-              {mfaMethods.length > 0 && (
-                <p style={{ fontSize: 11, color: 'var(--text-4)', margin: '4px 0 0' }}>
-                  {mfaMethods.join(' · ')}
-                </p>
-              )}
+              <p style={{ fontSize: 11, color: 'var(--text-4)', margin: '4px 0 0' }}>
+                {t('login.mfa_backup_hint')}
+              </p>
             </div>
+            {mfaMethods.includes('webauthn') && (
+              <button type="button" onClick={() => { void handleMfaPasskey() }} disabled={passkeyLoading}
+                style={{ ...st.btnSecondary, width: '100%' } as CSSProperties}>
+                {passkeyLoading ? t('login.passkey_busy') : t('login.mfa_use_passkey')}
+              </button>
+            )}
             {error && (
               <div style={st.errorBanner} role="alert">
                 <span>⚠</span><span>{error}</span>

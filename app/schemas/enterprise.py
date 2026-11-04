@@ -35,7 +35,9 @@ class WebhookUpdate(BaseModel):
     is_active: Optional[bool] = Field(None, description="Activa o desactiva el webhook")
 
 class SSOCreate(BaseModel):
-    provider: str = Field(..., description="Proveedor SSO (saml, oidc, etc.)")
+    provider: str = Field(..., description="Proveedor SSO (oidc, azure_ad, okta, google)")
+    name: Optional[str] = Field(None, max_length=120, description="Texto del botón en el login")
+    groups_claim: Optional[str] = Field("groups", max_length=100, description="Claim del id_token con los grupos (para role_mapping)")
     organization_id: Optional[str] = Field(None, description="ID de la organización a la que se asocia")
     saml_entity_id: Optional[str] = Field(None, description="Entity ID SAML del proveedor")
     saml_sso_url: Optional[str] = Field(None, description="URL HTTPS de Single Sign-On SAML")
@@ -52,6 +54,7 @@ class SSOCreate(BaseModel):
     auto_create_users: bool = Field(True, description="Crea usuarios automáticamente en el primer login")
     default_role: str = Field("employee", description="Rol por defecto asignado a usuarios nuevos")
     allowed_domains: Optional[str] = Field(None, description="Lista separada por comas de dominios permitidos")
+    is_active: bool = Field(False, description="Activa el proveedor (aparece en el login)")
 
     @field_validator("oidc_discovery_url", "saml_sso_url", "saml_slo_url", mode="before")
     @classmethod
@@ -60,9 +63,41 @@ class SSOCreate(BaseModel):
             raise ValueError("Solo se permiten URLs HTTPS para configuraciones SSO/OIDC")
         return v
 
-class SSOUpdate(SSOCreate):
+    @field_validator("provider")
+    @classmethod
+    def _proveedor_soportado(cls, v: str) -> str:
+        # Auditoria 2026-11: SAML se ofrecia y devolvia 503; no hay
+        # implementacion (ni contecintelligence la tiene).
+        if v not in ("oidc", "azure_ad", "okta", "google"):
+            raise ValueError("Proveedor no soportado: usa oidc, azure_ad, okta o google (SAML no está implementado)")
+        return v
+
+
+class SSOUpdate(BaseModel):
+    """Cambios parciales. Auditoria 2026-11: heredaba `provider` obligatorio, asi
+    que un PATCH solo con `is_active` daba 422 y no se podia activar."""
+    name: Optional[str] = Field(None, max_length=120)
     is_active: Optional[bool] = Field(None, description="Activa o desactiva la configuración SSO")
     is_default: Optional[bool] = Field(None, description="Marca esta configuración como la predeterminada")
+    organization_id: Optional[str] = None
+    oidc_client_id: Optional[str] = None
+    oidc_client_secret: Optional[str] = None
+    oidc_discovery_url: Optional[str] = None
+    oidc_scopes: Optional[str] = None
+    role_mapping: Optional[dict] = None
+    groups_claim: Optional[str] = Field(None, max_length=100)
+    auto_create_users: Optional[bool] = None
+    default_role: Optional[str] = None
+    allowed_domains: Optional[str] = None
+    saml_attribute_email: Optional[str] = None
+    saml_attribute_name: Optional[str] = None
+
+    @field_validator("oidc_discovery_url", mode="before")
+    @classmethod
+    def _https(cls, v: Optional[str]) -> Optional[str]:
+        if v and not v.startswith("https://"):
+            raise ValueError("La URL debe ser HTTPS")
+        return v
 
 class SubCreate(BaseModel):
     name: str = Field(..., description="Nombre del subcontratista")

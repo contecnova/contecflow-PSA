@@ -145,6 +145,13 @@ class Settings(
 
     # ── WebAuthn / Passkeys (FIDO2) ─────────────────────────────────────────
     WEBAUTHN_RP_ID: str = Field(default="localhost", env="WEBAUTHN_RP_ID")
+    # SSO OIDC (auditoria 2026-11): antes 5/10 s escritos en el codigo y sin
+    # tolerancia de reloj al validar el id_token.
+    SSO_HTTP_TIMEOUT_SECONDS: float = Field(default=10.0, env="SSO_HTTP_TIMEOUT_SECONDS")
+    SSO_CLOCK_SKEW_SECONDS: int = Field(default=60, env="SSO_CLOCK_SKEW_SECONDS")
+    SSO_RATE_LIMIT: str = Field(default="20/minute", env="SSO_RATE_LIMIT")
+    # Entrar solo con una passkey (sin usuario ni contrasena).
+    PASSKEY_PASSWORDLESS_ENABLED: bool = Field(default=True, env="PASSKEY_PASSWORDLESS_ENABLED")
     WEBAUTHN_RP_NAME: str = Field(default="Contecflow PSA", env="WEBAUTHN_RP_NAME")
     WEBAUTHN_ORIGIN: str = Field(default="http://localhost:5173", env="WEBAUTHN_ORIGIN")
 
