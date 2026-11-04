@@ -359,13 +359,34 @@ def _arrancar_planificador(_enable_apscheduler, _celery_beat_enabled):
                 misfire_grace_time=300,
                 coalesce=True,
             )
+            # Analitica y ML: hasta 2026-11 solo los programaba Celery beat, y con
+            # APScheduler (el modo por defecto de setup.sh) el cubo OLAP, los
+            # modelos y la prediccion de tickets no se refrescaban nunca.
+            # Misma cadencia que `beat_schedule` en app/worker.py.
+            for _tarea, _cuando, _gracia in (
+                ("olap_nightly_etl", dict(hour=1, minute=0), 3600),
+                ("ml_model_retrain", dict(day=1, hour=3, minute=0), 3600),
+                ("predictive_scan", dict(minute="*/30"), 600),
+                ("predictive_model_eval_retrain", dict(hour="*/6", minute=10), 1800),
+                ("bi_kpi_push", dict(minute="*/5"), 120),
+                ("bi_ml_retrain", dict(day_of_week="sun", hour=3, minute=30), 3600),
+            ):
+                _scheduler.add_job(
+                    f"app.worker:{_tarea}",
+                    CronTrigger(**_cuando),
+                    id=f"ml_{_tarea}",
+                    replace_existing=True,
+                    misfire_grace_time=_gracia,
+                    coalesce=True,
+                    max_instances=1,
+                )
             try:
                 from app.core.metrics import attach_apscheduler_metrics
                 attach_apscheduler_metrics(_scheduler)
             except Exception as _metrics_exc:
                 logger.warning("APScheduler metrics hook not attached: %s", _metrics_exc)
             _scheduler.start()
-            logger.info("   ✅ Scheduler activo (informes + rotación + alertas + recordatorios perf)")
+            logger.info("   ✅ Scheduler activo (informes, rotación, alertas, recordatorios, automatizaciones, analítica y ML)")
             logger.info("✅ Modo scheduler: APScheduler")
         except Exception as e:
             logger.warning(f"   ⚠️  Scheduler no iniciado: {e}")

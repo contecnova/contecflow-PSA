@@ -236,6 +236,8 @@ class Settings(
     DEFAULT_USER_PASSWORD: str = Field(..., env="DEFAULT_USER_PASSWORD")
     DEFAULT_WORKING_HOURS_PER_DAY: float = Field(default=8.0, env="DEFAULT_WORKING_HOURS_PER_DAY")
     DEFAULT_WEEKLY_CAPACITY_HOURS: float = Field(default=40.0, env="DEFAULT_WEEKLY_CAPACITY_HOURS")
+    # Escenarios: roles cuya capacidad cuenta (los que trabajan en proyectos).
+    SCENARIO_CAPACITY_ROLES: str = Field(default="pm,team_lead,employee,subcontractor", env="SCENARIO_CAPACITY_ROLES")
     # Último recurso para valorar simulaciones de proyecto cuando no hay tarifa
     # de facturación en el proyecto ni tarifas en los usuarios asignados
     # (auditoría 2026-08, P2-20: antes era un literal 80.0 en activity_service).

@@ -354,9 +354,11 @@ function GovernanceTab() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
           {[
             { label: 'Evaluaciones', value: stats.total_evaluations || 0, color: 'var(--accent)' },
-            { label: 'Bloqueadas', value: stats.blocked || 0, color: 'var(--danger)' },
-            { label: 'Redacted', value: stats.redacted || 0, color: 'var(--warning)' },
-            { label: 'PII detectado', value: stats.pii_total || 0, color: 'var(--purple)' },
+            // Auditoría 2026-11: leía blocked/redacted/pii_total, que la API no
+            // devuelve; las tarjetas salían siempre a 0.
+            { label: 'Bloqueadas', value: stats.total_blocked || 0, color: 'var(--danger)' },
+            { label: 'Redacted', value: stats.total_redacted || 0, color: 'var(--warning)' },
+            { label: 'PII detectado', value: (stats.top_pii_types || []).reduce((n: number, x: { count?: number }) => n + (x.count || 0), 0), color: 'var(--purple)' },
           ].map(k => (
             <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px' }}>
               <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: k.color }}>{k.value}</div>
@@ -757,16 +759,30 @@ export default function AIHubPage(): JSX.Element {
                       </div>
                     )}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: "var(--text-sm)" }}>
-                      {data.total_predictions != null && (
+                      {/* Auditoría 2026-11: leía total_predictions/accuracy, que no
+                          existen; la API da samples, severity_accuracy y mae_minutes. */}
+                      {(data.samples ?? data.total_predictions) != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span style={{ color: 'var(--text-3)' }}>Predicciones</span>
-                          <span>{data.total_predictions}</span>
+                          <span>{data.samples ?? data.total_predictions}</span>
                         </div>
                       )}
-                      {data.accuracy != null && (
+                      {(data.severity_accuracy ?? data.accuracy) != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span style={{ color: 'var(--text-3)' }}>{traducir('aihub.precision')}</span>
-                          <span>{(data.accuracy * 100).toFixed(1)}%</span>
+                          <span>{((data.severity_accuracy ?? data.accuracy) * 100).toFixed(1)}%</span>
+                        </div>
+                      )}
+                      {data.mae_minutes != null && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-3)' }}>MAE</span>
+                          <span>{data.mae_minutes} min</span>
+                        </div>
+                      )}
+                      {data.status && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-3)' }}>Estado</span>
+                          <span>{data.status}</span>
                         </div>
                       )}
                       {data.drift_detected != null && (

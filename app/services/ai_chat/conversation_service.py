@@ -69,6 +69,13 @@ def get_or_create_conversation(db: Session, conversation_id, user_id: str, conte
             AIConversation.id == conversation_id,
             AIConversation.user_id == user_id,
         ).first()
+    if not conv and context_type == "inline_editor":
+        # El editor en linea pide una reescritura suelta: una sola conversacion
+        # por usuario, no una nueva por cada «/mejorar» en el historial.
+        conv = db.query(AIConversation).filter(
+            AIConversation.user_id == user_id,
+            AIConversation.context_type == "inline_editor",
+        ).order_by(AIConversation.created_at.desc()).first()
     if not conv:
         conv = AIConversation(
             user_id=user_id,

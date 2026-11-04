@@ -283,6 +283,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("DEFAULT_TAX_RATE", "float", "Default tax rate (%)"),
         ("DEFAULT_WORKING_HOURS_PER_DAY", "float", "Working hours/day"),
         ("DEFAULT_WEEKLY_CAPACITY_HOURS", "float", "Weekly capacity (h)"),
+        ("SCENARIO_CAPACITY_ROLES", "str", "Scenarios — roles whose capacity counts (comma separated)"),
         ("DEFAULT_VACATION_DAYS_PER_YEAR", "int", "Vacation days/year"),
         ("DEFAULT_IMPUTATION_LOCKOUT_DAYS", "int", "Imputation lockout (days)"),
         ("DEFAULT_PROJECT_TYPE", "str", "Default project type"),

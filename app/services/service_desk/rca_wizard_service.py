@@ -180,6 +180,14 @@ _SYSTEM_ID_TO_SLUG = {v: k for k, v in _SYSTEM_TEMPLATE_IDS.items()}
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
+
+def _texto(resultado) -> str:
+    """`call_ai` devuelve texto; antes se hacia `.get("content")` sobre el
+    texto y la pista de IA fallaba siempre (auditoria 2026-11)."""
+    if isinstance(resultado, dict):
+        return resultado.get("content") or ""
+    return resultado or ""
+
 def _load_state(problem: Problem) -> dict[str, Any] | None:
     """Parse rca_wizard_state JSON; return None if empty or invalid."""
     if not problem.rca_wizard_state:
@@ -436,7 +444,7 @@ def ai_assist_step(db: Session, problem: Problem, step_num: int) -> dict[str, st
             max_tokens=300,
         )
         provider_used = result.get("provider", "unknown")
-        hint = (result.get("content") or "").strip()
+        hint = (_texto(result)).strip()
     except Exception as exc:
         logger.warning("ai_assist_step: AI call failed: %s", exc)
         hint = (
@@ -548,7 +556,7 @@ def classify_from_wizard(
             system="Classify the root cause. Reply with exactly one word from the allowed list.",
             max_tokens=20,
         )
-        raw = (result.get("content") or "").strip().lower()
+        raw = (_texto(result)).strip().lower()
         # Accept first word that matches a valid type
         for word in raw.split():
             clean = word.strip(".,;:\"'")

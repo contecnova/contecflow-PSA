@@ -117,6 +117,26 @@ def _acotar_limite(sql: str) -> str:
     )
 
 
+#: Tablas OLAP comunes a todas las organizaciones (sin columna organization_id).
+_SIN_ORGANIZACION = {"dim_date"}
+
+_NO_ES_ALIAS = {"where", "join", "on", "left", "right", "inner", "outer", "full", "cross", "group", "order",
+               "limit", "having", "using", "natural", "union", "as"}
+
+
+def _referencias_de_tabla(sql: str) -> list[str]:
+    """El alias (o el nombre) de cada tabla de FROM/JOIN, en orden y sin repetir."""
+    refs = []
+    for m in re.finditer(r"\b(?:FROM|JOIN)\s+([A-Za-z_][\w.]*)(?:\s+(?:AS\s+)?([A-Za-z_]\w*))?", sql, re.IGNORECASE):
+        tabla, alias = m.group(1), m.group(2)
+        if tabla.lower() in _SIN_ORGANIZACION:
+            continue
+        ref = alias if alias and alias.lower() not in _NO_ES_ALIAS else tabla
+        if ref not in refs:
+            refs.append(ref)
+    return refs
+
+
 def _inyectar_filtro_de_tenant(sql: str) -> str:
     """Mete `organization_id = $org_id` en el WHERE de la consulta.
 
@@ -132,7 +152,13 @@ def _inyectar_filtro_de_tenant(sql: str) -> str:
     no, va justo antes de la primera cláusula que cierre el cuerpo (GROUP BY,
     HAVING, ORDER BY o LIMIT); y si no hay ninguna, al final.
     """
-    clausula = "organization_id = $org_id"
+    # Auditoria 2026-11: con JOIN, `organization_id` sin calificar era ambiguo
+    # (DuckDB: «Ambiguous reference») y fallaba toda consulta con dos tablas.
+    # Ahora la condicion va por cada tabla, con su alias.
+    refs = _referencias_de_tabla(sql)
+    if not refs and re.search(r"\bFROM\b", sql, re.IGNORECASE):
+        return sql  # solo tablas comunes (el calendario): nada que acotar
+    clausula = " AND ".join(f"{ref}.organization_id = $org_id" for ref in refs) or "organization_id = $org_id"
 
     if re.search(r"\bWHERE\b", sql, re.IGNORECASE):
         return re.sub(r"\bWHERE\b", f"WHERE {clausula} AND", sql, count=1, flags=re.IGNORECASE)
@@ -198,6 +224,10 @@ def _generate_sql(
         is_superadmin=is_superadmin,
         organization_id=org_id,
     )
+    from app.services.ai_provider_service import es_aviso_de_ia
+    if es_aviso_de_ia(sql_text):
+        # Auditoria 2026-11: el aviso acababa en el campo `sql` como si fuera SQL.
+        raise RuntimeError(sql_text)
     return (sql_text or "").strip()
 
 

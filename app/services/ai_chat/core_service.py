@@ -71,6 +71,29 @@ def demo_response(message: str, ctx: dict) -> str:
             f"Prueba: *¿Cuáles son los proyectos en pérdidas?* o *¿Qué tickets llevan más de 48h sin respuesta?*")
 
 
+def _pagina_del_usuario(db: Session, context_type, context_id) -> str:
+    """Lo que el usuario tiene abierto (proyecto, ticket, sprint) para el prompt.
+
+    El panel lo enviaba y se guardaba en la conversacion, pero nunca llegaba al
+    modelo: «¿como va este proyecto?» no sabia de que proyecto hablaba.
+    """
+    if not context_type or not context_id:
+        return ""
+    from app.models.project import Project
+    from app.models.service_desk import Ticket
+    from app.models.sprints import Sprint
+    modelos = {"project": Project, "ticket": Ticket, "sprint": Sprint}
+    modelo = modelos.get(context_type)
+    fila = db.query(modelo).filter(modelo.id == context_id).first() if modelo else None
+    if fila is None:
+        return ""
+    datos = {k: str(getattr(fila, k)) for k in ("code", "number", "name", "title", "status", "priority",
+                                                  "start_date", "end_date", "end_date_planned", "goal")
+             if getattr(fila, k, None) not in (None, "")}
+    return (f"\n\nEl usuario esta viendo este {context_type} (id {context_id}); "
+            f"si pregunta por «este», se refiere a el: {json.dumps(datos, ensure_ascii=False)}")
+
+
 def prepare_chat(db: Session, conversation_id, user_id: str, context_type=None, context_id=None,
                   effective_message: str = "", system_template: str = "", commit: bool = False):
     """Create/get conversation, persist user message, build history + system prompt.
@@ -89,13 +112,17 @@ def prepare_chat(db: Session, conversation_id, user_id: str, context_type=None, 
     kb_ctx = kb_rag_context(db, effective_message)
     system = get_prompt(db, "contecflowassist", system_template).format(
         context=json.dumps(ctx, ensure_ascii=False)
-    ) + kb_ctx
+    ) + kb_ctx + _pagina_del_usuario(  # la pagina de ahora; si no llega, la de la conversacion
+        db, context_type or conv.context_type, context_id if context_type else conv.context_id)
 
-    history = db.query(AIMessage).filter(
-        AIMessage.conversation_id == conv.id,
-        AIMessage.id != user_msg.id,
-    ).order_by(AIMessage.created_at.desc()).limit(10).all()
-    history.reverse()
+    if conv.context_type == "inline_editor":
+        history = []  # cada reescritura es independiente de las anteriores
+    else:
+        history = db.query(AIMessage).filter(
+            AIMessage.conversation_id == conv.id,
+            AIMessage.id != user_msg.id,
+        ).order_by(AIMessage.created_at.desc()).limit(10).all()
+        history.reverse()
 
     messages = [{"role": m.role, "content": m.content} for m in history]
     messages.append({"role": "user", "content": effective_message})

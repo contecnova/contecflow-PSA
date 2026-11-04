@@ -57,8 +57,12 @@ def list_agent_executions(db: Session, user_id: str, limit: int = 20) -> list:
     ).order_by(AIAgentExecution.created_at.desc()).limit(limit).all()
     return [{
         "execution_id": e.id,
+        # Auditoria 2026-11: la pantalla leia `id` y `result`, que no venian.
+        "id": e.id,
         "instruction": e.instruction[:100],
         "status": e.status,
+        "result": e.result,
+        "steps_count": e.steps_count,
         "created_at": str(e.created_at)[:19],
     } for e in execs]
 

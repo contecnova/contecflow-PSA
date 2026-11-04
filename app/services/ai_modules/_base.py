@@ -16,6 +16,16 @@ from app.models.imputation import Imputation
 _log = logging.getLogger(__name__)
 
 
+
+def _a_lista(vector) -> list:
+    """El codificador TF-IDF devuelve listas y sentence-transformers arrays.
+
+    Auditoria 2026-11: se hacia `.tolist()` siempre; con TF-IDF lanzaba
+    AttributeError, se tragaba, y no se guardaba ningun vector (salvo si el
+    motor semantico habia cargado antes el modelo en el mismo proceso).
+    """
+    return vector.tolist() if hasattr(vector, "tolist") else list(vector)
+
 def api_key(db=None, org_id: Optional[str] = None) -> Optional[str]:
     if db is not None:
         try:
@@ -66,13 +76,25 @@ def call_claude(messages, system=None, model=None, tools=None, max_tokens=1000, 
 
 def call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_tokens=1000):
     """Wrapper that uses the configured provider or falls back to direct Claude."""
+    from app.services.ai_provider_service import es_aviso_de_ia
     try:
-        return call_ai(db, messages, system=system, module=module,
-                       user_id=user_id, max_tokens=max_tokens)
+        texto = call_ai(db, messages, system=system, module=module,
+                        user_id=user_id, max_tokens=max_tokens)
+        if not es_aviso_de_ia(texto):
+            return texto
+        aviso = texto
     except Exception:
         _log.warning("Unified AI call failed for module=%s user=%s; falling back to direct Claude", module, user_id, exc_info=True)
+        aviso = None
+    # Auditoria 2026-11: sin proveedor, `call_ai` devuelve un aviso y antes se
+    # usaba como si fuera la respuesta (reuniones y contratos «hechos» con todo
+    # vacio, articulos de KB sin contenido). Se prueba Claude directo, como al
+    # fallar, y si tampoco hay, se lanza el aviso: cada modulo lo trata como error.
+    try:
         resp = call_claude(messages, system=system, max_tokens=max_tokens, db=db)
         return extract_text(resp)
+    except Exception as exc:
+        raise RuntimeError(aviso or f"No se pudo llamar a la IA: {exc}") from exc
 
 
 def extract_text(response) -> str:
@@ -118,16 +140,19 @@ def compute_kb_embedding(db, article_id: str, text: str):
         from app.services.semantic_classifier import _get_model
         model, _ = _get_model()
         if hasattr(model, "encode"):
-            emb = model.encode([text], show_progress_bar=False)[0].tolist()
+            emb = _a_lista(model.encode([text], show_progress_bar=False)[0])
         else:
-            emb = model.encode([text])[0]
+            emb = _a_lista(model.encode([text])[0])
         from app.models.ai_chat import AIKBArticle as _Art
         art = db.query(_Art).filter(_Art.id == article_id).first()
         if art:
             art.embedding = json.dumps(emb)
             db.commit()
+            return True
+        return False
     except Exception:
         _log.warning("Failed to compute KB embedding for article=%s", article_id, exc_info=True)
+        return False
 
 
 def log_action(db, user_id, module, action_type, input_s=None, output_s=None,
@@ -386,7 +411,7 @@ def kb_vector_search(db, query_text: str, limit: int = 5, only_published: bool =
         from app.models.ai_chat import AIKBArticle
         model, _ = _get_model()
         if hasattr(model, "encode"):
-            q_emb = model.encode([query_text], show_progress_bar=False)[0].tolist()
+            q_emb = _a_lista(model.encode([query_text], show_progress_bar=False)[0])
         else:
             q_emb = model.encode([query_text])[0]
 

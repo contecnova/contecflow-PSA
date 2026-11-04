@@ -5589,6 +5589,7 @@ const es = {
   nexusagent: {
     instruccion: 'Instrucción',
     ej_resume_el_estado_de_todos_los: 'Ej: Resume el estado de todos los proyectos activos...',
+    permitir_escritura: 'Permitir que cree o cambie datos',
     enter_para_ejecutar: '⌘+Enter para ejecutar',
     analizando_instruccion: 'Analizando instrucción…',
     el_agente_esta_procesando_tu_instruccion: 'El agente está procesando tu instrucción...',

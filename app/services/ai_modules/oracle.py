@@ -134,7 +134,12 @@ def _oracle_sla_breach(db: Session, open_tickets: list, now: datetime) -> list:
             continue
         created_aware = t.created_at.replace(tzinfo=timezone.utc) if t.created_at.tzinfo is None else t.created_at
         age_hours = (now - created_aware).total_seconds() / 3600
-        sla_limit = _sla_hours.get(t.priority or "medium", _sla_hours["medium"])
+        # El ticket guarda `p1_critical`…`p4_low` (a veces el enum): se compara
+        # por el nivel. Antes se buscaba el valor tal cual y siempre caia en
+        # «medium», y el texto ensenaba «TicketPriority.p2_high».
+        prioridad = str(getattr(t.priority, "value", t.priority) or "p3_medium")
+        nivel = prioridad.split("_", 1)[-1]
+        sla_limit = _sla_hours.get(nivel, _sla_hours["medium"])
         warn_pct = _s.SLA_PREDICTION_WARNING_PCT or _env.SLA_PREDICTION_WARNING_PCT
         if age_hours < sla_limit * warn_pct:
             continue
@@ -156,7 +161,7 @@ def _oracle_sla_breach(db: Session, open_tickets: list, now: datetime) -> list:
                 prediction_type="sla_breach", entity_type="ticket", entity_id=t.id,
                 probability=probability, severity=severity,
                 title=f"Riesgo de incumplimiento SLA — Ticket {t.number}",
-                explanation=f"Llevas {round(age_hours,1)}h abierto. Límite SLA para prioridad '{t.priority}': {sla_limit}h. Quedan {round(remaining,1)}h.",
+                explanation=f"Llevas {round(age_hours,1)}h abierto. Límite SLA para prioridad «{nivel}»: {sla_limit}h. Quedan {round(remaining,1)}h.",
                 recommended_action="Asignar o escalar el ticket inmediatamente.",
             ))
             generated.append({"type": "sla_breach", "entity": t.number, "probability": probability})

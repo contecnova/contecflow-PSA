@@ -59,8 +59,10 @@ def _kb_vector_search(db, query_text: str, limit: int = 5, only_published: bool 
 def _openai_key_from_db(db) -> Optional[str]:
     return _svc.openai_key_from_db(db)
 
-def _process_voice_core(transcript: str, db, current_user):
-    return _svc.process_voice_core(transcript, db, current_user)
+def _process_voice_core(transcript: str, db, current_user, confirm: bool = False):
+    # Auditoria 2026-11: el envoltorio no aceptaba `confirm` y las dos rutas de
+    # voz (/voice/command y /voice/transcribe) daban 500 siempre.
+    return _svc.process_voice_core(transcript, db, current_user, confirm=confirm)
 
 def _get_client_project_data(client_user, db: Session) -> dict:
     return _svc.get_client_project_data(client_user, db)

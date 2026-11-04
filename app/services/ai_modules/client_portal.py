@@ -293,9 +293,13 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
         available = max(0, 40 - round(hrs / 4, 1))
         capacity.append({"name": u.full_name, "available_hours_per_week": available})
 
+    # Auditoria 2026-11: el prompt pedia `"task_id": <int>` y los ids son UUID;
+    # el modelo devolvia 1, 2, 3 y aplicar el plan daba 500. Ahora cada tarea
+    # lleva un numero y la respuesta se traduce de vuelta a su id.
+    por_numero = {i: t.id for i, t in enumerate(unscheduled, 1)}
     task_list = "\n".join(
-        f"- [{t.id}] {t.title} (priority={t.priority or 'medium'}, points={t.story_points or '?'})"
-        for t in unscheduled
+        f"- [{i}] {t.title} (priority={t.priority or 'medium'}, points={t.story_points or '?'})"
+        for i, t in enumerate(unscheduled, 1)
     )
     capacity_str = "\n".join(f"  {c['name']}: ~{c['available_hours_per_week']}h/week free" for c in capacity[:10])
     today_str = now.strftime("%Y-%m-%d")
@@ -308,7 +312,7 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
         "de tareas sin fechas y la capacidad disponible del equipo. Genera un "
         "plan realista empezando hoy. "
         "Responde SOLO con un array JSON, sin texto adicional:\n"
-        '[{"task_id": <int>, "suggested_start": "YYYY-MM-DD", '
+        '[{"task_id": <numero entre corchetes de la tarea>, "suggested_start": "YYYY-MM-DD", '
         '"suggested_due": "YYYY-MM-DD", "rationale": "..."}]'
     )
     user_msg = (
@@ -336,6 +340,17 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
                 scheduled = _json.loads(_cleaned)
         else:
             scheduled = []
+        traducidas = []
+        for item in scheduled if isinstance(scheduled, list) else []:
+            try:
+                real = por_numero.get(int(str(item.get("task_id")).strip("[] ")))
+            except (TypeError, ValueError, AttributeError):
+                real = None
+            if real is None and item.get("task_id") in por_numero.values():
+                real = item.get("task_id")
+            if real is not None:
+                traducidas.append({**item, "task_id": real})
+        scheduled = traducidas
     except Exception as exc:
         _log.exception("Smart schedule AI call failed for user=%s project=%s", current_user.id, payload.project_id)
         return {"scheduled": [], "error": str(exc),

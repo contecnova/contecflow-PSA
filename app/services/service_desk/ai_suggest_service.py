@@ -91,6 +91,11 @@ def build_ai_ticket_suggestion(db: Session, ticket_id: str, payload: Optional[di
             max_tokens=500,
         )
         ai_error = None
+        from app.services.ai_provider_service import es_aviso_de_ia
+        if es_aviso_de_ia(draft):
+            # Auditoria 2026-11: el aviso «no hay proveedor» se devolvia como
+            # borrador y la pantalla lo pegaba en la respuesta al cliente.
+            raise RuntimeError(draft)
     except Exception as exc:
         # Auditoria 2026-11: aqui se devolvia un texto generico («Estamos
         # revisando tu incidencia...») como si lo hubiera redactado la IA. Si la

@@ -3,7 +3,7 @@ import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { oracleApi, aiProvidersApi } from '../services/api'
+import { oracleApi } from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -74,13 +74,6 @@ interface AnalisisDelOraculo {
   alerts?: AlertaDelOraculo[]
 }
 
-/** Un proveedor de IA configurado. */
-interface ProveedorDeIa {
-  id?: string
-  name?: string
-  is_default?: boolean
-}
-
 export default function OraclePage() {
   const t = useAppT()
   const qc = useQueryClient()
@@ -92,11 +85,6 @@ export default function OraclePage() {
     queryKey: ['oracle-preds'],
     queryFn: () => oracleApi.predictions({ only_unacked: false }).then(r => r.data),
   })
-  const { data: providers = [] } = useQuery<ProveedorDeIa[]>({
-    queryKey: ['ai-providers'],
-    queryFn: () => aiProvidersApi.list().then(r => r.data),
-  })
-  const defaultProvider = providers.find(p => p.is_default) || providers[0]
 
   const { mutate: runOracle, isPending: running } = useMutation({
     mutationFn: () => oracleApi.run().then(r => r.data),
@@ -129,11 +117,6 @@ export default function OraclePage() {
         subtitle="Detecta riesgos y anomalías en tus proyectos con reglas de negocio multi-factor (retraso · SLA · burnout · presupuesto)"
         actions={
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            {defaultProvider && (
-              <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                {defaultProvider.name}
-              </span>
-            )}
             <Button onClick={() => runOracle()} disabled={running}>
               {running ? '🔄 Analizando...' : '🔮 Ejecutar análisis'}
             </Button>

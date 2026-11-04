@@ -6272,6 +6272,7 @@ const zh = {
   nexusagent: {
     instruccion: '指令',
     ej_resume_el_estado_de_todos_los: '例如：汇总所有进行中项目的状态……',
+    permitir_escritura: "允许创建或更改数据",
     enter_para_ejecutar: '⌘+Enter 执行',
     analizando_instruccion: '正在分析指令……',
     el_agente_esta_procesando_tu_instruccion: '智能体正在处理你的指令……',

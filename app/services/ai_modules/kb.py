@@ -113,11 +113,14 @@ def search_kb(db: Session, query: str) -> list:
 
 def rebuild_kb_embeddings(db: Session) -> dict:
     articles = db.query(AIKBArticle).all()
-    count = 0
+    # Auditoria 2026-11: contaba como «rehecho» aunque fallaran todos.
+    rehechos = fallidos = 0
     for a in articles:
-        compute_kb_embedding(db, a.id, (a.title or "") + " " + (a.content or ""))
-        count += 1
-    return {"rebuilt": count}
+        if compute_kb_embedding(db, a.id, (a.title or "") + " " + (a.content or "")):
+            rehechos += 1
+        else:
+            fallidos += 1
+    return {"rebuilt": rehechos, "failed": fallidos}
 
 def update_kb(db: Session, article_id: str, payload: dict, current_user) -> dict:
     article = db.query(AIKBArticle).filter(AIKBArticle.id == article_id).first()

@@ -1554,7 +1554,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       </main>
 
       {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
-      {aiOpen && <NexusAssistPanel open={aiOpen} onClose={() => setAiOpen(false)} context={{ page: location.pathname }} />}
+      {aiOpen && <NexusAssistPanel open={aiOpen} onClose={() => setAiOpen(false)} context={{ page: location.pathname, search: location.search }} />}
       {chatOpen && (
         <GlobalChatPanel
           open={chatOpen}

@@ -121,19 +121,22 @@ def predict_churn(
     # Legacy single-client contract: {client_id, features: {...}}
     if not clients_data and body.client_id:
         raw_features = body.features or {}
-        clients_data = [
-            {
-                "client_id": body.client_id,
-                "client_name": body.client_name,
-                "tickets_last_30d": raw_features.get("support_tickets_last_90d", raw_features.get("tickets_last_30d", 0)),
-                "response_time_avg_h": raw_features.get("response_time_avg_h", 0),
-                "nps_score": raw_features.get("nps_score", 7),
-                "contract_renewal_days": raw_features.get("contract_months_remaining", 6) * 30,
-                "support_escalations": raw_features.get("support_escalations", 0),
-                "last_login_days_ago": max(0, 30 - float(raw_features.get("logins_last_30d", 0))),
-                "active_projects": raw_features.get("active_projects", 0),
-            }
-        ]
+        legado = {
+            "tickets_last_30d": raw_features.get("support_tickets_last_90d", 0),
+            "response_time_avg_h": 0,
+            "nps_score": 7,
+            "contract_renewal_days": float(raw_features.get("contract_months_remaining", 6)) * 30,
+            "support_escalations": 0,
+            "last_login_days_ago": max(0, 30 - float(raw_features.get("logins_last_30d", 0))),
+            "active_projects": 0,
+        }
+        # Los nombres del modelo (`CHURN_FEATURES`) mandan; los antiguos del
+        # formulario solo se traducen si no vienen los buenos.
+        clients_data = [{
+            "client_id": body.client_id,
+            "client_name": body.client_name,
+            **{k: float(raw_features.get(k, legado[k])) for k in svc.CHURN_FEATURES},
+        }]
 
     if not clients_data:
         from fastapi import HTTPException

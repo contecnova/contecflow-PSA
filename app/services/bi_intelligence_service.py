@@ -82,6 +82,21 @@ def _month_key(d: date) -> str:
     return f"{d.year:04d}-{d.month:02d}"
 
 
+def _facturado_sin_tarifa(db: Session, organization_id: Optional[str], desde: date) -> list:
+    """(fecha de emision, base imponible) de las facturas de proyectos sin tarifa por hora."""
+    from app.models.billing_reports import Invoice
+    q = (
+        db.query(Invoice.issue_date, Invoice.subtotal)
+        .outerjoin(Project, Project.id == Invoice.project_id)
+        .filter(Invoice.issue_date >= desde,
+                Invoice.status.notin_(["draft", "cancelled"]),
+                (Project.id.is_(None)) | (Project.billing_rate.is_(None)) | (Project.billing_rate == 0))
+    )
+    if organization_id:
+        q = q.filter(Invoice.organization_id == organization_id)
+    return [(d, imp) for d, imp in q.all() if d]
+
+
 def _month_series(db: Session, organization_id: Optional[str], months_history: int = 12) -> list[dict[str, Any]]:
     today = timeutil.today()
     start_year = today.year - 1
@@ -115,6 +130,13 @@ def _month_series(db: Session, organization_id: Optional[str], months_history: i
         buckets[key]["hours"] += hrs
         buckets[key]["cost"] += cost
         buckets[key]["revenue"] += rev
+
+    # Auditoria 2026-11: el ingreso solo salia de horas x tarifa, y sin tarifa
+    # (precio cerrado, o tarifa sin rellenar) era 0 siempre: la prevision de
+    # ingresos, las anomalias y el margen del BI daban 0 con 26.499 € facturados.
+    # Los proyectos sin tarifa por hora cuentan lo facturado, por mes de emision.
+    for d, importe in _facturado_sin_tarifa(db, organization_id, start):
+        buckets[_month_key(d)]["revenue"] += float(importe or 0)
 
     # Fill last N months in chronological order
     out: list[dict[str, Any]] = []

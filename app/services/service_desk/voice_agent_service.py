@@ -206,6 +206,10 @@ def create_ticket_from_session(
     from app.services.sla_service import next_ticket_number
 
     intent = session.get("intent", "query")
+    # «Urgente», «crítico»… mandan aunque la intencion ganadora sea otra: «no
+    # funciona, es urgente» empata y se quedaba en incidencia media.
+    if intent != "urgent" and (session.get("entities") or {}).get("urgency_words"):
+        intent = "urgent"
     transcript_text = " ".join(t["text"] for t in session.get("transcript", []) if t["speaker"] == "user")
     priority_map = {
         "critical": TicketPriority.p1_critical,
@@ -219,6 +223,7 @@ def create_ticket_from_session(
 
     ticket = Ticket(
         id=str(uuid.uuid4()),
+        organization_id=org_id,
         number=next_ticket_number(TicketType.incident.value, db),
         ticket_type=TicketType.incident,
         title=(transcript_text[:120] or f"Voice call: {intent}").strip(),

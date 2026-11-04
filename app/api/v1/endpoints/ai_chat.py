@@ -709,6 +709,44 @@ def _emitir_bucle_del_agente(_db, instruccion: str, system: str, auto_approve: b
     })
 
 
+def _guardando_ejecucion(instruccion: str, usuario, eventos):
+    """Reemite los eventos y, al terminar, guarda la ejecucion en el historial.
+
+    Auditoria 2026-11: las ejecuciones en streaming (el modo que usa la
+    pantalla) no se guardaban: el historial de NexusAgent no las mostraba.
+    """
+    final, error = None, None
+    for trozo in eventos:
+        yield trozo
+        try:
+            linea = trozo.decode() if isinstance(trozo, bytes) else str(trozo)
+            if linea.startswith("data:"):
+                ev = json.loads(linea[5:].strip())
+                if ev.get("type") == "done":
+                    final = ev
+                elif ev.get("type") == "error":
+                    error = ev.get("message")
+        except (ValueError, AttributeError):
+            pass
+    try:
+        from app.db.session import SessionLocal
+        from app.models.ai_chat import AIAgentExecution
+        with SessionLocal() as db:
+            db.add(AIAgentExecution(
+                user_id=usuario.id, organization_id=getattr(usuario, "organization_id", None),
+                instruction=instruccion, status="done" if final and not error else "failed",
+                result=(final or {}).get("result"), steps_count=len((final or {}).get("steps") or []),
+                error=(error or None) and str(error)[:500], completed_at=datetime.now(timezone.utc),
+            ))
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
+                raise
+    except Exception:
+        _logger.exception("NexusAgent: no se pudo guardar la ejecucion en streaming")
+
+
 def _emitir_eventos_de_agente(*, instruccion: str, auto_approve: bool, usuario, system: str,
                               hay_herramientas: bool, api_key, modelo,
                               proveedor="anthropic", base_url=""):
@@ -822,7 +860,7 @@ Responde siempre en español. Hoy es {datetime.now(timezone.utc).strftime('%Y-%m
 Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
 
     return StreamingResponse(
-        _emitir_eventos_de_agente(
+        _guardando_ejecucion(instruction, current_user, _emitir_eventos_de_agente(
             instruccion=instruction,
             auto_approve=auto_approve,
             usuario=current_user,
@@ -832,7 +870,7 @@ Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
             modelo=agent_model,
             proveedor=agent_proveedor,
             base_url=agent_base_url,
-        ),
+        )),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

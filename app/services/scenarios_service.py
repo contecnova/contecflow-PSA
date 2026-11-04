@@ -15,6 +15,7 @@ import json
 from datetime import date, datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.core.config import settings
+from app.services.settings_service import get_runtime_float, get_runtime_str
 from app.models.user import User
 from app.models.mfa import (
     ScenarioModel, ScenarioProject,
@@ -34,9 +35,15 @@ def compute_scenario(scenario_id: str, db: Session) -> dict:
     base_date = scenario.base_date or timeutil.today()
     horizon_end = base_date + timedelta(weeks=scenario.horizon_weeks)
 
-    active_users = db.query(User).filter(User.is_active == True).count()
-    hours_per_week_per_person = settings.DEFAULT_WEEKLY_CAPACITY_HOURS
-    weekly_capacity = active_users * hours_per_week_per_person
+    # Capacidad: solo los roles que trabajan en proyectos (ajuste
+    # SCENARIO_CAPACITY_ROLES) y con las horas de cada persona. Antes contaba a
+    # todos los activos —admin y RR. HH. incluidos— a la capacidad por defecto.
+    org = scenario.organization_id
+    roles = [r.strip() for r in (get_runtime_str(db, "SCENARIO_CAPACITY_ROLES", org) or "").split(",") if r.strip()]
+    por_defecto = get_runtime_float(db, "DEFAULT_WEEKLY_CAPACITY_HOURS", org) or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    equipo = db.query(User).filter(User.is_active == True, User.role.in_(roles)).all() if roles else []
+    active_users = len(equipo)
+    weekly_capacity = round(sum((u.weekly_capacity_hours or por_defecto) for u in equipo), 1)
 
     total_demand_hours = 0
     weekly_demand = {}
@@ -51,9 +58,16 @@ def compute_scenario(scenario_id: str, db: Session) -> dict:
 
         current = sp.start_date
         while current < sp.end_date and current < horizon_end:
-            week_key = current.strftime("%Y-W%W")
+            week_key = _semana_iso(current)
             weekly_demand[week_key] = weekly_demand.get(week_key, 0) + hours_per_week
             current += timedelta(weeks=1)
+
+    # Lo que el equipo ya tiene reservado (reservas firmes) tambien ocupa
+    # capacidad. Las de un proyecto que el escenario ya incluye no se suman dos veces.
+    en_escenario = {sp.project_id for sp in scenario.projects if sp.project_id}
+    comprometido = _horas_reservadas_por_semana(db, base_date, horizon_end, en_escenario)
+    for week_key, horas in comprometido.items():
+        weekly_demand[week_key] = weekly_demand.get(week_key, 0) + horas
 
         total_demand_hours += sp.total_hours
         project_breakdown.append({
@@ -93,6 +107,7 @@ def compute_scenario(scenario_id: str, db: Session) -> dict:
         "total_demand_hours": round(total_demand_hours, 1),
         "team_size": active_users,
         "weekly_capacity": weekly_capacity,
+        "committed_hours": round(sum(comprometido.values()), 1),
         "horizon_weeks": scenario.horizon_weeks,
         "project_breakdown": project_breakdown,
         "capacity_timeline": capacity_timeline[:24],
@@ -107,6 +122,35 @@ def compute_scenario(scenario_id: str, db: Session) -> dict:
     scenario.computed_at = datetime.now(timezone.utc)
     db.commit()
     return results
+
+
+def _semana_iso(dia: date) -> str:
+    """Semana ISO 8601 (la del calendario laboral); `%W` iba una semana desfasada."""
+    anyo, semana, _ = dia.isocalendar()
+    return f"{anyo}-W{semana:02d}"
+
+
+def _horas_reservadas_por_semana(db: Session, desde: date, hasta: date, excluir: set) -> dict:
+    """Horas de reservas firmes y activas por semana ISO, en dias laborables."""
+    from app.models.bookings import BookingType, ResourceBooking
+    reservas = db.query(ResourceBooking).filter(
+        ResourceBooking.is_active == True,
+        ResourceBooking.booking_type == BookingType.hard,
+        ResourceBooking.start_date < hasta,
+        ResourceBooking.end_date >= desde,
+    ).all()
+    por_dia = settings.DEFAULT_WORKING_HOURS_PER_DAY
+    semanas: dict = {}
+    for r in reservas:
+        if r.project_id and r.project_id in excluir:
+            continue
+        dia = max(r.start_date, desde)
+        while dia <= r.end_date and dia < hasta:
+            if dia.weekday() < 5:
+                clave = _semana_iso(dia)
+                semanas[clave] = semanas.get(clave, 0) + (r.hours_per_day or por_dia)
+            dia += timedelta(days=1)
+    return semanas
 
 
 def list_scenarios(db: Session) -> list:

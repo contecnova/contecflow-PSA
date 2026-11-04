@@ -10,6 +10,7 @@ from app.models.ai_chat import (
     AIPrediction,
 )
 from app.models.project import Project
+from app.models.user import User
 from dataclasses import dataclass
 
 _log = logging.getLogger(__name__)
@@ -236,14 +237,34 @@ def list_predictions(db: Session, severity=None, prediction_type=None, only_unac
     if prediction_type: q = q.filter(AIPrediction.prediction_type == prediction_type)
     if only_unacked:    q = q.filter(AIPrediction.is_acknowledged == False)
     preds = q.order_by(AIPrediction.created_at.desc()).limit(50).all()
+    nombres = _nombres_de_entidades(db, preds)
     return [{
         "id": p.id, "type": p.prediction_type, "severity": p.severity,
         "title": p.title, "explanation": p.explanation,
         "recommended_action": p.recommended_action,
         "probability": p.probability, "entity_type": p.entity_type,
-        "entity_id": p.entity_id, "created_at": str(p.created_at)[:16],
+        "entity_id": p.entity_id, "entity_name": nombres.get((p.entity_type, p.entity_id)),
+        "is_acknowledged": bool(p.is_acknowledged),
+        "created_at": str(p.created_at)[:16],
         "methodology": "rules_based",
     } for p in preds]
+
+
+def _nombres_de_entidades(db: Session, preds: list) -> dict:
+    """Nombre legible de cada entidad (una consulta por tipo, no por fila)."""
+    from app.models.service_desk import Ticket
+    fuentes = {
+        "project": (Project, lambda x: x.name),
+        "user": (User, lambda x: x.full_name),
+        "ticket": (Ticket, lambda x: f"{x.number} · {x.title}"),
+    }
+    nombres: dict = {}
+    for tipo, (modelo, nombre) in fuentes.items():
+        ids = {p.entity_id for p in preds if p.entity_type == tipo and p.entity_id}
+        if ids:
+            for fila in db.query(modelo).filter(modelo.id.in_(ids)).all():
+                nombres[(tipo, fila.id)] = nombre(fila)
+    return nombres
 
 def acknowledge_prediction(db: Session, pred_id: str, user_id: str) -> dict:
     pred = db.query(AIPrediction).filter(AIPrediction.id == pred_id).first()

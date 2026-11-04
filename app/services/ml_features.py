@@ -95,8 +95,12 @@ def extract_project_features(db: Session, project_id: str, reference_date: Optio
 
     duration_days = max(1.0, min(duration_days, 3650.0))
 
-    budget_per_task = budget / total_tasks if budget > 0 and total_tasks > 0 else 0
-    ev = budget_per_task * done_tasks
+    # Auditoria 2026-11: el valor ganado contaba solo tareas terminadas, asi
+    # que un proyecto recien empezado (nada en «done») daba CPI 0 y SPI 0 y
+    # salia «critico». Ahora el avance pondera cada estado, igual que la
+    # rentabilidad y el EVM (`profitability_service._progreso_por_tareas`).
+    from app.services.profitability_service import _progreso_por_tareas
+    ev = budget * _progreso_por_tareas(project) / 100 if budget > 0 else 0
     pv = budget * elapsed_pct / 100 if budget > 0 else 0
     ac = actual_cost
 

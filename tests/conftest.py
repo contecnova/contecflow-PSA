@@ -427,6 +427,7 @@ def _force_tfidf_embeddings():
         return encoder, False
 
     original = sc._get_model
+    sc._get_model_real = original  # para probar la carga de verdad
     sc._get_model = _tfidf_only
     try:
         yield

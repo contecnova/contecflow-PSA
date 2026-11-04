@@ -15,6 +15,7 @@ const SUGGESTIONS = [
 
 interface AssistContext {
   page?: string
+  search?: string
 }
 
 interface ChatMessage {
@@ -127,10 +128,9 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
     const path = context.page
     const m1 = path.match(/^\/projects\/([\w-]+)/)
     if (m1) return { context_type: 'project', context_id: m1[1] }
-    const m2 = path.match(/^\/service-desk\/tickets?\/([\w-]+)/)
-    if (m2) return { context_type: 'ticket', context_id: m2[1] }
-    const m3 = path.match(/^\/sprints?\/([\w-]+)/)
-    if (m3) return { context_type: 'sprint', context_id: m3[1] }
+    // El ticket se abre como `/service-desk?ticket=<id>` (no hay ruta propia).
+    const ticket = path.startsWith('/service-desk') && new URLSearchParams(context.search || '').get('ticket')
+    if (ticket) return { context_type: 'ticket', context_id: ticket }
     return {}
   })()
 

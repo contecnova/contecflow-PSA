@@ -94,7 +94,7 @@ def test_el_org_id_viaja_como_parametro_enlazado_y_nunca_interpolado():
 
 def test_se_inyecta_en_el_where_existente():
     sql, _ = validate_sql("SELECT * FROM dim_project WHERE status = 'active'", "org-1")
-    assert "WHERE organization_id = $org_id AND status = 'active'" in sql
+    assert "WHERE dim_project.organization_id = $org_id AND status = 'active'" in sql
 
 
 def test_se_inyecta_antes_del_group_by_en_una_agregada():
@@ -133,3 +133,20 @@ def test_se_quitan_las_vallas_de_markdown_que_pone_el_modelo():
     sql, _ = validate_sql("```sql\nSELECT * FROM dim_project;\n```", None)
     assert "```" not in sql
     assert sql.lstrip().upper().startswith("SELECT")
+
+
+
+def test_con_join_el_filtro_va_por_cada_tabla_y_no_es_ambiguo():
+    """Auditoria 2026-11: `organization_id` sin calificar era ambiguo con JOIN
+    (DuckDB: «Ambiguous reference») y toda consulta de dos tablas fallaba."""
+    from app.services.ask_the_data import validate_sql
+    sql, params = validate_sql(
+        "SELECT p.name, SUM(i.hours) FROM fact_imputations i JOIN dim_project p ON p.project_id = i.project_id "
+        "GROUP BY p.name", org_id="org-1")
+    assert "i.organization_id = $org_id" in sql and "p.organization_id = $org_id" in sql
+    assert params["org_id"] == "org-1"
+
+
+def test_el_calendario_comun_no_se_filtra():
+    from app.services.ask_the_data import _inyectar_filtro_de_tenant
+    assert "organization_id" not in _inyectar_filtro_de_tenant("SELECT year FROM dim_date LIMIT 5")

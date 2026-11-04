@@ -2675,6 +2675,44 @@ This section describes what each Analytics, BI, AI and Automation screen does as
   - `require_internal_user` = the four manager roles plus employee
 - Where the frontend and backend roles differ, the module says so. The backend check is the one that actually protects the data.
 
+### Review of 2026-11-04: what was broken and what changed
+
+Measured against a copy of the database with a local Ollama model. Tests: `tests/test_ia_revision_2026_11.py` (19 tests; each fix was reverted once to check that a test turns red).
+
+| Area | Before | Now |
+|---|---|---|
+| Voice commands (`/voice/command`, `/voice/transcribe`) | Always HTTP 500 (`confirm` argument) | Work; without `confirm` they return the pending action |
+| Accepting an AI ticket triage | 500 (`critical` is not a ticket priority) | Mapped to `p1_critical`…`p4_low` |
+| Meetings → "Create tasks" | 500 (task without `code`) | Tasks get a `TSK-…` code and a reporter |
+| Smart Schedule | The model returned 1, 2, 3 as task ids; applying gave 500 | Tasks are numbered in the prompt and mapped back to their ids |
+| RCA wizard AI hint | Always failed; wrong step shown | Reads the text; steps are 1-based |
+| NexusAgent | Streamed runs were not saved; history read wrong fields; writes auto-approved | Streamed runs saved; history shows result and steps; "Allow write actions" is off by default |
+| KB embeddings | Failed under TF-IDF (`.tolist()` on a list); "rebuilt" counted failures | Stored; rebuild reports `rebuilt` and `failed` |
+| Ask the Data | Any JOIN failed (ambiguous `organization_id`) | Tenant filter qualified per table; `dim_date` is not filtered |
+| "No AI provider" warning | Returned and stored as if it were the answer | `es_aviso_de_ia()` detects it; Ask the Data, SD suggestions and `call_ai_unified` treat it as an error |
+| Revenue in BI / ML / KPIs | Always 0 (hours × `billing_rate`, which is empty) | Adds invoiced subtotals (not draft or cancelled) of projects without a rate |
+| Average margin KPI | Its own formula | `profitability_service.calc_project_profitability` |
+| Earned value (ML features) | Budget × elapsed time | Budget × task progress |
+| ML / OLAP jobs | Celery beat only: never ran under APScheduler | Also in APScheduler, same cadence (`app/main.py`) |
+| Anomaly detection | 3 of 5 metric buttons sent unknown keys (all-zero series) | `revenue`, `tickets_created`, `utilization`, `hours_logged`, `first_response_time_avg` |
+| Churn form | Sent field names the model does not use | Sends the model's `CHURN_FEATURES` |
+| NexusOracle | Acknowledging did not stick; enum shown in text; SLA limit always "medium"; header showed the AI provider | List returns `is_acknowledged` and `entity_name`; limit by the ticket's level; no provider shown (rules only) |
+| Scenarios | `%W` weeks (off by one); all active users, admin and HR included; existing bookings ignored | ISO weeks; roles from `SCENARIO_CAPACITY_ROLES` (Admin → Settings → locale) with each person's weekly hours; firm bookings added as `committed_hours` |
+| NexusAssist | The page context never reached the prompt; the inline editor opened a new conversation per call | Project or ticket on screen goes into the prompt; one inline-editor conversation per user, without history |
+| Voice agent (Service Desk) | Ticket without organization; "urgente" stayed medium | Organization set; urgency words make it `p1_critical` |
+| Data Platform presets | Empty dropdown | Filled |
+| Semantic engine offline | Only `ImportError` fell back | Any load error falls back to TF-IDF with a warning |
+
+**Still open (not fixed in this review):**
+- LightGBM does not load in the local macOS venv (`libomp.dylib` missing: `brew install libomp`). Churn then uses the 5 rules.
+- Similar-task suggestions need `imputations.task_id`; time logged without a task does not count.
+- 8 old `ai_usage_logs` rows from before the fix are marked `success=true` although they were warnings.
+- `/bi/kpi` WebSocket pushes need Redis; without it `bi_kpi_push` computes and drops the snapshot.
+- Cosmetic: `/predictions/logs` shows the project id, not its name; at-risk items have no `cpi`/`spi`; anomaly points have no period; meeting actions have no priority; forecast bands and MAPE are not drawn.
+- Backend with no screen: `ai-planning/*`, `/sd/tickets/{id}/ai-analyze|ai-auto-resolve|ai-explain|smart-assign`, `/sd/predictive/*`, `/bi/intelligence/ml/*`, `/revenue-forecast`, `/overrun-prediction`, `/ai-modules/kb/search|generate`, `/semantic/prioritize`.
+
+**Not verified:** tool-calling NexusAgent (Ollama has no tools; no paid API was called), Azure and o-series providers, Whisper transcription with real audio, the Celery worker path, Ask the Data on ETL-filled DuckDB data, and LLM output quality beyond a 7B local model.
+
 ### What is real AI here, and what works offline
 
 **LLM calls.** All LLM calls go through `app/services/ai_provider_service.py` (`call_ai` / `call_provider`). The only exception is a legacy direct-to-Anthropic path, covered at the end of this subsection.
@@ -2725,8 +2763,8 @@ If the chosen provider fails, every other active provider is tried once. If none
 
 **Cross-cutting LLM limitations (measured):**
 - **`AI_MODEL` is effectively required for the `.env` provider.** Without it, the literal model name `"default"` is sent.
-- **A configured temperature of 0.0 becomes 0.7** (`provider.temperature or 0.7`).
-- **Timeouts are hardcoded:** 60 s, 120 s for Ollama, 90 s for agent turns. The `ai_providers.timeout_seconds` column is never read.
+- **Temperature 0.0 is honoured** since 2026-11-04 (it used to become 0.7). 0.7 is used only when the provider has no temperature set. Ollama now receives the temperature and records its token counts (`prompt_eval_count`/`eval_count`).
+- **Timeouts are hardcoded:** 60 s, 120 s for Ollama, 90 s for agent turns. The `ai_providers.timeout_seconds` column is never read and no screen edits it. It defaults to 30 s, so wiring it as is would cut local Ollama models from 120 s to 30 s; it is left unwired on purpose.
 - **No retries.** Any exception marks the provider `status="error"`, and it is excluded from selection until an admin edits, tests or syncs it.
 - **Usage and cost go to `ai_usage_logs`,** using catalog prices. Models that "Sync models" discovers but that are not in the catalog cost $0, and Ollama is always $0. `AI_COST_ALERT_USD_PER_DAY` only writes a log warning.
 - **PII redaction is regex-based** (`app/services/ai_governance.py`). It applies only if the organization has active `AIGuardrailPolicy` rows. None are seeded and there is no UI to create them, so by default nothing is redacted. It checks only the last user message, not the system prompt, which carries the tenant data context.
@@ -2737,10 +2775,10 @@ If the chosen provider fails, every other active provider is tried once. If none
 
 **Data layer for BI.** Several BI widgets read a DuckDB OLAP file, not Postgres:
 - Location: `DUCKDB_PATH`, otherwise `/var/contecflow/olap.duckdb`, otherwise `/tmp/contecflow/olap.duckdb`.
-- It is filled only by the worker job `olap_nightly_etl` (01:00 daily, `olap/etl.run_full_etl`).
+- It is filled by the job `olap_nightly_etl` (01:00 daily, `olap/etl.run_full_etl`). Since 2026-11-04 it runs under APScheduler too (the default mode of `setup.sh`), not only under Celery beat.
 - Until that job has run, DuckDB-only features (Ask the Data) return errors. KPIs fall back to Postgres.
 
-**Response unwrapping.** The axios interceptor (`frontend/src/services/api/_core.ts:50-74`) turns `{items, meta}` into a bare array. Components that then read `.items` get `undefined`. This empties several lists in Data Platform and Data Governance, noted per module.
+**Response unwrapping.** The axios interceptor (`frontend/src/services/api/_core.ts:50-74`) turns `{items, meta}` into a bare array. Components that then read `.items` get `undefined`. Data Platform (report presets, custom connectors, snapshots) was fixed on 2026-11-04; Data Governance is noted in its module.
 
 ---
 

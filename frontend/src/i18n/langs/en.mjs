@@ -6261,6 +6261,7 @@ const en = {
   nexusagent: {
     instruccion: 'Instruction',
     ej_resume_el_estado_de_todos_los: 'E.g. Summarise the status of every active project...',
+    permitir_escritura: 'Allow it to create or change data',
     enter_para_ejecutar: '⌘+Enter to run',
     analizando_instruccion: 'Analysing the instruction…',
     el_agente_esta_procesando_tu_instruccion: 'The agent is working on your instruction...',

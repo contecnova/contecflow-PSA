@@ -534,27 +534,17 @@ def _pg_kpi_summary(org_id: Optional[str]) -> dict:
                 high_risk_filters.append(Project.organization_id == org_id)
             high_risk_projects = db.query(func.count(Project.id)).filter(*high_risk_filters).scalar() or 0
 
+            # Auditoria 2026-11: aqui el margen era horas x tarifa contra coste,
+            # 0 % sin tarifa (precio cerrado); el panel de finanzas y el de
+            # salud daban otro. Ahora es el de rentabilidad, el mismo para todos.
             avg_margin_pct = 0.0
             if active_project_ids:
-                margin_rows = (
-                    db.query(
-                        Imputation.project_id.label("project_id"),
-                        func.sum(Imputation.hours * func.coalesce(Project.billing_rate, 0.0)).label("revenue"),
-                        func.sum(Imputation.cost_amount).label("cost"),
-                    )
-                    .join(Project, Project.id == Imputation.project_id)
-                    .filter(Imputation.project_id.in_(active_project_ids))
-                    .group_by(Imputation.project_id)
-                    .all()
-                )
-
+                from app.services.profitability_service import calc_project_profitability
                 per_project_margins = []
-                for row in margin_rows:
-                    revenue = float(row.revenue or 0.0)
-                    cost = float(row.cost or 0.0)
-                    margin_pct = ((revenue - cost) / revenue * 100.0) if revenue > 0 else 0.0
-                    per_project_margins.append(margin_pct)
-
+                for proyecto in db.query(Project).filter(Project.id.in_(active_project_ids)).all():
+                    pl = calc_project_profitability(proyecto, db)
+                    if (pl.get("billing_revenue") or 0) > 0:
+                        per_project_margins.append(float(pl.get("margin_pct") or 0.0))
                 if per_project_margins:
                     avg_margin_pct = round(sum(per_project_margins) / len(per_project_margins), 1)
 

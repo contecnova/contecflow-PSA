@@ -202,7 +202,9 @@ def test_ai_suggest_response_endpoint(client, admin_token, db):
     assert res.status_code == 200
     data = res.json()["data"]
     assert data["ticket_id"] == tid
-    assert isinstance(data.get("draft"), str)
+    # Sin proveedor de IA (la suite no tiene ninguno) el aviso ya no se entrega
+    # como si fuera el borrador: llega aparte, en `ai_error` (revision 2026-11).
+    assert data.get("draft") is None and data["ai_error"]
 
 
 def test_split_ticket_creates_child_and_link(client, admin_token, db):

@@ -56,7 +56,11 @@ def _get_model(model_name: str = "all-MiniLM-L6-v2", backend_override: str | Non
         _MODEL_INSTANCE = SentenceTransformer(model_name)
         _MODEL_NAME     = model_name
         _USE_TRANSFORMER = True
-    except ImportError:
+    except Exception as exc:
+        # No solo ImportError: sin red y sin el modelo en cache, SentenceTransformer
+        # lanza OSError/HTTPError al ir a huggingface.co. Se cae a TF-IDF.
+        if not isinstance(exc, ImportError):
+            logging.getLogger(__name__).warning("Modelo %s no disponible (%s); uso TF-IDF", model_name, exc)
         _MODEL_INSTANCE = TFIDFEncoder()
         _MODEL_NAME     = "tfidf"
         _USE_TRANSFORMER = False

@@ -124,6 +124,9 @@ export default function ContecflowAgentPage() {
   const [result, setResult] = useState<EjecucionDeAgente | null>(null)
   const [_selectedExec, _setSelectedExec] = useState<EjecucionDeAgente | null>(null)
   const [showTools, setShowTools] = useState(false)
+  // Auditoría 2026-11: las dos vías mandaban `auto_approve: true` siempre, así
+  // que el agente escribía (crear, cambiar, borrar) sin que nadie lo pidiera.
+  const [permitirEscritura, setPermitirEscritura] = useState(false)
   const [streaming, setStreaming] = useState(true)
   const [liveSteps, setLiveSteps] = useState<PasoDeAgente[]>([])
   const [liveText, setLiveText] = useState('')
@@ -143,7 +146,7 @@ export default function ContecflowAgentPage() {
   })
 
   const { mutate: run, isPending } = useMutation({
-    mutationFn: (inst: string) => nexusAgentApi.run(inst).then(r => r.data),
+    mutationFn: (inst: string) => nexusAgentApi.run(inst, permitirEscritura).then(r => r.data),
     onSuccess: data => { setResult(data); refetch() },
     onError: e => toast.error(extractErr(e, 'Error al ejecutar el agente')),
   })
@@ -164,7 +167,7 @@ export default function ContecflowAgentPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ instruction: inst, auto_approve: true }),
+        body: JSON.stringify({ instruction: inst, auto_approve: permitirEscritura }),
         signal: ctrl.signal,
       })
       if (!resp.ok) {
@@ -269,6 +272,10 @@ export default function ContecflowAgentPage() {
                     <div style={{ position: 'absolute', top: 2, left: streaming ? 14 : 2, width: 12, height: 12, borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
                   </button>
                   Streaming en vivo
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+                  <input type="checkbox" checked={permitirEscritura} onChange={e => setPermitirEscritura(e.target.checked)} />
+                  {traducir('nexusagent.permitir_escritura')}
                 </label>
               </div>
               <Button onClick={execute} disabled={!instruction.trim() || isRunning}>

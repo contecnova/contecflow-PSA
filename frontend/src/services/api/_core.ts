@@ -1919,7 +1919,7 @@ export const bpmnInstancesApi = {
 // ── Nexus AI Agent ────────────────────────────────────────────────────────────
 export const nexusAgentApi = {
   history:              () => api.get('/ai/agent/history'),
-  run:                  (instruction: any, autoApprove: boolean = true) => api.post('/ai/agent', { instruction, auto_approve: autoApprove }),
+  run:                  (instruction: any, autoApprove: boolean = false) => api.post('/ai/agent', { instruction, auto_approve: autoApprove }),
   chat:                 (data: unknown) => api.post('/ai/chat', data),
   listConversations:    () => api.get('/ai/conversations'),
   getConversation:      (id: any) => api.get(`/ai/conversations/${id}`),

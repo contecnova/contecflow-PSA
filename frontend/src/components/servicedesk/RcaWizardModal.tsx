@@ -89,10 +89,13 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
   const { t: traducir } = useAppLang()
   const toast = useToast()
   const steps: WizardStepDef[] = state?.steps ?? []
-  const currentStep = state?.current_step ?? 0
+  // Auditoría 2026-11: el servidor numera los pasos desde 1 (y así los espera
+  // en /step y /ai-assist); la pantalla los usaba como índice desde 0: pregunta
+  // equivocada, «Paso 6 de 5» y el último paso detectado uno antes.
+  const currentStep = state?.current_step ?? 1
   const totalSteps = steps.length
-  const isLast = currentStep >= totalSteps - 1
-  const stepDef: WizardStepDef = steps[currentStep] ?? {}
+  const isLast = currentStep >= totalSteps
+  const stepDef: WizardStepDef = steps[currentStep - 1] ?? {}
 
   const [answer, setAnswer] = useState<string>('')
   const [aiHint, setAiHint] = useState<string | null>(null)
@@ -123,14 +126,14 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
   }
 
   // Progress bar
-  const progress = totalSteps > 0 ? Math.round(((currentStep) / totalSteps) * 100) : 0
+  const progress = totalSteps > 0 ? Math.round(((currentStep - 1) / totalSteps) * 100) : 0
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {/* Progress */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>
-          <span>Paso {currentStep + 1} {traducir('rcawizardmodal.de')} {totalSteps}</span>
+          <span>Paso {currentStep} {traducir('rcawizardmodal.de')} {totalSteps}</span>
           <span>{progress}% completado</span>
         </div>
         <div style={{ height: 4, background: 'var(--surface-4)', borderRadius: 4, overflow: 'hidden' }}>
@@ -153,7 +156,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
       {/* Current step */}
       <div>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>
-          {stepDef.prompt || stepDef.title || `Paso ${currentStep + 1}`}
+          {stepDef.prompt || stepDef.title || `Paso ${currentStep}`}
         </div>
         {stepDef.hint && (
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', background: alpha(COLOR.info ?? 'var(--info)', '10'), border: `1px solid ${alpha(COLOR.info ?? 'var(--info)', '25')}`, borderRadius: 6, padding: '8px 12px', marginBottom: 10 }}>

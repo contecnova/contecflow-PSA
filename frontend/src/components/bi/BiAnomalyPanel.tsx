@@ -40,15 +40,20 @@ interface ChurnResult {
   top_factors?: Array<ChurnFactor | string>
 }
 
+// Los nombres que usa el modelo (`CHURN_FEATURES` en bi_anomaly_service).
 interface ChurnFeatures {
-  monthly_revenue: number
-  support_tickets_last_90d: number
+  tickets_last_30d: number
+  response_time_avg_h: number
   nps_score: number
-  contract_months_remaining: number
-  logins_last_30d: number
-  open_invoices: number
+  contract_renewal_days: number
+  support_escalations: number
+  last_login_days_ago: number
+  active_projects: number
   [k: string]: number
 }
+
+// Claves con serie en `_fetch_metric_series`; una desconocida devuelve ceros.
+const ANOMALY_METRICS = ['revenue', 'tickets_created', 'utilization', 'hours_logged', 'first_response_time_avg']
 
 const S: Record<string, React.CSSProperties> = {
   card:   { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '20px 24px' },
@@ -67,12 +72,13 @@ export default function BiAnomalyPanel() {
 
   const [churnClientId, setChurnClientId] = useState<string>('')
   const [churnFeatures, setChurnFeatures] = useState<ChurnFeatures>({
-    monthly_revenue: 5000,
-    support_tickets_last_90d: 3,
+    tickets_last_30d: 3,
+    response_time_avg_h: 8,
     nps_score: 7,
-    contract_months_remaining: 6,
-    logins_last_30d: 10,
-    open_invoices: 1,
+    contract_renewal_days: 180,
+    support_escalations: 0,
+    last_login_days_ago: 5,
+    active_projects: 1,
   })
   const [churnResult, setChurnResult] = useState<ChurnResult | null>(null)
 
@@ -115,7 +121,7 @@ export default function BiAnomalyPanel() {
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
           <select value={anomalyMetric} onChange={e => setAnomalyMetric(e.target.value)} style={S.select}>
-            {['revenue', 'tickets', 'utilization', 'hours', 'response_time'].map(m => (
+            {ANOMALY_METRICS.map(m => (
               <option key={m} value={m}>{m}</option>
             ))}
           </select>

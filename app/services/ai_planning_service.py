@@ -11,6 +11,7 @@ grupos ni un solo ciclo. Los cuerpos se movieron verbatim.
 """
 
 import json
+import re
 import logging
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
@@ -117,7 +118,23 @@ def _estimar_por_heuristica(task) -> tuple[float, int, str, list]:
     ), []
 
 
-def _afinar_estimacion_con_claude(task, similares: list[tuple], horas, confianza, razon):
+def _preguntar_json_a_la_ia(db: Session, prompt: str, max_tokens: int, organization_id=None):
+    """El JSON que devuelva el proveedor de IA configurado, o None.
+
+    Auditoria 2026-11: estimacion y triaje llamaban a Anthropic directamente
+    con la clave del `.env`; con un proveedor configurado en AI Hub (Gemini,
+    OpenAI, Ollama…) seguian siendo solo heuristica.
+    """
+    from app.services.ai_provider_service import call_ai, es_aviso_de_ia
+    texto = call_ai(db, [{"role": "user", "content": prompt}], module="ai_planning",
+                    max_tokens=max_tokens, is_superadmin=False, organization_id=organization_id)
+    if not texto or es_aviso_de_ia(texto):
+        return None
+    m = re.search(r"\{.*\}", texto, re.DOTALL)
+    return json.loads(m.group(0)) if m else None
+
+
+def _afinar_estimacion_con_claude(task, similares: list[tuple], horas, confianza, razon, db: Session = None):
     """Pide a Claude una segunda opinión sobre la estimación.
 
     Auditoría 2026-09 (hallazgo 18): al sacar esto a su propia función se vio
@@ -133,13 +150,10 @@ def _afinar_estimacion_con_claude(task, similares: list[tuple], horas, confianza
     Ahora el par se desempaqueta como par, y las horas reales salen de donde
     salen: de la suma de imputaciones que ya trae la consulta.
     """
-    api_key = settings.ANTHROPIC_API_KEY or None
-    if not api_key or not similares:
+    if db is None or not similares:
         return horas, confianza, razon
 
     try:
-        import urllib.request
-
         contexto = "\n".join([
             f"- '{tarea.title}': estimado {tarea.estimated_hours}h, real {float(reales or 0)}h"
             for tarea, reales in similares[:5]
@@ -152,27 +166,13 @@ Tareas similares completadas:
 {contexto}
 
 Responde SOLO con JSON: {{"hours": <número>, "confidence": <0-100>, "reasoning": "<explicación breve>"}}"""
-
-        data = json.dumps({
-            "model": settings.CONTECFLOW_AI_MODEL,
-            "max_tokens": 200,
-            "messages": [{"role": "user", "content": prompt}],
-        }).encode()
-        req = urllib.request.Request(  # noqa: S310
-            validate_outbound_url(settings.ANTHROPIC_API_URL, field="ANTHROPIC_API_URL"),
-            data=data,
-            headers={
-                "Content-Type": "application/json",
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-            },
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
-            parsed = json.loads(json.loads(resp.read())["content"][0]["text"])
+        parsed = _preguntar_json_a_la_ia(db, prompt, 200, getattr(task, "organization_id", None))
+        if not parsed:
+            return horas, confianza, razon
         return (
             parsed["hours"],
             parsed.get("confidence", confianza),
-            parsed.get("reasoning", razon) + " [Claude API]",
+            parsed.get("reasoning", razon) + " [IA]",
         )
     except Exception:
         _logger.warning(
@@ -222,12 +222,12 @@ def estimate_task_hours(task_id: str, db: Session) -> dict:
         horas, confianza, razon, ids = _estimar_por_heuristica(task)
 
     horas, confianza, razon = _afinar_estimacion_con_claude(
-        task, similares, horas, confianza, razon,
+        task, similares, horas, confianza, razon, db,
     )
 
     _guardar_estimacion(
         db, task_id, horas=horas, confianza=confianza, razon=razon,
-        ids_similares=ids, con_api=bool(settings.ANTHROPIC_API_KEY),
+        ids_similares=ids, con_api=razon.endswith("[IA]"),
     )
 
     return {
@@ -311,7 +311,7 @@ def _agente_menos_cargado(db: Session):
     return cargas[0].assigned_to_user_id if cargas else None
 
 
-def _afinar_con_claude(ticket, categoria: str, prioridad: str, razonamiento: str):
+def _afinar_con_claude(ticket, categoria: str, prioridad: str, razonamiento: str, db: Session = None):
     """Pide a Claude una segunda opinión. Devuelve la heurística si algo falla.
 
     El fallo es silencioso a propósito —se registra pero no se propaga—: el
@@ -319,13 +319,10 @@ def _afinar_con_claude(ticket, categoria: str, prioridad: str, razonamiento: str
     clasificar porque la API de un tercero no responde es peor que clasificarlo
     con reglas.
     """
-    api_key = settings.ANTHROPIC_API_KEY or None
-    if not api_key:
+    if db is None:
         return categoria, prioridad, 60, razonamiento
 
     try:
-        import urllib.request
-
         prompt = f"""Analiza este ticket de soporte y clasifícalo.
 
 Título: {ticket.title}
@@ -333,29 +330,15 @@ Descripción: {(ticket.description or "Sin descripción")[:300]}
 
 Responde SOLO con JSON:
 {{"category": "<categoría>", "priority": "critical|high|medium|low", "confidence": <0-100>, "reasoning": "<explicación breve en español>"}}"""
-
-        data = json.dumps({
-            "model": settings.CONTECFLOW_AI_MODEL,
-            "max_tokens": 300,
-            "messages": [{"role": "user", "content": prompt}],
-        }).encode()
-        req = urllib.request.Request(  # noqa: S310
-            validate_outbound_url(settings.ANTHROPIC_API_URL, field="ANTHROPIC_API_URL"),
-            data=data,
-            headers={
-                "Content-Type": "application/json",
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-            },
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
-            respuesta = json.loads(resp.read())
-            parsed = json.loads(respuesta["content"][0]["text"])
+        parsed = _preguntar_json_a_la_ia(db, prompt, 300, getattr(ticket, "organization_id", None))
+        if not parsed:
+            return categoria, prioridad, 60, razonamiento
+        prioridad_ia = parsed.get("priority", prioridad)
         return (
             parsed.get("category", categoria),
-            parsed.get("priority", prioridad),
+            prioridad_ia if prioridad_ia in _A_PRIORIDAD_DE_TICKET else prioridad,
             parsed.get("confidence", 75),
-            parsed.get("reasoning", razonamiento) + " [Claude API]",
+            parsed.get("reasoning", razonamiento) + " [IA]",
         )
     except Exception:
         _logger.warning(
@@ -399,7 +382,7 @@ def triage_ticket(ticket_id: str, db: Session) -> dict:
 
     agente_id = _agente_menos_cargado(db)
     categoria, prioridad, confianza, razonamiento = _afinar_con_claude(
-        ticket, categoria, prioridad, razonamiento,
+        ticket, categoria, prioridad, razonamiento, db,
     )
 
     _guardar_triaje(
@@ -420,6 +403,14 @@ def triage_ticket(ticket_id: str, db: Session) -> dict:
     }
 
 
+_A_PRIORIDAD_DE_TICKET = {"critical": "p1_critical", "high": "p2_high", "medium": "p3_medium", "low": "p4_low"}
+
+
+def prioridad_de_ticket(sugerida: str) -> str:
+    """La prioridad del ticket que corresponde a la del triaje (o la misma si ya lo es)."""
+    return _A_PRIORIDAD_DE_TICKET.get(sugerida, sugerida)
+
+
 def accept_ticket_triage(ticket_id: str, accepted: bool, current_user_id: str, db: Session) -> dict:
     triage = db.query(AITicketTriage).filter(AITicketTriage.ticket_id == ticket_id).first()
     if not triage:
@@ -432,7 +423,9 @@ def accept_ticket_triage(ticket_id: str, accepted: bool, current_user_id: str, d
         if ticket:
             if triage.suggested_priority:
                 from app.services.service_desk.ticket_update_service import cambiar_prioridad
-                cambiar_prioridad(db, ticket, triage.suggested_priority)
+                # Auditoria 2026-11: el triaje sugiere critical/high/medium/low y
+                # los tickets usan p1_critical…; aceptar daba KeyError (500).
+                cambiar_prioridad(db, ticket, prioridad_de_ticket(triage.suggested_priority))
             if triage.suggested_category: ticket.ticket_type = triage.suggested_category
             # Auditoria 2026-08: aqui habia `ticket.assignee_id = ...`, y esa
             # columna **no existe** en `sd_tickets` —`assignee_id` es la de

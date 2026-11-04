@@ -30,10 +30,6 @@ interface ReportPresetItem {
   name: string
 }
 
-interface ReportPresetsResponse {
-  items?: ReportPresetItem[]
-}
-
 interface PlatformManifest {
   name?: string
   version?: string
@@ -54,10 +50,6 @@ interface CustomConnectorItem {
   endpoint?: string
 }
 
-interface CustomConnectorsResponse {
-  items?: CustomConnectorItem[]
-}
-
 interface LineageResponse {
   edges?: unknown[]
 }
@@ -66,8 +58,9 @@ interface SnapshotItem {
   id: string | number
 }
 
-interface SnapshotsResponse {
-  items?: SnapshotItem[]
+// Las listas (APIListResponse) llegan ya desenvueltas por el interceptor.
+function comoLista<T>(raw: unknown): T[] {
+  return Array.isArray(raw) ? (raw as T[]) : []
 }
 
 interface SnapshotDiff {
@@ -124,10 +117,11 @@ export default function DataPlatformPage(): JSX.Element {
   const connectorsData = (connectorsDataRaw ?? { items: {} }) as ConnectorsResponse
   const { data: reportPresetsRaw } = useQuery({
     queryKey: ['data-platform-report-presets'],
-    queryFn: () => biIntelligenceApi.reportPresets().then(r => r.data).catch(() => ({ items: [] })),
+    // El interceptor ya deja la lista en `r.data` (envelope APIListResponse).
+    queryFn: () => biIntelligenceApi.reportPresets().then(r => r.data as ReportPresetItem[]).catch(() => [] as ReportPresetItem[]),
     staleTime: 60_000,
   })
-  const reportPresets = (reportPresetsRaw ?? { items: [] }) as ReportPresetsResponse
+  const reportPresets: ReportPresetItem[] = Array.isArray(reportPresetsRaw) ? reportPresetsRaw : []
   const { data: previewData, refetch: refetchPreview } = useQuery({
     queryKey: ['data-platform-preview', presetId, phase2Tick],
     queryFn: () => biIntelligenceApi.previewPreset({ preset_id: presetId, limit: 20 }).then(r => r.data).catch(() => null),
@@ -155,8 +149,7 @@ export default function DataPlatformPage(): JSX.Element {
     queryFn: () => biPlatformApi.listCustomConnectors().then(r => r.data).catch(() => ({ items: [] })),
     staleTime: 20_000,
   })
-  const phase3Custom = (phase3CustomRaw ?? { items: [] }) as CustomConnectorsResponse
-  const { data: phase3LineageRaw, refetch: refetchPhase3Lineage } = useQuery({
+    const { data: phase3LineageRaw, refetch: refetchPhase3Lineage } = useQuery({
     queryKey: ['data-platform-lineage', phase3Tick],
     queryFn: () => biPlatformApi.lineage().then(r => r.data).catch(() => ({ edges: [], audit: [] })),
     staleTime: 20_000,
@@ -167,8 +160,7 @@ export default function DataPlatformPage(): JSX.Element {
     queryFn: () => biPlatformApi.listSnapshots(datasetKey).then(r => r.data).catch(() => ({ items: [] })),
     staleTime: 20_000,
   })
-  const phase3Snapshots = (phase3SnapshotsRaw ?? { items: [] }) as SnapshotsResponse
-
+  
   // WebSocket realtime stream
   useEffect(() => {
     if (!streamLive) return undefined
@@ -196,9 +188,9 @@ export default function DataPlatformPage(): JSX.Element {
 
   const connectors = Object.entries(connectorsData?.items || {})
   const phase3CatalogEntries = Object.entries(phase3Catalog?.items || {})
-  const phase3CustomItems = phase3Custom?.items || []
+  const phase3CustomItems = comoLista<CustomConnectorItem>(phase3CustomRaw)
   const phase3LineageEdges = phase3Lineage?.edges || []
-  const phase3SnapshotItems = phase3Snapshots?.items || []
+  const phase3SnapshotItems = comoLista<SnapshotItem>(phase3SnapshotsRaw)
 
   async function handleToggleConnector(name: string, enabled: boolean) {
     try { await biIntelligenceApi.patchConnector(name, { enabled }); setPhase2Tick(x => x + 1); await refetchConnectors() } catch (_) { /* ignore */ }
@@ -234,7 +226,7 @@ export default function DataPlatformPage(): JSX.Element {
     } catch (_) { /* ignore */ }
   }
   async function handleDiffLastSnapshots() {
-    const items = phase3Snapshots?.items || []
+    const items = phase3SnapshotItems
     if (items.length < 2) return
     const fromId = items[items.length - 2]?.id
     const toId = items[items.length - 1]?.id
@@ -280,7 +272,7 @@ export default function DataPlatformPage(): JSX.Element {
             <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}><div style={S.sectionTitle}>Report presets — Preview</div></div>
             <div style={{ ...S.cardPad, display: 'grid', gap: 10 }}>
               <select value={presetId} onChange={e => setPresetId(e.target.value)} style={S.input}>
-                {(reportPresets?.items || []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {reportPresets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <button onClick={() => refetchPreview()} style={S.btnAccentOutline()}>Previsualizar preset</button>
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Filas preview: {previewData?.count || 0}</div>

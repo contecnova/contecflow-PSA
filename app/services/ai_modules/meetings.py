@@ -213,10 +213,14 @@ def create_tasks_from_meeting(db: Session, meeting_id: str, payload: dict, curre
     created = []
     for action in meeting.actions:
         if action.id not in action_ids or action.is_created: continue
+        # Auditoria 2026-11: sin codigo la insercion fallaba (NOT NULL) y daba 500.
+        from app.services.numbering import next_numbered_code
         task = Task(
+            code=next_numbered_code(db, "task", prefix="TSK", padding=5),
             project_id=project_id, title=action.description[:255],
             status="todo", priority="medium",
             assignee_id=action.assignee_id, created_by=current_user.id,
+            reporter_id=current_user.id,
         )
         db.add(task); db.flush()
         action.task_id = task.id

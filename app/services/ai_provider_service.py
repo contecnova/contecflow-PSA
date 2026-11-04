@@ -251,20 +251,22 @@ def _call_gemini(api_key, model, messages, system, max_tokens, temperature) -> d
             "tokens_out": usage.get("candidatesTokenCount", 0)}
 
 
-def _call_ollama(base_url, model, messages, system, max_tokens) -> dict:
+def _call_ollama(base_url, model, messages, system, max_tokens, temperature) -> dict:
     url = _normalize_ollama_base(base_url).rstrip("/") + "/api/chat"
     all_messages = []
     if system:
         all_messages.append({"role": "system", "content": system})
     all_messages.extend(messages)
     body = {"model": model, "messages": all_messages, "stream": False,
-            "options": {"num_predict": max_tokens}}
+            "options": {"num_predict": max_tokens, "temperature": temperature}}
     resp = httpx.post(url, json=body, timeout=120)
     if resp.status_code != 200:
         raise Exception(f"Ollama {resp.status_code}: {resp.text[:200]}")
     data = resp.json()
     text = data.get("message", {}).get("content", "")
-    return {"text": text, "model": model, "tokens_in": 0, "tokens_out": 0}
+    return {"text": text, "model": model,
+            "tokens_in": data.get("prompt_eval_count", 0) or 0,
+            "tokens_out": data.get("eval_count", 0) or 0}
 
 
 def _list_openai_compatible_models(base_url: str, api_key: str) -> list[str]:
@@ -409,7 +411,9 @@ def call_provider(provider, messages: list, system: str = None,
     model       = model or provider.default_model or "default"
     _validate_model(provider.provider, model)
     max_tokens  = max_tokens or provider.max_tokens or 2000
-    temperature = temperature if temperature is not None else (provider.temperature or 0.7)
+    # `or` convertia una temperatura 0.0 guardada en 0.7.
+    if temperature is None:
+        temperature = provider.temperature if provider.temperature is not None else 0.7
     raw_key     = provider.api_key or ""
     api_key     = decrypt_value(raw_key) if raw_key else ""
     base_url    = provider.api_base_url or ""
@@ -424,7 +428,7 @@ def call_provider(provider, messages: list, system: str = None,
     elif provider.provider == "gemini":
         return _call_gemini(api_key, model, messages, system, max_tokens, temperature)
     elif provider.provider == "ollama":
-        return _call_ollama(base_url or settings.OLLAMA_BASE_URL, model, messages, system, max_tokens)
+        return _call_ollama(base_url or settings.OLLAMA_BASE_URL, model, messages, system, max_tokens, temperature)
     else:
         raise ValueError(f"Proveedor no soportado: {provider.provider}")
 
@@ -923,6 +927,18 @@ def _marcar_proveedor_en_error(p, error_msg: str) -> None:
     p.status = "error"
 
 
+SIN_PROVEEDOR = "no_ai_provider_configured"
+AVISO_SIN_PROVEEDOR = (
+    "⚠️ No hay ningún proveedor de IA configurado. "
+    "Ve a Inteligencia IA → IA & Conectores para añadir uno."
+)
+
+
+def es_aviso_de_ia(texto) -> bool:
+    """True si `call_ai` devolvio un aviso (sin proveedor o error) y no una respuesta."""
+    return isinstance(texto, str) and texto.lstrip().startswith("⚠️")
+
+
 def _llamar_con_respaldo(db: Session, p, messages: list, system, model, max_tokens,
                          is_superadmin: bool, organization_id):
     """Llama al primario y, si falla, a cualquier otro disponible.
@@ -981,11 +997,10 @@ def _llamar_con_respaldo(db: Session, p, messages: list, system, model, max_toke
     if result:
         return respaldo, result, None
 
-    vacio["text"] = (
-        "⚠️ No hay ningún proveedor de IA configurado. "
-        "Ve a Inteligencia IA → IA & Conectores para añadir uno."
-    )
-    return None, vacio, None
+    vacio["text"] = AVISO_SIN_PROVEEDOR
+    # Auditoria 2026-11: antes error=None, asi que el uso se registraba como
+    # exito con 0 tokens y las funciones daban la llamada por buena.
+    return None, vacio, SIN_PROVEEDOR
 
 
 def _registrar_uso(db: Session, p, result: dict, *, user_id, module,
@@ -1125,7 +1140,9 @@ def call_ai(
     )
 
     # Si falló el provider, devolvemos un texto explícito de error que el
-    # caller puede distinguir (#43): prefijo "⚠️" + flag implícito por longitud.
+    # caller puede distinguir (#43): prefijo "⚠️". `es_aviso_de_ia()` lo detecta.
+    if error_msg == SIN_PROVEEDOR:
+        return AVISO_SIN_PROVEEDOR
     if error_msg is not None:
         return f"⚠️ AI provider error: {error_msg[:200]}"
 
