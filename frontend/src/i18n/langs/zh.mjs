@@ -6071,6 +6071,7 @@ const zh = {
   riskscores: {
     cartera_de_proyectos_ml: '项目组合 — 机器学习',
     sin_predicciones_ml: '暂无机器学习预测',
+    sin_datos_para_predecir: "{n} 个活跃项目数据不足，无法预测（没有任务）：不计为低风险。",
     usa_el_historial_de_proyectos_cerrados_para: '基于已结束项目的历史数据训练超支与延期预测模型。',
     versiones_del_modelo: '模型版本',
     sin_modelos_entrenados: '暂无已训练的模型',

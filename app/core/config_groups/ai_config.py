@@ -39,6 +39,14 @@ class AISettingsMixin:
     AI_MODEL: str = Field(default="", env="AI_MODEL")
     AI_BASE_URL: str = Field(default="", env="AI_BASE_URL")
 
+    # Tiempos de espera de las llamadas a los proveedores (revision 2026-11:
+    # antes 60, 120 y 30 s escritos en `ai_provider_service`, 90 en el agente).
+    # Editables en Admin → Ajustes → ai. Ollama y los modelos locales tardan mas.
+    AI_HTTP_TIMEOUT_SECONDS: int = Field(default=60, env="AI_HTTP_TIMEOUT_SECONDS")
+    AI_LOCAL_HTTP_TIMEOUT_SECONDS: int = Field(default=120, env="AI_LOCAL_HTTP_TIMEOUT_SECONDS")
+    AI_AGENT_TURN_TIMEOUT_SECONDS: int = Field(default=90, env="AI_AGENT_TURN_TIMEOUT_SECONDS")
+    AI_MODELS_LIST_TIMEOUT_SECONDS: int = Field(default=30, env="AI_MODELS_LIST_TIMEOUT_SECONDS")
+
     # ── AI providers (opcionales) ─────────────────────────────────────────────
     # Fallback API keys — used only when no provider is configured in the database.
     # Prefer configuring providers via the AI Providers admin panel in the UI.

@@ -284,7 +284,7 @@ def get_overrun_prediction_data(db: Session, project_id: str) -> dict:
     ``cost_amount`` correctamente). Ahora delegamos en la fuente canónica
     de features ML y solo añadimos ``project`` ORM object como conveniencia.
     """
-    from app.services.ml_features import extract_project_features
+    from app.services.ml_features import carga_del_equipo, extract_project_features
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -302,4 +302,5 @@ def get_overrun_prediction_data(db: Session, project_id: str) -> dict:
         "elapsed_pct": feats["elapsed_pct"],
         "task_completion_pct": feats["task_completion_pct"],
         "overdue_ratio": feats["overdue_ratio"],
+        "team_load_pct": carga_del_equipo(db, project_id)["load_pct"] or 0.0,
     }

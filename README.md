@@ -2678,7 +2678,7 @@ This section describes what each Analytics, BI, AI and Automation screen does as
 
 ### Review of 2026-11-04: what was broken and what changed
 
-Measured against a copy of the database with a local Ollama model. Tests: `tests/test_ia_revision_2026_11.py` (23 tests) and `tests/test_portal_revision_2026_11.py`; each fix was reverted once to check that a test turns red.
+Measured against a copy of the database with a local Ollama model. Tests: `tests/test_ia_revision_2026_11.py` (28 tests) and `tests/test_portal_revision_2026_11.py`; each fix was reverted once to check that a test turns red.
 
 | Area | Before | Now |
 |---|---|---|
@@ -2705,6 +2705,8 @@ Measured against a copy of the database with a local Ollama model. Tests: `tests
 | Data Governance lists | DSR, consents, masks, comments and shared views always empty | Filled (`unwrapList` reads both response shapes) |
 | Portal AI chat | Fed other clients' projects to the model when the client had no company; showed an internal instruction when there was no provider | Assigned projects only; a project summary when there is no provider |
 | Prediction history, at-risk projects, anomalies | Project id instead of name; no CPI/SPI; no month per anomaly | Name, CPI/SPI and `period` (`YYYY-MM`) |
+| Risk (signal score and ML) | Budget at 80 €/h; team load fixed at 85 %; overloaded members always 0; training label in hours; no-data projects counted as low risk | Real internal cost; measured team load and overloaded members; label in euros; `without_data` count |
+| AI timeouts | Hardcoded 60/120/90/30 s | Admin settings (group `ai`) |
 | Forecast chart | Bands never drawn (`lower_bound`/`upper_bound` were not read); a MAPE label nobody filled | Bands drawn; MAPE label removed (the backend does not compute it) |
 | Semantic engine offline | Only `ImportError` fell back | Any load error falls back to TF-IDF with a warning |
 
@@ -2769,7 +2771,7 @@ If the chosen provider fails, every other active provider is tried once. If none
 **Cross-cutting LLM limitations (measured):**
 - **`AI_MODEL` is effectively required for the `.env` provider.** Without it, the literal model name `"default"` is sent.
 - **Temperature 0.0 is honoured** since 2026-11-04 (it used to become 0.7). 0.7 is used only when the provider has no temperature set. Ollama now receives the temperature and records its token counts (`prompt_eval_count`/`eval_count`).
-- **Timeouts are hardcoded:** 60 s, 120 s for Ollama, 90 s for agent turns. The `ai_providers.timeout_seconds` column is never read and no screen edits it. It defaults to 30 s, so wiring it as is would cut local Ollama models from 120 s to 30 s; it is left unwired on purpose.
+- **Timeouts are settings** (since 2026-11-04, Admin → Settings → `ai`): `AI_HTTP_TIMEOUT_SECONDS` 60, `AI_LOCAL_HTTP_TIMEOUT_SECONDS` 120 (Ollama), `AI_AGENT_TURN_TIMEOUT_SECONDS` 90, `AI_MODELS_LIST_TIMEOUT_SECONDS` 30. The `ai_providers.timeout_seconds` column is still never read: no API or screen sets it, and its default of 30 s would cut local models short.
 - **No retries.** Any exception marks the provider `status="error"`, and it is excluded from selection until an admin edits, tests or syncs it.
 - **Usage and cost go to `ai_usage_logs`,** using catalog prices. Models that "Sync models" discovers but that are not in the catalog cost $0, and Ollama is always $0. `AI_COST_ALERT_USD_PER_DAY` only writes a log warning.
 - **PII redaction is regex-based** (`app/services/ai_governance.py`). It applies only if the organization has active `AIGuardrailPolicy` rows. None are seeded and there is no UI to create them, so by default nothing is redacted. It checks only the last user message, not the system prompt, which carries the tenant data context.
@@ -3213,7 +3215,7 @@ There are no filters.
   | Component | Calculation | Weight |
   |---|---|---|
   | schedule | min((time % − completion %) × 1.5, 100) | 0.40 |
-  | budget | cost = hours × **hardcoded 80 €/h**; above 85 % → (pct − 85) × 3; above 100 % → (pct − 100) × 2 | 0.30 |
+  | budget | real internal cost (each time entry's `cost_amount`, else hours × the person's cost profile, else `AI_REVENUE_HOURLY_RATE_FALLBACK`); above 85 % → (pct − 85) × 3; above 100 % → (pct − 100) × 2. Until 2026-11-04 it was hours × a hardcoded 80 €/h. | 0.30 |
   | scope | open change requests × 20 | 0.15 |
   | resource | open high-probability risks × 25 | 0.15 |
 
@@ -3234,12 +3236,11 @@ There are no filters.
   - Worker `ml-model-retrain` runs on day 1 of each month at 03:00.
 
 **Limitations (measured).**
-- **Every threshold and weight is hardcoded.** `overloaded_members` is always 0, and the detail's `history` is an empty stub.
+- **Every threshold and weight is hardcoded.** The detail's `history` is an empty stub. `overloaded_members` is measured since 2026-11-04: people who logged time on the project in the last 4 weeks and whose total hours (all projects) exceed their capacity.
 - **Opening a project's detail writes a row.** The detail GET recomputes and inserts a `project_risk_scores` row on every click; the table is never pruned.
-- **The ML training label can compare hours with euros.** When `cost_amount` is null, it compares the sum of **hours** with a budget in euros.
-- **The "team overloaded" rule can never fire.** `team_load_pct` is hardcoded to 85.
-- **Some failures are counted as "low risk".** A project with no tasks, or a prediction error, is silently counted as low.
-- **CPI/SPI never show for at-risk projects.** The backend does not include them.
+- **Training label and cost feature in euros** (fixed 2026-11-04). Both used to fall back to summing **hours** against a budget in euros when `cost_amount` was empty; they now use the same internal cost as NexusOracle and profitability.
+- **Team load is measured** (fixed 2026-11-04; it was a fixed 85, so "team overloaded" could never fire). It is the total hours of the people who logged time on the project in the last 4 weeks against their weekly capacity. With nobody logging time, no load rule applies.
+- **Projects without data are not "low risk"** (fixed 2026-11-04). A project with no tasks, or a prediction error, is reported in `without_data` and shown under the KPIs.
 - **Each portfolio-risk GET writes one log row per project.**
 
 ### Data Export — `/exports`

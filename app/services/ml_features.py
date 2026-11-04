@@ -63,22 +63,9 @@ def extract_project_features(db: Session, project_id: str, reference_date: Optio
     overdue_ratio       = overdue_tasks / total_tasks
 
     budget = float(project.budget_amount or 0)
-    # actual_cost en EUROS. Si Imputation.cost_amount está populado (rate
-    # × hours por imputación), lo usamos; si no, calculamos hours × tarifa
-    # media. NUNCA sumamos hours como si fueran euros (bug histórico).
-    cost_sum = db.query(func.sum(Imputation.cost_amount)).filter(
-        Imputation.project_id == project_id,
-        Imputation.cost_amount.isnot(None),
-    ).scalar()
-    if cost_sum is not None and cost_sum > 0:
-        actual_cost = float(cost_sum)
-    else:
-        hours = float(db.query(func.sum(Imputation.hours)).filter(
-            Imputation.project_id == project_id,
-        ).scalar() or 0)
-        from app.core.config import settings as _settings
-        rate = float(getattr(_settings, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)
-        actual_cost = hours * rate
+    # actual_cost en EUROS, imputacion a imputacion (ver `coste_real`). Antes,
+    # si alguna traia `cost_amount`, se ignoraban las que no lo traian.
+    actual_cost = coste_real(db, project_id)
 
     budget_used_pct = (actual_cost / budget * 100) if budget > 0 else 0
 
@@ -152,17 +139,11 @@ def extract_training_dataset(db: Session, organization_id: Optional[str] = None)
         if features is None:
             continue
 
-        # Label: overrun if actual cost > 110% of budget OR finished late
+        # Label: overrun if actual cost > 110% of budget OR finished late.
+        # Revision 2026-11: sin `cost_amount` se sumaban HORAS y se comparaban
+        # con un presupuesto en euros. Ahora es el coste en euros de siempre.
         budget = proj.budget_amount or 0
-        actual_cost = float(
-            db.query(func.sum(Imputation.cost_amount))
-            .filter(Imputation.project_id == proj.id, Imputation.cost_amount.isnot(None))
-            .scalar()
-            or db.query(func.sum(Imputation.hours))
-            .filter(Imputation.project_id == proj.id)
-            .scalar()
-            or 0
-        )
+        actual_cost = coste_real(db, proj.id)
         cost_overrun = (budget > 0) and (actual_cost > budget * 1.10)
         late = (
             proj.end_date_real is not None
@@ -176,3 +157,51 @@ def extract_training_dataset(db: Session, organization_id: Optional[str] = None)
         ids.append(proj.id)
 
     return X, y, ids
+
+
+def coste_real(db: Session, project_id: str) -> float:
+    """Coste interno en euros: el mismo calculo que Oracle y la rentabilidad.
+
+    `cost_amount` de cada imputacion, si no las horas por el perfil de coste de
+    la persona en esa fecha, y como ultimo recurso la tarifa de respaldo.
+    """
+    from app.services.ai_modules._base import _project_internal_cost
+    return float(_project_internal_cost(db, project_id)["cost_eur"] or 0.0)
+
+
+def carga_del_equipo(db: Session, project_id: str, hasta: Optional[date] = None,
+                     semanas: int = 4) -> dict:
+    """Carga real de quienes trabajan en el proyecto, en sus ultimas semanas.
+
+    El equipo son las personas que han imputado al proyecto en ese periodo; su
+    carga son TODAS sus horas (este y otros proyectos) frente a su capacidad.
+    Antes se usaba un 85 % fijo y la regla «equipo sobrecargado» no podia saltar.
+    Devuelve `{"load_pct", "overloaded_members", "team_size"}`; sin nadie
+    imputando, `load_pct` es None (no hay de donde medir).
+    """
+    from datetime import timedelta
+    from app.core.config import settings
+    from app.models.user import User
+
+    hasta = hasta or timeutil.today()
+    desde = hasta - timedelta(weeks=semanas)
+    equipo = [u for (u,) in db.query(Imputation.user_id).filter(
+        Imputation.project_id == project_id, Imputation.date > desde, Imputation.date <= hasta,
+    ).distinct().all() if u]
+    if not equipo:
+        return {"load_pct": None, "overloaded_members": 0, "team_size": 0}
+    horas = dict(db.query(Imputation.user_id, func.sum(Imputation.hours)).filter(
+        Imputation.user_id.in_(equipo), Imputation.date > desde, Imputation.date <= hasta,
+    ).group_by(Imputation.user_id).all())
+    capacidad = dict(db.query(User.id, User.weekly_capacity_hours).filter(User.id.in_(equipo)).all())
+    por_defecto = settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    total_h, total_cap, sobrecargados = 0.0, 0.0, 0
+    for uid in equipo:
+        cap = float(capacidad.get(uid) or por_defecto) * semanas
+        h = float(horas.get(uid) or 0)
+        total_h += h
+        total_cap += cap
+        if cap > 0 and h > cap:
+            sobrecargados += 1
+    return {"load_pct": round(total_h / total_cap * 100, 1) if total_cap else None,
+            "overloaded_members": sobrecargados, "team_size": len(equipo)}

@@ -517,7 +517,7 @@ def overrun_prediction(
         elapsed_pct=data["elapsed_pct"],
         task_completion_pct=data["task_completion_pct"],
         overdue_task_ratio=data["overdue_ratio"],
-        team_load_pct=85.0,
+        team_load_pct=data["team_load_pct"],
     )
 
     return APIResponse.ok(data={

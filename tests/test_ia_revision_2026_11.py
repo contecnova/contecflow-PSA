@@ -320,3 +320,72 @@ def test_EL_HALLAZGO_la_ejecucion_en_streaming_queda_en_el_historial(db, monkeyp
     db.expire_all()
     fila = list_agent_executions(db, "pm-test-id")[0]
     assert (fila["result"], fila["steps_count"], fila["status"]) == ("Hecho", 2, "done")
+
+
+# ── Riesgo: datos medidos en vez de constantes ────────────────────────────────
+
+def _imputar(db, proyecto, usuario, horas, dias_atras=3):
+    from app.models.imputation import Imputation
+    db.add(Imputation(user_id=usuario, project_id=proyecto.id, organization_id="1",
+                      date=date.today() - timedelta(days=dias_atras), hours=horas))
+
+
+def test_EL_HALLAZGO_la_carga_del_equipo_se_mide_y_no_es_un_85_fijo(db):
+    from app.services.ml_features import carga_del_equipo
+    p, otro = _proyecto(db, code="CRG"), _proyecto(db, code="CRG2")
+    assert carga_del_equipo(db, p.id)["load_pct"] is None, "sin nadie imputando no hay carga que medir"
+    _imputar(db, p, "dev-test-id", 100)      # 40 h/sem × 4 = 160 de capacidad
+    _imputar(db, otro, "dev-test-id", 100)   # cuenta todo lo que hace la persona
+    _imputar(db, p, "pm-test-id", 40)
+    db.commit()
+    c = carga_del_equipo(db, p.id)
+    assert c == {"load_pct": 75.0, "overloaded_members": 1, "team_size": 2}
+
+
+def test_EL_HALLAZGO_el_riesgo_de_presupuesto_usa_el_coste_real(db):
+    from app.models.imputation import Imputation
+    from app.services.cab_service import _risk_budget
+    p = _proyecto(db, code="BGT", budget_amount=1000)
+    db.add(Imputation(user_id="dev-test-id", project_id=p.id, organization_id="1",
+                      date=date.today(), hours=10, cost_amount=1200))
+    db.commit()
+    # 10 h × 80 €/h = 800 € (80 %, sin riesgo); el coste real es 1.200 € (120 %).
+    assert _risk_budget(db, p) == pytest.approx(40)
+
+
+def test_EL_HALLAZGO_la_etiqueta_de_entrenamiento_compara_euros(db):
+    from app.core.config import settings
+    from app.models.task import Task
+    from app.services.ml_features import extract_training_dataset
+    p = _proyecto(db, code="LBL", budget_amount=1000, start_date=date(2026, 1, 1),
+                  end_date_planned=date(2026, 6, 1))
+    p.status = ProjectStatus.completed
+    p.end_date_real = date(2026, 6, 1)
+    db.add(Task(code="TSK-LBL", project_id=p.id, title="T", status="done", organization_id="1"))
+    # 200 h sin `cost_amount`: antes se comparaban 200 «euros» con 1.100 y no
+    # habia sobrecoste; en euros son 200 × tarifa, muy por encima.
+    _imputar(db, p, "dev-test-id", 200)
+    db.commit()
+    assert 200 * settings.AI_REVENUE_HOURLY_RATE_FALLBACK > 1100
+    _, y, ids = extract_training_dataset(db, "1")
+    assert y[ids.index(p.id)] == 1
+
+
+def test_EL_HALLAZGO_sin_datos_no_cuenta_como_riesgo_bajo(db, monkeypatch):
+    from app.services import ml_trainer
+    _proyecto(db, code="SND")
+    monkeypatch.setattr(ml_trainer, "predict_project", lambda *a, **k: {"error": "Datos insuficientes"})
+    r = ml_trainer.portfolio_risk_summary(db, "1")
+    assert r["risk_counts"]["low"] == 0 and r["without_data"] >= 1
+
+
+def test_EL_HALLAZGO_el_tiempo_de_espera_de_la_IA_es_un_ajuste(db, monkeypatch):
+    import contextlib
+    from app.services import settings_service
+    from app.services.ai_provider_service import espera_de_ia
+    monkeypatch.setattr("app.db.session.SessionLocal", lambda: contextlib.nullcontext(db))
+    assert espera_de_ia("AI_LOCAL_HTTP_TIMEOUT_SECONDS") == 120
+    settings_service.set_runtime_value(db, "ai", "AI_LOCAL_HTTP_TIMEOUT_SECONDS", 300, None)
+    db.commit()
+    settings_service.invalidate_cache()
+    assert espera_de_ia("AI_LOCAL_HTTP_TIMEOUT_SECONDS") == 300

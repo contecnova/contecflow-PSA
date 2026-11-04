@@ -290,7 +290,8 @@ def _turno_gemini(api_key, modelo, mensajes, system, herramientas, max_tokens):
 
 
 def _post(url: str, cuerpo: dict, cabeceras: dict, quien: str) -> dict:
-    resp = httpx.post(url, json=cuerpo, headers=cabeceras, timeout=90)
+    from app.services.ai_provider_service import espera_de_ia
+    resp = httpx.post(url, json=cuerpo, headers=cabeceras, timeout=espera_de_ia("AI_AGENT_TURN_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
         raise ConnectionError(f"{quien} {resp.status_code}: {resp.text[:200]}")
     return resp.json()

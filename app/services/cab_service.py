@@ -297,12 +297,9 @@ def _risk_budget(db: Session, project: Project) -> float:
     """Compute budget risk component (0-100)."""
     if not (project.budget_amount and project.budget_amount > 0):
         return 0.0
-    spent = db.query(func.sum(Imputation.hours)).filter(
-        Imputation.project_id == project.id
-    ).scalar() or 0
-    avg_rate = 80
-    cost_estimate = spent * avg_rate
-    budget_pct = cost_estimate / project.budget_amount * 100
+    # Coste interno real (antes horas × 80 €/h escrito aqui).
+    from app.services.ml_features import coste_real
+    budget_pct = coste_real(db, project.id) / project.budget_amount * 100
     if budget_pct > 100:
         return min((budget_pct - 100) * 2, 100)
     if budget_pct > 85:
@@ -341,6 +338,7 @@ def _risk_recommendation(level: str) -> str:
 
 
 def compute_risk_score(db: Session, project: Project) -> dict:
+    from app.services.ml_features import carga_del_equipo
     """
     Rule-based risk scoring. Returns score components and overall risk level.
     """
@@ -350,7 +348,8 @@ def compute_risk_score(db: Session, project: Project) -> dict:
         "budget_risk": round(_risk_budget(db, project), 1),
         "scope_risk": _risk_scope(db, project),
         "resource_risk": _risk_resource(db, project),
-        "overloaded_members": 0,
+        # Antes siempre 0: quienes imputan al proyecto y pasan de su capacidad.
+        "overloaded_members": carga_del_equipo(db, project.id, today)["overloaded_members"],
     }
 
     overall = (

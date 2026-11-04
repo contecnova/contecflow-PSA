@@ -36,6 +36,7 @@ type MlPortfolioRiskProject = {
 
 type MlPortfolioRiskData = {
   total_projects?: number
+  without_data?: number
   risk_counts?: Partial<Record<RiskLevel, number>>
   at_risk_projects?: MlPortfolioRiskProject[]
 }
@@ -185,6 +186,12 @@ function MLPredictionsTab() {
           </div>
         ))}
       </div>
+
+      {(portfolio?.without_data || 0) > 0 && (
+        <p style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', margin: '-8px 0 16px' }}>
+          {t('riskscores.sin_datos_para_predecir', { n: portfolio?.without_data })}
+        </p>
+      )}
 
       {/* Projects risk list */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'flex-start' }}>

@@ -194,7 +194,7 @@ def _call_anthropic(api_key, model, messages, system, max_tokens, temperature) -
     if system:
         body["system"] = system
     resp = httpx.post(f"{settings.ANTHROPIC_API_URL.rstrip('/')}/messages",
-                      json=body, headers=headers, timeout=60)
+                      json=body, headers=headers, timeout=espera_de_ia("AI_HTTP_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
         raise Exception(f"Anthropic {resp.status_code}: {resp.text[:200]}")
     data  = resp.json()
@@ -216,7 +216,7 @@ def _call_openai_compat(base_url, api_key, model, messages, system, max_tokens, 
         all_messages.append({"role": "system", "content": system})
     all_messages.extend(messages)
     body = {"model": model, "messages": all_messages, "max_tokens": max_tokens, "temperature": temperature}
-    resp = httpx.post(endpoint, json=body, headers=headers, timeout=60)
+    resp = httpx.post(endpoint, json=body, headers=headers, timeout=espera_de_ia("AI_HTTP_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
         raise Exception(f"API {resp.status_code}: {resp.text[:200]}")
     data  = resp.json()
@@ -240,7 +240,7 @@ def _call_gemini(api_key, model, messages, system, max_tokens, temperature) -> d
         "contents": contents,
         "generationConfig": {"maxOutputTokens": max_tokens, "temperature": temperature},
     }
-    resp = httpx.post(url, json=body, timeout=60)
+    resp = httpx.post(url, json=body, timeout=espera_de_ia("AI_HTTP_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
         raise Exception(f"Gemini {resp.status_code}: {resp.text[:200]}")
     data  = resp.json()
@@ -251,6 +251,24 @@ def _call_gemini(api_key, model, messages, system, max_tokens, temperature) -> d
             "tokens_out": usage.get("candidatesTokenCount", 0)}
 
 
+def espera_de_ia(clave: str) -> float:
+    """Tiempo de espera (s) de una llamada a un proveedor: ajuste de Admin, si no `.env`.
+
+    La lectura va a la cache de `settings_service`; la llamada al modelo tarda
+    segundos, una consulta mas no se nota.
+    """
+    try:
+        from app.db.session import SessionLocal
+        from app.services.settings_service import get_runtime_int
+        with SessionLocal() as _db:
+            v = get_runtime_int(_db, clave)
+        if v:
+            return float(v)
+    except Exception:
+        _logger.debug("Ajuste %s no disponible; uso .env", clave, exc_info=True)
+    return float(getattr(settings, clave))
+
+
 def _call_ollama(base_url, model, messages, system, max_tokens, temperature) -> dict:
     url = _normalize_ollama_base(base_url).rstrip("/") + "/api/chat"
     all_messages = []
@@ -259,7 +277,7 @@ def _call_ollama(base_url, model, messages, system, max_tokens, temperature) -> 
     all_messages.extend(messages)
     body = {"model": model, "messages": all_messages, "stream": False,
             "options": {"num_predict": max_tokens, "temperature": temperature}}
-    resp = httpx.post(url, json=body, timeout=120)
+    resp = httpx.post(url, json=body, timeout=espera_de_ia("AI_LOCAL_HTTP_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
         raise Exception(f"Ollama {resp.status_code}: {resp.text[:200]}")
     data = resp.json()
@@ -274,7 +292,7 @@ def _list_openai_compatible_models(base_url: str, api_key: str) -> list[str]:
     if not base:
         raise ValueError("Base URL vacía para proveedor compatible OpenAI")
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    resp = httpx.get(f"{base}/models", headers=headers, timeout=30)
+    resp = httpx.get(f"{base}/models", headers=headers, timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
         raise Exception(f"List Models {resp.status_code}: {resp.text[:250]}")
     data = resp.json()
@@ -289,7 +307,7 @@ def _list_anthropic_models(api_key: str) -> list[str]:
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
     }
-    resp = httpx.get(f"{settings.ANTHROPIC_API_URL.rstrip('/')}/models", headers=headers, timeout=30)
+    resp = httpx.get(f"{settings.ANTHROPIC_API_URL.rstrip('/')}/models", headers=headers, timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
         raise Exception(f"Anthropic list models {resp.status_code}: {resp.text[:250]}")
     data = resp.json()
@@ -303,7 +321,7 @@ def _list_gemini_models(api_key: str) -> list[str]:
     url = f"{base}/models?key={api_key}"
     models: set[str] = set()
     for _ in range(3):
-        resp = httpx.get(url, timeout=30)
+        resp = httpx.get(url, timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
         if resp.status_code != 200:
             raise Exception(f"Gemini list models {resp.status_code}: {resp.text[:250]}")
         data = resp.json() if resp.content else {}
@@ -329,7 +347,7 @@ def _list_ollama_models(base_url: str) -> list[str]:
     base = _normalize_ollama_base(base_url)
     if not base:
         raise ValueError("Base URL vacía para Ollama")
-    resp = httpx.get(f"{base}/api/tags", timeout=30)
+    resp = httpx.get(f"{base}/api/tags", timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
         raise Exception(f"Ollama list models {resp.status_code}: {resp.text[:250]}")
     data = resp.json() if resp.content else {}
@@ -344,7 +362,7 @@ def _list_azure_models(base_url: str, api_key: str) -> list[str]:
         raise ValueError("Base URL vacía para Azure OpenAI")
     headers = {"api-key": api_key, "Content-Type": "application/json"}
     # Data-plane model listing in Azure OpenAI
-    resp = httpx.get(f"{base}/models?api-version=2024-10-21", headers=headers, timeout=30)
+    resp = httpx.get(f"{base}/models?api-version=2024-10-21", headers=headers, timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
         raise Exception(f"Azure list models {resp.status_code}: {resp.text[:250]}")
     data = resp.json() if resp.content else {}

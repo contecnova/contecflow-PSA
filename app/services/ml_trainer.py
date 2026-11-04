@@ -238,6 +238,9 @@ def predict_project(db: Session, project_id: str, organization_id: str,
     ml_model_id = None
     feature_dict = extract_project_features(db, project_id)
     ml_result = None
+    # Carga real del equipo (antes 85 fijo): sin nadie imputando, 0 = sin regla.
+    from app.services.ml_features import carga_del_equipo
+    carga = carga_del_equipo(db, project_id)["load_pct"] or 0.0
 
     if feature_dict and _SKLEARN_AVAILABLE:
         ml_record = _get_active_model(db, organization_id)
@@ -255,7 +258,7 @@ def predict_project(db: Session, project_id: str, organization_id: str,
                     elapsed_pct=data["elapsed_pct"],
                     task_completion_pct=data["task_completion_pct"],
                     overdue_task_ratio=data["overdue_ratio"],
-                    team_load_pct=85.0,
+                    team_load_pct=carga,
                 )
                 # Blend: ML gives overall probability; heuristic weights split cost vs schedule
                 total = (heuristic["cost_overrun_prob"] + heuristic["schedule_overrun_prob"]) or 1
@@ -294,7 +297,7 @@ def predict_project(db: Session, project_id: str, organization_id: str,
             elapsed_pct=data["elapsed_pct"],
             task_completion_pct=data["task_completion_pct"],
             overdue_task_ratio=data["overdue_ratio"],
-            team_load_pct=85.0,
+            team_load_pct=carga,
         )
         ml_result["ml_overrun_prob"] = None
         ml_result["model_version"] = None
@@ -358,11 +361,16 @@ def portfolio_risk_summary(db: Session, organization_id: str,
 
     counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
     at_risk = []
+    sin_datos = 0
 
     for proj in active_projects:
         try:
             result = predict_project(db, proj.id, organization_id)
-            level = result.get("risk_level", "low")
+            if result.get("error") or not result.get("risk_level"):
+                # Sin tareas o fuera de ambito: antes contaba como «riesgo bajo».
+                sin_datos += 1
+                continue
+            level = result["risk_level"]
             counts[level] = counts.get(level, 0) + 1
             if level in ("critical", "high"):
                 at_risk.append({
@@ -378,11 +386,13 @@ def portfolio_risk_summary(db: Session, organization_id: str,
                 })
         except Exception:
             logger.warning("Fallo prediciendo riesgo para project=%s", proj.id, exc_info=True)
+            sin_datos += 1
 
     total = sum(counts.values())
     return {
         "total_projects": total,
         "risk_counts":    counts,
+        "without_data":   sin_datos,
         "at_risk_projects": sorted(at_risk, key=lambda x: x["cost_overrun_prob"] or 0, reverse=True),
     }
 
