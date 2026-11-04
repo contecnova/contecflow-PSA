@@ -11,7 +11,7 @@ import { Database } from 'lucide-react'
 import { COLOR, alpha } from '../constants/theme'
 import { useAppLang } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
-import { biIntelligenceApi, biPlatformApi } from '../services/api'
+import { biIntelligenceApi, biPlatformApi, unwrapList } from '../services/api'
 import BiEtlPanel from '../components/bi/BiEtlPanel'
 import BiO365Panel from '../components/bi/BiO365Panel'
 import { localeActivo } from '../utils/helpers'
@@ -56,11 +56,6 @@ interface LineageResponse {
 
 interface SnapshotItem {
   id: string | number
-}
-
-// Las listas (APIListResponse) llegan ya desenvueltas por el interceptor.
-function comoLista<T>(raw: unknown): T[] {
-  return Array.isArray(raw) ? (raw as T[]) : []
 }
 
 interface SnapshotDiff {
@@ -121,7 +116,7 @@ export default function DataPlatformPage(): JSX.Element {
     queryFn: () => biIntelligenceApi.reportPresets().then(r => r.data as ReportPresetItem[]).catch(() => [] as ReportPresetItem[]),
     staleTime: 60_000,
   })
-  const reportPresets: ReportPresetItem[] = Array.isArray(reportPresetsRaw) ? reportPresetsRaw : []
+  const reportPresets = unwrapList(reportPresetsRaw) as ReportPresetItem[]
   const { data: previewData, refetch: refetchPreview } = useQuery({
     queryKey: ['data-platform-preview', presetId, phase2Tick],
     queryFn: () => biIntelligenceApi.previewPreset({ preset_id: presetId, limit: 20 }).then(r => r.data).catch(() => null),
@@ -188,9 +183,9 @@ export default function DataPlatformPage(): JSX.Element {
 
   const connectors = Object.entries(connectorsData?.items || {})
   const phase3CatalogEntries = Object.entries(phase3Catalog?.items || {})
-  const phase3CustomItems = comoLista<CustomConnectorItem>(phase3CustomRaw)
+  const phase3CustomItems = unwrapList(phase3CustomRaw) as CustomConnectorItem[]
   const phase3LineageEdges = phase3Lineage?.edges || []
-  const phase3SnapshotItems = comoLista<SnapshotItem>(phase3SnapshotsRaw)
+  const phase3SnapshotItems = unwrapList(phase3SnapshotsRaw) as SnapshotItem[]
 
   async function handleToggleConnector(name: string, enabled: boolean) {
     try { await biIntelligenceApi.patchConnector(name, { enabled }); setPhase2Tick(x => x + 1); await refetchConnectors() } catch (_) { /* ignore */ }

@@ -17,6 +17,7 @@ import {
   biCollaborationApi,
   biBookmarksApi,
   biGovernanceAuditApi,
+  unwrapList,
 } from '../services/api'
 import BiGdprPanel from '../components/bi/BiGdprPanel'
 import BiGovernancePanel from '../components/bi/BiGovernancePanel'
@@ -190,8 +191,14 @@ export default function DataGovernancePage(): JSX.Element {
     staleTime: 30_000,
   })
 
-  const comments = commentsData?.items || []
-  const sharedViews = sharedViewsData?.items || []
+  // Unas rutas devuelven la lista ya desenvuelta por el interceptor y otras
+  // `{items}` dentro de `data`: `unwrapList` acepta las dos.
+  const comments = unwrapList(commentsData) as CommentItem[]
+  const sharedViews = unwrapList(sharedViewsData) as SharedView[]
+  const govAuditItems = unwrapList(govAuditData) as AuditEvent[]
+  const govLineageItems = unwrapList(govLineageData) as LineageEdge[]
+  const govFieldItems = unwrapList(govFieldData) as FieldSensitivity[]
+  const bookmarkItems = unwrapList(bookmarks) as BookmarkItem[]
   const sharedViewsQuery = sharedViewsSearch.trim().toLowerCase()
   const filteredSharedViews = sharedViews.filter(v => !sharedViewsQuery || String(v?.name || '').toLowerCase().includes(sharedViewsQuery))
   const sortedSharedViews = [...filteredSharedViews].sort((a, b) => {
@@ -297,10 +304,10 @@ export default function DataGovernancePage(): JSX.Element {
               </div>
               <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
                 <button onClick={handleLogGovAuditEvent} style={S.btnAccentOutline()}>Registrar acceso</button>
-                {(govAuditData?.items || []).length === 0
+                {govAuditItems.length === 0
                   ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('datagovernance.sin_eventos_de_auditoria')}</div>
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
-                      {(govAuditData?.items || []).slice(0, 20).map((ev, i) => (
+                      {govAuditItems.slice(0, 20).map((ev, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
                           <span style={{ fontSize: 'var(--text-2xs)', background: alpha(COLOR.info, '18'), color: COLOR.info, borderRadius: 6, padding: '2px 7px', fontWeight: 700, flexShrink: 0 }}>{ev.action || 'view'}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -327,10 +334,10 @@ export default function DataGovernancePage(): JSX.Element {
                   <input value={newLineageTarget} onChange={e => setNewLineageTarget(e.target.value)} placeholder="Tabla destino" style={{ ...S.input, flex: 1, minWidth: 80, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
                   <button onClick={handleAddLineageEdge} style={{ ...S.btnAccentOutline(), padding: '6px 14px', fontSize: 'var(--text-xs)' }}>{t('datagovernance.anadir')}</button>
                 </div>
-                {(govLineageData?.items || []).length === 0
+                {govLineageItems.length === 0
                   ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('datagovernance.sin_edges_de_linaje')}</div>
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
-                      {(govLineageData?.items || []).slice(0, 20).map((edge, i) => (
+                      {govLineageItems.slice(0, 20).map((edge, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
                           <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{edge.source_table || edge.source || '—'}</span>
                           <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>→</span>
@@ -357,10 +364,10 @@ export default function DataGovernancePage(): JSX.Element {
                   </select>
                   <button onClick={handleUpsertFieldSensitivity} style={{ ...S.btnAccentOutline(COLOR.warning), padding: '6px 14px', fontSize: 'var(--text-xs)' }}>Clasificar</button>
                 </div>
-                {(govFieldData?.items || []).length === 0
+                {govFieldItems.length === 0
                   ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('datagovernance.sin_campos_clasificados')}</div>
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
-                      {(govFieldData?.items || []).slice(0, 20).map((f, i) => {
+                      {govFieldItems.slice(0, 20).map((f, i) => {
                         const sc = f.sensitivity === 'critical' || f.sensitivity === 'pii' ? COLOR.danger : f.sensitivity === 'high' ? COLOR.warning : COLOR.success
                         return (
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
@@ -489,10 +496,10 @@ export default function DataGovernancePage(): JSX.Element {
             </div>
           </div>
           <div style={S.cardPad}>
-            {!(bookmarks?.items || []).length
+            {!bookmarkItems.length
               ? <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)', padding: '16px 0' }}>{t('datagovernance.sin_bookmarks_guardados')}</div>
               : <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
-                  {(bookmarks?.items || []).map(bm => (
+                  {bookmarkItems.map(bm => (
                     <div key={bm.id} style={{ ...S.card, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-1)' }}>🔖 {bm.name}</span>

@@ -21,7 +21,9 @@ interface ForecastPoint {
 
 interface ForecastResult {
   forecast?: Array<ForecastPoint | number>
-  mape?: number
+  // El backend manda las bandas aparte, una lista por limite.
+  lower_bound?: number[]
+  upper_bound?: number[]
 }
 
 const METHODS = ['linear', 'holt', 'prophet'] as const
@@ -55,8 +57,8 @@ export default function BiForecastingPanel() {
   const chartData = forecastData?.forecast?.map((val, i) => ({
     period: `+${i + 1}`,
     value:  typeof val === 'object' ? val.value : val,
-    lower:  typeof val === 'object' ? val.lower  : undefined,
-    upper:  typeof val === 'object' ? val.upper  : undefined,
+    lower:  typeof val === 'object' ? val.lower : forecastData?.lower_bound?.[i],
+    upper:  typeof val === 'object' ? val.upper : forecastData?.upper_bound?.[i],
   })) ?? []
 
   return (
@@ -118,9 +120,6 @@ export default function BiForecastingPanel() {
         <div>
           <p style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>
             {t('bi.forecasting.result_label', 'Forecast')} — {metric} / {method}
-            {forecastData?.mape != null && (
-              <span style={{ marginLeft: 8, color: 'var(--warning)' }}>MAPE: {Number(forecastData.mape).toFixed(1)}%</span>
-            )}
           </p>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={chartData}>

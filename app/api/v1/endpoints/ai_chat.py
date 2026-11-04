@@ -728,23 +728,8 @@ def _guardando_ejecucion(instruccion: str, usuario, eventos):
                     error = ev.get("message")
         except (ValueError, AttributeError):
             pass
-    try:
-        from app.db.session import SessionLocal
-        from app.models.ai_chat import AIAgentExecution
-        with SessionLocal() as db:
-            db.add(AIAgentExecution(
-                user_id=usuario.id, organization_id=getattr(usuario, "organization_id", None),
-                instruction=instruccion, status="done" if final and not error else "failed",
-                result=(final or {}).get("result"), steps_count=len((final or {}).get("steps") or []),
-                error=(error or None) and str(error)[:500], completed_at=datetime.now(timezone.utc),
-            ))
-            try:
-                db.commit()
-            except Exception:
-                db.rollback()
-                raise
-    except Exception:
-        _logger.exception("NexusAgent: no se pudo guardar la ejecucion en streaming")
+    from app.services.ai_chat.agent_execution_service import guardar_ejecucion_en_streaming
+    guardar_ejecucion_en_streaming(usuario, instruccion, final, error)
 
 
 def _emitir_eventos_de_agente(*, instruccion: str, auto_approve: bool, usuario, system: str,

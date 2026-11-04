@@ -12,7 +12,7 @@
 import React, { useState, useMemo } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { biGdprApi } from '../../services/api'
+import { biGdprApi, unwrapList } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import {
   Shield, AlertTriangle, CheckCircle, Download, Trash2,
@@ -184,7 +184,7 @@ function DsrTab() {
     },
   })
 
-  const dsrs: DsrItem[] = data?.items ?? []
+  const dsrs = unwrapList(data) as DsrItem[]
 
   return (
     <div>
@@ -315,7 +315,7 @@ function ConsentTab() {
     onSuccess:  () => { qc.invalidateQueries({ queryKey: ['bi-gdpr-consents'] }); setForm({ user_id: '', purpose: 'analytics', channel: 'web' }) },
   })
 
-  const consents: ConsentItem[] = consentsData?.items ?? []
+  const consents = unwrapList(consentsData) as ConsentItem[]
 
   return (
     <div>
@@ -433,14 +433,14 @@ function MasksTab() {
         </button>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {(masksData?.items ?? []).map((m, i) => (
+        {(unwrapList(masksData) as NonNullable<MaskListResponse['items']>).map((m, i) => (
           <div key={i} style={{ ...S.row, justifyContent: 'space-between' }}>
             <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>{m.dataset ?? m.entity}.{m.field}</span>
             <span style={S.badge(MASK_COLOR[m.mask_type ?? ''] ?? 'var(--text-3)')}>{m.mask_type}</span>
             <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 'auto' }}>{fmt(m.updated_at)}</span>
           </div>
         ))}
-        {!(masksData?.items?.length) && (
+        {!unwrapList(masksData).length && (
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '24px 0' }}>
             {t('bi.gdpr.no_masks', 'No hay máscaras configuradas')}
           </div>

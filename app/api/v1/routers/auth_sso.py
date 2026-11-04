@@ -39,14 +39,8 @@ router = APIRouter()
 
 def _timeout() -> float:
     """Auditoria 2026-11: antes 5 y 10 s escritos aqui."""
-    try:
-        from app.db.session import SessionLocal
-        from app.services.settings_service import get_runtime_float
-        with SessionLocal() as _db:
-            v = get_runtime_float(_db, "SSO_HTTP_TIMEOUT_SECONDS")
-        return float(v) if v else float(settings.SSO_HTTP_TIMEOUT_SECONDS)
-    except Exception:
-        return float(settings.SSO_HTTP_TIMEOUT_SECONDS)
+    from app.services.auth_service import sso_timeout_http
+    return sso_timeout_http()
 
 
 def _descubrimiento(config) -> dict:

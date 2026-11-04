@@ -107,3 +107,29 @@ def test_EL_HALLAZGO_lo_que_crea_un_superadmin_hereda_la_organizacion_del_proyec
     db.add(hito)
     _sellar_organizacion(db)
     assert hito.organization_id == "1"
+
+
+def test_EL_HALLAZGO_el_chat_del_portal_solo_ve_los_proyectos_del_cliente(client, pm_token, db, monkeypatch):
+    """Sin empresa, `client_name ILIKE '%%'` le pasaba al modelo los de otros clientes."""
+    from app.services.ai_modules import client_portal as chat
+    otro = client.post("/api/v1/projects", headers=auth(pm_token), json={
+        "name": "De otro cliente", "code": "OTRO1", "status": "active", "billing_type": "time_material"})
+    assert otro.status_code in (200, 201), otro.text
+    _portal(client, pm_token)
+    vistos = {}
+
+    def _ia(db, messages, system=None, **k):
+        vistos["system"] = system
+        return "ok"
+    monkeypatch.setattr(chat, "call_ai_unified", _ia)
+    r = client.post("/api/v1/portal/ai-chat", json={"message": "¿Cómo va?"})
+    assert r.status_code == 200, r.text
+    assert "Revision" in vistos["system"] and "De otro cliente" not in vistos["system"]
+
+
+def test_EL_HALLAZGO_sin_IA_el_cliente_recibe_su_resumen_y_no_instrucciones_internas(client, pm_token, db, monkeypatch):
+    from app.services.ai_modules import client_portal as chat
+    _portal(client, pm_token)
+    monkeypatch.setattr(chat, "call_ai_unified", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("⚠️ No hay ningún proveedor")))
+    texto = client.post("/api/v1/portal/ai-chat", json={"message": "hola"}).json()["data"]["response"]
+    assert "Revision" in texto and "Conectores" not in texto and "Error del asistente" not in texto

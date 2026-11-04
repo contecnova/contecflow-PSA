@@ -1840,13 +1840,21 @@ def _fetch_metric_series(
     de alerta guardada con una metrica que despues se retiro no puede tumbar el
     motor entero.
     """
+    return serie_con_meses(db, metric_key, organization_id)[0]
+
+
+def serie_con_meses(
+    db: Session, metric_key: str, organization_id: Optional[str]
+) -> tuple[list[float], list[str]]:
+    """La serie y el mes (`YYYY-MM`) de cada punto, para poder decir cuando."""
     ctx = _construir_contexto(db, metric_key, organization_id)
+    meses = [m["month"] for m in ctx.series]
 
     resolutor = _resolutor_para(metric_key)
     if resolutor is None:
-        return ctx.empty_like()
+        return ctx.empty_like(), meses
 
     resultado = resolutor(ctx)
     # Un resolutor puede devolver None si su propia condicion no se cumple (los
     # grupos discriminan dentro). Se trata igual que «sin dato».
-    return resultado if resultado is not None else ctx.empty_like()
+    return (resultado if resultado is not None else ctx.empty_like()), meses

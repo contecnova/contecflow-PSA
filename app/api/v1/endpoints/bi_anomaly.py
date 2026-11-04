@@ -79,11 +79,12 @@ def detect_anomalies(
         if not values and body.data_points:
             values = [float(v) for v in body.data_points]
 
+        meses: list[str] = []
         if not values and body.metric:
-            from app.services.bi_smart_alerts_service import _fetch_metric_series
+            from app.services.bi_smart_alerts.metrics import serie_con_meses
 
             org_id = getattr(current_user, "organization_id", None)
-            values = _fetch_metric_series(db, str(body.metric), org_id)
+            values, meses = serie_con_meses(db, str(body.metric), org_id)
 
         if len(values) < 4:
             raise ValueError("At least 4 data points required for anomaly detection")
@@ -97,6 +98,7 @@ def detect_anomalies(
         result["anomalies"] = [
             {
                 "index": idx,
+                "period": meses[idx] if idx < len(meses) else None,
                 "value": round(float(values[idx]), 4),
                 "score": result["anomaly_scores"][idx],
             }

@@ -9,7 +9,7 @@
  */
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { biCollaborationApi, biGovernanceAuditApi } from '../../services/api'
+import { biCollaborationApi, biGovernanceAuditApi, unwrapList } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Shield, Plus, RefreshCw, ToggleLeft, ToggleRight, Trash2, Database, MessageCircle, Calendar, Zap, Clock } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
@@ -340,7 +340,8 @@ export default function BiGovernancePanel() {
   })
 
   const ad = auditData as Record<string, unknown> | null | undefined
-  const auditItems = (ad?.items ?? ad?.events ?? ad?.entries ?? []) as AuditEvent[]
+  const auditItems = (Array.isArray(ad?.events) ? ad?.events : Array.isArray(ad?.entries) ? ad?.entries
+    : unwrapList(auditData)) as AuditEvent[]
 
   return (
     <Card style={{ padding: '20px 22px' }}>

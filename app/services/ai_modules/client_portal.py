@@ -35,26 +35,22 @@ Datos disponibles del proyecto:
 {project_data}"""
 
 def get_client_project_data(client_user, db: Session) -> dict:
-    """Get sanitized project data for client portal.
+    """Datos de SUS proyectos para el prompt del chat del portal.
 
-    Multi-tenant fix: filtra por la organización del cliente cuando existe,
-    además del fuzzy ``ilike`` por ``client_name``. Antes el fuzzy podía
-    matchear proyectos de otra organización con cliente de nombre parecido.
+    Revision 2026-11: antes se buscaban por `client_name ILIKE '%<empresa>%'`.
+    Con la empresa vacia (el campo es opcional) casaba con todos los proyectos
+    de la organizacion y el modelo recibia los de otros clientes. Ahora son los
+    proyectos asignados al usuario del portal, como en el resto del portal.
     """
-    company = getattr(client_user, "company", "") or ""
-    org_id  = getattr(client_user, "organization_id", None)
-
-    q = db.query(Project).filter(Project.client_name.ilike(f"%{company}%"))
-    if org_id:
-        q = q.filter(Project.organization_id == org_id)
-    projects = q.limit(5).all()
+    ids = client_user.get_project_ids() if hasattr(client_user, "get_project_ids") else []
+    projects = db.query(Project).filter(Project.id.in_(ids)).limit(5).all() if ids else []
 
     result = []
     for p in projects:
         tasks = db.query(Task).filter(Task.project_id == p.id).all()
         done  = sum(1 for t in tasks if t.status == "done")
         result.append({
-            "name": p.name, "status": p.status,
+            "name": p.name, "status": getattr(p.status, "value", p.status),
             "progress_pct": round(done / max(len(tasks), 1) * 100),
             "start_date": str(p.start_date) if p.start_date else None,
             "end_date": str(p.end_date_planned) if p.end_date_planned else None,
@@ -63,16 +59,19 @@ def get_client_project_data(client_user, db: Session) -> dict:
     return {"projects": result}
 
 def client_demo_response(message: str, project_data: dict) -> str:
-    # Items #72/#73: mensajes agnósticos al proveedor. Antes hardcoded a
-    # ANTHROPIC_API_KEY — engañoso si la empresa usa Gemini/OpenAI/Mistral.
+    """Respuesta sin IA para el cliente: su proyecto, sin instrucciones internas.
+
+    Antes le decia al cliente que configurara un proveedor en «IA &
+    Conectores», una pantalla que el no tiene.
+    """
     projects = project_data.get("projects", [])
     if projects:
         p = projects[0]
-        return (f"Su proyecto **{p['name']}** tiene un progreso del {p['progress_pct']}% "
-                f"con {p['open_tasks']} tareas pendientes. "
-                "Para análisis detallado, configura un proveedor IA en *IA & Conectores*.")
-    return ("Hola, soy el asistente del portal. Configura un proveedor IA en "
-            "*IA & Conectores* para respuestas completas.")
+        return (f"El asistente no está disponible en este momento. Resumen de **{p['name']}**: "
+                f"{p['progress_pct']}% completado, {p['open_tasks']} tareas pendientes. "
+                "Para cualquier otra consulta, escriba a su equipo desde Mensajes.")
+    return ("El asistente no está disponible en este momento. "
+            "Para cualquier consulta, escriba a su equipo desde Mensajes.")
 
 def client_portal_chat(db: Session, payload: dict) -> dict:
 
@@ -137,9 +136,9 @@ def _client_portal_chat_for_user(db: Session, client_user, message: str, session
             db, messages, system=system,
             module="client_portal", max_tokens=800
         )
-    except Exception as e:
+    except Exception:
         _log.exception("Client portal chat AI call failed for session=%s", getattr(session, "id", None))
-        response_text = f"Error del asistente: {str(e)[:80]}"
+        response_text = client_demo_response(message, project_data)
 
     db.add(AIClientChatMessage(session_id=session.id, role="assistant", content=response_text))
     db.commit()

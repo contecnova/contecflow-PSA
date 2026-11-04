@@ -277,3 +277,46 @@ def test_EL_HALLAZGO_el_editor_en_linea_no_llena_el_historial(db):
         _, mensajes, _ = prepare_chat(db, None, "pm-test-id", "inline_editor", None, texto, "{context}")
         assert len(mensajes) == 1
     assert db.query(AIConversation).filter(AIConversation.context_type == "inline_editor").count() == 1
+
+
+# ── Detalles de pantalla ──────────────────────────────────────────────────────
+
+def test_EL_HALLAZGO_el_historial_de_predicciones_trae_el_nombre_del_proyecto(db):
+    from app.models.ml_model import MLPredictionLog
+    from app.services.ml_trainer import get_prediction_logs
+    p = _proyecto(db, code="LOG")
+    db.add(MLPredictionLog(organization_id="1", project_id=p.id, used_heuristic=True,
+                           predicted_at=datetime.now(timezone.utc)))
+    db.commit()
+    assert [x["project_name"] for x in get_prediction_logs(db, "1")] == [p.name]
+
+
+def test_EL_HALLAZGO_los_proyectos_en_riesgo_traen_CPI_y_SPI(db, monkeypatch):
+    from app.services import ml_trainer
+    _proyecto(db, code="RSK")
+    monkeypatch.setattr(ml_trainer, "predict_project", lambda *a, **k: {
+        "risk_level": "high", "cpi": 0.71, "spi": 0.84, "cost_overrun_prob": 0.8, "schedule_overrun_prob": 0.6})
+    fila = ml_trainer.portfolio_risk_summary(db, "1")["at_risk_projects"][0]
+    assert (fila["cpi"], fila["spi"]) == (0.71, 0.84)
+
+
+def test_EL_HALLAZGO_cada_anomalia_dice_de_que_mes_es(client, pm_token, monkeypatch):
+    from app.services.bi_smart_alerts import metrics
+    meses = [f"2026-{m:02d}" for m in range(1, 9)]
+    monkeypatch.setattr(metrics, "serie_con_meses", lambda db, k, o: ([10, 11, 10, 12, 11, 10, 95, 11], meses))
+    r = client.post("/api/v1/bi/anomaly/detect", headers=auth(pm_token), json={"metric": "revenue", "method": "zscore"})
+    assert r.status_code == 200, r.text
+    assert "2026-07" in [a["period"] for a in r.json()["data"]["anomalies"]]
+
+
+def test_EL_HALLAZGO_la_ejecucion_en_streaming_queda_en_el_historial(db, monkeypatch):
+    import contextlib
+    from app.api.v1.endpoints.ai_chat import _guardando_ejecucion
+    # Una segunda conexion a SQLite esperaria al cerrojo de la de la prueba.
+    monkeypatch.setattr("app.db.session.SessionLocal", lambda: contextlib.nullcontext(db))
+    from app.services.ai_chat.agent_execution_service import list_agent_executions
+    eventos = [b'data: {"type": "step"}\n\n', b'data: {"type": "done", "result": "Hecho", "steps": [1, 2]}\n\n']
+    assert list(_guardando_ejecucion("resume el proyecto", _pm(db), iter(eventos))) == eventos
+    db.expire_all()
+    fila = list_agent_executions(db, "pm-test-id")[0]
+    assert (fila["result"], fila["steps_count"], fila["status"]) == ("Hecho", 2, "done")

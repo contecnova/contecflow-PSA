@@ -1802,7 +1802,8 @@ Still open: times are shown in UTC; the profile password change does not ask for
 - **Clients see draft invoices, and approving one sends it.** `GET /portal/invoices` returns **all** invoices of the user's projects, including `draft`, with no `can_view_budget` gate. Approving a `draft` from the portal switches it to `sent` (`approve_client_invoice`). Invoices with no `project_id` are never shown.
 - **No screen creates surveys.** Surveys are created only through `POST /portal/surveys` (manager), so the Encuestas section stays empty unless they are created via the API.
 - **Most module toggles are ignored.** `enabled_modules` and the other portal settings listed under Clients do not hide portal sections.
-- **The AI chat needs an AI provider.** Its configuration and runtime behaviour are not verified.
+- **The AI chat needs an AI provider.** Without one, the client gets a short summary of their project and is pointed to Messages; before 2026-11-04 they saw an internal instruction ("configure IA & Conectores") cut off mid-word.
+- **The AI chat only sees the client's assigned projects** (fixed 2026-11-04). It used to match projects by `client_name ILIKE '%<company>%'`; with the optional company field empty that matched every project of the organization, so the model received other clients' projects. Measured on a database copy before the fix.
 
 ### Public project status — `/portal/view/:token`
 *Who:* anyone with the link (no login). Component: `pages/PortalPublicViewPage.tsx`.
@@ -1840,7 +1841,7 @@ Still open: times are shown in UTC; the profile password change does not ask for
 - Whether the tenant filter scopes `/clients/{cid}/projects/available`.
 - Whether Admin runtime overrides reach `DEFAULT_WEEKLY_CAPACITY_HOURS` and `DEFAULT_TAX_RATE` at the points that read them.
 - Xero, QuickBooks, Stripe, ECB and OpenExchangeRates against the real services.
-- The portal AI chat provider.
+- The portal AI chat with a live provider: there is no provider configured in the database, so only the no-provider path and the project scoping were checked.
 - The rendering of `/portal/view/:token`, which was inferred from code.
 
 ---
@@ -2677,7 +2678,7 @@ This section describes what each Analytics, BI, AI and Automation screen does as
 
 ### Review of 2026-11-04: what was broken and what changed
 
-Measured against a copy of the database with a local Ollama model. Tests: `tests/test_ia_revision_2026_11.py` (19 tests; each fix was reverted once to check that a test turns red).
+Measured against a copy of the database with a local Ollama model. Tests: `tests/test_ia_revision_2026_11.py` (23 tests) and `tests/test_portal_revision_2026_11.py`; each fix was reverted once to check that a test turns red.
 
 | Area | Before | Now |
 |---|---|---|
@@ -2701,6 +2702,10 @@ Measured against a copy of the database with a local Ollama model. Tests: `tests
 | NexusAssist | The page context never reached the prompt; the inline editor opened a new conversation per call | Project or ticket on screen goes into the prompt; one inline-editor conversation per user, without history |
 | Voice agent (Service Desk) | Ticket without organization; "urgente" stayed medium | Organization set; urgency words make it `p1_critical` |
 | Data Platform presets | Empty dropdown | Filled |
+| Data Governance lists | DSR, consents, masks, comments and shared views always empty | Filled (`unwrapList` reads both response shapes) |
+| Portal AI chat | Fed other clients' projects to the model when the client had no company; showed an internal instruction when there was no provider | Assigned projects only; a project summary when there is no provider |
+| Prediction history, at-risk projects, anomalies | Project id instead of name; no CPI/SPI; no month per anomaly | Name, CPI/SPI and `period` (`YYYY-MM`) |
+| Forecast chart | Bands never drawn (`lower_bound`/`upper_bound` were not read); a MAPE label nobody filled | Bands drawn; MAPE label removed (the backend does not compute it) |
 | Semantic engine offline | Only `ImportError` fell back | Any load error falls back to TF-IDF with a warning |
 
 **Still open (not fixed in this review):**
@@ -2708,7 +2713,7 @@ Measured against a copy of the database with a local Ollama model. Tests: `tests
 - Similar-task suggestions need `imputations.task_id`; time logged without a task does not count.
 - 8 old `ai_usage_logs` rows from before the fix are marked `success=true` although they were warnings.
 - `/bi/kpi` WebSocket pushes need Redis; without it `bi_kpi_push` computes and drops the snapshot.
-- Cosmetic: `/predictions/logs` shows the project id, not its name; at-risk items have no `cpi`/`spi`; anomaly points have no period; meeting actions have no priority; forecast bands and MAPE are not drawn.
+- Meeting actions have no priority: the model does not extract it and there is no column for it; the screen shows it only when present.
 - Backend with no screen: `ai-planning/*`, `/sd/tickets/{id}/ai-analyze|ai-auto-resolve|ai-explain|smart-assign`, `/sd/predictive/*`, `/bi/intelligence/ml/*`, `/revenue-forecast`, `/overrun-prediction`, `/ai-modules/kb/search|generate`, `/semantic/prioritize`.
 
 **Not verified:** tool-calling NexusAgent (Ollama has no tools; no paid API was called), Azure and o-series providers, Whisper transcription with real audio, the Celery worker path, Ask the Data on ETL-filled DuckDB data, and LLM output quality beyond a 7B local model.
@@ -2778,7 +2783,7 @@ If the chosen provider fails, every other active provider is tried once. If none
 - It is filled by the job `olap_nightly_etl` (01:00 daily, `olap/etl.run_full_etl`). Since 2026-11-04 it runs under APScheduler too (the default mode of `setup.sh`), not only under Celery beat.
 - Until that job has run, DuckDB-only features (Ask the Data) return errors. KPIs fall back to Postgres.
 
-**Response unwrapping.** The axios interceptor (`frontend/src/services/api/_core.ts:50-74`) turns `{items, meta}` into a bare array. Components that then read `.items` get `undefined`. Data Platform (report presets, custom connectors, snapshots) was fixed on 2026-11-04; Data Governance is noted in its module.
+**Response unwrapping.** The axios interceptor (`frontend/src/services/api/_core.ts:50-74`) turns `{items, meta}` into a bare array. Components that then read `.items` get `undefined`. Data Platform and Data Governance were fixed on 2026-11-04 by reading lists with `unwrapList` (`_core.ts`), which accepts both shapes.
 
 ---
 
@@ -3335,7 +3340,7 @@ There are no filters.
   - no active schedules
 
 **Limitations (measured).**
-- **Many lists are always empty** because of the `.items` issue: DSR list, consents, masks, comments, shared views and all 5 collaboration tabs. As a result the **Borrar PII / Export / Resolver / Restaurar** buttons cannot be reached. Bookmarks, audit, lineage and sensitivity lists do work.
+- **Lists (fixed 2026-11-04).** Some routes return the list already unwrapped by the interceptor and others return `{items}` inside `data`; the screen now reads both with `unwrapList`. Checked in the browser on a database copy: the DSR, consent, mask and shared-view lists show their rows (with the previous code, the shared view, the consent and the mask were missing). The 5 collaboration tabs use the same reader; they were not checked with data.
 - **Some forms always fail with 422, silently:** "Registrar acceso", lineage "Añadir", "Clasificar" (field and enum mismatch), and mask type "partial".
 - **The policy editor saves nothing.** The backend accepts only 3 fields, yet the UI says "Política creada". "Anomalías detectadas" and "Checks ejecutados" are always 0.
 - **Erasure is narrow.** It does not touch other tables, consent history or DuckDB `dim_user`. Resolving the DSR afterwards re-records the subject id.

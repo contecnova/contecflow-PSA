@@ -370,6 +370,8 @@ def portfolio_risk_summary(db: Session, organization_id: str,
                     "project_name":  proj.name,
                     "project_code":  proj.code,
                     "risk_level":    level,
+                    "cpi":           result.get("cpi"),
+                    "spi":           result.get("spi"),
                     "cost_overrun_prob":     result.get("cost_overrun_prob"),
                     "schedule_overrun_prob": result.get("schedule_overrun_prob"),
                     "recommendation": result.get("recommendation"),
@@ -424,10 +426,15 @@ def get_prediction_logs(
     if project_id:
         q = q.filter(MLPredictionLog.project_id == project_id)
     logs = q.order_by(MLPredictionLog.predicted_at.desc()).limit(limit).all()
+    # La pantalla ensenaba el id del proyecto: el nombre, en una sola consulta.
+    from app.models.project import Project
+    ids = {l.project_id for l in logs if l.project_id}
+    nombres = dict(db.query(Project.id, Project.name).filter(Project.id.in_(ids)).all()) if ids else {}
     return [
         {
             "id":                    l.id,
             "project_id":            l.project_id,
+            "project_name":          nombres.get(l.project_id),
             "cost_overrun_prob":     l.cost_overrun_prob,
             "schedule_overrun_prob": l.schedule_overrun_prob,
             "risk_level":            l.risk_level,

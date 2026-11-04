@@ -599,9 +599,7 @@ def passkey_login_finish(
     user = _svc.lookup_user_by_id_active(db, cred.user_id)
     if not user:
         raise HTTPException(401, "Usuario no encontrado o desactivado")
-    from app.models.mfa import Organization
-    org = db.query(Organization).filter(Organization.id == user.organization_id).first()
-    if org is not None and not org.is_active:
+    if _svc.organizacion_desactivada(db, user.organization_id):
         raise HTTPException(403, "La organización de este usuario está desactivada")
 
     cred.sign_count = int(getattr(verification, "new_sign_count", cred.sign_count))

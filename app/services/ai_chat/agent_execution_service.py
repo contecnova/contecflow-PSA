@@ -90,3 +90,30 @@ def get_agent_detail_with_steps(db: Session, exec_id: str) -> dict:
         "steps": steps,
         "created_at": str(execution.created_at)[:19],
     }
+
+
+def guardar_ejecucion_en_streaming(usuario, instruccion: str, final, error) -> None:
+    """Guarda en el historial una ejecucion hecha en streaming.
+
+    La respuesta en streaming sigue viva despues de que la peticion cierre su
+    sesion, asi que se abre una propia y se le publica el tenant del usuario.
+    Un fallo aqui no rompe la respuesta: queda en el log.
+    """
+    from datetime import datetime, timezone
+    from app.db.session import SessionLocal, publicar_contexto_de_tenant
+    try:
+        with SessionLocal() as db:
+            publicar_contexto_de_tenant(db, usuario)
+            db.add(AIAgentExecution(
+                user_id=usuario.id, organization_id=getattr(usuario, "organization_id", None),
+                instruction=instruccion, status="done" if final and not error else "failed",
+                result=(final or {}).get("result"), steps_count=len((final or {}).get("steps") or []),
+                error=(error or None) and str(error)[:500], completed_at=datetime.now(timezone.utc),
+            ))
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
+                raise
+    except Exception:
+        logging.getLogger(__name__).exception("NexusAgent: no se pudo guardar la ejecucion en streaming")

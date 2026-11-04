@@ -1065,3 +1065,23 @@ def upsert_webauthn_credential(
             name=nickname,
             is_active=True,
         ))
+
+
+def organizacion_desactivada(db: Session, organization_id) -> bool:
+    """Si la organizacion del usuario existe y esta desactivada (acceso con passkey)."""
+    from app.models.mfa import Organization
+    org = db.query(Organization).filter(Organization.id == organization_id).first()
+    return org is not None and not org.is_active
+
+
+def sso_timeout_http() -> float:
+    """Tiempo de espera de las llamadas al proveedor SSO (ajuste global, sin tenant)."""
+    from app.core.config import settings as _cfg
+    try:
+        from app.db.session import SessionLocal
+        from app.services.settings_service import get_runtime_float
+        with SessionLocal() as _db:
+            v = get_runtime_float(_db, "SSO_HTTP_TIMEOUT_SECONDS")
+        return float(v) if v else float(_cfg.SSO_HTTP_TIMEOUT_SECONDS)
+    except Exception:
+        return float(_cfg.SSO_HTTP_TIMEOUT_SECONDS)

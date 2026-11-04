@@ -18,7 +18,7 @@
  */
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { biCollaborationApi } from '../../services/api'
+import { biCollaborationApi, unwrapList } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { MessageCircle, Eye, Share2, Plus, Trash2, Lock, CheckCircle, Clock, Bell, History } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
@@ -248,11 +248,11 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al marcar leída'),
   })
 
-  const comments: ComentarioDeBi[] = commentsData?.items ?? commentsData?.comments ?? []
-  const views: VistaGuardada[] = viewsData?.items ?? viewsData?.views ?? []
-  const shares: ComparticionDeBi[] = sharesData?.items ?? sharesData?.shares ?? []
-  const versions: VersionDeBi[] = versionsData?.items ?? versionsData?.versions ?? []
-  const notifications: AvisoDeBi[] = notificationsData?.items ?? notificationsData?.notifications ?? []
+  const comments = unwrapList(commentsData, 'comments') as ComentarioDeBi[]
+  const views = unwrapList(viewsData, 'views') as VistaGuardada[]
+  const shares = unwrapList(sharesData, 'shares') as ComparticionDeBi[]
+  const versions = unwrapList(versionsData, 'versions') as VersionDeBi[]
+  const notifications = unwrapList(notificationsData, 'notifications') as AvisoDeBi[]
 
   function submitComment() {
     const msg = newComment.trim()
