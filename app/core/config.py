@@ -435,6 +435,20 @@ class Settings(
     # El emisor que tiene que declarar el token. Mismo motivo para no fijarlo.
     TEAMS_BOT_ISSUER: str = Field(
         default="https://api.botframework.com", env="TEAMS_BOT_ISSUER")
+    # Revisión 2026-11: para CONTESTAR en Teams. Bot Framework no lee el cuerpo
+    # de la respuesta HTTP de un mensaje: la respuesta se envía aparte, al
+    # `serviceUrl` de la conversación, con un token de la aplicación del bot.
+    TEAMS_BOT_APP_PASSWORD: str = Field(default="", env="TEAMS_BOT_APP_PASSWORD")
+    TEAMS_BOT_TOKEN_URL: str = Field(
+        default="https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token", env="TEAMS_BOT_TOKEN_URL")
+    TEAMS_BOT_TOKEN_SCOPE: str = Field(default="https://api.botframework.com/.default", env="TEAMS_BOT_TOKEN_SCOPE")
+    # Dominios a los que se acepta contestar (el `serviceUrl` lo trae la petición;
+    # sin lista, un token válido podría dirigir la respuesta a cualquier sitio).
+    TEAMS_BOT_ALLOWED_SERVICE_HOSTS: str = Field(
+        default="smba.trafficmanager.net,*.botframework.com,*.botframework.azure.us",
+        env="TEAMS_BOT_ALLOWED_SERVICE_HOSTS")
+    # Con un mensaje que no es un comando, contestar con la base de conocimiento.
+    TEAMS_KB_ANSWERS_ENABLED: bool = Field(default=True, env="TEAMS_KB_ANSWERS_ENABLED")
 
     # NOTE: AI cost alerting lives in AISettingsMixin.
 

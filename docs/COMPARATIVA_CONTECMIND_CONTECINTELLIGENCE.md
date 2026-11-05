@@ -63,7 +63,7 @@ What the two sister products do, whether Contecflow already has it, and what was
 | 7 | ✅ **Done 2026-11-05** (GRC → Informe de cumplimiento; backups shown as not measurable) — **Compliance evidence report** generated from the live system: MFA, audit chain, RLS state, backups, SSO, retention… | both | A document to hand to an auditor; complements GRC. Depends on #1. | Medium |
 | 8 | ✅ **Done 2026-11-05** (Documents → Reservar / Liberar) — **Document check-out / check-in** (reserve while editing) | mind | Avoids two people overwriting the same document version. | Small |
 | 9 | ✅ **Done 2026-11-05** (GRC → Retención; five record types, audit log and finance excluded on purpose) — **General retention policies and legal hold** (beyond chat and GDPR requests) | both | Required in regulated sectors; today retention exists only for collaboration chat. | Large |
-| 10 | **Microsoft Teams bot that answers with the knowledge base** | mind | Answers inside Teams. It needs an Azure Bot registration and cannot be verified without one. | Large |
+| 10 | ✅ **Done 2026-11-05, not verified against Azure/Teams** (tested with doubles; see README «Teams bot that answers with the knowledge base») — **Microsoft Teams bot that answers with the knowledge base** | mind | Answers inside Teams. It needs an Azure Bot registration and cannot be verified without one. | Large |
 
 ## 4. Not applicable or rejected
 

@@ -359,6 +359,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("ASK_DATA_REUSE_EXACT_EXAMPLE", "bool", "Ask the Data — the same question as a validated one reuses its query without calling the model"),
         ("ASK_DATA_EXAMPLES_IN_PROMPT", "int", "Ask the Data — validated examples given to the model (0: none)"),
         ("ASK_DATA_EXAMPLE_MIN_SIMILARITY", "float", "Ask the Data — minimum word overlap (0-1) for a validated example to be given"),
+        ("TEAMS_KB_ANSWERS_ENABLED", "bool", "Teams bot — a message that is not a command is answered from the knowledge base"),
         ("MCP_WRITE_MODE", "str", "MCP — tools that write: off (hidden), approval (a human approves each call) or direct"),
         ("STT_PROVIDER", "str", "Primary STT provider"),
         ("STT_FALLBACK_PROVIDERS", "str", "STT fallback providers (CSV)"),

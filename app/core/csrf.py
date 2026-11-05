@@ -46,8 +46,8 @@ _UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _DEFAULT_EXEMPT_PREFIXES = (
     "/api/v1/webhooks/",
     "/api/v1/cab/webhooks/",
-    "/api/v1/integrations_hub/slack",
-    "/api/v1/integrations_hub/teams",
+    "/api/v1/integrations-hub/slack",  # revisión 2026-11: decía integrations_hub y no casaba con la ruta
+    "/api/v1/integrations-hub/teams",
     "/api/v1/esign/docusign/webhook",
     "/api/v1/esign/adobe/webhook",
     "/api/v1/service-desk/voice/twilio",

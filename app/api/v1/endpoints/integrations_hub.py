@@ -2,7 +2,7 @@
 integrations_hub.py — Endpoints para Slack, Teams y Jira.
 """
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Body, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Body, Query, Request
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
@@ -302,7 +302,7 @@ def _claves_de_bot_framework(metadata_url: str):
     return cliente
 
 
-def _verificar_token_de_teams(request: Request) -> None:
+def _verificar_token_de_teams(request: Request) -> Optional[dict]:
     """Verifica el bearer de Teams: **firma**, emisor y audiencia.
 
     Auditoría 2026-08/09. Esto empezó dentro del manejador y sólo comprobaba la
@@ -333,7 +333,7 @@ def _verificar_token_de_teams(request: Request) -> None:
     if not bot_app_id:
         if os.getenv("TESTING") != "1":
             raise HTTPException(503, "Teams inbound commands are not configured")
-        return
+        return None
 
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -343,7 +343,9 @@ def _verificar_token_de_teams(request: Request) -> None:
     try:
         cliente = _claves_de_bot_framework(settings.TEAMS_BOT_OPENID_METADATA_URL)
         clave = cliente.get_signing_key_from_jwt(raw_token)
-        _jwt.decode(
+        # Revisión 2026-11: se devuelven los claims; `serviceurl` dice a dónde se
+        # puede contestar (ver app/services/teams_bot.py).
+        return _jwt.decode(
             raw_token,
             clave.key,
             algorithms=["RS256"],
@@ -500,6 +502,7 @@ async def _ejecutar_comando_del_bot(texto: str, usuario, db, *, canal: str) -> d
 @router.post("/teams/commands", summary="Receptor de acciones de MS Teams", include_in_schema=False)
 async def teams_inbound_command(
     request: Request,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     """
@@ -507,10 +510,11 @@ async def teams_inbound_command(
     Supports conversational commands identical to the Slack bot.
     Validates Bearer token audience against TEAMS_BOT_APP_ID env var.
     """
-    _verificar_token_de_teams(request)
+    claims = _verificar_token_de_teams(request)
 
     body = await request.json()
-    text = (body.get("text") or "").strip().lower()
+    original = (body.get("text") or "").strip()
+    text = original.lower()
     # Extract user info from Teams payload
     teams_name = body.get("from", {}).get("name", "").strip()
 
@@ -519,11 +523,23 @@ async def teams_inbound_command(
     from app.services.integrations import find_user_by_teams_name
     contecflow_user = (await run_db(find_user_by_teams_name, db, teams_name)) if teams_name else None
 
-    resultado = await _ejecutar_comando_del_bot(
-        text, contecflow_user, db, canal="Teams")
+    # Revisión 2026-11: lo que no es un comando se contesta con la base de
+    # conocimiento de la empresa de quien escribe (app/services/teams_bot.py).
+    from app.services import teams_bot
+    from app.services.settings_service import get_runtime_bool
+    verbo = (text.split(None, 1) or [""])[0]
+    if (verbo not in _COMANDOS and contecflow_user is not None and original
+            and get_runtime_bool(db, "TEAMS_KB_ANSWERS_ENABLED", contecflow_user.organization_id) is not False):
+        from app.db.session import publicar_contexto_de_tenant
+        publicar_contexto_de_tenant(db, contecflow_user)
+        texto = await run_db(teams_bot.respuesta_de_la_base, db, contecflow_user, original)
+    else:
+        resultado = await _ejecutar_comando_del_bot(text, contecflow_user, db, canal="Teams")
+        texto = resultado.get("text", "✅")
 
-    # Return Teams Activity reply format
-    return {
-        "type": "message",
-        "text": resultado.get("text", "✅"),
-    }
+    # Bot Framework no lee este cuerpo para un mensaje: la respuesta se envía al
+    # `serviceUrl` de la conversación, si coincide con el del token firmado.
+    destino = teams_bot.service_url_valido(body, claims)
+    if destino:
+        background.add_task(teams_bot.enviar, body, texto, destino)
+    return {"type": "message", "text": texto}

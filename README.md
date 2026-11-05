@@ -4192,7 +4192,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 groups, 187 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 groups, 188 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4338,6 +4338,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 
 | ai | ASK_DATA_HINT_MIN_SIMILARITY | float | 0.5 | Ask the Data — minimum similarity (0-1) for a real value to count as close | rt |
 | ai | ASK_DATA_RETRY_WITH_REAL_VALUES | bool | true | Ask the Data — with zero rows and a close real value, ask the model once more with the real values | rt |
 | ai | ASK_DATA_REUSE_EXACT_EXAMPLE | bool | true | Ask the Data — the same question as a validated one reuses its query without calling the model | rt |
+| ai | TEAMS_KB_ANSWERS_ENABLED | bool | true | Teams bot — a message that is not a command is answered from the knowledge base | rt |
 | ai | MCP_WRITE_MODE | str | `off` | MCP — tools that write: off (hidden), approval (a human approves each call) or direct | rt |
 | audit | AUDIT_EXPORT_MAX_ROWS | int | 100000 | Audit log — maximum rows in the signed export (the most recent) | rt |
 | audit | COMPLIANCE_GDPR_MAX_DAYS | int | 30 | Compliance report — maximum days for an open GDPR request | rt |
@@ -5002,10 +5003,16 @@ Other endpoints:
 | `tiempo` | `time`, `horas` | Log time for today |
 | `ticket` | — | Create an incident |
 | `estado` | `status` | Status of a code |
-| anything else | — | Show help |
+| anything else | — | Slack: show help. **Teams (since 2026-11-05): answered from the knowledge base** (see below) |
 
 - Slack: without `SLACK_SIGNING_SECRET` the receiver returns 503. With it, `X-Slack-Signature` (HMAC-SHA256) is verified.
 - Teams: requires `TEAMS_BOT_APP_ID` and validates the Bot Framework JWT (`TEAMS_BOT_OPENID_METADATA_URL`, `TEAMS_BOT_ISSUER`).
+
+**Teams bot that answers with the knowledge base (2026-11-05, brought from contecmind). Not verified against a real Azure bot registration or Teams.**
+- A Teams message that is not a command is answered from the Service Desk knowledge base of the writer's company, like the internal assistant (`kb_calidad.contexto`: expert corrections and published articles by number), with the sources listed at the end («Fuentes: [KB-0901] …»). With nothing in the base it says so and the question becomes an unanswered question (source `teams`). It needs the writer to be identified (see user mapping below); anyone else gets the usual message. `TEAMS_KB_ANSWERS_ENABLED` (Admin, per company) turns it off.
+- **Replies were never delivered (from the Bot Framework documentation; not measured).** The receiver answered in the HTTP response body, which Bot Framework does not read for `message` activities. Now the reply is also **posted** to `{serviceUrl}/v3/conversations/{id}/activities/{activityId}` with an app token (client credentials, `TEAMS_BOT_APP_ID` + `TEAMS_BOT_APP_PASSWORD`, `TEAMS_BOT_TOKEN_URL`, `TEAMS_BOT_TOKEN_SCOPE`), in a background task. The `serviceUrl` comes from the request, so it is used only if it equals the `serviceurl` claim of the signed token and its host is in `TEAMS_BOT_ALLOWED_SERVICE_HOSTS`. Without `TEAMS_BOT_APP_PASSWORD` nothing is posted (logged).
+- **What was checked:** the exact shape of both outgoing calls (token request fields; activity URL, bearer, `replyToId`, `from`/`recipient` swapped), with doubles; a `serviceUrl` different from the token's or on a host not allowed receives nothing; commands still run as commands; unknown users never reach the knowledge base. Tests: `tests/test_teams_bot_kb_2026_11.py` (validated by accepting any `serviceUrl` and by not swapping `from`/`recipient`: both caught). **To verify for real:** register a bot in Azure, set the messaging endpoint to `/api/v1/integrations-hub/teams/commands`, and set the two app settings.
+- Also fixed: the CSRF exemption listed `/api/v1/integrations_hub/…` (underscore), which matched nothing. It caused no failure (bot requests carry no session cookie, so CSRF does not apply), but it now names the real path.
 
 **Limitations (measured).**
 - **User mapping (since 2026-11-03).** Slack: an active user whose `username`, or the part of the email before `@`, equals the Slack `user_name` (case-insensitive). Teams: an active user whose full name equals the Teams display name (case-insensitive, spaces collapsed). If none or more than one match (across all organizations), the bot answers "No encuentro un único usuario…" and does nothing; only the help works without a user. The command then runs with that user's organization as tenant context, so project and task codes resolve only inside it, and new tasks, tickets and time entries are stamped with it. Before, the lookup was a partial match (`%name%`) taking the first user of any organization, commands without a user created anonymous rows, and codes were looked up in every organization. Test: `tests/test_bot_slack_teams_usuario_exacto.py`.
@@ -5249,7 +5256,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 248)
+#### 4.2 Settings fields (`Settings`, 328)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5537,6 +5544,85 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SD_ASSET_REFRESH_DAYS` | `7` | Asset refresh cadence. |
 | `SD_EVENT_MAX_ATTEMPTS` | `5` | Ticket-event retry cap. |
 | `SD_EVENT_BATCH_SIZE` | `200` | Ticket-event batch size. |
+
+
+**Added 2026-11-05** (the table had 255 of the 328 fields; generated from the code: default from `Settings`, text from the runtime-settings label, the field description or the comment above it):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `AUTOMATIONS_ENABLED` | `True` | Rules run on events and on the periodic scan (off: only the simulation) |
+| `AUTOMATIONS_MAX_CHAIN_DEPTH` | `3` | A rule may trigger another one up to this depth |
+| `AUTOMATIONS_EVENT_BATCH_SIZE` | `200` | Events processed per run |
+| `AUTOMATIONS_EVENT_MAX_ATTEMPTS` | `3` | Attempts per event before it is left as failed |
+| `AUTOMATIONS_SCAN_MINUTES` | `15` | Periodic sweep of automations (overdue tasks, budget, unsent timesheets): how often it runs, in minutes. |
+| `AUTOMATIONS_DEADLINE_DAYS` | `2` | "Task due soon": days before the due date |
+| `AUTOMATIONS_TIMESHEET_WEEKDAY` | `5` | "Timesheet not submitted": from this weekday (ISO, 1=Mon … 7=Sun) |
+| `AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS` | `10` | Webhook action — timeout (s) |
+| `NOTIFICATIONS_DIGEST_HOUR` | `8` | Daily notice digest — local hour (0-23) from which it is emailed |
+| `NOTIFICATIONS_DIGEST_MAX_ITEMS` | `20` | Daily notice digest — notices listed at most |
+| `BPMN_MAX_AUTOMATIC_STEPS` | `500` | BPM — automatic steps in a row before an instance fails (loop guard) |
+| `SD_AUTONOMOUS_AGENT_ENABLED` | `False` | Autonomous agent — scan new tickets every 5 min (comments and may resolve) |
+| `SD_AUTONOMY_RESOLVE_THRESHOLD` | `0.8` | Autonomous agent — confidence to resolve on its own (0-1) |
+| `SD_AUTONOMY_SUGGEST_THRESHOLD` | `0.5` | Autonomous agent — confidence to comment a playbook (0-1) |
+| `AI_LOCAL_HTTP_TIMEOUT_SECONDS` | `120` | Ollama (local model) call — timeout (s) |
+| `AI_PROVIDER_ERROR_COOLDOWN_SECONDS` | `300` | A failing provider is set aside for (s), then retried |
+| `MCP_WRITE_MODE` | `'off'` | MCP — tools that write: off (hidden), approval (a human approves each call) or direct |
+| `AI_DAILY_BUDGET_USD` | `0.0` | AI — daily spend cap per company in USD; calls stop until 00:00 UTC (0: no cap) |
+| `AI_DAILY_BUDGET_WARN_PCT` | `80.0` | AI — % of the daily cap from which the AI Hub warns |
+| `ASK_DATA_HINT_MAX_VALUES` | `10` | Ask the Data — real values shown when a filter finds nothing |
+| `ASK_DATA_HINT_MIN_SIMILARITY` | `0.5` | Ask the Data — minimum similarity (0-1) for a real value to count as close |
+| `ASK_DATA_RETRY_WITH_REAL_VALUES` | `True` | Ask the Data — with zero rows and a close real value, ask the model once more with the real values |
+| `ASK_DATA_REUSE_EXACT_EXAMPLE` | `True` | Ask the Data — the same question as a validated one reuses its query without calling the model |
+| `ASK_DATA_EXAMPLES_IN_PROMPT` | `3` | Ask the Data — validated examples given to the model (0: none) |
+| `ASK_DATA_EXAMPLE_MIN_SIMILARITY` | `0.3` | Ask the Data — minimum word overlap (0-1) for a validated example to be given |
+| `AI_TEST_MAX_TOKENS` | `256` | Token cap of the provider «Test» call; reasoning models (Gemini 2.5, o-series) spent a 10-token cap on thinking and returned nothing. |
+| `AI_SHORT_ANSWER_MAX_TOKENS` | `256` | Token cap for short-answer AI calls (classify, pick an id); reasoning models need room to think before answering. |
+| `AI_AGENT_TURN_TIMEOUT_SECONDS` | `90` | NexusAgent — timeout per model turn (s) |
+| `AI_MODELS_LIST_TIMEOUT_SECONDS` | `30` | AI "Sync models" — timeout (s) |
+| `DEVELOPER_TOKEN_TTL_MINUTES` | `60` | Developer-portal app token TTL (minutes) |
+| `DATABASE_MIGRATIONS_URL` | `''` | Owner connection for migrations and RLS setup when `DATABASE_URL` uses the unprivileged application role (empty: `DATABASE_URL`). |
+| `TENANT_ENTRY_MODE` | `'email_selector'` | How users enter their company: `email_selector` (pick after the password) or `subdomain`. One mode per deployment. |
+| `TENANT_ROOT_DOMAIN` | `''` | Subdomain mode: companies are reached at `<slug>.TENANT_ROOT_DOMAIN` (besides each company's own domain). |
+| `TENANT_SELECTION_TOKEN_MINUTES` | `5` | Lifetime of the token that only allows choosing a company after the password. |
+| `TENANT_DELETION_QUARANTINE_DAYS` | `30` | Company deletion — quarantine before its data is erased (days) |
+| `AUDIT_EXPORT_MAX_ROWS` | `100000` | Audit log — maximum rows in the signed export (the most recent) |
+| `COMPLIANCE_STALE_ACCOUNT_DAYS` | `90` | Compliance report — an active account without sign-in for more days is flagged |
+| `COMPLIANCE_GDPR_MAX_DAYS` | `30` | Compliance report — maximum days for an open GDPR request |
+| `COMPLIANCE_MFA_MIN_COVERAGE_PCT` | `100.0` | Compliance report — minimum % of active users with a second factor |
+| `COMPLIANCE_MIN_PASSWORD_LENGTH` | `12` | Compliance report — minimum password length the policy must require |
+| `RETENTION_MIN_DAYS` | `30` | Retention — no policy may keep a record type for fewer days than this |
+| `APPROVAL_EMAIL_LINK_HOURS` | `72` | Approvals — hours the approve/reject link of the email is valid |
+| `IMPERSONATION_ENABLED` | `True` | Platform support may sign in as a company user (with a reason, audited) |
+| `IMPERSONATION_MAX_MINUTES` | `30` | Sign in as — maximum session length (minutes) |
+| `SSO_HTTP_TIMEOUT_SECONDS` | `10.0` | SSO — timeout calling the identity provider (seconds) |
+| `SSO_CLOCK_SKEW_SECONDS` | `60` | SSO — clock skew tolerated when validating the id_token (seconds) |
+| `SSO_RATE_LIMIT` | `'20/minute'` | Rate limit of the SSO sign-in endpoints (slowapi syntax). |
+| `PASSKEY_PASSWORDLESS_ENABLED` | `True` | Allow signing in with a passkey alone (no password) |
+| `DOCUMENT_CHECKOUT_HOURS` | `24` | Document check-out — the reservation expires by itself after (h) |
+| `SCENARIO_CAPACITY_ROLES` | `'pm,team_lead,employee,subcontractor'` | Scenarios — roles whose capacity counts (comma separated) |
+| `RISK_WEIGHT_SCHEDULE` | `0.4` | Risk score — weight of schedule (0-1) |
+| `RISK_WEIGHT_BUDGET` | `0.3` | Risk score — weight of budget (0-1) |
+| `RISK_WEIGHT_SCOPE` | `0.15` | Risk score — weight of scope (0-1) |
+| `RISK_WEIGHT_RESOURCE` | `0.15` | Risk score — weight of resources (0-1) |
+| `RISK_LEVEL_CRITICAL` | `75.0` | Risk score — critical from (0-100) |
+| `RISK_LEVEL_HIGH` | `50.0` | Risk score — high from (0-100) |
+| `RISK_LEVEL_MEDIUM` | `25.0` | Risk score — medium from (0-100) |
+| `RISK_SCHEDULE_FACTOR` | `1.5` | Schedule — points per % behind plan |
+| `RISK_BUDGET_WARN_PCT` | `85.0` | Budget — % spent where risk starts |
+| `RISK_BUDGET_WARN_FACTOR` | `3.0` | Budget — points per % above the warning |
+| `RISK_BUDGET_OVER_FACTOR` | `2.0` | Budget — points per % above 100 % |
+| `RISK_POINTS_PER_OPEN_CR` | `20.0` | Scope — points per open change request |
+| `RISK_POINTS_PER_HIGH_RISK` | `25.0` | Resources — points per open high-probability risk |
+| `RISK_DELAY_FACTOR` | `0.8` | Delay probability — % per score point |
+| `RISK_DELAY_MAX_PCT` | `95.0` | Delay probability — maximum (%) |
+| `RISK_DELAY_PCT_PER_WEEK` | `20.0` | Predicted delay — probability % per week |
+| `RISK_CACHE_MINUTES` | `60` | Scores are reused for (minutes) |
+| `RISK_HISTORY_POINTS` | `12` | Detail — history points shown |
+| `TEAMS_BOT_APP_PASSWORD` | `''` | Teams bot app secret. Needed to **reply** in Teams: Bot Framework ignores the HTTP response body of a message, so replies are posted to the conversation's `serviceUrl` with an app token. |
+| `TEAMS_BOT_TOKEN_URL` | `'https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token'` | Where the bot gets its app token (client credentials). Configurable for sovereign clouds. |
+| `TEAMS_BOT_TOKEN_SCOPE` | `'https://api.botframework.com/.default'` | Scope of that token. |
+| `TEAMS_BOT_ALLOWED_SERVICE_HOSTS` | `'smba.trafficmanager.net,*.botframework.com,*.botframework.azure.us'` | Hosts the bot may reply to (CSV, `*` wildcards). The `serviceUrl` must also equal the one in the signed token. |
+| `TEAMS_KB_ANSWERS_ENABLED` | `True` | Teams bot — a message that is not a command is answered from the knowledge base |
 
 #### 4.3 Variables read directly with `os.getenv` (not in `Settings`)
 
