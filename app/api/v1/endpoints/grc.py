@@ -178,6 +178,10 @@ def _log_grc(db: Session, user_id: Optional[str], action_type: str,
     grc_svc.log_grc_entry(db, user_id, action_type, resource_type, resource_id, detail, ip, severity)
 
 
+def _org(user) -> Optional[str]:
+    return getattr(user, "organization_id", None)
+
+
 def _ensure_matrix_seeded(db: Session):
     grc_svc.ensure_matrix_seeded(db, DEFAULT_MATRIX)
     # Completa la matriz para los 109 módulos que expone la API, derivados del
@@ -187,8 +191,8 @@ def _ensure_matrix_seeded(db: Session):
     grc_svc.ensure_matrix_covers_all_modules(db, DEFAULT_MATRIX)
 
 
-def _ensure_sod_seeded(db: Session):
-    grc_svc.ensure_sod_seeded(db, DEFAULT_SOD_RULES)
+def _ensure_sod_seeded(db: Session, organization_id: Optional[str] = None):
+    grc_svc.ensure_sod_seeded(db, DEFAULT_SOD_RULES, organization_id)
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -205,7 +209,7 @@ def get_permissions(
     current_user: User = Depends(require_any_manager),
 ):
     _ensure_matrix_seeded(db)
-    rows = grc_svc.get_all_permissions(db)
+    rows = grc_svc.get_all_permissions(db, _org(current_user))
 
     # Build nested dict: role -> module -> action -> allowed
     matrix: dict = {}
@@ -223,7 +227,8 @@ def update_permission(
     current_user: User = Depends(require_admin),
 ):
     _ensure_matrix_seeded(db)
-    row, old_val = grc_svc.upsert_permission(db, role, module, action, body.allowed, current_user.id)
+    row, old_val = grc_svc.upsert_permission(db, role, module, action, body.allowed, current_user.id,
+                                             _org(current_user))
     _log_grc(db, current_user.id, "permission_changed", "role_permission",
              f"{role}/{module}/{action}",
              {"old": old_val, "new": body.allowed, "role": role, "module": module, "action": action},
@@ -239,7 +244,7 @@ def seed_permissions(
     current_user: User = Depends(require_admin),
 ):
     """Borra todos los permisos y los recrea con la matriz por defecto."""
-    grc_svc.reset_permission_matrix(db, DEFAULT_MATRIX)
+    grc_svc.reset_permission_matrix(db, DEFAULT_MATRIX, _org(current_user))
     _log_grc(db, current_user.id, "permission_matrix_reset", severity="critical")
     grc_svc.commit_db(db)
     return APIResponse.ok(data={"ok": True, "message": "Matriz de permisos restaurada a valores por defecto"})
@@ -252,8 +257,8 @@ def list_sod_rules(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    _ensure_sod_seeded(db)
-    rules = grc_svc.list_sod_rules_db(db)
+    _ensure_sod_seeded(db, _org(current_user))
+    rules = grc_svc.list_sod_rules_db(db, _org(current_user))
     items = [_rule_out(r) for r in rules]
     return APIListResponse.ok(items=items, total=len(items))
 
@@ -321,15 +326,15 @@ def sod_check(
     (es decir, tienen el conflicto potencial) y lo devuelve como lista de violaciones.
     """
     _ensure_matrix_seeded(db)
-    _ensure_sod_seeded(db)
+    _ensure_sod_seeded(db, _org(current_user))
 
-    rules = grc_svc.get_active_sod_rules(db)
+    rules = grc_svc.get_active_sod_rules(db, _org(current_user))
     violations = []
     for rule in rules:
         # Check each role
         for role in ["admin", "pm", "team_lead", "employee", "hr", "client"]:
-            perm_a = grc_svc.get_role_permission(db, role, rule.module_a, rule.action_a)
-            perm_b = grc_svc.get_role_permission(db, role, rule.module_b, rule.action_b)
+            perm_a = grc_svc.get_role_permission(db, role, rule.module_a, rule.action_a, _org(current_user))
+            perm_b = grc_svc.get_role_permission(db, role, rule.module_b, rule.action_b, _org(current_user))
             if perm_a and perm_a.allowed and perm_b and perm_b.allowed:
                 violations.append({
                     "rule_id": rule.id,

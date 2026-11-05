@@ -55,149 +55,176 @@ def log_grc_entry(
     db.add(entry)
 
 
-# ── Permission matrix seeding ─────────────────────────────────────────────────
+# ── Permission matrix ─────────────────────────────────────────────────────────
+#
+# Revisión 2026-11 (multiempresa). La matriz era UNA para toda la plataforma,
+# sembrada sin empresa, y se leía y escribía confiando en el filtro de la
+# sesión: un administrador de empresa veía la matriz vacía (las filas globales
+# no son de su empresa), cada visita volvía a sembrarla (contaba 0), lo que
+# editaba quedaba en filas propias que la comprobación podía no leer, y lo que
+# se restringía podía aplicarse a otras empresas. Ahora:
+#
+#   · filas globales (organization_id NULL) = valores por defecto, sembradas
+#     una vez y ampliadas con los módulos nuevos;
+#   · filas de una empresa = sus excepciones; ganan sobre las globales;
+#   · leer, escribir y restablecer nombran la empresa explícitamente.
+
+def _globales(db: Session):
+    return db.query(RolePermission).filter(RolePermission.organization_id.is_(None))
+
 
 def ensure_matrix_seeded(db: Session, default_matrix: dict) -> None:
-    """Seed default_matrix into DB if grc_role_permissions is empty."""
-    count = db.query(RolePermission).count()
-    if count == 0:
-        rows = []
-        for role, modules in default_matrix.items():
-            for module, actions in modules.items():
-                for action, allowed in actions.items():
-                    rows.append(RolePermission(
-                        id=str(uuid.uuid4()), role=role, module=module,
-                        action=action, allowed=allowed,
-                    ))
-        db.bulk_save_objects(rows)
+    """Siembra los valores globales si no hay ninguno. Idempotente."""
+    from app.db.session import sin_filtro_de_tenant
+    with sin_filtro_de_tenant(db):
+        if _globales(db).count():
+            return
+        db.bulk_save_objects([
+            RolePermission(id=str(uuid.uuid4()), organization_id=None, role=role, module=module,
+                           action=action, allowed=allowed)
+            for role, modules in default_matrix.items()
+            for module, actions in modules.items()
+            for action, allowed in actions.items()])
         db.commit()
 
 
 def ensure_matrix_covers_all_modules(db: Session, default_matrix: dict) -> int:
-    """Completa la matriz para TODOS los módulos que expone la API.
+    """Completa los valores globales para TODOS los módulos que expone la API.
 
-    Auditoría 2026-08 (hallazgo 28). `default_matrix` opina sobre 15 módulos
-    escritos a mano, frente a los 126 dominios de la API: 111 no tenían ni una
-    casilla que un administrador pudiera configurar. La lista de módulos se
-    DERIVA aquí del router en tiempo de ejecución (ver app/core/grc_catalog.py),
-    así que un dominio nuevo entra en la matriz el día que se añade su primera
-    ruta, sin que nadie tenga que registrarlo.
-
-    Las casillas nuevas se crean con ``allowed=True`` a propósito: la matriz es un
-    control ADITIVO que sólo puede quitar permiso (ver app/core/grc_enforce.py).
-    Sembrarlas en False cerraría de golpe 111 dominios para todos los roles no
-    administradores. Con True, el comportamiento no cambia hasta que un
-    administrador decida restringir algo — y ahora puede, que es lo que faltaba.
-
-    Sólo se crean las acciones que el módulo expone de verdad: una casilla que no
-    corresponde a ninguna ruta es indistinguible de una que no se aplica, y el
-    objetivo es que todo lo que se ve gobierne algo.
-
-    Devuelve el número de filas creadas. Idempotente.
+    Auditoría 2026-08 (hallazgo 28): la lista de módulos se deriva del router
+    (app/core/grc_catalog.py). Las casillas nuevas nacen con ``allowed=True``:
+    la matriz es un control ADITIVO que solo puede quitar permiso. Devuelve
+    cuántas filas creó. Idempotente.
     """
     from app.core.grc_catalog import discover_module_actions
+    from app.db.session import sin_filtro_de_tenant
     from app.main import app as fastapi_app
 
     por_modulo = discover_module_actions(fastapi_app)
     roles = list(default_matrix.keys())
-
-    existentes = {
-        (r.role, r.module, r.action)
-        for r in db.query(RolePermission.role, RolePermission.module, RolePermission.action).all()
-    }
-
-    nuevas = []
-    for modulo, acciones in por_modulo.items():
-        for rol in roles:
-            declarado = default_matrix.get(rol, {}).get(modulo, {})
-            for accion in sorted(acciones):
-                if (rol, modulo, accion) in existentes:
-                    continue
-                # Si default_matrix opina sobre esta casilla, se respeta su valor;
-                # si no, permisiva (ver el razonamiento del docstring).
-                permitido = declarado.get(accion, True)
-                nuevas.append(RolePermission(
-                    id=str(uuid.uuid4()), role=rol, module=modulo,
-                    action=accion, allowed=bool(permitido),
-                ))
-
-    if nuevas:
-        db.bulk_save_objects(nuevas)
-        db.commit()
+    with sin_filtro_de_tenant(db):
+        existentes = {(r.role, r.module, r.action) for r in
+                      _globales(db).with_entities(RolePermission.role, RolePermission.module, RolePermission.action)}
+        nuevas = []
+        for modulo, acciones in por_modulo.items():
+            for rol in roles:
+                declarado = default_matrix.get(rol, {}).get(modulo, {})
+                for accion in sorted(acciones):
+                    if (rol, modulo, accion) not in existentes:
+                        nuevas.append(RolePermission(id=str(uuid.uuid4()), organization_id=None, role=rol,
+                                                     module=modulo, action=accion,
+                                                     allowed=bool(declarado.get(accion, True))))
+        if nuevas:
+            db.bulk_save_objects(nuevas)
+            db.commit()
     return len(nuevas)
 
 
-def ensure_sod_seeded(db: Session, default_sod_rules: list) -> None:
-    """Seed default_sod_rules into DB if grc_sod_rules is empty."""
-    count = db.query(SodRule).count()
-    if count == 0:
-        rows = [
-            SodRule(
-                id=str(uuid.uuid4()),
-                module_a=r["module_a"], action_a=r["action_a"],
-                module_b=r["module_b"], action_b=r["action_b"],
-                risk=r["risk"], description=r["description"],
-                roles_conflict=json.dumps(r["roles_conflict"]),
-            )
-            for r in default_sod_rules
-        ]
-        db.bulk_save_objects(rows)
+def ensure_sod_seeded(db: Session, default_sod_rules: list, organization_id: Optional[str] = None) -> None:
+    """Siembra las reglas SoD por defecto EN ESA EMPRESA si no tiene ninguna.
+
+    Revisión 2026-11: contaba con el filtro de la sesión y sembraba sin empresa.
+    Cada empresa tiene su copia, así que editar una regla no toca a las demás.
+    """
+    from app.db.session import sin_filtro_de_tenant
+    with sin_filtro_de_tenant(db):
+        q = db.query(SodRule)
+        q = q.filter(SodRule.organization_id == organization_id) if organization_id \
+            else q.filter(SodRule.organization_id.is_(None))
+        if q.count():
+            return
+        db.bulk_save_objects([
+            SodRule(id=str(uuid.uuid4()), organization_id=organization_id,
+                    module_a=r["module_a"], action_a=r["action_a"],
+                    module_b=r["module_b"], action_b=r["action_b"],
+                    risk=r["risk"], description=r["description"],
+                    roles_conflict=json.dumps(r["roles_conflict"]))
+            for r in default_sod_rules])
         db.commit()
 
 
-# ── Permission CRUD ───────────────────────────────────────────────────────────
+class _Casilla:
+    __slots__ = ("role", "module", "action", "allowed")
 
-def get_all_permissions(db: Session):
-    """Return all RolePermission rows."""
-    return db.query(RolePermission).all()
+    def __init__(self, role, module, action, allowed):
+        self.role, self.module, self.action, self.allowed = role, module, action, allowed
+
+
+def get_all_permissions(db: Session, organization_id: Optional[str] = None) -> list:
+    """La matriz efectiva de la empresa: lo global, con sus excepciones encima."""
+    from sqlalchemy import or_
+    from app.db.session import sin_filtro_de_tenant
+    with sin_filtro_de_tenant(db):
+        q = db.query(RolePermission)
+        q = q.filter(or_(RolePermission.organization_id.is_(None), RolePermission.organization_id == organization_id)) \
+            if organization_id else _globales(db)
+        filas = q.all()
+    efectiva = {}
+    for f in sorted(filas, key=lambda f: f.organization_id is not None):   # globales primero
+        efectiva[(f.role, f.module, f.action)] = f.allowed
+    return [_Casilla(r, m, a, v) for (r, m, a), v in efectiva.items()]
+
+
+def get_role_permission(db: Session, role: str, module: str, action: str,
+                        organization_id: Optional[str] = None):
+    """La casilla efectiva (excepción de la empresa, si no la global), o None."""
+    from app.db.session import sin_filtro_de_tenant
+    with sin_filtro_de_tenant(db):
+        base = db.query(RolePermission).filter(RolePermission.role == role, RolePermission.module == module,
+                                               RolePermission.action == action)
+        fila = base.filter(RolePermission.organization_id == organization_id).first() if organization_id else None
+        fila = fila or base.filter(RolePermission.organization_id.is_(None)).first()
+    return _Casilla(fila.role, fila.module, fila.action, fila.allowed) if fila else None
 
 
 def upsert_permission(
     db: Session,
     role: str, module: str, action: str,
     allowed: bool, updated_by: Optional[str],
+    organization_id: Optional[str] = None,
 ):
-    """Update existing permission or create it if missing. Returns (row, old_value)."""
-    row = db.query(RolePermission).filter(
-        RolePermission.role == role,
-        RolePermission.module == module,
-        RolePermission.action == action,
-    ).first()
-    old_val = None
-    if row:
-        old_val = row.allowed
-        row.allowed = allowed
-        row.updated_by = updated_by
-    else:
-        row = RolePermission(
-            id=str(uuid.uuid4()), role=role, module=module, action=action,
-            allowed=allowed, updated_by=updated_by,
-        )
-        db.add(row)
-    return row, old_val
+    """Guarda la excepción de la empresa (sin empresa: el valor global). Devuelve (fila, valor anterior)."""
+    from app.db.session import sin_filtro_de_tenant
+    anterior = get_role_permission(db, role, module, action, organization_id)
+    with sin_filtro_de_tenant(db):
+        q = db.query(RolePermission).filter(RolePermission.role == role, RolePermission.module == module,
+                                            RolePermission.action == action)
+        q = q.filter(RolePermission.organization_id == organization_id) if organization_id \
+            else q.filter(RolePermission.organization_id.is_(None))
+        row = q.first()
+        if row:
+            row.allowed, row.updated_by = allowed, updated_by
+        else:
+            row = RolePermission(id=str(uuid.uuid4()), organization_id=organization_id, role=role, module=module,
+                                 action=action, allowed=allowed, updated_by=updated_by)
+            db.add(row)
+    return row, (anterior.allowed if anterior else None)
 
 
-def reset_permission_matrix(db: Session, default_matrix: dict) -> None:
-    """Delete all permissions and re-seed from default_matrix."""
-    db.query(RolePermission).delete()
-    db.commit()
+def reset_permission_matrix(db: Session, default_matrix: dict, organization_id: Optional[str] = None) -> None:
+    """Con empresa: quita sus excepciones (vuelve a los valores globales).
+    Sin empresa (superadmin de plataforma): rehace los valores globales."""
+    from app.db.session import sin_filtro_de_tenant
+    with sin_filtro_de_tenant(db):
+        if organization_id:
+            db.query(RolePermission).filter(RolePermission.organization_id == organization_id).delete()
+            db.commit()
+            return
+        _globales(db).delete()
+        db.commit()
     ensure_matrix_seeded(db, default_matrix)
-
-
-def get_role_permission(db: Session, role: str, module: str, action: str):
-    """Return a single RolePermission row or None."""
-    return db.query(RolePermission).filter(
-        RolePermission.role == role,
-        RolePermission.module == module,
-        RolePermission.action == action,
-    ).first()
 
 
 # ── SoD Rules CRUD ────────────────────────────────────────────────────────────
 
-def list_sod_rules_db(db: Session):
-    """Return all SodRule rows ordered by risk."""
-    return db.query(SodRule).order_by(SodRule.risk).all()
+def _sod_de(db: Session, organization_id: Optional[str]):
+    q = db.query(SodRule)
+    return q.filter(SodRule.organization_id == organization_id) if organization_id else q
+
+
+def list_sod_rules_db(db: Session, organization_id: Optional[str] = None):
+    """Las reglas SoD de la empresa, por riesgo."""
+    return _sod_de(db, organization_id).order_by(SodRule.risk).all()
 
 
 def create_sod_rule_db(
@@ -250,9 +277,9 @@ def delete_sod_rule_db(db: Session, rule) -> None:
 
 # ── SoD Check ─────────────────────────────────────────────────────────────────
 
-def get_active_sod_rules(db: Session):
-    """Return all active SodRule rows."""
-    return db.query(SodRule).filter(SodRule.is_active == True).all()
+def get_active_sod_rules(db: Session, organization_id: Optional[str] = None):
+    """Las reglas SoD activas de la empresa."""
+    return _sod_de(db, organization_id).filter(SodRule.is_active == True).all()
 
 
 # ── SoD Violations ────────────────────────────────────────────────────────────

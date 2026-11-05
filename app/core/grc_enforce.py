@@ -87,7 +87,11 @@ def _resolve_user(request: Request, credentials, db: Session):
         return None
     from app.models.user import User
 
-    return db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if user is not None:
+        # La empresa de la sesión (el token la lleva al elegir empresa).
+        request.state.grc_org = payload.get("org") or user.organization_id
+    return user
 
 
 def enforce_grc_matrix(
@@ -123,7 +127,8 @@ def enforce_grc_matrix(
     from app.services import grc_service
 
     try:
-        fila = grc_service.get_role_permission(db, rol, modulo, accion)
+        fila = grc_service.get_role_permission(db, rol, modulo, accion,
+                                               getattr(request.state, "grc_org", None) or user.organization_id)
     except Exception:
         # Un fallo al leer la matriz NO debe abrir ni cerrar la aplicación: los
         # controles reales (RBAC, aislamiento de tenant) siguen en pie, y este es

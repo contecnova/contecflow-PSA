@@ -4498,6 +4498,19 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 
 **Purpose.** Two controls: a role × module × action permission matrix that is enforced on every request, and segregation-of-duties (SoD) rules with violation tracking.
 
+**Per company (revision 2026-11).**
+- **Measured before:** the 2364 cells of the matrix were stored without a company, and were read and written trusting the session filter.
+  - A company administrator saw an empty matrix.
+  - Each visit seeded it again, because the count was 0.
+  - Changes went to rows that the request check might not read, or that applied to other companies.
+- **Now:**
+  - The rows without a company are the **global defaults**, seeded once and extended with new modules.
+  - A company stores only its **exceptions**, and they win over the defaults.
+  - Read, change, reset and the per-request check (`grc_enforce`, with the session's company from the token) all name the company explicitly.
+  - *Restablecer* removes the company's exceptions, and the defaults apply again.
+  - SoD rules are seeded per company (`ensure_sod_seeded(…, organization_id)`), so editing one never touches another company.
+- **Measured on a copy with the application role:** a PM sees the 2364 cells and a second visit adds none. The admin's exception is stored for the company only and the global row is unchanged.
+
 **How to use it.**
 1. **Matrix.** The first load seeds a default matrix and fills in a row for every API module derived from the router. Toggle `allowed` per role, module and action. The actions are `ver`, `crear`, `editar`, `eliminar`, `aprobar`, `exportar`; the action of a request is derived from its HTTP method and path. **Seed** resets the matrix to the defaults.
 2. **SoD rules.** Edit or create pairs `(module_a, action_a)` ⟂ `(module_b, action_b)` with a risk level, the conflicting roles, and an optional mitigating workflow. 8 defaults are seeded (invoices, expenses, contracts, resources/timesheets, hr, settings/approvals, timesheets, grc/approvals).
