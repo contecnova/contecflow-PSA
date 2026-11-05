@@ -36,13 +36,13 @@ def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id:
     """Abre la solicitud si hay flujo por defecto para el tipo; si no, nada."""
     from app.models.user import User
     from app.schemas.approvals import ApprovalRequestIn
-    from app.services.approval_engine._base import find_default_workflow
+    from app.services.approval_engine._base import elegir_flujo
     from app.services.approval_engine.requests import create_approval_request
 
-    if not find_default_workflow(tipo, db):
-        return
     solicitante = db.query(User).filter(User.id == solicitante_id).first()
     if not solicitante:
+        return
+    if not elegir_flujo(db, tipo, {**(contexto or {}), "department": solicitante.department}):
         return
     try:
         create_approval_request(

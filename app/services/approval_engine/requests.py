@@ -25,8 +25,12 @@ def create_approval_request(payload, db: Session, current_user: User) -> dict:
 
     wf_id = payload.workflow_id
     if not wf_id:
-        category = getattr(payload, 'category', None)
-        wf = find_default_workflow(payload.entity_type, db, category=category)
+        from app.services.approval_engine._base import elegir_flujo
+        contexto = dict(getattr(payload, "context", None) or {})
+        contexto.setdefault("category", getattr(payload, "category", None))
+        # El departamento de quien pide, para las condiciones por departamento.
+        contexto.setdefault("department", getattr(current_user, "department", None))
+        wf = elegir_flujo(db, payload.entity_type, contexto)
         if not wf:
             raise HTTPException(
                 404, f"No hay flujo de aprobación configurado para '{payload.entity_type}'"
@@ -137,7 +141,7 @@ def _validate_decision_authorization(
     req, step, decision: str, attachment_url: Optional[str], current_user: User, db: Session
 ) -> None:
     """Apply authorization / SoD / attachment / double-vote validations."""
-    if not _is_authorized(step, current_user, req.requested_by, db):
+    if not _is_authorized(step, current_user, req.requested_by, db, req=req):
         raise HTTPException(403, "No tienes permiso para aprobar este paso")
 
     if req.requested_by == current_user.id:
@@ -175,6 +179,7 @@ def _record_decision_row(
         decision=decision,
         note=note,
         attachment_url=attachment_url,
+        delegate_to=delegate_to if decision == "delegated" else None,
     ))
     db.flush()
     log_financial_approval_event(
@@ -242,6 +247,7 @@ def _apply_approved_decision(
     if next_steps:
         req.current_step = next_steps[0].step_order
         req.step_started_at = datetime.now(timezone.utc)
+        req.last_reminder_at = None
         db.commit()
         notify_approver(req, next_steps[0], db)
     else:
@@ -329,7 +335,7 @@ def get_pending_for_user(db: Session, current_user: User) -> list:
         step = next((s for s in wf.steps if s.step_order == req.current_step), None)
         if not step:
             continue
-        if _is_authorized(step, current_user, req.requested_by, db):
+        if _is_authorized(step, current_user, req.requested_by, db, req=req):
             result.append((req, step))
 
     return result

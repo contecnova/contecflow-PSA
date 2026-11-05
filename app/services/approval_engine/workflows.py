@@ -129,18 +129,10 @@ def create_workflow_from_template(db: Session, template_id: str, override_name: 
 
 def simulate_workflow(db: Session, entity_type: str, context: dict) -> dict:
     """Simulate workflow selection + step route without creating a request."""
-    candidates = list_workflows(db, entity_type=entity_type)
-    matches = []
-    for w in candidates:
-        cond = _parse_trigger_conditions(w.trigger_conditions)
-        if _matches_conditions(cond, context):
-            matches.append(w)
-    # Prefer explicit condition matches, then default active flows
-    chosen = None
-    if matches:
-        chosen = sorted(matches, key=lambda w: (not w.is_active, not w.is_default, w.created_at or datetime.now(timezone.utc)))[0]
-    else:
-        chosen = find_default_workflow(entity_type, db, category=context.get("category"))
+    # El mismo elector que al crear la solicitud (antes la simulacion elegia
+    # con otra regla y prometia un flujo que la solicitud real no usaba).
+    from app.services.approval_engine._base import elegir_flujo
+    chosen = elegir_flujo(db, entity_type, context)
 
     if not chosen:
         return {

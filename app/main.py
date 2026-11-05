@@ -264,6 +264,52 @@ def _comprobar_deriva_de_esquema(_is_testing, _expected_rev, _enforce_drift) -> 
             raise
 
 
+# Entradas de beat que APScheduler ya programa con su propia funcion.
+_BEAT_YA_EN_APSCHEDULER = {
+    "run-scheduled-reports", "automations-events", "automations-scan", "bpmn-timers",
+    "perf-reminders-daily", "run-alert-engine-daily", "run-key-rotation",
+}
+_DIAS_CELERY = {"0": "sun", "1": "mon", "2": "tue", "3": "wed", "4": "thu", "5": "fri", "6": "sat", "7": "sun"}
+
+
+def _dias_de_celery(valor: str) -> str:
+    """`day_of_week` de Celery (0 = domingo) a APScheduler (nombres de dia)."""
+    import re as _re
+    return _re.sub(r"\d", lambda m: _DIAS_CELERY[m.group(0)], str(valor))
+
+
+def _replicar_celery_beat(scheduler) -> int:
+    """Registra en APScheduler cada entrada de `beat_schedule` con la misma cadencia.
+
+    La tarea de Celery se llama en el propio proceso (`task(*args, **kwargs)`
+    ejecuta su cuerpo). Una sola fuente de verdad: lo que se anada a beat
+    corre tambien aqui sin tocar este fichero.
+    """
+    from apscheduler.triggers.cron import CronTrigger
+    from app.worker import celery_app
+    n = 0
+    for clave, entrada in celery_app.conf.beat_schedule.items():
+        if clave in _BEAT_YA_EN_APSCHEDULER:
+            continue
+        c = entrada["schedule"]
+        try:
+            trigger = CronTrigger(
+                minute=c._orig_minute, hour=c._orig_hour, day=c._orig_day_of_month,
+                month=c._orig_month_of_year, day_of_week=_dias_de_celery(c._orig_day_of_week),
+            )
+        except (AttributeError, ValueError):
+            logger.warning("Entrada de beat %s sin crontab convertible; no se replica", clave)
+            continue
+        tarea = entrada["task"].rsplit(".", 1)[-1]
+        scheduler.add_job(
+            f"app.worker:{tarea}", trigger, id=f"beat_{clave}",
+            args=list(entrada.get("args") or []), kwargs=dict(entrada.get("kwargs") or {}),
+            replace_existing=True, misfire_grace_time=300, coalesce=True, max_instances=1,
+        )
+        n += 1
+    return n
+
+
 def _arrancar_planificador(_enable_apscheduler, _celery_beat_enabled):
     """Levanta APScheduler si `ENABLE_APSCHEDULER=1`. Devuelve el planificador o None.
 
@@ -359,28 +405,11 @@ def _arrancar_planificador(_enable_apscheduler, _celery_beat_enabled):
                 misfire_grace_time=300,
                 coalesce=True,
             )
-            # Analitica y ML: hasta 2026-11 solo los programaba Celery beat, y con
-            # APScheduler (el modo por defecto de setup.sh) el cubo OLAP, los
-            # modelos y la prediccion de tickets no se refrescaban nunca.
-            # Misma cadencia que `beat_schedule` en app/worker.py.
-            for _tarea, _cuando, _gracia in (
-                ("olap_nightly_etl", dict(hour=1, minute=0), 3600),
-                ("ml_model_retrain", dict(day=1, hour=3, minute=0), 3600),
-                ("predictive_scan", dict(minute="*/30"), 600),
-                ("predictive_model_eval_retrain", dict(hour="*/6", minute=10), 1800),
-                ("bi_kpi_push", dict(minute="*/5"), 120),
-                ("bi_ml_retrain", dict(day_of_week="sun", hour=3, minute=30), 3600),
-                ("purgar_empresas_caducadas", dict(hour=2, minute=40), 3600),
-            ):
-                _scheduler.add_job(
-                    f"app.worker:{_tarea}",
-                    CronTrigger(**_cuando),
-                    id=f"ml_{_tarea}",
-                    replace_existing=True,
-                    misfire_grace_time=_gracia,
-                    coalesce=True,
-                    max_instances=1,
-                )
+            # Todo lo demas del calendario de Celery beat, replicado (revision
+            # 2026-11): en el modo por defecto (APScheduler) 47 trabajos solo
+            # existian en beat y no corrian nunca: vencimientos de aprobaciones,
+            # escaneo de SLA, eventos de tickets, buzones, ingresos, ETL, ML…
+            _replicar_celery_beat(_scheduler)
             try:
                 from app.core.metrics import attach_apscheduler_metrics
                 attach_apscheduler_metrics(_scheduler)

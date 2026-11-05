@@ -577,8 +577,9 @@ def _aprobacion_antes_de_enviar(inv, current_user: User, db: Session) -> None:
     aprobarse en la bandeja pasa a enviada.
     """
     from app.services.approval_engine import fuentes
-    from app.services.approval_engine._base import find_default_workflow
-    if not find_default_workflow("invoice", db):
+    from app.services.approval_engine._base import elegir_flujo
+    if not elegir_flujo(db, "invoice", {"amount": float(inv.total or 0),
+                                        "department": getattr(current_user, "department", None)}):
         return
     estado = fuentes.estado(db, "invoice", inv.id)
     if estado == "approved":

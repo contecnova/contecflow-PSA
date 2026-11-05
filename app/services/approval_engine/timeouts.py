@@ -55,6 +55,7 @@ def _siguiente_o_cerrar(req, step, now: datetime, nota: str, db: Session) -> str
     if siguientes:
         req.current_step = siguientes[0].step_order
         req.step_started_at = now
+        req.last_reminder_at = None
         notify_approver(req, siguientes[0], db)
         return "auto_approved"
     _cerrar(req, "approved", nota, now, _actor(req, step, db), db)
@@ -76,11 +77,13 @@ def _handle_timeout_escalate(req, step, now: datetime, info: dict, db: Session) 
             request_id=req.id,
             step_order=step.step_order,
             approver_id=step.escalate_to_user_id,
+            delegate_to=step.escalate_to_user_id,
             decision="delegated",
             note="Escalado automáticamente por timeout",
             decided_at=now,
         ))
         req.step_started_at = now
+        req.last_reminder_at = None
         notify_approver(req, step, db, explicit_user_id=step.escalate_to_user_id)
         info["escalated_to"] = step.escalate_to_user_id
         return "escalated"
@@ -136,6 +139,21 @@ def _step_is_expired(step, req, now: datetime) -> bool:
     timeout_at = inicio + timedelta(hours=step.timeout_hours)
     return now >= timeout_at
 
+def _toca_recordatorio(step, req, now: datetime) -> bool:
+    """`reminder_hours` del paso: se guardaba y nada lo leia (revision 2026-11).
+
+    Se recuerda cada `reminder_hours` desde que empezo el paso (o desde el
+    ultimo recordatorio), mientras siga pendiente.
+    """
+    horas = getattr(step, "reminder_hours", None) if step else None
+    desde = req.last_reminder_at or req.step_started_at or req.created_at
+    if not horas or desde is None:
+        return False
+    if desde.tzinfo is None:
+        desde = desde.replace(tzinfo=timezone.utc)
+    return now - desde >= timedelta(hours=horas)
+
+
 def process_approval_timeouts(db: Session) -> dict:
     """
     Procesa todas las solicitudes de aprobación pendientes y aplica la acción configurada
@@ -158,6 +176,14 @@ def process_approval_timeouts(db: Session) -> dict:
             .first()
         )
         if not _step_is_expired(step, req, now):
+            if _toca_recordatorio(step, req, now):
+                from app.services.approval_engine._base import notify_approver
+                from app.services.service_desk.ticket_events import como_organizacion
+                with como_organizacion(db, req.organization_id):
+                    notify_approver(req, step, db)
+                    req.last_reminder_at = now
+                    db.commit()
+                counters["reminded"] = counters.get("reminded", 0) + 1
             continue
 
         action = (step.on_timeout or "escalate").lower()

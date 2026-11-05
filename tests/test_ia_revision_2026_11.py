@@ -160,7 +160,7 @@ def test_EL_HALLAZGO_el_valor_ganado_se_pondera_por_el_avance(db):
 
 # ── Planificador ──────────────────────────────────────────────────────────────
 
-def test_EL_HALLAZGO_APScheduler_programa_la_analitica_y_el_ML(monkeypatch):
+def test_EL_HALLAZGO_APScheduler_programa_todo_lo_de_celery_beat(monkeypatch):
     from apscheduler.schedulers.background import BackgroundScheduler
     import app.main as m
     vistos = []
@@ -173,9 +173,14 @@ def test_EL_HALLAZGO_APScheduler_programa_la_analitica_y_el_ML(monkeypatch):
             vistos.extend(j.id for j in self.get_jobs())
     monkeypatch.setattr("apscheduler.schedulers.background.BackgroundScheduler", _Planificador)
     m._arrancar_planificador(True, False)
-    for tarea in ("olap_nightly_etl", "ml_model_retrain", "predictive_scan",
-                  "predictive_model_eval_retrain", "bi_kpi_push", "bi_ml_retrain"):
-        assert f"ml_{tarea}" in vistos
+    # Revision 2026-11: APScheduler replica TODO el calendario de beat.
+    from app.worker import celery_app
+    replicadas = {k for k in celery_app.conf.beat_schedule} - m._BEAT_YA_EN_APSCHEDULER
+    assert len(replicadas) > 40, "el guardian no esta mirando"
+    faltan = {k for k in replicadas if f"beat_{k}" not in vistos}
+    assert not faltan, f"entradas de beat que APScheduler no programa: {sorted(faltan)}"
+    for clave in m._BEAT_YA_EN_APSCHEDULER:
+        assert clave in celery_app.conf.beat_schedule, f"{clave} ya no existe en beat: quitala de la lista"
 
 
 # ── Oracle ────────────────────────────────────────────────────────────────────

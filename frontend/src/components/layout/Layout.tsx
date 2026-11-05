@@ -277,7 +277,7 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/absences',        icon: <Umbrella size={SZ} />,     label: 'Absences',        roles: ['admin','pm','hr','team_lead','employee'] },
     { to: '/documents',       icon: <FileText size={SZ} />,     label: 'Documents',       roles: ['admin','pm','hr','team_lead','employee'] },
     { to: '/expenses',        icon: <Receipt size={SZ} />,      label: 'Expenses',        roles: ['admin','pm','hr','employee'] },
-    { to: '/approvals',       icon: <CheckCircle size={SZ} />,  label: 'Approval Inbox',       roles: ['admin','pm','team_lead'] },
+    { to: '/approvals',       icon: <CheckCircle size={SZ} />,  label: 'Approval Inbox',       roles: ['admin','pm','team_lead','hr','employee'] },
   ]},
   { id: 'proyectos', label: 'Projects', groupKey: 'group_projects', icon: <Folder size={12} />, roles: ['admin','pm','team_lead'], items: [
     { to: '/projects-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Salud del portfolio', roles: ['admin','pm','team_lead'] },

@@ -459,7 +459,7 @@ Rules enforced in `imputation_service.py`:
 - **The currency list is hard-coded** in the UI.
 
 ### Approval Inbox — `/approvals`
-*Roles:* Menu: admin, pm, team_lead. Route: admin, pm, team_lead. The same component is embedded in `/inbox` for every role. Workflow design lives at `/settings/approval-workflows` (config mode, documented in the Settings section).
+*Roles:* Menu and route: admin, pm, team_lead, hr, employee (since 2026-11-05: any internal user can be an approver; it used to block hr and employees named as approvers). The same component is embedded in `/inbox` for every role. Workflow design lives at `/settings/approval-workflows` (config mode, documented in the Settings section).
 
 **Purpose.** Shows the approval-engine requests where the current user is the approver for the current step.
 
@@ -478,6 +478,11 @@ Rules enforced in `imputation_service.py`:
 - `GET /api/v1/approvals/requests/pending-my-action`, `POST /api/v1/approvals/requests/{id}/decide`.
 - Tables: `approval_workflows`, `approval_steps`, `approval_requests`, `approval_decisions`, `approval_groups`.
 - Job `process-approval-timeouts` runs hourly; the step's `on_timeout` is escalate, auto_approve or reject.
+- **Fixed 2026-11-05** (`tests/test_aprobaciones_nucleo_2026_11.py`):
+  - **Which workflow:** a request goes to the most specific active workflow whose conditions match (`trigger_conditions`: `amount_gt/gte/lt/lte`, `department`, `category`; the requester's department is added automatically), otherwise to the default one (`approval_engine._base.elegir_flujo`). Before, only the simulation used the conditions and every request took the default workflow. Invoices, expenses, timesheets, leave and change requests use the same chooser.
+  - **Delegation works:** the delegate is stored in the decision row (`approval_decisions.delegate_to`, migration 129) and can decide; before, they were notified and got 403.
+  - **Everyone who can decide is notified,** in the app and by email with a link to the inbox: the user, every active user of the role, the group members, the department, or the requester's manager. Before: only a named user or the *first* user of the role, in the app only; group, department and manager steps notified nobody.
+  - **Reminders:** `reminder_hours` of a step re-notifies the approvers every N hours while it is pending (it was stored and never read).
 
 **Limitations.**
 - **Only three sources create requests.** Requests are opened automatically only for:
@@ -4669,7 +4674,7 @@ This section is for developers and operators who install, run, configure, extend
    │ /api/v1 (2,043 routes) · /api/v2 (3) · /health · /ready · /status · /metrics│
    │ endpoints (app/api) ──► services (app/services) ──► ORM models (app/models) │
    │ TenantSession + do_orm_execute tenant filter + before_flush org stamping    │
-   │ APScheduler in-process (4 jobs) when ENABLE_APSCHEDULER=1 (default)         │
+   │ APScheduler in-process when ENABLE_APSCHEDULER=1 (default): mirrors beat     │
    └───────┬──────────────┬───────────────────┬──────────────────┬───────────────┘
            ▼              ▼                   ▼                  ▼
    PostgreSQL 16     Redis 7              S3-compatible       external APIs
@@ -4807,6 +4812,8 @@ What `setup_backend` does, step by step:
 7. `sync_demo_passwords`: **only if** `ENVIRONMENT ∈ {development, dev, local, test, testing, demo}`, it rehashes `admin`, `ana.torres`, `luis.vega`, `rrhh` with `DEFAULT_USER_PASSWORD`, guarded by a hash sentinel in `venv/.pwd_hash`.
 
 `start_services`: SQLite `PRAGMA quick_check` (and WAL/SHM cleanup), installs the frontend if `node_modules` is missing, runs `sync_demo_passwords` again, kills ports 8000/3000, starts `uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1`, waits up to 60 s for `/health`, validates JSX with Babel when sources changed (`frontend/validate.cjs`), starts `npm run dev -- --port 3000`, prints the demo users **with the password in clear text**, and opens the browser.
+
+**APScheduler mirrors the whole Celery beat schedule** (since 2026-11-05, `app.main._replicar_celery_beat`): with `ENABLE_APSCHEDULER=1` (the code default) only 11 of the 58 scheduled jobs used to run (approval timeouts, the SLA scan, ticket events, mailboxes, revenue recognition, connectors, ML… did not). Now every beat entry is registered in APScheduler with the same cadence and arguments and runs in-process; the entries APScheduler already schedules with its own function are listed in `_BEAT_YA_EN_APSCHEDULER`. A test fails if a beat entry is not mirrored.
 
 **Both `setup.sh` and `setup.bat` start a Celery worker and Celery beat** next to the API (since 2026-11-03; before, none was started and only the 4 APScheduler jobs ran locally). The API is launched with `ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1`. `setup.sh stop` and Ctrl+C stop the worker and beat too. On Windows the worker uses `--pool=solo` (**not verified on Windows**).
 

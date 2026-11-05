@@ -587,7 +587,8 @@ function AppRoutes() {
       <Route path="/resource-scheduler" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ResourceSchedulerPage /></Layout></ProtectedRoute>} />
       <Route path="/rate-cards"        element={<ProtectedRoute roles={['admin','pm']}><Layout><RateCardsPage /></Layout></ProtectedRoute>} />
       <Route path="/milestone-billing" element={<ProtectedRoute roles={['admin','pm']}><Layout><MilestoneBillingPage /></Layout></ProtectedRoute>} />
-      <Route path="/approvals" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ApprovalsPage mode="inbox" /></Layout></ProtectedRoute>} />
+      {/* Revisión 2026-11: cualquier usuario interno puede ser aprobador (rol, grupo, departamento, responsable, delegado). */}
+      <Route path="/approvals" element={<ProtectedRoute roles={['admin','pm','team_lead','hr','employee']}><Layout><ApprovalsPage mode="inbox" /></Layout></ProtectedRoute>} />
       <Route path="/settings/approval-workflows" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ApprovalsPage mode="config" /></Layout></ProtectedRoute>} />
       <Route path="/documents" element={<ProtectedRoute><Layout><DocumentsPage /></Layout></ProtectedRoute>} />
       <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />

@@ -99,35 +99,61 @@ def notify_approver(
     db: Session,
     explicit_user_id: Optional[str] = None,
 ) -> None:
-    """Create an in-app notification for the current step's approver."""
+    """Avisa a TODOS los que pueden decidir el paso: en la aplicacion y por correo.
+
+    Revision 2026-11: antes solo en la aplicacion, y solo a un usuario concreto
+    o al *primero* del rol; con aprobador grupo, departamento o responsable no
+    se avisaba a nadie.
+    """
     try:
         from app.models.enterprise import Notification, NotificationType
-        approver_id = explicit_user_id
-        if not approver_id:
-            if step.approver_type == "user" and step.approver_user_id:
-                approver_id = step.approver_user_id
-            elif step.approver_type == "role" and step.approver_role:
-                approver = db.query(User).filter(
-                    User.role == step.approver_role, User.is_active == True
-                ).first()
-                if approver:
-                    approver_id = approver.id
-
-        if approver_id:
+        ids = {explicit_user_id} if explicit_user_id else aprobadores_del_paso(request, step, db)
+        titulo = f"Aprobación requerida: {request.entity_type}"
+        cuerpo = f"{request.entity_summary or request.entity_id} — Paso {step.step_order}: {step.name}"
+        for approver_id in sorted(i for i in ids if i and i != request.requested_by):
             db.add(Notification(
-                id=str(uuid.uuid4()),
-                user_id=approver_id,
-                type=NotificationType.system,
-                title=f"Aprobación requerida: {request.entity_type}",
-                body=(
-                    f"{request.entity_summary or request.entity_id} — "
-                    f"Paso {step.step_order}: {step.name}"
-                ),
-                resource="approval_request",
-                resource_id=request.id,
+                id=str(uuid.uuid4()), user_id=approver_id, type=NotificationType.system,
+                title=titulo, body=cuerpo, resource="approval_request", resource_id=request.id,
             ))
+            _correo_de_aprobacion(db, approver_id, titulo, cuerpo, request)
     except Exception:
         logger.warning("Failed to create approval notification", exc_info=True)
+
+
+def aprobadores_del_paso(request, step, db: Session) -> set:
+    """Ids de los usuarios activos que pueden decidir el paso."""
+    if step is None:
+        return set()
+    q = db.query(User.id).filter(User.is_active == True)  # noqa: E712
+    tipo = step.approver_type or ""
+    ids: set = set()
+    if tipo == "user" and step.approver_user_id:
+        ids.add(step.approver_user_id)
+    elif tipo == "role" and step.approver_role:
+        ids |= {u for (u,) in q.filter(User.role == step.approver_role).all()}
+    elif tipo == "any_in_department" and step.approver_department:
+        ids |= {u for (u,) in q.filter(User.department == step.approver_department).all()}
+    elif tipo == "manager":
+        fila = db.query(User.manager_id).filter(User.id == request.requested_by).first()
+        if fila and fila[0]:
+            ids.add(fila[0])
+    if step.approver_group_id:
+        grupo = db.query(ApprovalGroup).filter(ApprovalGroup.id == step.approver_group_id).first()
+        try:
+            ids |= set(json.loads(grupo.member_ids or "[]")) if grupo else set()
+        except ValueError:
+            pass
+    return ids
+
+
+def _correo_de_aprobacion(db: Session, user_id: str, titulo: str, cuerpo: str, request) -> None:
+    from app.core.config import settings as _cfg
+    from app.services.notification_service import send_email_notification
+    fila = db.query(User.email).filter(User.id == user_id).first()
+    if not fila or not fila[0]:
+        return
+    enlace = f"{_cfg.FRONTEND_URL.rstrip('/')}/approvals?request={request.id}"
+    send_email_notification(fila[0], titulo, f"{cuerpo}\n\nRevisar y decidir: {enlace}")
 
 def find_default_workflow(entity_type: str, db: Session, category: Optional[str] = None):
     """Find the best-matching workflow for an entity type.
@@ -155,6 +181,27 @@ def find_default_workflow(entity_type: str, db: Session, category: Optional[str]
         ApprovalWorkflow.is_default == True,
         ApprovalWorkflow.is_active == True,
     ).first()
+
+def elegir_flujo(db: Session, entity_type: str, context: Optional[dict] = None):
+    """El flujo que aplica a una solicitud: el mas especifico cuyas condiciones encajan.
+
+    Revision 2026-11: las condiciones del flujo (`trigger_conditions`, p. ej.
+    `{"amount_gt": 1000}`) solo las usaba la simulacion; crear una solicitud
+    cogia siempre el flujo por defecto, asi que «facturas de mas de 10.000 €
+    van a direccion» no se cumplia. Sin ninguna que encaje, el por defecto.
+    """
+    context = context or {}
+    especificos = []
+    for wf in db.query(ApprovalWorkflow).filter(ApprovalWorkflow.entity_type == entity_type,
+                                                ApprovalWorkflow.is_active == True).all():  # noqa: E712
+        cond = _parse_trigger_conditions(wf.trigger_conditions)
+        if cond and _matches_conditions(cond, context):
+            especificos.append((len(cond), bool(wf.is_default), wf))
+    if especificos:
+        especificos.sort(key=lambda x: (-x[0], not x[1]))
+        return especificos[0][2]
+    return find_default_workflow(entity_type, db, category=context.get("category"))
+
 
 def _esta_en_el_grupo(step, current_user: User, db: Session) -> bool:
     """Si el usuario pertenece al grupo aprobador del paso.
@@ -196,7 +243,7 @@ def _es_su_responsable(current_user: User, requested_by: str, db: Session) -> bo
     return bool(solicitante and solicitante.manager_id == current_user.id)
 
 
-def _is_authorized(step, current_user: User, requested_by: str, db: Session) -> bool:
+def _is_authorized(step, current_user: User, requested_by: str, db: Session, req=None) -> bool:
     """Si este usuario puede resolver este paso de aprobación.
 
     La pertenencia al grupo se mira **siempre** que el paso tenga grupo, aunque
@@ -208,6 +255,12 @@ def _is_authorized(step, current_user: User, requested_by: str, db: Session) -> 
     # Auditoria 2026-11: la persona de escalado del paso tambien puede
     # resolverlo (antes se le avisaba y la bandeja le negaba la decision).
     if step.escalate_to_user_id and step.escalate_to_user_id == current_user.id:
+        return True
+    # Revision 2026-11: a quien se delega el paso puede decidirlo (antes se le
+    # avisaba y la bandeja le devolvia 403).
+    if req is not None and any(
+            d.decision == "delegated" and d.step_order == req.current_step
+            and getattr(d, "delegate_to", None) == current_user.id for d in (req.decisions or [])):
         return True
     if step.approver_type == "group":
         # Ya se ha comprobado arriba; si no estaba en el grupo, no hay más vías.

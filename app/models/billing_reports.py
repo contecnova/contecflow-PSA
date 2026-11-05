@@ -413,6 +413,8 @@ class ApprovalRequest(Base):
     status       = Column(String(30), default="pending")  # pending | approved | rejected | cancelled
     # Timeout tracking: set when a step becomes active, reset on step advance
     step_started_at = Column(DateTime(timezone=True), nullable=True)
+    # Ultimo recordatorio enviado del paso actual (`ApprovalStep.reminder_hours`).
+    last_reminder_at = Column(DateTime(timezone=True), nullable=True)
     # Resultado final
     final_decision = Column(String(20), nullable=True)
     final_note     = Column(Text, nullable=True)
@@ -436,6 +438,8 @@ class ApprovalDecision(Base):
     step_order   = Column(Integer, nullable=False)
     approver_id  = Column(String(36), ForeignKey("users.id"), nullable=False)
     decision     = Column(String(20), nullable=False)   # approved | rejected | delegated
+    # En una delegacion: a quien se pasa el paso (ese usuario puede decidirlo).
+    delegate_to  = Column(String(36), ForeignKey("users.id"), nullable=True)
     note           = Column(Text, nullable=True)
     attachment_url = Column(Text, nullable=True)
     decided_at     = Column(DateTime(timezone=True), server_default=func.now())
