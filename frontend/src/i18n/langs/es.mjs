@@ -1,5 +1,16 @@
 // Español
 const es = {
+  portalkb: {
+    volver: "Volver",
+    no_disponible: "Este artículo ya no está disponible.",
+    util_pregunta: "¿Te ha sido útil?",
+    si: "Sí",
+    no: "No",
+    gracias_si: "Gracias: nos ayuda a saber qué artículos funcionan.",
+    gracias_no: "Gracias. Si no se ha resuelto, abre un ticket y te ayudamos.",
+    migas_wiki: "Base de conocimiento",
+    migas_soporte: "Base de conocimiento",
+  },
   marca: {
     intro: "Nombre y colores de tu empresa en los documentos que genera la aplicación (facturas e informes en PDF). El logotipo no se usa en los PDF.",
     nombre: "Nombre",
@@ -5224,6 +5235,9 @@ const es = {
     valido: 'Válido',
   },
   itsmknowledge: {
+    leer: "Leer",
+    publico: "Visible para clientes",
+    interno: "Sólo interno",
     origen_assistant_feedback: "👎 en el asistente",
     origen_portal_feedback: "👎 en el portal",
     // Revisión 2026-11: calidad de la base de conocimiento

@@ -2295,6 +2295,8 @@ Not reviewed screen by screen (**Not verified** beyond the endpoints and jobs).
 
 ### Knowledge base
 
+**Reading an article (fixed 2026-11-05).** The client portal listed knowledge-base articles in two places (Knowledge Base → Base de conocimiento, and Self-Service → Base de conocimiento) and they could not be opened. Now a click opens the article (`GET /sd/kb/{id}`, which counts the view), with its body rendered (headings, lists, bold), tags and «¿Te ha sido útil? Sí / No» (`POST /sd/kb/{id}/helpful`). Staff could only open an article by editing it; each card in Service Desk → Base de conocimiento now has **Leer** (read-only, with counters and whether clients can see it). Checked in the browser on a copy, as client and as admin.
+
 *Roles:* internal users write. Portal clients and internal users read.
 
 **Statuses** (`KBStatus`): `draft`, `in_review`, `published`, `archived`. Migration 105 added `in_review`, `deflection_count`, `embedding` and `review_comment`.

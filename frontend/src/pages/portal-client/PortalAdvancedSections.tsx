@@ -21,6 +21,7 @@ import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconCR } from '../../components/ui/FRCRIcons'
 import { ClientGovernedConversationInbox } from '../../components/portal/GovernedConversations'
 import { CLIENT_API, useLang, useClientAuth } from './portalClientContext'
+import PortalKbArticulo from './PortalKbArticulo'
 import {
   PortalPageHeader, PortalCard, PortalSection, PortalEmpty,
   PortalBadge, PortalButton, PortalModal, PortalField, PortalInput,
@@ -1038,6 +1039,8 @@ export function PortalWiki() {
   const [selected, setSelected] = useState<string | null>(null)
   const [tab, setTab] = useState('docs')
   const [searchKB, setSearchKB] = useState('')
+  // Revisión 2026-11: el artículo se listaba y no se podía abrir.
+  const [articuloAbierto, setArticuloAbierto] = useState<string | null>(null)
 
   const { data: pages = [], isLoading } = useQuery<PortalRow[]>({
     queryKey: ['portal-wiki-pages'],
@@ -1061,6 +1064,9 @@ export function PortalWiki() {
   // Antes del return del detalle: un hook no puede quedar detrás de un return.
   const teclas = useTabListKeys(tabs.map(x => x.id), tab, id => { setTab(id); setSelected(null) })
 
+  if (articuloAbierto) {
+    return <PortalKbArticulo id={articuloAbierto} onVolver={() => setArticuloAbierto(null)} migas={traducir('portalkb.migas_wiki')} />
+  }
   if (selected && pageDetail) {
     return (
       <div>
@@ -1161,7 +1167,7 @@ export function PortalWiki() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {kbArticles.map((a: PortalRow) => (
-                <PortalCard key={a.id}>
+                <PortalCard key={a.id} onClick={() => setArticuloAbierto(a.id as string)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{a.title}</div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>👁 {a.view_count} · ✓ {a.helpful_count}</div>

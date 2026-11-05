@@ -1488,6 +1488,7 @@ export const sdRoutingApi = {
 
 export const sdKbApi = {
   list:        (params?: any)   => api.get('/sd/kb', { params }),
+  get:         (id: any)        => api.get(`/sd/kb/${id}`),
   create:      (data: unknown)     => api.post('/sd/kb', data),
   update:      (id: any, data: unknown) => api.patch(`/sd/kb/${id}`, data),
   delete:      (id: any)       => api.delete(`/sd/kb/${id}`),

@@ -10,6 +10,11 @@ describe('MarkdownText', () => {
     expect(container.textContent).toContain('•  ERP Acme: alto')
     expect(container.textContent).toContain('•  otro')
   })
+  it('los títulos se pintan como encabezado, sin las almohadillas', () => {
+    const { container, getByRole } = render(<MarkdownText text={'## Solución\n1. Paso uno'} />)
+    expect(getByRole('heading', { name: 'Solución' })).toBeTruthy()
+    expect(container.textContent).not.toContain('#')
+  })
   it('un asterisco suelto no abre cursiva', () => {
     const { container } = render(<MarkdownText text={'2 * 3 = 6 y *esto* sí'} />)
     expect(container.querySelectorAll('em')).toHaveLength(1)

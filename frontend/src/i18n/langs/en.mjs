@@ -1,4 +1,15 @@
 const en = {
+  portalkb: {
+    volver: "Back",
+    no_disponible: "This article is no longer available.",
+    util_pregunta: "Was this helpful?",
+    si: "Yes",
+    no: "No",
+    gracias_si: "Thanks: it helps us know which articles work.",
+    gracias_no: "Thanks. If it is not solved, open a ticket and we will help.",
+    migas_wiki: "Knowledge base",
+    migas_soporte: "Knowledge base",
+  },
   marca: {
     intro: "Your company's name and colours on the documents the application generates (PDF invoices and reports). The logo is not used in PDFs.",
     nombre: "Name",
@@ -5916,6 +5927,9 @@ const en = {
     valido: 'Valid',
   },
   itsmknowledge: {
+    leer: "Read",
+    publico: "Visible to clients",
+    interno: "Internal only",
     origen_assistant_feedback: "👎 in the assistant",
     origen_portal_feedback: "👎 in the portal",
     // Revisión 2026-11: calidad de la base de conocimiento

@@ -1,5 +1,16 @@
 // 中文 (自动翻译)
 const zh = {
+  portalkb: {
+    volver: "返回",
+    no_disponible: "此文章已不可用。",
+    util_pregunta: "这对你有帮助吗？",
+    si: "是",
+    no: "否",
+    gracias_si: "谢谢：这能帮助我们了解哪些文章有用。",
+    gracias_no: "谢谢。如果问题未解决，请提交工单，我们会帮助你。",
+    migas_wiki: "知识库",
+    migas_soporte: "知识库",
+  },
   marca: {
     intro: "应用生成的文档（PDF 发票和报告）中使用的公司名称和颜色。PDF 中不使用徽标。",
     nombre: "名称",
@@ -5927,6 +5938,9 @@ const zh = {
     valido: '有效',
   },
   itsmknowledge: {
+    leer: "阅读",
+    publico: "客户可见",
+    interno: "仅内部",
     origen_assistant_feedback: "助手中的 👎",
     origen_portal_feedback: "门户中的 👎",
     // Revisión 2026-11: calidad de la base de conocimiento

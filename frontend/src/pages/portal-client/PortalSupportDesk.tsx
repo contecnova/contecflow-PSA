@@ -14,6 +14,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { CLIENT_API, useLang } from './portalClientContext'
+import PortalKbArticulo from './PortalKbArticulo'
 import {
   PortalPageHeader as PortalPageHeaderBase, PortalCard as PortalCardBase,
   PortalEmpty as PortalEmptyBase, PortalBadge as PortalBadgeBase,
@@ -140,6 +141,8 @@ export function PortalSupportDesk() {
     () => new URLSearchParams(window.location.search).get('ticket'))
   const [showCreate, setShowCreate] = useState(false)
   const [searchKB, setSearchKB] = useState('')
+  // Revisión 2026-11: el artículo se listaba y no se podía abrir.
+  const [articuloAbierto, setArticuloAbierto] = useState<string | null>(null)
   const [tab, setTab] = useState('tickets')
   const [newComment, setNewComment] = useState('')
   const [createForm, setCreateForm] = useState({
@@ -547,7 +550,10 @@ export function PortalSupportDesk() {
       )}
 
       {/* KB */}
-      {tab === 'kb' && (
+      {tab === 'kb' && articuloAbierto && (
+        <PortalKbArticulo id={articuloAbierto} onVolver={() => setArticuloAbierto(null)} migas={traducir('portalkb.migas_soporte')} />
+      )}
+      {tab === 'kb' && !articuloAbierto && (
         <>
           <div style={{ marginBottom: 16, position: 'relative' }}>
             <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} />
@@ -559,7 +565,7 @@ export function PortalSupportDesk() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {kbArticles.map(a => (
-                <PortalCard key={a.id}>
+                <PortalCard key={a.id} onClick={() => setArticuloAbierto(a.id as string)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{a.title}</div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>👁 {a.view_count} · ✓ {a.helpful_count}</div>

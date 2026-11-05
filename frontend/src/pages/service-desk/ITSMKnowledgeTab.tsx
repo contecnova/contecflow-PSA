@@ -12,6 +12,7 @@ import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { sdKbApi, problemsApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
+import MarkdownText from '../../components/ui/MarkdownText'
 import { COLOR, alpha } from '../../constants/theme'
 import { etiquetaSd, SBadge } from './sdUtils'
 
@@ -447,6 +448,8 @@ function KB() {
   const [showNew, setShowNew] = useState(false)
   const [editing, setEditing] = useState<KbArticle | null>(null)
   const ts = useAppTSimple()
+  // Revisión 2026-11: un artículo sólo se podía abrir editándolo.
+  const [leyendo, setLeyendo] = useState<string | number | null>(null)
   const [devolviendo, setDevolviendo] = useState<KbArticle | null>(null)
   const [nota, setNota] = useState('')
   const [vista, setVista] = useState<'articulos' | 'calidad'>('articulos')
@@ -510,6 +513,7 @@ function KB() {
               {a.tags && <span>🏷 {a.tags.split(',').slice(0, 2).join(', ')}</span>}
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => setLeyendo(a.id)} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-1)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>📖 {ts('itsmknowledge.leer')}</button>
               <button onClick={() => { setEditing(a); setShowNew(true) }} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
               {a.status === 'in_review' ? <>
                 <button onClick={() => revisar({ id: a.id, publish: true })} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: COLOR.success, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>▶ {ts('sd_cfg.kb_publish')}</button>
@@ -535,6 +539,7 @@ function KB() {
           </div>
         </Modal>
       )}
+      {leyendo !== null && <LecturaDeArticulo id={leyendo} onClose={() => setLeyendo(null)} />}
       {showNew && <KBArticleModal article={editing} onClose={() => { setShowNew(false); setEditing(null) }} onSaved={() => { qc.invalidateQueries({ queryKey: ['sd-kb'] }); setShowNew(false); setEditing(null) }} />}
     </div>
   )
@@ -744,4 +749,25 @@ export default function ITSMKnowledgeTab({ mode }: { mode: 'problems' | 'kedb' |
   if (mode === 'problems') return <Problems />
   if (mode === 'kedb') return <KnownErrors />
   return <KB />
+}
+
+
+/** Lectura de un artículo sin entrar en el formulario (revisión 2026-11). */
+export function LecturaDeArticulo({ id, onClose }: { id: string | number; onClose: () => void }) {
+  const ts = useAppTSimple()
+  const { data } = useQuery<KbArticle>({ queryKey: ['sd-kb-articulo', id], queryFn: () => sdKbApi.get(id).then(r => r.data as KbArticle) })
+  return (
+    <Modal open onClose={onClose} title={data?.title || '…'} size="lg">
+      {data ? (
+        <div>
+          <MarkdownText text={data.body || data.summary || ''} style={{ fontSize: 'var(--text-base)', lineHeight: 1.65, color: 'var(--text-1)' }} />
+          <div style={{ display: 'flex', gap: 14, marginTop: 16, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+            <span>👍 {data.helpful_count || 0}</span><span>👁 {data.view_count || 0}</span>
+            {data.tags && <span>🏷 {data.tags}</span>}
+            <span>{data.is_public ? ts('itsmknowledge.publico') : ts('itsmknowledge.interno')}</span>
+          </div>
+        </div>
+      ) : <Spinner />}
+    </Modal>
+  )
 }
