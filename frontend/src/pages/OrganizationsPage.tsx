@@ -32,6 +32,8 @@ const organizationCreateSchema = z.object({
   max_users: z.coerce.number().int().positive('Debe ser mayor que 0').max(100000, 'Valor demasiado alto'),
   max_projects: z.coerce.number().int().positive('Debe ser mayor que 0').max(100000, 'Valor demasiado alto'),
   admin_email: z.string().trim().email('Email inválido').or(z.literal('')).optional(),
+  admin_name: z.string().trim().max(120).optional(),
+  domain: z.string().trim().toLowerCase().regex(/^([a-z0-9-]+\.)+[a-z]{2,}$/, 'Dominio inválido').or(z.literal('')).optional(),
   timezone: z.string().optional(),
 })
 
@@ -44,6 +46,7 @@ const organizationUpdateSchema = z.object({
   timezone: z.string().optional(),
   locale: z.string().optional(),
   primary_color: z.string().optional(),
+  domain: z.string().trim().toLowerCase().regex(/^([a-z0-9-]+\.)+[a-z]{2,}$/, 'Dominio inválido').or(z.literal('')).optional(),
 })
 
 
@@ -68,6 +71,10 @@ interface OrganizacionEnLista {
   created_at?: string
   user_count?: number
   project_count?: number
+  max_users?: number
+  max_projects?: number
+  domain?: string | null
+  suspension_reason?: string | null
 }
 
 /** Un usuario asignado a una organizacion. */
@@ -99,6 +106,7 @@ interface FormularioDeEdicion {
   timezone: string
   locale: string
   primary_color: string
+  domain: string
 }
 
 type OrgCreateForm = z.infer<typeof organizationCreateSchema>
@@ -139,7 +147,11 @@ export default function OrganizationsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [selected, setSelected] = useState<string | number | null>(null)
-  const [form, setForm] = useState({ name:'', slug:'', plan:'starter', max_users:25, max_projects:100, admin_email:'', timezone: defaultTimezone })
+  const [form, setForm] = useState({ name:'', slug:'', plan:'starter', max_users:25, max_projects:100, admin_email:'', admin_name:'', domain:'', timezone: defaultTimezone })
+  // Revisión multitenant 2026-11: la contraseña inicial del primer admin se enseña una vez.
+  const [altaHecha, setAltaHecha] = useState<{ email: string; password: string } | null>(null)
+  const [suspendiendo, setSuspendiendo] = useState<OrganizacionEnLista | null>(null)
+  const [motivo, setMotivo] = useState('')
   const [editForm, setEditForm] = useState<FormularioDeEdicion | null>(null)
   const createValidation = useFormValidation(organizationCreateSchema)
   const editValidation = useFormValidation(organizationUpdateSchema)
@@ -165,7 +177,10 @@ export default function OrganizationsPage() {
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: (d: OrgCreateForm) => organizationsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orgs'] }); setShowCreate(false); createValidation.setErrors({}) },
+    onSuccess: (r: { data?: { admin_email?: string | null; initial_password?: string | null } }) => {
+      qc.invalidateQueries({ queryKey: ['orgs'] }); setShowCreate(false); createValidation.setErrors({})
+      if (r?.data?.initial_password && r.data.admin_email) setAltaHecha({ email: r.data.admin_email, password: r.data.initial_password })
+    },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -182,8 +197,9 @@ export default function OrganizationsPage() {
     update({ id: selected, data: result.data as OrgUpdateForm })
   }
   const { mutate: toggle } = useMutation({
-    mutationFn: ({ id, is_active }: { id: string | number; is_active: boolean }) => organizationsApi.update(id, { is_active }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['orgs'] }),
+    mutationFn: ({ id, is_active, suspension_reason }: { id: string | number; is_active: boolean; suspension_reason?: string }) =>
+      organizationsApi.update(id, { is_active, ...(suspension_reason ? { suspension_reason } : {}) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orgs'] }); setSuspendiendo(null); setMotivo('') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: update, isPending: isUpdating } = useMutation({
@@ -204,6 +220,7 @@ export default function OrganizationsPage() {
         timezone: detail.timezone || defaultTimezone,
         locale: detail.locale || '',
         primary_color: detail.primary_color || '',
+        domain: detail.domain || '',
       })
       setShowEdit(true)
     }
@@ -242,15 +259,26 @@ export default function OrganizationsPage() {
                       <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:4 }}>
                         <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{o.name}</span>
                         <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color: (o.plan && PLAN_COLORS[o.plan]) || 'var(--text-2)', fontWeight:500 }}>{o.plan}</span>
-                        {!o.is_active && <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--danger-bg)', color:'var(--danger)' }}>Inactiva</span>}
+                        {!o.is_active && <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--danger-bg)', color:'var(--danger)' }}>Suspendida</span>}
                       </div>
                       <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
-                        {o.slug} · {o.user_count} usuarios · {o.project_count} proyectos · {o.admin_email || '—'}
+                        {o.slug}{o.domain ? ` · ${o.domain}` : ''} · {o.admin_email || '—'}
                       </div>
+                      {/* Uso frente al límite del plan: el alta de usuarios y proyectos se para al llegar. */}
+                      <div style={{ fontSize: "var(--text-sm)", marginTop:2 }}>
+                        {([['usuarios', o.user_count, o.max_users], ['proyectos', o.project_count, o.max_projects]] as const).map(([k, usados, limite]) => (
+                          <span key={k} style={{ marginRight:12, color: limite != null && (usados ?? 0) >= limite ? 'var(--danger)' : 'var(--text-2)' }}>
+                            {usados ?? 0}/{limite ?? '∞'} {k}
+                          </span>
+                        ))}
+                      </div>
+                      {!o.is_active && o.suspension_reason && (
+                        <div style={{ fontSize: "var(--text-sm)", color:'var(--danger)', marginTop:2 }}>Motivo: {o.suspension_reason}</div>
+                      )}
                     </div>
                     <div style={{ display:'flex', gap:8 }}>
                       <span style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{o.created_at}</span>
-                      <button onClick={e => { e.stopPropagation(); toggle({ id:o.id, is_active:!o.is_active }) }}
+                      <button onClick={e => { e.stopPropagation(); if (o.is_active) { setSuspendiendo(o); setMotivo('') } else toggle({ id:o.id, is_active:true }) }}
                         style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'3px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
                         {o.is_active ? 'Suspender' : 'Activar'}
                       </button>
@@ -375,10 +403,24 @@ export default function OrganizationsPage() {
                 {createValidation.errors.max_projects && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.max_projects}</div>}
               </div>
             </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <div>
+                <label style={ls}>{t('organizations.email_del_admin')}</label>
+                <input value={form.admin_email} onChange={e=>{ setForm(f=>({...f,admin_email:e.target.value})); createValidation.clearFieldError('admin_email') }} style={createValidation.inputStyle(fs, 'admin_email')} />
+                {createValidation.errors.admin_email && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.admin_email}</div>}
+              </div>
+              <div>
+                <label style={ls}>Nombre del admin</label>
+                <input value={form.admin_name} onChange={e=>setForm(f=>({...f,admin_name:e.target.value}))} style={fs} />
+              </div>
+            </div>
+            <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', marginTop:-6 }}>
+              Con el correo se crea el primer administrador de la empresa; su contraseña inicial se enseña una sola vez.
+            </div>
             <div>
-              <label style={ls}>{t('organizations.email_del_admin')}</label>
-              <input value={form.admin_email} onChange={e=>{ setForm(f=>({...f,admin_email:e.target.value})); createValidation.clearFieldError('admin_email') }} style={createValidation.inputStyle(fs, 'admin_email')} />
-              {createValidation.errors.admin_email && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.admin_email}</div>}
+              <label style={ls}>Dominio propio (opcional)</label>
+              <input value={form.domain} placeholder="app.cliente.com" onChange={e=>{ setForm(f=>({...f,domain:e.target.value})); createValidation.clearFieldError('domain') }} style={createValidation.inputStyle(fs, 'domain')} />
+              {createValidation.errors.domain && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.domain}</div>}
             </div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
               <Button variant="secondary" onClick={()=>{ setShowCreate(false); createValidation.setErrors({}) }}>Cancelar</Button>
@@ -418,6 +460,11 @@ export default function OrganizationsPage() {
               </div>
             </div>
             <div>
+              <label style={ls}>Dominio propio (opcional)</label>
+              <input value={editForm?.domain ?? ''} placeholder="app.cliente.com" onChange={e=>{ setEditForm(f => f && ({...f,domain:e.target.value})); editValidation.clearFieldError('domain') }} style={editValidation.inputStyle(fs, 'domain')} />
+              {editValidation.errors.domain && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.domain}</div>}
+            </div>
+            <div>
               <label style={ls}>{t('organizations.email_del_admin')}</label>
               <input value={editForm?.admin_email ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,admin_email:e.target.value})); editValidation.clearFieldError('admin_email') }} style={editValidation.inputStyle(fs, 'admin_email')} />
               {editValidation.errors.admin_email && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.admin_email}</div>}
@@ -425,6 +472,37 @@ export default function OrganizationsPage() {
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
               <Button variant="secondary" onClick={()=>{ setShowEdit(false); editValidation.setErrors({}) }}>Cancelar</Button>
               <Button onClick={submitEdit} disabled={isUpdating}>{isUpdating?'Guardando...':'Guardar'}</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {suspendiendo && (
+        <Modal open title={`Suspender ${suspendiendo.name ?? ''}`} onClose={() => setSuspendiendo(null)} width={460}>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
+              Nadie de la empresa podrá entrar, y las sesiones abiertas se cortan en su siguiente petición. Se puede reactivar.
+            </div>
+            <div>
+              <label style={ls} htmlFor="motivo_suspension">Motivo</label>
+              <textarea id="motivo_suspension" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} style={{ ...fs, resize:'vertical' }} />
+            </div>
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+              <Button variant="secondary" onClick={() => setSuspendiendo(null)}>Cancelar</Button>
+              <Button variant="danger" disabled={!motivo.trim()}
+                onClick={() => toggle({ id: suspendiendo.id, is_active: false, suspension_reason: motivo.trim() })}>Suspender</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {altaHecha && (
+        <Modal open title="Empresa creada" onClose={() => setAltaHecha(null)} width={460}>
+          <div style={{ display:'flex', flexDirection:'column', gap:12, fontSize: "var(--text-sm)" }}>
+            <div>Primer administrador: <strong>{altaHecha.email}</strong></div>
+            <div>Contraseña inicial (solo se enseña ahora; pídele que la cambie al entrar):</div>
+            <code style={{ ...fs, userSelect:'all', fontFamily:'monospace' }}>{altaHecha.password}</code>
+            <div style={{ display:'flex', justifyContent:'flex-end' }}>
+              <Button onClick={() => setAltaHecha(null)}>Hecho</Button>
             </div>
           </div>
         </Modal>

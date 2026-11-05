@@ -64,6 +64,8 @@ class OrgCreate(BaseModel):
     max_users: int = 25
     max_projects: int = 100
     admin_email: Optional[str] = None
+    admin_name: Optional[str] = None
+    domain: Optional[str] = None
     timezone: str = settings.DEFAULT_TIMEZONE
     locale: str = settings.DEFAULT_LANGUAGE
     primary_color: Optional[str] = None
@@ -86,6 +88,8 @@ class OrgUpdate(BaseModel):
     primary_color: Optional[str] = None
     logo_url: Optional[str] = None
     require_mfa: Optional[bool] = None
+    domain: Optional[str] = None
+    suspension_reason: Optional[str] = None
 
 
 @router.post("/organizations", summary="Crear nueva organización (tenant)")
@@ -121,7 +125,11 @@ def update_organization(
 ):
     try:
         return APIResponse.ok(data=_orgs.update_organization(org_id, payload.model_dump(exclude_unset=True), db))
-    except ValueError:
+    except ValueError as e:
+        if str(e) == "motivo_requerido":
+            raise HTTPException(422, "Para suspender una empresa hay que indicar el motivo")
+        if str(e) != "not_found":
+            raise HTTPException(400, str(e))
         raise HTTPException(404)
 
 

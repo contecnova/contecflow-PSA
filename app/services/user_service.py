@@ -281,6 +281,13 @@ def create_user_record(payload, current_user, db: Session):
         current_user, db,
     )
 
+    # Revision multitenant 2026-11: el limite de usuarios del plan.
+    from app.services.organizations_service import exigir_cupo
+    # Sin empresa explicita, el alta queda en la de quien la hace (el sellado).
+    destino = {user_data.get("organization_id"), *(pertenencias or [])} - {None}
+    for org_id in destino or {getattr(current_user, "organization_id", None)} - {None}:
+        exigir_cupo(db, org_id, "users")
+
     user = User(**user_data)
     if payload.password:
         user.hashed_password = get_password_hash(payload.password)

@@ -4377,6 +4377,13 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 ---
 
 ### Organizations — `/organizations`
+
+**Since 2026-11-05 (multitenant review):**
+- **Creating a company creates its first administrator** when an admin email is given (optional name). The initial password is shown once in a dialog; there was no way to enter a new company before.
+- **Suspending asks for a reason**, stored in `suspension_reason` (migration 127) and shown in the list; reactivating clears it. Suspension cuts every session of that company on its next request.
+- **Plan limits are enforced**: creating a user or a project answers 409 when the company has reached `max_users` / `max_projects` (they were only checked when assigning an existing user). Users count by their own record or membership. The list shows usage against each limit, in red when reached.
+- **Own domain** (`domain`) for the `subdomain` entry mode, unique across companies.
+- Not built: permanent deletion with quarantine and data export, impersonation, platform audit view.
 *Roles:* route `admin`. **Backend `require_superadmin` on every endpoint**, so a non-superadmin `admin` sees the menu entry but gets an error from the API.
 
 **Purpose.** Tenant CRUD and user assignment. For the isolation model, see [Multi-tenant model](#multi-tenant-model-how-organizations-isolate-data).

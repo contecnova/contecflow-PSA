@@ -18,6 +18,7 @@ export default function SelectorDeEmpresa() {
     queryKey: ['entry-config'],
     queryFn: () => authApi.entryConfig().then(r => r.data),
     staleTime: Infinity,
+    retry: false,  // un backend sin la ruta (anterior a 2026-11-05): sin selector, sin reintentos
   })
   const { data } = useQuery({
     queryKey: ['my-organizations'],

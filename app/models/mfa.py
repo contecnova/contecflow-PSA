@@ -50,6 +50,8 @@ class Organization(Base):
     slug         = Column(String(100), nullable=False, unique=True, index=True)
     # Dominio propio de la empresa (modo de entrada `subdomain`): app.cliente.com
     domain       = Column(String(255), nullable=True, unique=True)
+    # Por que esta suspendida (se pide al suspender y se borra al reactivar).
+    suspension_reason = Column(Text, nullable=True)
     plan         = Column(String(20), default="starter")  # starter | pro | enterprise
     is_active    = Column(Boolean, default=True)
     max_users    = Column(Integer, default=25)

@@ -477,6 +477,9 @@ def create_project_record(db: Session, payload, current_user):
         project_data["pm_id"] = current_user.id
     if not project_data.get("organization_id") and current_user.organization_id:
         project_data["organization_id"] = current_user.organization_id
+    # Revision multitenant 2026-11: el limite de proyectos del plan.
+    from app.services.organizations_service import exigir_cupo
+    exigir_cupo(db, project_data.get("organization_id"), "projects")
 
     project = Project(**project_data, code=code, created_by=current_user.id)
     db.add(project)
