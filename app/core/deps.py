@@ -57,6 +57,9 @@ def get_current_user(
 
     user_id = payload.get("sub")
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    # «Entrar como»: corta las rutas de credenciales y deja constancia en la peticion.
+    from app.services.entrada_service import comprobar_suplantacion
+    comprobar_suplantacion(payload, request)
 
     if not user:
         raise HTTPException(

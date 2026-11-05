@@ -75,6 +75,7 @@ interface OrganizacionEnLista {
   max_projects?: number
   domain?: string | null
   suspension_reason?: string | null
+  deletion_purge_after?: string | null
 }
 
 /** Un usuario asignado a una organizacion. */
@@ -152,6 +153,8 @@ export default function OrganizationsPage() {
   const [altaHecha, setAltaHecha] = useState<{ email: string; password: string } | null>(null)
   const [suspendiendo, setSuspendiendo] = useState<OrganizacionEnLista | null>(null)
   const [motivo, setMotivo] = useState('')
+  // Baja definitiva y «entrar como»: un mismo diálogo de motivo para las dos.
+  const [pidiendoMotivo, setPidiendoMotivo] = useState<{ tipo: 'baja' | 'entrar'; userId?: string; nombre?: string } | null>(null)
   const [editForm, setEditForm] = useState<FormularioDeEdicion | null>(null)
   const createValidation = useFormValidation(organizationCreateSchema)
   const editValidation = useFormValidation(organizationUpdateSchema)
@@ -202,6 +205,32 @@ export default function OrganizationsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['orgs'] }); setSuspendiendo(null); setMotivo('') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
+  const refrescar = () => { qc.invalidateQueries({ queryKey: ['orgs'] }); qc.invalidateQueries({ queryKey: ['org-detail', selected] }) }
+  const { mutate: darDeBaja, isPending: dandoDeBaja } = useMutation({
+    mutationFn: (reason: string) => organizationsApi.requestDeletion(selected!, reason),
+    onSuccess: () => { refrescar(); setPidiendoMotivo(null); setMotivo(''); toast.success('Baja pedida: la empresa queda suspendida durante la cuarentena') },
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  const { mutate: deshacerBaja } = useMutation({
+    mutationFn: () => organizationsApi.cancelDeletion(selected!),
+    onSuccess: () => { refrescar(); toast.success('Baja deshecha (la empresa sigue suspendida hasta reactivarla)') },
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  const { mutate: entrarComo, isPending: entrando } = useMutation({
+    mutationFn: ({ userId, reason }: { userId: string; reason: string }) => organizationsApi.impersonate(selected!, userId, reason),
+    onSuccess: () => { window.location.href = '/' },
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  async function exportar() {
+    try {
+      const { data } = await organizationsApi.exportData(selected!)
+      const url = URL.createObjectURL(data as Blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `${detail?.slug ?? 'empresa'}-export.zip`; a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
+  }
+
   const { mutate: update, isPending: isUpdating } = useMutation({
     mutationFn: ({ id, data }: { id: string | number; data: OrgUpdateForm }) => organizationsApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['orgs'] }); qc.invalidateQueries({ queryKey: ['org-detail', selected] }); setShowEdit(false); editValidation.setErrors({}) },
@@ -259,7 +288,7 @@ export default function OrganizationsPage() {
                       <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:4 }}>
                         <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{o.name}</span>
                         <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color: (o.plan && PLAN_COLORS[o.plan]) || 'var(--text-2)', fontWeight:500 }}>{o.plan}</span>
-                        {!o.is_active && <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--danger-bg)', color:'var(--danger)' }}>Suspendida</span>}
+                        {!o.is_active && <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--danger-bg)', color:'var(--danger)' }}>{o.deletion_purge_after ? `Baja · se borra el ${o.deletion_purge_after.slice(0, 10)}` : 'Suspendida'}</span>}
                       </div>
                       <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
                         {o.slug}{o.domain ? ` · ${o.domain}` : ''} · {o.admin_email || '—'}
@@ -296,6 +325,17 @@ export default function OrganizationsPage() {
               <div style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{detail.name}</div>
               <Button size="sm" onClick={openEdit}>Editar</Button>
             </div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:14 }}>
+              <Button size="sm" variant="secondary" onClick={() => { void exportar() }}>Exportar datos</Button>
+              {detail.deletion_purge_after
+                ? <Button size="sm" variant="secondary" onClick={() => deshacerBaja()}>Deshacer baja</Button>
+                : <Button size="sm" variant="danger" onClick={() => { setMotivo(''); setPidiendoMotivo({ tipo: 'baja' }) }}>Dar de baja</Button>}
+            </div>
+            {detail.deletion_purge_after && (
+              <div style={{ fontSize: "var(--text-sm)", color:'var(--danger)', marginBottom:12 }}>
+                Baja pedida: sus datos se borrarán a partir del {detail.deletion_purge_after.slice(0, 10)}. Hasta entonces se puede deshacer y exportar.
+              </div>
+            )}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
               {[['Plan', detail.plan], ['Usuarios', `${detail.users?.length}/${detail.max_users}`], ['Zona horaria', detail.timezone], ['Idioma', detail.locale]].map(([k,v]) => (
                 <div key={k} style={{ background:'var(--surface-2)', borderRadius:8, padding:'10px 12px' }}>
@@ -312,9 +352,12 @@ export default function OrganizationsPage() {
             {(detail.users || []).map((u, idx, arr) => {
               const isLast = arr.length === 1
               return (
-                <div key={u.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
+                <div key={u.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:4, padding:'6px 0', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                   <span>{u.full_name}</span>
                   <span style={{ color:'var(--text-2)' }}>{u.role}</span>
+                  <Button size="xs" variant="secondary" style={{ marginLeft:8 }}
+                    title="Entrar como este usuario (soporte; queda auditado)"
+                    onClick={() => { setMotivo(''); setPidiendoMotivo({ tipo: 'entrar', userId: String(u.id), nombre: u.full_name }) }}>Entrar como</Button>
                   <Button
                     size="xs"
                     variant="danger"
@@ -490,6 +533,32 @@ export default function OrganizationsPage() {
               <Button variant="secondary" onClick={() => setSuspendiendo(null)}>Cancelar</Button>
               <Button variant="danger" disabled={!motivo.trim()}
                 onClick={() => toggle({ id: suspendiendo.id, is_active: false, suspension_reason: motivo.trim() })}>Suspender</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {pidiendoMotivo && (
+        <Modal open title={pidiendoMotivo.tipo === 'baja' ? `Dar de baja ${detail?.name ?? ''}` : `Entrar como ${pidiendoMotivo.nombre ?? ''}`}
+          onClose={() => setPidiendoMotivo(null)} width={460}>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
+              {pidiendoMotivo.tipo === 'baja'
+                ? 'La empresa se suspende ahora. Al acabar la cuarentena se borran todos sus datos; antes se puede deshacer y exportar.'
+                : 'Entrarás con su sesión durante un tiempo limitado, sin poder tocar credenciales. Queda en la auditoría de su empresa. Para volver, «Salir» en el aviso superior.'}
+            </div>
+            <div>
+              <label style={ls} htmlFor="motivo_org">Motivo</label>
+              <textarea id="motivo_org" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} style={{ ...fs, resize:'vertical' }} />
+            </div>
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+              <Button variant="secondary" onClick={() => setPidiendoMotivo(null)}>Cancelar</Button>
+              <Button variant={pidiendoMotivo.tipo === 'baja' ? 'danger' : 'primary'} disabled={!motivo.trim() || dandoDeBaja || entrando}
+                onClick={() => pidiendoMotivo.tipo === 'baja'
+                  ? darDeBaja(motivo.trim())
+                  : entrarComo({ userId: pidiendoMotivo.userId!, reason: motivo.trim() })}>
+                {pidiendoMotivo.tipo === 'baja' ? 'Dar de baja' : 'Entrar'}
+              </Button>
             </div>
           </div>
         </Modal>

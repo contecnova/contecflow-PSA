@@ -147,3 +147,86 @@ def assign_user_to_org(
         if msg.startswith("404:"):
             raise HTTPException(404, msg[4:])
         raise HTTPException(400, msg)
+
+
+# ── Revision multitenant 2026-11: baja definitiva y «entrar como» ────────────
+
+class MotivoIn(BaseModel):
+    reason: str
+
+
+class EntrarComoIn(BaseModel):
+    user_id: str
+    reason: str
+
+
+def _org_o_404(db: Session, org_id: str):
+    from app.services import baja_de_empresa_service as _baja
+    try:
+        return _baja.obtener(db, org_id)
+    except ValueError:
+        raise HTTPException(404, "Empresa no encontrada")
+
+
+@router.post("/organizations/{org_id}/deletion", summary="Pedir la baja definitiva (cuarentena)")
+def request_deletion(org_id: str, payload: MotivoIn, db: Session = Depends(get_db),
+                     current_user: User = Depends(require_superadmin)):
+    from app.services import baja_de_empresa_service as _baja
+    from app.services.audit import audit_log
+    org = _org_o_404(db, org_id)
+    try:
+        _baja.pedir_baja(db, org, payload.reason, current_user)
+    except ValueError:
+        raise HTTPException(422, "Para dar de baja una empresa hay que indicar el motivo")
+    audit_log(db, current_user, "ORG_DELETION_REQUESTED", "organizations", org.id, payload.reason[:200])
+    db.commit()
+    return APIResponse.ok(data=_orgs.serialize_organization(org, db))
+
+
+@router.delete("/organizations/{org_id}/deletion", summary="Deshacer la baja (sigue suspendida)")
+def cancel_deletion(org_id: str, db: Session = Depends(get_db),
+                    current_user: User = Depends(require_superadmin)):
+    from app.services import baja_de_empresa_service as _baja
+    from app.services.audit import audit_log
+    org = _org_o_404(db, org_id)
+    try:
+        _baja.deshacer_baja(db, org)
+    except ValueError:
+        raise HTTPException(409, "Esta empresa no tiene una baja pedida")
+    audit_log(db, current_user, "ORG_DELETION_CANCELLED", "organizations", org.id, org.name)
+    db.commit()
+    return APIResponse.ok(data=_orgs.serialize_organization(org, db))
+
+
+@router.get("/organizations/{org_id}/export", summary="Exportar todos los datos de la empresa (ZIP)")
+def export_organization(org_id: str, db: Session = Depends(get_db),
+                        current_user: User = Depends(require_superadmin)):
+    from fastapi.responses import Response
+    from app.services import baja_de_empresa_service as _baja
+    from app.services.audit import audit_log
+    org = _org_o_404(db, org_id)
+    contenido = _baja.exportar(db, org.id)
+    audit_log(db, current_user, "ORG_EXPORTED", "organizations", org.id, org.name)
+    db.commit()
+    return Response(contenido, media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{org.slug}-export.zip"'})
+
+
+@router.post("/organizations/{org_id}/impersonate", summary="Entrar como un usuario de la empresa (soporte)")
+def impersonate(org_id: str, payload: EntrarComoIn, db: Session = Depends(get_db),
+                current_user: User = Depends(require_superadmin)):
+    from fastapi.responses import JSONResponse
+    from app.services import baja_de_empresa_service as _baja
+    from app.services.auth_service import COOKIE_OPTS
+    from app.services.entrada_service import entrar_como
+    org = _org_o_404(db, org_id)
+    try:
+        usuario = _baja.usuario_de(db, payload.user_id)
+    except ValueError:
+        raise HTTPException(404, "Usuario no encontrado")
+    token = entrar_como(db, current_user, org, usuario, payload.reason)
+    # Solo la cookie de acceso: la de refresco sigue siendo la del superadmin,
+    # y refrescar le devuelve su propia sesion.
+    respuesta = JSONResponse({"data": {"ok": True, "user": usuario.email}})
+    respuesta.set_cookie("access_token", token, **COOKIE_OPTS)
+    return respuesta

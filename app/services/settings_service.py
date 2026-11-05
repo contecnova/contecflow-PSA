@@ -230,6 +230,11 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS", "int", "Webhook action — timeout (s)"),
         ("BPMN_MAX_AUTOMATIC_STEPS", "int", "BPM — automatic steps in a row before an instance fails (loop guard)"),
     ],
+    "tenants": [
+        ("TENANT_DELETION_QUARANTINE_DAYS", "int", "Company deletion — quarantine before its data is erased (days)"),
+        ("IMPERSONATION_ENABLED", "bool", "Platform support may sign in as a company user (with a reason, audited)"),
+        ("IMPERSONATION_MAX_MINUTES", "int", "Sign in as — maximum session length (minutes)"),
+    ],
     "risk": [
         ("RISK_WEIGHT_SCHEDULE", "float", "Risk score — weight of schedule (0-1)"),
         ("RISK_WEIGHT_BUDGET", "float", "Risk score — weight of budget (0-1)"),

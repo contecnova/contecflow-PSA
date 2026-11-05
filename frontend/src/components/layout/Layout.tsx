@@ -1317,9 +1317,27 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const _currentDensity = prefs?.ui_density || 'normal'
   const _setDensity = (d: string) => save({ ui_density: d })
 
+  // «Entrar como» (soporte de plataforma): aviso permanente y salida. La cookie de
+  // refresco sigue siendo la del superadmin, así que refrescar le devuelve su sesión.
+  const suplantadoPor = typeof user?.impersonated_by === 'string' ? user.impersonated_by : null
+  async function salirDeSuplantacion() {
+    try { await api.post('/auth/refresh') } finally { window.location.href = '/organizations' }
+  }
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--surface-0)' }}>
       <a href="#main-content" className="skip-nav">{text.skip_to_content}</a>
+      {suplantadoPor && (
+        <div role="alert" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 2000,
+          display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, padding: '6px 12px',
+          background: 'var(--warning)', color: '#111', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+          <span>Estás dentro como {user?.full_name ?? user?.email} (soporte: {suplantadoPor}). Todo queda auditado.</span>
+          <button type="button" onClick={() => { void salirDeSuplantacion() }}
+            style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+            Salir
+          </button>
+        </div>
+      )}
 
       <aside aria-label={text.main_navigation} role="navigation"
         id="mobile-primary-nav"

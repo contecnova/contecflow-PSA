@@ -183,6 +183,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.bi_ml_retrain",
         "schedule": crontab(hour=3, minute=30, day_of_week=0),
     },
+    # Revision multitenant 2026-11: borra las empresas cuya cuarentena de baja vencio.
+    "purgar-empresas-caducadas": {
+        "task": "app.worker.purgar_empresas_caducadas",
+        "schedule": crontab(hour=2, minute=40),
+    },
     # ── ITSM Fase 3 tasks ─────────────────────────────────────────────────────
     # Autonomous agent scan — every 5 minutes
     "autonomous-agent-scan": {
@@ -1758,6 +1763,13 @@ def bi_kpi_push():
         except Exception as exc:
             _worker_logger.error("bi_kpi_push error: %s", exc)
             return {"error": str(exc)}
+
+
+@celery_app.task(name="app.worker.purgar_empresas_caducadas")
+def purgar_empresas_caducadas():
+    """Borra los datos de las empresas cuya cuarentena de baja ha vencido."""
+    from app.services.baja_de_empresa_service import purgar_caducadas_job
+    purgar_caducadas_job()
 
 
 @celery_app.task(name="app.worker.bi_ml_retrain")

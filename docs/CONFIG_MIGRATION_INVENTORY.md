@@ -223,6 +223,15 @@ The destination table `app_settings` already exists at
 | `CELERY_AGENT_TASK_TIME_LIMIT` | 🔴 | Decorator binding |
 | `CELERY_AGENT_TASK_SOFT_TIME_LIMIT` | 🔴 | Decorator binding |
 
+## 18a. Companies (group `tenants`, since 2026-11-05)
+
+| Setting | Tag | Notes |
+|---|---|---|
+| `TENANT_DELETION_QUARANTINE_DAYS` | 🟢 | Read when a deletion is requested |
+| `IMPERSONATION_ENABLED` | 🟢 | Read per «sign in as» |
+| `IMPERSONATION_MAX_MINUTES` | 🟢 | Read per «sign in as» |
+| `TENANT_ENTRY_MODE`, `TENANT_ROOT_DOMAIN`, `TENANT_SELECTION_TOKEN_MINUTES` | 🔴 | Deploy-time (`.env`): each machine chooses one entry mode |
+
 ## 18b. Project risk score (group `risk`, since 2026-11-04)
 
 | Setting | Tag | Notes |

@@ -83,6 +83,7 @@ class UserPublic(UserBase):
     # contrasena a quien entra por SSO, y no venia nunca.
     sso_provider: Optional[str] = Field(default=None, description="Proveedor SSO con el que entra, si lo hay")
     blocked_routes: list[str] = Field(default_factory=list, description="Rutas de pantalla cerradas por el rol (solo en /auth/me y el login)")
+    impersonated_by: Optional[str] = Field(default=None, description="Correo del superadmin que ha entrado como este usuario («entrar como»)")
 
     class Config:
         from_attributes = True

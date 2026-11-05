@@ -215,3 +215,54 @@ def confirmar(db: Session, user, request, org: Optional[str]) -> Optional[str]:
         if del_host is not None and del_host.id != org:
             raise HTTPException(403, "Esta sesión es de otra organización")
     return org
+
+
+# ── «Entrar como» (soporte de plataforma) ───────────────────────────────────
+# Como contecrm: solo un superadmin, con motivo, sesion corta, auditada en la
+# empresa visitada y sin tocar credenciales. La cookie de refresco sigue siendo
+# la del superadmin: al salir (o al caducar) el refresco le devuelve su sesion.
+
+RUTAS_VEDADAS_AL_SUPLANTAR = (
+    "/api/v1/auth/change-password", "/api/v1/auth/mfa", "/api/v1/auth/passkey",
+    "/api/v1/auth/switch-organization", "/api/v1/bookings/api-keys", "/api/v1/organizations",
+    "/api/v1/enterprise/sso", "/api/v1/developer/apps",
+)
+
+
+def entrar_como(db: Session, superadmin, org: Organization, usuario, motivo: str) -> str:
+    """Token de acceso corto de `usuario` en `org`, marcado con quien lo usa de verdad."""
+    from app.core.security import create_access_token
+    from app.services.audit import audit_log
+    from app.services.settings_service import get_runtime_bool, get_runtime_int
+    if not get_runtime_bool(db, "IMPERSONATION_ENABLED"):
+        raise HTTPException(403, "«Entrar como» está desactivado en este despliegue")
+    if not (motivo or "").strip():
+        raise HTTPException(422, "Indica el motivo")
+    if getattr(usuario, "is_superadmin", False) or not usuario.is_active:
+        raise HTTPException(400, "No se puede entrar como ese usuario")
+    if not pertenece(db, usuario, org.id) or not org.is_active:
+        raise HTTPException(400, "El usuario no pertenece a esa empresa activa")
+    minutos = int(get_runtime_int(db, "IMPERSONATION_MAX_MINUTES") or settings.IMPERSONATION_MAX_MINUTES)
+    token = create_access_token(
+        subject=usuario.id,
+        extra={"role": usuario.role, "org": org.id, "actor_real": superadmin.id, "motivo": motivo.strip()[:200]},
+        expires_delta=timedelta(minutes=minutos),
+    )
+    # Queda en la auditoria de la propia empresa: su admin ve quien entro y por que.
+    db.info["organization_id"], db.info["is_superadmin"] = org.id, False
+    audit_log(db, superadmin, "IMPERSONATION_START", "users", usuario.id,
+              f"{superadmin.email} entra como {usuario.email}: {motivo.strip()[:200]}")
+    db.commit()
+    return token
+
+
+def comprobar_suplantacion(payload: dict, request) -> Optional[str]:
+    """El id de quien suplanta (o None). Corta las rutas vedadas durante la suplantacion."""
+    actor = payload.get("actor_real")
+    if not actor:
+        return None
+    ruta = request.url.path
+    if any(ruta.startswith(r) for r in RUTAS_VEDADAS_AL_SUPLANTAR):
+        raise HTTPException(403, "No disponible mientras se entra como otro usuario")
+    request.state.suplantado_por = actor
+    return actor

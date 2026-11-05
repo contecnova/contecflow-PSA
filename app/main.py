@@ -370,6 +370,7 @@ def _arrancar_planificador(_enable_apscheduler, _celery_beat_enabled):
                 ("predictive_model_eval_retrain", dict(hour="*/6", minute=10), 1800),
                 ("bi_kpi_push", dict(minute="*/5"), 120),
                 ("bi_ml_retrain", dict(day_of_week="sun", hour=3, minute=30), 3600),
+                ("purgar_empresas_caducadas", dict(hour=2, minute=40), 3600),
             ):
                 _scheduler.add_job(
                     f"app.worker:{_tarea}",

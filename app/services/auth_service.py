@@ -1085,3 +1085,11 @@ def sso_timeout_http() -> float:
         return float(v) if v else float(_cfg.SSO_HTTP_TIMEOUT_SECONDS)
     except Exception:
         return float(_cfg.SSO_HTTP_TIMEOUT_SECONDS)
+
+
+def correo_de_usuario(db: Session, user_id: str) -> Optional[str]:
+    """El correo de cualquier usuario (sin filtro de tenant): quien suplanta."""
+    from app.db.session import sin_filtro_de_tenant
+    with sin_filtro_de_tenant(db):
+        fila = db.query(User.email).filter(User.id == user_id).first()
+    return fila[0] if fila else None

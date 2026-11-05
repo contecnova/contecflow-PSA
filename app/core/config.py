@@ -102,6 +102,11 @@ class Settings(
     TENANT_ROOT_DOMAIN: str = Field(default="", env="TENANT_ROOT_DOMAIN")
     # Vida del token que solo sirve para elegir empresa tras la contrasena.
     TENANT_SELECTION_TOKEN_MINUTES: int = Field(default=5, env="TENANT_SELECTION_TOKEN_MINUTES")
+    # Baja de una empresa: dias de cuarentena antes de borrar sus datos.
+    TENANT_DELETION_QUARANTINE_DAYS: int = Field(default=30, env="TENANT_DELETION_QUARANTINE_DAYS")
+    # «Entrar como» (soporte de plataforma): activo y duracion maxima de la sesion.
+    IMPERSONATION_ENABLED: bool = Field(default=True, env="IMPERSONATION_ENABLED")
+    IMPERSONATION_MAX_MINUTES: int = Field(default=30, env="IMPERSONATION_MAX_MINUTES")
 
     # ── Git integration (GitHub/GitLab webhook secrets) ───────────────────────
     # When non-empty, webhook requests are verified with HMAC-SHA256 (GitHub) or

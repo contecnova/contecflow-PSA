@@ -28,6 +28,7 @@ def serialize_organization(org: Organization, db: Session) -> dict:
         "max_users": org.max_users, "max_projects": org.max_projects,
         "admin_email": org.admin_email,
         "domain": org.domain, "suspension_reason": org.suspension_reason,
+        "deletion_purge_after": org.deletion_purge_after.isoformat() if org.deletion_purge_after else None,
         "created_at": str(org.created_at)[:10] if org.created_at else None,
         # El mismo recuento que el limite (`exigir_cupo`): ficha o pertenencia.
         "user_count": _usuarios_de(db, org.id),
@@ -90,6 +91,7 @@ def get_organization(org_id: str, db: Session) -> dict:
         "plan": org.plan, "is_active": org.is_active,
         "max_users": org.max_users, "max_projects": org.max_projects,
         "domain": org.domain, "suspension_reason": org.suspension_reason,
+        "deletion_purge_after": org.deletion_purge_after.isoformat() if org.deletion_purge_after else None,
         "admin_email": org.admin_email, "timezone": org.timezone,
         "locale": org.locale, "primary_color": org.primary_color,
         "users": [{"id": u.id, "full_name": u.full_name, "email": u.email, "role": u.role} for u in users],

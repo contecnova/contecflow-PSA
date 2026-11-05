@@ -1598,6 +1598,11 @@ export const organizationsApi = {
   update:     (id: any, data: unknown) => api.patch(`/organizations/${id}`, data),
   assignUser: (orgId: any, data: unknown) => api.post(`/organizations/${orgId}/assign-user`, data),
   removeUser: (orgId: any, userId: any) => api.delete(`/organizations/${orgId}/remove-user/${userId}`),
+  // Revisión multitenant 2026-11: baja con cuarentena, exportación y «entrar como».
+  requestDeletion: (orgId: any, reason: string) => api.post(`/organizations/${orgId}/deletion`, { reason }),
+  cancelDeletion:  (orgId: any) => api.delete(`/organizations/${orgId}/deletion`),
+  exportData:      (orgId: any) => api.get(`/organizations/${orgId}/export`, { responseType: 'blob' }),
+  impersonate:     (orgId: any, user_id: string, reason: string) => api.post(`/organizations/${orgId}/impersonate`, { user_id, reason }),
 }
 
 // ── Templates ─────────────────────────────────────────────────────────────────

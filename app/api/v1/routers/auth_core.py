@@ -489,9 +489,13 @@ def password_reset(request: Request, payload: PasswordResetRequest, db: Session 
 
 
 @router.get("/me", response_model=UserPublic)
-def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_me(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.core.modulos import con_rutas_cerradas
-    return con_rutas_cerradas(db, current_user)
+    usuario = con_rutas_cerradas(db, current_user)
+    actor = getattr(request.state, "suplantado_por", None)
+    if actor:
+        usuario.impersonated_by = _svc.correo_de_usuario(db, actor)
+    return usuario
 
 
 @router.post("/change-password", summary="Cambiar contraseña propia")

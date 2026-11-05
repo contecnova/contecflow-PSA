@@ -52,6 +52,11 @@ class Organization(Base):
     domain       = Column(String(255), nullable=True, unique=True)
     # Por que esta suspendida (se pide al suspender y se borra al reactivar).
     suspension_reason = Column(Text, nullable=True)
+    # Baja definitiva (app/services/baja_de_empresa_service.py): cuando se pidio,
+    # desde cuando se pueden borrar sus datos y quien la pidio.
+    deletion_requested_at = Column(DateTime(timezone=True), nullable=True)
+    deletion_purge_after = Column(DateTime(timezone=True), nullable=True)
+    deletion_requested_by = Column(String(36), nullable=True)
     plan         = Column(String(20), default="starter")  # starter | pro | enterprise
     is_active    = Column(Boolean, default=True)
     max_users    = Column(Integer, default=25)
