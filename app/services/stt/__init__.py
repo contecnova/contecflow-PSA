@@ -110,6 +110,16 @@ def _ordered_providers(db=None, org_id=None) -> Iterable[STTProvider]:
             logger.info("STT provider '%s' configurado pero sin credenciales — skip", name)
 
 
+def _apuntar_uso(db, org_id, proveedor: str, resultado, error) -> None:
+    if db is None or not org_id:
+        return
+    from app.services.ai_provider_service import _registrar_uso
+    _registrar_uso(db, None, {"model": getattr(resultado, "model", None) or proveedor, "tokens_in": 0,
+                              "tokens_out": 0, "cost_usd": 0},
+                   user_id=None, module="voice", latency=0, error_msg=error[:500] if error else None,
+                   organization_id=org_id)
+
+
 def transcribe_audio(
     audio_bytes: bytes,
     filename: str,
@@ -125,11 +135,20 @@ def transcribe_audio(
     """
     last_error: STTError | None = None
     attempted = 0
+    # Revisión 2026-11: con empresa, la transcripción respeta su tope diario de
+    # gasto en IA y queda apuntada en `ai_usage_logs` (módulo `voice`). El coste
+    # va a 0: ningún proveedor devuelve la duración del audio y no se estima.
+    if db is not None and org_id:
+        from app.services.ai_provider_service import _exigir_presupuesto
+        _exigir_presupuesto(db, org_id)
     for provider in _ordered_providers(db=db, org_id=org_id):
         attempted += 1
         try:
-            return provider.transcribe(audio_bytes, filename, content_type, language=language)
+            resultado = provider.transcribe(audio_bytes, filename, content_type, language=language)
+            _apuntar_uso(db, org_id, provider.name, resultado, None)
+            return resultado
         except STTError as exc:
+            _apuntar_uso(db, org_id, provider.name, None, str(exc))
             logger.warning("STT provider '%s' falló: %s", provider.name, exc)
             last_error = exc
             continue

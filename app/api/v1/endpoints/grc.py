@@ -55,7 +55,7 @@ Todos los cambios de permisos y violaciones quedan registrados en grc_audit_log.
 import json
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Body
+from fastapi import APIRouter, Depends, Query, Request, Body
 from app.schemas.grc import PermissionUpdate, SodRuleIn, ViolationResolveIn
 from sqlalchemy.orm import Session
 
@@ -234,13 +234,8 @@ def access_explainer(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.db.session import sin_filtro_de_tenant
     from app.services import explicar_acceso
-    with sin_filtro_de_tenant(db):
-        usuario = db.get(User, user_id)
-    # Un admin sólo explica a la gente de su empresa; el superadmin, a cualquiera.
-    if usuario is None or (not current_user.is_superadmin and usuario.organization_id != current_user.organization_id):
-        raise HTTPException(404, "Usuario no encontrado")
+    usuario = explicar_acceso.usuario_explicable(db, current_user, user_id)
     return APIResponse.ok(data=explicar_acceso.explicar(db, request.app, usuario, method, path))
 
 

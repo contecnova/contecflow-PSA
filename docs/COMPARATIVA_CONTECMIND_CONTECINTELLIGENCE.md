@@ -24,6 +24,16 @@ What the two sister products do, whether Contecflow already has it, and what was
 | contecintelligence | Ask-the-Data verification (time window, breakdown, ranking, units, distinct; es/en/zh) | Data Explorer (README «Ask the Data → Verification») |
 | contecintelligence | Postgres row-level security with a non-superuser application role | README «Database isolation (RLS)» |
 | both | OIDC SSO, passkeys, TOTP | Login (earlier revision) |
+| both | Tamper-evident audit log: per-company hash chain, verify, Ed25519-signed export, compare with an earlier export | Enterprise → Auditoría → Cadena de integridad (README «Auditoría → Cadena de integridad»). Measured on Postgres with RLS and concurrent writers |
+| both | Access explainer: which layer (ABAC, GRC, account, role modules, project, endpoint role) decides | GRC → Explicar acceso. Compared with the real API on 580 routes for two users: no mismatch |
+| contecmind | 👍/👎 on assistant and portal answers; a 👎 opens an unanswered question | Assistant panel and portal chat (README «Answer feedback») |
+| contecintelligence | Daily AI spend cap per company (hard stop), also for NexusAgent turns and speech-to-text calls | AI Hub → spend today; `AI_DAILY_BUDGET_USD`. STT is counted as calls at 0 USD (no provider reports audio duration) |
+| contecintelligence | Ask-the-Data: real values when a filter finds nothing (and one retry with them), bank of validated questions | Data Explorer → Ask the Data. Works on real data since the OLAP load was repaired the same day |
+| contecmind | Setup checklist for a new company, every item measured | Settings → Puesta en marcha |
+| both | Compliance evidence report, measured and signed | GRC → Informe de cumplimiento (backups shown as not measurable) |
+| contecmind | Document check-out / check-in | Documents → Reservar / Liberar |
+| both | Retention policies per record type and legal hold (also blocks manual deletion and company erasure) | GRC → Retención |
+| contecmind | Microsoft Teams bot answering from the knowledge base | `POST /api/v1/integrations-hub/teams/commands`. **Not verified against Azure/Teams** (tested with doubles) |
 
 ## 2. Contecflow already has it
 
@@ -50,7 +60,7 @@ What the two sister products do, whether Contecflow already has it, and what was
 | Slack and Teams integration (both) | Notifications and slash commands in collaboration bots |
 | Embedding and developer access (intelligence «host apps, SDK») | Developer portal, API keys with scopes, OAuth apps |
 
-## 3. Missing: candidates (decision pending)
+## 3. Candidates that were missing — all ten brought on 2026-11-05 (details in section 1 and the README)
 
 | # | Capability | From | What it would give Contecflow | Effort |
 |---|---|---|---|---|

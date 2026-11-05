@@ -910,6 +910,15 @@ def run_agent_task(
                 db.add(step)
                 db.flush()
 
+            # Revisión 2026-11: políticas de gobernanza de entrada y salida.
+            from app.services.ai_provider_service import guardrail_de_instruccion, guardrail_de_respuesta
+            instruction, bloqueo = guardrail_de_instruccion(db, current_user, instruction)
+            if bloqueo:
+                execution.status = "failed"
+                execution.error = bloqueo
+                db.commit()
+                return {"error": bloqueo}
+
             result_summary, _steps, step_num = run_tool_use_loop(
                 execute_tool=_execute_tool,
                 instruction=instruction,
@@ -929,6 +938,7 @@ def run_agent_task(
             )
 
             latency = int((time.time() - t0) * 1000)
+            result_summary = guardrail_de_respuesta(db, current_user, result_summary)
             execution.status = "done"
             execution.result = result_summary
             execution.steps_count = step_num

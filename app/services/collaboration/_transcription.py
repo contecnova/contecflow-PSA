@@ -16,7 +16,7 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-def transcribe_audio_chunk(data: bytes, filename: str = "chunk.webm") -> str:
+def transcribe_audio_chunk(data: bytes, filename: str = "chunk.webm", db=None, org_id=None) -> str:
     """Devuelve el texto transcrito o "".
 
     Item #51: ahora delegamos primero al factory STT (que respeta
@@ -27,7 +27,8 @@ def transcribe_audio_chunk(data: bytes, filename: str = "chunk.webm") -> str:
     """
     try:
         from app.services.stt import transcribe_audio as _factory_transcribe, STTError as _STTError
-        result = _factory_transcribe(data, filename, "audio/webm", language="es")
+        # Revisión 2026-11: con la empresa, usa SU configuración de STT y su tope.
+        result = _factory_transcribe(data, filename, "audio/webm", language="es", db=db, org_id=org_id)
         return (result.text or "").strip()
     except _STTError as exc:
         logger.warning("Factory STT failed for chunk: %s", exc)
@@ -88,12 +89,18 @@ def _via_whisper_local(data: bytes, filename: str) -> Optional[str]:
 
 
 # ── Resumen post-llamada (mejor IA si hay) ──────────────────────────────────
-def summarize_text(text: str) -> tuple[str, list[dict]]:
-    """Devuelve (summary, action_items)."""
+def summarize_text(text: str, db=None, organization_id=None) -> tuple[str, list[dict]]:
+    """Devuelve (summary, action_items).
+
+    Revisión 2026-11: el resumen llamaba a OpenAI directamente con la clave del
+    `.env` (sin el proveedor de la empresa, sin tope, sin registro de uso ni
+    guardarraíles). Ahora va por `call_ai` con la empresa de la llamada; sin IA,
+    el resumen heurístico de siempre.
+    """
     if not text:
         return "", []
-    if os.environ.get("OPENAI_API_KEY"):
-        result = _summarize_openai(text)
+    if db is not None and organization_id:
+        result = _summarize_con_call_ai(text, db, organization_id)
         if result:
             return result
     # Fallback heurístico
@@ -108,28 +115,23 @@ def summarize_text(text: str) -> tuple[str, list[dict]]:
     return summary, actions
 
 
-def _summarize_openai(text: str) -> Optional[tuple[str, list[dict]]]:
+def _summarize_con_call_ai(text: str, db, organization_id) -> Optional[tuple[str, list[dict]]]:
+    import json
+    from app.services.ai_provider_service import PresupuestoDeIAAgotado, call_ai, es_aviso_de_ia
     try:
-        import httpx, json
-        body = {
-            "model": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
-            "messages": [
-                {"role": "system", "content": "Eres un asistente que resume reuniones en español. Responde JSON con keys 'summary' (texto) y 'actions' (lista de {text, owner})."},
-                {"role": "user", "content": f"Resume esta reunión y extrae las acciones:\n\n{text[:8000]}"},
-            ],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.2,
-        }
-        r = httpx.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}", "Content-Type": "application/json"},
-            json=body, timeout=30,
-        )
-        if r.status_code >= 400:
-            return None
-        content = r.json()["choices"][0]["message"]["content"]
-        data = json.loads(content)
-        return data.get("summary", ""), data.get("actions", [])
-    except Exception as exc:
-        logger.warning("openai summarize failed: %s", exc)
+        crudo = call_ai(db, [{"role": "user", "content": f"Resume esta reunión y extrae las acciones:\n\n{text[:8000]}"}],
+                        system=("Resumes reuniones en español. Responde SOLO JSON con las claves 'summary' (texto) y "
+                                "'actions' (lista de {text, owner})."),
+                        module="meeting_assistant", organization_id=organization_id, is_superadmin=False,
+                        max_tokens=800)
+    except PresupuestoDeIAAgotado:
+        logger.info("resumen de reunión: tope diario de IA alcanzado; resumen heurístico")
         return None
+    if not crudo or es_aviso_de_ia(crudo) or crudo.startswith("["):
+        return None
+    try:
+        datos = json.loads(crudo.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip())
+        return str(datos.get("summary", "")), list(datos.get("actions", []))
+    except (ValueError, AttributeError):
+        return crudo.strip(), []
+

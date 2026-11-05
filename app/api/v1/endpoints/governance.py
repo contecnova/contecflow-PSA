@@ -278,45 +278,21 @@ def retention_run(db: Session = Depends(get_db), current_user: User = Depends(re
 
 @router.get("/legal-holds", summary="Bloqueos legales de la empresa (admin)")
 def legal_holds(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    from app.db.session import sin_filtro_de_tenant
-    from app.models.governance import LegalHold
-    with sin_filtro_de_tenant(db):
-        filas = db.query(LegalHold).filter(LegalHold.organization_id == current_user.organization_id) \
-            .order_by(LegalHold.created_at.desc()).all()
-    return APIResponse.ok(data=[{
-        "id": h.id, "case_reference": h.case_reference, "reason": h.reason, "entity": h.entity, "field": h.field,
-        "value": h.value, "is_active": h.is_active, "created_at": h.created_at, "released_at": h.released_at,
-    } for h in filas])
+    from app.services import retencion
+    return APIResponse.ok(data=retencion.lista_de_bloqueos(db, current_user.organization_id))
 
 
 @router.post("/legal-holds", summary="Crear un bloqueo legal (admin)")
 def create_legal_hold(payload: BloqueoIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    from app.models.governance import LegalHold
     from app.services import retencion
-    from app.services.audit import audit_log
-    retencion.validar_bloqueo(payload.entity, payload.field)
-    h = LegalHold(organization_id=current_user.organization_id, created_by=current_user.id, **payload.model_dump())
-    db.add(h)
-    db.flush()
-    audit_log(db, current_user, "LEGAL_HOLD", "legal_hold", h.id, h.case_reference, new_values=payload.model_dump())
-    db.commit()
-    return APIResponse.ok(data={"id": h.id})
+    return APIResponse.ok(data={"id": retencion.crear_bloqueo(db, current_user, payload.model_dump())})
 
 
 @router.post("/legal-holds/{hold_id}/release", summary="Levantar un bloqueo legal (admin)")
 def release_legal_hold(hold_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    from app.db.session import sin_filtro_de_tenant
-    from app.models.governance import LegalHold
-    from app.services.audit import audit_log
-    with sin_filtro_de_tenant(db):
-        h = db.query(LegalHold).filter(LegalHold.id == hold_id,
-                                       LegalHold.organization_id == current_user.organization_id).first()
-    if h is None:
-        raise HTTPException(404, "No existe")
-    h.is_active, h.released_at, h.released_by = False, datetime.now(timezone.utc), current_user.id
-    audit_log(db, current_user, "LEGAL_HOLD_RELEASED", "legal_hold", h.id, h.case_reference)
-    db.commit()
-    return APIResponse.ok(data={"id": h.id, "is_active": False})
+    from app.services import retencion
+    retencion.levantar_bloqueo(db, current_user, hold_id)
+    return APIResponse.ok(data={"id": hold_id, "is_active": False})
 
 
 # ── AI module governance ───────────────────────────────────────────────────────

@@ -570,7 +570,7 @@ def summarize_call(call_id: str, organization_id: str) -> None:
             return
         existing = db.query(CollaborationTranscript).filter(CollaborationTranscript.call_id == call.id).first()
         text = existing.text if existing and existing.text else f"Reunión iniciada {call.started_at}, finalizada {call.ended_at}."
-        summary, actions = summarize_text(text)
+        summary, actions = summarize_text(text, db=db, organization_id=organization_id)
         if existing:
             existing.summary = summary
             existing.actions_json = actions

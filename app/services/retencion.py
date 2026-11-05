@@ -110,6 +110,40 @@ def _bloqueo_de(clave: str, objeto, bloqueos: list):
     return None
 
 
+def lista_de_bloqueos(db, org) -> list[dict]:
+    from app.models.governance import LegalHold
+    with _sin_filtro(db):
+        filas = db.query(LegalHold).filter(LegalHold.organization_id == org).order_by(LegalHold.created_at.desc()).all()
+    return [{"id": h.id, "case_reference": h.case_reference, "reason": h.reason, "entity": h.entity,
+             "field": h.field, "value": h.value, "is_active": h.is_active, "created_at": h.created_at,
+             "released_at": h.released_at} for h in filas]
+
+
+def crear_bloqueo(db, usuario, datos: dict) -> str:
+    from app.models.governance import LegalHold
+    from app.services.audit import audit_log
+    validar_bloqueo(datos["entity"], datos["field"])
+    h = LegalHold(organization_id=usuario.organization_id, created_by=usuario.id, **datos)
+    db.add(h)
+    db.flush()
+    audit_log(db, usuario, "LEGAL_HOLD", "legal_hold", h.id, h.case_reference, new_values=datos)
+    db.commit()
+    return h.id
+
+
+def levantar_bloqueo(db, usuario, bloqueo_id: str) -> None:
+    from app.models.governance import LegalHold
+    from app.services.audit import audit_log
+    with _sin_filtro(db):
+        h = db.query(LegalHold).filter(LegalHold.id == bloqueo_id,
+                                       LegalHold.organization_id == usuario.organization_id).first()
+    if h is None:
+        raise HTTPException(404, "No existe")
+    h.is_active, h.released_at, h.released_by = False, datetime.now(timezone.utc), usuario.id
+    audit_log(db, usuario, "LEGAL_HOLD_RELEASED", "legal_hold", h.id, h.case_reference)
+    db.commit()
+
+
 def validar_bloqueo(entidad: str, campo: str) -> None:
     if entidad != "*" and entidad not in TIPOS:
         raise HTTPException(422, f"Tipo desconocido: {entidad}")

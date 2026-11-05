@@ -726,7 +726,8 @@ def _emitir_bucle_del_agente(_db, instruccion: str, system: str, auto_approve: b
             # Ni `tool_use`, ni `tool_calls`, ni `functionCall`: el agente ya no
             # quiere más herramientas y lo que haya dicho es el resultado.
             yield _evento_sse({
-                "type": "done", "result": turno.texto, "steps": pasos_hechos,
+                "type": "done", "result": _gobernado.guardrail_de_respuesta(_db, usuario, turno.texto),
+                "steps": pasos_hechos,
             })
             return
 
@@ -784,6 +785,11 @@ def _emitir_eventos_de_agente(*, instruccion: str, auto_approve: bool, usuario, 
     # datos de negocio.
     publicar_contexto_de_tenant(_db, usuario)
     try:
+        # Revisión 2026-11: las políticas de gobernanza (entrada) también aquí.
+        instruccion, bloqueo = _gobernado.guardrail_de_instruccion(_db, usuario, instruccion)
+        if bloqueo:
+            yield _evento_sse({"type": "error", "message": bloqueo})
+            return
         if not hay_herramientas:
             yield from _emitir_modo_degradado(_db, instruccion, system, usuario)
             return

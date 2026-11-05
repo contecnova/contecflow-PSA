@@ -94,6 +94,19 @@ def _comprueba_en_el_cuerpo(endpoint) -> bool:
     return bool(_EN_EL_CUERPO.search(cuerpo))
 
 
+def usuario_explicable(db, quien_pregunta, user_id: str):
+    """El usuario a explicar: un admin, sólo gente de su empresa; el superadmin, cualquiera. 404 si no."""
+    from fastapi import HTTPException
+    from app.db.session import sin_filtro_de_tenant
+    from app.models.user import User
+    with sin_filtro_de_tenant(db):
+        usuario = db.get(User, user_id)
+    if usuario is None or (not quien_pregunta.is_superadmin
+                           and usuario.organization_id != quien_pregunta.organization_id):
+        raise HTTPException(404, "Usuario no encontrado")
+    return usuario
+
+
 def rutas(app) -> list[dict]:
     """Las operaciones de la API (método y plantilla), para elegir en la pantalla."""
     vistas, salida = set(), []

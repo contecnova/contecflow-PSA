@@ -1279,6 +1279,25 @@ def _aplicar_guardrail_de_salida(db: Session, texto: str, governance_user,
     return texto
 
 
+def guardrail_de_instruccion(db: Session, usuario, instruccion: str, module: str = "nexusagent") -> tuple:
+    """(instrucción, bloqueo) con las políticas de entrada de `call_ai`.
+
+    Revisión 2026-11: los turnos del agente no pasan por `call_ai`, así que sus
+    guardarraíles no se aplicaban (sólo una lista de palabras). Si la política
+    redacta, devuelve la instrucción redactada; si bloquea, el texto de bloqueo.
+    """
+    gobernado = _resolver_usuario_de_gobernanza(db, getattr(usuario, "id", None), False)
+    mensajes = [{"role": "user", "content": instruccion}]
+    bloqueo = _aplicar_guardrail_de_entrada(db, mensajes, gobernado, module, False)
+    return mensajes[0]["content"], bloqueo
+
+
+def guardrail_de_respuesta(db: Session, usuario, texto: str, module: str = "nexusagent") -> str:
+    """La respuesta final del agente con las políticas de salida de `call_ai`."""
+    gobernado = _resolver_usuario_de_gobernanza(db, getattr(usuario, "id", None), False)
+    return _aplicar_guardrail_de_salida(db, texto, gobernado, module, False, None)
+
+
 def call_ai(
     db: Session,
     messages: list,

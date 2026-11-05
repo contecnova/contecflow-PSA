@@ -261,6 +261,11 @@ def _preparar_base_limpia() -> None:
 def db():
     """Deja la base vacía y con los datos base antes de cada test."""
     _preparar_base_limpia()
+    # Revisión 2026-11: la caché de ajustes en vivo sobrevivía a la base: un
+    # ajuste puesto por una prueba (p. ej. el tope de gasto) lo heredaba la
+    # siguiente del mismo proceso, y fallaba según el orden de xdist.
+    from app.services.settings_service import invalidate_cache
+    invalidate_cache()
     session = TestSession()
 
     # Admin
