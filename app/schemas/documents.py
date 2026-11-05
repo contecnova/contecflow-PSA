@@ -123,6 +123,7 @@ class DocumentOut(DocumentBase):
     permissions: List[DocumentPermissionOut] = Field(default=[], description="Lista de permisos sobre el documento")
     tags: List[str] = Field(default=[], description="Etiquetas asociadas al documento")
     approval_request: Optional[dict] = Field(default=None, description="Datos de la solicitud de aprobación si existe")
+    checkout: Optional[dict] = Field(default=None, description="Reserva para editar vigente: quién, desde y hasta cuándo, y si es tuya")
 
     class Config:
         from_attributes = True
@@ -139,6 +140,7 @@ class DocumentListOut(BaseModel):
     created_at: datetime = Field(..., description="Fecha de creación del documento")
     updated_at: Optional[datetime] = Field(default=None, description="Fecha de la última actualización")
     latest_version: Optional[DocumentVersionOut] = Field(default=None, description="Última versión disponible del documento")
+    checkout: Optional[dict] = Field(default=None, description="Reserva para editar vigente (quién y hasta cuándo)")
 
     class Config:
         from_attributes = True

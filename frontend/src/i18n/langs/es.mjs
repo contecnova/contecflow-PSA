@@ -3952,6 +3952,16 @@ const es = {
   },
 
   documents: {
+    reservar: "Reservar",
+    liberar: "Liberar",
+    reserva_ayuda: "Mientras lo tengas reservado, nadie más sube versiones ni cambia sus datos.",
+    reserva_hecha: "Documento reservado",
+    reserva_liberada: "Reserva liberada",
+    reserva_tuya: "Reservado por ti",
+    reserva_de: "Reservado por {nombre}",
+    reserva_hasta: "Hasta {fecha}",
+    reserva_aviso: "{nombre} tiene este documento reservado hasta {fecha}: no se pueden subir versiones ni cambiar sus datos.",
+    reserva_forzar: "Forzar liberación",
     title: 'Documentos',
     subtitle: 'Gestión centralizada de archivos, contratos y documentación del proyecto', upload: 'Subir documento', folder: 'Carpeta',
     new_folder: 'Nueva carpeta', file_name: 'Nombre', file_type: 'Tipo',

@@ -869,6 +869,9 @@ export const documentsApi = {
   submitApproval: (id: any)  => api.post(`/documents/${id}/submit-approval`),
   aiSummary: (id: any)       => api.post(`/documents/${id}/ai-summary`),
   addVersion:(id: any, fd: unknown)   => api.post(`/documents/${id}/versions`, fd),
+  // Revisión 2026-11: reservar para editar (check-out / check-in).
+  checkout:  (id: any)       => api.post(`/documents/${id}/checkout`),
+  checkin:   (id: any, force = false) => api.post(`/documents/${id}/checkin`, null, { params: force ? { force: true } : undefined }),
   // Permisos
   listPermissions:   (id: any)              => api.get(`/documents/${id}/permissions`),
   grantPermission:   (id: any, data: unknown)        => api.post(`/documents/${id}/permissions`, data),

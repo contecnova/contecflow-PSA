@@ -21,6 +21,16 @@ def query_documents(db: Session, current_user, category=None, tags=None, search=
     total = q.count()
     return q.order_by(Document.created_at.desc()), total
 
+def _reserva_para(doc, user):
+    from app.services.reserva_de_documentos import para_mostrar
+    return para_mostrar(doc, user)
+
+
+def _reserva_vigente(doc):
+    from app.services.reserva_de_documentos import vigente
+    return vigente(doc)
+
+
 # Serializador compacto para listados
 def serialize_doc_list_item(doc):
     latest = doc.versions[0] if doc.versions else None
@@ -35,6 +45,7 @@ def serialize_doc_list_item(doc):
         "created_at": str(doc.created_at)[:16] if doc.created_at else None,
         "tags": [t.tag_name for t in doc.tags],
         "version_count": len(doc.versions),
+        "checkout": _reserva_vigente(doc),
         "latest_version": {
             "id": latest.id,
             "version_num": latest.version_num,
@@ -249,6 +260,7 @@ def serialize_document(db, doc, user, generate_s3_urls: bool = True):
         ) for p in visible_perms],
         tags=[t.tag_name for t in doc.tags],
         approval_request=_serialize_approval_request(db, doc),
+        checkout=_reserva_para(doc, user),
     )
 
 
@@ -311,6 +323,7 @@ def build_doc_list(docs: list) -> list:
             "created_at": str(doc.created_at)[:16] if doc.created_at else None,
             "tags": [t.tag_name for t in doc.tags],
             "version_count": len(doc.versions),
+            "checkout": _reserva_vigente(doc),
             "latest_version": {
                 "id": latest.id, "version_num": latest.version_num, "file_name": latest.file_name,
                 "file_size": latest.file_size, "file_mime_type": latest.file_mime_type,

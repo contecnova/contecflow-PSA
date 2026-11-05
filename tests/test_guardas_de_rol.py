@@ -116,7 +116,7 @@ EXENCIONES_ESPERADAS = {
     # como su pantalla (el generador de informes).
     # 93 desde 2026-11-04: PATCH /auth/mfa/webauthn/credentials/{id} (renombrar
     # una passkey propia).
-    "acotada al propio usuario": 94,  # +1 2026-11: cambio de empresa en la sesión
+    "acotada al propio usuario": 96,  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents)
     "superficie: API key": 7,
     "superficie: portal de cliente": 22,  # +1: valorar una respuesta del chat del portal (2026-11)
     # 38 desde 2026-11-02: POST /sd/events/{source} autentica el token de la

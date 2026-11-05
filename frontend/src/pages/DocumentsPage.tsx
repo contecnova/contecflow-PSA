@@ -15,7 +15,7 @@ import {
   Upload, Search, Grid3X3, List, Plus, Download, Trash2,
   Sparkles, History, X, Check, FolderOpen, Files, FileCheck,
   FileClock, FileMinus, TrendingUp, Eye, Info, Share2, Users,
-  CheckCircle, XCircle, ExternalLink, Loader
+  CheckCircle, XCircle, ExternalLink, Loader, Lock, LockOpen
 } from 'lucide-react';
 import { Page, Button } from '../components/ui'
 import { alpha } from '../constants/theme'
@@ -145,6 +145,21 @@ function KpiCard({ icon: Icon, label, value, color, sub }: { icon: any; label?: 
 
 // ── Doc Card (Grid) ─────────────────────────────────────────
 
+type Reserva = { user_id: string; user_name?: string; at?: string; expires_at?: string; mine?: boolean } | null | undefined
+
+/** Quién tiene el documento reservado para editar (revisión 2026-11). */
+function ReservaChip({ reserva }: { reserva: Reserva }) {
+  const t = useAppT()
+  if (!reserva) return null
+  return (
+    <div title={reserva.expires_at ? t('documents.reserva_hasta', { fecha: new Date(reserva.expires_at).toLocaleString() }) : undefined}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 3, fontSize: "var(--text-2xs)", fontWeight: 600,
+        color: reserva.mine ? 'var(--accent)' : 'var(--warning)' }}>
+      <Lock size={10} /> {reserva.mine ? t('documents.reserva_tuya') : t('documents.reserva_de', { nombre: reserva.user_name || '—' })}
+    </div>
+  )
+}
+
 function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: { doc: any; onView: (id: any) => void; onDelete: (doc: any) => void; onSummary: (id: any) => void; selected: boolean; onToggleSelect: (id: any) => void }) {
   const [hover, setHover] = useState(false);
   const lv = doc.latest_version;
@@ -202,6 +217,7 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
               fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', lineHeight: 1.35,
               display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
             }}>{doc.title}</div>
+            <ReservaChip reserva={doc.checkout} />
             {lv?.file_name && (
               <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 2, fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {lv.file_name}
@@ -312,6 +328,7 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
       </td>
       <td style={{ padding: '10px 12px', maxWidth: 280 }}>
         <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</div>
+        <ReservaChip reserva={doc.checkout} />
         {lv?.file_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lv.file_name}</div>}
       </td>
       <td style={{ padding: '10px 12px' }}>
@@ -768,6 +785,21 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
     onError: (e: unknown) => toast.error((e as any)?.response?.data?.detail || 'Error IA'),
   });
 
+  const reserva: Reserva = doc?.checkout
+  const deOtro = !!reserva && !reserva.mine
+  const reservaMutation = useMutation({
+    mutationFn: (accion: 'checkout' | 'checkin' | 'force') =>
+      accion === 'checkout' ? documentsApi.checkout(documentId) : documentsApi.checkin(documentId, accion === 'force'),
+    onSuccess: (_: unknown, accion: 'checkout' | 'checkin' | 'force') => {
+      toast.success(t(accion === 'checkout' ? 'documents.reserva_hecha' : 'documents.reserva_liberada'))
+      qc.invalidateQueries({ queryKey: ['document', documentId] }); onRefresh()
+    },
+    onError: (e: unknown) => {
+      const d = (e as any)?.response?.data?.detail
+      toast.error(typeof d === 'string' ? d : d?.message || 'Error')
+    },
+  });
+
   const versionMutation = useMutation({
     mutationFn: () => {
       const fd = new FormData();
@@ -898,6 +930,19 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                     </button>
                   </>
                 )}
+                {!reserva && (
+                  <button onClick={() => reservaMutation.mutate('checkout')} disabled={reservaMutation.isPending}
+                    title={t('documents.reserva_ayuda')}
+                    style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-1)', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Lock size={13} /> {t('documents.reservar')}
+                  </button>
+                )}
+                {reserva?.mine && (
+                  <button onClick={() => reservaMutation.mutate('checkin')} disabled={reservaMutation.isPending}
+                    style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--accent)', backgroundColor: 'transparent', color: 'var(--accent)', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <LockOpen size={13} /> {t('documents.liberar')}
+                  </button>
+                )}
                 <button onClick={() => summaryMutation.mutate()} disabled={summaryMutation.isPending}
                   style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--purple)', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
                    <Sparkles size={13} /> {summaryMutation.isPending ? 'Generando...' : 'Resumen IA'}
@@ -910,6 +955,19 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
                 )}
               </div>
             </div>
+
+            {deOtro && (
+              <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 22px', backgroundColor: 'color-mix(in srgb, var(--warning) 12%, transparent)', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
+                <Lock size={14} color="var(--warning)" />
+                <span style={{ flex: 1 }}>
+                  {t('documents.reserva_aviso', { nombre: reserva?.user_name || '—', fecha: reserva?.expires_at ? new Date(reserva.expires_at).toLocaleString() : '—' })}
+                </span>
+                <button onClick={() => reservaMutation.mutate('force')} disabled={reservaMutation.isPending}
+                  style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {t('documents.reserva_forzar')}
+                </button>
+              </div>
+            )}
 
             {/* Tabs */}
             <div style={{ display: 'flex', gap: 6, padding: '12px 22px', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
@@ -1019,8 +1077,9 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: any; o
 
                   {/* Upload new version */}
                   {!showUploadVersion ? (
-                    <button onClick={() => setShowUploadVersion(true)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px dashed var(--surface-5)', backgroundColor: 'transparent', color: 'var(--accent)', fontSize: "var(--text-base)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', width: '100%', justifyContent: 'center' }}>
+                    <button onClick={() => setShowUploadVersion(true)} disabled={deOtro}
+                      title={deOtro ? t('documents.reserva_de', { nombre: reserva?.user_name || '—' }) : undefined}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px dashed var(--surface-5)', backgroundColor: 'transparent', color: deOtro ? 'var(--text-3)' : 'var(--accent)', fontSize: "var(--text-base)", fontWeight: 600, cursor: deOtro ? 'not-allowed' : 'pointer', fontFamily: 'inherit', width: '100%', justifyContent: 'center' }}>
                       <Upload size={14} /> {t('documents.subir_nueva_version')}
                     </button>
                   ) : (

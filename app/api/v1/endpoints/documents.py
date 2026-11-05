@@ -26,6 +26,8 @@ from app.services.s3_service import file_storage
 from app.services.ai_dispatch import call_ai
 from app.services import documents_service as doc_svc
 
+from app.services import reserva_de_documentos as _reserva
+
 router = APIRouter(prefix="/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
 
@@ -159,6 +161,7 @@ def update_document(
     """Update document metadata (title, category, etc)."""
     doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
+    _reserva.exigir_libre(doc, current_user)
     return APIResponse.ok(data=doc_svc.update_document(db, doc, payload, current_user))
 
 
@@ -172,8 +175,25 @@ def delete_document(
     enforce_abac(db, current_user, "document", doc_id, action="delete")
     doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
+    _reserva.exigir_libre(doc, current_user)
     doc_svc.archive_document(db, doc)
     return APIResponse.ok(data={"status": "archived"})
+
+
+# ── Reserva para editar: check-out / check-in (revisión 2026-11) ──────────────
+
+@router.post("/{doc_id}/checkout", summary="Reservar el documento para editarlo (check-out)")
+def checkout_document(doc_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    doc = get_document_or_404(db, doc_id, current_user)
+    return APIResponse.ok(data=_reserva.reservar(db, doc, current_user))
+
+
+@router.post("/{doc_id}/checkin", summary="Liberar la reserva (check-in); force=true para quien administra el documento")
+def checkin_document(doc_id: str, force: bool = Query(False), db: Session = Depends(get_db),
+                     current_user: User = Depends(get_current_user)):
+    doc = get_document_or_404(db, doc_id, current_user)
+    _reserva.liberar(db, doc, current_user, forzar=force)
+    return APIResponse.ok(data={"checkout": None})
 
 
 # ── Version Management ─────────────────────────────────────────────────────
@@ -189,6 +209,7 @@ def upload_version(
     """Upload new version of document."""
     doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
+    _reserva.exigir_libre(doc, current_user)
 
     # Check file size (convert MB to bytes)
     from app.services.settings_service import get_runtime_int

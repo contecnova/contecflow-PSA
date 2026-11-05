@@ -233,6 +233,8 @@ class Settings(
     )
     S3_URL_EXPIRATION_HOURS: int = Field(default=24, env="S3_URL_EXPIRATION_HOURS")
     MAX_FILE_SIZE_MB: int = Field(default=100, env="MAX_FILE_SIZE_MB")
+    # Revisión 2026-11: una reserva de documento (check-out) caduca sola pasado este tiempo.
+    DOCUMENT_CHECKOUT_HOURS: int = Field(default=24, env="DOCUMENT_CHECKOUT_HOURS")
 
     # ── Notifications ──────────────────────────────────────────────────────
     SLACK_WEBHOOK_URL: Optional[str] = Field(default=None, env="SLACK_WEBHOOK_URL")

@@ -76,6 +76,11 @@ class Document(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # Reserva para editar (check-out, revisión 2026-11): ver app/services/reserva_de_documentos.py
+    checked_out_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    checked_out_at = Column(DateTime(timezone=True), nullable=True)
+    checkout_expires_at = Column(DateTime(timezone=True), nullable=True)
+
     # Relationships
     project = relationship("Project", foreign_keys=[project_id])  # TODO #56: inverse en Project (project.py)
     client = relationship("Client", foreign_keys=[client_id])  # TODO #56: inverse en Client (clients.py)
@@ -85,6 +90,7 @@ class Document(Base):
     creator = relationship("User", foreign_keys=[created_by], primaryjoin="Document.created_by == User.id")  # TODO #56
     updater = relationship("User", foreign_keys=[updated_by], primaryjoin="Document.updated_by == User.id")  # TODO #56
     approver = relationship("User", foreign_keys=[approved_by], primaryjoin="Document.approved_by == User.id")  # TODO #56
+    checkout_user = relationship("User", foreign_keys=[checked_out_by], primaryjoin="Document.checked_out_by == User.id")
     # audit #56-57: versions/permissions/tags iterados SIEMPRE en _serialize_doc (documents_service.py)
     # → selectin colapsa N×3 queries en 3 IN-loads al listar documentos.
     versions = relationship("DocumentVersion", back_populates="document", cascade="all, delete-orphan", order_by="DocumentVersion.version_num.desc()", lazy="selectin")

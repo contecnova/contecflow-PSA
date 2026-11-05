@@ -367,6 +367,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
     "storage": [
         ("S3_URL_EXPIRATION_HOURS", "int", "S3 presigned URL TTL (h)"),
         ("MAX_FILE_SIZE_MB", "int", "Max upload size (MB)"),
+        ("DOCUMENT_CHECKOUT_HOURS", "int", "Document check-out — the reservation expires by itself after (h)"),
     ],
     "security_network": [
         ("TRUST_PROXY_HEADERS", "bool", "Trust X-Forwarded-* headers"),

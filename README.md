@@ -417,6 +417,13 @@ Rules enforced in `imputation_service.py`:
 - `/api/v1/documents` (list, create), `/{id}`, `/{id}/versions`, `/{id}/permissions`, `/{id}/approve`, `/{id}/submit-approval`, `/upload`, `/file/{key}`, `/by-project|by-task|by-ticket/{id}`, `/{id}/tags`, `/{id}/ai-summary`.
 - Tables: `documents`, `document_versions`, `document_permissions`, `document_tags`, `document_access_logs`, plus `approval_requests` when a workflow is used.
 
+**Reservar para editar (check-out / check-in, 2026-11-05; brought from contecmind).** In a document's detail, **Reservar** reserves it for you: while you hold it, nobody else can upload a version, change its details, archive it or save the collaborative edit — they get **423 Locked** saying who has it and until when, the upload-version button is disabled for them and a banner explains it. **Liberar** releases it. The card and the list show «Reservado por …».
+- Reserving needs editor access to the document. The reservation expires by itself after `DOCUMENT_CHECKOUT_HOURS` (24, Admin → runtime settings), so a forgotten one does not block forever.
+- **Forzar liberación** is for whoever administers the document (its `admin` level, or the company admin); anyone else gets 403. Check-out, check-in and forced check-in are written to the audit log (`CHECKOUT`, `CHECKIN`, `CHECKIN_FORCED` with who held it).
+- **Fixed in the same block:** the collaborative-snapshot routes (`/documents/{id}/collab/snapshot` and `/history`) did not check the document's permissions — any internal user of the company could read or overwrite any document's snapshot. They now require viewer (read) and editor (write) access, and writing respects the reservation. No screen calls them today.
+- **Not changed (finding):** `PATCH /api/v1/documents/{id}/edit` is a stub: it answers `ok` and does nothing.
+- **Endpoints:** `POST /api/v1/documents/{id}/checkout`, `POST /api/v1/documents/{id}/checkin[?force=true]`; `checkout` (who, since, until, `mine`) is in the document and in the list. Migration 138. Tests: `tests/test_reserva_de_documentos_2026_11.py` (validated by ignoring the expiry and by letting anyone force: both caught). Checked in the browser on a copy: reserving shows «Liberar»; a reservation held by someone else shows the banner and the chip.
+
 **Limitations.** The AI summary needs both text extraction and a configured AI provider.
 
 ### Expenses — `/expenses`
@@ -4178,7 +4185,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 groups, 179 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 groups, 180 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4305,6 +4312,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 
 | feature_flags | M365_TEAMS_NOTIFICATIONS_ENABLED | bool | false | "M365 Teams notifications" | **display only** (same) |
 | feature_flags | EXCHANGE_RATES_AUTO_UPDATE | bool | false | "Auto-update exchange rates" | **none**: no reader in `app/` |
 | storage | S3_URL_EXPIRATION_HOURS | int | 24 | Presigned URL TTL (h) | rt (`s3_service`, collaboration files) |
+| storage | DOCUMENT_CHECKOUT_HOURS | int | 24 | Document check-out — the reservation expires by itself after (h) | rt |
 | storage | MAX_FILE_SIZE_MB | int | 100 | Max document upload size (MB) | rt in `documents.py`; `core/uploads.py` reads `settings` (static) |
 | security_network | TRUST_PROXY_HEADERS | bool | false | Trust `X-Forwarded-*` for the client IP | rt (global only) |
 | security_network | TRUSTED_PROXY_CIDRS | str | `127.0.0.1/32,::1/128` | Proxies whose `X-Forwarded-*` are trusted | rt (global only) |
