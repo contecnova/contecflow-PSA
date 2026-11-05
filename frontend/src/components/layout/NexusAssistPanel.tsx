@@ -19,6 +19,7 @@ interface AssistContext {
 }
 
 interface ChatMessage {
+  id?: string
   role: 'user' | 'assistant'
   content: string
   // Revisión 2026-11: artículos citados y si se aplicó la corrección de un experto.
@@ -149,7 +150,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
         ..._entityCtx,
       })
       setConvId(data.conversation_id)
-      setMessages(prev => [...prev, { role: 'assistant', content: data.message, sources: data.sources || [], correction: !!data.correction_applied }])
+      setMessages(prev => [...prev, { id: data.message_id || undefined, role: 'assistant', content: data.message, sources: data.sources || [], correction: !!data.correction_applied }])
       qc.invalidateQueries({ queryKey: ['ai-conversations'] })
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: '⚠ Error de conexión con NexusAssist.' }])
@@ -292,6 +293,12 @@ function PieDeRespuesta({ mensaje, pregunta }: { mensaje: ChatMessage; pregunta:
   const [respuesta, setRespuesta] = useState(mensaje.content)
   const [publica, setPublica] = useState(false)
   const [estado, setEstado] = useState<'' | 'ok' | 'error' | 'denegado'>('')
+  // Revisión 2026-11: 👍/👎. Un 👎 lleva la pregunta a «Preguntas sin respuesta».
+  const [voto, setVoto] = useState<boolean | null>(null)
+  const { mutate: votar } = useMutation({
+    mutationFn: (util: boolean) => nexusAgentApi.feedback(mensaje.id as string, { helpful: util }),
+    onSuccess: (_r: unknown, util: boolean) => setVoto(util),
+  })
   const { mutate: guardar, isPending } = useMutation({
     mutationFn: () => sdKbApi.createCorrection({ question: pregunta, answer: respuesta.trim(), is_public: publica }),
     onSuccess: () => { setEstado('ok'); setAbierto(false) },
@@ -305,6 +312,14 @@ function PieDeRespuesta({ mensaje, pregunta }: { mensaje: ChatMessage; pregunta:
         {(mensaje.sources || []).map(s => (
           <a key={s.id} href="/service-desk?tab=kb" title={s.title} style={chip}>📖 {s.number} · {s.title.slice(0, 40)}</a>
         ))}
+        {mensaje.id && (['up', 'down'] as const).map(d => (
+          <button key={d} type="button" aria-pressed={voto === (d === 'up')} aria-label={t('nexusassist.voto_' + d)} title={t('nexusassist.voto_' + d)}
+            onClick={() => votar(d === 'up')}
+            style={{ ...chip, cursor: 'pointer', fontFamily: 'inherit', ...(voto === (d === 'up') ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : {}) }}>
+            {d === 'up' ? '👍' : '👎'}
+          </button>
+        ))}
+        {voto === false && <span style={{ ...chip, color: 'var(--text-3)' }}>{t('nexusassist.voto_gracias')}</span>}
         {!abierto && estado !== 'ok' && (
           <button type="button" onClick={() => setAbierto(true)} style={{ ...chip, cursor: 'pointer', fontFamily: 'inherit' }}>✎ {t('nexusassist.corregir')}</button>
         )}

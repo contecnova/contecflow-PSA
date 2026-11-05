@@ -442,3 +442,24 @@ class MCPPendingAction(Base):
     approval_request_id = Column(String(36), nullable=True, index=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
     decided_at      = Column(DateTime(timezone=True), nullable=True)
+
+
+class AIAnswerFeedback(Base):
+    """👍 / 👎 de una respuesta de IA (asistente interno o chat del portal).
+
+    Revisión 2026-11 (lo que contecmind tenía): un 👎 lleva la pregunta a la
+    lista de «preguntas sin respuesta» de la base de conocimiento.
+    """
+    __tablename__ = "ai_answer_feedback"
+    __table_args__ = (Index("uq_ai_answer_feedback_org_msg", "organization_id", "channel", "message_id", unique=True),)
+
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    channel         = Column(String(20), nullable=False)        # assistant | portal
+    message_id      = Column(String(36), nullable=False)
+    question        = Column(Text, nullable=True)
+    helpful         = Column(Boolean, nullable=False)
+    comment         = Column(Text, nullable=True)
+    user_id         = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    client_user_id  = Column(String(36), nullable=True)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())

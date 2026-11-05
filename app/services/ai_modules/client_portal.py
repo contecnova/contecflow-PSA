@@ -145,10 +145,12 @@ def _client_portal_chat_for_user(db: Session, client_user, message: str, session
         _log.exception("Client portal chat AI call failed for session=%s", getattr(session, "id", None))
         response_text = client_demo_response(message, project_data)
 
-    db.add(AIClientChatMessage(session_id=session.id, role="assistant", content=response_text))
+    respuesta = AIClientChatMessage(session_id=session.id, role="assistant", content=response_text)
+    db.add(respuesta)
     db.commit()
 
-    return {"session_id": session.id, "response": response_text, "sources": kb["sources"]}
+    return {"session_id": session.id, "response": response_text, "sources": kb["sources"],
+            "message_id": respuesta.id}   # revisión 2026-11: para valorarla
 
 def list_client_chat_messages(db: Session, client_user, session_id: str, limit: int = 50) -> list:
     """Lee historial de mensajes de una sesión, verificando ownership. Útil
@@ -163,6 +165,7 @@ def list_client_chat_messages(db: Session, client_user, session_id: str, limit: 
         AIClientChatMessage.session_id == session.id
     ).order_by(AIClientChatMessage.created_at.asc()).limit(limit).all()
     return [{
+        "id": m.id,
         "role": m.role,
         "content": m.content,
         "created_at": str(m.created_at)[:16],

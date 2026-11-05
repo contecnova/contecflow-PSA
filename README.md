@@ -2332,6 +2332,10 @@ Not reviewed screen by screen (**Not verified** beyond the endpoints and jobs).
   - `SD_KB_RAG_MAX_SOURCES` (3).
 - **Word search without the sentence model.** Accents are ignored, and words longer than five letters compare by their first six letters. «¿Cómo restablezco mi contraseña?» now finds «Como restablecer tu contrasena» (measured: before, it found nothing).
 - **Expert corrections.** *Corregir* under any assistant reply, or *Responder* on an unanswered question, saves the right answer (`POST /sd/kb/corrections`; only people who can publish to the base, `puede_publicar`). It applies at once to similar questions (`SD_KB_CORRECTION_MATCH`, 0.8: cosine with the sentence model, word overlap without it) and goes ahead of the articles. The reply shows *Respuesta validada por un experto*. A correction is internal unless *También para los clientes* is ticked. Archive it from the Calidad view.
+- **👍 / 👎 on answers (2026-11, what contecmind had).** Every assistant answer and every portal-chat answer can be rated.
+  - Ratings are stored in `ai_answer_feedback` (migration 136), one per message; voting again changes the vote.
+  - A 👎 records the question as unanswered (source «👎 en el asistente» / «👎 en el portal»), even if the answer cited articles. A question already recorded is counted again, not duplicated.
+  - Endpoints: `POST /api/v1/ai/messages/{id}/feedback` (only the author of the conversation) and `POST /api/v1/portal/ai-chat/messages/{id}/feedback` (only the client of the session). `/ai/chat` and `/portal/ai-chat` now return `message_id`.
 - **Unanswered questions.** A client question (portal chat or L1 bot) with neither article nor correction is recorded in `sd_kb_gaps`. Repeated questions are grouped (same words in any order) and counted. From the list: *Responder* (creates a correction and closes it), *Crear artículo* (the title comes pre-filled; saving closes it) or *Descartar* (it no longer comes back, but is still counted). Internal assistant questions are not recorded: most are about data, not the base.
 - **Alerts** (daily job `kb_pasada_de_calidad`, 03:10; admins can run it with *Revisar ahora*, `POST /sd/kb/quality/run`):
   - Stale: a published article untouched for `SD_KB_STALE_DAYS` (180; 0 = off). Its author is notified once per version.
@@ -2694,6 +2698,7 @@ Workflow `wait` timers do **not** run in Celery: they run in the API process's s
 | 133 | Knowledge-base quality: `sd_kb_corrections`, `sd_kb_gaps`, `sd_kb_findings` |
 | 134 | MCP: `mcp_pending_actions` (writes waiting for human approval) |
 | 135 | Data only: rows without a company re-homed from their own record; mixed ITSM snapshots deleted |
+| 136 | `ai_answer_feedback` (👍/👎 of AI answers) |
 
 ---
 

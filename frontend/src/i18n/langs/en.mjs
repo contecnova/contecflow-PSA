@@ -5730,6 +5730,8 @@ const en = {
     valido: 'Valid',
   },
   itsmknowledge: {
+    origen_assistant_feedback: "👎 in the assistant",
+    origen_portal_feedback: "👎 in the portal",
     // Revisión 2026-11: calidad de la base de conocimiento
     vista_articulos: "Articles",
     vista_calidad: "Quality",
@@ -6544,6 +6546,9 @@ const en = {
     sin_datos_suficientes_para_generar_narrativa_ejecuta: 'Not enough data to generate the narrative. Run the OLAP ETL first.',
   },
   nexusassist: {
+    voto_up: "Helpful",
+    voto_down: "Not helpful",
+    voto_gracias: "Thanks: it will be reviewed",
     // Revisión 2026-11: calidad de la base de conocimiento
     respuesta_validada: "Expert-validated answer",
     corregir: "Correct",
@@ -6564,6 +6569,9 @@ const en = {
     ultima_pagina: 'Last page',
   },
   portalaichatwidget: {
+    voto_up: "Helpful",
+    voto_down: "Not helpful",
+    voto_gracias: "Thanks: the team will review it",
     fuentes: "Based on",
     nueva_conversacion: 'New conversation',
     empezar_de_nuevo: 'Start over',

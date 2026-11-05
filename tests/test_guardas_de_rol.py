@@ -118,7 +118,7 @@ EXENCIONES_ESPERADAS = {
     # una passkey propia).
     "acotada al propio usuario": 94,  # +1 2026-11: cambio de empresa en la sesión
     "superficie: API key": 7,
-    "superficie: portal de cliente": 21,
+    "superficie: portal de cliente": 22,  # +1: valorar una respuesta del chat del portal (2026-11)
     # 38 desde 2026-11-02: POST /sd/events/{source} autentica el token de la
     # organizacion y POST /sd/kb/{id}/deflected exige `lector_de_la_kb`
     # (cliente del portal o usuario); el clasificador no reconoce ninguno.

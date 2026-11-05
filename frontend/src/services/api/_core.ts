@@ -1947,6 +1947,7 @@ export const nexusAgentApi = {
   listConversations:    () => api.get('/ai/conversations'),
   getConversation:      (id: any) => api.get(`/ai/conversations/${id}`),
   deleteConversations:  () => api.delete('/ai/conversations'),
+  feedback: (messageId: string, data: { helpful: boolean; comment?: string }) => api.post(`/ai/messages/${messageId}/feedback`, data),
 }
 
 // ── Resources ─────────────────────────────────────────────────────────────────

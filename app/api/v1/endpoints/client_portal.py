@@ -892,6 +892,22 @@ def portal_ai_chat(
         raise HTTPException(400, err)
 
 
+class _ValoracionIn(BaseModel):
+    helpful: bool
+    comment: Optional[str] = None
+
+
+@router.post("/ai-chat/messages/{message_id}/feedback", summary="Valorar una respuesta del chat del portal (👍/👎)")
+def valorar_respuesta_del_portal(message_id: str, payload: _ValoracionIn,
+                                 current_client: ClientUser = Depends(get_current_client),
+                                 db: Session = Depends(get_db)):
+    from app.services.valoracion_de_respuestas import valorar_del_portal
+    try:
+        return APIResponse.ok(data=valorar_del_portal(db, current_client, message_id, payload.helpful, payload.comment))
+    except LookupError:
+        raise HTTPException(404, "Respuesta no encontrada")
+
+
 @router.get("/ai-chat/{session_id}/messages", summary="Histórico de la sesión IA del portal")
 def portal_ai_chat_history(
     session_id: str,

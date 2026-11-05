@@ -5038,6 +5038,8 @@ const es = {
     valido: 'Válido',
   },
   itsmknowledge: {
+    origen_assistant_feedback: "👎 en el asistente",
+    origen_portal_feedback: "👎 en el portal",
     // Revisión 2026-11: calidad de la base de conocimiento
     vista_articulos: "Artículos",
     vista_calidad: "Calidad",
@@ -5872,6 +5874,9 @@ const es = {
     sin_datos_suficientes_para_generar_narrativa_ejecuta: 'Sin datos suficientes para generar la narrativa. Ejecuta antes el ETL OLAP.',
   },
   nexusassist: {
+    voto_up: "Me ha servido",
+    voto_down: "No me ha servido",
+    voto_gracias: "Gracias: se revisará",
     // Revisión 2026-11: calidad de la base de conocimiento
     respuesta_validada: "Respuesta validada por un experto",
     corregir: "Corregir",
@@ -5892,6 +5897,9 @@ const es = {
     ultima_pagina: 'Última página',
   },
   portalaichatwidget: {
+    voto_up: "Me ha servido",
+    voto_down: "No me ha servido",
+    voto_gracias: "Gracias: el equipo lo revisará",
     fuentes: "Según",
     nueva_conversacion: 'Nueva conversación',
     empezar_de_nuevo: 'Empezar de nuevo',

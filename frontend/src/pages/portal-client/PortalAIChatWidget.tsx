@@ -22,6 +22,7 @@ type ChatRole = 'user' | 'assistant'
 type Fuente = { id: string; number: string; title: string }
 
 interface ChatMessage {
+  id?: string
   role: ChatRole
   content: string
   sources?: Fuente[]   // revisión 2026-11: artículos de la base en que se apoya
@@ -31,6 +32,7 @@ interface ChatPostResponse {
   session_id?: string
   response?: string
   sources?: Fuente[]
+  message_id?: string
 }
 
 const SUGGESTIONS = [
@@ -98,7 +100,7 @@ export default function PortalAIChatWidget() {
         setSessionId(data.session_id)
         try { localStorage.setItem(SESSION_KEY, data.session_id) } catch { /* noop */ }
       }
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response || '...', sources: data.sources || [] }])
+      setMessages(prev => [...prev, { id: data.message_id, role: 'assistant', content: data.response || '...', sources: data.sources || [] }])
     } catch (e: unknown) {
       const detail =
         (e as { response?: { data?: { detail?: unknown } }; message?: unknown })?.response?.data?.detail ||
@@ -240,6 +242,7 @@ export default function PortalAIChatWidget() {
                   {t('portalaichatwidget.fuentes')}: {m.sources.map(s => `${s.title} (${s.number})`).join(' · ')}
                 </div>
               )}
+              {m.role === 'assistant' && m.id && <Voto id={m.id} />}
             </div>
           ))
         )}
@@ -302,6 +305,27 @@ export default function PortalAIChatWidget() {
           50%      { opacity: 1; }
         }
       `}</style>
+    </div>
+  )
+}
+
+
+// Revisión 2026-11: 👍/👎 de cada respuesta; un 👎 avisa al equipo (pregunta sin respuesta).
+function Voto({ id }: { id: string }) {
+  const { t } = useAppLang()
+  const [voto, setVoto] = useState<boolean | null>(null)
+  const votar = (util: boolean) =>
+    CLIENT_API.post(`/portal/ai-chat/messages/${id}/feedback`, { helpful: util }).then(() => setVoto(util)).catch(() => {})
+  return (
+    <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center', fontSize: 11 }}>
+      {([true, false] as const).map(util => (
+        <button key={String(util)} type="button" aria-pressed={voto === util} aria-label={t(util ? 'portalaichatwidget.voto_up' : 'portalaichatwidget.voto_down')}
+          onClick={() => votar(util)}
+          style={{ background: 'none', border: `1px solid ${voto === util ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '1px 6px', cursor: 'pointer' }}>
+          {util ? '👍' : '👎'}
+        </button>
+      ))}
+      {voto === false && <span style={{ color: 'var(--text-3)' }}>{t('portalaichatwidget.voto_gracias')}</span>}
     </div>
   )
 }

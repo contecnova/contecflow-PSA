@@ -166,6 +166,7 @@ def persist_chat_response(
     log_action(db, user_id, "contecflowassist", "chat",
                original_message[:200], assistant_text[:200], latency=latency)
     db.commit()
+    return ai_msg.id   # revisión 2026-11: el panel lo usa para valorar la respuesta
 
 
 def load_message_tool_calls(msg: AIMessage) -> list:

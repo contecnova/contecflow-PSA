@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, B
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional
+from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 import json
 import time
@@ -212,9 +213,11 @@ def chat(
 
     # Guardar respuesta
     latency = int((time.time() - t0) * 1000)
+    message_id = None
     try:
         if conv is not None:
-            _svc.persist_chat_response(db, conv.id, current_user.id, payload.message, assistant_text, latency)
+            message_id = _svc.persist_chat_response(db, conv.id, current_user.id, payload.message, assistant_text,
+                                                    latency)
     except Exception as e:
         _logger.error("persist_chat_response failed (non-blocking): %s", e, exc_info=True)
 
@@ -225,6 +228,7 @@ def chat(
         "tokens_used": 0,
         "latency_ms": latency,
         # Revisión 2026-11: artículos citados y si aplicó la corrección de un experto.
+        "message_id": message_id,
         "sources": kb.get("sources", []),
         "correction_applied": bool(kb.get("correction")),
     })
@@ -479,6 +483,22 @@ async def chat_stream(
             "Connection": "keep-alive",
         },
     )
+
+
+class ValoracionIn(BaseModel):
+    helpful: bool
+    comment: Optional[str] = Field(None, max_length=2000)
+
+
+@router.post("/ai/messages/{message_id}/feedback", summary="Valorar una respuesta del asistente (👍/👎)")
+def valorar_respuesta(message_id: str, payload: ValoracionIn, db: Session = Depends(get_db),
+                      current_user: User = Depends(get_current_user),
+                      _rol: User = Depends(require_internal_user)):
+    from app.services.valoracion_de_respuestas import valorar_del_asistente
+    try:
+        return APIResponse.ok(data=valorar_del_asistente(db, current_user, message_id, payload.helpful, payload.comment))
+    except LookupError:
+        raise HTTPException(404, "Respuesta no encontrada")
 
 
 @router.delete("/ai/conversations/{conv_id}", summary="Archivar conversación")

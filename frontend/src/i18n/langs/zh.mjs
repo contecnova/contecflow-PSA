@@ -5741,6 +5741,8 @@ const zh = {
     valido: '有效',
   },
   itsmknowledge: {
+    origen_assistant_feedback: "助手中的 👎",
+    origen_portal_feedback: "门户中的 👎",
     // Revisión 2026-11: calidad de la base de conocimiento
     vista_articulos: "文章",
     vista_calidad: "质量",
@@ -6555,6 +6557,9 @@ const zh = {
     sin_datos_suficientes_para_generar_narrativa_ejecuta: '数据不足，无法生成解读。请先运行 OLAP ETL。',
   },
   nexusassist: {
+    voto_up: "有帮助",
+    voto_down: "没有帮助",
+    voto_gracias: "谢谢：我们会审核",
     // Revisión 2026-11: calidad de la base de conocimiento
     respuesta_validada: "专家验证的答案",
     corregir: "更正",
@@ -6575,6 +6580,9 @@ const zh = {
     ultima_pagina: '末页',
   },
   portalaichatwidget: {
+    voto_up: "有帮助",
+    voto_down: "没有帮助",
+    voto_gracias: "谢谢：团队会审核",
     fuentes: "依据",
     nueva_conversacion: '新建会话',
     empezar_de_nuevo: '重新开始',
