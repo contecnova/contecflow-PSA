@@ -2,6 +2,8 @@
 
 Contecflow is a multi-tenant Professional Services Automation platform: projects and delivery, time and resources, CRM and finance, an ITSM Service Desk (incidents, requests, problems, changes, CMDB, assets, SLA/OLA/UC), BI and AI features, a client portal, and administration for several organizations in one installation.
 
+What was taken from the sister products contecmind and contecintelligence, what Contecflow already had, and what is still a candidate: [docs/COMPARATIVA_CONTECMIND_CONTECINTELLIGENCE.md](docs/COMPARATIVA_CONTECMIND_CONTECINTELLIGENCE.md).
+
 This README is the complete functional and technical documentation of the solution. It was written on **2026-11-03** by reading the code and measuring it: every screen was traced to the API calls it makes, and every API call to the service, table and background job behind it. Where something could not be verified, it says **"Not verified"**. Where the code does not do what the screen suggests, it says so. Defects found while writing are listed in each section under **Limitations**; nothing was hidden to make the product look complete.
 
 | Measured (2026-11-03) | Value |
