@@ -8,10 +8,8 @@
  *   t('tasks.new_task', 'es')    → fuerza español independientemente
  */
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
-import { AuthContext } from '../context/AuthContext'
 import { APP_LANGUAGES, APP_TRANSLATIONS, loadLanguage } from './appTranslations'
 import { deepMergeTranslations, resolveTranslation, getByPath } from './translationRuntime.mjs'
-import api from '../services/api'
 
 // TODO type: translations come from .mjs runtime with deep dynamic shape; keep loose
 type TranslationModule = Record<string, unknown>
@@ -33,6 +31,12 @@ interface AppLangContextValue {
 export const AppLangContext = createContext<AppLangContextValue | null>(null)
 
 export const STORAGE_KEY = 'contecflow_operator_lang'
+// Revisión 2026-11: un idioma elegido a mano que aún no ha llegado al servidor
+// (p. ej. en la pantalla de entrada). Al cargar las preferencias manda sobre
+// el guardado, y se guarda; luego se borra.
+export const ELEGIDO_KEY = 'contecflow_lang_elegido'
+// Evento que emite `setLang`; lo escucha quien tiene sesión (Layout) y guarda.
+export const EVENTO_IDIOMA_ELEGIDO = 'contecflow-lang-elegido'
 
 // Traducciones custom guardadas por el admin (sobreescriben las base)
 const CUSTOM_KEY = 'contecflow_custom_translations'
@@ -72,9 +76,6 @@ export function AppLangProvider({ children }: { children?: ReactNode }) {
     const navLang = (navigator.language || 'es').slice(0,2)
     return navLang in APP_LANGUAGES ? navLang : 'es'
   })
-  // Auth es opcional aquí para evitar dependencia circular de providers en bootstrap.
-  const auth = useContext(AuthContext)
-  const user = auth?.user ?? null
   const inTest = isTestEnvironment()
 
   const [customTrans, setCustomTrans] = useState<LanguageCustomTranslations>(() => {
@@ -143,14 +144,15 @@ export function AppLangProvider({ children }: { children?: ReactNode }) {
     setLoading(false)
   }, [inTest, lang, customTrans])
 
+  // Revisión 2026-11: este proveedor está por fuera del de sesión, así que el
+  // `user` que miraba era siempre null y el idioma no se guardaba nunca. Ahora
+  // avisa con un evento y quien tiene sesión lo guarda.
   const setLang = useCallback((code: string) => {
     setLangState(code)
     localStorage.setItem(STORAGE_KEY, code)
-    // Solo persistir en backend si hay usuario autenticado
-    if (user) {
-      api.patch('/users/me/preferences', { language: code }).catch(() => {})
-    }
-  }, [user])
+    localStorage.setItem(ELEGIDO_KEY, code)
+    window.dispatchEvent(new CustomEvent(EVENTO_IDIOMA_ELEGIDO, { detail: { lang: code } }))
+  }, [])
 
   // Escuchar evento de sincronización de idioma (emitido por useUserPreferences
   // al cargar o actualizar prefs del backend)
@@ -228,7 +230,9 @@ export function AppLangProvider({ children }: { children?: ReactNode }) {
     return trans
   }, [translations, baseTranslations, lang, resolveRawByFullKey])
 
-  if (loading) return null // O un spinner global
+  // Solo se espera a la primera carga. Antes esperaba también al cambiar de
+  // idioma: desmontaba la aplicación entera (y con ella el guardado pendiente).
+  if (loading && Object.keys(translations).length === 0) return null
   return (
     <AppLangContext.Provider value={{ lang, setLang, t, translations, baseTranslations, setCustomTranslations, customTrans, loading, allTranslations: APP_TRANSLATIONS }}>
       {children}

@@ -91,6 +91,14 @@ export const settingsApi = {
   setRuntime: (group: string, key: string, value: string | number | boolean | null): Promise<AxiosResponse<RuntimeFlagsResponse>> =>
     api.put(`/settings/runtime/${group}/${key}`, { value: String(value) }),
 
+  /** Traducciones del back-office de la empresa: `{idioma: {módulo: {clave: texto}}}`. */
+  appTranslations: (): Promise<AxiosResponse<Record<string, Record<string, Record<string, string>>>>> =>
+    api.get('/settings/app-translations'),
+
+  /** Fusiona por clave; un texto vacío quita la personalización. Devuelve todas. */
+  saveAppTranslations: (translations: Record<string, unknown>): Promise<AxiosResponse<Record<string, Record<string, Record<string, string>>>>> =>
+    api.put('/settings/app-translations', { translations }),
+
   integrations: (): Promise<AxiosResponse<IntegrationStatus[]>> =>
     api.get('/settings/integrations'),
 

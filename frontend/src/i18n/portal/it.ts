@@ -1,5 +1,11 @@
 // Italiano — Portale Cliente
 const it: Record<string, string> = {
+  // Grupos del menú (revisión 2026-11: estaban escritos en español)
+  group_overview: 'Panoramica',
+  group_delivery: 'Consegna',
+  group_support: 'Supporto',
+  group_docs: 'Documentazione',
+  group_account: 'Account',
   portal: 'Portale Cliente',
   nav_dashboard: 'Home',
   nav_uat: 'Test UAT',

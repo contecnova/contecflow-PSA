@@ -1,5 +1,11 @@
 // Français — Portail Client
 const fr: Record<string, string> = {
+  // Grupos del menú (revisión 2026-11: estaban escritos en español)
+  group_overview: 'Aperçu',
+  group_delivery: 'Livraison',
+  group_support: 'Support',
+  group_docs: 'Documentation',
+  group_account: 'Compte',
   portal: 'Portail Client',
   nav_dashboard: 'Accueil',
   nav_uat: 'Tests UAT',

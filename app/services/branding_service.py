@@ -110,9 +110,60 @@ def guardar_traducciones_del_portal(
     # `traducciones_del_portal` dispararia el autoflush de la fila recien
     # anadida para volver a leerla, que es una consulta de mas y una sutileza
     # que no hace falta.
-    actuales = _traducciones_de(marca, org_id)
-    actuales.update(cambios or {})
+    # Revisión 2026-11: la fusión era de primer nivel, y guardar una clave de un
+    # idioma borraba las demás de ese idioma. Ahora es por clave; vacío borra.
+    actuales = fusionar_traducciones(_traducciones_de(marca, org_id), cambios or {})
     marca.portal_translations = json.dumps(actuales, ensure_ascii=False)
+    return actuales
+
+
+def fusionar_traducciones(actuales: dict, cambios: dict) -> dict:
+    """Fusión por clave a cualquier profundidad; un texto vacío quita la clave."""
+    out = dict(actuales or {})
+    for clave, valor in (cambios or {}).items():
+        if isinstance(valor, dict):
+            hijo = fusionar_traducciones(out.get(clave) if isinstance(out.get(clave), dict) else {}, valor)
+            if hijo:
+                out[clave] = hijo
+            else:
+                out.pop(clave, None)
+        elif valor is None or (isinstance(valor, str) and not valor.strip()):
+            out.pop(clave, None)
+        else:
+            out[clave] = str(valor)
+    return out
+
+
+# ── Traducciones del back-office (revisión 2026-11) ──────────────────────────
+# Antes vivían en el localStorage del navegador del administrador: nadie más
+# las veía. Ahora, por empresa, en `app_settings` (`{idioma: {módulo: {clave}}}`).
+CLAVE_TRADUCCIONES_BACK_OFFICE = "app_translations"
+
+
+def _fila_back_office(db: Session, org_id: str):
+    from app.models.settings import AppSetting
+    return (db.query(AppSetting)
+            .filter(AppSetting.key == CLAVE_TRADUCCIONES_BACK_OFFICE, AppSetting.organization_id == org_id)
+            .first())
+
+
+def traducciones_del_back_office(db: Session, org_id: str) -> dict:
+    fila = _fila_back_office(db, org_id)
+    try:
+        return json.loads(fila.value) if fila and fila.value else {}
+    except (ValueError, TypeError):
+        return {}
+
+
+def guardar_traducciones_del_back_office(db: Session, org_id: str, cambios: dict) -> dict:
+    from app.models.settings import AppSetting
+    fila = _fila_back_office(db, org_id)
+    if fila is None:
+        fila = AppSetting(key=CLAVE_TRADUCCIONES_BACK_OFFICE, organization_id=org_id)
+        db.add(fila)
+    actuales = fusionar_traducciones(traducciones_del_back_office(db, org_id), cambios)
+    fila.value = json.dumps(actuales, ensure_ascii=False)
+    db.commit()
     return actuales
 
 

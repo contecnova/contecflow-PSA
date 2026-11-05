@@ -29,7 +29,7 @@ export function IdiomasSection() {
   const qc = useQueryClient()
   const { lang: operatorLang, setLang: setOperatorLang, t, setCustomTranslations, customTrans } = useAppLang()
 
-  const { data: _portalTrans = {} } = useQuery({
+  const { data: portalTrans = {} } = useQuery<Record<string, Record<string, string>>>({
     queryKey: ['portal-translations'],
     queryFn: () => portalClientsApi.translations().then(r => r.data).catch(() => ({})),
   })
@@ -77,7 +77,7 @@ export function IdiomasSection() {
   const getAppVal = (lang: string, module: string, key: string) =>
     (lang === appLang ? (
       appEdits?.[module]?.[key] ??
-      (customTrans as any)?.[module]?.[key] ??
+      (customTrans as any)?.[lang]?.[module]?.[key] ??
       appTranslations?.[module]?.[key]
     ) : '') ?? ''
 
@@ -111,14 +111,19 @@ export function IdiomasSection() {
     reader.readAsText(file)
   }
 
-  const saveAppTrans = () => {
-    const merged: Record<string, any> = { ...customTrans }
-    merged[appLang] = { ...customTrans[appLang], ...appEdits }
-    setCustomTranslations(merged)
-    setAppEdits({})
-    setHasUnsaved(false)
-    toast.success(t('i18n.saved_ok'))
-  }
+  // Revisión 2026-11: se guardan en el servidor, para toda la empresa. Antes
+  // solo en el localStorage de este navegador: nadie más las veía.
+  const { mutate: saveAppTrans } = useMutation({
+    mutationFn: () => settingsApi.saveAppTranslations({ [appLang]: appEdits }).then((r: any) => r.data),
+    onSuccess: (todas: any) => {
+      setCustomTranslations(todas || {})
+      qc.setQueryData(['app-translations'], todas || {})
+      setAppEdits({})
+      setHasUnsaved(false)
+      toast.success(t('i18n.saved_ok'))
+    },
+    onError: (e: any) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
 
   const exportJSON = () => {
     const data = JSON.stringify(appTranslations, null, 2)
@@ -249,7 +254,7 @@ export function IdiomasSection() {
                 style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 📥 Exportar JSON
               </button>
-              <button onClick={saveAppTrans} disabled={!hasUnsaved}
+              <button onClick={() => saveAppTrans()} disabled={!hasUnsaved}
                 style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: hasUnsaved ? 'var(--accent)' : 'var(--surface-4)', color: hasUnsaved ? 'var(--surface-0)' : 'var(--text-2)', cursor: hasUnsaved ? 'pointer' : 'default', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit' }}>
                 💾 Guardar traduccion
               </button>
@@ -322,6 +327,7 @@ export function IdiomasSection() {
                 base_es.toLowerCase().includes(portalSearch.toLowerCase()))
               .map(({ key, base_es }, idx) => {
                 const currentVal = portalEdits[key]?.[portalLang]
+                  ?? portalTrans[portalLang]?.[key]
                   ?? (PORTAL_TRANSLATIONS as any)[portalLang]?.[key] ?? ''
                 const isModified = portalEdits[key]?.[portalLang] !== undefined
                 return (
@@ -386,15 +392,15 @@ export function IdiomasSection() {
                 📥 Exportar JSON
               </button>
               <button onClick={() => {
-                const stored: Record<string, any> = JSON.parse(localStorage.getItem('contecflow_portal_custom') || '{}')
+                // Solo lo editado: el servidor lo fusiona por clave (vacío = quitar).
+                const cambios: Record<string, any> = {}
                 for (const [key, langs] of Object.entries(portalEdits)) {
                   for (const [lang, val] of Object.entries(langs as Record<string, any>)) {
-                    if (!stored[lang]) stored[lang] = {}
-                    stored[lang][key] = val
+                    if (!cambios[lang]) cambios[lang] = {}
+                    cambios[lang][key] = val
                   }
                 }
-                localStorage.setItem('contecflow_portal_custom', JSON.stringify(stored))
-                savePortalTrans(stored)
+                savePortalTrans(cambios)
                 setPortalEdits({})
                 setHasUnsaved(false)
               }} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: hasUnsaved ? 'var(--accent)' : 'var(--surface-4)', color: hasUnsaved ? 'var(--surface-0)' : 'var(--text-2)', cursor: hasUnsaved ? 'pointer' : 'default', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit' }} disabled={!hasUnsaved}>

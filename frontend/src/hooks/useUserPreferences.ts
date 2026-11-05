@@ -8,6 +8,7 @@ import { useEffect, useCallback, useRef } from 'react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { applyAccent, applyDensity } from '../utils/appearance'
+import { ELEGIDO_KEY } from '../i18n/AppLangContext'
 
 export type ThemeMode = 'freight' | 'dark' | 'light' | 'high-contrast' | 'midnight' | 'slate' | 'system' | string
 export type UIDensity = 'compact' | 'normal' | 'comfortable' | string
@@ -65,7 +66,12 @@ export function useUserPreferences(): UseUserPreferencesResult {
 
     // Idioma — emitir evento para que AppLangContext actualice su estado
     // Se emite siempre (no sólo en discrepancia) para garantizar sincronización
-    if (prefs.language) {
+    const elegido = localStorage.getItem(ELEGIDO_KEY)
+    if (elegido && prefs !== DEFAULTS) {
+      // Elegido a mano sin que llegara al servidor: manda, y se guarda.
+      localStorage.removeItem(ELEGIDO_KEY)
+      if (elegido !== prefs.language) saveMutation({ language: elegido })
+    } else if (prefs.language) {
       localStorage.setItem('contecflow_operator_lang', prefs.language)
       window.dispatchEvent(new CustomEvent('contecflow-lang-sync', { detail: { lang: prefs.language } }))
     }
@@ -83,7 +89,7 @@ export function useUserPreferences(): UseUserPreferencesResult {
     // Densidad: los tokens que cambia están en index.css ([data-density])
     applyDensity(prefs.ui_density)
 
-  }, [prefs])
+  }, [prefs, saveMutation])
 
   // Guardar con debounce (500ms) para no saturar el backend
   const save = useCallback((patch: Partial<UserPreferences>) => {

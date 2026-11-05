@@ -1,5 +1,11 @@
 // 中文 — 客户门户
 const zh: Record<string, string> = {
+  // Grupos del menú (revisión 2026-11: estaban escritos en español)
+  group_overview: '概览',
+  group_delivery: '交付',
+  group_support: '支持',
+  group_docs: '文档',
+  group_account: '账户',
   portal: '客户门户',
   nav_dashboard: '首页',
   nav_uat: 'UAT测试',

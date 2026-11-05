@@ -17,7 +17,7 @@ import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { extractErr } from '../utils/helpers'
 import {
-  CLIENT_API, LangContext, useLang, useClientAuth,
+  CLIENT_API, LangContext, PortalCustomContext, useLang, useClientAuth,
   ClientAuthProvider, LoginScreen,
 } from './portal-client/portalClientContext'
 import {
@@ -101,6 +101,20 @@ function aplicarTemaDelPortal(id: string) {
 }
 
 function PortalApp({ changeLang }: { changeLang: ChangeLangFn }) {
+  const { client } = (useClientAuth() ?? { client: null }) as ClientAuthValue
+  const { data: marca } = useQuery({
+    queryKey: ['portal-branding'],
+    queryFn: () => CLIENT_API.get('/portal/branding').then(r => r.data),
+    enabled: !!client,
+  })
+  return (
+    <PortalCustomContext.Provider value={(marca as { translations?: Record<string, Record<string, string>> } | undefined)?.translations ?? {}}>
+      <PortalAppContenido changeLang={changeLang} />
+    </PortalCustomContext.Provider>
+  )
+}
+
+function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
   const qc = useQueryClient()
   const { client } = (useClientAuth() ?? { client: null }) as ClientAuthValue
   // Un enlace con `?ticket=` viene de un correo del Service Desk: se abre en
@@ -579,6 +593,12 @@ function PortalClienteInner({ changeLang, currentLang }: { changeLang: ChangeLan
   const _toast = useToast()
   useEffect(() => { aplicarTemaDelPortal(temaGuardadoDelPortal()) }, [])
   const { client } = (useClientAuth() ?? { client: null }) as ClientAuthValue
+  // Revisión 2026-11: el idioma guardado en la ficha del cliente manda al
+  // entrar; antes solo se miraba este navegador y en otro salía en español.
+  const idiomaDeLaFicha = (client as { language?: string } | null)?.language
+  useEffect(() => {
+    if (idiomaDeLaFicha && idiomaDeLaFicha !== currentLang) changeLang(idiomaDeLaFicha)
+  }, [idiomaDeLaFicha])  // eslint-disable-line react-hooks/exhaustive-deps
   return client
     ? <PortalApp changeLang={changeLang} />
     : <LoginScreen _changeLang={changeLang} _currentLang={currentLang} />

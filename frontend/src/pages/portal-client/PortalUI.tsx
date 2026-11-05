@@ -35,13 +35,13 @@ import { localeActivo } from '../../utils/helpers'
 // ── Section configuration (grouped like the backoffice) ──────────────────────
 export const PORTAL_NAV_GROUPS = [
   {
-    label: 'Resumen',
+    label: 'Resumen', labelKey: 'group_overview',
     items: [
       { id: 'dashboard', icon: LayoutDashboard, labelKey: 'nav_dashboard', fallback: 'Dashboard' },
     ],
   },
   {
-    label: 'Entrega',
+    label: 'Entrega', labelKey: 'group_delivery',
     items: [
       { id: 'roadmap',  icon: Map,          labelKey: 'nav_roadmap',  fallback: 'Roadmap' },
       { id: 'uat',      icon: FlaskConical, labelKey: 'nav_uat',      fallback: 'UAT' },
@@ -49,14 +49,14 @@ export const PORTAL_NAV_GROUPS = [
     ],
   },
   {
-    label: 'Soporte',
+    label: 'Soporte', labelKey: 'group_support',
     items: [
       { id: 'support',  icon: Headphones,     labelKey: 'nav_support',  fallback: 'Service Desk' },
       { id: 'messages', icon: MessageSquare,  labelKey: 'nav_messages', fallback: 'Mensajes' },
     ],
   },
   {
-    label: 'Documentación',
+    label: 'Documentación', labelKey: 'group_docs',
     items: [
       { id: 'documents', icon: FileText, labelKey: 'nav_documents', fallback: 'Documentos' },
       { id: 'wiki',      icon: BookOpen, labelKey: 'nav_wiki',      fallback: 'Wiki' },
@@ -64,7 +64,7 @@ export const PORTAL_NAV_GROUPS = [
     ],
   },
   {
-    label: 'Cuenta',
+    label: 'Cuenta', labelKey: 'group_account',
     items: [
       { id: 'surveys', icon: Sparkles, labelKey: 'nav_surveys', fallback: 'Encuestas' },
       { id: 'profile', icon: Settings, labelKey: 'profile_title', fallback: 'Mi perfil' },
@@ -74,7 +74,7 @@ export const PORTAL_NAV_GROUPS = [
 
 const SECTION_INDEX: Record<string, any> = (() => {
   const out: Record<string, any> = {}
-  for (const g of PORTAL_NAV_GROUPS) for (const it of g.items) out[it.id] = { ...it, group: g.label }
+  for (const g of PORTAL_NAV_GROUPS) for (const it of g.items) out[it.id] = { ...it, group: g.label, groupKey: g.labelKey }
   return out
 })()
 
@@ -208,7 +208,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
                     textTransform: 'uppercase', letterSpacing: '0.09em',
                     padding: '6px 10px',
                   }}>
-                    {group.label}
+                    {tr(group.labelKey, group.label)}
                   </div>
                 )}
                 {items.map(it => {
@@ -330,7 +330,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
 
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-              {sectionCfg.group}
+              {tr(sectionCfg.groupKey, sectionCfg.group)}
             </div>
             <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, color: 'var(--text-1)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {tr(sectionCfg.labelKey, sectionCfg.fallback)}

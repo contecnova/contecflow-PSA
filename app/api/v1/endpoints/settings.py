@@ -37,6 +37,20 @@ def require_admin_or_pm(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Acceso denegado")
     return current_user
 
+# ── Traducciones del back-office (revisión 2026-11) ───────────────────────────
+@router.get("/app-translations", summary="Traducciones del back-office personalizadas por la empresa")
+def get_app_translations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.services.branding_service import traducciones_del_back_office
+    return APIResponse.ok(data=traducciones_del_back_office(db, str(current_user.organization_id)))
+
+
+@router.put("/app-translations", summary="Guardar traducciones del back-office (admin)")
+def put_app_translations(payload: dict, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    from app.services.branding_service import guardar_traducciones_del_back_office
+    return APIResponse.ok(data=guardar_traducciones_del_back_office(
+        db, str(current_user.organization_id), payload.get("translations") or {}))
+
+
 # ── General settings ──────────────────────────────────────────────────────────
 
 @router.get("/org-defaults", summary="Defaults de organización (moneda, zona horaria, idioma, jornada)")

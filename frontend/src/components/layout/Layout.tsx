@@ -18,7 +18,7 @@ import useNotificationBadges from '../../hooks/useNotificationBadges'
 import { useChatRealtime } from '../../context/ChatRealtimeContext'
 import OfflineIndicator from '../OfflineIndicator'
 import { useSwipeGesture } from '../../hooks/useSwipeGesture'
-import { useAppLang } from '../../i18n/AppLangContext'
+import { useAppLang, EVENTO_IDIOMA_ELEGIDO } from '../../i18n/AppLangContext'
 import {
   LayoutDashboard, CheckSquare, Clock, Calendar, Umbrella,
   FileText, Receipt, CheckCircle, Folder, RefreshCw, Sparkles,
@@ -542,7 +542,10 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
   // antes de poder pulsarla (revisión 2026-11).
   const verEstrella = !collapsed && Boolean(onPin) && (hover || isPinned)
   return (
-    <div style={{ position: 'relative' }} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+    <div role="group" style={{ position: 'relative' }}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      onFocus={() => setHover(true)}
+      onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHover(false) }}>
       <NavLink to={item.to || '#'} title={displayLabel} aria-label={displayLabel}
         style={({ isActive }) => ({
           display: 'flex', alignItems: 'center', gap: 8,
@@ -1185,7 +1188,27 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const { user, logout, hasRole, canOpen = () => true } = useAuth()
   const navigate = useNavigate()
   const { prefs, save } = useUserPreferences()
-  const { t, lang } = useAppLang()
+  const { t, lang, setCustomTranslations } = useAppLang()
+
+  // Revisión 2026-11: el idioma elegido se guarda en el servidor (antes no se
+  // guardaba nunca), y las traducciones que personaliza el administrador se
+  // leen de la empresa (antes solo existían en su navegador).
+  useEffect(() => {
+    const guardar = (e: Event) => {
+      const code = (e as CustomEvent<{ lang?: string }>).detail?.lang
+      if (code) save({ language: code })
+    }
+    window.addEventListener(EVENTO_IDIOMA_ELEGIDO, guardar)
+    return () => window.removeEventListener(EVENTO_IDIOMA_ELEGIDO, guardar)
+  }, [save])
+  const { data: traduccionesDeLaEmpresa } = useQuery({
+    queryKey: ['app-translations'],
+    queryFn: () => api.get('/settings/app-translations').then((r: { data: Record<string, Record<string, unknown>> }) => r.data),
+    enabled: !!user, staleTime: 5 * 60 * 1000, retry: false,
+  })
+  useEffect(() => {
+    if (traduccionesDeLaEmpresa) setCustomTranslations(traduccionesDeLaEmpresa as Record<string, Record<string, unknown>>)
+  }, [traduccionesDeLaEmpresa, setCustomTranslations])
   const text = LAYOUT_TEXT[lang] || LAYOUT_TEXT.es
   const { alertCount, approvalCount } = useNotificationBadges()
   const { unread: chatUnread } = useChatRealtime()

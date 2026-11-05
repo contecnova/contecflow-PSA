@@ -102,7 +102,11 @@ export interface SesionDeCliente {
 
 // ── Language Context ──────────────────────────────────────────────────────────
 export const LangContext = createContext('es')
-export const PORTAL_CUSTOM_KEY = 'contecflow_portal_custom'
+/** Revisión 2026-11: las traducciones que personaliza el administrador llegan
+ *  con la marca del portal (`/portal/branding`). Antes se leían del
+ *  localStorage, que solo existía en el navegador del administrador. */
+export type TraduccionesDelPortal = Record<string, Record<string, string>>
+export const PortalCustomContext = createContext<TraduccionesDelPortal>({})
 
 /** `T` con el tipo que el codigo ya usa: se indexa por codigo de idioma, que
  *  viene de la configuracion del usuario y no de la lista literal de hoy. El
@@ -111,12 +115,10 @@ const TRADUCCIONES = T as unknown as Record<string, Record<string, string> | und
 
 export function useLang() {
   const lang = useContext(LangContext)
+  const custom = useContext(PortalCustomContext)
   return (key: string): string => {
-    try {
-      const custom = JSON.parse(localStorage.getItem(PORTAL_CUSTOM_KEY) || '{}')
-      if (custom[lang]?.[key]) return custom[lang][key]
-      if (custom['es']?.[key] && !TRADUCCIONES[lang]?.[key]) return custom['es'][key]
-    } catch { /* noop */ }
+    if (custom[lang]?.[key]) return custom[lang][key]
+    if (custom['es']?.[key] && !TRADUCCIONES[lang]?.[key]) return custom['es'][key]
     return TRADUCCIONES[lang]?.[key] || TRADUCCIONES['es']?.[key] || key
   }
 }

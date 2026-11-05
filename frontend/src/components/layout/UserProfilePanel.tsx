@@ -442,8 +442,7 @@ export default function UserProfilePanel({ onClose }: Props) {
               })}
               <button
                 onClick={() => {
-                  setLang(pendingLang)
-                  savePrefs({ language: pendingLang })
+                  setLang(pendingLang)  // lo guarda en el servidor (Layout)
                   const label = LANGUAGES.find(l => l.code === pendingLang)?.label
                   toast.success(`Idioma cambiado a ${label}`)
                 }}

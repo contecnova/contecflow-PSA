@@ -542,7 +542,16 @@ def get_portal_branding(current_client, db: Session) -> dict:
         "brand_name": client_name or "Portal Cliente",
         "logo_url": cfg.logo_url if cfg else None,
         "primary_color": cfg.accent_color if cfg and cfg.accent_color else "#00d4ff",
+        # Las traducciones que el administrador personalizó: antes solo las leía
+        # su propio navegador y al cliente no le llegaban nunca.
+        "translations": _traducciones_del_portal_de(db, current_client),
     }
+
+
+def _traducciones_del_portal_de(db: Session, current_client) -> dict:
+    from app.services.branding_service import traducciones_del_portal
+    org_id = getattr(current_client, "organization_id", None)
+    return traducciones_del_portal(db, str(org_id)) if org_id else {}
 
 
 def update_my_profile(payload: dict, current_client, db: Session, min_password_length: int = 8) -> dict:

@@ -3854,7 +3854,11 @@ This section covers every screen an administrator uses to configure contecflow-P
 4. **Vacaciones.** Edit vacation policies and per-user yearly balances (`vacation_policies`, `user_vacation_balances`). `absence_service` reads the balances.
 5. **Departamentos.** CRUD on `departments`. Delete is blocked while dependencies exist (`_check_department_dependencies`).
 6. **Sedes.** CRUD on `offices`.
-7. **Idiomas.** Language settings and portal translations (`portalClientsApi.translations`, stored in `org_brandings.portal_translations`).
+7. **Idiomas.** Three tabs (reviewed 2026-11; before that nothing here reached anyone else):
+   - **Idioma del operador.** Your own back-office language. It is saved on the server (`PATCH /users/me/preferences`), so it follows you to any browser. Changing it no longer reloads the whole app. A language chosen on the login screen wins over the stored one and is saved on entry.
+   - **Traducciones del back-office.** Override any back-office text for **your whole company**. Saved per organisation in `app_settings` (key `app_translations`, `{lang: {module: {key: text}}}`) via `GET/PUT /api/v1/settings/app-translations` (PUT: admin). Everyone in the company gets them on their next page load. Leaving a field empty removes the override.
+   - **Portal cliente.** Override portal texts. Stored in `org_brandings.portal_translations` and delivered to clients inside `GET /portal/branding` (`translations`). Saving merges key by key, so saving one text no longer wipes the rest of that language.
+   - The client portal applies the language stored on the client's profile when they sign in, and its menu group titles are translated in its eight languages.
 8. **Tipos tarea.** CRUD on `task_types`.
 9. **Tarifas.** Rate tables and entries (`rate_tables`, `rate_entries`). `rate_card_service` reads them.
 10. **Numeración.** Code sequences (`numbering_sequences`): prefix, format, reset. `app/services/numbering.py::next_numbered_code` reads them for tasks, risks, milestones, pipeline and the worker.

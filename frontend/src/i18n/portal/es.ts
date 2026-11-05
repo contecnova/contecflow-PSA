@@ -1,5 +1,11 @@
 // Español — Portal Cliente
 const es: Record<string, string> = {
+  // Grupos del menú (revisión 2026-11: estaban escritos en español)
+  group_overview: 'Resumen',
+  group_delivery: 'Entrega',
+  group_support: 'Soporte',
+  group_docs: 'Documentación',
+  group_account: 'Cuenta',
   // Nav
   portal: 'Portal Cliente',
   nav_dashboard: 'Inicio',
