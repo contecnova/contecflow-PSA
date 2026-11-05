@@ -36,6 +36,7 @@ from app.api.v1.router import api_router
 # Registra la bandeja de eventos de ticket en la sesion (avisos, webhooks...).
 import app.services.service_desk.ticket_events  # noqa: F401,E402
 import app.services.automation_events  # noqa: F401,E402
+import app.services.preferencias_de_aviso  # noqa: F401,E402  (filtro de avisos por preferencia)
 from app.api.v2.router import api_v2_router
 
 

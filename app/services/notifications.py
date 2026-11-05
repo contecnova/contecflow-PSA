@@ -77,6 +77,10 @@ def notify_user(
     action_url: Optional[str] = None,
 ) -> Notification:
     icon, color = NOTIFICATION_ICONS.get(ntype, ("🔔", "#7a8aaa"))
+    # Si no lo quiere en la aplicacion, ni fila ni empujon por WebSocket.
+    from app.services.preferencias_de_aviso import quiere
+    if not quiere(db, user_id, ntype, "app"):
+        return None
     n = Notification(
         user_id=user_id,
         type=ntype,

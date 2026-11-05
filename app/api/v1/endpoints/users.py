@@ -121,6 +121,19 @@ def update_my_preferences(
     return APIResponse.ok(data=update_preferences_record(current_user.id, payload, db))
 
 
+@router.get("/me/notification-preferences", summary="Mis avisos: qué tipos y por qué canal")
+def get_my_notification_preferences(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.services import preferencias_de_aviso
+    return APIResponse.ok(data=preferencias_de_aviso.leer(db, current_user.id))
+
+
+@router.put("/me/notification-preferences", summary="Guardar mis preferencias de aviso")
+def put_my_notification_preferences(payload: dict = Body(default={}), db: Session = Depends(get_db),
+                                    current_user: User = Depends(get_current_user)):
+    from app.services import preferencias_de_aviso
+    return APIResponse.ok(data=preferencias_de_aviso.guardar(db, current_user.id, payload.get("preferences") or {}))
+
+
 @router.patch("/me", response_model=APIResponse[UserPublic], summary="El usuario actualiza su propio perfil")
 def update_my_profile(
     payload: UserSelfUpdate,

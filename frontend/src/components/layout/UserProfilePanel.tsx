@@ -9,8 +9,8 @@
  * 4. Seguridad (cambio de contraseña, MFA)
  */
 import React, { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { usersApi, authApi } from '../../services/api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import api, { usersApi, authApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import useUserPreferences from '../../hooks/useUserPreferences'
@@ -151,6 +151,7 @@ export default function UserProfilePanel({ onClose }: Props) {
     { id: 'appearance', label: '🎨 Apariencia' },
     { id: 'language',   label: '🌐 Idioma' },
     { id: 'security',   label: '🔐 Seguridad' },
+    { id: 'notifications', label: '🔔 Avisos' },
   ]
 
   return (
@@ -290,6 +291,8 @@ export default function UserProfilePanel({ onClose }: Props) {
               </button>
             </div>
           )}
+
+          {tab === 'notifications' && <PreferenciasDeAviso />}
 
           {/* ── APARIENCIA ───────────────────────────────────────────────────── */}
           {tab === 'appearance' && (
@@ -554,5 +557,62 @@ export default function UserProfilePanel({ onClose }: Props) {
         </div>
       </div>
     </>
+  )
+}
+
+
+// Revisión 2026-11: qué avisos quiere cada uno y por qué canal.
+const NOMBRE_DEL_AVISO: Record<string, string> = {
+  task_assigned: 'Me asignan una tarea', task_mentioned: 'Me mencionan en una tarea', task_due_soon: 'Tarea a punto de vencer',
+  task_overdue: 'Tarea vencida', sprint_started: 'Empieza un sprint', sprint_ending: 'Acaba un sprint',
+  expense_approved: 'Gasto aprobado', expense_rejected: 'Gasto rechazado', ticket_assigned: 'Me asignan un ticket',
+  ticket_replied: 'Respuesta en un ticket', ticket_resolved: 'Ticket resuelto', ticket_created: 'Ticket nuevo',
+  ticket_updated: 'Ticket actualizado', ticket_sla_warning: 'SLA en riesgo', ticket_sla_breached: 'SLA incumplido',
+  ticket_escalated: 'Ticket escalado', approval_requested: 'Aprobación pendiente', project_risk_high: 'Riesgo alto en un proyecto',
+  timesheet_reminder: 'Recordatorio de horas', timesheet_approved: 'Horas aprobadas', budget_warning: 'Aviso de presupuesto',
+  mention: 'Menciones', automation: 'Automatizaciones', system: 'Sistema',
+}
+
+function PreferenciasDeAviso() {
+  const toast = useToast()
+  const qc = useQueryClient()
+  const { data } = useQuery<{ types: { type: string; channels: string[] }[]; preferences: Record<string, Record<string, boolean>> }>({
+    queryKey: ['notification-preferences'],
+    queryFn: () => api.get('/users/me/notification-preferences').then(r => r.data),
+  })
+  const [prefs, setPrefs] = useState<Record<string, Record<string, boolean>> | null>(null)
+  const actuales = prefs ?? data?.preferences ?? {}
+  const { mutate: guardar, isPending } = useMutation({
+    mutationFn: () => api.put('/users/me/notification-preferences', { preferences: actuales }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notification-preferences'] }); setPrefs(null); toast.success('Guardado') },
+    onError: () => toast.error('No se pudo guardar'),
+  })
+  const cambiar = (tipo: string, canal: string, v: boolean) =>
+    setPrefs({ ...actuales, [tipo]: { ...(actuales[tipo] || {}), [canal]: v } })
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 70px', fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontWeight: 700 }}>
+        <span>Aviso</span><span style={{ textAlign: 'center' }}>App</span><span style={{ textAlign: 'center' }}>Correo</span>
+      </div>
+      {(data?.types || []).map(t => (
+        <div key={t.type} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 70px', alignItems: 'center', fontSize: 'var(--text-sm)' }}>
+          <span>{NOMBRE_DEL_AVISO[t.type] || t.type}</span>
+          {['app', 'email'].map(c => (
+            <span key={c} style={{ textAlign: 'center' }}>
+              {t.channels.includes(c) ? (
+                <input type="checkbox" aria-label={`${NOMBRE_DEL_AVISO[t.type] || t.type} por ${c === 'app' ? 'la aplicación' : 'correo'}`}
+                  checked={actuales[t.type]?.[c] ?? true} onChange={e => cambiar(t.type, c, e.target.checked)} />
+              ) : <span style={{ color: 'var(--text-4)' }}>—</span>}
+            </span>
+          ))}
+        </div>
+      ))}
+      <div style={{ marginTop: 10 }}>
+        <button type="button" disabled={isPending || prefs === null} onClick={() => guardar()}
+          style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: prefs === null ? 0.6 : 1 }}>
+          {isPending ? 'Guardando…' : 'Guardar'}
+        </button>
+      </div>
+    </div>
   )
 }

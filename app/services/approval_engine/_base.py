@@ -116,7 +116,7 @@ def notify_approver(
         cuerpo = f"{request.entity_summary or request.entity_id} — Paso {step.step_order}: {step.name}"
         for approver_id in sorted(i for i in ids if i and i != request.requested_by):
             db.add(Notification(
-                id=str(uuid.uuid4()), user_id=approver_id, type=NotificationType.system,
+                id=str(uuid.uuid4()), user_id=approver_id, type=NotificationType.approval_requested,
                 title=titulo, body=cuerpo, resource="approval_request", resource_id=request.id,
             ))
             _correo_de_aprobacion(db, approver_id, titulo, cuerpo, request)
@@ -168,6 +168,9 @@ def aprobadores_del_paso(request, step, db: Session) -> set:
 
 def _correo_de_aprobacion(db: Session, user_id: str, titulo: str, cuerpo: str, request) -> None:
     from app.core.config import settings as _cfg
+    from app.services.preferencias_de_aviso import quiere
+    if not quiere(db, user_id, "approval_requested", "email"):
+        return
     from app.services.notification_service import send_email_notification
     fila = db.query(User.email).filter(User.id == user_id).first()
     if not fila or not fila[0]:

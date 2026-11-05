@@ -74,6 +74,7 @@ EXENTAS_REVISADAS = {
     # `test_user_update_authorization`. Una guarda de rol encima romperia que
     # un empleado edite sus propios datos.
     "PATCH /api/v1/users/me": "editar el perfil propio",
+    "PUT /api/v1/users/me/notification-preferences": "elegir los propios avisos (solo toca las preferencias del usuario de la sesion)",
     "PATCH /api/v1/users/{user_id}": (
         "el endpoint ya distingue perfil propio de ficha ajena; lo prueban los "
         "cuatro tests de test_user_update_authorization"),

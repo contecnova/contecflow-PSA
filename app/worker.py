@@ -328,6 +328,7 @@ _worker_logger = _logging.getLogger(__name__)
 # la bandeja de eventos: registra sus escuchadores en la sesion.
 import app.services.service_desk.ticket_events  # noqa: F401,E402
 import app.services.automation_events  # noqa: F401,E402
+import app.services.preferencias_de_aviso  # noqa: F401,E402
 
 
 def _aplicar_cortacircuitos(hook) -> None:

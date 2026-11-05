@@ -1973,6 +1973,8 @@ Opening `/service-desk?ticket=<id>` (the link in every notification) switches to
 - an email using the template for the recipient's role and language,
 - a system event `ticket.*` for subscribed webhooks.
 
+**Personal preferences (2026-11).** Each user chooses, in *Profile → 🔔 Avisos*, which notice types they want and by which channel. Every type has «App» (the bell); `approval_requested` also has «Correo». Everything is on by default. They are stored in `user_preferences.extra["notifications"]` (`app/services/preferencias_de_aviso.py`; `GET/PUT /api/v1/users/me/notification-preferences`). The in-app filter is a single `before_flush` listener that drops new `Notification` rows the user does not want, so it covers every code path that creates notices, including future ones. The approval email checks the «Correo» choice before sending.
+
 Recipients, as implemented in `destinatarios()`:
 
 | Event | Recipients |
