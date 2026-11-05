@@ -92,15 +92,26 @@ def vetados(db: Session, user) -> set[str]:
     return {m for m in MODULOS if acceso.get(m) is False}
 
 
+def modulo_cerrado(db: Session, user, ruta: str) -> Optional[str]:
+    """El modulo cerrado para `user` al que pertenece la ruta, o None.
+
+    Revisión 2026-11: la misma decisión la usan `comprobar` y el explicador de
+    accesos, para que lo que este cuenta sea lo que de verdad pasa.
+    """
+    if not ruta.startswith("/api/") or ruta in _SIEMPRE:
+        return None
+    for modulo in sorted(vetados(db, user)):
+        if any(_cubre(ruta, p) for p in MODULOS[modulo][0]):
+            return modulo
+    return None
+
+
 def comprobar(db: Session, user, request: Request) -> None:
     """403 si la ruta pertenece a un modulo cerrado para este usuario."""
-    ruta = request.url.path
-    if not ruta.startswith("/api/") or ruta in _SIEMPRE:
-        return
-    for modulo in vetados(db, user):
-        if any(_cubre(ruta, p) for p in MODULOS[modulo][0]):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                detail=f"Tu rol no tiene acceso al módulo «{modulo}»")
+    modulo = modulo_cerrado(db, user, request.url.path)
+    if modulo:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f"Tu rol no tiene acceso al módulo «{modulo}»")
 
 
 def rutas_cerradas(db: Session, user) -> list[str]:

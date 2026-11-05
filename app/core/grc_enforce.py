@@ -94,6 +94,37 @@ def _resolve_user(request: Request, credentials, db: Session):
     return user
 
 
+def decidir(db: Session, user, modulo: str, accion: str, org) -> dict:
+    """Qué dice la matriz para (rol del usuario, módulo, acción) en esa empresa.
+
+    Revisión 2026-11: la usan `enforce_grc_matrix` y el explicador de accesos.
+    `reason`: superadmin, self_governing, no_row, allowed, denied o read_error.
+    """
+    rol = user.role.value if hasattr(user.role, "value") else str(user.role or "")
+    salida = {"module": modulo, "action": accion, "role": rol, "denied": False}
+    # Salvaguarda 1 — el superadministrador de plataforma nunca se bloquea.
+    if getattr(user, "is_superadmin", False):
+        return {**salida, "reason": "superadmin"}
+    # Salvaguarda 2 — la matriz no puede cerrarse a sí misma.
+    if modulo == _SELF_GOVERNING_MODULE and rol in _ROLES_THAT_ADMINISTER_GRC:
+        return {**salida, "reason": "self_governing"}
+    from app.services import grc_service
+    try:
+        fila = grc_service.get_role_permission(db, rol, modulo, accion, org)
+    except Exception:
+        # Un fallo al leer la matriz NO debe abrir ni cerrar la aplicación: los
+        # controles reales (RBAC, aislamiento de tenant) siguen en pie, y este es
+        # un control aditivo. Se registra en warning para que sea visible.
+        logger.warning("GRC: no se pudo leer la matriz para %s/%s/%s", rol, modulo, accion, exc_info=True)
+        return {**salida, "reason": "read_error"}
+    if fila is None:
+        return {**salida, "reason": "no_row"}
+    if fila.allowed is False:
+        return {**salida, "reason": "denied", "denied": True,
+                "company_row": getattr(fila, "organization_id", None) is not None}
+    return {**salida, "reason": "allowed"}
+
+
 def enforce_grc_matrix(
     request: HTTPConnection,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(credenciales_opcionales),
@@ -114,31 +145,9 @@ def enforce_grc_matrix(
     if user is None:
         return  # sin usuario: la guarda del endpoint decide
 
-    # Salvaguarda 1 — el superadministrador de plataforma nunca se bloquea.
-    if getattr(user, "is_superadmin", False):
-        return
-
-    rol = user.role.value if hasattr(user.role, "value") else str(user.role or "")
-
-    # Salvaguarda 2 — la matriz no puede cerrarse a sí misma.
-    if modulo == _SELF_GOVERNING_MODULE and rol in _ROLES_THAT_ADMINISTER_GRC:
-        return
-
-    from app.services import grc_service
-
-    try:
-        fila = grc_service.get_role_permission(db, rol, modulo, accion,
-                                               getattr(request.state, "grc_org", None) or user.organization_id)
-    except Exception:
-        # Un fallo al leer la matriz NO debe abrir ni cerrar la aplicación: los
-        # controles reales (RBAC, aislamiento de tenant) siguen en pie, y este es
-        # un control aditivo. Se registra en warning para que sea visible.
-        logger.warning(
-            "GRC: no se pudo leer la matriz para %s/%s/%s", rol, modulo, accion, exc_info=True
-        )
-        return
-
-    if fila is not None and fila.allowed is False:
+    decision = decidir(db, user, modulo, accion, getattr(request.state, "grc_org", None) or user.organization_id)
+    if decision["denied"]:
+        rol = decision["role"]
         logger.info(
             "GRC denegó %s %s para rol=%s (módulo=%s acción=%s)",
             request.method, request.url.path, rol, modulo, accion,

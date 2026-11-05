@@ -13,7 +13,7 @@ import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
-import { grcApi, approvalsApi } from '../services/api'
+import { grcApi, approvalsApi, usersApi } from '../services/api'
 import { advancedConfigApi } from '../services/settingsApi'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -699,6 +699,90 @@ function ApprovalsTab() {
   )
 }
 
+type CapaDeAcceso = { layer: string; verdict: 'allow' | 'deny' | 'not_applicable' | 'unknown'; detail: string; [k: string]: unknown }
+type Explicacion = { verdict: 'allow' | 'deny' | 'unknown'; decided_by: string | null; template: string | null; path: string; method: string;
+  user: { name?: string; role: string }; layers: CapaDeAcceso[] }
+
+const COLOR_VEREDICTO: Record<string, string> = { allow: 'var(--success)', deny: 'var(--danger)', unknown: 'var(--warning)', not_applicable: 'var(--text-3)' }
+
+/** ¿Puede este usuario hacer esto y qué capa lo decide? (revisión 2026-11) */
+function ExplicarAccesoTab() {
+  const t = useAppT()
+  const toast = useToast()
+  const [usuario, setUsuario] = useState('')
+  const [metodo, setMetodo] = useState('GET')
+  const [camino, setCamino] = useState('/api/v1/projects')
+  const [res, setRes] = useState<Explicacion | null>(null)
+  const [cargando, setCargando] = useState(false)
+  const { data: usuarios = [] } = useQuery<{ id: string; full_name?: string; email?: string; role?: string }[]>({
+    queryKey: ['users'], queryFn: () => usersApi.list().then((r: { data: any }) => r.data?.items ?? r.data ?? []),
+  })
+  const { data: rutas = [] } = useQuery<{ method: string; path: string }[]>({
+    queryKey: ['grc-explainer-routes'], queryFn: () => grcApi.explainerRoutes().then(r => r.data),
+  })
+  const explicar = async () => {
+    if (!usuario || !camino.trim()) return
+    setCargando(true)
+    try { setRes((await grcApi.explainAccess({ user_id: usuario, method: metodo, path: camino.trim() })).data as Explicacion) }
+    catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setCargando(false) }
+  }
+  const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8,
+    padding: '7px 10px', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 'var(--text-sm)' }
+  const detalle = (c: CapaDeAcceso) => {
+    const extra = ['module', 'action', 'role', 'required', 'level', 'project_id', 'guards', 'resource_type', 'allowed_methods']
+      .filter(k => c[k] !== undefined && c[k] !== null && c[k] !== '')
+      .map(k => `${k}: ${Array.isArray(c[k]) ? (c[k] as string[]).join(', ') : String(c[k])}`)
+    const texto = t(`grc.acceso_detalle_${c.detail}`)
+    return (texto.startsWith('grc.') ? c.detail : texto) + (extra.length ? ` — ${extra.join(' · ')}` : '')
+  }
+  return (
+    <div>
+      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginTop: 0 }}>{t('grc.acceso_intro')}</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <select aria-label={t('grc.acceso_usuario')} value={usuario} onChange={e => setUsuario(e.target.value)} style={{ ...campo, minWidth: 220 }}>
+          <option value="">{t('grc.acceso_usuario')}</option>
+          {usuarios.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email} {u.role ? `(${u.role})` : ''}</option>)}
+        </select>
+        <select aria-label="HTTP" value={metodo} onChange={e => setMetodo(e.target.value)} style={campo}>
+          {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map(m => <option key={m}>{m}</option>)}
+        </select>
+        <input aria-label={t('grc.acceso_ruta')} list="grc-rutas" value={camino} onChange={e => setCamino(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') explicar() }} style={{ ...campo, flex: 1, minWidth: 280, fontFamily: 'var(--font-mono)' }} />
+        <datalist id="grc-rutas">
+          {rutas.filter(r => r.method === metodo).slice(0, 3000).map(r => <option key={r.path} value={r.path} />)}
+        </datalist>
+        <Button onClick={explicar} disabled={!usuario || cargando}>{cargando ? '…' : t('grc.acceso_explicar')}</Button>
+      </div>
+      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 6 }}>{t('grc.acceso_ayuda_ruta')}</div>
+      {res && (
+        <div style={{ marginTop: 16 }}>
+          <div role="status" style={{ padding: '12px 14px', borderRadius: 10, border: `1px solid ${COLOR_VEREDICTO[res.verdict]}`,
+            background: alpha(COLOR_VEREDICTO[res.verdict], '12') }}>
+            <div style={{ fontWeight: 700, color: COLOR_VEREDICTO[res.verdict] }}>
+              {t(`grc.acceso_veredicto_${res.verdict}`)}{res.decided_by ? ` — ${t(`grc.acceso_capa_${res.decided_by}`)}` : ''}
+            </div>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
+              {res.method} {res.template || res.path}
+            </div>
+          </div>
+          <ol style={{ listStyle: 'none', padding: 0, margin: '12px 0 0' }}>
+            {res.layers.map(c => (
+              <li key={c.layer} style={{ display: 'flex', gap: 12, alignItems: 'baseline', padding: '8px 4px',
+                borderBottom: '1px solid var(--surface-4)', opacity: c.verdict === 'not_applicable' ? 0.7 : 1 }}>
+                <span style={{ minWidth: 110, fontSize: 'var(--text-xs)', fontWeight: 700, color: COLOR_VEREDICTO[c.verdict], textTransform: 'uppercase' }}>
+                  {t(`grc.acceso_estado_${c.verdict}`)}
+                </span>
+                <span style={{ minWidth: 170, fontWeight: 600, fontSize: 'var(--text-sm)' }}>{t(`grc.acceso_capa_${c.layer}`)}</span>
+                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{detalle(c)}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function GrcPage(): JSX.Element {
   const _t = useAppT()
   const [tab, setTab] = useState('matrix')
@@ -717,6 +801,7 @@ export default function GrcPage(): JSX.Element {
     { id: 'violations', label: 'Violaciones' },
     { id: 'approvals',  label: 'Flujos de mitigación' },
     { id: 'auditlog',   label: 'Audit Log' },
+    { id: 'access',     label: _t('grc.acceso_pestana') },
   ]
 
   return (
@@ -747,6 +832,7 @@ export default function GrcPage(): JSX.Element {
         {tab === 'violations' && <ViolationsTab />}
         {tab === 'approvals'  && <ApprovalsTab />}
         {tab === 'auditlog'   && <AuditLogTab />}
+        {tab === 'access'     && <ExplicarAccesoTab />}
       </div>
     </PageShell>
   )

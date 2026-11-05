@@ -55,7 +55,7 @@ Todos los cambios de permisos y violaciones quedan registrados en grc_audit_log.
 import json
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, Request, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Body
 from app.schemas.grc import PermissionUpdate, SodRuleIn, ViolationResolveIn
 from sqlalchemy.orm import Session
 
@@ -202,6 +202,32 @@ def _ensure_sod_seeded(db: Session, organization_id: Optional[str] = None):
 
 
 # ── Permission Matrix ─────────────────────────────────────────────────────────
+
+# ── Explicador de accesos (revisión 2026-11) ─────────────────────────────────
+@router.get("/access-explainer", summary="¿Puede este usuario hacer esto y qué capa lo decide? (admin)")
+def access_explainer(
+    request: Request,
+    user_id: str = Query(..., max_length=36),
+    method: str = Query("GET", max_length=10),
+    path: str = Query(..., min_length=1, max_length=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    from app.db.session import sin_filtro_de_tenant
+    from app.services import explicar_acceso
+    with sin_filtro_de_tenant(db):
+        usuario = db.get(User, user_id)
+    # Un admin sólo explica a la gente de su empresa; el superadmin, a cualquiera.
+    if usuario is None or (not current_user.is_superadmin and usuario.organization_id != current_user.organization_id):
+        raise HTTPException(404, "Usuario no encontrado")
+    return APIResponse.ok(data=explicar_acceso.explicar(db, request.app, usuario, method, path))
+
+
+@router.get("/access-explainer/routes", summary="Operaciones de la API para el explicador de accesos (admin)")
+def access_explainer_routes(request: Request, current_user: User = Depends(require_admin)):
+    from app.services import explicar_acceso
+    return APIResponse.ok(data=explicar_acceso.rutas(request.app))
+
 
 @router.get("/permissions", summary="Obtener matriz de permisos completa")
 def get_permissions(

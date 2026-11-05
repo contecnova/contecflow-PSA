@@ -1275,6 +1275,9 @@ export const grcApi = {
   violations:       (params?: any)                     => api.get('/grc/violations', { params }),
   resolveViolation: (id: any, data: unknown)                   => api.patch(`/grc/violations/${id}/resolve`, data),
   auditLog:         (params?: any)                     => api.get('/grc/audit-log', { params }),
+  // Revisión 2026-11: explicador de accesos.
+  explainAccess:    (params: { user_id: string; method: string; path: string }) => api.get('/grc/access-explainer', { params }),
+  explainerRoutes:  ()                           => api.get('/grc/access-explainer/routes'),
 }
 
 // ── Automations ───────────────────────────────────────────────────────────────

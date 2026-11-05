@@ -144,10 +144,11 @@ def ensure_sod_seeded(db: Session, default_sod_rules: list, organization_id: Opt
 
 
 class _Casilla:
-    __slots__ = ("role", "module", "action", "allowed")
+    __slots__ = ("role", "module", "action", "allowed", "organization_id")
 
-    def __init__(self, role, module, action, allowed):
+    def __init__(self, role, module, action, allowed, organization_id=None):
         self.role, self.module, self.action, self.allowed = role, module, action, allowed
+        self.organization_id = organization_id   # None: la casilla global
 
 
 def get_all_permissions(db: Session, organization_id: Optional[str] = None) -> list:
@@ -174,7 +175,7 @@ def get_role_permission(db: Session, role: str, module: str, action: str,
                                                RolePermission.action == action)
         fila = base.filter(RolePermission.organization_id == organization_id).first() if organization_id else None
         fila = fila or base.filter(RolePermission.organization_id.is_(None)).first()
-    return _Casilla(fila.role, fila.module, fila.action, fila.allowed) if fila else None
+    return _Casilla(fila.role, fila.module, fila.action, fila.allowed, fila.organization_id) if fila else None
 
 
 def upsert_permission(

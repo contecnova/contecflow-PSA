@@ -87,50 +87,30 @@ def _denegar(user: User, resource_type: str, resource_id, action: str,
     raise HTTPException(status_code=403, detail="Access denied")
 
 
+def evaluar(db: Session, user: User, org_id, resource_type: str, resource_id, action: str,
+            *, auditar: bool = True) -> tuple[bool, list, object]:
+    """(permitido, políticas que aplicaron, detalle). Sin políticas activas: (True, [], None).
+
+    Revisión 2026-11: la usan `enforce_abac` y el explicador de accesos (este
+    con `auditar=False`, para no escribir decisiones que nadie tomó).
+    """
+    svc = ABACService(db=db, org_id=str(org_id))
+    if not svc.list_policies(active_only=True):
+        return True, [], None
+    rol = user.role.value if hasattr(user.role, "value") else str(user.role or "employee")
+    permitido, aplicadas, detalle = svc.evaluate_access(
+        user_id=str(user.id), user_roles=[rol], resource_type=resource_type,
+        resource_id=resource_id, action=action)
+    if aplicadas and auditar:
+        svc.audit_access_decision(user_id=str(user.id), decision=permitido, matched_policies=aplicadas,
+                                  resource_type=resource_type, resource_id=resource_id, details=detalle)
+    return permitido, aplicadas, detalle
+
+
 def _evaluar_politicas(db: Session, user: User, org_id, resource_type: str,
                        resource_id, action: str) -> None:
     """Evalúa las políticas activas y levanta 403 si deniegan."""
-    svc = ABACService(db=db, org_id=str(org_id))
-
-    # Corte temprano: sin ninguna política activa el resultado sería fail-open
-    # de todas formas. Salir aquí evita cargar los atributos del usuario y,
-    # sobre todo, evita el INSERT+COMMIT de auditoría. Importa desde que la
-    # cobertura ABAC abarca toda la API (auditoría 2026-07 §1.5): sin este
-    # corte, CADA petición autenticada escribiría una fila en PolicyAudit.
-    if not svc.list_policies(active_only=True):
-        return
-
-    rol = user.role.value if hasattr(user.role, "value") else str(user.role or "employee")
-
-    # Auditoria 2026-09: `resource_id` y `action` **no se pasaban**, asi que el
-    # motor decidia sin ellos aunque toda la API los paseara hasta aqui. Con los
-    # dos puestos, una politica puede nombrar `recurso.<columna>` y `accion` en
-    # sus reglas. Las politicas que solo miran atributos de usuario no cambian
-    # de veredicto: lo unico que ocurre es que el diccionario de evaluacion trae
-    # claves nuevas.
-    permitido, aplicadas, detalle = svc.evaluate_access(
-        user_id=str(user.id),
-        user_roles=[rol],
-        resource_type=resource_type,
-        resource_id=resource_id,
-        action=action,
-    )
-
-    # Se audita sólo cuando alguna política ha aplicado de verdad. Un
-    # «permitido» con cero políticas aplicadas es el camino fail-open: no aporta
-    # señal de seguridad y, con cobertura total, generaría una fila por
-    # petición. Las denegaciones siempre se auditan, porque una denegación
-    # implica que hubo política que encajó.
-    if aplicadas:
-        svc.audit_access_decision(
-            user_id=str(user.id),
-            decision=permitido,
-            matched_policies=aplicadas,
-            resource_type=resource_type,
-            resource_id=resource_id,
-            details=detalle,
-        )
-
+    permitido, aplicadas, _detalle = evaluar(db, user, org_id, resource_type, resource_id, action)
     # Fail-open: sin políticas que encajen, el RBAC del endpoint ya es el guardia.
     if not permitido and aplicadas:
         _denegar(user, resource_type, resource_id, action, aplicadas)

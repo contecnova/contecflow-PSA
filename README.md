@@ -4633,6 +4633,24 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 4. **Violations.** Review violations and resolve them with a note.
 5. **Audit log.** GRC events.
 
+**Explicar acceso (access explainer, 2026-11-05; brought from contecmind/contecintelligence).** Last tab of GRC (admin). Pick a person of your company, an HTTP method and an API route (the field suggests the 2,072 operations of the API; for one project's permissions replace `{project_id}` with its id). It answers **can / cannot / cannot be fully determined**, names the layer that decides, and lists every layer in the order a real request meets them:
+
+| Layer | What it checks | Shown as |
+|---|---|---|
+| Route | the route exists with that method (as Starlette would match it) | not found / method not allowed |
+| ABAC policies | the company's active policies for that prefix | n/a when none applies |
+| GRC matrix | the cell role × module × action, the company's exception first (`company_row`) | allows, denies or n/a when there is no cell |
+| Account and company | user active, company not deactivated, not a client-portal route | |
+| Role modules | the custom role closes the module (`custom_roles.module_access`) | |
+| Project permission | the person's row on that project (`none`, `viewer`, financials, export) | |
+| Endpoint role | `require_admin` and friends in the endpoint signature | **unknown** when the endpoint checks on its own (a local guard such as `_require_admin`, a `verify_…()` call, a `.role` comparison or its own 403 in the body) |
+| Inside the service / company isolation | always shown: what the service checks inside cannot be seen; another company's data is hidden (404), not denied | |
+
+- **It tells what really happens.** Each layer calls the same decision function the request uses (`modulos.modulo_cerrado`, `permisos_de_proyecto.decidir`, `grc_enforce.decidir`, `abac_enforce.evaluar` with `auditar=False`, so asking writes no ABAC audit row). «Can» is only answered when the endpoint role allows it clearly; otherwise it says «cannot be fully determined».
+- **Measured 2026-11-05** on the 580 parameterless GET routes, for an employee and for an admin, comparing with the real API call: for the employee 318 allow, 205 deny, 57 unknown; for the admin 520, 2, 58. Zero «deny» that the API lets through and zero «allow» that the API rejects with 403. Before the «in the body» detection, 12 «allow» were in fact 403 (checks inside AI governance, ABAC admin and auto-resolution endpoints); now they show as unknown. Tests: `tests/test_explicar_acceso_2026_11.py` (each layer against the real request, plus that sweep in both directions; validated by disabling the body detection and the project layer).
+- **Endpoints** (`require_admin`; an admin only explains people of their company, the superadmin anyone): `GET /api/v1/grc/access-explainer?user_id=&method=&path=`, `GET /api/v1/grc/access-explainer/routes`.
+- **Limitations.** It evaluates the route, not a specific record: rules that depend on the record (ABAC rules on `recurso.*`, ownership checks in services) are not evaluated. The body detection is a source-code pattern: it can mark as «unknown» an endpoint that only reads the role to filter.
+
 **Technical notes.**
 - `GET /api/v1/grc/permissions`, `PATCH /grc/permissions/{role}/{module}/{action}`, `POST /grc/permissions/seed`
 - `GET|POST /grc/sod-rules`, `PATCH|DELETE /grc/sod-rules/{id}`
