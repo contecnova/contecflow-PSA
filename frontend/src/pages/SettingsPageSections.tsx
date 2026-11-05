@@ -728,17 +728,17 @@ function RateTablesSection() {
     <Section icon="💶" title="Tarifas internas" description="Mantiene tablas de coste y facturacion">
       {isLoading ? <Spinner /> : (
         <div style={styles.colGap16}>
-          {tables.map((t: any) => (
-            <div key={t.id} style={{ background: 'var(--surface-2)', border: `1px solid ${t.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 12, padding: 16 }}>
+          {tables.map((tabla: any) => (
+            <div key={tabla.id} style={{ background: 'var(--surface-2)', border: `1px solid ${tabla.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 12, padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div>
-                  <span style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{t.name}</span>
-                  {t.is_default && <span style={styles.pill}>{t('settings.por_defecto')}</span>}
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8 }}>{t.applies_to === 'role' ? 'Por rol' : t.applies_to === 'department' ? 'Por departamento' : 'Por cliente'}</span>
+                  <span style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{tabla.name}</span>
+                  {tabla.is_default && <span style={styles.pill}>{t('settings.por_defecto')}</span>}
+                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8 }}>{tabla.applies_to === 'role' ? 'Por rol' : tabla.applies_to === 'department' ? 'Por departamento' : 'Por cliente'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => setAddingEntry(t.id)} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>＋ Tarifa</button>
-                  <button onClick={() => deleteTable(t.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                  <button onClick={() => setAddingEntry(tabla.id)} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>＋ Tarifa</button>
+                  <button onClick={() => deleteTable(tabla.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 30px', gap: 8 }}>
@@ -746,14 +746,14 @@ function RateTablesSection() {
                 <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Coste €/h</div>
                 <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Factura €/h</div>
                 <div></div>
-                {(t.entries || []).map((e: any) => (
+                {(tabla.entries || []).map((e: any) => (
                   editingEntryId === e.id ? (
                     <React.Fragment key={e.id}>
                       <input value={editEntryForm.label} onChange={ev => setEditEntryForm((f: any)=>({...f,label:ev.target.value}))} style={{...fs,padding:'5px 8px'}} autoFocus />
                       <input type="number" value={editEntryForm.cost_rate} onChange={ev => setEditEntryForm((f: any)=>({...f,cost_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
                       <input type="number" value={editEntryForm.billing_rate} onChange={ev => setEditEntryForm((f: any)=>({...f,billing_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
                       <div style={{display:'flex',gap:4}}>
-                        <button onClick={() => updateEntry({ tableId: t.id, entryId: e.id, data: editEntryForm })} disabled={!editEntryForm.label} style={{background:'var(--accent)',border:'none',borderRadius:5,padding:'4px 8px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✓</button>
+                        <button onClick={() => updateEntry({ tableId: tabla.id, entryId: e.id, data: editEntryForm })} disabled={!editEntryForm.label} style={{background:'var(--accent)',border:'none',borderRadius:5,padding:'4px 8px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✓</button>
                         <button onClick={() => setEditingEntryId(null)} style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:5,padding:'4px 7px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✕</button>
                       </div>
                     </React.Fragment>
@@ -764,19 +764,19 @@ function RateTablesSection() {
                       <div style={{ padding: '6px 8px', background: 'var(--surface-3)', borderRadius: 6, fontSize: "var(--text-base)", textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{e.billing_rate ? `${e.billing_rate}€` : '—'}</div>
                       <div style={{display:'flex',gap:3}}>
                         <button onClick={() => { setEditingEntryId(e.id); setEditEntryForm({ label: e.label, cost_rate: e.cost_rate||'', billing_rate: e.billing_rate||'' }) }} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏</button>
-                        <button onClick={() => deleteEntry({ tableId: t.id, entryId: e.id })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-md)" }}>×</button>
+                        <button onClick={() => deleteEntry({ tableId: tabla.id, entryId: e.id })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-md)" }}>×</button>
                       </div>
                     </React.Fragment>
                   )
                 ))}
               </div>
-              {addingEntry === t.id && (
+              {addingEntry === tabla.id && (
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginTop: 8, padding: '10px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 8 }}>
                   <input value={entryForm.label} onChange={e => setEntryForm((f: any) => ({ ...f, label: e.target.value }))} style={{ ...fs }} placeholder={t('settings.etiqueta_de_la_tarifa')} aria-label={t('settings.etiqueta_de_la_tarifa')} />
                   <input type="number" value={entryForm.cost_rate} onChange={e => setEntryForm((f: any) => ({ ...f, cost_rate: e.target.value }))} style={fs} placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
                   <input type="number" value={entryForm.billing_rate} onChange={e => setEntryForm((f: any) => ({ ...f, billing_rate: e.target.value }))} style={fs} placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <Button size="sm" onClick={() => { addEntry({ tableId: t.id, data: entryForm }); setEntryForm({ label: '', cost_rate: '', billing_rate: '' }); setAddingEntry(null) }} disabled={!entryForm.label}>{t('settings.anadir')}</Button>
+                    <Button size="sm" onClick={() => { addEntry({ tableId: tabla.id, data: entryForm }); setEntryForm({ label: '', cost_rate: '', billing_rate: '' }); setAddingEntry(null) }} disabled={!entryForm.label}>{t('settings.anadir')}</Button>
                     <Button size="sm" variant="secondary" onClick={() => setAddingEntry(null)}>×</Button>
                   </div>
                 </div>

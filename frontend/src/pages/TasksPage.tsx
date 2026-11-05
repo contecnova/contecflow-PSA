@@ -12,7 +12,7 @@ import _VirtualList from '../components/ui/VirtualList'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import {
-  CheckSquare, X, Plus, Search, LayoutGrid, List, Lightbulb, Loader2, Sparkles,
+  CheckSquare, X, Plus, Search, LayoutGrid, List, Loader2, Sparkles,
 } from 'lucide-react'
 import SmartScheduleModal from '../components/SmartScheduleModal'
 import { fmtDate, STATUS_LABELS, PRIORITY_LABELS, extractErr} from '../utils/helpers'
@@ -101,7 +101,7 @@ function TaskKanbanCard({ task, onTaskClick, onTaskDragStart }: { task: any; onT
 }
 
 function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnter, onColumnLeave, dragOver }: { status: string; tasks: any[]; onTaskClick: (t: any) => void; onTaskDragStart?: any; onColumnEnter?: any; onColumnLeave?: any; dragOver?: boolean }) {
-  const colors: Record<string, string> = { todo: 'var(--text-2)', in_progress: 'var(--accent)', blocked: 'var(--danger)', in_review: 'var(--warning)', done: 'var(--success)' }
+  const colors: Record<string, string> = { backlog: 'var(--text-3)', todo: 'var(--text-2)', in_progress: 'var(--accent)', blocked: 'var(--danger)', in_review: 'var(--warning)', done: 'var(--success)' }
   const color = colors[status]
   return (
     <div
@@ -865,9 +865,16 @@ export default function TasksPage() {
 
   const { sort: taskSort, setSort: setTaskSort, sortedData: sortedTasks } = useSort(flatTasks, 'title')
 
+  // Revisión 2026-11: sin proyecto el Kanban caía en una lista. Ahora agrupa por
+  // estado las mismas tareas que mostraría la lista (con sus filtros).
   const kanbanColumns: any = view === 'kanban' && tasksData && !Array.isArray(tasksData)
     ? tasksData
-    : STATUSES.reduce((a: any, s) => ({ ...a, [s]: [] }), {})
+    : flatTasks.reduce((a: any, task: any) => {
+        if (task.status !== 'cancelled') (a[task.status] = a[task.status] || []).push(task)
+        return a
+      }, STATUSES.reduce((a: any, s) => ({ ...a, [s]: [] }), {}))
+  // El servidor devuelve «backlog»; antes no tenía columna y esas tareas no se veían.
+  const kanbanStatuses = (kanbanColumns.backlog?.length ? ['backlog'] : []).concat(STATUSES)
 
   // ── Bulk operations ──────────────────────────────────────────────────────
   const { data: allUsers = [] } = useQuery<any[]>({
@@ -1060,9 +1067,11 @@ export default function TasksPage() {
       {isLoading ? (
         <SkeletonTable rows={10} />
       ) : view === 'kanban' ? (
-        projectFilter ? (
+        flatTasks.length === 0 && !projectFilter ? (
+          <EmptyState icon="tasks" title={t('tasks.no_tasks')} description={t('tasks.col_task')} ctaLabel={t('tasks.new_task')} onCta={() => setShowCreate(true)} />
+        ) : (
           <div style={{ display: 'flex', flexDirection: isCompact ? 'column' : 'row', gap: 12, overflowX: isCompact ? 'visible' : 'auto', paddingBottom: 16 }}>
-            {STATUSES.filter(s => s !== 'backlog').map(status => (
+            {kanbanStatuses.map(status => (
               <KanbanColumn
                 key={status}
                 status={status}
@@ -1078,67 +1087,18 @@ export default function TasksPage() {
               />
             ))}
           </div>
-        ) : (
-          // Sin proyecto: mostrar lista de todas las tareas
-          flatTasks.length === 0 ? (
-            <EmptyState icon="tasks" title={t('tasks.no_tasks')} description={t('tasks.col_task')} ctaLabel={t('tasks.new_task')} onCta={() => setShowCreate(true)} />
-          ) : (
-            <div data-export-table="tasks-list" className="ds-card" style={{ padding: 0, overflow: 'hidden' }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
-                padding: '10px 20px', borderBottom: '1px solid var(--surface-4)',
-                fontSize: 'var(--text-sm)', color: 'var(--text-2)',
-              }}>
-                <Lightbulb size={13} style={{ color: 'var(--warning)', flexShrink: 0 }} />
-                <span>{t('tasks.select_project')} · {flatTasks.length} {t('tasks.col_task')}</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
-                <input type="checkbox" checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
-                <SortableTH col="title" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_task')}</SortableTH>
-                <SortableTH col="project_id" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_project')}</SortableTH>
-                <SortableTH col="assignee.full_name" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_assignee')}</SortableTH>
-                <SortableTH col="estimated_hours" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_est')}</SortableTH>
-                <SortableTH col="status" sort={taskSort} onSort={setTaskSort}>{t('common.status')}</SortableTH>
-                <SortableTH col="priority" sort={taskSort} onSort={setTaskSort}>{t('common.priority')}</SortableTH>
-              </div>
-              {sortedTasks.map(t => {
-                const proj = projects.find(p => p.id === t.project_id)
-                return (
-                  <div key={t.id}
-                    onClick={() => setSelectedTask(t)}
-                    onKeyDown={e => onKeyboardActivate(e, () => setSelectedTask(t))}
-                    role="button"
-                    tabIndex={0}
-                    style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', cursor: 'pointer', alignItems: 'center', background: selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
-                    onMouseEnter={e => { if (!selected.has(t.id)) e.currentTarget.style.background = 'var(--surface-3)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}>
-                    <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
-                    <div>
-                      <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{t.title}</div>
-                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t.code}</div>
-                    </div>
-                    <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{proj ? `${proj.code}` : '—'}</span>
-                    <span style={{ fontSize: "var(--text-sm)" }}>{t.assignee?.full_name?.split(' ')[0] || '—'}</span>
-                    <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t.estimated_hours ? `${t.estimated_hours}h` : '—'}</span>
-                    <span><Badge label={t.status} /></span>
-                    <span><Badge label={t.priority} /></span>
-                  </div>
-                )
-              })}
-            </div>
-          )
         )
       ) : (
         flatTasks.length === 0 ? (
           <EmptyState icon="search" title={t('common.no_results')} description={t('tasks.filter_status')} />
         ) : isCompact ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {sortedTasks.map((t) => {
-              const proj = projects.find(p => p.id === t.project_id)
+            {sortedTasks.map((task) => {
+              const proj = projects.find(p => p.id === task.project_id)
               return (
-                <div key={t.id}
-                  onClick={() => setSelectedTask(t)}
-                  onKeyDown={e => onKeyboardActivate(e, () => setSelectedTask(t))}
+                <div key={task.id}
+                  onClick={() => setSelectedTask(task)}
+                  onKeyDown={e => onKeyboardActivate(e, () => setSelectedTask(task))}
                   role="button"
                   tabIndex={0}
                   style={{
@@ -1149,23 +1109,23 @@ export default function TasksPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <input
                       type="checkbox"
-                      checked={selected.has(t.id)}
-                      onChange={() => toggleSelect(t.id)}
+                      checked={selected.has(task.id)}
+                      onChange={() => toggleSelect(task.id)}
                       onClick={e => e.stopPropagation()}
                       style={{ cursor: 'pointer', accentColor: 'var(--accent)' }}
                     />
-                    <div style={{ fontSize: "var(--text-base)", fontWeight: 700, flex: 1 }}>{t.title}</div>
-                    <Badge label={t.priority} />
+                    <div style={{ fontSize: "var(--text-base)", fontWeight: 700, flex: 1 }}>{task.title}</div>
+                    <Badge label={task.priority} />
                   </div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-                    <span>{t.code}</span>
+                    <span>{task.code}</span>
                     <span>{proj ? proj.code : t('tasks.no_project')}</span>
-                    <span>{t.assignee?.full_name || t('tasks.no_assignee')}</span>
-                    <span>{t.estimated_hours ? `${t.estimated_hours}h est.` : t('tasks.no_estimate')}</span>
-                    <span>{t.real_hours?.toFixed(1) ?? 0}h real</span>
+                    <span>{task.assignee?.full_name || t('tasks.no_assignee')}</span>
+                    <span>{task.estimated_hours ? `${task.estimated_hours}h est.` : t('tasks.no_estimate')}</span>
+                    <span>{task.real_hours?.toFixed(1) ?? 0}h real</span>
                   </div>
                   <div style={{ marginTop: 8 }}>
-                    <Badge label={t.status} />
+                    <Badge label={task.status} />
                   </div>
                 </div>
               )
