@@ -131,7 +131,8 @@ def get_my_notification_preferences(db: Session = Depends(get_db), current_user:
 def put_my_notification_preferences(payload: dict = Body(default={}), db: Session = Depends(get_db),
                                     current_user: User = Depends(get_current_user)):
     from app.services import preferencias_de_aviso
-    return APIResponse.ok(data=preferencias_de_aviso.guardar(db, current_user.id, payload.get("preferences") or {}))
+    return APIResponse.ok(data=preferencias_de_aviso.guardar(db, current_user.id, payload.get("preferences") or {},
+                                                            digest=payload.get("digest")))
 
 
 @router.patch("/me", response_model=APIResponse[UserPublic], summary="El usuario actualiza su propio perfil")

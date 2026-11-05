@@ -6120,6 +6120,7 @@ const en = {
     nombre_de_la_plantilla: 'Template name...',
   },
   userprofile: {
+    resumen_diario: "Get a daily email digest of unread notices",
     los_cambios_se_aplican_al_mismo_recurso: 'Changes apply to the same resource everywhere in the system',
     telefono: 'Phone',
     url_de_avatar_opcional: 'Avatar URL (optional)',

@@ -188,6 +188,12 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.purgar_empresas_caducadas",
         "schedule": crontab(hour=2, minute=40),
     },
+    # Resumen diario de avisos: corre cada hora; cada usuario lo recibe una vez
+    # al día a partir de NOTIFICATIONS_DIGEST_HOUR en su zona (revisión 2026-11).
+    "resumen-diario-de-avisos": {
+        "task": "app.worker.resumen_diario_de_avisos",
+        "schedule": crontab(minute=5),
+    },
     # Base de conocimiento: artículos caducados y contradictorios (revisión 2026-11).
     "kb-calidad": {
         "task": "app.worker.kb_pasada_de_calidad",
@@ -1776,6 +1782,13 @@ def purgar_empresas_caducadas():
     """Borra los datos de las empresas cuya cuarentena de baja ha vencido."""
     from app.services.baja_de_empresa_service import purgar_caducadas_job
     purgar_caducadas_job()
+
+
+@celery_app.task(name="app.worker.resumen_diario_de_avisos")
+def resumen_diario_de_avisos():
+    """Un correo al día con lo no leído, a quien lo tenga activado."""
+    from app.services.resumen_de_avisos import enviar_job
+    enviar_job()
 
 
 @celery_app.task(name="app.worker.kb_pasada_de_calidad")

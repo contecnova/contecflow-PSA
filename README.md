@@ -1975,6 +1975,11 @@ Opening `/service-desk?ticket=<id>` (the link in every notification) switches to
 
 **Personal preferences (2026-11).** Each user chooses, in *Profile → 🔔 Avisos*, which notice types they want and by which channel. Every type has «App» (the bell); `approval_requested` also has «Correo». Everything is on by default. They are stored in `user_preferences.extra["notifications"]` (`app/services/preferencias_de_aviso.py`; `GET/PUT /api/v1/users/me/notification-preferences`). The in-app filter is a single `before_flush` listener that drops new `Notification` rows the user does not want, so it covers every code path that creates notices, including future ones. The approval email checks the «Correo» choice before sending.
 
+**Daily digest (2026-11).** In the same tab, *Recibir cada día un resumen por correo* sends one email a day with the user's unread notices of the last 24 hours (`app/services/resumen_de_avisos.py`, hourly job `resumen_diario_de_avisos`).
+- It goes out from `NOTIFICATIONS_DIGEST_HOUR` (8) in the user's time zone, and lists at most `NOTIFICATIONS_DIGEST_MAX_ITEMS` (20) notices with a link to the inbox. Both are in *Admin → Automations*.
+- Nothing is sent when nothing is pending. The date of the last digest is stored in the user's preferences, so it never goes out twice in a day.
+- It is off by default.
+
 Recipients, as implemented in `destinatarios()`:
 
 | Event | Recipients |

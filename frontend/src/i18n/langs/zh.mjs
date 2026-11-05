@@ -6131,6 +6131,7 @@ const zh = {
     nombre_de_la_plantilla: '模板名称……',
   },
   userprofile: {
+    resumen_diario: "每天通过邮件接收未读通知摘要",
     los_cambios_se_aplican_al_mismo_recurso: '所做修改将在系统各处对同一资源生效',
     telefono: '电话',
     url_de_avatar_opcional: '头像链接（可选）',

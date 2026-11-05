@@ -5448,6 +5448,7 @@ const es = {
     nombre_de_la_plantilla: 'Nombre de la plantilla...',
   },
   userprofile: {
+    resumen_diario: "Recibir cada día un resumen por correo con los avisos sin leer",
     los_cambios_se_aplican_al_mismo_recurso: 'Los cambios se aplican al mismo recurso en todo el sistema',
     telefono: 'Teléfono',
     url_de_avatar_opcional: 'URL de avatar (opcional)',

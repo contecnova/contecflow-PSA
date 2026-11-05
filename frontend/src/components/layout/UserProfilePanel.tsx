@@ -574,16 +574,19 @@ const NOMBRE_DEL_AVISO: Record<string, string> = {
 
 function PreferenciasDeAviso() {
   const toast = useToast()
+  const { t: traducir } = useAppLang()
   const qc = useQueryClient()
-  const { data } = useQuery<{ types: { type: string; channels: string[] }[]; preferences: Record<string, Record<string, boolean>> }>({
+  const { data } = useQuery<{ types: { type: string; channels: string[] }[]; preferences: Record<string, Record<string, boolean>>; digest?: boolean }>({
     queryKey: ['notification-preferences'],
     queryFn: () => api.get('/users/me/notification-preferences').then(r => r.data),
   })
   const [prefs, setPrefs] = useState<Record<string, Record<string, boolean>> | null>(null)
+  const [resumen, setResumen] = useState<boolean | null>(null)
   const actuales = prefs ?? data?.preferences ?? {}
+  const resumenActual = resumen ?? !!data?.digest
   const { mutate: guardar, isPending } = useMutation({
-    mutationFn: () => api.put('/users/me/notification-preferences', { preferences: actuales }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notification-preferences'] }); setPrefs(null); toast.success('Guardado') },
+    mutationFn: () => api.put('/users/me/notification-preferences', { preferences: actuales, digest: resumenActual }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notification-preferences'] }); setPrefs(null); setResumen(null); toast.success('Guardado') },
     onError: () => toast.error('No se pudo guardar'),
   })
   const cambiar = (tipo: string, canal: string, v: boolean) =>
@@ -606,9 +609,13 @@ function PreferenciasDeAviso() {
           ))}
         </div>
       ))}
+      <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, fontSize: 'var(--text-sm)' }}>
+        <input type="checkbox" checked={resumenActual} onChange={e => setResumen(e.target.checked)} />
+        {traducir('userprofile.resumen_diario')}
+      </label>
       <div style={{ marginTop: 10 }}>
-        <button type="button" disabled={isPending || prefs === null} onClick={() => guardar()}
-          style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: prefs === null ? 0.6 : 1 }}>
+        <button type="button" disabled={isPending || (prefs === null && resumen === null)} onClick={() => guardar()}
+          style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: prefs === null && resumen === null ? 0.6 : 1 }}>
           {isPending ? 'Guardando…' : 'Guardar'}
         </button>
       </div>

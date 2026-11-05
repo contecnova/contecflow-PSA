@@ -26,6 +26,10 @@ class AutomationsSettingsMixin:
     # Dia (ISO, 1=lunes … 7=domingo) desde el que se avisa del parte sin enviar.
     AUTOMATIONS_TIMESHEET_WEEKDAY: int = Field(default=5, env="AUTOMATIONS_TIMESHEET_WEEKDAY")
     AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS: int = Field(default=10, env="AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS")
+    # Resumen diario de avisos (revisión 2026-11): hora local (0-23) desde la
+    # que se manda a quien lo tenga activado, y cuántos avisos lista como mucho.
+    NOTIFICATIONS_DIGEST_HOUR: int = Field(default=8, env="NOTIFICATIONS_DIGEST_HOUR")
+    NOTIFICATIONS_DIGEST_MAX_ITEMS: int = Field(default=20, env="NOTIFICATIONS_DIGEST_MAX_ITEMS")
 
     # ── BPM: motor de procesos (`app/services/bpmn_engine.py`) ──────────────
     # Pasos automaticos seguidos sin una espera: mas alla, la instancia falla

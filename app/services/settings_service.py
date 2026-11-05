@@ -229,6 +229,8 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
     ],
     "automations": [
         ("AUTOMATIONS_ENABLED", "bool", "Rules run on events and on the periodic scan (off: only the simulation)"),
+        ("NOTIFICATIONS_DIGEST_HOUR", "int", "Daily notice digest — local hour (0-23) from which it is emailed"),
+        ("NOTIFICATIONS_DIGEST_MAX_ITEMS", "int", "Daily notice digest — notices listed at most"),
         ("AUTOMATIONS_MAX_CHAIN_DEPTH", "int", "A rule may trigger another one up to this depth"),
         ("AUTOMATIONS_EVENT_BATCH_SIZE", "int", "Events processed per run"),
         ("AUTOMATIONS_EVENT_MAX_ATTEMPTS", "int", "Attempts per event before it is left as failed"),
