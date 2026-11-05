@@ -9,7 +9,7 @@ from app.db.base import Base
 from app.core.config import settings
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+config.set_main_option("sqlalchemy.url", settings.DATABASE_MIGRATIONS_URL or settings.DATABASE_URL)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -58,6 +58,10 @@ def run_migrations_online() -> None:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
+            # Revisión 2026-11: las políticas RLS se rehacen tras cada upgrade
+            # desde los modelos, así que una tabla nueva no se queda sin la suya.
+            from app.db import rls
+            rls.aplicar(connection)
 
 
 if context.is_offline_mode():

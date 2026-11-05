@@ -73,9 +73,17 @@ def _asegurar_indice(db: Session, dimension: int) -> None:
     clave = (_clave(db), dimension)
     if clave in _indices:
         return
-    db.execute(text(
-        f"CREATE INDEX IF NOT EXISTS ix_sd_kb_embedding_vec_{dimension} ON {TABLA} "
-        f"USING hnsw (({COLUMNA}::vector({dimension})) vector_cosine_ops)"))
+    # Revisión 2026-11 (RLS): con el rol de aplicación sin privilegios no se
+    # puede crear el índice (lo crea el dueño del esquema). En un savepoint para
+    # no tumbar el guardado: sin índice la búsqueda sigue, recorriendo la tabla.
+    try:
+        with db.begin_nested():
+            db.execute(text(
+                f"CREATE INDEX IF NOT EXISTS ix_sd_kb_embedding_vec_{dimension} ON {TABLA} "
+                f"USING hnsw (({COLUMNA}::vector({dimension})) vector_cosine_ops)"))
+    except Exception:
+        logger.warning("kb: no se pudo crear el índice HNSW (¿rol sin privilegios?); "
+                       "créalo con el rol de migraciones", exc_info=True)
     _indices.add(clave)
 
 

@@ -5537,6 +5537,9 @@ const zh = {
     rellenar_evaluacion: '填写评估',
   },
   settingsadvanced: {
+    rls_armado: "数据库层面的公司隔离（RLS）已启用",
+    rls_desarmado: "数据库隔离（RLS）未生效：仅由应用过滤器保护",
+    rls_detalle: "连接角色：{rol} · 启用 RLS 的表：{n}/{total}",
     idioma_del_operador_back_office: '操作端语言（后台）',
     idioma_de_la_interfaz_interna_cada_usuario: '内部界面的语言。每位用户可在此自行设置，设置保存在浏览器中。',
     al_cambiar_el_idioma_los_menus_titulos: '💡 切换语言后，菜单、标题与界面文字将以该语言显示。尚未完全翻译的页面仍会显示西班牙语文本。',

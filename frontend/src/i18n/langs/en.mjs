@@ -5526,6 +5526,9 @@ const en = {
     rellenar_evaluacion: 'Fill in review',
   },
   settingsadvanced: {
+    rls_armado: "Isolation between companies also in the database (RLS)",
+    rls_desarmado: "Database isolation (RLS) is not active: only the application filter protects",
+    rls_detalle: "Connection role: {rol} · tables with RLS: {n} of {total}",
     idioma_del_operador_back_office: 'Operator language (back office)',
     idioma_de_la_interfaz_interna_cada_usuario: 'Language of the internal interface. Each user can set their own here. It is stored in the browser.',
     al_cambiar_el_idioma_los_menus_titulos: '💡 When you change the language, menus, headings and interface text are shown in that language. Pages that are not fully translated yet still show Spanish text.',

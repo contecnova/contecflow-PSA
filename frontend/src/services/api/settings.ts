@@ -91,6 +91,10 @@ export const settingsApi = {
   setRuntime: (group: string, key: string, value: string | number | boolean | null): Promise<AxiosResponse<RuntimeFlagsResponse>> =>
     api.put(`/settings/runtime/${group}/${key}`, { value: String(value) }),
 
+  /** ¿Está armado el aislamiento entre empresas en la base (RLS)? */
+  dbIsolation: (): Promise<AxiosResponse<{ armed: boolean; role?: string; tables_with_rls?: number; tables_expected?: number; reason?: string | null }>> =>
+    api.get('/settings/db-isolation'),
+
   /** Traducciones del back-office de la empresa: `{idioma: {módulo: {clave: texto}}}`. */
   appTranslations: (): Promise<AxiosResponse<Record<string, Record<string, Record<string, string>>>>> =>
     api.get('/settings/app-translations'),

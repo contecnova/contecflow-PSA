@@ -3888,6 +3888,24 @@ This section covers every screen an administrator uses to configure contecflow-P
   - **`deps.get_current_client`** (portal collaboration and conversations) did not publish the tenant, and an uninitialised `TenantSession` does not filter. It does now.
   - **Hand-written SQL:** the scheduled-reports summary counted every company's reports; it is now scoped.
   - **No database-level isolation:** there is no Postgres RLS (0 tables) and the application connects as a superuser role. Isolation relies entirely on `TenantSession`.
+- **Database isolation (RLS, since 2026-11-05).** A second barrier under the ORM filter, in PostgreSQL itself (`app/db/rls.py`).
+  - **Measured before:** the application connected as `contecflow`, a superuser with BYPASSRLS, and there were 0 policies. Anything that did not go through the ORM filter (hand-written SQL, bulk operations) had nothing underneath.
+  - **Policies:** one per table with `organization_id` or `org_id` (400 tables), generated from the models with the same meaning as the ORM filter: strict; global rows (`NULL`) for `_tenant_filter_include_global`; home company or membership for users. Every `alembic upgrade` rebuilds them (`alembic/env.py`), so a new table never stays without one. Inserting a row of another company is rejected; a row without company is allowed.
+  - **Context:** before each statement and each flush, the session sets `app.tenant` (transaction-local) to its company, or to empty where the ORM does not filter either (superadmin, background jobs, `sin_filtro_de_tenant`).
+  - **Application role:** policies only act if the application does not connect as the schema owner.
+    - `setup.sh` creates `APP_DB_USER` (default `contecflow_app`, no superuser, no BYPASSRLS), generates `APP_DB_PASSWORD` in `.env` and points `DATABASE_URL` at it. Migrations keep the owner in `DATABASE_MIGRATIONS_URL`. `CONTECFLOW_DB_APP_ROLE=0` skips this.
+    - In docker compose, the `migrate` service runs `python -m app.db.rls`, and the app uses `APP_DB_USER` when it is defined (otherwise the owner, as before).
+  - **Checking it:**
+    - *Admin → Estado sistema* shows whether it is armed: connection role, and tables with RLS out of those expected.
+    - The API logs a warning at startup when it is not armed.
+  - **Measured on a copy with the application role:**
+    - 97 menu routes and 2268 API calls with 0 errors.
+    - The 179 GET endpoints the screens call return the same counts as with the owner, so RLS hides nothing the application shows.
+    - `tests/test_rls_postgres.py` (runs with `RLS_TEST_OWNER_URL` and `RLS_TEST_APP_URL`) proves that hand-written SQL in company A does not see company B, and that it cannot insert into B.
+  - **Limits:**
+    - Tables that the ORM isolates through `project_id` or a user foreign key, without a company column, have no policy.
+    - The pgvector HNSW index can only be created by the owner. Without it, KB search still works, scanning the table.
+
 - **Entering a company (since 2026-11-05).** Each deployment chooses one mode in `.env` (`TENANT_ENTRY_MODE`; code in `app/services/entrada_service.py`):
   - `email_selector` (default): email and password. With one active company the user enters it directly. With several, the login answers `organization_selection_required` with the list and a 5-minute `selection_token` that is only valid for `POST /auth/select-organization`; the login screen shows a picker. The header shows a company switcher (`POST /auth/switch-organization`) for users in more than one.
   - `subdomain`: the host decides: `<slug>.TENANT_ROOT_DOMAIN` or the company's own `domain` (migration 126). The login shows that company's name. A user who is not a member of that company cannot enter, and a session of another company is refused on that host (403). `X-Forwarded-Host` is honoured only from trusted proxies (`TRUST_PROXY_HEADERS`, `TRUSTED_PROXY_CIDRS`).

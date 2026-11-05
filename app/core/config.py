@@ -64,6 +64,10 @@ class Settings(
 
     # ── Database ─────────────────────────────────────────────────────────────
     DATABASE_URL: str = Field(..., env="DATABASE_URL")
+    # Revisión 2026-11 (RLS): con un rol de aplicación sin privilegios en
+    # DATABASE_URL, las migraciones necesitan el dueño del esquema. Vacío: las
+    # migraciones usan DATABASE_URL (como antes).
+    DATABASE_MIGRATIONS_URL: str = Field(default="", env="DATABASE_MIGRATIONS_URL")
 
     # ── Project pipeline defaults ────────────────────────────────────────────
     DEFAULT_PROJECT_TYPE: str = Field(default="consulting", env="DEFAULT_PROJECT_TYPE")

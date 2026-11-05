@@ -58,7 +58,11 @@ x-app: &app
     # resuelven por nombre, no por localhost. Si se dejara que el .env manda,
     # un DATABASE_URL con `localhost` (el habitual en desarrollo) haría que el
     # contenedor intentara conectarse a sí mismo.
-    DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:?define POSTGRES_USER}:${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?define POSTGRES_DB}
+    # Revisión 2026-11 (RLS): la aplicación conecta con el rol sin privilegios
+    # (APP_DB_USER) y las migraciones con el dueño del esquema. Sin APP_DB_USER,
+    # todo usa el dueño como antes (y Admin → Estado sistema avisa).
+    DATABASE_URL: postgresql+psycopg2://${APP_DB_USER:-${POSTGRES_USER}}:${APP_DB_PASSWORD:-${POSTGRES_PASSWORD}}@postgres:5432/${POSTGRES_DB:?define POSTGRES_DB}
+    DATABASE_MIGRATIONS_URL: postgresql+psycopg2://${POSTGRES_USER:?define POSTGRES_USER}:${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?define POSTGRES_DB}
     REDIS_URL: redis://redis:6379/0
     CELERY_BROKER_URL: redis://redis:6379/1
     CELERY_RESULT_BACKEND: redis://redis:6379/2
@@ -213,7 +217,7 @@ services:
     profiles: ["app"]
     container_name: contecflow-migrate
     restart: "no"
-    command: ["python", "-m", "alembic", "upgrade", "head"]
+    command: ["sh", "-c", "python -m alembic upgrade head && python -m app.db.rls"]
     depends_on:
       postgres: {condition: service_healthy}
 

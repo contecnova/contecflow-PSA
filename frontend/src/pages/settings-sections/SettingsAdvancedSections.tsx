@@ -668,6 +668,28 @@ function SystemSettingItem({ setting }: { setting: any }) {
   )
 }
 
+// Revisión 2026-11: se mide el rol con el que conecta la aplicación, no solo
+// que haya políticas: con un superusuario las políticas existen y no actúan.
+function AislamientoEnLaBase() {
+  const { t } = useAppLang()
+  const { data } = useQuery<{ armed: boolean; role?: string; tables_with_rls?: number; tables_expected?: number; reason?: string | null }>({
+    queryKey: ['db-isolation'],
+    queryFn: () => settingsApi.dbIsolation().then(r => r.data as any),
+  })
+  if (!data) return null
+  const color = data.armed ? 'var(--success)' : 'var(--warning)'
+  return (
+    <div role={data.armed ? undefined : 'alert'} style={{ marginBottom: 18, borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-sm)',
+      background: `color-mix(in srgb, ${color} 8%, var(--surface-3))`, border: `1px solid color-mix(in srgb, ${color} 30%, var(--surface-4))` }}>
+      <strong style={{ color }}>{data.armed ? '🔒 ' + t('settingsadvanced.rls_armado') : '⚠ ' + t('settingsadvanced.rls_desarmado')}</strong>
+      <div style={{ color: 'var(--text-2)', marginTop: 4 }}>
+        {t('settingsadvanced.rls_detalle', { rol: data.role ?? '—', n: data.tables_with_rls ?? 0, total: data.tables_expected ?? 0 })}
+        {data.reason ? ` · ${data.reason}` : ''}
+      </div>
+    </div>
+  )
+}
+
 export function SystemStateSection() {
   const { t } = useAppLang()
   const { data: settings = [], isLoading } = useQuery<any[]>({
@@ -689,6 +711,7 @@ export function SystemStateSection() {
 
   return (
     <Section icon="🔧" title={t('settingsadvanced.estado_del_sistema')} description="Lectura del estado interno persistido por servicios BI / ITSM (admin · solo lectura)">
+      <AislamientoEnLaBase />
       {isLoading ? (
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Cargando…</div>
       ) : internal.length === 0 ? (

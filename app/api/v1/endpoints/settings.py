@@ -37,6 +37,13 @@ def require_admin_or_pm(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Acceso denegado")
     return current_user
 
+# ── Aislamiento en la base (revisión 2026-11) ─────────────────────────────────
+@router.get("/db-isolation", summary="¿Está armado el aislamiento entre empresas en la base (RLS)? (admin)")
+def db_isolation(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    from app.db import rls
+    return APIResponse.ok(data=rls.estado(db.connection()))
+
+
 # ── Traducciones del back-office (revisión 2026-11) ───────────────────────────
 @router.get("/app-translations", summary="Traducciones del back-office personalizadas por la empresa")
 def get_app_translations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

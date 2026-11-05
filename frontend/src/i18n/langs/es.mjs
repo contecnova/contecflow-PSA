@@ -4834,6 +4834,9 @@ const es = {
     rellenar_evaluacion: 'Rellenar evaluación',
   },
   settingsadvanced: {
+    rls_armado: "Aislamiento entre empresas también en la base de datos (RLS)",
+    rls_desarmado: "El aislamiento en la base de datos (RLS) no actúa: solo protege el filtro de la aplicación",
+    rls_detalle: "Rol de conexión: {rol} · tablas con RLS: {n} de {total}",
     idioma_del_operador_back_office: 'Idioma del operador (back-office)',
     idioma_de_la_interfaz_interna_cada_usuario: 'Idioma de la interfaz interna. Cada usuario puede configurar el suyo desde aquí. Se guarda en el navegador.',
     al_cambiar_el_idioma_los_menus_titulos: '💡 Al cambiar el idioma, los menús, títulos y textos de la interfaz se mostrarán en ese idioma. Las páginas que aún no estén totalmente traducidas mostrarán el texto en español.',

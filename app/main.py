@@ -530,6 +530,22 @@ def _parar_servicios(_scheduler) -> None:
     logger.info("   ✅ Shutdown completo")
 
 
+def _avisar_si_rls_desarmada() -> None:
+    """Revisión 2026-11: se mide el rol de conexión, no solo que haya políticas."""
+    try:
+        from app.db import rls
+        from app.db.session import engine
+        with engine.connect() as conexion:
+            estado = rls.estado(conexion)
+        if estado.get("reason") and estado["reason"] != "no es Postgres":
+            logger.warning("   ⚠️  Aislamiento en la base (RLS) desarmado: %s. Ver README, «Database isolation».",
+                           estado["reason"])
+        elif estado.get("armed"):
+            logger.info("   🔒 RLS armado: %s tablas, rol %s", estado["tables_with_rls"], estado["role"])
+    except Exception:
+        logger.debug("lifespan: no se pudo medir RLS", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # ── Dependency preflight check ─────────────────────────────────────────
@@ -551,6 +567,7 @@ async def lifespan(_app: FastAPI):
     _enforce_drift = _os.getenv("FAIL_ON_SCHEMA_DRIFT", "1" if settings.ENVIRONMENT in {"production", "staging"} else "0") == "1"
 
     _comprobar_deriva_de_esquema(_is_testing, _expected_rev, _enforce_drift)
+    _avisar_si_rls_desarmada()
 
     # Key management bootstrap (JWT keyring + integration secret rotation policy)
     _arrancar_servicios_de_apoyo()

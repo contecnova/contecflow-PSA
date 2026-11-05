@@ -852,6 +852,55 @@ env_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
 print('ROTATED')
 PY
 )
+  # ── Rol de aplicación sin privilegios (RLS) — revisión 2026-11 ──────────────
+  # Medido: la aplicación conectaba como superusuario (se salta RLS). Aquí se
+  # crea el rol `APP_DB_USER` (contraseña generada y guardada en .env), se
+  # aplican las políticas y DATABASE_URL pasa a ese rol; las migraciones siguen
+  # con el dueño en DATABASE_MIGRATIONS_URL. CONTECFLOW_DB_APP_ROLE=0 lo omite.
+  preparar_rol_de_aplicacion() {
+    [ "${CONTECFLOW_DB_APP_ROLE:-1}" = "0" ] && { warn "Rol de aplicación omitido (CONTECFLOW_DB_APP_ROLE=0): RLS no actúa"; return 0; }
+    local salida
+    salida=$("$PY_BIN" - <<'PY'
+import os, re, secrets, subprocess, sys
+from pathlib import Path
+env = Path('.env'); lines = env.read_text(encoding='utf-8').splitlines()
+def get(n):
+    for l in lines:
+        if l.startswith(n + '='): return l.split('=', 1)[1]
+    return ''
+def put(n, v):
+    for i, l in enumerate(lines):
+        if l.startswith(n + '='): lines[i] = f'{n}={v}'; return
+    lines.append(f'{n}={v}')
+url = get('DATABASE_URL')
+if not url.startswith('postgresql'):
+    print('SKIP no es Postgres'); sys.exit(0)
+owner = get('DATABASE_MIGRATIONS_URL') or url
+m = re.match(r'(postgresql[^:]*://)([^:@]+):([^@]*)@(.+)$', owner)
+if not m:
+    print('SKIP URL no reconocida'); sys.exit(0)
+usuario = get('APP_DB_USER') or 'contecflow_app'
+clave = get('APP_DB_PASSWORD') or secrets.token_urlsafe(24)
+if m.group(2) == usuario:
+    print('SKIP DATABASE_MIGRATIONS_URL debe ser el dueño del esquema'); sys.exit(0)
+entorno = dict(os.environ, DATABASE_URL=owner, DATABASE_MIGRATIONS_URL=owner, APP_DB_USER=usuario, APP_DB_PASSWORD=clave)
+r = subprocess.run([sys.executable, '-m', 'app.db.rls'], env=entorno, capture_output=True, text=True)
+if r.returncode != 0:
+    print('FAIL ' + (r.stderr or r.stdout).strip().splitlines()[-1][:200]); sys.exit(0)
+put('APP_DB_USER', usuario); put('APP_DB_PASSWORD', clave)
+put('DATABASE_MIGRATIONS_URL', owner)
+put('DATABASE_URL', f'{m.group(1)}{usuario}:{clave}@{m.group(4)}')
+env.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+print('OK ' + r.stdout.strip().replace('\n', ' · '))
+PY
+)
+    case "$salida" in
+      OK*)   log "RLS: ${salida#OK }" ;;
+      SKIP*) log "RLS: omitido (${salida#SKIP })" ;;
+      *)     warn "RLS: no se pudo preparar el rol de aplicación (${salida#FAIL }); la aplicación sigue con el dueño" ;;
+    esac
+  }
+
   if [ "$SECRET_STATUS" = "ROTATED" ]; then
     warn "SECRET_KEY insegura detectada en .env — regenerada automáticamente"
   fi
@@ -880,6 +929,7 @@ PY
     exit 1
   fi
   log "Esquema al día ✓"
+  preparar_rol_de_aplicacion
 
   # ── Comprobación / seed inicial ──────────────────────────────────────────────────────
   # Check if DB has valid users with passwords

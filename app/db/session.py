@@ -412,6 +412,26 @@ def _iter_tenant_scoped_models():
             yield cls
 
 
+# Revisión 2026-11: la misma decisión del filtro, también en la base (RLS).
+# Ver app/db/rls.py. En SQLite no hace nada.
+from app.db import rls as _rls  # noqa: E402
+
+
+@_sa_event.listens_for(TenantSession, "after_begin")
+def _rls_transaccion_nueva(session, transaction, connection) -> None:
+    session.info.pop("_rls_marca", None)   # `set_config(..., true)` muere con la transacción
+
+
+@_sa_event.listens_for(TenantSession, "do_orm_execute")
+def _rls_antes_de_ejecutar(execute_state) -> None:
+    _rls.sincronizar(execute_state.session, libre=bool(execute_state.is_column_load))
+
+
+@_sa_event.listens_for(TenantSession, "before_flush")
+def _rls_antes_de_escribir(session, flush_context, instances) -> None:
+    _rls.sincronizar(session)
+
+
 if _TENANT_AUTO_FILTER_GLOBAL:
 
     @_sa_event.listens_for(SessionLocal, "do_orm_execute")
