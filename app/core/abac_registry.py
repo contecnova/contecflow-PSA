@@ -177,6 +177,10 @@ ABAC_EXEMPT_PREFIXES: dict[str, str] = {
     # organizacion del usuario y completar un paso exige el rol de su calle
     # (`bpmn_engine.puede_completar`); no hay recurso ABAC por instancia.
     "/api/v1/bpmn-instances": "Acotado por organización y por el rol de la calle del paso (bpmn_engine)",
+    # Revisión 2026-11: servidor MCP. Cada herramienta se ejecuta como el dueño
+    # de la credencial con sus permisos (execute_tool), bajo la gobernanza del
+    # módulo «mcp» (encendido, límite diario, auditoría) y MCP_WRITE_MODE.
+    "/api/v1/mcp": "Herramientas ejecutadas como el dueño de la credencial; gobierno del módulo mcp y MCP_WRITE_MODE",
     # Autenticación: ABAC evalúa a un usuario ya autenticado, no puede gobernar el
     # propio flujo de login.
     "/api/v1/auth":            "flujo de autenticación",

@@ -3437,7 +3437,15 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 
 **Governance.**
 - The key acts **as its owner**: role, organisation, financial tools only for admin/hr, as in NexusAgent.
-- Read-only by default: the 7 tools that write (create/update task, create risk, project and ticket status, reassign tickets, send notification) are not even listed unless `MCP_ALLOW_WRITE` is on (*Admin → AI*). A `read` key never sees them; `write` or `admin` is needed. An area-scoped key (`projects`, `tasks`…) cannot open MCP.
+- **Tools that write** (create/update task, create risk, project and ticket status, reassign tickets, send notification) follow `MCP_WRITE_MODE` (*Admin → AI*). A `read` key never sees them; `write` or `admin` is needed. An area-scoped key (`projects`, `tasks`…) cannot open MCP. Any unknown value counts as `off`.
+  - `off` (default): they are not listed.
+  - `approval`: they are listed with «REQUIERE APROBACIÓN HUMANA». A call does not run. It stores the action (`mcp_pending_actions`, migration 134) and opens an approval of type **«Acción de agente externo (MCP)»** (`mcp_action`). It returns `pending_approval` with an `action_id`.
+    - When someone approves, the approval engine runs the tool as the key's owner (`_apply_entity_final_decision` → `mcp_service.aplicar_decision`), stores the result and logs it. When someone rejects, nothing runs.
+    - The agent follows it with the extra tool `mcp_action_status`, and only sees its own actions.
+    - The approver cannot be the requester (segregation of duties), and the email approval link works as for any other approval.
+    - Without a workflow for that type, the call fails with a clear message and nothing is stored. Create the workflow in *Settings → Approval workflows*.
+  - `direct`: they run at once.
+  - Measured end to end on a copy with PostgreSQL, RLS and the application role: a PM's agent asked for a task (0 tasks), the admin approved it (1 task), and the status went to `executed` with the result.
 - The daily limit is the module's `max_actions_per_day` in AI Governance.
 - Every call is logged in the AI action log (module `mcp`), allowed, failed or blocked.
 - A new NexusAgent tool that is neither `get_`/`search_` nor listed as a write tool breaks the import of `app/services/mcp_service.py` on purpose, so a write is never exposed as a read.
@@ -3893,6 +3901,7 @@ This section covers every screen an administrator uses to configure contecflow-P
   - **`deps.get_current_client`** (portal collaboration and conversations) did not publish the tenant, and an uninitialised `TenantSession` does not filter. It does now.
   - **Hand-written SQL:** the scheduled-reports summary counted every company's reports; it is now scoped.
   - **No database-level isolation:** there is no Postgres RLS (0 tables) and the application connects as a superuser role. Isolation relies entirely on `TenantSession`.
+- **What a superadmin creates stays in their company (since 2026-11-05).** A superadmin's session has no company filter, so rows they created through the screens were stored without a company. Their own company's users never saw them. Measured on a copy: an approval workflow created by `admin@company.com` was invisible to the company's PMs. Now the auto-stamp falls back to the superadmin's own company when the record itself (its project or user) does not say. Rows created in another company on purpose, and global models, are unchanged. In the same way, the AI module switches (*AI Governance → Modules*) now read and write the row of the company explicitly. Before, a superadmin could change another company's row.
 - **Database isolation (RLS, since 2026-11-05).** A second barrier under the ORM filter, in PostgreSQL itself (`app/db/rls.py`).
   - **Measured before:** the application connected as `contecflow`, a superuser with BYPASSRLS, and there were 0 policies. Anything that did not go through the ORM filter (hand-written SQL, bulk operations) had nothing underneath.
   - **Policies:** one per table with `organization_id` or `org_id` (400 tables), generated from the models with the same meaning as the ORM filter: strict; global rows (`NULL`) for `_tenant_filter_include_global`; home company or membership for users. Every `alembic upgrade` rebuilds them (`alembic/env.py`), so a new table never stays without one. Inserting a row of another company is rejected; a row without company is allowed.

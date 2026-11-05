@@ -343,7 +343,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("OPENAI_STT_MODEL", "str", "OpenAI STT model"),
         ("AI_COST_ALERT_USD_PER_DAY", "float", "AI daily cost alert ($)"),
         ("AI_PROVIDER_ERROR_COOLDOWN_SECONDS", "int", "A failing provider is set aside for (s), then retried"),
-        ("MCP_ALLOW_WRITE", "bool", "MCP — external agents may use the tools that write (create/update tasks, tickets…)"),
+        ("MCP_WRITE_MODE", "str", "MCP — tools that write: off (hidden), approval (a human approves each call) or direct"),
         ("STT_PROVIDER", "str", "Primary STT provider"),
         ("STT_FALLBACK_PROVIDERS", "str", "STT fallback providers (CSV)"),
         ("AZURE_SPEECH_REGION", "str", "Azure Speech region"),

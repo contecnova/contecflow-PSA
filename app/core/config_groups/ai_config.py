@@ -47,9 +47,10 @@ class AISettingsMixin:
     # Un proveedor que falla se aparta durante este tiempo y luego se reintenta
     # solo (antes quedaba en «error» hasta que alguien lo editaba).
     AI_PROVIDER_ERROR_COOLDOWN_SECONDS: int = Field(default=300, env="AI_PROVIDER_ERROR_COOLDOWN_SECONDS")
-    # MCP (revisión 2026-11): los agentes externos solo leen salvo que la empresa
-    # permita las herramientas que escriben.
-    MCP_ALLOW_WRITE: bool = Field(default=False, env="MCP_ALLOW_WRITE")
+    # MCP (revisión 2026-11): qué pasa cuando un agente externo usa una
+    # herramienta que escribe. off: no la ve. approval: se abre una aprobación
+    # (tipo «mcp_action») y se ejecuta solo si se aprueba. direct: se ejecuta.
+    MCP_WRITE_MODE: str = Field(default="off", env="MCP_WRITE_MODE")
     # Tope de la llamada de «Probar»: con 10, los modelos que razonan (Gemini 2.5,
     # o-series) gastaban todo en pensar y la prueba fallaba con el proveedor sano.
     AI_TEST_MAX_TOKENS: int = Field(default=256, env="AI_TEST_MAX_TOKENS")

@@ -9,7 +9,7 @@ Para migrar datos de SQLite a PostgreSQL:
 """
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
-from typing import Generator
+from typing import Generator, Optional
 from app.core.config import settings
 import logging
 
@@ -758,6 +758,13 @@ def _org_del_registro(session, obj):
     return None
 
 
+def _org_del_superadmin(info) -> Optional[str]:
+    sujeto = info.get("current_user")
+    if sujeto is not None and getattr(sujeto, "is_superadmin", False):
+        return getattr(sujeto, "organization_id", None)
+    return None
+
+
 def _sellar_organizacion(session) -> None:
     """Pone la organizacion de la sesion en las filas nuevas que no la traigan.
 
@@ -777,7 +784,11 @@ def _sellar_organizacion(session) -> None:
             if not hasattr(cls, "organization_id") or getattr(obj, "organization_id", None) is not None:
                 continue
             try:
-                derivada = _org_del_registro(session, obj)
+                # Revisión 2026-11: si no sale del registro, la empresa propia del
+                # superadmin que lo crea. Medido: un flujo de aprobación creado por
+                # el admin (superadmin) de la empresa quedaba sin empresa y sus
+                # usuarios no lo veían. Los jobs (sin sujeto) no cambian.
+                derivada = _org_del_registro(session, obj) or _org_del_superadmin(info)
                 if derivada:
                     obj.organization_id = derivada
             except Exception:

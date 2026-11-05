@@ -12,8 +12,10 @@ Gobierno, sin inventar nada nuevo:
 
 - **Encendido por empresa**: el módulo `mcp` de *Gobernanza IA → Módulos*. A
   diferencia del resto, sin fila está APAGADO: es una puerta nueva hacia fuera.
-- **Solo lectura** salvo `MCP_ALLOW_WRITE`; y una clave de API de alcance
-  `read` solo ve las de lectura aunque la empresa permita escribir.
+- **Escritura** según `MCP_WRITE_MODE`: `off` (por defecto, no se ven),
+  `approval` (cada llamada abre una aprobación «mcp_action» y se ejecuta solo si
+  una persona la aprueba; el agente sigue el estado con `mcp_action_status`) o
+  `direct`. Una clave de API de alcance `read` nunca ve las que escriben.
 - **Límite diario** por usuario: el mismo de la gobernanza (`max_actions_per_day`).
 - **Auditoría**: cada llamada queda en el registro de IA con el módulo `mcp`.
 """
@@ -69,30 +71,126 @@ def _fallo_de_herramienta(mensaje: str) -> dict:
 # ── Gobierno ────────────────────────────────────────────────────────────────
 
 def encendido(db: Session, org_id: Optional[str]) -> bool:
-    from app.models.ai_chat import AIGovernanceConfig
-    fila = db.query(AIGovernanceConfig).filter(AIGovernanceConfig.module == MODULO).first()
+    from app.services.governance_service import config_de_modulo
+    fila = config_de_modulo(db, org_id, MODULO)
     return bool(fila and fila.is_enabled)
 
 
+MODOS_DE_ESCRITURA = ("off", "approval", "direct")
+ESTADO = "mcp_action_status"
+
+
+def modo_de_escritura(db: Session, org_id: Optional[str]) -> str:
+    from app.services.settings_service import get_runtime_str
+    modo = (get_runtime_str(db, "MCP_WRITE_MODE", org_id) or "off").strip().lower()
+    return modo if modo in MODOS_DE_ESCRITURA else "off"   # un valor raro no abre la puerta
+
+
 def permite_escribir(db: Session, org_id: Optional[str], alcances: Optional[list]) -> bool:
-    from app.services.settings_service import get_runtime_bool
-    if not get_runtime_bool(db, "MCP_ALLOW_WRITE", org_id):
+    if modo_de_escritura(db, org_id) == "off":
         return False
     # Sesión o token propio: sin alcances que recortar. Clave de API: necesita write/admin.
     return alcances is None or bool(set(alcances) & {"write", "admin"})
 
 
 def herramientas_para(db: Session, user, alcances: Optional[list]) -> list[dict]:
-    escribe = permite_escribir(db, getattr(user, "organization_id", None), alcances)
+    org = getattr(user, "organization_id", None)
+    escribe = permite_escribir(db, org, alcances)
+    con_aprobacion = escribe and modo_de_escritura(db, org) == "approval"
     salida = []
     for h in _herramientas():
         es_escritura = h["name"] in ESCRITURA
         if es_escritura and not escribe:
             continue
-        salida.append({"name": h["name"], "description": h.get("description", ""),
+        descripcion = h.get("description", "")
+        if es_escritura and con_aprobacion:
+            descripcion += (" REQUIERE APROBACIÓN HUMANA: la llamada no se ejecuta al momento; devuelve un "
+                            "action_id y se ejecuta si una persona la aprueba (consúltalo con mcp_action_status).")
+        salida.append({"name": h["name"], "description": descripcion,
                        "inputSchema": h.get("input_schema") or {"type": "object", "properties": {}},
                        "annotations": {"readOnlyHint": not es_escritura, "destructiveHint": False}})
+    if con_aprobacion:
+        salida.append({"name": ESTADO, "description": "Estado de una escritura pedida por MCP que espera aprobación "
+                       "(pending, executed, failed, rejected) y, si se ejecutó, su resultado.",
+                       "inputSchema": {"type": "object", "properties": {"action_id": {"type": "string"}},
+                                       "required": ["action_id"]},
+                       "annotations": {"readOnlyHint": True, "destructiveHint": False}})
     return salida
+
+
+# ── Escrituras con aprobación ───────────────────────────────────────────────
+
+def _texto(datos: dict) -> dict:
+    return {"content": [{"type": "text", "text": json.dumps(datos, ensure_ascii=False, default=str)}],
+            "isError": False, "structuredContent": datos}
+
+
+def _pedir_aprobacion(db: Session, user, nombre: str, argumentos: dict) -> dict:
+    from fastapi import HTTPException
+    from app.models.ai_chat import MCPPendingAction
+    from app.schemas.approvals import ApprovalRequestIn
+    from app.services.approval_engine.requests import create_approval_request
+    accion = MCPPendingAction(organization_id=user.organization_id, user_id=user.id, tool=nombre,
+                              arguments=json.dumps(argumentos, ensure_ascii=False, default=str))
+    db.add(accion)
+    db.flush()
+    resumen = f"Agente externo (MCP): {nombre} {json.dumps(argumentos, ensure_ascii=False, default=str)}"[:500]
+    try:
+        req = create_approval_request(
+            ApprovalRequestIn(entity_type="mcp_action", entity_id=accion.id, entity_summary=resumen,
+                              context={"tool": nombre}), db, user, confirmar=False)
+    except HTTPException as e:
+        db.rollback()
+        _auditar(db, user, nombre, argumentos, f"sin flujo de aprobación: {e.detail}", "blocked")
+        return _fallo_de_herramienta(
+            "La escritura por MCP necesita aprobación y la empresa no tiene un flujo para el tipo "
+            "«mcp_action» (Configuración → Flujos de aprobación). No se ha hecho nada.")
+    accion.approval_request_id = req.id
+    if req.status == "approved":           # auto-aprobación por regla del flujo
+        aplicar_decision(accion.id, "approved", db)
+    _auditar(db, user, nombre, argumentos, f"pendiente de aprobación {accion.id}", "pending_approval")
+    db.refresh(accion)
+    return _texto({"status": accion.status if accion.status != "pending" else "pending_approval",
+                   "action_id": accion.id, "approval_request_id": req.id,
+                   "message": "Pendiente de aprobación humana. Consulta el estado con mcp_action_status."
+                   if accion.status == "pending" else "Aprobada por regla y ejecutada."})
+
+
+def _estado_de(db: Session, user, argumentos: dict) -> dict:
+    from app.models.ai_chat import MCPPendingAction
+    accion = db.query(MCPPendingAction).filter(MCPPendingAction.id == str(argumentos.get("action_id") or ""),
+                                               MCPPendingAction.user_id == user.id).first()
+    if accion is None:
+        return _fallo_de_herramienta("No hay ninguna acción tuya con ese action_id")
+    return _texto({"action_id": accion.id, "tool": accion.tool, "status": accion.status,
+                   "result": json.loads(accion.result) if accion.result else None,
+                   "decided_at": accion.decided_at.isoformat() if accion.decided_at else None})
+
+
+def aplicar_decision(accion_id: str, decision: str, db: Session) -> None:
+    """La llama el motor de aprobaciones al decidir (`_apply_entity_final_decision`). No confirma."""
+    from datetime import datetime, timezone
+    from app.models.ai_chat import MCPPendingAction
+    from app.models.user import User
+    accion = db.get(MCPPendingAction, accion_id)
+    if accion is None or accion.status != "pending":
+        return                             # nunca dos veces
+    accion.decided_at = datetime.now(timezone.utc)
+    if decision != "approved":
+        accion.status = "rejected"
+        return
+    usuario = db.get(User, accion.user_id)
+    if usuario is None or not usuario.is_active:
+        accion.status, accion.result = "failed", json.dumps({"error": "el dueño de la credencial ya no está activo"})
+        return
+    from app.services.ai_chat.tool_execution.executor import execute_tool
+    salida = execute_tool(accion.tool, json.loads(accion.arguments or "{}"), db, usuario)
+    error = isinstance(salida, dict) and salida.get("error")
+    accion.status = "failed" if error else "executed"
+    accion.result = json.dumps(salida, ensure_ascii=False, default=str)[:20000]
+    from app.services.ai_chat.core_service import log_action
+    log_action(db, usuario.id, MODULO, accion.tool, f"aprobada {accion.id}", accion.result[:200],
+               status="error" if error else "success")
 
 
 def _auditar(db: Session, user, herramienta: str, argumentos: dict, salida: str, estado: str) -> None:
@@ -145,7 +243,7 @@ def despachar(db: Session, user, mensaje: Any, alcances: Optional[list] = None) 
 
     nombre = params.get("name")
     disponibles = {h["name"] for h in herramientas_para(db, user, alcances)}
-    if not isinstance(nombre, str) or nombre not in {h["name"] for h in _herramientas()}:
+    if not isinstance(nombre, str) or nombre not in {h["name"] for h in _herramientas()} | {ESTADO}:
         return _error(rid, INVALID_PARAMS, f"herramienta desconocida: {nombre}")
     argumentos = params.get("arguments") or {}
     if not isinstance(argumentos, dict):
@@ -154,10 +252,14 @@ def despachar(db: Session, user, mensaje: Any, alcances: Optional[list] = None) 
         _auditar(db, user, nombre, argumentos, "denegada: escritura no permitida", "blocked")
         return _resultado(rid, _fallo_de_herramienta(
             f"'{nombre}' escribe, y la escritura por MCP no está permitida para esta empresa o credencial"))
+    if nombre == ESTADO:
+        return _resultado(rid, _estado_de(db, user, argumentos))
     from app.services.ai_chat.rate_limit_service import check_rate_limit
     limite = check_rate_limit(db, user.id, MODULO)
     if limite:
         return _resultado(rid, _fallo_de_herramienta(limite))
+    if nombre in ESCRITURA and modo_de_escritura(db, user.organization_id) == "approval":
+        return _resultado(rid, _pedir_aprobacion(db, user, nombre, argumentos))
     from app.services.ai_chat.tool_execution.executor import execute_tool
     salida = execute_tool(nombre, argumentos, db, user)
     texto = json.dumps(salida, ensure_ascii=False, default=str)

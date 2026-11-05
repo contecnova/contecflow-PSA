@@ -2,7 +2,7 @@
 
 Las herramientas de NexusAgent para agentes externos, con el gobierno que ya
 existía: módulo de Gobernanza IA (apagado sin configurar), solo lectura salvo
-MCP_ALLOW_WRITE, alcance de la clave de API y registro de auditoría de IA.
+MCP_WRITE_MODE (off / approval / direct), alcance de la clave de API y registro de auditoría de IA.
 """
 from __future__ import annotations
 
@@ -27,9 +27,10 @@ def _encender(client, admin_token):
     assert r.status_code == 200, r.text
 
 
-def _escritura(db, valor: bool):
+def _escritura(db, valor):
     from app.services import settings_service
-    settings_service.set_runtime_value(db, "ai", "MCP_ALLOW_WRITE", valor, "1")
+    modo = {True: "direct", False: "off"}.get(valor, valor)
+    settings_service.set_runtime_value(db, "ai", "MCP_WRITE_MODE", modo, "1")
     db.commit()
     settings_service.invalidate_cache()
 
@@ -117,3 +118,132 @@ def test_con_escritura_la_tarea_creada_queda_guardada(client, admin_token, db):
     assert r.json()["result"]["isError"] is False, r.text
     db.expire_all()
     assert db.query(Task).filter(Task.title == "Desde un agente").count() == 1
+
+
+
+# ── Escritura con aprobación humana (revisión 2026-11) ──────────────────────
+
+def _flujo_mcp(client, admin_token):
+    from tests.test_approvals import add_step, create_workflow
+    wf = create_workflow(client, admin_token, entity_type="mcp_action")
+    add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
+
+
+def _proyecto_mcp(db):
+    from app.models.project import Project, ProjectStatus, ProjectType
+    p = Project(code="MCP2", name="Por MCP", status=ProjectStatus.active, project_type=ProjectType.development,
+                organization_id="1")
+    db.add(p)
+    db.commit()
+    return p
+
+
+def _pedir_tarea(client, token, proyecto_id, titulo):
+    r = _rpc(client, "tools/call", {"name": "create_task", "arguments": {"project_id": proyecto_id, "title": titulo}},
+             auth(token))
+    return r.json()["result"]
+
+
+def test_en_modo_aprobacion_se_anuncia_y_aparece_el_estado(client, admin_token, pm_token, db):
+    _encender(client, admin_token)
+    _escritura(db, "approval")
+    herramientas = {t["name"]: t for t in _rpc(client, "tools/list", cabeceras=auth(pm_token)).json()["result"]["tools"]}
+    assert "REQUIERE APROBACIÓN" in herramientas["create_task"]["description"]
+    assert "mcp_action_status" in herramientas
+
+
+def test_sin_flujo_para_mcp_action_no_se_hace_nada(client, admin_token, pm_token, db):
+    from app.models.ai_chat import MCPPendingAction
+    from app.models.task import Task
+    _encender(client, admin_token)
+    _escritura(db, "approval")
+    p = _proyecto_mcp(db)
+    r = _pedir_tarea(client, pm_token, p.id, "Sin flujo")
+    assert r["isError"] is True and "mcp_action" in r["content"][0]["text"]
+    db.expire_all()
+    assert db.query(MCPPendingAction).count() == 0 and db.query(Task).filter(Task.title == "Sin flujo").count() == 0
+
+
+def test_EL_HALLAZGO_la_escritura_espera_a_la_persona_y_se_ejecuta_al_aprobar(client, admin_token, pm_token, db):
+    from app.models.task import Task
+    _encender(client, admin_token)
+    _escritura(db, "approval")
+    _flujo_mcp(client, admin_token)
+    p = _proyecto_mcp(db)
+    r = _pedir_tarea(client, pm_token, p.id, "Aprobada por una persona")
+    datos = r["structuredContent"]
+    assert r["isError"] is False and datos["status"] == "pending_approval", r
+    db.expire_all()
+    assert db.query(Task).filter(Task.title == "Aprobada por una persona").count() == 0, "no se ejecuta al llamar"
+    estado = _rpc(client, "tools/call", {"name": "mcp_action_status", "arguments": {"action_id": datos["action_id"]}},
+                  auth(pm_token)).json()["result"]["structuredContent"]
+    assert estado["status"] == "pending"
+    d = client.post(f"/api/v1/approvals/requests/{datos['approval_request_id']}/decide", headers=auth(admin_token),
+                    json={"decision": "approved"})
+    assert d.status_code == 200, d.text
+    db.expire_all()
+    assert db.query(Task).filter(Task.title == "Aprobada por una persona").count() == 1
+    estado = _rpc(client, "tools/call", {"name": "mcp_action_status", "arguments": {"action_id": datos["action_id"]}},
+                  auth(pm_token)).json()["result"]["structuredContent"]
+    assert estado["status"] == "executed" and estado["result"]
+
+
+def test_rechazada_no_se_ejecuta_y_otro_no_ve_la_accion(client, admin_token, pm_token, dev_token, db):
+    from app.models.task import Task
+    _encender(client, admin_token)
+    _escritura(db, "approval")
+    _flujo_mcp(client, admin_token)
+    p = _proyecto_mcp(db)
+    datos = _pedir_tarea(client, pm_token, p.id, "Rechazada")["structuredContent"]
+    d = client.post(f"/api/v1/approvals/requests/{datos['approval_request_id']}/decide", headers=auth(admin_token),
+                    json={"decision": "rejected", "note": "no"})
+    assert d.status_code == 200, d.text
+    db.expire_all()
+    assert db.query(Task).filter(Task.title == "Rechazada").count() == 0
+    estado = _rpc(client, "tools/call", {"name": "mcp_action_status", "arguments": {"action_id": datos["action_id"]}},
+                  auth(pm_token)).json()["result"]["structuredContent"]
+    assert estado["status"] == "rejected"
+    ajeno = _rpc(client, "tools/call", {"name": "mcp_action_status", "arguments": {"action_id": datos["action_id"]}},
+                 auth(dev_token)).json()["result"]
+    assert ajeno["isError"] is True
+
+
+def test_un_modo_desconocido_no_abre_la_escritura(client, admin_token, db):
+    _encender(client, admin_token)
+    _escritura(db, "todo")
+    assert "create_task" not in _nombres(_rpc(client, "tools/list", cabeceras=auth(admin_token)))
+
+
+# ── Gobernanza por empresa (revisión 2026-11, medido en la copia) ───────────
+
+def test_EL_HALLAZGO_lo_que_enciende_un_superadmin_vale_para_su_empresa(client, superadmin_token, pm_token, db):
+    """Medido: el interruptor de un superadmin se guardaba sin empresa (fila global
+    que el filtro esconde) y MCP seguía apagado para los PM de su empresa."""
+    r = client.patch("/api/v1/governance/config/mcp", headers=auth(superadmin_token), json={"is_enabled": True})
+    assert r.status_code == 200, r.text
+    assert _rpc(client, "initialize", cabeceras=auth(pm_token)).status_code == 200
+
+
+def test_el_interruptor_no_toca_la_fila_de_otra_empresa(client, superadmin_token, db):
+    from app.models.ai_chat import AIGovernanceConfig
+    from app.models.mfa import Organization
+    db.add(Organization(id="org-gob", name="Otra", slug="org-gob"))
+    db.flush()
+    db.add(AIGovernanceConfig(module="voice", is_enabled=True, organization_id="org-gob"))
+    db.commit()
+    client.patch("/api/v1/governance/config/voice", headers=auth(superadmin_token), json={"is_enabled": False})
+    from app.db.session import sin_filtro_de_tenant
+    db.expire_all()
+    with sin_filtro_de_tenant(db):
+        assert db.query(AIGovernanceConfig).filter(AIGovernanceConfig.organization_id == "org-gob").one().is_enabled is True
+
+
+def test_EL_HALLAZGO_lo_que_crea_un_superadmin_queda_en_su_empresa(client, superadmin_token, pm_token, db):
+    """Medido en la copia: el flujo creado por el admin (superadmin) quedaba sin
+    empresa y el agente de un PM respondía «no hay flujo para mcp_action»."""
+    from app.models.billing_reports import ApprovalWorkflow
+    from tests.test_approvals import create_workflow
+    wf = create_workflow(client, superadmin_token, entity_type="mcp_action")
+    from app.db.session import sin_filtro_de_tenant
+    with sin_filtro_de_tenant(db):
+        assert db.get(ApprovalWorkflow, wf["id"]).organization_id == "1"

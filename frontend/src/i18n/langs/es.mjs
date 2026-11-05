@@ -438,6 +438,7 @@ const es = {
     },
   },
   approvals: {
+    entity_mcp_action: "Acción de agente externo (MCP)",
     title: 'Aprobaciones',
     subtitle: 'Gestiona las aprobaciones pendientes y los flujos por entidad',
     sections_aria: 'Secciones de aprobaciones',
@@ -722,7 +723,7 @@ const es = {
   },
   governance: {
     mcp_label: "Agentes externos (MCP)",
-    mcp_desc: "Claude u otros agentes usan las herramientas de NexusAgent en POST /api/v1/mcp con una clave de API, como su dueño. Apagado hasta que lo enciendas; solo lectura salvo el ajuste MCP_ALLOW_WRITE.",
+    mcp_desc: "Claude u otros agentes usan las herramientas de NexusAgent en POST /api/v1/mcp con una clave de API, como su dueño. Apagado hasta que lo enciendas. Las que escriben dependen de MCP_WRITE_MODE: off (no se ven), approval (cada llamada pide aprobación: crea un flujo para «Acción de agente externo») o direct.",
     title: 'Gobernanza de IA',
     subtitle: 'Gestiona módulos de IA, uso y registros de auditoría',
     kpi_active_modules: 'Módulos activos',

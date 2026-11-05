@@ -33,6 +33,7 @@ def test_ninguna_tabla_depende_del_respaldo_del_orm():
     from app.db.rls import _modelos_por_tabla
     modelos = _modelos_por_tabla()
     assert len(modelos) > 300, "si no recorre las tablas, «ninguna suelta» no dice nada"
-    sueltas = [t for t, m in modelos.items()
-               if not {"organization_id", "org_id"} & set(m.__table__.c.keys()) and not getattr(m, "_tenant_exempt", False)]
+    # Los modelos de juguete que registran otras pruebas no son del producto.
+    sueltas = [t for t, m in modelos.items() if not m.__module__.startswith("tests")
+               and not {"organization_id", "org_id"} & set(m.__table__.c.keys()) and not getattr(m, "_tenant_exempt", False)]
     assert sueltas == []

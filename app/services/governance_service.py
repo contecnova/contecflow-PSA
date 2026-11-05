@@ -139,8 +139,31 @@ def get_org_id(user, *, strict: bool = True) -> Optional[str]:
 
 # ── AI module governance ──────────────────────────────────────────────────────
 
+def _de_la_empresa(q, organization_id: Optional[str]):
+    if organization_id:
+        return q.filter(AIGovernanceConfig.organization_id == organization_id)
+    return q.filter(AIGovernanceConfig.organization_id.is_(None))
+
+
+def config_de_modulo(db: Session, organization_id: Optional[str], module: str) -> Optional[AIGovernanceConfig]:
+    """La fila de ESA empresa para el módulo (sin empresa: la global).
+
+    Revisión 2026-11. Se buscaba «la primera fila del módulo» confiando en el
+    filtro de la sesión, que para un superadmin no existe: su interruptor
+    cambiaba la fila de otra empresa, o creaba una global (sin empresa) que el
+    filtro esconde a los usuarios. Medido: MCP encendido por el admin de la
+    empresa seguía apagado para sus PM.
+    """
+    from app.db.session import sin_filtro_de_tenant
+    with sin_filtro_de_tenant(db):
+        return _de_la_empresa(db.query(AIGovernanceConfig).filter(AIGovernanceConfig.module == module),
+                              organization_id).first()
+
+
 def list_ai_module_configs(db: Session, organization_id: str) -> list[AIGovernanceConfig]:
-    return db.query(AIGovernanceConfig).all()
+    from app.db.session import sin_filtro_de_tenant
+    with sin_filtro_de_tenant(db):
+        return _de_la_empresa(db.query(AIGovernanceConfig), organization_id).all()
 
 
 def upsert_ai_module_config(
@@ -150,9 +173,10 @@ def upsert_ai_module_config(
     is_enabled: bool,
     updated_by: str,
 ) -> AIGovernanceConfig:
-    row = db.query(AIGovernanceConfig).filter(AIGovernanceConfig.module == module).first()
+    row = config_de_modulo(db, organization_id, module)
     if row is None:
-        row = AIGovernanceConfig(module=module, is_enabled=is_enabled, updated_by=updated_by)
+        row = AIGovernanceConfig(module=module, is_enabled=is_enabled, updated_by=updated_by,
+                                 organization_id=organization_id)
         db.add(row)
     else:
         row.is_enabled = is_enabled

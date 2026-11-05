@@ -16,9 +16,10 @@ _logger = logging.getLogger("v16_core")
 def check_rate_limit(db: Session, user_id: str, module: str) -> Optional[str]:
     """Return an error string if the user has exceeded today's action limit, else None."""
     try:
-        config = db.query(AIGovernanceConfig).filter(
-            AIGovernanceConfig.module == module,
-        ).first()
+        from app.models.user import User
+        from app.services.governance_service import config_de_modulo
+        usuario = db.get(User, user_id)
+        config = config_de_modulo(db, getattr(usuario, "organization_id", None), module)
         if not config:
             return None
         if not config.is_enabled:

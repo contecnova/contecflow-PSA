@@ -41,6 +41,8 @@ const entityLabels = (t: (k: string) => string): Record<string, EntityConfig> =>
   scope_change:  { label: 'Cambio Alcance', icon: '🔀', color: 'var(--danger)' },
   hire:          { label: 'Contratación',   icon: '👤', color: 'var(--success)' },
   price_change:  { label: 'Cambio Precio',  icon: '💲', color: 'var(--danger)' },
+  // Revisión 2026-11: escritura de un agente externo con MCP_WRITE_MODE=approval
+  mcp_action:    { label: t('approvals.entity_mcp_action'), icon: '🔌', color: 'var(--purple)' },
 })
 
 const approverTypeLabels = (t: (k: string) => string): Record<string, string> => ({

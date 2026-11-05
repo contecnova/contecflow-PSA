@@ -484,6 +484,10 @@ def _apply_entity_final_decision(req, final_decision: str, actor, db: Session) -
       - expense, timesheet, leave: la revision de su pantalla (`fuentes.aplicar`)
     """
     from app.services.approval_engine import fuentes
+    if req.entity_type == "mcp_action":    # revisión 2026-11: escritura de un agente externo
+        from app.services.mcp_service import aplicar_decision
+        aplicar_decision(req.entity_id, final_decision, db)
+        return
     if req.entity_type in fuentes.TIPOS:
         fuentes.aplicar(req, final_decision, actor, db)
         return

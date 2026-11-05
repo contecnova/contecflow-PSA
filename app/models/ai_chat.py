@@ -421,3 +421,24 @@ class AIPromptTemplate(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     creator = relationship("User", foreign_keys=[created_by])
+
+
+class MCPPendingAction(Base):
+    """Escritura pedida por un agente externo (MCP) que espera aprobación humana.
+
+    Revisión 2026-11: con `MCP_WRITE_MODE=approval` la herramienta que escribe no
+    se ejecuta al llamarla; se abre una aprobación (`entity_type="mcp_action"`)
+    y, si se aprueba, se ejecuta entonces como el dueño de la credencial.
+    """
+    __tablename__ = "mcp_pending_actions"
+
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    user_id         = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    tool            = Column(String(80), nullable=False)
+    arguments       = Column(Text, nullable=False, default="{}")       # JSON
+    status          = Column(String(20), nullable=False, default="pending", index=True)  # pending | executed | failed | rejected
+    result          = Column(Text, nullable=True)                      # JSON de la herramienta al ejecutarse
+    approval_request_id = Column(String(36), nullable=True, index=True)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+    decided_at      = Column(DateTime(timezone=True), nullable=True)

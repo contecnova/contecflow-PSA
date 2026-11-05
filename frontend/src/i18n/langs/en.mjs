@@ -442,7 +442,7 @@ const en = {
   },
                   governance: {
     mcp_label: "External agents (MCP)",
-    mcp_desc: "Claude or other agents use NexusAgent's tools at POST /api/v1/mcp with an API key, acting as its owner. Off until you switch it on; read-only unless MCP_ALLOW_WRITE is set.",
+    mcp_desc: "Claude or other agents use NexusAgent's tools at POST /api/v1/mcp with an API key, acting as its owner. Off until you switch it on. Tools that write follow MCP_WRITE_MODE: off (hidden), approval (each call asks for approval: create a workflow for «External agent action») or direct.",
                     title: 'AI Governance',
                     subtitle: 'Manage AI modules, usage, and audit logs',
                     kpi_active_modules: 'Active modules',
@@ -2932,6 +2932,7 @@ const en = {
     sin_timesheets_de_equipo: 'No team timesheets',
   },
   approvals: {
+    entity_mcp_action: "External agent action (MCP)",
     timeout_waiting: 'Escalation pending',
     timeout_summary: '⏱ {hours}h wait · {action}',
     timeout_reject: 'Reject',

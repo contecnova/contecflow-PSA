@@ -579,7 +579,7 @@ const zh = {
   },
   governance: {
     mcp_label: "外部代理（MCP）",
-    mcp_desc: "Claude 或其他代理通过 POST /api/v1/mcp 使用 API 密钥调用 NexusAgent 工具，身份为密钥所有者。默认关闭；除非设置 MCP_ALLOW_WRITE，否则只读。",
+    mcp_desc: "Claude 或其他代理通过 POST /api/v1/mcp 使用 API 密钥调用 NexusAgent 工具，身份为密钥所有者。默认关闭。写入工具取决于 MCP_WRITE_MODE：off（隐藏）、approval（每次调用需审批：为“外部代理操作”创建审批流程）或 direct。",
     title: "AI 治理",
     subtitle: "管理 AI 模块、用量和审计日志",
     kpi_active_modules: "已启用模块",
@@ -2926,6 +2926,7 @@ const zh = {
     sin_timesheets_de_equipo: '团队暂无工时单',
   },
   approvals: {
+    entity_mcp_action: "外部代理操作（MCP）",
     timeout_waiting: '待升级',
     timeout_summary: '⏱ 等待 {hours} 小时 · {action}',
     timeout_reject: '驳回',
