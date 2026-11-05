@@ -118,3 +118,37 @@ def test_sugerir_de_punta_a_punta_sobre_el_esquema_real(monkeypatch):
     assert [s["title"] for s in cliente][0] == "VPN desde casa"
     assert "VPN interna del equipo" not in [s["title"] for s in cliente], "el cliente ve un articulo interno"
     db.close(); eng.dispose()
+
+
+def test_EL_HALLAZGO_el_rol_sin_privilegios_guarda_y_el_dueno_crea_el_indice(pg):
+    """Revisión 2026-11 (RLS). El rol de aplicación no puede crear el índice HNSW:
+    guardar no debe fallar, y `asegurar_indices` (con el dueño) lo crea después."""
+    from app.services.service_desk import kb_vectores
+    with pg.begin() as c:
+        c.execute(text("DROP ROLE IF EXISTS kb_app_prueba"))
+        c.execute(text("CREATE ROLE kb_app_prueba LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD 'kb-prueba'"))
+        # Lo mismo que concede `rls.crear_rol` al rol de aplicación.
+        c.execute(text("GRANT USAGE ON SCHEMA public TO kb_app_prueba"))
+        c.execute(text("GRANT SELECT, INSERT, UPDATE ON sd_kb_articles TO kb_app_prueba"))
+        c.execute(text("INSERT INTO sd_kb_articles (id, title, status) VALUES ('v1', 'VPN', 'published')"))
+    url_app = pg.url.set(username="kb_app_prueba", password="kb-prueba")
+    eng_app = create_engine(url_app)
+    try:
+        db = sessionmaker(bind=eng_app)()
+        kb_vectores.guardar(db, "v1", list(_Modelo().encode(["vpn"])[0]))
+        db.commit()   # el vector queda guardado aunque el índice no se pudiera crear
+        assert db.execute(text("SELECT embedding_vec IS NOT NULL FROM sd_kb_articles WHERE id='v1'")).scalar()
+        db.close()
+        with pg.connect() as c:
+            assert "ix_sd_kb_embedding_vec_8" not in {r[0] for r in c.execute(text(
+                "SELECT indexname FROM pg_indexes WHERE tablename = 'sd_kb_articles'"))}
+        with pg.begin() as c:
+            assert kb_vectores.asegurar_indices(c) == [8]
+            assert kb_vectores.asegurar_indices(c) == [8], "idempotente"
+        with pg.connect() as c:
+            assert "ix_sd_kb_embedding_vec_8" in {r[0] for r in c.execute(text(
+                "SELECT indexname FROM pg_indexes WHERE tablename = 'sd_kb_articles'"))}
+    finally:
+        eng_app.dispose()
+        with pg.begin() as c:
+            c.execute(text("DROP OWNED BY kb_app_prueba")); c.execute(text("DROP ROLE kb_app_prueba"))

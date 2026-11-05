@@ -3908,8 +3908,10 @@ This section covers every screen an administrator uses to configure contecflow-P
     - The 179 GET endpoints the screens call return the same counts as with the owner, so RLS hides nothing the application shows.
     - `tests/test_rls_postgres.py` (runs with `RLS_TEST_OWNER_URL` and `RLS_TEST_APP_URL`) proves that hand-written SQL in company A does not see company B, and that it cannot insert into B.
   - **Coverage (measured):** all 400 mapped tables have a company column, so all have a policy. The only exception is `organizations`, which is exempt on purpose (`_tenant_exempt`). No table depends on the ORM's `project_id`/`user_id` fallback.
-  - **Limit:** the pgvector HNSW index can only be created by the schema owner. With the application role, the first saved vector logs a warning and KB search keeps working, scanning the table. After enabling pgvector, create the index once as the owner, with the dimension of the sentence model, for example 384:
-    `CREATE INDEX IF NOT EXISTS ix_sd_kb_embedding_vec_384 ON sd_kb_articles USING hnsw ((embedding_vec::vector(384)) vector_cosine_ops);`
+  - **pgvector index:** the HNSW index can only be created by the schema owner. With the application role, saving the first vector logs a warning and goes on (savepoint), and KB search keeps working by scanning the table. `kb_vectores.asegurar_indices` creates one index per vector dimension found in the column. It runs as the owner when pgvector is enabled (`preparar`) and on every start or deploy (`python -m app.db.rls`). Measured on a disposable `pgvector/pgvector:pg16` (`KB_PGVECTOR_URL`):
+    - a role without privileges saves the vector without failing;
+    - the owner then creates `ix_sd_kb_embedding_vec_8`, idempotently;
+    - `python -m app.db.rls` recreates it after it is dropped.
 
 - **Entering a company (since 2026-11-05).** Each deployment chooses one mode in `.env` (`TENANT_ENTRY_MODE`; code in `app/services/entrada_service.py`):
   - `email_selector` (default): email and password. With one active company the user enters it directly. With several, the login answers `organization_selection_required` with the list and a 5-minute `selection_token` that is only valid for `POST /auth/select-organization`; the login screen shows a picker. The header shows a company switcher (`POST /auth/switch-organization`) for users in more than one.

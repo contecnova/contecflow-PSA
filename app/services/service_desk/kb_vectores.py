@@ -66,7 +66,33 @@ def preparar(conexion) -> bool:
     # el formato de texto de pgvector.
     conexion.execute(text(f"UPDATE {TABLA} SET {COLUMNA} = CAST(embedding AS vector) "
                           f"WHERE embedding IS NOT NULL AND {COLUMNA} IS NULL"))
+    asegurar_indices(conexion)
     return True
+
+
+def asegurar_indices(conexion) -> list[int]:
+    """Como dueño del esquema: un índice HNSW por cada dimensión que haya en la columna.
+
+    Revisión 2026-11 (RLS): con el rol de aplicación sin privilegios, el índice
+    no se puede crear al guardar el primer vector (`_asegurar_indice` avisa y
+    sigue). Lo crea esto, que corre con el dueño al activar pgvector
+    (`preparar`) y en cada arranque o despliegue (`python -m app.db.rls`).
+    Idempotente; sin pgvector o sin columna no hace nada. Devuelve las dimensiones.
+    """
+    if conexion.dialect.name != "postgresql":
+        return []
+    hay_columna = conexion.execute(text(
+        "SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() "
+        "AND table_name = :t AND column_name = :c"), {"t": TABLA, "c": COLUMNA}).first()
+    if not hay_columna:
+        return []
+    dimensiones = sorted(d for (d,) in conexion.execute(text(
+        f"SELECT DISTINCT vector_dims({COLUMNA}) FROM {TABLA} WHERE {COLUMNA} IS NOT NULL")) if d)
+    for d in dimensiones:
+        conexion.execute(text(
+            f"CREATE INDEX IF NOT EXISTS ix_sd_kb_embedding_vec_{int(d)} ON {TABLA} "
+            f"USING hnsw (({COLUMNA}::vector({int(d)})) vector_cosine_ops)"))
+    return dimensiones
 
 
 def _asegurar_indice(db: Session, dimension: int) -> None:

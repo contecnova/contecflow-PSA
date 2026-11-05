@@ -187,6 +187,11 @@ def main() -> int:
             crear_rol(conexion, usuario, clave)
             print(f"rls: rol {usuario} listo (sin superusuario ni BYPASSRLS)")
         print(f"rls: {aplicar(conexion)} tablas con política")
+        # El índice de vectores de la KB solo lo puede crear el dueño (revisión 2026-11).
+        from app.services.service_desk.kb_vectores import asegurar_indices
+        dims = asegurar_indices(conexion)
+        if dims:
+            print(f"rls: índice HNSW de la KB para dimensión {', '.join(map(str, dims))}")
     return 0
 
 
