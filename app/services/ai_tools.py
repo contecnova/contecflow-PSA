@@ -143,6 +143,24 @@ def _limpiar_esquema_para_gemini(esquema: dict) -> dict:
 
 # ── 2 y 3. Pedir un turno y devolver los resultados ──────────────────────────
 
+def uso_del_turno(proveedor: str, crudo: dict) -> tuple[int, int]:
+    """(tokens de entrada, tokens de salida) que el proveedor declara en la respuesta.
+
+    Revisión 2026-11: los turnos del agente no pasaban por `call_ai` y su gasto
+    no se apuntaba en ninguna parte. Cada proveedor lo dice en su campo.
+    """
+    p = (proveedor or "").strip().lower()
+    crudo = crudo or {}
+    if p == "anthropic":
+        u = crudo.get("usage") or {}
+        return int(u.get("input_tokens") or 0), int(u.get("output_tokens") or 0)
+    if p == "gemini":
+        u = crudo.get("usageMetadata") or {}
+        return int(u.get("promptTokenCount") or 0), int(u.get("candidatesTokenCount") or 0)
+    u = crudo.get("usage") or {}
+    return int(u.get("prompt_tokens") or 0), int(u.get("completion_tokens") or 0)
+
+
 def pedir_turno(*, proveedor: str, api_key: str, modelo: str, base_url: str,
                 mensajes: list, system: str, herramientas: list[dict],
                 max_tokens: int = 4096) -> TurnoDelAgente:

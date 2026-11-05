@@ -52,13 +52,16 @@ def run_tool_use_loop(
     de ejecutar — el caller persiste en DB o envía SSE.
     """
     from app.services import ai_tools as _herr
+    from app.services import ai_provider_service as _ia
 
     messages: list[dict] = _herr.primer_mensaje(provider, instruction)
     steps_done: list[dict] = []
     step_num = 0
 
     while step_num < max_steps:
-        turn = _herr.pedir_turno(
+        # Revisión 2026-11: gobernado (tope diario y registro de uso), no directo.
+        turn = _ia.turno_de_agente(
+            db, current_user,
             proveedor=provider, api_key=api_key, modelo=model, base_url=base_url,
             mensajes=messages, system=system, herramientas=tools,
             max_tokens=max_tokens,

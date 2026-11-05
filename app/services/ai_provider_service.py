@@ -1182,6 +1182,43 @@ def _exigir_presupuesto(db: Session, organization_id) -> None:
             "Se restablece a las 00:00 UTC o lo puede subir un administrador (AI_DAILY_BUDGET_USD).")
 
 
+def coste_estimado(proveedor: str, modelo, tokens_in: int, tokens_out: int) -> float:
+    """Coste (USD) según el catálogo de modelos; 0 si el modelo no está en él."""
+    modelos = PROVIDER_CATALOG.get(proveedor, {}).get("models", [])
+    m = next((m for m in modelos if m["id"] == modelo), None)
+    if not m:
+        return 0.0
+    return tokens_in / 1_000_000 * m["cost_in"] + tokens_out / 1_000_000 * m["cost_out"]
+
+
+def turno_de_agente(db: Session, usuario, *, module: str = "nexusagent", **pedido):
+    """Un turno del agente con herramientas, GOBERNADO como `call_ai`.
+
+    Revisión 2026-11: el agente pedía sus turnos directamente al proveedor
+    (`ai_tools.pedir_turno`), así que el tope diario de la empresa no lo frenaba
+    y su gasto no se registraba. Ahora cada turno exige el tope antes y apunta
+    tokens y coste después (también si falla).
+    """
+    import time
+    from app.services import ai_tools
+    org = _org_de_la_llamada(db, getattr(usuario, "organization_id", None), getattr(usuario, "id", None))
+    _exigir_presupuesto(db, org)
+    proveedor, modelo = (pedido.get("proveedor") or "").strip().lower(), pedido.get("modelo")
+    inicio = time.time()
+    try:
+        turno = ai_tools.pedir_turno(**pedido)
+    except Exception as e:
+        _registrar_uso(db, None, {"model": modelo}, user_id=getattr(usuario, "id", None), module=module,
+                       latency=int((time.time() - inicio) * 1000), error_msg=str(e)[:500], organization_id=org)
+        raise
+    tin, tout = ai_tools.uso_del_turno(proveedor, turno.crudo)
+    _registrar_uso(db, None, {"model": modelo, "tokens_in": tin, "tokens_out": tout,
+                              "cost_usd": coste_estimado(proveedor, modelo, tin, tout)},
+                   user_id=getattr(usuario, "id", None), module=module,
+                   latency=int((time.time() - inicio) * 1000), error_msg=None, organization_id=org)
+    return turno
+
+
 def _org_de_la_llamada(db: Session, organization_id, user_id):
     if organization_id:
         return organization_id

@@ -3430,7 +3430,9 @@ There are no filters.
 2. Keep or change **Streaming en vivo** (on by default).
 3. Press **▶ Ejecutar agente** (or Cmd/Ctrl+Enter).
 
-The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the rest. History lists past non-streamed runs.
+The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the rest.
+
+**Run history** lists past runs, streamed or not (redesigned 2026-11-05: rows were browser-default buttons, centred and with a raised border). Each row shows a coloured status icon, the instruction, two lines of the answer without markdown marks, the status, the date in the browser's locale and the number of steps; click a row to open it in **Resultado**, where it stays highlighted. The status labels are translated (es/en/zh). **Resultado** renders the answer's markdown (bold, italics, bullets) with the shared `components/ui/MarkdownText.tsx`, also used by the BI narrative card (test `src/__tests__/MarkdownText.test.tsx`).
 
 **Configuration.** You need a tool-capable provider (Anthropic, the OpenAI family or Gemini) in AI Hub or `.env`. Ollama runs only in text-only degraded mode.
 
@@ -3444,10 +3446,11 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 - **Write tools:** create_task, update_task, create_risk, update_project_status, update_ticket_status, reassign_tickets, send_notification.
 
 **Limitations (measured).**
-- **There is no human confirmation for writes.** The backend defaults `auto_approve=False`, but both frontend paths hardcode `auto_approve: true` (`NexusAgentPage.tsx:167`, `_core.ts:1911`). No approve endpoint exists.
-- **With streaming on (the default), writes are probably not saved.** The tool handlers only `flush()`; the SSE generator opens its own `SessionLocal()` and only `close()`s it, with no commit. So created tasks and risks are probably rolled back, even though the agent reports success. This was verified by code reading only; no test covers `/ai/agent/stream`. The worker path does commit.
-- **The worker path does not scope to the organization.** It selects the provider with the default `is_superadmin=True`, and its session publishes no tenant context, so tools can read and write across organizations.
-- **The agent loop is not logged or governed.** It bypasses `call_ai`, so there are no `ai_usage_logs`, no cost accounting and no guardrails; the only input check is a keyword blocklist.
+- **Writes are off unless asked for.** Both paths send the «Allow it to create or change data» checkbox (off by default); a write tool without it returns `pending_approval` and is not executed. There is no approve endpoint: to write, run again with the box ticked.
+- **Fixed 2026-11-05 — ticking the box before the first streamed run was ignored.** The streaming callback did not list `permitirEscritura` among its dependencies (eslint `react-hooks/exhaustive-deps`), so it kept the value it was created with until another change rebuilt it.
+- **Streamed runs are saved** to the history (`guardar_ejecucion_en_streaming`), with their steps.
+- **The worker path picks the provider without the company** (`get_default_provider(db)` with its default `is_superadmin=True`, `app/worker.py`). The screen uses the streamed path, which does pass the user's company. Measured 2026-11-05 by reading the code.
+- **Spend is governed and recorded since 2026-11-05** (each turn through `turno_de_agente`, see AI Hub → Daily AI spend cap). Guardrails on the input are still only the keyword blocklist; `call_ai`'s guardrails do not run on agent turns.
 - **Streamed runs never reach History.** History items show only a status, and the non-streamed status is never polled.
 
 ### External agents (MCP) — `POST /api/v1/mcp`
@@ -3776,6 +3779,8 @@ Header buttons: **Diagnóstico**, **Sync all models**.
   - The portal chat tells the client that the assistant reached its limit for today, instead of a demo answer.
   - The warning is now per company.
 - **Attribution:** every `ai_usage_logs` row now carries the company of the call explicitly (session, then user), including background jobs. Before, it depended on the session stamp and was empty for jobs.
+- **NexusAgent too (fixed the same day).** The agent with tools asked the provider directly for each turn (`ai_tools.pedir_turno`), not through `call_ai`, so the cap did not stop it and its spend was not recorded. Now every turn, streamed or in the worker, goes through `ai_provider_service.turno_de_agente`: it checks the cap **before each turn** (a long run is cut in the middle, and the screen shows the reason) and records tokens and cost after it (`module = nexusagent`, failures included). Cost comes from the model catalog (`coste_estimado`); a model that is not in the catalog counts 0 USD. Tests: `tests/test_tope_de_gasto_agente_2026_11.py` (both paths, validated by planting the direct call in each).
+- **Not counted (measured):** audio transcription (`collaboration/_transcription.py`, `stt/openai_stt.py`) and the provider connection test call their APIs directly, write no `ai_usage_logs` row and are not stopped by the cap. Audio is billed per minute, not per token.
 - **Visibility:** the AI Hub shows today's spend against the cap (`GET /api/v1/ai-providers/spend-today`, admin). It warns from `AI_DAILY_BUDGET_WARN_PCT` (80 %) and says when calls are stopped.
 
 **Since 2026-11-05 (what contecmind had, added to this hub without a second screen):**
@@ -3982,7 +3987,8 @@ This section covers every screen an administrator uses to configure contecflow-P
 
 | Group | Tab (UI label) | Tab id | Visible to |
 |---|---|---|---|
-| Personal | General | `general` | admin |
+| Personal | Puesta en marcha | `setup` | admin (first tab) |
+| | General | `general` | admin |
 | | Sesión | `session` | admin |
 | | Usuarios | `users` | admin, hr |
 | | Vacaciones | `vacations` | admin, hr |
@@ -4003,11 +4009,28 @@ This section covers every screen an administrator uses to configure contecflow-P
 | | Nivel de log | `log-level` | admin |
 | | Estado sistema | `system-state` | admin |
 
-`?tab=<id>` opens a tab directly; the Service Desk links to `?tab=integrations`.
+`?tab=<id>` opens a tab directly; the Service Desk links to `?tab=integrations`. Since 2026-11 the page also follows `?tab=` when it changes without leaving the page, so the setup checklist can jump to another tab of Settings.
 
 **Purpose.** This is the central configuration page. Some tabs edit the generic key/value store, some edit typed catalogues, and two edit the runtime-settings and credential stores.
 
 **How to use it (per tab).**
+0. **Puesta en marcha** (setup checklist, 2026-11, brought from contecmind). What is left to configure in *your* company. Nothing is ticked by hand: the server measures each item on the company's data (`GET /api/v1/settings/setup-checklist`, `app/services/puesta_en_marcha.py`), and each row shows done / pending and a **Configurar** button to the screen that resolves it.
+
+   | Item | Required | Done when (measured) | Goes to |
+   |---|---|---|---|
+   | AI provider | yes | ≥ 1 active provider of the company in the AI Hub, or `AI_PROVIDER` + `AI_API_KEY` in `.env` | `/ai-hub` |
+   | Outgoing email | yes | `SMTP_HOST` set in `.env` (cannot be set from the app) | — |
+   | Support mailbox | yes | runtime setting `SD_INBOUND_ADDRESS` of the company is not empty | `/service-desk?tab=config` |
+   | Users | yes | ≥ 2 active users in the company | `?tab=users` |
+   | Clients | yes | ≥ 1 client of the company | `/clients` |
+   | Approval workflows | yes | ≥ 1 active workflow of the company | `/settings/approval-workflows` |
+   | SLA policies | yes | ≥ 1 active SLA policy of the company | `/service-desk?tab=config` |
+   | SSO | recommended | ≥ 1 active, not deleted SSO provider of the company | `/enterprise?tab=sso` |
+   | Mandatory MFA | recommended | `organizations.require_mfa` | — (see limitations) |
+   | Daily AI spend cap | recommended | `AI_DAILY_BUDGET_USD` of the company > 0 | `?tab=runtime-flags` |
+   | Database isolation | recommended | RLS armed (same measurement as `GET /settings/db-isolation`) | `?tab=system-state` |
+
+   Data of another company never counts: every count filters by the caller's organisation, also for a superadmin. Tests: `tests/test_puesta_en_marcha_2026_11.py` (validated by removing the company filter and the «active» filter: both are caught).
 1. **General.** Edit the user-facing keys of `app_settings`. Missing global rows are seeded on the first GET (`DEFAULT_SETTINGS`): `company_name`, `company_logo_url`, `currency`, `timezone`, `language`, `work_hours_per_day`, `work_days_per_week`, `budget_alert_threshold`, `overload_threshold`, `idle_timeout_enabled`, `idle_timeout_minutes`. Change a value and save; each field is one `PATCH`.
 2. **Sesión.** Turn on **idle logout** (`idle_timeout_enabled`) and set its minutes (`idle_timeout_minutes`, default 30). These are read by `frontend/src/context/AuthContext.tsx` (staff app) and by `client_portal_service` (portal).
 3. **Usuarios.** User CRUD (`/users`): role, department, organization.
@@ -4043,6 +4066,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 | Catalogues | `GET/POST/PATCH/DELETE /api/v1/settings/{project-types,project-statuses,task-statuses,departments,holidays}` | Tables `custom_project_types`, `custom_project_statuses`, `custom_task_statuses`, `departments`, `holidays` |
 | Advanced config | `/api/v1/advanced-config/{roles,modules,task-types,alert-configs,rate-tables[/entries],vacation-policies,vacation-balances,offices,numbering[/reset],custom-fields[/values],templates[/apply]}` | Mostly `require_admin`; rate tables and vacations use `require_admin_or_hr` |
 | Log level | `GET/POST /api/v1/settings/log-level` | `require_admin` |
+| Setup checklist | `GET /api/v1/settings/setup-checklist` | `require_admin`. Reads only; returns `items[{id, done, measured, link, required}]`, `required_done/total`, `recommended_done/total` |
 | Audit | `GET /api/v1/settings/audit-log?scope=&key=&provider=&actor_id=` | `require_admin`. Table `settings_audit_log`. **There is no UI for it** (the client `settingsApi.auditLog` exists, but no page calls it) |
 
 **Limitations (measured).**
@@ -4054,6 +4078,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 - **Tipos tarea (`task_types`) and Campos extra (`custom_fields`) have no reader** outside their own CRUD and settings tab.
 - **Nivel de log changes only the worker process that handled the request.** It is not persisted and not broadcast. With several Uvicorn workers or a Celery worker, other processes keep their level until restart.
 - `TemplatesSection` (`/advanced-config/templates`) is defined in `SettingsPageSections.tsx` but **no tab renders it** (dead code).
+- **Setup checklist: two settings have an API but no screen (measured 2026-11-05).** *Mandatory MFA* (`organizations.require_mfa`) can only be switched by the superadmin with `PATCH /api/v1/organizations/{id}`; `/organizations` has no switch for it, so the item has no button and its help says so. *Company branding* (`/api/v1/orgs/{id}/branding`) has no screen at all, so it is not in the checklist.
 - In the Users form, a non-superadmin admin's organization dropdown calls `GET /organizations` (`require_superadmin`), which fails for them.
 
 #### Runtime settings ("Config. dinámica")

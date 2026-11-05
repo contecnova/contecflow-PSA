@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import PuestaEnMarchaSection from './settings-sections/PuestaEnMarchaSection'
+import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Tabs, Page } from '../components/ui'
 import { Settings } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
@@ -30,6 +32,7 @@ const TAB_GROUPS = [
   {
     label: 'Personal',
     tabs: [
+      { id: 'setup',        label: 'Puesta en marcha', roles: ['admin'] },
       { id: 'general',      label: 'General',        roles: ['admin'] },
       { id: 'session',      label: 'Sesión',         roles: ['admin'] },
       { id: 'users',        label: 'Usuarios',       roles: ['admin', 'hr'] },
@@ -75,9 +78,15 @@ export default function SettingsPage() {
   const rol = user?.role ?? ''
   const visibleTabs = TABS.filter(tab => tab.roles.includes(rol))
   // `?tab=<id>` abre esa pestaña: desde el Service Desk se llega a Credenciales.
-  const pedida = new URLSearchParams(window.location.search).get('tab')
+  const { search } = useLocation()
+  const pedida = new URLSearchParams(search).get('tab')
   const [activeTab, setActiveTab] = useState(
     visibleTabs.some(tab => tab.id === pedida) ? (pedida as string) : (visibleTabs[0]?.id || 'general'))
+  // Revisión 2026-11: la puesta en marcha enlaza a otras pestañas de esta misma
+  // página; navegar sin desmontarla no volvía a leer `?tab=`.
+  useEffect(() => {
+    if (pedida && visibleTabs.some(tab => tab.id === pedida)) setActiveTab(pedida)
+  }, [search]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Page
@@ -115,6 +124,7 @@ export default function SettingsPage() {
       {activeTab === 'session'       && <SessionSecuritySection />}
       {activeTab === 'users'         && <UsersSection />}
       {activeTab === 'roles'         && <RolesSection />}
+      {activeTab === 'setup'         && <PuestaEnMarchaSection />}
       {activeTab === 'alert-config'  && <AlertConfigSection />}
       {activeTab === 'metrics'       && <MetricsSection />}
       {activeTab === 'task-types'    && <TaskTypesSection />}

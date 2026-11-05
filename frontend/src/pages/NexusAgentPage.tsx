@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { aiProvidersApi, nexusAgentApi } from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
+import MarkdownText from '../components/ui/MarkdownText'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Bot } from 'lucide-react'
@@ -115,6 +116,54 @@ function StepBadge({ step }: { step: PasoDeAgente }) {
   )
 }
 
+/** Quita la marca de markdown para la vista previa de una línea. */
+const sinMarkdown = (texto = '') => texto.replace(/[*_`#>]+/g, '').replace(/\s+/g, ' ').trim()
+
+const ICONO_DE_ESTADO: Record<string, string> = { done: '✓', failed: '✕', running: '…', pending: '○' }
+
+/** Una ejecución del historial (rediseño 2026-11: era un <button> con el
+ *  estilo del navegador, centrado y con borde en relieve). */
+function FilaDeHistorial({ ejecucion: e, seleccionada, onAbrir }: { ejecucion: EjecucionDeAgente; seleccionada: boolean; onAbrir: () => void }) {
+  const t = useAppT()
+  const [encima, setEncima] = useState(false)
+  const estado = e.status && STATUS_CFG[e.status] ? e.status : 'pending'
+  const sc = STATUS_CFG[estado]
+  const pasos = e.steps?.length ?? 0
+  const fecha = e.created_at ? new Date(e.created_at) : null
+  return (
+    <button type="button" role="listitem" onClick={onAbrir} aria-current={seleccionada || undefined}
+      onMouseEnter={() => setEncima(true)} onMouseLeave={() => setEncima(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 14, width: '100%', textAlign: 'left', fontFamily: 'inherit',
+        color: 'var(--text-1)', padding: '12px 14px', margin: 0, borderRadius: 10, cursor: 'pointer',
+        border: `1px solid ${seleccionada ? alpha(sc.color, '55') : 'transparent'}`,
+        background: seleccionada ? alpha(sc.color, '12') : encima ? 'var(--surface-3)' : 'transparent',
+        transition: 'background 0.15s, border-color 0.15s',
+      }}>
+      <span aria-hidden style={{ width: 32, height: 32, borderRadius: 9, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: sc.bg, color: sc.color, border: `1px solid ${alpha(sc.color, '40')}`, fontWeight: 700, fontSize: "var(--text-sm)" }}>
+        {ICONO_DE_ESTADO[estado]}
+      </span>
+      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <span style={{ fontSize: "var(--text-base)", fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {e.instruction}
+        </span>
+        {e.result && (
+          <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.45, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+            {sinMarkdown(e.result)}
+          </span>
+        )}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>
+          <span style={{ color: sc.color, fontWeight: 600 }}>{t(`nexusagent.estado_${estado}`)}</span>
+          {fecha && !isNaN(fecha.getTime()) && <><span aria-hidden>·</span><time dateTime={e.created_at}>{fecha.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time></>}
+          {pasos > 0 && <><span aria-hidden>·</span><span>{t('nexusagent.n_pasos', { n: pasos })}</span></>}
+        </span>
+      </span>
+      <span aria-hidden style={{ color: seleccionada || encima ? 'var(--accent)' : 'var(--text-3)', fontSize: "var(--text-lg)", flexShrink: 0, transition: 'color 0.15s' }}>›</span>
+    </button>
+  )
+}
+
 export default function ContecflowAgentPage() {
   const traducir = useAppT()
   const t = useAppT()
@@ -214,7 +263,7 @@ export default function ContecflowAgentPage() {
     } finally {
       setIsStreaming(false)
     }
-  }, [isStreaming, refetch, toast])
+  }, [isStreaming, permitirEscritura, refetch, toast])
 
   const execute = () => {
     if (!instruction.trim()) return
@@ -316,11 +365,11 @@ export default function ContecflowAgentPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>Resultado</div>
                 <span style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 20, background: STATUS_CFG[result.status ?? '']?.bg, color: STATUS_CFG[result.status ?? '']?.color, fontWeight: 600 }}>
-                  {STATUS_CFG[result.status ?? '']?.label || result.status}
+                  {result.status && STATUS_CFG[result.status] ? t(`nexusagent.estado_${result.status}`) : result.status}
                 </span>
               </div>
-              <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: '14px 16px', fontSize: "var(--text-base)", lineHeight: 1.7, whiteSpace: 'pre-wrap', marginBottom: result.steps?.length ? 16 : 0, color: 'var(--text-1)' }}>
-                {result.result}
+              <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: '14px 16px', fontSize: "var(--text-base)", lineHeight: 1.7, marginBottom: result.steps?.length ? 16 : 0, color: 'var(--text-1)' }}>
+                <MarkdownText text={result.result ?? ''} />
               </div>
               {(result.steps?.length ?? 0) > 0 && (
                 <div>
@@ -335,37 +384,24 @@ export default function ContecflowAgentPage() {
 
           {/* History */}
           <div style={card}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-md)", fontWeight: 700 }}>
-              {traducir('nexusagent.historial_de_ejecuciones')}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 20px', borderBottom: '1px solid var(--surface-4)' }}>
+              <span style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)' }}>{traducir('nexusagent.historial_de_ejecuciones')}</span>
+              {history.length > 0 && (
+                <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 999, padding: '1px 8px' }}>{history.length}</span>
+              )}
             </div>
             {history.length === 0 ? (
               <div style={{ padding: 32 }}>
-                <EmptyState icon="⚡" title={traducir('nexusagent.sin_ejecuciones_recientes')} description="Ejecuta una instruccion para ver el historial" />
+                <EmptyState icon="⚡" title={traducir('nexusagent.sin_ejecuciones_recientes')} description={traducir('nexusagent.historial_vacio_ayuda')} />
               </div>
-            ) : history.map((e: EjecucionDeAgente) => {
-              const sc = (e.status && STATUS_CFG[e.status]) || STATUS_CFG.pending
-              return (
-                <button key={e.id} type="button" onClick={() => setResult(e)}
-                  style={{ padding: '14px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', cursor: 'pointer', transition: 'background 0.15s' }}
-                  onMouseEnter={ev => ev.currentTarget.style.background = 'var(--surface-3)'}
-                  onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {e.instruction}
-                      </div>
-                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {e.result?.slice(0, 100)}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-                      <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 12, background: sc.bg, color: sc.color, fontWeight: 600 }}>{sc.label}</span>
-                      <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{e.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
+            ) : (
+              <div role="list" style={{ padding: 6 }}>
+                {history.map((e: EjecucionDeAgente, i: number) => (
+                  <FilaDeHistorial key={e.id ?? i} ejecucion={e} seleccionada={!!e.id && e.id === result?.id}
+                    onAbrir={() => setResult(e)} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

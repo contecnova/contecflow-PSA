@@ -36,6 +36,7 @@ from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.services.ai_dispatch import call_ai, get_default_provider
 from app.services.ai_provider_service import PresupuestoDeIAAgotado
+from app.services import ai_provider_service as _gobernado
 from app.services.ai_governance import check_prompt
 
 router = APIRouter()
@@ -714,7 +715,9 @@ def _emitir_bucle_del_agente(_db, instruccion: str, system: str, auto_approve: b
     MAX_PASOS = 20
 
     while paso < MAX_PASOS:
-        turno = _herr.pedir_turno(
+        # Revisión 2026-11: gobernado (tope diario y registro de uso), no directo.
+        turno = _gobernado.turno_de_agente(
+            _db, usuario,
             proveedor=proveedor, api_key=api_key, modelo=modelo, base_url=base_url,
             mensajes=mensajes, system=system, herramientas=AGENT_TOOLS,
         )
@@ -788,6 +791,8 @@ def _emitir_eventos_de_agente(*, instruccion: str, auto_approve: bool, usuario, 
             _db, instruccion, system, auto_approve, usuario, api_key, modelo,
             proveedor=proveedor, base_url=base_url,
         )
+    except PresupuestoDeIAAgotado as e:
+        yield _evento_sse({"type": "error", "message": str(e)})
     except ValueError as e:
         yield _evento_sse({"type": "error", "message": f"Error de datos: {str(e)[:300]}"})
     except ConnectionError as e:

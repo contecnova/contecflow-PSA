@@ -271,7 +271,7 @@ def test_gemini_usa_parts_y_los_demas_content():
     ("gemini", RESPUESTA_GEMINI,
      {"candidates": [{"content": {"parts": [{"text": "Encontré 3."}]}}]}),
 ])
-def test_el_bucle_ejecuta_la_herramienta_y_termina(monkeypatch, proveedor, primera, segunda):
+def test_el_bucle_ejecuta_la_herramienta_y_termina(monkeypatch, proveedor, primera, segunda, db):
     """De punta a punta: pide, ejecuta, devuelve el resultado y concluye.
 
     Es la prueba de que el agente **actúa** con los tres, que es justo lo que no
@@ -293,7 +293,7 @@ def test_el_bucle_ejecuta_la_herramienta_y_termina(monkeypatch, proveedor, prime
         instruction="busca Acme",
         system="eres un agente",
         tools=HERRAMIENTAS,
-        db=None,
+        db=db,
         current_user=None,
         model="m",
         api_key="k",
@@ -309,7 +309,7 @@ def test_el_bucle_ejecuta_la_herramienta_y_termina(monkeypatch, proveedor, prime
     assert texto == "Encontré 3."
 
 
-def test_el_bucle_respeta_el_permiso_humano_en_los_tres(monkeypatch):
+def test_el_bucle_respeta_el_permiso_humano_en_los_tres(monkeypatch, db):
     """Sin `auto_approve`, una acción de escritura no se ejecuta.
 
     La protección no puede depender del proveedor: sería la peor forma de
@@ -331,7 +331,7 @@ def test_el_bucle_respeta_el_permiso_humano_en_los_tres(monkeypatch):
         instruction="crea algo",
         system="",
         tools=HERRAMIENTAS,
-        db=None,
+        db=db,
         current_user=None,
         model="m",
         api_key="k",

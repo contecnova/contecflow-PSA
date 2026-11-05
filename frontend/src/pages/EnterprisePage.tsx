@@ -859,7 +859,8 @@ function SSOTab() {
 // ── Componente principal ───────────────────────────────────────────────────────
 export default function EnterprisePage(): JSX.Element {
   const _t = useAppT()
-  const [tab, setTab] = useState('webhooks')
+  // `?tab=<id>` abre esa pestaña (la lista de puesta en marcha enlaza a SSO).
+  const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'webhooks')
 
   const TABS = [
     { id: 'webhooks',     label: 'Webhooks' },

@@ -91,6 +91,9 @@ export const settingsApi = {
   setRuntime: (group: string, key: string, value: string | number | boolean | null): Promise<AxiosResponse<RuntimeFlagsResponse>> =>
     api.put(`/settings/runtime/${group}/${key}`, { value: String(value) }),
 
+  /** Qué falta por configurar en la empresa, medido (revisión 2026-11). */
+  setupChecklist: (): Promise<AxiosResponse<unknown>> => api.get('/settings/setup-checklist'),
+
   /** ¿Está armado el aislamiento entre empresas en la base (RLS)? */
   dbIsolation: (): Promise<AxiosResponse<{ armed: boolean; role?: string; tables_with_rls?: number; tables_expected?: number; reason?: string | null }>> =>
     api.get('/settings/db-isolation'),

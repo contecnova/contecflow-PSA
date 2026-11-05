@@ -4,30 +4,7 @@ import { analyticsApi } from '../../services/api'
 import { Sparkles, RefreshCw, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
-
-function MarkdownText({ text, style }: { text: string; style?: React.CSSProperties }) {
-  const paragraphs = text.split(/\n\n+/)
-  return (
-    <div style={style}>
-      {paragraphs.map((para, pi) => (
-        <p key={pi} style={{ margin: pi > 0 ? '10px 0 0' : 0 }}>
-          {para.split(/\n/).map((line, li) => (
-            <span key={li}>
-              {li > 0 && <br />}
-              {line.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/).map((chunk, ci) => {
-                if (/^\*\*[^*]+\*\*$/.test(chunk))
-                  return <strong key={ci}>{chunk.slice(2, -2)}</strong>
-                if (/^\*[^*]+\*$/.test(chunk))
-                  return <em key={ci}>{chunk.slice(1, -1)}</em>
-                return chunk
-              })}
-            </span>
-          ))}
-        </p>
-      ))}
-    </div>
-  )
-}
+import MarkdownText from '../ui/MarkdownText'
 
 // TODO type: analyticsApi.narrative response — needs shared type
 interface NarrativeData {
