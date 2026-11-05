@@ -31,6 +31,8 @@ def test_ninguna_tabla_depende_del_respaldo_del_orm():
     """Medido 2026-11-05: toda tabla mapeada tiene columna de empresa (o está exenta).
     Si entra una que se aísla solo por project_id/user_id, no tendría política en la base."""
     from app.db.rls import _modelos_por_tabla
-    sueltas = [t for t, m in _modelos_por_tabla().items()
+    modelos = _modelos_por_tabla()
+    assert len(modelos) > 300, "si no recorre las tablas, «ninguna suelta» no dice nada"
+    sueltas = [t for t, m in modelos.items()
                if not {"organization_id", "org_id"} & set(m.__table__.c.keys()) and not getattr(m, "_tenant_exempt", False)]
     assert sueltas == []
