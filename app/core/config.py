@@ -110,6 +110,11 @@ class Settings(
     TENANT_DELETION_QUARANTINE_DAYS: int = Field(default=30, env="TENANT_DELETION_QUARANTINE_DAYS")
     # Revisión 2026-11: filas máximas de la exportación firmada del registro de auditoría (las últimas).
     AUDIT_EXPORT_MAX_ROWS: int = Field(default=100000, env="AUDIT_EXPORT_MAX_ROWS")
+    # Revisión 2026-11: umbrales del informe de cumplimiento (app/services/informe_de_cumplimiento.py).
+    COMPLIANCE_STALE_ACCOUNT_DAYS: int = Field(default=90, env="COMPLIANCE_STALE_ACCOUNT_DAYS")
+    COMPLIANCE_GDPR_MAX_DAYS: int = Field(default=30, env="COMPLIANCE_GDPR_MAX_DAYS")
+    COMPLIANCE_MFA_MIN_COVERAGE_PCT: float = Field(default=100.0, env="COMPLIANCE_MFA_MIN_COVERAGE_PCT")
+    COMPLIANCE_MIN_PASSWORD_LENGTH: int = Field(default=12, env="COMPLIANCE_MIN_PASSWORD_LENGTH")
     # Aprobaciones: horas que vale el enlace de aprobar/rechazar del correo.
     APPROVAL_EMAIL_LINK_HOURS: int = Field(default=72, env="APPROVAL_EMAIL_LINK_HOURS")
     # «Entrar como» (soporte de plataforma): activo y duracion maxima de la sesion.

@@ -19,7 +19,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ShieldCheck } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
-import { extractErr } from '../utils/helpers'
+import { extractErr, downloadBlob } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
@@ -705,6 +705,72 @@ type Explicacion = { verdict: 'allow' | 'deny' | 'unknown'; decided_by: string |
 
 const COLOR_VEREDICTO: Record<string, string> = { allow: 'var(--success)', deny: 'var(--danger)', unknown: 'var(--warning)', not_applicable: 'var(--text-3)' }
 
+type ControlMedido = { id: string; status: 'pass' | 'attention' | 'info' | 'not_measurable'; measured: Record<string, unknown>; source: string; frameworks: string[] }
+type InformeDeCumplimiento = { generated_at: string; organization_name?: string; summary: Record<string, number>; controls: ControlMedido[] }
+const COLOR_CONTROL: Record<string, string> = { pass: 'var(--success)', attention: 'var(--danger)', info: 'var(--accent)', not_measurable: 'var(--text-3)' }
+
+/** Informe de evidencias medido sobre el sistema vivo (revisión 2026-11). */
+function InformeDeCumplimientoTab() {
+  const t = useAppT()
+  const toast = useToast()
+  const [bajando, setBajando] = useState(false)
+  const { data, isFetching, refetch } = useQuery<InformeDeCumplimiento>({
+    queryKey: ['grc-compliance-report'], queryFn: () => grcApi.complianceReport().then(r => r.data as InformeDeCumplimiento),
+  })
+  const descargar = async () => {
+    setBajando(true)
+    try { downloadBlob((await grcApi.complianceReportSigned()).data as Blob, `compliance-report-${new Date().toISOString().slice(0, 10)}.json`) }
+    catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setBajando(false) }
+  }
+  const valor = (v: unknown): string => v === null || v === undefined ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v)
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <p style={{ flex: 1, minWidth: 260, fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: 0 }}>{t('grc.informe_intro')}</p>
+        <Button size="sm" variant="secondary" onClick={() => refetch()} disabled={isFetching}>{isFetching ? '…' : t('grc.informe_regenerar')}</Button>
+        <Button size="sm" onClick={descargar} disabled={bajando}>{bajando ? '…' : t('grc.informe_descargar')}</Button>
+        <Button size="sm" variant="ghost" onClick={() => window.print()}>{t('grc.informe_imprimir')}</Button>
+      </div>
+      {!data ? <div style={{ padding: 24 }}><Spinner /></div> : (
+        <>
+          <div style={{ display: 'flex', gap: 10, margin: '14px 0', flexWrap: 'wrap' }}>
+            {(['pass', 'attention', 'info', 'not_measurable'] as const).map(e => (
+              <div key={e} style={{ border: `1px solid ${COLOR_CONTROL[e]}`, borderRadius: 8, padding: '8px 14px', minWidth: 120 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: COLOR_CONTROL[e], fontWeight: 700, textTransform: 'uppercase' }}>{t(`grc.informe_estado_${e}`)}</div>
+                <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700 }}>{data.summary[e] ?? 0}</div>
+              </div>
+            ))}
+            <div style={{ alignSelf: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+              {t('grc.informe_generado', { fecha: new Date(data.generated_at).toLocaleString() })}
+            </div>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+            <thead><tr style={{ textAlign: 'left', color: 'var(--text-3)', fontSize: 'var(--text-xs)', textTransform: 'uppercase' }}>
+              <th style={{ padding: '6px 8px' }}>{t('grc.informe_col_estado')}</th><th style={{ padding: '6px 8px' }}>{t('grc.informe_col_control')}</th>
+              <th style={{ padding: '6px 8px' }}>{t('grc.informe_col_medido')}</th><th style={{ padding: '6px 8px' }}>{t('grc.informe_col_marcos')}</th>
+            </tr></thead>
+            <tbody>
+              {data.controls.map(c => (
+                <tr key={c.id} style={{ borderTop: '1px solid var(--surface-4)', verticalAlign: 'top' }}>
+                  <td style={{ padding: '8px', color: COLOR_CONTROL[c.status], fontWeight: 700, whiteSpace: 'nowrap' }}>{t(`grc.informe_estado_${c.status}`)}</td>
+                  <td style={{ padding: '8px' }}>
+                    <div style={{ fontWeight: 600 }}>{t(`grc.informe_control_${c.id}`)}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{c.source}</div>
+                  </td>
+                  <td style={{ padding: '8px', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+                    {Object.entries(c.measured).map(([k, v]) => <div key={k}>{k}: {valor(v)}</div>)}
+                  </td>
+                  <td style={{ padding: '8px', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{c.frameworks.join(' · ') || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </div>
+  )
+}
+
 /** ¿Puede este usuario hacer esto y qué capa lo decide? (revisión 2026-11) */
 function ExplicarAccesoTab() {
   const t = useAppT()
@@ -802,6 +868,7 @@ export default function GrcPage(): JSX.Element {
     { id: 'approvals',  label: 'Flujos de mitigación' },
     { id: 'auditlog',   label: 'Audit Log' },
     { id: 'access',     label: _t('grc.acceso_pestana') },
+    { id: 'compliance', label: _t('grc.informe_pestana') },
   ]
 
   return (
@@ -833,6 +900,7 @@ export default function GrcPage(): JSX.Element {
         {tab === 'approvals'  && <ApprovalsTab />}
         {tab === 'auditlog'   && <AuditLogTab />}
         {tab === 'access'     && <ExplicarAccesoTab />}
+        {tab === 'compliance' && <InformeDeCumplimientoTab />}
       </div>
     </PageShell>
   )

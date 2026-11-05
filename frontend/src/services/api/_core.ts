@@ -1278,6 +1278,8 @@ export const grcApi = {
   // Revisión 2026-11: explicador de accesos.
   explainAccess:    (params: { user_id: string; method: string; path: string }) => api.get('/grc/access-explainer', { params }),
   explainerRoutes:  ()                           => api.get('/grc/access-explainer/routes'),
+  complianceReport: ()                           => api.get('/grc/compliance-report'),
+  complianceReportSigned: ()                     => api.get('/grc/compliance-report', { params: { signed: true }, responseType: 'blob' }),
 }
 
 // ── Automations ───────────────────────────────────────────────────────────────

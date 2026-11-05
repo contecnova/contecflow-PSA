@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.schemas.governance import PolicyPackUpsert, EvidenceCreate
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.deps import require_admin
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
@@ -183,6 +182,16 @@ def list_evidence(
     return APIListResponse.ok(items=items)
 
 
+def _linea_base_medida(db, org) -> dict:
+    from app.services.informe_de_cumplimiento import generar
+    c = {x["id"]: x["measured"] for x in generar(db, org)["controls"]}
+    return {"mfa_enforced": c["mfa_required"]["require_mfa"],
+            "password_policy_min_length": c["password_policy"]["min_length"],
+            "key_rotation_enabled": c["secrets_encryption"]["key_rotation_enabled"],
+            "audit_log_enabled": c["audit_chain"]["rows_checked"] > 0,
+            "audit_chain_ok": c["audit_chain"]["ok"]}
+
+
 @router.get("/compliance/controls/status", summary="Estado de controles SOC2/ISO con evidencia")
 def compliance_control_status(
     framework: str = Query(default="SOC2"),
@@ -215,12 +224,9 @@ def compliance_control_status(
         "framework": fw,
         "organization_id": organization_id,
         "generated_at": datetime.now(timezone.utc),
-        "platform_security_baseline": {
-            "mfa_enforced": True,
-            "password_policy_min_length": settings.MIN_PASSWORD_LENGTH,
-            "key_rotation_enabled": settings.KEY_ROTATION_ENABLED,
-            "audit_log_enabled": True,
-        },
+        # Revisión 2026-11: antes `mfa_enforced` y `audit_log_enabled` eran
+        # `True` escritos a mano. Ahora salen del informe medido.
+        "platform_security_baseline": _linea_base_medida(db, organization_id),
         "controls": rows,
     })
 

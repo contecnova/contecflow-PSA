@@ -4178,7 +4178,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 groups, 175 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 groups, 179 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4319,6 +4319,10 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 
 | ai | AI_DAILY_BUDGET_WARN_PCT | float | 80.0 | AI — % of the daily cap from which the AI Hub warns | rt |
 | ai | MCP_WRITE_MODE | str | `off` | MCP — tools that write: off (hidden), approval (a human approves each call) or direct | rt |
 | audit | AUDIT_EXPORT_MAX_ROWS | int | 100000 | Audit log — maximum rows in the signed export (the most recent) | rt |
+| audit | COMPLIANCE_GDPR_MAX_DAYS | int | 30 | Compliance report — maximum days for an open GDPR request | rt |
+| audit | COMPLIANCE_MFA_MIN_COVERAGE_PCT | float | 100.0 | Compliance report — minimum % of active users with a second factor | rt |
+| audit | COMPLIANCE_MIN_PASSWORD_LENGTH | int | 12 | Compliance report — minimum password length the policy must require | rt |
+| audit | COMPLIANCE_STALE_ACCOUNT_DAYS | int | 90 | Compliance report — an active account without sign-in for more days is flagged | rt |
 | automations | APPROVAL_EMAIL_LINK_HOURS | int | 72 | Approvals — hours the approve/reject link of the email is valid | rt |
 | automations | AUTOMATIONS_DEADLINE_DAYS | int | 2 | "Task due soon": days before the due date | rt |
 | automations | AUTOMATIONS_ENABLED | bool | true | Rules run on events and on the periodic scan (off: only the simulation) | rt |
@@ -4632,6 +4636,28 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 3. **SoD check.** Lists the roles whose matrix allows both sides of an active rule.
 4. **Violations.** Review violations and resolve them with a note.
 5. **Audit log.** GRC events.
+
+**Informe de cumplimiento (compliance evidence report, 2026-11-05; brought from contecmind/contecintelligence).** GRC tab (admin). Nothing is filled in by hand: each control is **measured now** on the company's data, says where the figure comes from and which framework clauses it supports (ISO 27001, SOC 2, ENS, GDPR). *Volver a medir* recomputes it; *Descargar firmado* downloads it as JSON signed with the same Ed25519 key as the audit-log export (public key inside; the audit chain head is included), and the download is recorded in the audit log; *Imprimir* uses the browser.
+
+| Control | Measured on | Passes when |
+|---|---|---|
+| Mandatory MFA | `organizations.require_mfa` | on |
+| Users with a second factor | active users with an enabled TOTP or a passkey | ≥ `COMPLIANCE_MFA_MIN_COVERAGE_PCT` (100) |
+| Minimum password length | `MIN_PASSWORD_LENGTH` | ≥ `COMPLIANCE_MIN_PASSWORD_LENGTH` (12) |
+| Idle logout | `idle_timeout_enabled` of the company | on |
+| Active accounts without sign-in | `users.last_login` of active users | none older than `COMPLIANCE_STALE_ACCOUNT_DAYS` (90) |
+| API keys without expiry | active `api_keys` | none |
+| Open SoD violations | `grc_sod_violations` not resolved | none |
+| Audit log chain | the chain verified now (rows checked, breaks, head) | intact and not empty |
+| Database isolation | the RLS state (role and policies) | armed |
+| Encryption and key rotation | `KMS_PROVIDER`, `KEY_ROTATION_ENABLED` | rotation on |
+| GDPR requests on time | pending or processing `gdpr_requests` | none older than `COMPLIANCE_GDPR_MAX_DAYS` (30) |
+| SSO, administrators, AI spend cap | counts and today's spend | context, no threshold |
+| Backups | — | **not measurable**: backups are made outside the application, and the report says so instead of claiming them |
+
+- **Fixed the same day:** `GET /api/v1/governance/compliance/controls/status` returned `mfa_enforced: true` and `audit_log_enabled: true` written in the code, whatever the company had. Its `platform_security_baseline` now comes from this report (plus `audit_chain_ok`). Its per-control `pass` still means «someone uploaded evidence», not a measurement.
+- **Measured on a copy of the real database:** 15 controls — 6 pass, 5 attention (MFA not required, 0 of 9 users with a second factor, minimum length 8 of 12, 7 accounts without sign-in in 90 days, RLS not armed because that copy connected as the owner), 3 context, 1 not measurable; the downloaded file's signature verifies. Tests: `tests/test_informe_de_cumplimiento_2026_11.py` (each control changes when its data changes; validated by freezing the stale-account count and the audit-chain status).
+- **Endpoint:** `GET /api/v1/grc/compliance-report[?signed=true]` (`require_admin`, the caller's company).
 
 **Explicar acceso (access explainer, 2026-11-05; brought from contecmind/contecintelligence).** Last tab of GRC (admin). Pick a person of your company, an HTTP method and an API route (the field suggests the 2,072 operations of the API; for one project's permissions replace `{project_id}` with its id). It answers **can / cannot / cannot be fully determined**, names the layer that decides, and lists every layer in the order a real request meets them:
 
