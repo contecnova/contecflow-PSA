@@ -293,6 +293,13 @@ EVENT_TEMPLATES = {
         ("Proyecto",  e.get("project_name", "—")),
         ("Aprobado por", e.get("approver", "—")),
     ]),
+    # Revision 2026-11: la tarjeta de aprobacion existia solo en la vista previa
+    # y nadie la enviaba.
+    "approval.required":    ("🔔", "Aprobación pendiente: {title}", lambda e: [
+        ("Tipo",      e.get("entity_type", "—")),
+        ("Paso",      e.get("step", "—")),
+        ("Solicitante", e.get("requester", "—")),
+    ]),
 }
 
 
@@ -349,6 +356,7 @@ def notify_event(
             "task":      "tasks",
             "risk":      "risks",
             "cr":        "changes",
+            "approval":  "approvals",
         }
         entity_section = entity_type_map.get(event_type.split(".")[0], "dashboard")
         url = f"{app_base_url}/{entity_section}"
@@ -821,10 +829,10 @@ def build_block_kit_message(event_type: str, payload: dict) -> dict:
                 {"type": "actions", "elements": [
                     {"type": "button", "text": {"type": "plain_text", "text": " ✅ Approve"},
                      "style": "primary",
-                     "url": f"{base_url}/approvals/{payload.get('request_id', '')}?action=approve"},
+                     "url": f"{base_url}/approvals?request={payload.get('request_id', '')}"},
                     {"type": "button", "text": {"type": "plain_text", "text": " ❌ Reject"},
                      "style": "danger",
-                     "url": f"{base_url}/approvals/{payload.get('request_id', '')}?action=reject"},
+                     "url": f"{base_url}/approvals?request={payload.get('request_id', '')}"},
                 ]},
             ]
         }

@@ -182,6 +182,9 @@ export const approvalsApi = {
   approverLoad:      (params?: any)      => api.get('/approvals/analytics/approver-load', { params }),
   listRequests:      (params?: any)      => api.get('/approvals/requests', { params }),
   pendingMyAction:   ()            => api.get('/approvals/requests/pending-my-action'),
+  // Revisión 2026-11: fuera de la oficina (a quién pasan mis aprobaciones).
+  getOutOfOffice:    ()            => api.get('/approvals/out-of-office'),
+  setOutOfOffice:    (d: unknown)  => api.put('/approvals/out-of-office', d),
   createRequest:     (d: unknown)           => api.post('/approvals/requests', d),
   decide:            (id: any, d: unknown)       => api.post(`/approvals/requests/${id}/decide`, d),
   cancel:            (id: any)          => api.post(`/approvals/requests/${id}/cancel`),

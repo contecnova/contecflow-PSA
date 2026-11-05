@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, Float, DateTime, Enum, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, String, Boolean, Float, Date, DateTime, Enum, Text, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -91,6 +91,11 @@ class User(Base):
     # ondelete cambia a RESTRICT porque NULL ya no es permitido.
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True)
     manager_id      = Column(String(36), ForeignKey("users.id",         ondelete="SET NULL"), nullable=True, index=True)
+    # Fuera de la oficina (revision 2026-11): entre estas fechas sus aprobaciones
+    # las recibe y puede decidirlas `away_delegate_id`.
+    away_delegate_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    away_from        = Column(Date, nullable=True)
+    away_until       = Column(Date, nullable=True)
     # Rol personalizado: restringe modulos por encima del rol base (`app/core/modulos.py`).
     custom_role_id  = Column(String(36), ForeignKey("custom_roles.id", ondelete="SET NULL"), nullable=True, index=True)
 

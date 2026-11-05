@@ -104,6 +104,8 @@ class Settings(
     TENANT_SELECTION_TOKEN_MINUTES: int = Field(default=5, env="TENANT_SELECTION_TOKEN_MINUTES")
     # Baja de una empresa: dias de cuarentena antes de borrar sus datos.
     TENANT_DELETION_QUARANTINE_DAYS: int = Field(default=30, env="TENANT_DELETION_QUARANTINE_DAYS")
+    # Aprobaciones: horas que vale el enlace de aprobar/rechazar del correo.
+    APPROVAL_EMAIL_LINK_HOURS: int = Field(default=72, env="APPROVAL_EMAIL_LINK_HOURS")
     # «Entrar como» (soporte de plataforma): activo y duracion maxima de la sesion.
     IMPERSONATION_ENABLED: bool = Field(default=True, env="IMPERSONATION_ENABLED")
     IMPERSONATION_MAX_MINUTES: int = Field(default=30, env="IMPERSONATION_MAX_MINUTES")

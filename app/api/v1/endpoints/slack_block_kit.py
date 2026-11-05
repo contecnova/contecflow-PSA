@@ -2,7 +2,6 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 import logging
 
-from app.core.config import settings
 from app.core.deps import get_current_user, get_db, require_any_manager
 from app.models.user import User
 import app.services.integrations as _svc
@@ -11,60 +10,8 @@ router = APIRouter(tags=["Notifications", "Slack"])
 logger = logging.getLogger(__name__)
 
 
-def _build_block_kit_message(event_type: str, payload: dict) -> dict:
-    base_url = settings.FRONTEND_URL or "http://localhost:3000"
-
-    if event_type == "task_overdue":
-        return {
-            "blocks": [
-                {"type": "header", "text": {"type": "plain_text", "text": "⚠️ Task Overdue"}},
-                {"type": "section", "fields": [
-                    {"type": "mrkdwn", "text": f"*Task:*\n{payload.get('task_title', 'N/A')}"},
-                    {"type": "mrkdwn", "text": f"*Project:*\n{payload.get('project_name', 'N/A')}"},
-                    {"type": "mrkdwn", "text": f"*Due Date:*\n{payload.get('due_date', 'N/A')}"},
-                    {"type": "mrkdwn", "text": f"*Assignee:*\n{payload.get('assignee', 'N/A')}"},
-                ]},
-                {"type": "actions", "elements": [
-                    {"type": "button", "text": {"type": "plain_text", "text": "View Task"},
-                     "url": f"{base_url}/tasks/{payload.get('task_id', '')}",
-                     "style": "primary"},
-                    {"type": "button", "text": {"type": "plain_text", "text": "Update Status"},
-                     "url": f"{base_url}/tasks/{payload.get('task_id', '')}?action=update"},
-                ]},
-            ]
-        }
-    if event_type == "invoice_paid":
-        return {
-            "blocks": [
-                {"type": "header", "text": {"type": "plain_text", "text": "✅ Invoice Paid"}},
-                {"type": "section", "fields": [
-                    {"type": "mrkdwn", "text": f"*Invoice:*\n{payload.get('invoice_number', 'N/A')}"},
-                    {"type": "mrkdwn", "text": f"*Amount:*\n{payload.get('currency', settings.DEFAULT_CURRENCY)} {payload.get('amount', 0):,.2f}"},
-                    {"type": "mrkdwn", "text": f"*Client:*\n{payload.get('client_name', 'N/A')}"},
-                    {"type": "mrkdwn", "text": f"*Paid At:*\n{payload.get('paid_at', 'N/A')}"},
-                ]},
-            ]
-        }
-    if event_type == "approval_required":
-        return {
-            "blocks": [
-                {"type": "header", "text": {"type": "plain_text", "text": "🔔 Approval Required"}},
-                {"type": "section", "text": {
-                    "type": "mrkdwn",
-                    "text": f"*{payload.get('entity_type', 'Item').title()}* submitted by "
-                            f"*{payload.get('submitter', 'Unknown')}* requires your approval.",
-                }},
-                {"type": "actions", "elements": [
-                    {"type": "button", "text": {"type": "plain_text", "text": "✅ Approve"},
-                     "style": "primary",
-                     "url": f"{base_url}/approvals/{payload.get('request_id', '')}?action=approve"},
-                    {"type": "button", "text": {"type": "plain_text", "text": "❌ Reject"},
-                     "style": "danger",
-                     "url": f"{base_url}/approvals/{payload.get('request_id', '')}?action=reject"},
-                ]},
-            ]
-        }
-
+# Una sola tarjeta: la del servicio (aqui habia una copia muerta, sobrescrita
+# justo debajo, con los enlaces de aprobacion rotos).
 _build_block_kit_message = _svc.build_block_kit_message
 
 

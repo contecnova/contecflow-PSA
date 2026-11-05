@@ -22,6 +22,7 @@ import {
 // ── Lazy page imports (code-splitting) ────────────────────────────────────────
 const LoginPage              = lazy(() => import('./pages/LoginPage'))
 const ResetPasswordPage      = lazy(() => import('./pages/ResetPasswordPage'))
+const AprobacionPorCorreoPage = lazy(() => import('./pages/AprobacionPorCorreoPage'))
 const ProjectsPage           = lazy(() => import('./pages/ProjectsPage'))
 const TasksPage              = lazy(() => import('./pages/TasksPage'))
 const ImputarPage            = lazy(() => import('./pages/ImputarPage'))
@@ -352,6 +353,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={user ? <Navigate to={defaultPath} replace /> : <LoginPage />} />
       <Route path="/reset-password" element={user ? <Navigate to={defaultPath} replace /> : <ResetPasswordPage />} />
+      {/* Aprobar desde el correo: sin sesión, el enlace firmado identifica al aprobador. */}
+      <Route path="/approvals/decide" element={<AprobacionPorCorreoPage />} />
       <Route path="/403" element={<ProtectedRoute><ForbiddenPage /></ProtectedRoute>} />
 
       <Route path="/" element={

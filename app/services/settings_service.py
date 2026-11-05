@@ -226,6 +226,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("AUTOMATIONS_EVENT_BATCH_SIZE", "int", "Events processed per run"),
         ("AUTOMATIONS_EVENT_MAX_ATTEMPTS", "int", "Attempts per event before it is left as failed"),
         ("AUTOMATIONS_DEADLINE_DAYS", "int", "\"Task due soon\": days before the due date"),
+        ("APPROVAL_EMAIL_LINK_HOURS", "int", "Approvals — hours the approve/reject link of the email is valid"),
         ("AUTOMATIONS_TIMESHEET_WEEKDAY", "int", "\"Timesheet not submitted\": from this weekday (ISO, 1=Mon … 7=Sun)"),
         ("AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS", "int", "Webhook action — timeout (s)"),
         ("BPMN_MAX_AUTOMATIC_STEPS", "int", "BPM — automatic steps in a row before an instance fails (loop guard)"),

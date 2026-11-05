@@ -16,6 +16,7 @@ import {
 import { Button, Modal, EmptyState, Tabs, Page } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { UserSelect } from '../components/ui/EntitySelect'
 
 const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
@@ -406,6 +407,44 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: any; onBack: () =>
   )
 }
 
+// ── Fuera de la oficina (revisión 2026-11) ───────────────────────────────────
+// Mientras dura, los avisos de mis aprobaciones llegan también al delegado y
+// este puede decidir los pasos que me tocarían.
+function FueraDeLaOficina() {
+  const toast = useToast()
+  const qc = useQueryClient()
+  const { data } = useQuery<{ delegate_id?: string | null; away_from?: string | null; away_until?: string | null }>({
+    queryKey: ['approvals-ooo'], queryFn: () => approvalsApi.getOutOfOffice().then(r => r.data),
+  })
+  const [form, setForm] = useState<{ delegate_id: string; away_from: string; away_until: string } | null>(null)
+  const actual = form ?? { delegate_id: data?.delegate_id ?? '', away_from: data?.away_from ?? '', away_until: data?.away_until ?? '' }
+  const { mutate: guardar, isPending } = useMutation({
+    mutationFn: (d: typeof actual) => approvalsApi.setOutOfOffice({ delegate_id: d.delegate_id || null, away_from: d.away_from || null, away_until: d.away_until || null }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['approvals-ooo'] }); setForm(null); toast.success('Guardado') },
+    onError: e => toast.error(extractErr(e, 'No se pudo guardar')),
+  })
+  const campo: CSSProperties = { padding: '6px 10px', borderRadius: 8, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', fontFamily: 'inherit' }
+  return (
+    <details className="ds-card" style={{ padding: '10px 14px' }} open={Boolean(data?.delegate_id)}>
+      <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: 'var(--text-sm)' }}>
+        Fuera de la oficina{data?.delegate_id ? ` · delegado hasta el ${data.away_until}` : ''}
+      </summary>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'end', marginTop: 10 }}>
+        <div style={{ minWidth: 220 }}>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 4 }}>Delegar en</div>
+          <UserSelect value={actual.delegate_id} onChange={id => setForm({ ...actual, delegate_id: id })} placeholder="Elige a quién" />
+        </div>
+        <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Desde<br />
+          <input type="date" value={actual.away_from} onChange={e => setForm({ ...actual, away_from: e.target.value })} style={campo} /></label>
+        <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Hasta<br />
+          <input type="date" value={actual.away_until} onChange={e => setForm({ ...actual, away_until: e.target.value })} style={campo} /></label>
+        <Button size="sm" disabled={isPending || !actual.delegate_id || !actual.away_from || !actual.away_until} onClick={() => guardar(actual)}>Guardar</Button>
+        {data?.delegate_id && <Button size="sm" variant="secondary" disabled={isPending} onClick={() => guardar({ delegate_id: '', away_from: '', away_until: '' })}>Quitar</Button>}
+      </div>
+    </details>
+  )
+}
+
 // ── Tab de mis solicitudes pendientes ─────────────────────────────────────────
 function MyPendingTab() {
   const t = useAppT()
@@ -497,6 +536,7 @@ function MyPendingTab() {
 
   return (
     <div className="ds-stack-lg">
+      <FueraDeLaOficina />
       {/* Mini KPI strip */}
       <div className="ds-grid-stats">
         <div className="ds-card" style={{ padding: '12px 14px', gap: 4 }}>

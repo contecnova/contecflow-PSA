@@ -4,13 +4,15 @@ approvals.py — Motor de aprobaciones multi-nivel configurables.
 Soporta: timesheets, gastos, change requests, milestones, compras.
 Flujo: request → step 1 → step 2 → ... → step N → decision final
 """
-from fastapi import APIRouter, Depends, HTTPException, Body, Query
+from fastapi import APIRouter, Depends, HTTPException, Body, Query, Request
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
 import logging
 
 from app.core.abac_enforce import enforce_abac
 from app.db.session import get_db
+from app.core.ratelimit import limiter
 from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.models.user import User, UserRole
 from app.services.approval_engine import (
@@ -447,3 +449,51 @@ def delete_group(
     if not delete_approval_group(db, group_id):
         raise HTTPException(404)
     return APIResponse.ok(data={"ok": True})
+
+
+
+# ── Revision 2026-11: decidir desde el enlace del correo (sin sesión) ────────
+
+class DecisionPorCorreoIn(BaseModel):
+    token: str
+    decision: str
+    note: Optional[str] = None
+
+
+@router.get("/email-decision", summary="Resumen de la solicitud del enlace del correo (público)")
+def email_decision_summary(token: str, db: Session = Depends(get_db)):
+    from app.services.approval_engine import por_correo
+    return APIResponse.ok(data=por_correo.resumen(db, token))
+
+
+@router.post("/email-decision", summary="Aprobar o rechazar con el enlace del correo (público)")
+@limiter.limit("20/minute")
+def email_decision(request: Request, payload: DecisionPorCorreoIn, db: Session = Depends(get_db)):
+    from app.services.approval_engine import por_correo
+    return APIResponse.ok(data=por_correo.decidir(db, payload.token, payload.decision, payload.note))
+
+
+
+# ── Revision 2026-11: fuera de la oficina ────────────────────────────────────
+
+class FueraDeLaOficinaIn(BaseModel):
+    delegate_id: Optional[str] = None
+    away_from: Optional[str] = None
+    away_until: Optional[str] = None
+
+
+@router.get("/out-of-office", summary="Mi ausencia y a quién delego las aprobaciones")
+def get_out_of_office(current_user: User = Depends(get_current_user)):
+    return APIResponse.ok(data={
+        "delegate_id": current_user.away_delegate_id,
+        "away_from": current_user.away_from.isoformat() if current_user.away_from else None,
+        "away_until": current_user.away_until.isoformat() if current_user.away_until else None,
+    })
+
+
+@router.put("/out-of-office", summary="Fijar o quitar mi ausencia")
+def put_out_of_office(payload: FueraDeLaOficinaIn, db: Session = Depends(get_db),
+                      current_user: User = Depends(get_current_user)):
+    from app.services.approval_engine.ausencias import fijar_ausencia
+    return APIResponse.ok(data=fijar_ausencia(db, current_user, payload.delegate_id,
+                                              payload.away_from, payload.away_until))

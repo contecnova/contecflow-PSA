@@ -108,6 +108,10 @@ def notify_approver(
     try:
         from app.models.enterprise import Notification, NotificationType
         ids = {explicit_user_id} if explicit_user_id else aprobadores_del_paso(request, step, db)
+        # Fuera de la oficina: el aviso tambien va a su delegado.
+        for ausente in db.query(User).filter(User.id.in_(ids), User.away_delegate_id.isnot(None)).all():
+            if ausente_hoy(ausente):
+                ids = ids | {ausente.away_delegate_id}
         titulo = f"Aprobación requerida: {request.entity_type}"
         cuerpo = f"{request.entity_summary or request.entity_id} — Paso {step.step_order}: {step.name}"
         for approver_id in sorted(i for i in ids if i and i != request.requested_by):
@@ -116,8 +120,24 @@ def notify_approver(
                 title=titulo, body=cuerpo, resource="approval_request", resource_id=request.id,
             ))
             _correo_de_aprobacion(db, approver_id, titulo, cuerpo, request)
+        if not explicit_user_id:
+            _aviso_al_canal(db, request, step)
     except Exception:
         logger.warning("Failed to create approval notification", exc_info=True)
+
+
+def _aviso_al_canal(db: Session, request, step) -> None:
+    """Una vez por paso, al canal de Slack/Teams configurado (si escucha el evento)."""
+    try:
+        from app.services.integrations import notify_event
+        solicitante = db.query(User.full_name).filter(User.id == request.requested_by).first()
+        notify_event("approval.required", {
+            "id": request.id, "title": request.entity_summary or request.entity_id,
+            "entity_type": request.entity_type, "step": f"{step.step_order} · {step.name}",
+            "requester": solicitante[0] if solicitante else "—",
+        }, db)
+    except Exception:
+        logger.warning("No se pudo avisar al canal de la aprobacion %s", request.id, exc_info=True)
 
 
 def aprobadores_del_paso(request, step, db: Session) -> set:
@@ -152,8 +172,12 @@ def _correo_de_aprobacion(db: Session, user_id: str, titulo: str, cuerpo: str, r
     fila = db.query(User.email).filter(User.id == user_id).first()
     if not fila or not fila[0]:
         return
-    enlace = f"{_cfg.FRONTEND_URL.rstrip('/')}/approvals?request={request.id}"
-    send_email_notification(fila[0], titulo, f"{cuerpo}\n\nRevisar y decidir: {enlace}")
+    from app.services.approval_engine.por_correo import crear_enlace
+    bandeja = f"{_cfg.FRONTEND_URL.rstrip('/')}/approvals?request={request.id}"
+    send_email_notification(
+        fila[0], titulo,
+        f"{cuerpo}\n\nAprobar o rechazar desde aquí (sin entrar): {crear_enlace(db, request, user_id)}"
+        f"\n\nO en la bandeja: {bandeja}")
 
 def find_default_workflow(entity_type: str, db: Session, category: Optional[str] = None):
     """Find the best-matching workflow for an entity type.
@@ -244,6 +268,18 @@ def _es_su_responsable(current_user: User, requested_by: str, db: Session) -> bo
 
 
 def _is_authorized(step, current_user: User, requested_by: str, db: Session, req=None) -> bool:
+    """Si este usuario puede resolver el paso: directamente o como delegado de un ausente.
+
+    La delegacion por ausencia mira un solo nivel (el ausente se comprueba sin
+    sus propios delegados): A en B y B en A no da un bucle.
+    """
+    if _autorizado_directo(step, current_user, requested_by, db, req):
+        return True
+    return any(_autorizado_directo(step, ausente, requested_by, db, req)
+               for ausente in _ausentes_que_me_delegan(current_user, db))
+
+
+def _autorizado_directo(step, current_user: User, requested_by: str, db: Session, req=None) -> bool:
     """Si este usuario puede resolver este paso de aprobación.
 
     La pertenencia al grupo se mira **siempre** que el paso tenga grupo, aunque
@@ -268,6 +304,26 @@ def _is_authorized(step, current_user: User, requested_by: str, db: Session, req
 
     regla = _APROBADORES.get(step.approver_type or "")
     return bool(regla and regla(step, current_user, requested_by, db))
+
+
+def ausente_hoy(usuario) -> bool:
+    from app.core import timeutil
+    hoy = timeutil.today()
+    return bool(getattr(usuario, "away_delegate_id", None) and usuario.away_from and usuario.away_until
+                and usuario.away_from <= hoy <= usuario.away_until)
+
+
+def _ausentes_que_me_delegan(current_user, db: Session) -> list:
+    """Usuarios ausentes hoy que han dejado sus aprobaciones a `current_user`.
+
+    Se guarda en la sesion: la bandeja lo pregunta una vez por solicitud.
+    """
+    cache = db.info.setdefault("_ausentes_que_delegan", {})
+    if current_user.id not in cache:
+        candidatos = db.query(User).filter(User.away_delegate_id == current_user.id,
+                                           User.is_active == True).all()  # noqa: E712
+        cache[current_user.id] = [u for u in candidatos if ausente_hoy(u)]
+    return cache[current_user.id]
 
 def _parse_trigger_conditions(raw: Optional[str]) -> dict:
     if not raw:

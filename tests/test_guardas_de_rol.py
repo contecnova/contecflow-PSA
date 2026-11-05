@@ -67,6 +67,7 @@ EXENTAS_REVISADAS = {
     "POST /api/v1/auth/change-password": "cambiar la contraseña propia",
     "POST /api/v1/auth/mfa/setup": "dar de alta el segundo factor propio",
     "POST /api/v1/auth/mfa/verify-setup": "verificar el segundo factor propio",
+    "PUT /api/v1/approvals/out-of-office": "fijar la propia ausencia y su delegado (solo toca al usuario de la sesion; el delegado ha de ser de su empresa y activo)",
     # Perfil propio. `PATCH /users/{user_id}` se queda fuera a propósito: el
     # endpoint YA distingue perfil propio de ficha ajena y rechaza los campos
     # reservados, y eso lo prueban los cuatro tests de
@@ -120,7 +121,7 @@ EXENCIONES_ESPERADAS = {
     # 38 desde 2026-11-02: POST /sd/events/{source} autentica el token de la
     # organizacion y POST /sd/kb/{id}/deflected exige `lector_de_la_kb`
     # (cliente del portal o usuario); el clasificador no reconoce ninguno.
-    "superficie: sin sujeto autenticado": 39,  # +1 2026-11: elegir empresa tras la contraseña
+    "superficie: sin sujeto autenticado": 40,  # +1 2026-11: elegir empresa tras la contraseña; +1 decidir desde el correo
 }
 
 #: Rutas de escritura que sí llevan guarda de rol. Sólo puede subir.
