@@ -221,6 +221,8 @@ These are `Settings` fields: `COLLAB_CALL_START_PER_MIN`, `COLLAB_CALL_JOIN_PER_
 1. Pick a view with the toggle: `kanban` (default) or `list`.
    - Filters go into the URL: `project_id`, `status`, `search`, `priority`, `assignee`, `overdue=1`, `mine=1`.
    - The board with a project selected uses `GET /tasks/kanban/{project_id}`. Its columns are `todo`, `in_progress`, `blocked`, `in_review`, `done`, plus `backlog` when it has tasks.
+   - **Board and list show the same tasks (2026-11-05).** Both use `GET /tasks` with the same filters, up to 500 tasks; if there are more, a notice says how many are shown («Se muestran N de M»). Before, the board with a project used `GET /tasks/kanban/{project}`, which ignored person, overdue and «mine», and the list silently stopped at 50.
+   - **From the former Kanban page:** swimlanes (none / by person / by priority; saved per project when an admin or PM changes them), WIP limit per column (button «WIP» in the column header, admin or PM, saved per project; the counter shows `n / limit` and turns red over it), quick add per column (project selected), sprint filter (project selected), `/` to search, and the **Historial** tab in the task detail. Column headers follow the interface language (they were fixed Spanish). Tests: `frontend/src/__tests__/TasksPageKanban.test.tsx`, `tests/test_tablero_filtros_sprint_2026_11.py`.
    - **Fixed 2026-11-05 — «Kanban» showed a list.** Without a project selected, the board fell back to a list headed «Select project · N tasks», so pressing Kanban changed nothing visible. Now the board always shows: without a project it groups by status the same tasks the list would show, with the same filters (cancelled ones excluded, as in the project board), and cards can be dragged between columns. Also fixed: the server returned a `backlog` column that the screen never drew, so backlog tasks were missing from the board. Test: `frontend/src/__tests__/TasksPageKanban.test.tsx`. Checked in the browser on a copy: 12 tasks in 3 columns with no project selected; and every other page with a view switch (Projects, Documents, BPM, Risks, Resource forecast, Resource scheduler) shows different content for each option (Epics and Dependencies only show their switch once a project is chosen).
    - **Fixed the same day — the compact list crashed.** On narrow screens and phones the list's loop variable was called `t` and hid the translation function `t`, so a task without project, assignee or estimate broke the page. The same defect was in Settings → Tarifas (a default rate table). Found by scanning the 100 callbacks with a parameter `t` for a `t('…')` call inside.
 2. **Create:** title, project, assignee, priority (`critical | high | medium | low`), start and due dates, estimated hours, tags, description. The description has an inline AI editor that calls `/ai/chat`. A blocked reason is also editable.
@@ -267,28 +269,14 @@ Task status values must still be one of the `TaskStatus` enum values; the Pydant
 - **Kanban without a project hides two statuses.** It groups the flat list into the 5 columns above; `backlog` and `cancelled` tasks are not shown.
 - **team_lead gets 403 on two actions.** Auto-planificar's apply step (`bulk-dates`) and task deletion require admin or pm, but the UI shows them to team_lead.
 
-### Kanban — `/kanban-advanced`
-*Roles:* Menu: admin, pm, team_lead, employee. Route: any authenticated user.
-
-**Purpose.** A board with drag-and-drop, swimlanes (by assignee, priority or epic), quick-add per column, WIP gauges, filters (priority, assignee, search, sprint) and a movement log per card.
-
-**How to use it.**
-- Pick a project, or none for all.
-- Drag a card to another column. This calls `PATCH /tasks/{id}` with the new status.
-- When moving a card **out of** `done` or `cancelled`, a browser `prompt` asks for a reason. It is stored as `move_reason` in `task_movement_logs`.
-- Click a card to see its movement log (`GET /tasks/{id}/movement-log`).
-- Set WIP limits per column in the WIP panel.
-- Keyboard: `/` or `f` focuses search; `Esc` cancels a drag.
-
-**Configuration.** None found. WIP limits are React state only.
-
-**Technical notes.** `GET /api/v1/tasks?page_size=500`, `GET /api/v1/sprints`, `POST /api/v1/tasks`, `PATCH /api/v1/tasks/{id}`, `GET /api/v1/tasks/{id}/movement-log`.
-
-**Limitations.**
-- **Only 5 columns.** Columns are `backlog`, `todo`, `in_progress`, `in_review`, `done`. Tasks in `blocked` or `cancelled` **are not displayed** at all.
-- **Some drags always fail.** The server rejects moves outside the transition table with 400 and the UI shows a toast. Examples: `backlog → in_progress`, `todo → in_review`.
-- **WIP limits are not saved or enforced.** They are lost on reload; going over a limit only colours the counter.
-- **The sprint filter lists other projects' sprints.** It calls `GET /api/v1/sprints?project_id=…`, but that endpoint (`list_all_sprints`) has no `project_id` parameter. It returns up to 20 sprints from the whole organisation.
+### Kanban — merged into Tasks (2026-11-05)
+`/kanban-advanced` was a second board of the same tasks by status. It is gone: the route redirects to `/tasks?view=kanban` and the menu entry was removed. What only it had now lives in **Tasks → Kanban** (see Tasks), measured before moving it:
+- **Swimlanes** by person or priority. The «by epic» lanes were dropped: tasks have no epic, so every card fell into «Sin épica».
+- **WIP limits per column**, now **saved per project** (`/cmdb/kanban/{project}`, tables `kanban_configs`/`kanban_columns`, which existed and no screen used); before they were React state, lost on reload. Over the limit the counter turns red; nothing is blocked.
+- **Quick add per column** (needs a project selected).
+- **Sprint filter**, now real: the old one compared `task.sprint_id`, which does not exist (the board went empty), and `GET /sprints?project_id=` ignored the project and listed other projects' sprints. Both endpoints filter now.
+- **`/` focuses the search.**
+- **Movement log per card** → the task detail has a **Historial** tab (`GET /tasks/{id}/movement-log`; the frontend type described fields the server does not send, now fixed).
 
 ### Time (Tiempo) — `/time`
 *Roles:* Menu: all five roles. Route: any authenticated user.

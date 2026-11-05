@@ -15,7 +15,7 @@ import OfflineIndicator from './components/OfflineIndicator'
 import OfflineConflictResolver from './components/OfflineConflictResolver'
 import {
   SkeletonDashboard, SkeletonTable, SkeletonProjects,
-  SkeletonKanban, SkeletonGantt, SkeletonServiceDesk,
+  SkeletonGantt, SkeletonServiceDesk,
   SkeletonFinance,
 } from './components/ui/Skeletons'
 
@@ -90,7 +90,6 @@ const WikiTagsPage           = lazy(() => import('./pages/WikiTagsPage'))
 const InternalCommentsPage   = lazy(() => import('./pages/InternalCommentsPage'))
 const CMDBPage               = lazy(() => import('./pages/CMDBPage'))
 const AgentDashboardPage     = lazy(() => import('./pages/AgentDashboardPage'))
-const KanbanAdvancedPage     = lazy(() => import('./pages/KanbanAdvancedPage'))
 const SprintPlanningPage     = lazy(() => import('./pages/SprintPlanningPage'))
 const SLACalendarsPage       = lazy(() => import('./pages/SLACalendarsPage'))
 const ALMPage                = lazy(() => import('./pages/ALMPage'))
@@ -189,7 +188,6 @@ function SmartPageLoader() {
   const { pathname } = useLocation()
   if (pathname === '/executive') return <SkeletonDashboard />
   if (pathname === '/projects')                 return <SkeletonProjects />
-  if (pathname === '/kanban-advanced')          return <SkeletonKanban />
   if (pathname === '/gantt' || pathname === '/epic-gantt') return <SkeletonGantt />
   if (pathname === '/service-desk')             return <SkeletonServiceDesk />
   if (TABLE_ROUTES.has(pathname))               return <SkeletonTable />
@@ -575,7 +573,8 @@ function AppRoutes() {
       <Route path="/internal-comments" element={<ProtectedRoute><Layout><InternalCommentsPage/></Layout></ProtectedRoute>}/>
       <Route path="/cmdb"              element={<ProtectedRoute roles={['admin','pm']}><Layout><CMDBPage/></Layout></ProtectedRoute>}/>
       <Route path="/agent-dashboard"   element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeAgentDashboard/></Layout></ProtectedRoute>}/>
-      <Route path="/kanban-advanced"   element={<ProtectedRoute><Layout><KanbanAdvancedPage/></Layout></ProtectedRoute>}/>
+      {/* Revisión 2026-11: «Kanban» era la misma pregunta que Tareas → vista Kanban; ahora es una sola pantalla. */}
+      <Route path="/kanban-advanced"   element={<Navigate to="/tasks?view=kanban" replace />}/>
       <Route path="/sprint-planning"   element={<ProtectedRoute><Layout><SprintPlanningPage/></Layout></ProtectedRoute>}/>
       <Route path="/sla-calendars"     element={<ProtectedRoute roles={['admin','pm']}><Layout><SLACalendarsPage/></Layout></ProtectedRoute>}/>
       <Route path="/epic-gantt"     element={<ProtectedRoute><Layout><SafeEpicGantt/></Layout></ProtectedRoute>}/>

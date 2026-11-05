@@ -18,8 +18,11 @@ def list_all_sprints(
     is_superadmin: bool,
     status: Optional[str],
     limit: int,
+    project_id: Optional[str] = None,
 ) -> List[Sprint]:
     q = db.query(Sprint).options(joinedload(Sprint.project))
+    if project_id:   # revisión 2026-11: el filtro de sprint del tablero lo mandaba y se ignoraba
+        q = q.filter(Sprint.project_id == project_id)
     if not is_superadmin and organization_id:
         org_project_ids = db.query(Project.id).filter(
             Project.organization_id == organization_id

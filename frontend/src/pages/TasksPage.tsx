@@ -5,7 +5,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { tasksApi, projectsApi, customFieldsApi, semanticApi, projectWorkflowsApi, issueTypesApi } from '../services/api'
+import { tasksApi, projectsApi, customFieldsApi, semanticApi, projectWorkflowsApi, issueTypesApi, sprintsApi, cmdbApi } from '../services/api'
 import { Badge as _Badge, Button, Modal, EmptyState, Avatar as _Avatar, useSort, SortableTH, Tabs } from '../components/ui'
 import { SkeletonTable } from '../components/ui/Skeletons'
 import _VirtualList from '../components/ui/VirtualList'
@@ -30,6 +30,12 @@ const VirtualList: any = _VirtualList
 const DocumentsPanel: any = _DocumentsPanel
 const AIInlineEditor: any = _AIInlineEditor
 const STATUS_LABELS_MAP: Record<string, string> = STATUS_LABELS as any
+// Revisión 2026-11: las cabeceras del tablero salían en castellano con la interfaz en
+// otro idioma (STATUS_LABELS es una tabla fija); estas son las claves de i18n.
+const CLAVE_DE_ESTADO: Record<string, string> = {
+  backlog: 'tasks.status_backlog', todo: 'tasks.status_todo', in_progress: 'tasks.status_in_progress',
+  in_review: 'tasks.status_review', blocked: 'tasks.status_blocked', done: 'tasks.status_done', cancelled: 'tasks.status_cancelled',
+}
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -44,6 +50,8 @@ function onKeyboardActivate(event: React.KeyboardEvent, action: () => void) {
 
 
 const STATUSES = ['todo', 'in_progress', 'blocked', 'in_review', 'done']
+// Tope de tareas que se piden (el máximo del endpoint); si hay más, se avisa.
+const TAREAS_MAXIMAS = 500
 const _STATUS_ICONS = { todo: '○', in_progress: '◑', blocked: '✕', in_review: '◐', done: '●' }
 
 const PRIORITIES = Object.entries(PRIORITY_LABELS).map(([v, l]) => ({ value: v, label: l }))
@@ -100,7 +108,54 @@ function TaskKanbanCard({ task, onTaskClick, onTaskDragStart }: { task: any; onT
   )
 }
 
-function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnter, onColumnLeave, dragOver }: { status: string; tasks: any[]; onTaskClick: (t: any) => void; onTaskDragStart?: any; onColumnEnter?: any; onColumnLeave?: any; dragOver?: boolean }) {
+/** Cambios de estado de la tarea, con quién, cuándo y el motivo al reabrir. */
+function HistorialDeMovimientos({ taskId }: { taskId: string }) {
+  const t = useAppT()
+  const { data = [], isLoading } = useQuery<any[]>({
+    queryKey: ['task-movement-log', taskId],
+    queryFn: () => tasksApi.movementLog(taskId).then((r: any) => r.data?.items ?? r.data ?? []),
+  })
+  if (isLoading) return <Loader2 size={14} style={{ animation: 'spin 0.7s linear infinite' }} />
+  if (!data.length) return <p style={{ color: 'var(--text-2)', fontSize: 'var(--text-base)' }}>{t('tasks.historial_vacio')}</p>
+  return (
+    <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+      {data.map((m: any) => (
+        <li key={m.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-sm)' }}>
+          <strong>{m.from_status ? t(CLAVE_DE_ESTADO[m.from_status] || m.from_status) : '—'} → {t(CLAVE_DE_ESTADO[m.to_status] || m.to_status)}</strong>
+          <span style={{ color: 'var(--text-3)' }}> · {m.moved_by?.full_name || '—'} · {fmtDate(m.moved_at)}</span>
+          {m.reason && <div style={{ color: 'var(--text-2)', marginTop: 2 }}>{t('tasks.historial_motivo', { motivo: m.reason })}</div>}
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+/** Alta rápida al pie de una columna (revisión 2026-11, traída de la pantalla Kanban). */
+function AltaRapida({ onCrear }: { onCrear: (titulo: string) => Promise<unknown> }) {
+  const t = useAppT()
+  const [abierta, setAbierta] = useState(false)
+  const [titulo, setTitulo] = useState('')
+  const enviar = async () => {
+    if (!titulo.trim()) return
+    await onCrear(titulo.trim()); setTitulo(''); setAbierta(false)
+  }
+  if (!abierta) return (
+    <button type="button" onClick={() => setAbierta(true)}
+      style={{ width: '100%', marginTop: 8, padding: '8px 10px', border: '1px dashed var(--surface-5)', borderRadius: 8, background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)', textAlign: 'left' }}>
+      + {t('tasks.kanban_alta_rapida')}
+    </button>
+  )
+  return (
+    <input autoFocus value={titulo} placeholder={t('tasks.kanban_alta_titulo')} aria-label={t('tasks.kanban_alta_titulo')}
+      onChange={e => setTitulo(e.target.value)} onBlur={() => !titulo && setAbierta(false)}
+      onKeyDown={e => { if (e.key === 'Enter') enviar(); if (e.key === 'Escape') { setAbierta(false); setTitulo('') } }}
+      className="ds-input" style={{ marginTop: 8, width: '100%', boxSizing: 'border-box' }} />
+  )
+}
+
+function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnter, onColumnLeave, dragOver, wipLimit, onSetWip, onCrear }: { status: string; tasks: any[]; onTaskClick: (t: any) => void; onTaskDragStart?: any; onColumnEnter?: any; onColumnLeave?: any; dragOver?: boolean; wipLimit?: number | null; onSetWip?: (n: number | null) => void; onCrear?: (titulo: string) => Promise<unknown> }) {
+  const t = useAppT()
+  const pasado = !!wipLimit && tasks.length > wipLimit
   const colors: Record<string, string> = { backlog: 'var(--text-3)', todo: 'var(--text-2)', in_progress: 'var(--accent)', blocked: 'var(--danger)', in_review: 'var(--warning)', done: 'var(--success)' }
   const color = colors[status]
   return (
@@ -116,11 +171,22 @@ function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnt
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '0 4px' }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
         <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-          {STATUS_LABELS_MAP[status]}
+          {CLAVE_DE_ESTADO[status] ? t(CLAVE_DE_ESTADO[status]) : STATUS_LABELS_MAP[status]}
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: "var(--text-xs)", background: 'var(--surface-4)', color: 'var(--text-2)', borderRadius: 10, padding: '1px 7px' }}>
-          {tasks.length}
+        <span title={wipLimit ? t('tasks.kanban_wip_titulo', { n: wipLimit }) : undefined}
+          style={{ marginLeft: 'auto', fontSize: "var(--text-xs)", background: pasado ? 'var(--danger-bg)' : 'var(--surface-4)', color: pasado ? 'var(--danger)' : 'var(--text-2)', borderRadius: 10, padding: '1px 7px', fontWeight: pasado ? 700 : 400 }}>
+          {tasks.length}{wipLimit ? ` / ${wipLimit}` : ''}
         </span>
+        {onSetWip && (
+          <button type="button" aria-label={t('tasks.kanban_wip_editar')} title={t('tasks.kanban_wip_editar')}
+            onClick={() => {
+              const v = window.prompt(t('tasks.kanban_wip_pregunta'), wipLimit ? String(wipLimit) : '')
+              if (v === null) return
+              const n = parseInt(v, 10)
+              onSetWip(Number.isFinite(n) && n > 0 ? n : null)
+            }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 'var(--text-2xs)', padding: 0, fontFamily: 'inherit' }}>WIP</button>
+        )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {tasks.map((task: any) => (
@@ -132,6 +198,7 @@ function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnt
           />
         ))}
       </div>
+      {onCrear && <AltaRapida onCrear={onCrear} />}
     </div>
   )
 }
@@ -345,6 +412,7 @@ function TaskDetailModal({ task, open, onClose }: { task: any; open: boolean; on
           { id: 'detail',   label: t('tasks.tab_details') },
           { id: 'comments', label: t('tasks.tab_comments'), count: task.comments?.length },
           { id: 'docs',     label: t('tasks.tab_docs') },
+          { id: 'history',  label: t('tasks.tab_historial') },
         ]}
         active={tab}
         onChange={setTab}
@@ -633,6 +701,9 @@ function TaskDetailModal({ task, open, onClose }: { task: any; open: boolean; on
         </div>
       )}
 
+      {/* ── HISTORIAL de movimientos (revisión 2026-11: lo enseñaba la pantalla Kanban) ── */}
+      {tab === 'history' && <HistorialDeMovimientos taskId={task.id} />}
+
       {/* ── COMENTARIOS ── */}
       {tab === 'comments' && (
         <div style={tabPanelStyle}>
@@ -785,6 +856,8 @@ export default function TasksPage() {
   const assigneeFilter = searchParams.get('assignee') || ''
   const overdueOnly    = searchParams.get('overdue') === '1'
   const mineOnly       = searchParams.get('mine') === '1'
+  const sprintFilter   = searchParams.get('sprint') || ''
+  const carriles       = searchParams.get('lanes') || ''
   const setTaskParam = (k: string, v: string) => setSearchParams(p => { const n = new URLSearchParams(p); v ? n.set(k, v) : n.delete(k); return n }, { replace: true })
   const setView           = (v: string) => setTaskParam('view', v === 'kanban' ? '' : v)
   const setProjectFilter  = (v: string) => setTaskParam('project_id', v)
@@ -792,6 +865,7 @@ export default function TasksPage() {
   const setSearch         = (v: string) => setTaskParam('search', v)
   const setPriorityFilter = (v: string) => setTaskParam('priority', v)
   const setAssigneeFilter = (v: string) => setTaskParam('assignee', v)
+  const setSprintFilter   = (v: string) => setTaskParam('sprint', v)
   const clearQuickFilters = () => setSearchParams(p => {
     const n = new URLSearchParams(p)
     n.delete('mine')
@@ -829,28 +903,30 @@ export default function TasksPage() {
     queryFn: () => projectsApi.list().then(r => r.data),
   })
 
-  const { data: tasksData, isLoading } = useQuery<any>({
-    queryKey: ['tasks', projectFilter, statusFilter, view, search, priorityFilter, assigneeFilter, overdueOnly, mineOnly],
+  // Revisión 2026-11: tablero y lista enseñan LAS MISMAS tareas (la misma consulta
+  // y los mismos filtros). Antes el tablero con proyecto usaba otro endpoint que
+  // ignoraba persona, vencidas y «mías», y la lista se cortaba en 50 sin avisar.
+  const { data: tasksData, isLoading } = useQuery<{ items: any[]; total: number }>({
+    queryKey: ['tasks', view, projectFilter, statusFilter, search, priorityFilter, assigneeFilter, overdueOnly, mineOnly, sprintFilter],
     queryFn: () => {
       const effectiveStatus = statusFilter === 'open'
         ? 'backlog,todo,in_progress,blocked,in_review'
         : (statusFilter || undefined)
-      if (view === 'kanban' && projectFilter) {
-        return tasksApi.kanban(projectFilter).then(r => r.data)
-      }
       return tasksApi.list({
         project_id: projectFilter || undefined,
-        status: effectiveStatus,
+        status: view === 'kanban' ? undefined : effectiveStatus,
         search: search || undefined,
         priority: priorityFilter || undefined,
         assignee_id: assigneeFilter || undefined,
         overdue_only: overdueOnly || undefined,
         assigned_to_me: mineOnly || undefined,
-      } as any).then(r => {
+        sprint_id: (projectFilter && sprintFilter) || undefined,
+        page_size: TAREAS_MAXIMAS,
+      } as any).then((r: any) => {
         const d: any = r.data
-        // Tolerate canonical wrapper {items, meta} during transition
-        if (d && !Array.isArray(d) && Array.isArray(d.items)) return d.items
-        return d
+        const items = Array.isArray(d) ? d : (d?.items ?? [])
+        const total = Number(r.headers?.['x-total-count'] ?? d?.total ?? items.length)
+        return { items, total }
       })
     },
     placeholderData: (prev: any) => prev,
@@ -858,21 +934,84 @@ export default function TasksPage() {
 
   const projectOptions = projects.map((p: any) => ({ value: p.id, label: `${p.code} — ${p.name}` }))
 
-  // flatTasks: en lista y en kanban-sin-proyecto tasksData es array; en kanban-con-proyecto es objeto {status:[]}
-  const flatTasks = Array.isArray(tasksData)
-    ? tasksData
-    : Object.values(tasksData || {}).flat()
+  const flatTasks: any[] = tasksData?.items ?? []
+  const cortadas = (tasksData?.total ?? 0) > flatTasks.length
 
   const { sort: taskSort, setSort: setTaskSort, sortedData: sortedTasks } = useSort(flatTasks, 'title')
 
   // Revisión 2026-11: sin proyecto el Kanban caía en una lista. Ahora agrupa por
   // estado las mismas tareas que mostraría la lista (con sus filtros).
-  const kanbanColumns: any = view === 'kanban' && tasksData && !Array.isArray(tasksData)
-    ? tasksData
-    : flatTasks.reduce((a: any, task: any) => {
-        if (task.status !== 'cancelled') (a[task.status] = a[task.status] || []).push(task)
-        return a
-      }, STATUSES.reduce((a: any, s) => ({ ...a, [s]: [] }), {}))
+  const agrupar = (lista: any[]) => lista.reduce((a: any, task: any) => {
+    if (task.status !== 'cancelled') (a[task.status] = a[task.status] || []).push(task)
+    return a
+  }, STATUSES.reduce((a: any, s) => ({ ...a, [s]: [] }), {}))
+  const kanbanColumns: any = agrupar(flatTasks)
+
+  // ── Tablero: sprint, carriles y límites WIP (revisión 2026-11) ───────────────
+  // Venían de la pantalla «Kanban» (/kanban-advanced), que enseñaba las mismas
+  // tareas por estado; ahora es una sola. Carriles y WIP se guardan por proyecto
+  // (`/cmdb/kanban/{proyecto}`): antes los límites vivían en memoria y se perdían.
+  const puedeConfigurar = hasRole('admin', 'pm')
+  const { data: sprintsDelProyecto = [] } = useQuery<any[]>({
+    queryKey: ['sprints', projectFilter], enabled: !!projectFilter,
+    queryFn: () => sprintsApi.list(projectFilter).then((r: any) => r.data?.items ?? r.data ?? []),
+  })
+  const { data: tablero } = useQuery<any>({
+    queryKey: ['kanban-config', projectFilter], enabled: !!projectFilter,
+    queryFn: () => cmdbApi.kanbanConfig(projectFilter).then((r: any) => r.data),
+  })
+  const carril = carriles || (projectFilter && tablero?.swimlane_by) || 'none'
+  const limiteWip = (status: string): number | null =>
+    (tablero?.columns || []).find((c: any) => c.status === status)?.wip_limit ?? null
+  const guardarCarril = async (v: string) => {
+    setTaskParam('lanes', v === 'none' ? '' : v)
+    if (projectFilter && puedeConfigurar) {
+      try { await cmdbApi.saveKanbanConfig(projectFilter, { swimlane_by: v }); qc.invalidateQueries({ queryKey: ['kanban-config', projectFilter] }) }
+      catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
+    }
+  }
+  const guardarWip = async (status: string, n: number | null) => {
+    try {
+      if (!tablero?.configured) await cmdbApi.saveKanbanConfig(projectFilter, { swimlane_by: carril })
+      const col = (tablero?.columns || []).find((c: any) => c.status === status)
+      if (col) await cmdbApi.updateKanbanColumn(col.id, { status, wip_limit: n })
+      else await cmdbApi.addKanbanColumn(projectFilter, { status, wip_limit: n })
+      qc.invalidateQueries({ queryKey: ['kanban-config', projectFilter] })
+    } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
+  }
+  const crearEnColumna = (status: string) => async (titulo: string) => {
+    try {
+      await tasksApi.create({ title: titulo, status, project_id: projectFilter } as any)
+      qc.invalidateQueries({ queryKey: ['tasks'] })
+    } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
+  }
+  const nombreDePrioridad = (p: string) => PRIORITIES.find(x => x.value === p)?.label || p
+  const filasDelTablero: { id: string; titulo: string | null; tareas: any[] }[] = (() => {
+    if (carril === 'assignee') {
+      const g: Record<string, { id: string; titulo: string; tareas: any[] }> = {}
+      for (const task of flatTasks) {
+        const k = task.assignee_id || '__sin'
+        g[k] = g[k] || { id: k, titulo: task.assignee?.full_name || t('tasks.no_assignee'), tareas: [] }
+        g[k].tareas.push(task)
+      }
+      return Object.values(g).sort((a, b) => a.titulo.localeCompare(b.titulo))
+    }
+    if (carril === 'priority') {
+      return ['critical', 'high', 'medium', 'low']
+        .map(p => ({ id: p, titulo: nombreDePrioridad(p), tareas: flatTasks.filter((x: any) => x.priority === p) }))
+        .filter(f => f.tareas.length)
+    }
+    return [{ id: 'todas', titulo: null, tareas: flatTasks }]
+  })()
+  const buscador = useRef<HTMLInputElement | null>(null)
+  useEffect(() => {
+    const alPulsar = (e: KeyboardEvent) => {
+      const dentro = (e.target as HTMLElement)?.closest?.('input, textarea, select, [contenteditable=true]')
+      if (e.key === '/' && !dentro) { e.preventDefault(); buscador.current?.focus() }
+    }
+    window.addEventListener('keydown', alPulsar)
+    return () => window.removeEventListener('keydown', alPulsar)
+  }, [])
   // El servidor devuelve «backlog»; antes no tenía columna y esas tareas no se veían.
   const kanbanStatuses = (kanbanColumns.backlog?.length ? ['backlog'] : []).concat(STATUSES)
 
@@ -985,8 +1124,8 @@ export default function TasksPage() {
             position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
             color: 'var(--text-3)', pointerEvents: 'none',
           }} />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={t('tasks.search_placeholder')}
+          <input ref={buscador} value={search} onChange={e => setSearch(e.target.value)}
+            placeholder={t('tasks.search_placeholder')} aria-keyshortcuts="/"
             className="ds-input"
             style={{ paddingLeft: 32 }} />
         </div>
@@ -1005,6 +1144,21 @@ export default function TasksPage() {
           <option value="">{t('tasks.all_assignees')}</option>
           {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
         </select>
+        {projectFilter && sprintsDelProyecto.length > 0 && (
+          <select aria-label={t('tasks.kanban_sprint')} value={sprintFilter} onChange={e => setSprintFilter(e.target.value)}
+            className="ds-input" style={{ width: 'auto', minWidth: 140, color: sprintFilter ? 'var(--accent)' : 'var(--text-1)' }}>
+            <option value="">{t('tasks.kanban_todos_los_sprints')}</option>
+            {sprintsDelProyecto.map((sp: any) => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
+          </select>
+        )}
+        {view === 'kanban' && (
+          <select aria-label={t('tasks.kanban_carriles')} value={carril} onChange={e => guardarCarril(e.target.value)}
+            className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
+            <option value="none">{t('tasks.kanban_sin_carriles')}</option>
+            <option value="assignee">{t('tasks.kanban_carril_persona')}</option>
+            <option value="priority">{t('tasks.kanban_carril_prioridad')}</option>
+          </select>
+        )}
         {view === 'list' && (
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
@@ -1064,28 +1218,47 @@ export default function TasksPage() {
         </div>
       )}
 
+      {cortadas && (
+        <div role="status" style={{ marginBottom: 'var(--space-3)', fontSize: 'var(--text-sm)', color: 'var(--warning)' }}>
+          {t('tasks.mostrando_de', { n: flatTasks.length, total: tasksData?.total ?? 0 })}
+        </div>
+      )}
       {isLoading ? (
         <SkeletonTable rows={10} />
       ) : view === 'kanban' ? (
         flatTasks.length === 0 && !projectFilter ? (
           <EmptyState icon="tasks" title={t('tasks.no_tasks')} description={t('tasks.col_task')} ctaLabel={t('tasks.new_task')} onCta={() => setShowCreate(true)} />
         ) : (
-          <div style={{ display: 'flex', flexDirection: isCompact ? 'column' : 'row', gap: 12, overflowX: isCompact ? 'visible' : 'auto', paddingBottom: 16 }}>
-            {kanbanStatuses.map(status => (
-              <KanbanColumn
-                key={status}
-                status={status}
-                tasks={(kanbanColumns[status] || []).filter((t: any) =>
-                  (!search || t.title?.toLowerCase().includes(search.toLowerCase())) &&
-                  (!priorityFilter || t.priority === priorityFilter)
-                )}
-                onTaskClick={setSelectedTask}
-                onTaskDragStart={handleTaskDragStart}
-                onColumnEnter={() => handleColumnEnter(status)}
-                onColumnLeave={handleColumnLeave}
-                dragOver={dropTarget === status}
-              />
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {filasDelTablero.map(fila => {
+              const columnas = agrupar(fila.tareas)
+              return (
+                <section key={fila.id} aria-label={fila.titulo || undefined}>
+                  {fila.titulo && (
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-2)', margin: '0 4px 6px' }}>
+                      {fila.titulo} <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>· {fila.tareas.length}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: isCompact ? 'column' : 'row', gap: 12, overflowX: isCompact ? 'visible' : 'auto', paddingBottom: 8 }}>
+                    {kanbanStatuses.map(status => (
+                      <KanbanColumn
+                        key={status}
+                        status={status}
+                        tasks={columnas[status] || []}
+                        onTaskClick={setSelectedTask}
+                        onTaskDragStart={handleTaskDragStart}
+                        onColumnEnter={() => handleColumnEnter(status)}
+                        onColumnLeave={handleColumnLeave}
+                        dragOver={dropTarget === status}
+                        wipLimit={fila.titulo ? null : limiteWip(status)}
+                        onSetWip={projectFilter && puedeConfigurar && !fila.titulo ? (n => guardarWip(status, n)) : undefined}
+                        onCrear={projectFilter && !fila.titulo ? crearEnColumna(status) : undefined}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )
+            })}
           </div>
         )
       ) : (

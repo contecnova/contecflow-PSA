@@ -73,13 +73,16 @@ export interface KanbanResponse {
   }>
 }
 
+/** Lo que devuelve `GET /tasks/{id}/movement-log` (`TaskMovementLogOut`). Revisión 2026-11:
+ *  el tipo decía `actor_name`/`at`, campos que el servidor no manda. */
 export interface MovementLogEntry {
   id: string
+  task_id: string
   from_status?: TaskStatus | null
   to_status: TaskStatus
-  actor_id: string
-  actor_name?: string
-  at: string
+  reason?: string | null
+  moved_at: string
+  moved_by?: { id: string; full_name?: string } | null
 }
 
 export const tasksApi = {

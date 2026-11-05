@@ -100,6 +100,9 @@ def list_tasks(
     # Auditoria 2026-11: el calendario los mandaba y se ignoraban.
     due_date_from: Optional[date] = None,
     due_date_to: Optional[date] = None,
+    # Revisión 2026-11: el servicio ya filtraba por sprint (tabla sprint_tasks); el
+    # endpoint no lo dejaba pedir y el Kanban comparaba un `task.sprint_id` inexistente.
+    sprint_id: Optional[str] = None,
     limit: Optional[int] = None,             # alias de page_size para compatibilidad
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
@@ -122,6 +125,7 @@ def list_tasks(
         priority=priority,
         search=search,
         overdue_only=overdue_only,
+        sprint_id=sprint_id,
     )
     if due_date_from:
         q = q.filter(Task.due_date >= due_date_from)

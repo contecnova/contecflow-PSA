@@ -59,6 +59,7 @@ _compute_burndown = svc.compute_sprint_burndown
 @router.get("", response_model=APIListResponse[Dict[str, Any]], summary="Listar sprints de todos los proyectos (global)")
 def list_all_sprints(
     status:   Optional[str] = None,
+    project_id: Optional[str] = None,
     limit:    int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -72,6 +73,7 @@ def list_all_sprints(
         is_superadmin=current_user.is_superadmin,
         status=status,
         limit=limit,
+        project_id=project_id,
     )
     items = [
         {

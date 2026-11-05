@@ -834,6 +834,11 @@ export const revenueRecognitionApi = {
 
 // ── CMDB ──────────────────────────────────────────────────────────────────────
 export const cmdbApi = {
+  // Revisión 2026-11: configuración del tablero por proyecto (carriles y límites WIP).
+  kanbanConfig:     (projectId: string) => api.get(`/cmdb/kanban/${projectId}`),
+  saveKanbanConfig: (projectId: string, data: { swimlane_by: string }) => api.post(`/cmdb/kanban/${projectId}`, data),
+  addKanbanColumn:  (projectId: string, data: { status: string; wip_limit: number | null }) => api.post(`/cmdb/kanban/${projectId}/columns`, data),
+  updateKanbanColumn: (columnId: string, data: { status: string; wip_limit: number | null }) => api.patch(`/cmdb/kanban/columns/${columnId}`, data),
   // Una sola CMDB (auditoría 2026-11): la del service desk, `/sd/cmdb`.
   sdList:         (params?: any)   => api.get('/sd/cmdb', { params }),
   sdCreate:       (data: unknown)     => api.post('/sd/cmdb', data),
