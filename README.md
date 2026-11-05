@@ -3627,6 +3627,30 @@ An action that fails is recorded and the next ones still run. A rule's action ca
 
 **Purpose.** A BPMN 2.0 process catalogue and diagram editor, and (since 2026-11-04) an engine that runs the saved diagrams.
 
+**Coverage (measured 2026-11-05).** The catalogue has **61** processes. To check that every business process is there, two lists were crossed with the catalogue:
+- the 97 menu options;
+- the 94 tables with a `status` column, which are the state machines the backend really runs.
+
+21 processes were missing and were added, with their steps taken from the real statuses:
+
+| Area | Added |
+|---|---|
+| Projects | Control de cambios de alcance (`change_requests`), Integración y despliegue (`git_pull_requests`/`git_deployments`), Reunión y seguimiento de acuerdos (`ai_meetings`), Simulación de escenarios (`scenario_models`) |
+| Finance | Factura de subcontratista (`subcontractor_invoices`), Orden de trabajo (`work_orders`) |
+| HR | Ciclo de OKR (`okr_objectives`), Plan de desarrollo individual (`development_plans`/`dev_goals`), Campaña 360 (`review_360_campaigns`/`review_cycles`) |
+| Service Desk | Releases (`sd_releases`), Ciclo de vida de artículo de conocimiento (`sd_kb_articles` + quality loop), Eventos de monitorización (`sd_monitoring_alerts`), Página de estado (`sd_status_incidents`), Resolución autónoma (`sd_autonomous_playbook_executions`) |
+| CRM | Solicitud de funcionalidad (`feature_requests`), Conversación gobernada (`portal_conversations`), Formulario público (`/public-forms` → ticket) |
+| Administration | Incidente de seguridad (`security_incidents`), Derechos RGPD (`gdpr_requests`), Activos y licencias (`alm_assets`/`alm_licenses`/`alm_contracts`), Alta y baja de empresa (tenant) |
+
+- **Left out on purpose, as not business processes:**
+  - Technical logs and queues: `ai_action_logs`, `email_logs`, `automation_events`, `webhook_trigger_logs`, `slack_notification_logs`, `workflow_queue`.
+  - Export and import jobs.
+  - Presence, calls and recordings in chat.
+  - AI provider state, drift snapshots and evaluation runs.
+  - The engines themselves (`bpmn_*`, `automation_workflows`, `sd_workflow_*`).
+- **Already covered by an existing process:** `client_surveys` (NPS), `sd_ticket_approvals` (service request) and `training_enrollments` (training).
+- **Buttons in dark theme (same measurement, 97 routes).** Catalogue titles were unreadable because a `<button>` does not inherit the text colour. 79 buttons on 9 screens were affected; after `button { color: inherit }` in `index.css`, 0.
+
 **How to use it.**
 1. Search ("Buscar proceso...") or pick one of the 7 categories.
 2. Open a card ("Ver diagrama BPMN →") to view the diagram.
@@ -3657,7 +3681,7 @@ Anything else (sub-processes, call activities, boundary events, inclusive/event-
 
 **Technical notes.**
 - The diagram uses the `bpmn-js` 18 library: Modeler in edit mode, Viewer otherwise.
-- **The 40 catalogue processes are hardcoded in the frontend** (`PROCESS_CATALOG`), and their XML is generated client-side.
+- **The 61 catalogue processes are hardcoded in the frontend** (`PROCESS_CATALOG`), and their XML is generated client-side.
 - Saved designs go to `bpmn_processes` and `bpmn_process_versions` (full XML per version; status draft/published/archived).
 - Endpoints:
   - `GET /api/v1/bpmn-processes?include_inactive=false`
