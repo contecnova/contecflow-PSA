@@ -3907,9 +3907,9 @@ This section covers every screen an administrator uses to configure contecflow-P
     - 97 menu routes and 2268 API calls with 0 errors.
     - The 179 GET endpoints the screens call return the same counts as with the owner, so RLS hides nothing the application shows.
     - `tests/test_rls_postgres.py` (runs with `RLS_TEST_OWNER_URL` and `RLS_TEST_APP_URL`) proves that hand-written SQL in company A does not see company B, and that it cannot insert into B.
-  - **Limits:**
-    - Tables that the ORM isolates through `project_id` or a user foreign key, without a company column, have no policy.
-    - The pgvector HNSW index can only be created by the owner. Without it, KB search still works, scanning the table.
+  - **Coverage (measured):** all 400 mapped tables have a company column, so all have a policy. The only exception is `organizations`, which is exempt on purpose (`_tenant_exempt`). No table depends on the ORM's `project_id`/`user_id` fallback.
+  - **Limit:** the pgvector HNSW index can only be created by the schema owner. With the application role, the first saved vector logs a warning and KB search keeps working, scanning the table. After enabling pgvector, create the index once as the owner, with the dimension of the sentence model, for example 384:
+    `CREATE INDEX IF NOT EXISTS ix_sd_kb_embedding_vec_384 ON sd_kb_articles USING hnsw ((embedding_vec::vector(384)) vector_cosine_ops);`
 
 - **Entering a company (since 2026-11-05).** Each deployment chooses one mode in `.env` (`TENANT_ENTRY_MODE`; code in `app/services/entrada_service.py`):
   - `email_selector` (default): email and password. With one active company the user enters it directly. With several, the login answers `organization_selection_required` with the list and a 5-minute `selection_token` that is only valid for `POST /auth/select-organization`; the login screen shows a picker. The header shows a company switcher (`POST /auth/switch-organization`) for users in more than one.

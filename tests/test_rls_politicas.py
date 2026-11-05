@@ -25,3 +25,12 @@ def test_el_contexto_es_el_que_decide_el_orm():
     assert rls.tenant_de({"organization_id": "o1", "is_superadmin": True}) == ""
     assert rls.tenant_de({"organization_id": "o1"}) == "", "sesión sin inicializar (trabajos de fondo): no filtra"
     assert rls.tenant_de({"organization_id": "o1", "is_superadmin": False, "bypass_tenant_filter": True}) == ""
+
+
+def test_ninguna_tabla_depende_del_respaldo_del_orm():
+    """Medido 2026-11-05: toda tabla mapeada tiene columna de empresa (o está exenta).
+    Si entra una que se aísla solo por project_id/user_id, no tendría política en la base."""
+    from app.db.rls import _modelos_por_tabla
+    sueltas = [t for t, m in _modelos_por_tabla().items()
+               if not {"organization_id", "org_id"} & set(m.__table__.c.keys()) and not getattr(m, "_tenant_exempt", False)]
+    assert sueltas == []
