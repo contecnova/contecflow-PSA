@@ -423,7 +423,7 @@ Rules enforced in `imputation_service.py`:
 - Reserving needs editor access to the document. The reservation expires by itself after `DOCUMENT_CHECKOUT_HOURS` (24, Admin → runtime settings), so a forgotten one does not block forever.
 - **Forzar liberación** is for whoever administers the document (its `admin` level, or the company admin); anyone else gets 403. Check-out, check-in and forced check-in are written to the audit log (`CHECKOUT`, `CHECKIN`, `CHECKIN_FORCED` with who held it).
 - **Fixed in the same block:** the collaborative-snapshot routes (`/documents/{id}/collab/snapshot` and `/history`) did not check the document's permissions — any internal user of the company could read or overwrite any document's snapshot. They now require viewer (read) and editor (write) access, and writing respects the reservation. No screen calls them today.
-- **Not changed (finding):** `PATCH /api/v1/documents/{id}/edit` is a stub: it answers `ok` and does nothing.
+- **Removed (2026-11-05):** `PATCH /api/v1/documents/{id}/edit` was a stub that answered `ok` and did nothing; no screen used it, and its only test checked the `200`.
 - **Endpoints:** `POST /api/v1/documents/{id}/checkout`, `POST /api/v1/documents/{id}/checkin[?force=true]`; `checkout` (who, since, until, `mine`) is in the document and in the list. Migration 138. Tests: `tests/test_reserva_de_documentos_2026_11.py` (validated by ignoring the expiry and by letting anyone force: both caught). Checked in the browser on a copy: reserving shows «Liberar»; a reservation held by someone else shows the banner and the chip.
 
 **Limitations.** The AI summary needs both text extraction and a configured AI provider.
@@ -3463,7 +3463,8 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 - **Writes are off unless asked for.** Both paths send the «Allow it to create or change data» checkbox (off by default); a write tool without it returns `pending_approval` and is not executed. There is no approve endpoint: to write, run again with the box ticked.
 - **Fixed 2026-11-05 — ticking the box before the first streamed run was ignored.** The streaming callback did not list `permitirEscritura` among its dependencies (eslint `react-hooks/exhaustive-deps`), so it kept the value it was created with until another change rebuilt it.
 - **Streamed runs are saved** to the history (`guardar_ejecucion_en_streaming`), with their steps.
-- **The worker path picks the provider without the company** (`get_default_provider(db)` with its default `is_superadmin=True`, `app/worker.py`). The screen uses the streamed path, which does pass the user's company. Measured 2026-11-05 by reading the code.
+- **Fixed 2026-11-05 — the worker path ran without a company.** `run_agent_task` opened its own session without publishing the requester's company (tools could read and write across companies) and picked the provider as superadmin. Now it publishes the requester's company and picks the provider for it. Test: `tests/test_agente_en_segundo_plano_empresa_2026_11.py` (validated by removing the publishing).
+- **The page is translated (2026-11-05).** Texts, examples, tool descriptions and messages were written in Spanish in the code while the rest followed the language setting; now all go through the i18n files (es/en/zh). Checked in the browser in English: no Spanish left.
 - **Spend is governed and recorded since 2026-11-05** (each turn through `turno_de_agente`, see AI Hub → Daily AI spend cap). Guardrails on the input are still only the keyword blocklist; `call_ai`'s guardrails do not run on agent turns.
 - **Streamed runs never reach History.** History items show only a status, and the non-streamed status is never polled.
 
@@ -4015,6 +4016,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 | | Campos extra | `fields` | admin |
 | | Alertas | `alert-config` | admin |
 | | Métricas | `metrics` | admin |
+| | Marca | `branding` | admin |
 | Sistema | Roles | `roles` | admin |
 | | Config. dinámica | `runtime-flags` | admin |
 | | Credenciales | `integrations` | admin |
@@ -4040,7 +4042,8 @@ This section covers every screen an administrator uses to configure contecflow-P
    | Approval workflows | yes | ≥ 1 active workflow of the company | `/settings/approval-workflows` |
    | SLA policies | yes | ≥ 1 active SLA policy of the company | `/service-desk?tab=config` |
    | SSO | recommended | ≥ 1 active, not deleted SSO provider of the company | `/enterprise?tab=sso` |
-   | Mandatory MFA | recommended | `organizations.require_mfa` | — (see limitations) |
+   | Mandatory MFA | recommended | `organizations.require_mfa` | — (the superadmin switches it in Organizations → Edit) |
+   | Document branding | recommended | the company has an `org_brandings` row | `?tab=branding` |
    | Daily AI spend cap | recommended | `AI_DAILY_BUDGET_USD` of the company > 0 | `?tab=runtime-flags` |
    | Database isolation | recommended | RLS armed (same measurement as `GET /settings/db-isolation`) | `?tab=system-state` |
 
@@ -4092,7 +4095,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 - **Tipos tarea (`task_types`) and Campos extra (`custom_fields`) have no reader** outside their own CRUD and settings tab.
 - **Nivel de log changes only the worker process that handled the request.** It is not persisted and not broadcast. With several Uvicorn workers or a Celery worker, other processes keep their level until restart.
 - `TemplatesSection` (`/advanced-config/templates`) is defined in `SettingsPageSections.tsx` but **no tab renders it** (dead code).
-- **Setup checklist: two settings have an API but no screen (measured 2026-11-05).** *Mandatory MFA* (`organizations.require_mfa`) can only be switched by the superadmin with `PATCH /api/v1/organizations/{id}`; `/organizations` has no switch for it, so the item has no button and its help says so. *Company branding* (`/api/v1/orgs/{id}/branding`) has no screen at all, so it is not in the checklist.
+- **Fixed later the same day — two settings had an API but no screen.** *Mandatory MFA* (`organizations.require_mfa`): Organizations → Edit now has the switch (superadmin, as the endpoint requires; the company admin cannot, so the checklist item has no button). *Company branding* (`/api/v1/orgs/{id}/branding`): Settings → **Marca** edits the four fields something reads — name, header, accent and header-text colours, used by the PDFs (`app/services/_pdf_marca.py`; the logo is not used there) — with a header preview and «back to defaults»; the other fields of the API are read by nothing, so they are not on screen. Checked on a copy: saved in the browser, and the PDF brand for that company came back with the saved name and colours. The checklist now has *Document branding* as a recommended item.
 - In the Users form, a non-superadmin admin's organization dropdown calls `GET /organizations` (`require_superadmin`), which fails for them.
 
 #### Runtime settings ("Config. dinámica")

@@ -821,6 +821,11 @@ def run_agent_task(
 
             execution.status = "running"
             db.commit()
+            # Revisión 2026-11: la sesión del trabajo no tenía empresa, así que las
+            # herramientas leían y escribían de todas, y el proveedor se elegía como
+            # superadmin. Ahora todo corre en la empresa de quien lo pidió.
+            from app.db.session import publicar_contexto_de_tenant
+            publicar_contexto_de_tenant(db, current_user)
 
             t0 = time.time()
             SYSTEM = _build_agent_system_prompt(db, current_user)
@@ -835,7 +840,8 @@ def run_agent_task(
             from app.services import ai_tools as _herr
             from app.core.encryption import decrypt_value
 
-            active_prov = _gdp(db)
+            active_prov = _gdp(db, is_superadmin=bool(current_user.is_superadmin),
+                               organization_id=current_user.organization_id)
             # Auditoria 2026-09: esto preguntaba por la MARCA —«es anthropic?»—
             # y con cualquier otro proveedor el agente no ejecutaba nada. Ahora
             # pregunta por la CAPACIDAD; la traduccion de dialectos vive en

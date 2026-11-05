@@ -94,6 +94,7 @@ def get_organization(org_id: str, db: Session) -> dict:
         "deletion_purge_after": org.deletion_purge_after.isoformat() if org.deletion_purge_after else None,
         "admin_email": org.admin_email, "timezone": org.timezone,
         "locale": org.locale, "primary_color": org.primary_color,
+        "require_mfa": bool(org.require_mfa),
         "users": [{"id": u.id, "full_name": u.full_name, "email": u.email, "role": u.role} for u in users],
     }
 

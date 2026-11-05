@@ -93,6 +93,10 @@ export const settingsApi = {
 
   /** Qué falta por configurar en la empresa, medido (revisión 2026-11). */
   setupChecklist: (): Promise<AxiosResponse<unknown>> => api.get('/settings/setup-checklist'),
+  // Revisión 2026-11: marca de la empresa (la usan los PDF).
+  branding: (orgId: string): Promise<AxiosResponse<unknown>> => api.get(`/orgs/${orgId}/branding`),
+  saveBranding: (orgId: string, data: Record<string, string>): Promise<AxiosResponse<unknown>> => api.put(`/orgs/${orgId}/branding`, data),
+  resetBranding: (orgId: string): Promise<AxiosResponse<unknown>> => api.delete(`/orgs/${orgId}/branding`),
 
   /** ¿Está armado el aislamiento entre empresas en la base (RLS)? */
   dbIsolation: (): Promise<AxiosResponse<{ armed: boolean; role?: string; tables_with_rls?: number; tables_expected?: number; reason?: string | null }>> =>

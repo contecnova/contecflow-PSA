@@ -22,29 +22,29 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> =
 // app/services/ai_chat/tool_execution_service.py). Antes los 10 mostrados
 // aquí no coincidían con los 37 reales del backend → user confundido.
 const TOOLS = [
-  { icon: '📁', name: 'search_projects',         desc: 'Buscar proyectos por filtros' },
-  { icon: '📊', name: 'get_project_status',      desc: 'Estado completo de un proyecto' },
-  { icon: '🎯', name: 'get_dashboard_summary',   desc: 'Resumen ejecutivo del sistema' },
-  { icon: '💰', name: 'get_budget_status',       desc: 'Estado presupuestario' },
-  { icon: '⚠️', name: 'get_project_risks',        desc: 'Riesgos de un proyecto' },
-  { icon: '⏰', name: 'get_overdue_tasks',        desc: 'Tareas vencidas' },
-  { icon: '🎫', name: 'get_open_tickets',        desc: 'Tickets abiertos de soporte' },
-  { icon: '👥', name: 'get_users_list',          desc: 'Listado de usuarios y rol' },
-  { icon: '📅', name: 'get_imputations',         desc: 'Imputaciones de horas' },
-  { icon: '📈', name: 'get_profitability',       desc: 'Rentabilidad por proyecto' },
-  { icon: '➕', name: 'create_task',              desc: 'Crear tarea (acción de escritura)' },
-  { icon: '✏️', name: 'update_task',              desc: 'Actualizar tarea' },
-  { icon: '🚨', name: 'create_risk',             desc: 'Crear riesgo en proyecto' },
-  { icon: '🔁', name: 'reassign_tickets',        desc: 'Reasignar tickets en masa' },
-  { icon: '🔍', name: 'search_all',              desc: 'Búsqueda transversal' },
+  { icon: '📁', name: 'search_projects',         desc: 'nexusagent.herramienta_search_projects' },
+  { icon: '📊', name: 'get_project_status',      desc: 'nexusagent.herramienta_get_project_status' },
+  { icon: '🎯', name: 'get_dashboard_summary',   desc: 'nexusagent.herramienta_get_dashboard_summary' },
+  { icon: '💰', name: 'get_budget_status',       desc: 'nexusagent.herramienta_get_budget_status' },
+  { icon: '⚠️', name: 'get_project_risks',        desc: 'nexusagent.herramienta_get_project_risks' },
+  { icon: '⏰', name: 'get_overdue_tasks',        desc: 'nexusagent.herramienta_get_overdue_tasks' },
+  { icon: '🎫', name: 'get_open_tickets',        desc: 'nexusagent.herramienta_get_open_tickets' },
+  { icon: '👥', name: 'get_users_list',          desc: 'nexusagent.herramienta_get_users_list' },
+  { icon: '📅', name: 'get_imputations',         desc: 'nexusagent.herramienta_get_imputations' },
+  { icon: '📈', name: 'get_profitability',       desc: 'nexusagent.herramienta_get_profitability' },
+  { icon: '➕', name: 'create_task',              desc: 'nexusagent.herramienta_create_task' },
+  { icon: '✏️', name: 'update_task',              desc: 'nexusagent.herramienta_update_task' },
+  { icon: '🚨', name: 'create_risk',             desc: 'nexusagent.herramienta_create_risk' },
+  { icon: '🔁', name: 'reassign_tickets',        desc: 'nexusagent.herramienta_reassign_tickets' },
+  { icon: '🔍', name: 'search_all',              desc: 'nexusagent.herramienta_search_all' },
 ]
 const EXAMPLES = [
-  { icon: '📊', text: 'Muéstrame un resumen del estado de todos los proyectos activos' },
-  { icon: '⚠️', text: 'Lista las tareas vencidas y dime qué proyectos están en riesgo' },
-  { icon: '➕', text: 'Crea una tarea "Revisión QA final" en el primer proyecto activo con prioridad alta' },
-  { icon: '👥', text: '¿Qué recursos tienen menos del 50% de utilización esta semana?' },
-  { icon: '🎫', text: 'Lista los tickets urgentes sin resolver y asigna los huérfanos' },
-  { icon: '📈', text: 'Dame el análisis de productividad del equipo del último mes' },
+  { icon: '📊', text: 'nexusagent.ejemplo_1' },
+  { icon: '⚠️', text: 'nexusagent.ejemplo_2' },
+  { icon: '➕', text: 'nexusagent.ejemplo_3' },
+  { icon: '👥', text: 'nexusagent.ejemplo_4' },
+  { icon: '🎫', text: 'nexusagent.ejemplo_5' },
+  { icon: '📈', text: 'nexusagent.ejemplo_6' },
 ]
 
 
@@ -197,7 +197,7 @@ export default function ContecflowAgentPage() {
   const { mutate: run, isPending } = useMutation({
     mutationFn: (inst: string) => nexusAgentApi.run(inst, permitirEscritura).then(r => r.data),
     onSuccess: data => { setResult(data); refetch() },
-    onError: e => toast.error(extractErr(e, 'Error al ejecutar el agente')),
+    onError: e => toast.error(extractErr(e, traducir('nexusagent.error_ejecutar'))),
   })
 
   const runStream = useCallback(async (inst: string) => {
@@ -221,13 +221,13 @@ export default function ContecflowAgentPage() {
       })
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ detail: 'Error' }))
-        toast.error(err.detail || 'Error en streaming')
+        toast.error(err.detail || traducir('nexusagent.error_streaming'))
         setIsStreaming(false)
         return
       }
 
       if (!resp.body) {
-        toast.error('El servidor no devolvio flujo de respuesta')
+        toast.error(traducir('nexusagent.error_sin_flujo'))
         setIsStreaming(false)
         return
       }
@@ -253,17 +253,17 @@ export default function ContecflowAgentPage() {
               setResult({ status: 'done', result: evt.result, steps: evt.steps || [] })
               refetch()
             } else if (evt.type === 'error') {
-              toast.error(evt.message || 'Error en agente')
+              toast.error(evt.message || traducir('nexusagent.error_agente'))
             }
           } catch { /* ignore parse errors */ }
         }
       }
     } catch (e) {
-      if ((e as { name?: string })?.name !== 'AbortError') toast.error('Error de conexión en streaming')
+      if ((e as { name?: string })?.name !== 'AbortError') toast.error(traducir('nexusagent.error_conexion'))
     } finally {
       setIsStreaming(false)
     }
-  }, [isStreaming, permitirEscritura, refetch, toast])
+  }, [isStreaming, permitirEscritura, refetch, toast, traducir])
 
   const execute = () => {
     if (!instruction.trim()) return
@@ -285,7 +285,7 @@ export default function ContecflowAgentPage() {
       <PageHeader
         icon={<Bot size={18} />}
         title={t('ai.agent_title')}
-        subtitle="Ejecuta instrucciones en lenguaje natural sobre tus proyectos y datos"
+        subtitle={traducir('nexusagent.subtitulo')}
       showListExport={false}
       />
 
@@ -293,8 +293,8 @@ export default function ContecflowAgentPage() {
       {defaultProvider && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />
-          Usando <strong style={{ color: 'var(--text-1)' }}>{defaultProvider.name}</strong> — {defaultProvider.default_model}
-          <span style={{ marginLeft: 8, color: 'var(--text-3)' }}>· Configura proveedores en IA & Conectores</span>
+          {traducir('nexusagent.usando')} <strong style={{ color: 'var(--text-1)' }}>{defaultProvider.name}</strong> — {defaultProvider.default_model}
+          <span style={{ marginLeft: 8, color: 'var(--text-3)' }}>· {traducir('nexusagent.configura_proveedores')}</span>
         </div>
       )}
 
@@ -320,7 +320,7 @@ export default function ContecflowAgentPage() {
                     style={{ width: 28, height: 16, borderRadius: 8, background: streaming ? 'var(--accent)' : 'var(--surface-4)', position: 'relative', transition: 'background 0.2s', cursor: 'pointer', border: 'none', padding: 0 }}>
                     <div style={{ position: 'absolute', top: 2, left: streaming ? 14 : 2, width: 12, height: 12, borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
                   </button>
-                  Streaming en vivo
+                  {traducir('nexusagent.streaming')}
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                   <input type="checkbox" checked={permitirEscritura} onChange={e => setPermitirEscritura(e.target.checked)} />
@@ -328,7 +328,7 @@ export default function ContecflowAgentPage() {
                 </label>
               </div>
               <Button onClick={execute} disabled={!instruction.trim() || isRunning}>
-                {isRunning ? '⏳ Ejecutando...' : '▶ Ejecutar agente'}
+                {isRunning ? `⏳ ${traducir('nexusagent.ejecutando')}` : `▶ ${traducir('nexusagent.ejecutar')}`}
               </Button>
             </div>
           </div>
@@ -338,7 +338,7 @@ export default function ContecflowAgentPage() {
             <div style={{ ...card, padding: 24, marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', animation: 'pulse 1s infinite' }} />
-                <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)' }}>Agente ejecutando en tiempo real…</span>
+                <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)' }}>{traducir('nexusagent.en_tiempo_real')}</span>
               </div>
               {liveSteps.length === 0 && !liveText && (
                 <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{traducir('nexusagent.analizando_instruccion')}</div>
@@ -363,7 +363,7 @@ export default function ContecflowAgentPage() {
           {result && !isPending && (
             <div style={{ ...card, padding: 24, marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>Resultado</div>
+                <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{traducir('nexusagent.resultado')}</div>
                 <span style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 20, background: STATUS_CFG[result.status ?? '']?.bg, color: STATUS_CFG[result.status ?? '']?.color, fontWeight: 600 }}>
                   {result.status && STATUS_CFG[result.status] ? t(`nexusagent.estado_${result.status}`) : result.status}
                 </span>
@@ -374,7 +374,7 @@ export default function ContecflowAgentPage() {
               {(result.steps?.length ?? 0) > 0 && (
                 <div>
                   <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-                    Pasos ejecutados ({result.steps?.length ?? 0})
+                    {traducir('nexusagent.pasos_ejecutados', { n: result.steps?.length ?? 0 })}
                   </div>
                   {(result.steps ?? []).map((s: PasoDeAgente, i: number) => <StepBadge key={i} step={s} />)}
                 </div>
@@ -410,13 +410,13 @@ export default function ContecflowAgentPage() {
           {/* Examples */}
           <div style={{ ...card, padding: '16px 18px', marginBottom: 14 }}>
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-              Ejemplos
+              {traducir('nexusagent.ejemplos')}
             </div>
             {EXAMPLES.map((ex, i) => (
-              <button key={i} onClick={() => { setInstruction(ex.text); textareaRef.current?.focus() }}
+              <button key={i} onClick={() => { setInstruction(traducir(ex.text)); textareaRef.current?.focus() }}
                 style={{ width: '100%', display: 'flex', gap: 8, padding: '8px 0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', borderBottom: i < EXAMPLES.length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none', textAlign: 'left' }}>
                 <span style={{ flexShrink: 0 }}>{ex.icon}</span>
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.4 }}>{ex.text}</span>
+                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.4 }}>{traducir(ex.text)}</span>
               </button>
             ))}
           </div>
@@ -424,18 +424,18 @@ export default function ContecflowAgentPage() {
           {/* Tools */}
           <div style={{ ...card, padding: '16px 18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Herramientas</div>
+              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{traducir('nexusagent.herramientas')}</div>
               <button onClick={() => setShowTools(!showTools)}
                 style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
-                {showTools ? 'Ocultar' : 'Ver todas'}
+                {showTools ? traducir('nexusagent.ocultar') : traducir('nexusagent.ver_todas')}
               </button>
             </div>
-            {(showTools ? TOOLS : TOOLS.slice(0, 5)).map(t => (
-              <div key={t.name} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', alignItems: 'center' }}>
-                <span style={{ fontSize: "var(--text-md)" }}>{t.icon}</span>
+            {(showTools ? TOOLS : TOOLS.slice(0, 5)).map(tool => (
+              <div key={tool.name} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', alignItems: 'center' }}>
+                <span style={{ fontSize: "var(--text-md)" }}>{tool.icon}</span>
                 <div>
-                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>{t.name}</div>
-                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{t.desc}</div>
+                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>{tool.name}</div>
+                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{traducir(tool.desc)}</div>
                 </div>
               </div>
             ))}

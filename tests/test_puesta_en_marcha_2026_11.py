@@ -35,7 +35,7 @@ def test_once_puntos_medidos_y_los_totales_cuadran(client, admin_token):
     lista = _lista(client, admin_token)
     ids = [p["id"] for p in lista["items"]]
     assert ids == ["ai_provider", "email", "support_inbox", "users", "clients", "approval_workflows", "sla",
-                   "sso", "mfa", "ai_budget", "db_isolation"]
+                   "sso", "mfa", "branding", "ai_budget", "db_isolation"]
     assert all(isinstance(p["measured"], dict) and p["measured"] for p in lista["items"])
     necesarios = [p for p in lista["items"] if p["required"]]
     assert lista["required_total"] == len(necesarios) == 7

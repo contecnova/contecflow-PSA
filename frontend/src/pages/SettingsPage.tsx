@@ -1,4 +1,5 @@
 import PuestaEnMarchaSection from './settings-sections/PuestaEnMarchaSection'
+import MarcaSection from './settings-sections/MarcaSection'
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Tabs, Page } from '../components/ui'
@@ -51,6 +52,7 @@ const TAB_GROUPS = [
       { id: 'fields',       label: 'Campos extra',   roles: ['admin'] },
       { id: 'alert-config', label: 'Alertas',        roles: ['admin'] },
       { id: 'metrics',      label: 'Métricas',       roles: ['admin'] },
+      { id: 'branding',     label: 'Marca',          roles: ['admin'] },
     ],
   },
   {
@@ -127,6 +129,7 @@ export default function SettingsPage() {
       {activeTab === 'setup'         && <PuestaEnMarchaSection />}
       {activeTab === 'alert-config'  && <AlertConfigSection />}
       {activeTab === 'metrics'       && <MetricsSection />}
+      {activeTab === 'branding'      && <MarcaSection />}
       {activeTab === 'task-types'    && <TaskTypesSection />}
       {activeTab === 'rates'         && <RateTablesSection />}
       {activeTab === 'vacations'     && <VacationSection />}

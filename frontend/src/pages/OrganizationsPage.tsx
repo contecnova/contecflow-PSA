@@ -47,6 +47,7 @@ const organizationUpdateSchema = z.object({
   locale: z.string().optional(),
   primary_color: z.string().optional(),
   domain: z.string().trim().toLowerCase().regex(/^([a-z0-9-]+\.)+[a-z]{2,}$/, 'Dominio inválido').or(z.literal('')).optional(),
+  require_mfa: z.boolean().optional(),
 })
 
 
@@ -91,6 +92,7 @@ interface DetalleDeOrganizacion extends OrganizacionEnLista {
   timezone?: string
   locale?: string
   primary_color?: string
+  require_mfa?: boolean
   max_users?: number
   max_projects?: number
   users?: UsuarioDeOrganizacion[]
@@ -108,6 +110,7 @@ interface FormularioDeEdicion {
   locale: string
   primary_color: string
   domain: string
+  require_mfa: boolean
 }
 
 type OrgCreateForm = z.infer<typeof organizationCreateSchema>
@@ -250,6 +253,7 @@ export default function OrganizationsPage() {
         locale: detail.locale || '',
         primary_color: detail.primary_color || '',
         domain: detail.domain || '',
+        require_mfa: !!detail.require_mfa,
       })
       setShowEdit(true)
     }
@@ -507,6 +511,14 @@ export default function OrganizationsPage() {
               <input value={editForm?.domain ?? ''} placeholder="app.cliente.com" onChange={e=>{ setEditForm(f => f && ({...f,domain:e.target.value})); editValidation.clearFieldError('domain') }} style={editValidation.inputStyle(fs, 'domain')} />
               {editValidation.errors.domain && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.domain}</div>}
             </div>
+            {/* Revisión 2026-11: la MFA obligatoria sólo se podía activar por API. */}
+            <label style={{ display:'flex', alignItems:'flex-start', gap:8, fontSize: "var(--text-sm)", cursor:'pointer' }}>
+              <input type="checkbox" checked={!!editForm?.require_mfa} onChange={e => setEditForm(f => f && ({ ...f, require_mfa: e.target.checked }))} style={{ marginTop:3 }} />
+              <span>
+                <strong>{t('organizations.exigir_mfa')}</strong>
+                <span style={{ display:'block', color:'var(--text-3)', fontSize: "var(--text-xs)" }}>{t('organizations.exigir_mfa_ayuda')}</span>
+              </span>
+            </label>
             <div>
               <label style={ls}>{t('organizations.email_del_admin')}</label>
               <input value={editForm?.admin_email ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,admin_email:e.target.value})); editValidation.clearFieldError('admin_email') }} style={editValidation.inputStyle(fs, 'admin_email')} />

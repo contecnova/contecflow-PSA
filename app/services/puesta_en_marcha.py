@@ -6,10 +6,9 @@ flujos de aprobación, SLA y, como recomendados, SSO, MFA obligatoria, tope de
 gasto en IA y aislamiento en la base. Cada punto dice lo que midió y a qué
 pantalla ir para resolverlo.
 
-La marca de la empresa no está: tiene API (`/orgs/{id}/branding`) pero ninguna
-pantalla, así que un enlace llevaría a ninguna parte. La MFA obligatoria sí se
-mide, pero va sin enlace por lo mismo: sólo el superadmin la activa, por API
-(`PATCH /organizations/{id}`); la pantalla de organizaciones no tiene el interruptor.
+Desde el 05-11-2026 la marca de los documentos tiene pantalla (Ajustes → Marca)
+y entra como recomendada. La MFA obligatoria la activa el superadmin en
+Organizaciones; el admin de la empresa no puede, así que va sin enlace.
 """
 from __future__ import annotations
 
@@ -36,6 +35,7 @@ def lista(db: Session, org: str) -> dict:
     from app.models.mfa import Organization
     from app.models.service_desk.catalog import SLAPolicy
     from app.models.user import User
+    from app.models.white_label import OrgBranding
     from app.services.settings_service import get_runtime_float, get_runtime_str
 
     proveedores = _contar(db, AIProvider, org, AIProvider.is_active.is_(True))
@@ -67,6 +67,8 @@ def lista(db: Session, org: str) -> dict:
         _punto("sso", sso >= 1, {"active_sso": sso}, "/enterprise?tab=sso", necesario=False),
         _punto("mfa", bool(getattr(empresa, "require_mfa", False)),
                {"require_mfa": bool(getattr(empresa, "require_mfa", False))}, None, necesario=False),
+        _punto("branding", _contar(db, OrgBranding, org) >= 1, {"configured": _contar(db, OrgBranding, org) >= 1},
+               "/settings?tab=branding", necesario=False),
         _punto("ai_budget", tope > 0, {"daily_budget_usd": tope}, "/settings?tab=runtime-flags", necesario=False),
         _punto("db_isolation", bool(aislamiento.get("armed")), {"reason": aislamiento.get("reason")},
                "/settings?tab=system-state", necesario=False),

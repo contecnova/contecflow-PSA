@@ -15,7 +15,7 @@ from app.api.v1.endpoints import (
     accounting_hub, okrs, performance, training, documents, resources,
     invoices, documents_collab, analytics_extended, portfolio,
     git_integration, esign, report_builder, nps, m365, m365_bi,
-    backlog, export_template, events, documents_edit,
+    backlog, export_template, events,
     gantt_suggestions, templates, revenue, predictions,
     bi_collaboration, bi_intelligence, bi_platform,
     bi_smart_alerts, bi_bookmarks, bi_report_builder_v2,
@@ -110,7 +110,7 @@ router.include_router(m365_bi.router,                                          t
 router.include_router(backlog.router,          tags=["Backlog"])
 router.include_router(export_template.router,  tags=["Export Templates"])
 router.include_router(events.router,           tags=["Events"])
-router.include_router(documents_edit.router,   tags=["Documents"])
+# Revisión 2026-11: fuera `PATCH /documents/{id}/edit`, un stub que contestaba «ok» sin hacer nada.
 router.include_router(gantt_suggestions.router, tags=["Gantt Suggestions"])
 router.include_router(baselines.router,    tags=["Gantt Baselines"])
 router.include_router(templates.router,         prefix="/templates",     tags=["Templates Enhanced"])
