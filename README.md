@@ -3642,6 +3642,14 @@ Header buttons: **Diagnóstico**, **Sync all models**.
 - Table `ai_providers`. API keys are encrypted with `encrypt_value` (Fernet `v2:` with a per-record salt, or KMS) and never returned (`has_api_key` only).
 - Alternative: `.env` `AI_PROVIDER` / `AI_API_KEY` / `AI_MODEL` / `AI_BASE_URL`.
 
+**Since 2026-11-05 (what contecmind had, added to this hub without a second screen):**
+- **The `.env` provider is shown** as a card marked «Desde .env» (it worked but appeared nowhere, so the hub and AI Governance said «no provider» while Gemini answered). It can be tested (`POST /ai-providers/env/test`) and imported (`POST /ai-providers/env/import`): it becomes a normal, editable provider of the company with the key encrypted. The other screens that show «active provider» (AI Governance, NexusAgent) read the same list.
+- **«Por función» tab:** provider and model per function (assistant, agent, planning, service desk drafts, auto-resolution, changes, KB, documents, contracts, meetings, BI narrative, Ask the Data, semantic tie-break, client portal, voice, AI modules). Empty means the default provider. Stored per company (`app_settings.ai_routing`); `call_ai(module=…)` applies it when the call does not ask for a specific provider, and falls back to the default if the chosen one is set aside.
+- **Test and discover before saving:** in the provider form, «Probar sin guardar» (`POST /ai-providers/test-config`) and «Descubrir modelos con esta clave» (`POST /ai-providers/discover-models`) use what is typed; nothing is stored.
+- **Fallback order:** each provider has «Orden de respaldo» (`priority`, migration 130); if the chosen one fails, the others are tried from lowest to highest.
+- **A failure no longer disables a provider for good:** it is set aside for `AI_PROVIDER_ERROR_COOLDOWN_SECONDS` (300) and then retried; a successful answer puts it back to active. Before, it stayed in «error», out of selection and fallback, until someone edited it.
+- **Reasoning models:** Gemini 2.5 (and o-series) spend tokens thinking. With the 10-token test cap the test always failed (measured with the real API: 7 of 10 tokens on reasoning, answer without text, `KeyError 'parts'`). The test now uses `AI_TEST_MAX_TOKENS` (256), short classification calls use `AI_SHORT_ANSWER_MAX_TOKENS` (256), an answer without text raises a clear error, and reasoning tokens count as output (they are billed).
+
 **Technical notes.**
 - Endpoints (`app/api/v1/endpoints/ai_providers.py`):
   - `GET/POST /api/v1/ai-providers`
@@ -3661,6 +3669,8 @@ Header buttons: **Diagnóstico**, **Sync all models**.
 - **A provider can drop out of rotation after one failure.** A single timeout or 429 marks it `error`, and it stays out until an admin acts (see the intro).
 
 ### AI Governance — `/governance`
+
+**Fixed 2026-11-05:** «Proveedor activo» showed «No configurado» while the `.env` provider was answering (it now reads the same provider list as the hub). «Tokens» showed «0K» (read as «OK»): each module was rounded to thousands before adding; it now shows the exact total.
 *Roles:* admin (route and backend, `require_admin`).
 
 **Purpose.** Per-module AI on/off switches and limits, usage stats and an action log.

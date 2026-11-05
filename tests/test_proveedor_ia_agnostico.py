@@ -26,9 +26,11 @@ import app.core.config as config_mod
 
 def _recargar(monkeypatch, **variables):
     """Recarga la configuración con estas variables de entorno y nada más."""
+    # Vacias y no solo borradas: recargar vuelve a leer el `.env` del disco, y
+    # con `AI_PROVIDER=gemini` en el de quien ejecuta, «sin configuracion» fallaba.
     for nombre in ("AI_PROVIDER", "AI_API_KEY", "AI_MODEL", "AI_BASE_URL",
                    "ANTHROPIC_API_KEY"):
-        monkeypatch.delenv(nombre, raising=False)
+        monkeypatch.setenv(nombre, "")
     for nombre, valor in variables.items():
         monkeypatch.setenv(nombre, valor)
     importlib.reload(config_mod)

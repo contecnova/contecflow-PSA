@@ -445,7 +445,7 @@ const en = {
                     subtitle: 'Manage AI modules, usage, and audit logs',
                     kpi_active_modules: 'Active modules',
                     kpi_total_calls: 'Total calls',
-                    kpi_tokens: 'Tokens (thousands)',
+                    kpi_tokens: 'Tokens',
                     kpi_active_provider: 'Active provider',
                     kpi_not_configured: 'Not configured',
                     tab_modules: 'Modules',

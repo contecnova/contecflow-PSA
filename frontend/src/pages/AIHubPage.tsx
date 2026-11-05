@@ -1,7 +1,7 @@
 import { PROVIDER_META } from '../constants/api'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, localeActivo } from '../utils/helpers'
-import { useId, useState } from 'react'
+import { Fragment, useId, useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { predictiveObservabilityApi, aiProvidersApi } from '../services/api'
@@ -39,9 +39,31 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
     api_base_url: provider?.api_base_url || '',
     default_model: provider?.default_model || '',
     max_tokens: provider?.max_tokens || 2000,
-    temperature: provider?.temperature || 0.7,
+    temperature: provider?.temperature ?? 0.7,
     is_default: provider?.is_default || false,
+    priority: provider?.priority ?? 100,
   })
+  // Probar / descubrir con lo escrito, sin guardar (revisión 2026-11, de contecmind).
+  const [probando, setProbando] = useState(false)
+  const [descubriendo, setDescubriendo] = useState(false)
+  async function probarSinGuardar() {
+    setProbando(true)
+    try {
+      const r = await aiProvidersApi.testConfig(form)
+      toast.success(`Responde (${r.data?.latency_ms ?? '?'} ms, ${r.data?.model ?? form.default_model})`)
+    } catch (e) { toast.error(extractErr(e, 'No responde con esta configuración')) }
+    finally { setProbando(false) }
+  }
+  async function descubrirModelos() {
+    setDescubriendo(true)
+    try {
+      const r = await aiProvidersApi.discoverModels(form)
+      const lista = Array.isArray(r.data?.models) ? r.data.models : []
+      setLiveModels(lista)
+      toast.success(`${lista.length} modelos disponibles`)
+    } catch (e) { toast.error(extractErr(e, 'No se pudieron obtener los modelos')) }
+    finally { setDescubriendo(false) }
+  }
   const s = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const catEntry = catalog[providerType] || {}
@@ -194,6 +216,13 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
             <input id={`${idPrefix}-default-model`} value={form.default_model} onChange={s('default_model')} style={fs}
               placeholder={t('ai.model_name_placeholder')} />
           )}
+          {(!isEdit || form.api_key || providerType === 'ollama') && (
+            <div style={{ marginTop: 8 }}>
+              <Button variant="secondary" onClick={() => { void descubrirModelos() }} disabled={descubriendo} loading={descubriendo}>
+                {descubriendo ? 'Buscando modelos…' : 'Descubrir modelos con esta clave'}
+              </Button>
+            </div>
+          )}
           {isEdit && (
             <div style={{ marginTop: 8 }}>
               <Button
@@ -216,6 +245,12 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
         <div>
           <label htmlFor={`${idPrefix}-temperature`} style={ls}>{t('ai.temperature')}</label>
           <input id={`${idPrefix}-temperature`} type="number" step="0.1" min="0" max="2" value={form.temperature} onChange={s('temperature')} style={fs} />
+        </div>
+
+        <div>
+          <label htmlFor={`${idPrefix}-priority`} style={ls}>Orden de respaldo</label>
+          <input id={`${idPrefix}-priority`} type="number" min="0" value={form.priority} onChange={s('priority')} style={fs}
+            title="Si el proveedor elegido falla, se prueban los demás de menor a mayor" />
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20 }}>
@@ -251,6 +286,9 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
           padding: '12px 20px', borderTop: '1px solid var(--surface-4)',
           background: 'var(--surface-1)', flexShrink: 0 }}>
           <Button variant="secondary" onClick={onClose} type="button">{t('common.cancel')}</Button>
+          <Button variant="secondary" type="button" onClick={() => { void probarSinGuardar() }} disabled={probando || !form.provider} loading={probando}>
+            Probar sin guardar
+          </Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.provider} loading={isPending}>
             {isPending ? t('common.saving') : isEdit ? t('ai.save_changes') : t('ai.add_provider_action')}
           </Button>
@@ -269,7 +307,7 @@ function TestModal({ provider, onClose }: { provider: any; onClose: () => void }
     setTesting(true)
     setResult(null)
     try {
-      const res = await aiProvidersApi.test(provider.id)
+      const res = provider.source === 'env' ? await aiProvidersApi.testEnv() : await aiProvidersApi.test(provider.id)
       setResult(res.data)
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: unknown } }; message?: string }
@@ -440,6 +478,11 @@ export default function AIHubPage(): JSX.Element {
   const [tab, setTab] = useState('providers')
   const [diagResults, setDiagResults] = useState<any>(null)
 
+  const { mutate: importarEntorno } = useMutation({
+    mutationFn: () => aiProvidersApi.importEnv(),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-providers'] }); toast.success('Importado: ya se puede editar') },
+    onError: e => toast.error(extractErr(e, 'No se pudo importar')),
+  })
   const { data: providers = [], isLoading } = useQuery({
     queryKey: ['ai-providers'],
     queryFn: () => aiProvidersApi.list().then(r => r.data),
@@ -546,6 +589,7 @@ export default function AIHubPage(): JSX.Element {
       <Tabs
         items={[
           { id: 'providers',     label: t('ai.providers') },
+          { id: 'routing',       label: 'Por función' },
           { id: 'stats',         label: t('ai.usage') },
           { id: 'governance',    label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>🛡 Governance</span> },
           { id: 'observability', label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Activity size={11} /> Observabilidad</span> },
@@ -558,6 +602,7 @@ export default function AIHubPage(): JSX.Element {
       />
 
       {tab === 'governance' && <GovernanceTab />}
+      {tab === 'routing' && <RoutingTab providers={providers} />}
 
       {/* PROVIDERS TAB */}
       {tab === 'providers' && (
@@ -641,6 +686,7 @@ export default function AIHubPage(): JSX.Element {
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                         <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: alpha(st.color, '20'), color: st.color, border: `1px solid ${alpha(st.color, '40')}` }}>{st.label}</span>
                         {p.is_default && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--accent)', fontWeight: 700 }}>⭐ {t('ai.default_badge')}</span>}
+                        {p.source === 'env' && <span title="Configurado en el fichero .env del servidor; se usa si no hay ninguno en la aplicación" style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', fontWeight: 700 }}>Desde .env</span>}
                       </div>
                     </div>
 
@@ -651,7 +697,7 @@ export default function AIHubPage(): JSX.Element {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12, padding: '10px 12px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)" }}>
                       <div><span style={{ color: 'var(--text-2)' }}>{t('ai.requests')}:</span> <strong>{p.total_requests}</strong></div>
-                      <div><span style={{ color: 'var(--text-2)' }}>{t('ai.total_cost')}:</span> <strong style={{ color: 'var(--warning)' }}>${p.total_cost_usd.toFixed(4)}</strong></div>
+                      <div><span style={{ color: 'var(--text-2)' }}>{t('ai.total_cost')}:</span> <strong style={{ color: 'var(--warning)' }}>${Number(p.total_cost_usd || 0).toFixed(4)}</strong></div>
                     </div>
 
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -659,12 +705,20 @@ export default function AIHubPage(): JSX.Element {
                         style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                         🔌 {t('ai.provider_test_action')}
                       </button>
-                      {!p.is_default && (
+                      {p.source === 'env' && (
+                        <button aria-label={`Importar ${p.name} a la aplicación`} onClick={() => importarEntorno()}
+                          title="Lo crea como proveedor de la aplicación (clave cifrada) para poder editarlo"
+                          style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid var(--accent-border)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+                          ⬇ Importar a la aplicación
+                        </button>
+                      )}
+                      {p.source !== 'env' && !p.is_default && (
                         <button aria-label={`${t('ai.provider_default_aria')} ${p.name}`} onClick={() => setDefault(p.id)}
                           style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid var(--accent-border)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                           ⭐ {t('ai.provider_default_action')}
                         </button>
                       )}
+                      {p.source !== 'env' && <>
                       <button aria-label={`${t('ai.provider_edit_aria')} ${p.name}`} onClick={() => setModal(p)}
                         style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                         {t('ai.provider_edit_action')}
@@ -673,6 +727,7 @@ export default function AIHubPage(): JSX.Element {
                         style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                         {t('ai.provider_delete_action')}
                       </button>
+                      </>}
                     </div>
                   </div>
                 )
@@ -860,5 +915,52 @@ export default function AIHubPage(): JSX.Element {
       )}
       {testModal && <TestModal provider={testModal} onClose={() => setTestModal(null)} />}
     </Page>
+  )
+}
+
+
+/** Proveedor y modelo por función (revisión 2026-11, de contecmind). Vacío = el proveedor por defecto. */
+function RoutingTab({ providers }: { providers: any[] }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const { data } = useQuery({ queryKey: ['ai-routing'], queryFn: () => aiProvidersApi.getRouting().then(r => r.data) })
+  const [rutas, setRutas] = useState<Record<string, { provider_id?: string | null; model?: string | null }> | null>(null)
+  const actuales = rutas ?? data?.routes ?? {}
+  const { mutate: guardar, isPending } = useMutation({
+    mutationFn: () => aiProvidersApi.saveRouting(actuales),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-routing'] }); setRutas(null); toast.success('Guardado') },
+    onError: e => toast.error(extractErr(e, 'No se pudo guardar')),
+  })
+  const cambiar = (k: string, campo: 'provider_id' | 'model', v: string) =>
+    setRutas({ ...actuales, [k]: { ...(actuales[k] || {}), [campo]: v || null } })
+  return (
+    <div style={{ maxWidth: 900 }}>
+      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 12px' }}>
+        Qué proveedor y modelo usa cada función. Sin elegir, la función usa el proveedor por defecto; si el elegido
+        falla o está apartado por errores, se cae al por defecto y luego al orden de respaldo.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) 1fr 1fr', gap: 8, alignItems: 'center' }}>
+        {(data?.modules || []).map((m: { key: string; label: string }) => {
+          const ruta = actuales[m.key] || {}
+          const prov = providers.find((p: any) => p.id === ruta.provider_id)
+          const lista = `modelos-${m.key}`
+          return (
+            <Fragment key={m.key}>
+              <label htmlFor={`ruta-${m.key}`} style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{m.label}</label>
+              <select id={`ruta-${m.key}`} value={ruta.provider_id || ''} onChange={e => cambiar(m.key, 'provider_id', e.target.value)} style={fs}>
+                <option value="">Por defecto</option>
+                {providers.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <input aria-label={`Modelo para ${m.label}`} list={lista} value={ruta.model || ''}
+                placeholder={prov?.default_model || 'Modelo por defecto'} onChange={e => cambiar(m.key, 'model', e.target.value)} style={fs} />
+              <datalist id={lista}>{(prov?.available_models || []).map((x: string) => <option key={x} value={x} />)}</datalist>
+            </Fragment>
+          )
+        })}
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <Button onClick={() => guardar()} disabled={isPending || rutas === null} loading={isPending}>Guardar</Button>
+      </div>
+    </div>
   )
 }

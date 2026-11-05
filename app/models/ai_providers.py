@@ -51,6 +51,8 @@ class AIProvider(Base):
     available_models = Column(Text, nullable=True)
 
     # Configuración
+    # Orden de respaldo: si el elegido falla se prueban los demas de menor a mayor.
+    priority = Column(Integer, default=100, nullable=False, server_default="100")
     is_default       = Column(Boolean, default=False)            # Proveedor por defecto
     max_tokens       = Column(Integer, default=2000)
     temperature      = Column(Float, default=0.7)

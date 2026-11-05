@@ -44,6 +44,15 @@ class AISettingsMixin:
     # Editables en Admin → Ajustes → Timeouts. El de la nube es el ya existente
     # `OUTBOUND_AI_TIMEOUT_SECONDS`. Ollama y los modelos locales tardan mas.
     AI_LOCAL_HTTP_TIMEOUT_SECONDS: int = Field(default=120, env="AI_LOCAL_HTTP_TIMEOUT_SECONDS")
+    # Un proveedor que falla se aparta durante este tiempo y luego se reintenta
+    # solo (antes quedaba en «error» hasta que alguien lo editaba).
+    AI_PROVIDER_ERROR_COOLDOWN_SECONDS: int = Field(default=300, env="AI_PROVIDER_ERROR_COOLDOWN_SECONDS")
+    # Tope de la llamada de «Probar»: con 10, los modelos que razonan (Gemini 2.5,
+    # o-series) gastaban todo en pensar y la prueba fallaba con el proveedor sano.
+    AI_TEST_MAX_TOKENS: int = Field(default=256, env="AI_TEST_MAX_TOKENS")
+    # Tope de las preguntas de respuesta corta (clasificar, elegir un id): el
+    # razonamiento de los modelos 2.5 / o-series tambien cuenta.
+    AI_SHORT_ANSWER_MAX_TOKENS: int = Field(default=256, env="AI_SHORT_ANSWER_MAX_TOKENS")
     AI_AGENT_TURN_TIMEOUT_SECONDS: int = Field(default=90, env="AI_AGENT_TURN_TIMEOUT_SECONDS")
     AI_MODELS_LIST_TIMEOUT_SECONDS: int = Field(default=30, env="AI_MODELS_LIST_TIMEOUT_SECONDS")
 

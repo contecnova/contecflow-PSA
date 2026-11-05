@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin, require_internal_user
 from app.db.session import get_db
+from app.core.config import settings
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
@@ -25,6 +26,7 @@ from app.services.ai_provider_service import (
     update_provider as svc_update_provider,
     update_provider_test_result,
 )
+from app.services import ai_provider_service as _ia
 
 _logger = logging.getLogger("ai_providers")
 
@@ -40,6 +42,7 @@ def _out(p):
         "api_base_url": p.api_base_url,
         "has_api_key": bool(p.api_key),
         "max_tokens": p.max_tokens, "temperature": p.temperature,
+        "priority": getattr(p, "priority", 100),
         "total_requests": p.total_requests,
         "total_cost_usd": round(p.total_cost_usd, 4),
         "last_used_at": str(p.last_used_at) if p.last_used_at else None,
@@ -60,7 +63,46 @@ def list_providers(db: Session = Depends(get_db), current_user: User = Depends(g
     providers = svc_list_providers(
         db, is_superadmin=current_user.is_superadmin, organization_id=current_user.organization_id
     )
-    return APIListResponse.ok(items=[_out(p) for p in providers])
+    items = [_out(p) for p in providers]
+    # Revision 2026-11: el proveedor del `.env` tambien se ve (antes funcionaba
+    # sin aparecer en ningun sitio). No es una fila: se puede probar e importar.
+    entorno = _ia.proveedor_desde_entorno()
+    if entorno is not None:
+        items.append({
+            "id": "env", "source": "env", "name": entorno.name, "provider": entorno.provider,
+            "status": "active", "is_default": not any(i["is_default"] for i in items),
+            "default_model": entorno.default_model, "available_models": [],
+            "api_base_url": entorno.api_base_url, "has_api_key": bool(entorno.api_key),
+            "max_tokens": entorno.max_tokens, "temperature": entorno.temperature, "priority": None,
+            "total_requests": 0, "total_cost_usd": 0, "last_used_at": None, "last_error": None, "created_at": None,
+        })
+    return APIListResponse.ok(items=items)
+
+
+@router.post("/env/import", summary="Importar el proveedor del .env a la aplicación")
+def import_env_provider(db: Session = Depends(get_db), cu=Depends(require_admin)):
+    """Crea un proveedor editable con lo del `.env` (la clave se guarda cifrada)."""
+    try:
+        p = _ia.importar_proveedor_de_entorno(db, cu)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    return APIResponse.ok(data=_out(p))
+
+
+@router.post("/env/test", summary="Probar el proveedor del .env")
+def test_env_provider(_=Depends(require_admin)):
+    p = _ia.proveedor_desde_entorno()
+    if p is None:
+        raise HTTPException(404, "No hay proveedor de IA en el .env")
+    t0 = time.time()
+    try:
+        resultado = _ia.call_provider(p, [{"role": "user", "content": "Di solo 'OK' sin nada más."}],
+                                      system="Eres un asistente de prueba.", max_tokens=settings.AI_TEST_MAX_TOKENS)
+    except Exception as e:
+        raise _http_del_error_de_proveedor(str(e))
+    return APIResponse.ok(data={"ok": True, "response": resultado.get("text", ""),
+                                "latency_ms": int((time.time() - t0) * 1000),
+                                "model": resultado.get("model", p.default_model)})
 
 
 @router.post("")
@@ -153,6 +195,53 @@ def _http_del_error_de_proveedor(mensaje: str) -> HTTPException:
     return HTTPException(502, f"El proveedor devolvió un error: {mensaje[:300]}")
 
 
+@router.post("/test-config", summary="Probar una configuración sin guardarla")
+def test_unsaved(data: dict = Body(...), _=Depends(require_admin)):
+    """Revision 2026-11 (de contecmind): probar la clave escrita antes de guardarla."""
+    try:
+        p = _ia.proveedor_sin_guardar(data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    t0 = time.time()
+    try:
+        resultado = _ia.call_provider(p, [{"role": "user", "content": "Di solo 'OK' sin nada más."}],
+                                      system="Eres un asistente de prueba.", max_tokens=settings.AI_TEST_MAX_TOKENS)
+    except Exception as e:
+        raise _http_del_error_de_proveedor(str(e))
+    return APIResponse.ok(data={"ok": True, "response": resultado.get("text", ""),
+                                "latency_ms": int((time.time() - t0) * 1000),
+                                "model": resultado.get("model", p.default_model)})
+
+
+@router.post("/discover-models", summary="Modelos disponibles con la clave escrita (sin guardar)")
+def discover_unsaved(data: dict = Body(...), _=Depends(require_admin)):
+    try:
+        modelos = _ia.list_models_for_provider(_ia.proveedor_sin_guardar(data))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise _http_del_error_de_proveedor(str(e))
+    return APIResponse.ok(data={"models": modelos})
+
+
+@router.get("/routing", summary="Proveedor y modelo por función")
+def get_routing(db: Session = Depends(get_db), cu=Depends(require_admin)):
+    return APIResponse.ok(data={
+        "modules": [{"key": k, "label": v} for k, v in _ia.MODULOS_DE_IA.items()],
+        "routes": _ia.rutas_por_modulo(db, cu.organization_id),
+    })
+
+
+@router.put("/routing", summary="Guardar proveedor y modelo por función")
+def put_routing(data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(require_admin)):
+    rutas = data.get("routes") or {}
+    for ruta in rutas.values():
+        pid = (ruta or {}).get("provider_id")
+        if pid and not get_provider(db, pid, is_superadmin=cu.is_superadmin, organization_id=cu.organization_id):
+            raise HTTPException(400, "Ese proveedor no es de esta empresa")
+    return APIResponse.ok(data={"routes": _ia.guardar_rutas(db, cu.organization_id, rutas)})
+
+
 @router.post("/{pid}/test")
 def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_admin)):
     """Probar la conexión con el proveedor enviando un mensaje de prueba."""
@@ -164,7 +253,7 @@ def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_adm
     try:
         resultado = _call_provider(
             p, [{"role": "user", "content": "Di solo 'OK' sin nada más."}],
-            system="Eres un asistente de prueba.", max_tokens=10,
+            system="Eres un asistente de prueba.", max_tokens=settings.AI_TEST_MAX_TOKENS,
         )
     except ValueError as e:
         _anotar_resultado_de_prueba(db, p, ok=False, error=str(e))

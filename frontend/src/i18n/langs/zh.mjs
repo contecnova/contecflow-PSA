@@ -582,7 +582,7 @@ const zh = {
     subtitle: "管理 AI 模块、用量和审计日志",
     kpi_active_modules: "已启用模块",
     kpi_total_calls: "总调用次数",
-    kpi_tokens: "Token（千）",
+    kpi_tokens: "Token",
     kpi_active_provider: "当前提供商",
     kpi_not_configured: "未配置",
     tab_modules: "模块",

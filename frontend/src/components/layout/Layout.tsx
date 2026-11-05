@@ -537,15 +537,19 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
   const isPinned = pinned?.includes(item.to || '')
   const [hover, setHover] = useState<boolean>(false)
 
+  // El «hover» va en el contenedor y no en el enlace: la estrella es hermana del
+  // enlace, y al mover el ratón hacia ella se salía del enlace y desaparecía
+  // antes de poder pulsarla (revisión 2026-11).
+  const verEstrella = !collapsed && Boolean(onPin) && (hover || isPinned)
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative' }} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
       <NavLink to={item.to || '#'} title={displayLabel} aria-label={displayLabel}
         style={({ isActive }) => ({
           display: 'flex', alignItems: 'center', gap: 8,
           paddingTop: collapsed ? 7 : 5,
           paddingBottom: collapsed ? 7 : 5,
           paddingLeft: collapsed ? 9 : 14,
-          paddingRight: (!collapsed && hover && onPin) ? 28 : (collapsed ? 9 : 8),
+          paddingRight: verEstrella ? 28 : (collapsed ? 9 : 8),
           borderRadius: 6, textDecoration: 'none', fontSize: "var(--text-sm-h)", fontWeight: 500,
           background: isActive ? 'var(--accent-muted)' : 'transparent',
           color: isActive ? 'var(--accent)' : 'var(--text-2)',
@@ -553,8 +557,6 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
           transition: 'background 0.1s, color 0.1s', whiteSpace: 'nowrap',
           minHeight: 28,
         })}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
       >
         <span style={{ flexShrink: 0, width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
           {item.icon}
@@ -569,7 +571,7 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
             padding: '1px 5px', fontSize: "var(--text-3xs-h)", fontWeight: 700, flexShrink: 0 }}>{badge}</span>
         )}
       </NavLink>
-      {!collapsed && hover && onPin && (
+      {verEstrella && (
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPin(item.to || '') }}
           aria-label={isPinned ? text.remove_favorite : text.add_favorite}
@@ -605,13 +607,15 @@ interface NavGroupProps {
   t?: TFn | null
   pinned?: string[]
   onPin: (to: string) => void
+  /** Textos del menú (nombre accesible de la estrella de favoritos). */
+  text?: Record<string, string>
   /** Acordeón: solo un grupo abierto a la vez (lo decide `Layout`). */
   open: boolean
   onToggle: () => void
   onActive: () => void
 }
 
-function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pinned, onPin, open, onToggle, onActive }: NavGroupProps) {
+function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pinned, onPin, text, open, onToggle, onActive }: NavGroupProps) {
   const location = useLocation()
   const isAnyChildActive = group.items.filter(i => !i.divider).some(
     i => location.pathname === i.to || location.pathname.startsWith(i.to + '/')
@@ -649,7 +653,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
       <div ref={groupRef} style={{ marginBottom: 3 }} onPointerEnter={handleEnter} onPointerLeave={handleLeave}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {realVisible.map(item => (
-            <NavItem key={item.to} item={item} collapsed alertCount={alertCount} approvalCount={approvalCount} t={t} pinned={pinned} onPin={onPin} />
+            <NavItem key={item.to} item={item} collapsed alertCount={alertCount} approvalCount={approvalCount} t={t} pinned={pinned} onPin={onPin} text={text} />
           ))}
         </div>
         {hoverOpen && (
@@ -708,7 +712,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
             {visibleItems.map((item, idx) =>
               item.divider
                 ? <div key={'div-' + idx} style={{ height: 1, background: 'var(--surface-4)', margin: '4px 8px 5px' }} />
-                : <NavItem key={item.to} item={item} collapsed={false} alertCount={alertCount} approvalCount={approvalCount} t={t} pinned={pinned} onPin={onPin} />
+                : <NavItem key={item.to} item={item} collapsed={false} alertCount={alertCount} approvalCount={approvalCount} t={t} pinned={pinned} onPin={onPin} text={text} />
             )}
           </div>
         </div>
@@ -1471,7 +1475,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             return (
               <NavGroup key={group.id} group={group} collapsed={collapsed}
                 alertCount={alertCount} approvalCount={approvalCount} hasRole={hasRole} t={t}
-                pinned={pinned} onPin={togglePin}
+                pinned={pinned} onPin={togglePin} text={text}
                 open={openGroup === group.id}
                 onToggle={() => setOpenGroup(g => (g === group.id ? null : group.id))}
                 onActive={() => setOpenGroup(group.id)} />

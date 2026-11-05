@@ -403,6 +403,25 @@ def db():
 
 
 @pytest.fixture(scope="session", autouse=True)
+def _sin_proveedor_de_ia_del_entorno():
+    """La suite no hereda el proveedor de IA del `.env` de quien la ejecuta.
+
+    Con `AI_PROVIDER=gemini` en el `.env` local, las pruebas que esperan «sin
+    proveedor» fallaban solo en esa maquina. Las que prueban el proveedor del
+    entorno lo ponen ellas con `monkeypatch`.
+    """
+    from app.core.config import settings as _s
+    antes = {k: getattr(_s, k) for k in ("AI_PROVIDER", "AI_API_KEY", "AI_MODEL", "AI_BASE_URL", "ANTHROPIC_API_KEY")}
+    for k in antes:
+        setattr(_s, k, "")
+    try:
+        yield
+    finally:
+        for k, v in antes.items():
+            setattr(_s, k, v)
+
+
+@pytest.fixture(scope="session", autouse=True)
 def _force_tfidf_embeddings():
     """Keep the semantic engine on the pure-Python TF-IDF encoder for the whole
     test suite.

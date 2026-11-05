@@ -120,7 +120,10 @@ RUTAS = _rutas_guardadas()
 # /portal/conversations/conversations/team/... (un segundo montaje del router de
 # conversaciones con el prefijo repetido); las 6 de /portal/conversations/team
 # siguen.
-RUTAS_ESPERADAS = 983
+# 989 desde 2026-11-05: entran la baja, la exportacion y «entrar como» de
+# empresas (superadmin) y, en el Hub de IA, probar/descubrir sin guardar y las
+# rutas por funcion (admin).
+RUTAS_ESPERADAS = 991  # +2: probar e importar el proveedor de IA del .env
 
 
 def test_se_sondean_todas_las_rutas_con_guarda():

@@ -93,7 +93,9 @@ export default function GovernancePage(): JSX.Element {
     : []
 
   const _totalCalls  = chartData.reduce((a, d) => a + d.calls, 0)
-  const totalTokens = chartData.reduce((a, d) => a + d.tokens, 0)
+  // Suma exacta (antes se redondeaba cada módulo a miles y unos cientos daban «0K»).
+  const totalTokens = moduleEntries.reduce((a, [, v]) => a + (v.tokens || 0), 0)
+  const tokensLegibles = totalTokens.toLocaleString(localeActivo())
   const activeCount = configs.filter(c => c.is_enabled).length
   const defaultProv = providers.find(p => p.is_default)
 
@@ -106,7 +108,7 @@ export default function GovernancePage(): JSX.Element {
         {[
           { icon: '🤖', label: t('governance.kpi_active_modules'),   value: `${activeCount}/${configs.length || 9}`, color: 'var(--success)' },
           { icon: '💬', label: t('governance.kpi_total_calls'),  value: (stats?.total_calls || 0).toLocaleString(localeActivo()), color: 'var(--accent)' },
-          { icon: '🔤', label: t('governance.kpi_tokens'),    value: `${totalTokens}K`, color: 'var(--warning)' },
+          { icon: '🔤', label: t('governance.kpi_tokens'),    value: tokensLegibles, color: 'var(--warning)' },
           { icon: '⚙️',  label: t('governance.kpi_active_provider'), value: defaultProv?.name || t('governance.kpi_not_configured'), color: defaultProv ? 'var(--success)' : 'var(--danger)' },
         ].map(k => (
           <div key={k.label} style={{ ...card, padding: '16px 20px' }}>

@@ -23,6 +23,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from app.core.config import settings
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
@@ -301,7 +302,8 @@ def suggest_service_for_query(
                     "content": f"Catálogo:\n{catalog_summary}\n\nConsulta: {query}",
                 }
             ]
-            ai_id = (call_ai(db, messages=messages, system=system_prompt, max_tokens=60) or "").strip()
+            ai_id = (call_ai(db, messages=messages, system=system_prompt,
+                             max_tokens=settings.AI_SHORT_ANSWER_MAX_TOKENS) or "").strip()
 
             matched = next((s for s in services if s.id == ai_id), None)
             if matched:

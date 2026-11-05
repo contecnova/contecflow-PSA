@@ -332,6 +332,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("SEMANTIC_EMBEDDINGS_BACKEND", "str", "Embeddings backend"),
         ("OPENAI_STT_MODEL", "str", "OpenAI STT model"),
         ("AI_COST_ALERT_USD_PER_DAY", "float", "AI daily cost alert ($)"),
+        ("AI_PROVIDER_ERROR_COOLDOWN_SECONDS", "int", "A failing provider is set aside for (s), then retried"),
         ("STT_PROVIDER", "str", "Primary STT provider"),
         ("STT_FALLBACK_PROVIDERS", "str", "STT fallback providers (CSV)"),
         ("AZURE_SPEECH_REGION", "str", "Azure Speech region"),

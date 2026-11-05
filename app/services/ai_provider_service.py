@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import time
+import json
 from datetime import datetime, timezone
 
 import httpx
@@ -244,11 +245,21 @@ def _call_gemini(api_key, model, messages, system, max_tokens, temperature) -> d
     if resp.status_code != 200:
         raise Exception(f"Gemini {resp.status_code}: {resp.text[:200]}")
     data  = resp.json()
-    text  = data["candidates"][0]["content"]["parts"][0]["text"]
+    candidato = (data.get("candidates") or [{}])[0]
+    partes = (candidato.get("content") or {}).get("parts") or []
+    text  = "".join(p.get("text", "") for p in partes if not p.get("thought"))
     usage = data.get("usageMetadata", {})
+    if not text:
+        # Revision 2026-11, medido con la API real: los modelos 2.5 «piensan»
+        # y con un tope bajo gastan todo en razonar; la respuesta llega sin
+        # `parts` y antes reventaba con KeyError 'parts'.
+        motivo = candidato.get("finishReason") or "sin texto"
+        raise ValueError(f"Gemini no devolvió texto ({motivo}; {usage.get('thoughtsTokenCount', 0)} tokens "
+                         f"de razonamiento de {max_tokens}): sube el máximo de tokens del proveedor")
     return {"text": text, "model": model,
             "tokens_in": usage.get("promptTokenCount", 0),
-            "tokens_out": usage.get("candidatesTokenCount", 0)}
+            # El razonamiento se factura como salida.
+            "tokens_out": usage.get("candidatesTokenCount", 0) + usage.get("thoughtsTokenCount", 0)}
 
 
 def espera_de_ia(clave: str) -> float:
@@ -485,6 +496,7 @@ def create_provider(db: Session, *, organization_id, created_by, data: dict,
         is_default=data.get("is_default", count == 0),
         max_tokens=data.get("max_tokens", 2000),
         temperature=data.get("temperature", 0.7),
+        priority=int(data.get("priority") or 100),
         created_by=created_by,
     )
     if p.is_default:
@@ -664,6 +676,19 @@ def proveedor_desde_entorno():
     )
 
 
+def _disponible():
+    """Proveedor elegible: no en error, o con el error ya enfriado.
+
+    Revision 2026-11: un fallo dejaba el proveedor en «error» para siempre
+    (fuera de la seleccion y del respaldo hasta que alguien lo editaba). Ahora
+    se aparta `AI_PROVIDER_ERROR_COOLDOWN_SECONDS` y vuelve a probarse solo.
+    """
+    from datetime import timedelta
+    from sqlalchemy import or_
+    limite = datetime.now(timezone.utc) - timedelta(seconds=int(settings.AI_PROVIDER_ERROR_COOLDOWN_SECONDS or 300))
+    return or_(AIProvider.status != "error", AIProvider.last_error_at.is_(None), AIProvider.last_error_at < limite)
+
+
 def get_default_provider(
     db: Session,
     *,
@@ -684,7 +709,7 @@ def get_default_provider(
     un solo cliente tiene que poder configurarse sin abrir la aplicación.
     """
     base_q = db.query(AIProvider).filter(
-        AIProvider.status != "error",
+        _disponible(),
         AIProvider.is_active == True,  # audit #36 soft-delete
     )
 
@@ -737,10 +762,12 @@ def _try_fallback_providers(
     """
     # Get all available active providers
     query = db.query(AIProvider).filter(
-        AIProvider.status != "error",
+        _disponible(),
         AIProvider.is_active == True,  # audit #36 soft-delete
     )
 
+    # Orden de respaldo configurable (`priority`), estable por fecha.
+    query = query.order_by(AIProvider.priority.asc(), AIProvider.created_at.asc())
     if not is_superadmin and organization_id:
         # Try org-specific first, then shared
         org_providers = query.filter(AIProvider.organization_id == organization_id).all()
@@ -906,6 +933,61 @@ def _aplicar_guardrail_de_entrada(db: Session, messages: list, governance_user,
     return None
 
 
+# Funciones de la aplicacion que llaman a la IA (el `module` de `call_ai`).
+MODULOS_DE_IA = {
+    "nexusassist": "Asistente (NexusAssist) y editor en línea",
+    "nexusagent": "Agente (NexusAgent)",
+    "ai_planning": "Planificación y estimación",
+    "smart_schedule": "Planificación inteligente de tareas",
+    "service_desk": "Service Desk: borradores de respuesta",
+    "auto_resolution": "Service Desk: autorresolución",
+    "change_management": "Gestión de cambios",
+    "knowledge_base": "Base de conocimiento",
+    "document_summary": "Resumen de documentos",
+    "contract_intelligence": "Contratos",
+    "meeting_assistant": "Reuniones",
+    "bi_storytelling": "Narrativa de BI",
+    "ask_the_data": "Preguntas sobre los datos (SQL)",
+    "semantic_assign": "Asignación semántica (desempate)",
+    "client_portal": "Chat del portal de cliente",
+    "voice": "Comandos de voz",
+    "v16": "Módulos de IA (RCA, KB, previsiones)",
+}
+_CLAVE_RUTAS = "ai_routing"
+
+
+def rutas_por_modulo(db: Session, organization_id) -> dict:
+    """{modulo: {"provider_id", "model"}} de la empresa (o las globales)."""
+    from app.models.settings import AppSetting
+    fila = None
+    if organization_id:
+        fila = db.query(AppSetting).filter(AppSetting.key == _CLAVE_RUTAS,
+                                           AppSetting.organization_id == organization_id).first()
+    if fila is None:
+        fila = db.query(AppSetting).filter(AppSetting.key == _CLAVE_RUTAS,
+                                           AppSetting.organization_id.is_(None)).first()
+    try:
+        datos = json.loads(fila.value) if fila and fila.value else {}
+    except ValueError:
+        datos = {}
+    return {k: v for k, v in datos.items() if k in MODULOS_DE_IA and isinstance(v, dict)}
+
+
+def guardar_rutas(db: Session, organization_id, rutas: dict) -> dict:
+    from app.models.settings import AppSetting
+    limpias = {k: {"provider_id": v.get("provider_id") or None, "model": (v.get("model") or "").strip() or None}
+               for k, v in (rutas or {}).items() if k in MODULOS_DE_IA and (v.get("provider_id") or v.get("model"))}
+    fila = db.query(AppSetting).filter(AppSetting.key == _CLAVE_RUTAS,
+                                       AppSetting.organization_id == organization_id).first()
+    if fila is None:
+        fila = AppSetting(key=_CLAVE_RUTAS, organization_id=organization_id,
+                          description="IA: proveedor y modelo por funcion")
+        db.add(fila)
+    fila.value = json.dumps(limpias)
+    db.commit()
+    return limpias
+
+
 def _seleccionar_proveedor(db: Session, provider_id, is_superadmin: bool, organization_id):
     """El proveedor primario: el pedido explicitamente, o el de la organizacion.
 
@@ -924,7 +1006,12 @@ def _seleccionar_proveedor(db: Session, provider_id, is_superadmin: bool, organi
 
 
 def _apuntar_uso_en_el_proveedor(p, result: dict, model) -> None:
-    """Suma peticiones, tokens y coste al proveedor que ha respondido."""
+    """Suma peticiones, tokens y coste al proveedor que ha respondido.
+
+    Si estaba en error y ha respondido, vuelve a «activo».
+    """
+    if getattr(p, "status", None) == "error":
+        p.status = "active"
     p.total_requests += 1
     p.total_tokens_in += result["tokens_in"]
     p.total_tokens_out += result["tokens_out"]
@@ -1139,6 +1226,18 @@ def call_ai(
     if bloqueo:
         return bloqueo
 
+    # Proveedor y modelo por funcion (Hub de IA → «Por función»), si los hay y
+    # la llamada no pide uno concreto. Si el elegido no esta disponible, el
+    # de siempre.
+    if not provider_id:
+        ruta = rutas_por_modulo(db, organization_id).get(module) or {}
+        if ruta.get("provider_id"):
+            elegido = _seleccionar_proveedor(db, ruta["provider_id"], is_superadmin, organization_id)
+            if elegido is not None and elegido.is_active and (
+                    elegido.status != "error" or db.query(AIProvider.id).filter(
+                        AIProvider.id == elegido.id, _disponible()).first()):
+                provider_id = elegido.id
+        model = model or ruta.get("model")
     p = _seleccionar_proveedor(db, provider_id, is_superadmin, organization_id)
 
     t0 = time.time()
@@ -1224,3 +1323,47 @@ def diagnose_provider(provider) -> dict:
         result["status"] = "error"
 
     return result
+
+
+
+# ── Probar y descubrir modelos ANTES de guardar (revision 2026-11, de contecmind)
+
+def proveedor_sin_guardar(datos: dict):
+    """Un proveedor en memoria con lo escrito en el formulario (nada se guarda)."""
+    from types import SimpleNamespace
+    tipo = (datos.get("provider") or "").strip()
+    if tipo not in PROVIDER_CATALOG:
+        raise ValueError(f"Proveedor no soportado: {tipo}")
+    clave = (datos.get("api_key") or "").strip()
+    return SimpleNamespace(
+        provider=tipo, name=datos.get("name") or tipo, api_key=encrypt_value(clave) if clave else None,
+        api_base_url=(datos.get("api_base_url") or "").strip() or None,
+        default_model=(datos.get("default_model") or PROVIDER_CATALOG[tipo].get("default_model")),
+        max_tokens=int(datos.get("max_tokens") or 50), temperature=datos.get("temperature"),
+    )
+
+
+
+def importar_proveedor_de_entorno(db: Session, actor) -> "AIProvider":
+    """El proveedor del `.env`, como fila editable de la empresa de `actor`."""
+    entorno = proveedor_desde_entorno()
+    if entorno is None:
+        raise ValueError("No hay proveedor de IA en el .env")
+    org = None if getattr(actor, "is_superadmin", False) else actor.organization_id
+    ya = db.query(AIProvider).filter(AIProvider.provider == entorno.provider, AIProvider.is_active == True,  # noqa: E712
+                                     AIProvider.organization_id == org).first()
+    if ya is not None:
+        raise ValueError(f"Ya hay un proveedor {entorno.provider} en la aplicación: «{ya.name}»")
+    hay_por_defecto = db.query(AIProvider.id).filter(AIProvider.is_default == True,  # noqa: E712
+                                                     AIProvider.is_active == True).first()
+    p = AIProvider(
+        name=entorno.provider.capitalize(), provider=entorno.provider, organization_id=org,
+        api_key=entorno.api_key,  # ya va cifrada (ver ProveedorDeEntorno)
+        api_base_url=entorno.api_base_url, default_model=entorno.default_model,
+        max_tokens=entorno.max_tokens, temperature=entorno.temperature,
+        is_default=hay_por_defecto is None, status="active", is_active=True, created_by=actor.id,
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return p

@@ -725,7 +725,7 @@ const es = {
     subtitle: 'Gestiona módulos de IA, uso y registros de auditoría',
     kpi_active_modules: 'Módulos activos',
     kpi_total_calls: 'Total de llamadas',
-    kpi_tokens: 'Tokens (miles)',
+    kpi_tokens: 'Tokens',
     kpi_active_provider: 'Proveedor activo',
     kpi_not_configured: 'No configurado',
     tab_modules: 'Módulos',

@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
+from app.core.config import settings
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import Problem, ProblemRcaTemplate
@@ -554,7 +555,7 @@ def classify_from_wizard(
             db=db,
             messages=[{"role": "user", "content": prompt}],
             system="Classify the root cause. Reply with exactly one word from the allowed list.",
-            max_tokens=20,
+            max_tokens=settings.AI_SHORT_ANSWER_MAX_TOKENS,
         )
         raw = (_texto(result)).strip().lower()
         # Accept first word that matches a valid type

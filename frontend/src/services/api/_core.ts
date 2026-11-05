@@ -1320,6 +1320,14 @@ export const aiProvidersApi = {
   syncModels:  (id: any)       => api.post(`/ai-providers/${id}/sync-models`),
   setDefault:  (id: any)       => api.post(`/ai-providers/${id}/set-default`),
   syncAll:     ()         => api.post('/ai-providers/sync-models/all'),
+  // Revisión 2026-11 (de contecmind): probar y descubrir sin guardar, y por función.
+  testConfig:     (data: unknown) => api.post('/ai-providers/test-config', data),
+  discoverModels: (data: unknown) => api.post('/ai-providers/discover-models', data),
+  getRouting:     ()              => api.get('/ai-providers/routing'),
+  saveRouting:    (routes: unknown) => api.put('/ai-providers/routing', { routes }),
+  // El proveedor configurado en .env: se ve, se prueba y se puede importar.
+  testEnv:        ()              => api.post('/ai-providers/env/test'),
+  importEnv:      ()              => api.post('/ai-providers/env/import'),
 }
 
 // ── Service Desk Config ───────────────────────────────────────────────────────
