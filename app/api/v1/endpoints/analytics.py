@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.db.session import get_db
 from app.core.deps import require_admin_or_pm, get_current_user, require_internal_user
@@ -1031,6 +1031,39 @@ def ask_the_data(
         user_id=str(current_user.id),
         is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
     ))
+
+
+# ── Banco de preguntas validadas (revisión 2026-11) ──────────────────────────
+class EjemploAskIn(BaseModel):
+    question: str = Field(..., min_length=3, max_length=500)
+    sql: str = Field(..., min_length=10, max_length=5000)
+
+
+@router.get("/ask/examples", summary="Preguntas validadas de Ask-the-Data de la empresa (admin o PM)")
+def list_ask_examples(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+    from app.services import ask_banco
+    return APIResponse.ok(data=ask_banco.lista(db, current_user.organization_id))
+
+
+@router.post("/ask/examples", summary="Marcar una respuesta de Ask-the-Data como correcta (admin o PM)")
+def save_ask_example(payload: EjemploAskIn, db: Session = Depends(get_db),
+                     current_user: User = Depends(require_admin_or_pm)):
+    from app.services import ask_banco
+    from app.services.ask_the_data import SQLValidationError
+    try:
+        fila = ask_banco.guardar(db, current_user.organization_id, current_user.id, payload.question, payload.sql)
+    except SQLValidationError as e:
+        raise HTTPException(422, f"SQL no permitido: {e}")
+    return APIResponse.ok(data={"id": fila.id, "question": fila.question})
+
+
+@router.delete("/ask/examples/{example_id}", summary="Quitar una pregunta validada (admin o PM)")
+def delete_ask_example(example_id: str, db: Session = Depends(get_db),
+                       current_user: User = Depends(require_admin_or_pm)):
+    from app.services import ask_banco
+    if not ask_banco.borrar(db, current_user.organization_id, example_id):
+        raise HTTPException(404, "No existe")
+    return APIResponse.ok(data={"deleted": example_id})
 
 
 @router.get("/olap/kpis", summary="KPIs del OLAP (DuckDB)")

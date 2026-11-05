@@ -201,6 +201,7 @@ def _generate_sql(
     org_id: Optional[str] = None,
     is_superadmin: bool = False,
     feedback: Optional[str] = None,
+    ejemplos: str = "",
 ) -> str:
     """Generate SQL using the active configured AI provider (not Anthropic-only)."""
     from app.services.ai_provider_service import call_ai
@@ -217,7 +218,7 @@ def _generate_sql(
     sql_text = call_ai(
         db,
         messages=[{"role": "user", "content": user_prompt}],
-        system=_ASK_SYSTEM,
+        system=_ASK_SYSTEM + (f"\n\n{ejemplos}" if ejemplos else ""),
         module="ask_the_data",
         user_id=user_id,
         max_tokens=400,
@@ -346,6 +347,73 @@ def _verificar(pregunta: str, sql: str) -> dict:
         return {"verdict": "not_checked", "checks": [], "detail": "La verificación falló: nada comprobado."}
 
 
+def _con_ejemplo_validado(pregunta: str, db: Session, org_id: Optional[str]) -> Optional[dict]:
+    """La misma pregunta que una validada: su consulta, sin llamar al modelo. None si no hay o falla."""
+    from app.services import ask_banco
+    try:
+        ejemplo = ask_banco.exacta(db, org_id, pregunta)
+        if ejemplo is None:
+            return None
+        sql, params = validate_sql(ejemplo.sql, org_id)
+        sql = _normalize_sql_for_duckdb(sql)
+        filas = _execute_on_olap(sql, params)
+    except Exception:
+        logger.warning("ask_the_data: el ejemplo validado no se pudo usar; se pregunta al modelo", exc_info=True)
+        return None
+    ask_banco.usada(db, ejemplo)
+    return {"question": pregunta, "sql": sql, "columns": list(filas[0].keys()) if filas else [], "rows": filas,
+            "row_count": len(filas), "truncated": len(filas) >= MAX_ROWS, "error": None,
+            "verification": _verificar(pregunta, ejemplo.sql), "model_sql": ejemplo.sql,
+            "from_validated_example": {"id": ejemplo.id, "question": ejemplo.question}}
+
+
+def _nada_encontrado(filas: list[dict]) -> bool:
+    """Cero filas, o una sola fila de agregados a 0 / NULL («¿cuántos…?» → 0)."""
+    if not filas:
+        return True
+    return len(filas) == 1 and all(v in (0, None) for v in filas[0].values())
+
+
+def _sin_filas(resultado: dict, pregunta: str, db: Session, raw_sql: str, **quien) -> dict:
+    """Cero filas: los valores que sí existen y, si alguno se parece, un reintento con ellos.
+
+    Revisión 2026-11 (lo que contecintelligence tenía). Ver ask_valores_reales.
+    """
+    from app.core.config import settings
+    from app.services import ask_valores_reales
+    from app.services.settings_service import get_runtime_bool, get_runtime_float, get_runtime_int
+    org = quien.get("org_id")
+    max_v = int(get_runtime_int(db, "ASK_DATA_HINT_MAX_VALUES", org) or settings.ASK_DATA_HINT_MAX_VALUES)
+    minimo = get_runtime_float(db, "ASK_DATA_HINT_MIN_SIMILARITY", org)
+    minimo = float(settings.ASK_DATA_HINT_MIN_SIMILARITY if minimo is None else minimo)
+    try:
+        lista = ask_valores_reales.pistas(_normalize_sql_for_duckdb(raw_sql), org, max_valores=max_v,
+                                          min_parecido=minimo)
+    except Exception:
+        logger.warning("ask_the_data: no se pudieron leer los valores reales", exc_info=True)
+        return {**resultado, "zero_result_hints": None}
+    resultado = {**resultado, "zero_result_hints": lista}
+    reintentar = get_runtime_bool(db, "ASK_DATA_RETRY_WITH_REAL_VALUES", org)
+    reintentar = settings.ASK_DATA_RETRY_WITH_REAL_VALUES if reintentar is None else reintentar
+    if not reintentar or not any(not p["exists"] and p["closest"] for p in lista):
+        return resultado
+    try:
+        nuevo = _generate_sql(pregunta, db, feedback=ask_valores_reales.como_feedback(lista), **quien)
+        sql, params = validate_sql(nuevo, org)
+        sql = _normalize_sql_for_duckdb(sql)
+        filas = _execute_on_olap(sql, params)
+    except Exception:
+        logger.info("ask_the_data: el reintento con valores reales no sirvió", exc_info=True)
+        return resultado
+    if _nada_encontrado(filas):
+        return resultado
+    return {**resultado, "sql": sql, "columns": list(filas[0].keys()), "rows": filas, "row_count": len(filas),
+            "truncated": len(filas) >= MAX_ROWS,
+            "verification": _verificar(pregunta, _normalize_sql_for_duckdb(nuevo)),
+            "model_sql": _normalize_sql_for_duckdb(nuevo),
+            "retried_with_real_values": {"first_sql": resultado["sql"]}}
+
+
 def ask(
     question: str,
     db: Session,
@@ -370,6 +438,16 @@ def ask(
 
     raw_sql = ""
     validated_sql = ""
+    # Revisión 2026-11: el banco de preguntas validadas de la empresa.
+    from app.services import ask_banco
+    reutilizada = _con_ejemplo_validado(question, db, org_id)
+    if reutilizada is not None:
+        return reutilizada
+    try:
+        ejemplos = ask_banco.parecidas(db, org_id, question)
+    except Exception:
+        logger.warning("ask_the_data: no se pudieron leer los ejemplos validados", exc_info=True)
+        ejemplos = []
     try:
         feedback = None
         last_exc: Optional[Exception] = None
@@ -382,6 +460,7 @@ def ask(
                 org_id=org_id,
                 is_superadmin=is_superadmin,
                 feedback=feedback,
+                ejemplos=ask_banco.como_ejemplos(ejemplos),
             )
             logger.debug("LLM generated SQL (attempt %s): %s", attempt + 1, raw_sql)
 
@@ -402,8 +481,7 @@ def ask(
             raise last_exc
 
         columns = list(rows[0].keys()) if rows else []
-
-        return {
+        resultado = {
             "question": question,
             "sql": validated_sql,
             "columns": columns,
@@ -414,7 +492,13 @@ def ask(
             # Revisión 2026-11: ¿responde a esta pregunta o a otra parecida? Se
             # mira la consulta del modelo, antes del filtro de empresa y el LIMIT.
             "verification": _verificar(question, _normalize_sql_for_duckdb(raw_sql)),
+            "model_sql": _normalize_sql_for_duckdb(raw_sql),
+            "examples_used": [e.id for e in ejemplos],
         }
+        if _nada_encontrado(rows):
+            return _sin_filas(resultado, question, db, raw_sql, user_id=user_id, org_id=org_id,
+                              is_superadmin=is_superadmin)
+        return resultado
 
     except SQLValidationError as exc:
         logger.warning("SQL validation blocked: %s | raw=%s", exc, raw_sql)

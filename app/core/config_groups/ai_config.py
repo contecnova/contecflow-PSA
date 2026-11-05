@@ -56,6 +56,14 @@ class AISettingsMixin:
     AI_DAILY_BUDGET_USD: float = Field(default=0.0, env="AI_DAILY_BUDGET_USD")
     # Porcentaje del tope a partir del cual el Hub de IA avisa.
     AI_DAILY_BUDGET_WARN_PCT: float = Field(default=80.0, env="AI_DAILY_BUDGET_WARN_PCT")
+    # Revisión 2026-11 (Ask-the-Data): valores reales cuando un filtro no encuentra nada.
+    ASK_DATA_HINT_MAX_VALUES: int = Field(default=10, env="ASK_DATA_HINT_MAX_VALUES")
+    ASK_DATA_HINT_MIN_SIMILARITY: float = Field(default=0.5, env="ASK_DATA_HINT_MIN_SIMILARITY")
+    ASK_DATA_RETRY_WITH_REAL_VALUES: bool = Field(default=True, env="ASK_DATA_RETRY_WITH_REAL_VALUES")
+    # Revisión 2026-11 (Ask-the-Data): banco de preguntas validadas.
+    ASK_DATA_REUSE_EXACT_EXAMPLE: bool = Field(default=True, env="ASK_DATA_REUSE_EXACT_EXAMPLE")
+    ASK_DATA_EXAMPLES_IN_PROMPT: int = Field(default=3, env="ASK_DATA_EXAMPLES_IN_PROMPT")
+    ASK_DATA_EXAMPLE_MIN_SIMILARITY: float = Field(default=0.3, env="ASK_DATA_EXAMPLE_MIN_SIMILARITY")
     # Tope de la llamada de «Probar»: con 10, los modelos que razonan (Gemini 2.5,
     # o-series) gastaban todo en pensar y la prueba fallaba con el proveedor sano.
     AI_TEST_MAX_TOKENS: int = Field(default=256, env="AI_TEST_MAX_TOKENS")

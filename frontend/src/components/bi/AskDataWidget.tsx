@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
+import { useAuth } from '../../context/AuthContext'
 import { analyticsApi } from '../../services/api'
 import { Search, Send, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucide-react'
 import { COLOR, alpha } from '../../constants/theme'
@@ -59,6 +60,35 @@ interface AskResult {
   rows?: Array<Record<string, unknown>>
   // Revisión 2026-11: ¿responde a esta pregunta o a otra parecida?
   verification?: { verdict: 'verified' | 'warning' | 'not_checked'; checks: Array<{ name: string; status: string }> }
+  // Revisión 2026-11: valores reales con cero filas, reintento y banco de preguntas validadas.
+  zero_result_hints?: Array<{ table: string; column: string; op: string; searched: string; exists: boolean; closest: string[]; sample: string[] }> | null
+  retried_with_real_values?: { first_sql: string }
+  from_validated_example?: { id: string; question: string }
+  model_sql?: string
+}
+
+/** Lo que se buscó y no existe, con los valores que sí hay (revisión 2026-11). */
+function PistasSinFilas({ pistas }: { pistas: AskResult['zero_result_hints'] }) {
+  const { t } = useAppLang()
+  const faltan = (pistas || []).filter(p => !p.exists)
+  if (!faltan.length) return null
+  return (
+    <div role="status" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', background: alpha(COLOR.warning, '10'), border: `1px solid ${alpha(COLOR.warning, '30')}`, borderRadius: 7, padding: '8px 10px' }}>
+      {faltan.map((p, i) => (
+        <div key={i} style={{ marginTop: i ? 6 : 0 }}>
+          {t('askdatawidget.pista_no_existe', { columna: `${p.table}.${p.column}`, valor: p.searched })}{' '}
+          <span style={{ color: 'var(--text-2)' }}>
+            {!p.sample.length ? t('askdatawidget.pista_sin_datos') : (
+              <>
+                {t(p.closest.length ? 'askdatawidget.pista_parecidos' : 'askdatawidget.pista_existen')}{' '}
+                {(p.closest.length ? p.closest : p.sample).map(v => <code key={v} style={{ fontFamily: 'var(--font-mono)', marginRight: 6 }}>{v}</code>)}
+              </>
+            )}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // Lo que se comprobó, en el idioma del usuario. «No comprobado» se dice tal cual:
@@ -86,6 +116,14 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
 
   const mutation = useMutation<AskResult, unknown, string>({
     mutationFn: (q: string) => analyticsApi.ask(q).then(r => r.data),
+    onSuccess: () => setGuardada(false),
+  })
+  const { user } = useAuth()
+  const puedeValidar = user?.role === 'admin' || user?.role === 'pm'
+  const [guardada, setGuardada] = useState(false)
+  const guardar = useMutation({
+    mutationFn: () => analyticsApi.saveAskExample(question.trim(), mutation.data?.model_sql || ''),
+    onSuccess: () => setGuardada(true),
   })
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -237,8 +275,26 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
                   }}>{mutation.data.sql}</pre>
                 )}
 
+                {mutation.data.from_validated_example && (
+                  <div style={{ fontSize: 'var(--text-xs)', color: COLOR.success }}>
+                    ✓ {t('askdatawidget.de_ejemplo_validado', { pregunta: mutation.data.from_validated_example.question })}
+                  </div>
+                )}
+                {mutation.data.retried_with_real_values && (
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>↻ {t('askdatawidget.reintentada_con_valores_reales')}</div>
+                )}
                 <Verificacion v={mutation.data.verification} />
+                <PistasSinFilas pistas={mutation.data.zero_result_hints} />
                 <ResultTable columns={mutation.data.columns} rows={mutation.data.rows} />
+                {puedeValidar && mutation.data.model_sql && !mutation.data.from_validated_example && (
+                  <div>
+                    <button type="button" onClick={() => guardar.mutate()} disabled={guardada || guardar.isPending}
+                      title={t('askdatawidget.validar_ayuda')}
+                      style={{ background: 'transparent', border: `1px solid ${guardada ? COLOR.success : 'var(--surface-4)'}`, color: guardada ? COLOR.success : 'var(--text-2)', borderRadius: 7, padding: '4px 10px', fontSize: 'var(--text-xs)', cursor: guardada ? 'default' : 'pointer', fontFamily: 'inherit' }}>
+                      {guardada ? `✓ ${t('askdatawidget.validada')}` : t('askdatawidget.validar')}
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

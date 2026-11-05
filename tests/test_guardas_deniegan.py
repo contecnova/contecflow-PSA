@@ -123,7 +123,7 @@ RUTAS = _rutas_guardadas()
 # 989 desde 2026-11-05: entran la baja, la exportacion y «entrar como» de
 # empresas (superadmin) y, en el Hub de IA, probar/descubrir sin guardar y las
 # rutas por funcion (admin).
-RUTAS_ESPERADAS = 1000  # +2: valorar una respuesta del asistente (el router de ai_chat está montado dos veces)
+RUTAS_ESPERADAS = 1002  # +2: valorar una respuesta del asistente (el router de ai_chat está montado dos veces); +2: guardar y quitar una pregunta validada de Ask-the-Data (admin o PM)
 
 
 def test_se_sondean_todas_las_rutas_con_guarda():

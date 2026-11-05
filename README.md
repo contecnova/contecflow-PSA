@@ -2929,6 +2929,10 @@ If the chosen provider fails, every other active provider is tried once. If none
      - `distinct`: «distintos» without `COUNT(DISTINCT)` or `SELECT DISTINCT`.
 
      The answer carries `verification: {verdict, checks}`. The widget shows *Responde a lo preguntado (N comprobaciones)*, the warnings, or *Sin comprobar* when nothing applied. A verdict is `verified` only if at least one check ran; when nothing could be checked it says `not_checked`, never `verified`. Intent patterns cover Spanish, English and Chinese. The Chinese ones have no word boundaries (`\b` does not separate Chinese characters), so they are separate patterns: 三月 / 本月 / 去年, 按项目 / 每个月, 前5 / 最多, 占比 / 平均, 不同 / 去重.
+  6. **Real values when a filter finds nothing (revision 2026-11, what contecintelligence had).** When the answer is empty — no rows, or a single row of aggregates at 0/NULL («¿cuántos…?» → 0) — `ask_valores_reales` takes the literal filters of the model's query (`col = 'x'`, `IN (...)`, `LIKE/ILIKE`; from the same DuckDB tree), reads the distinct values that really exist in that column **for the company** (same validation and tenant filter as any query; only columns of the published schema) and ranks them by similarity. The answer carries `zero_result_hints` and the widget says «There is no "opened" in fact_tickets.status. Similar values that exist: open, closed», or that the column has no data for the company at all. If a value is close enough (`ASK_DATA_HINT_MIN_SIMILARITY`, 0.5) and `ASK_DATA_RETRY_WITH_REAL_VALUES` is on, the model is asked **once more** with the real values; its new query is kept only if it finds something (`retried_with_real_values`). `ASK_DATA_HINT_MAX_VALUES` (10) caps the list.
+  7. **Bank of validated questions (revision 2026-11, what contecintelligence had).** An admin or PM can mark an answer as correct (**✓ Respuesta correcta: guardar**): the question and the model's query (before the tenant filter and LIMIT) are stored for the company (`ask_data_examples`, migration 139; validated when saved and again on every run). The **same question** (lowercase, no accents or punctuation) then reuses that query without calling the model (`from_validated_example`, `ASK_DATA_REUSE_EXACT_EXAMPLE`); **similar ones** get up to `ASK_DATA_EXAMPLES_IN_PROMPT` (3) of them as examples in the prompt, from `ASK_DATA_EXAMPLE_MIN_SIMILARITY` (0.3, word overlap). Another company never sees or uses them. Endpoints (admin or PM): `GET/POST /api/v1/analytics/ask/examples`, `DELETE /api/v1/analytics/ask/examples/{id}`.
+
+     Tests: `tests/test_ask_valores_reales_2026_11.py` and `tests/test_ask_banco_2026_11.py`, on a real temporary DuckDB with two companies (validated by reading values without the tenant filter, retrying without the real values, never reusing, and ignoring the company: each is caught). Checked against the real model (Gemini) on a copy of the database: «¿Cuántos tickets hay en estado abierto?» answered 0 and the hint said the column has **no data** — see the next limitation.
 - **Visual builder:**
   - `GET /api/v1/bi/intelligence/query-builder/schema`
   - `POST /api/v1/bi/intelligence/query-builder/preview` (500 rows)
@@ -2944,7 +2948,8 @@ If the chosen provider fails, every other active provider is tried once. If none
 - Both builders run on `report_builder_service.execute_report`: ORM queries over 20 whitelisted entities, scoped by tenant only.
 
 **Limitations (measured).**
-- **Ask the Data fails on most joins.** The tenant filter is injected without a table qualifier. A join between two tables that both have `organization_id` (for example a fact table and `dim_project`) raises DuckDB "Ambiguous reference to column name organization_id". This was reproduced with DuckDB 1.3.0. It breaks all three hardcoded fallback queries and any LLM-written fact/dim join. Only single-table queries, or joins with `dim_date`, work.
+- **Fixed (2026-11) — Ask the Data failed on most joins.** The tenant filter is now injected per table, with its alias. Before: the tenant filter was injected without a table qualifier. A join between two tables that both have `organization_id` (for example a fact table and `dim_project`) raises DuckDB "Ambiguous reference to column name organization_id". This was reproduced with DuckDB 1.3.0. It breaks all three hardcoded fallback queries and any LLM-written fact/dim join. Only single-table queries, or joins with `dim_date`, work.
+- **The OLAP load is broken: Ask the Data answers over an empty store (measured 2026-11-05, not fixed).** `run_full_etl` (`app/services/olap/etl.py`) crashes: `_load_dim_projects` reads `Project.end_date`, which does not exist (`end_date_planned` / `end_date_real`), and once that is corrected `_load_fact_projects` fails in Postgres (`query(Imputation, func.sum(...))` without GROUP BY); it also reads `budget` and `billing_amount` with `getattr`, which do not exist (`budget_amount`, `contract_amount`), so they would load as empty. The live DuckDB (`/tmp/contecflow/olap.duckdb`) has its 9 tables with 0 rows. Until the ETL is repaired every Ask the Data answer is empty; the zero-result hint says so («that column has no data for your company»).
 - **Without a provider, Ask the Data returns an error.** The result is "SQL no permitido: Only SELECT queries are allowed", unless the question matches one of the 3 fallback keyword patterns, which then fail as above.
 - **Grouped totals are wrong above 5,000 rows, without warning.** Group-by and aggregation run in Python over at most 5,000 base rows.
 - **Two builders on the same engine.** Both appear on the page, with separate storage.
@@ -4185,7 +4190,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 groups, 180 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 groups, 186 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4325,6 +4330,12 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 
 | ai | AI_PROVIDER_ERROR_COOLDOWN_SECONDS | int | 300 | A failing provider is set aside for (s), then retried | rt |
 | ai | AI_DAILY_BUDGET_USD | float | 0.0 | AI — daily spend cap per company in USD; calls stop until 00:00 UTC (0: no cap) | rt |
 | ai | AI_DAILY_BUDGET_WARN_PCT | float | 80.0 | AI — % of the daily cap from which the AI Hub warns | rt |
+| ai | ASK_DATA_EXAMPLE_MIN_SIMILARITY | float | 0.3 | Ask the Data — minimum word overlap (0-1) for a validated example to be given | rt |
+| ai | ASK_DATA_EXAMPLES_IN_PROMPT | int | 3 | Ask the Data — validated examples given to the model (0: none) | rt |
+| ai | ASK_DATA_HINT_MAX_VALUES | int | 10 | Ask the Data — real values shown when a filter finds nothing | rt |
+| ai | ASK_DATA_HINT_MIN_SIMILARITY | float | 0.5 | Ask the Data — minimum similarity (0-1) for a real value to count as close | rt |
+| ai | ASK_DATA_RETRY_WITH_REAL_VALUES | bool | true | Ask the Data — with zero rows and a close real value, ask the model once more with the real values | rt |
+| ai | ASK_DATA_REUSE_EXACT_EXAMPLE | bool | true | Ask the Data — the same question as a validated one reuses its query without calling the model | rt |
 | ai | MCP_WRITE_MODE | str | `off` | MCP — tools that write: off (hidden), approval (a human approves each call) or direct | rt |
 | audit | AUDIT_EXPORT_MAX_ROWS | int | 100000 | Audit log — maximum rows in the signed export (the most recent) | rt |
 | audit | COMPLIANCE_GDPR_MAX_DAYS | int | 30 | Compliance report — maximum days for an open GDPR request | rt |

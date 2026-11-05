@@ -335,6 +335,10 @@ export const analyticsApi = {
   // BI / OLAP
   narrative:       (params?: any)        => api.get('/analytics/narrative', { params }),
   ask:             (question: any)      => api.post('/analytics/ask', { question }),
+  // Revisión 2026-11: banco de preguntas validadas de Ask-the-Data.
+  askExamples:     ()                   => api.get('/analytics/ask/examples'),
+  saveAskExample:  (question: string, sql: string) => api.post('/analytics/ask/examples', { question, sql }),
+  deleteAskExample:(id: string)         => api.delete(`/analytics/ask/examples/${id}`),
   olapKpis:        (params?: any)        => api.get('/analytics/olap/kpis', { params }),
   olapFunnel:      ()              => api.get('/analytics/olap/pipeline-funnel'),
   olapPortfolio:   ()              => api.get('/analytics/olap/portfolio-health'),

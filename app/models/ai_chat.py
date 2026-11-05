@@ -463,3 +463,26 @@ class AIAnswerFeedback(Base):
     user_id         = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     client_user_id  = Column(String(36), nullable=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class AskDataExample(Base):
+    """Pregunta → consulta validada de Ask-the-Data, de una empresa.
+
+    Revisión 2026-11 (lo que contecintelligence tenía): una respuesta que alguien
+    marca como correcta se guarda; la misma pregunta la reutiliza sin llamar al
+    modelo, y las parecidas se le dan al modelo como ejemplos. La consulta se
+    guarda como la escribió el modelo (sin el filtro de empresa ni el LIMIT, que
+    se añaden siempre al ejecutar).
+    """
+    __tablename__ = "ask_data_examples"
+    __table_args__ = (Index("uq_ask_data_examples_org_q", "organization_id", "question_norm", unique=True),)
+
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    question        = Column(Text, nullable=False)
+    question_norm   = Column(String(500), nullable=False)
+    sql             = Column(Text, nullable=False)
+    created_by      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+    times_used      = Column(Integer, nullable=False, default=0, server_default="0")
+    last_used_at    = Column(DateTime(timezone=True), nullable=True)
