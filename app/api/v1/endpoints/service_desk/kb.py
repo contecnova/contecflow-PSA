@@ -1,11 +1,11 @@
 """Service Desk — Knowledge Base subdomain router."""
-from fastapi import APIRouter, Depends, Query, Header, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Header, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_internal_user
+from app.core.deps import get_current_user, require_admin, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -51,6 +51,79 @@ def sugerir_articulos(q: str = Query(..., min_length=1, max_length=500), db: Ses
     """Va ANTES de `/kb/{article_id}`: si no, «suggest» se tomaria por un id."""
     from app.services.service_desk.kb_sugerencias import sugerir
     return APIListResponse.ok(items=sugerir(db, q, solo_publico=lector.solo_publico))
+
+
+# ── Calidad de la base (revisión 2026-11). Antes de `/kb/{article_id}`. ──────
+
+class CorreccionIn(BaseModel):
+    question: str = Field(..., min_length=3, max_length=4000)
+    answer: str = Field(..., min_length=3, max_length=20000)
+    is_public: bool = False
+    gap_id: Optional[str] = None
+
+
+class EstadoIn(BaseModel):
+    status: str = Field(..., max_length=20)
+
+
+@router.get("/kb/quality", summary="Calidad de la base: preguntas sin respuesta, correcciones y avisos")
+def calidad_de_la_kb(db: Session = Depends(get_db), _rol: User = Depends(require_internal_user)):
+    from app.services.service_desk.kb_calidad import resumen
+    return APIResponse.ok(data=resumen(db))
+
+
+@router.post("/kb/quality/run", summary="Pasar ahora la revisión de caducados y contradicciones (admin)")
+def pasar_calidad(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    from app.services.service_desk.kb_calidad import pasada
+    return APIResponse.ok(data=pasada(db, current_user.organization_id))
+
+
+@router.post("/kb/corrections", summary="Dejar la respuesta buena para una pregunta (se aplica al momento)")
+def crear_correccion(payload: CorreccionIn, db: Session = Depends(get_db),
+                     current_user: User = Depends(get_current_user), _rol: User = Depends(require_internal_user)):
+    from app.services.service_desk.kb_calidad import crear_correccion as _crear
+    from app.services.service_desk.kb_service import puede_publicar
+    # Una corrección pasa por delante de los artículos: la deja quien puede publicar.
+    if not puede_publicar(db, current_user):
+        raise HTTPException(403, "Solo quien puede publicar en la base deja correcciones")
+    corr = _crear(db, current_user, payload.question, payload.answer, es_publica=payload.is_public,
+                  gap_id=payload.gap_id)
+    return APIResponse.ok(data={"id": corr.id})
+
+
+def _cambiar_estado(modelo, fila_id: str, payload: EstadoIn, db: Session, usuario: User):
+    from app.services.service_desk.kb_calidad import cerrar
+    try:
+        cerrar(db, modelo, fila_id, payload.status, usuario)
+    except ValueError:
+        raise HTTPException(422, "Estado no válido")
+    except LookupError:
+        raise HTTPException(404, "No encontrado")
+    return APIResponse.ok(data={"ok": True})
+
+
+@router.patch("/kb/corrections/{correction_id}", summary="Archivar o reactivar una corrección")
+def estado_correccion(correction_id: str, payload: EstadoIn, db: Session = Depends(get_db),
+                      current_user: User = Depends(get_current_user), _rol: User = Depends(require_internal_user)):
+    from app.models.service_desk.kb_calidad import KBCorrection
+    from app.services.service_desk.kb_service import puede_publicar
+    if not puede_publicar(db, current_user):
+        raise HTTPException(403, "Solo quien puede publicar en la base cambia correcciones")
+    return _cambiar_estado(KBCorrection, correction_id, payload, db, current_user)
+
+
+@router.patch("/kb/gaps/{gap_id}", summary="Descartar o reabrir una pregunta sin respuesta")
+def estado_hueco(gap_id: str, payload: EstadoIn, db: Session = Depends(get_db),
+                 current_user: User = Depends(get_current_user), _rol: User = Depends(require_internal_user)):
+    from app.models.service_desk.kb_calidad import KBGap
+    return _cambiar_estado(KBGap, gap_id, payload, db, current_user)
+
+
+@router.patch("/kb/findings/{finding_id}", summary="Dar por resuelto o descartar un aviso")
+def estado_aviso(finding_id: str, payload: EstadoIn, db: Session = Depends(get_db),
+                 current_user: User = Depends(get_current_user), _rol: User = Depends(require_internal_user)):
+    from app.models.service_desk.kb_calidad import KBFinding
+    return _cambiar_estado(KBFinding, finding_id, payload, db, current_user)
 
 
 @router.post("/kb/{article_id}/deflected", summary="El artículo resolvió el problema sin abrir ticket")

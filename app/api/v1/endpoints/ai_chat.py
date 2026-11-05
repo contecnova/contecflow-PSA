@@ -218,11 +218,15 @@ def chat(
     except Exception as e:
         _logger.error("persist_chat_response failed (non-blocking): %s", e, exc_info=True)
 
+    kb = getattr(conv, "fuentes_kb", None) or {}
     return APIResponse.ok(data={
         "conversation_id": conv.id if conv is not None else None,
         "message": assistant_text,
         "tokens_used": 0,
         "latency_ms": latency,
+        # Revisión 2026-11: artículos citados y si aplicó la corrección de un experto.
+        "sources": kb.get("sources", []),
+        "correction_applied": bool(kb.get("correction")),
     })
 
 

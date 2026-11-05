@@ -37,7 +37,9 @@ export default function ServiceDeskPage() {
   // correo). Se abre en «Todos» porque la cola solo muestra los sin asignar.
   const [searchParams] = useSearchParams()
   const ticketEnlazado = searchParams.get('ticket')
-  const [tab, setTab] = useState(ticketEnlazado ? 'all' : 'queue')
+  // `?tab=<id>` abre esa pestaña (p. ej. los avisos y las citas de la base de
+  // conocimiento llevan a `?tab=kb`).
+  const [tab, setTab] = useState(ticketEnlazado ? 'all' : (searchParams.get('tab') || 'queue'))
   const [herramienta, setHerramienta] = useState('assign')
   // `TicketDetail` pide `string | null`: los ids de ticket son cadenas en
   // toda la aplicacion, y el tablero kanban es el unico sitio que los saca

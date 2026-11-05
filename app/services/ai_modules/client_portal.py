@@ -130,6 +130,11 @@ def _client_portal_chat_for_user(db: Session, client_user, message: str, session
     messages.append({"role": "user", "content": message})
 
     system = _CLIENT_AI_SYSTEM.format(project_data=json.dumps(project_data, ensure_ascii=False))
+    # Revisión 2026-11: la base de conocimiento pública (antes no la miraba), y
+    # la pregunta sin artículo queda en «Preguntas sin respuesta».
+    from app.services.service_desk.kb_calidad import contexto as contexto_kb
+    kb = contexto_kb(db, message, solo_publico=True, origen="portal_chat")
+    system += kb["prompt"]
 
     try:
         response_text = call_ai_unified(
@@ -143,7 +148,7 @@ def _client_portal_chat_for_user(db: Session, client_user, message: str, session
     db.add(AIClientChatMessage(session_id=session.id, role="assistant", content=response_text))
     db.commit()
 
-    return {"session_id": session.id, "response": response_text}
+    return {"session_id": session.id, "response": response_text, "sources": kb["sources"]}
 
 def list_client_chat_messages(db: Session, client_user, session_id: str, limit: int = 50) -> list:
     """Lee historial de mensajes de una sesión, verificando ownership. Útil

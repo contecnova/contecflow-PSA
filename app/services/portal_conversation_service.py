@@ -1041,29 +1041,27 @@ def send_l1_bot_reply(conversation_id: str, current_client: ClientUser, db: Sess
         raise ValueError("No hay mensaje de cliente para que el bot responda")
 
     query = (latest_client_msg.body or "").strip()
-    kb_candidate = (
-        db.query(KBArticle)
-        .filter(
-            KBArticle.status == KBStatus.published,
-            KBArticle.is_public == True,
-            or_(
-                KBArticle.title.ilike(f"%{query[:80]}%"),
-                KBArticle.body.ilike(f"%{query[:80]}%"),
-                KBArticle.tags.ilike(f"%{query[:80]}%"),
-            ),
-        )
-        .order_by(KBArticle.helpful_count.desc(), KBArticle.created_at.desc())
-        .first()
-    )
+    # Revisión 2026-11: antes buscaba la pregunta ENTERA como subcadena literal
+    # (casi nunca casaba). Ahora, la corrección pública de un experto si encaja,
+    # si no los artículos públicos relevantes; sin nada, queda como hueco.
+    from app.services.service_desk.kb_calidad import buscar_correccion, fuentes, registrar_hueco
+    correccion = buscar_correccion(db, query, solo_publica=True)
+    citas = [] if correccion else fuentes(db, query, solo_publico=True)
 
-    if kb_candidate:
+    if correccion:
+        correccion.usage_count = (correccion.usage_count or 0) + 1
+        correccion.last_used_at = _now()
+        answer = ("Soy el asistente L1 del portal. Esto es lo que nuestro equipo indica para esta consulta:\n\n"
+                  f"{correccion.answer}\n\nSi no te resuelve, escalo automáticamente al equipo humano.")
+    elif citas:
         answer = (
-            "Soy el asistente L1 del portal. He encontrado una guía que puede resolver tu consulta:\n\n"
-            f"- {kb_candidate.title} ({kb_candidate.number})\n"
-            "Por favor revisa estos pasos y confirma si te funcionó. "
+            "Soy el asistente L1 del portal. He encontrado guías que pueden resolver tu consulta:\n\n"
+            + "".join(f"- {c['title']} ({c['number']})\n" for c in citas)
+            + "Por favor revisa estos pasos y confirma si te funcionó. "
             "Si no, escalo automáticamente al equipo humano."
         )
     else:
+        registrar_hueco(db, query, "portal_bot")
         answer = (
             "Soy el asistente L1 del portal. Gracias por los detalles. "
             "Estoy escalando este caso al equipo para revisión prioritaria. "
@@ -1097,7 +1095,7 @@ def send_l1_bot_reply(conversation_id: str, current_client: ClientUser, db: Sess
         actor_client_id=current_client.id,
         target_type="message",
         target_id=bot_message.id,
-        details={"kb_article_id": kb_candidate.id if kb_candidate else None},
+        details={"kb_article_ids": [c["id"] for c in citas], "correction_id": correccion.id if correccion else None},
     )
 
     db.commit()

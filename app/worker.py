@@ -188,6 +188,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.purgar_empresas_caducadas",
         "schedule": crontab(hour=2, minute=40),
     },
+    # Base de conocimiento: artículos caducados y contradictorios (revisión 2026-11).
+    "kb-calidad": {
+        "task": "app.worker.kb_pasada_de_calidad",
+        "schedule": crontab(hour=3, minute=10),
+    },
     # ── ITSM Fase 3 tasks ─────────────────────────────────────────────────────
     # Autonomous agent scan — every 5 minutes
     "autonomous-agent-scan": {
@@ -1771,6 +1776,13 @@ def purgar_empresas_caducadas():
     """Borra los datos de las empresas cuya cuarentena de baja ha vencido."""
     from app.services.baja_de_empresa_service import purgar_caducadas_job
     purgar_caducadas_job()
+
+
+@celery_app.task(name="app.worker.kb_pasada_de_calidad")
+def kb_pasada_de_calidad():
+    """Avisa de artículos sin revisar y de pares que se contradicen."""
+    from app.services.service_desk.kb_calidad import pasada_diaria_job
+    pasada_diaria_job()
 
 
 @celery_app.task(name="app.worker.bi_ml_retrain")

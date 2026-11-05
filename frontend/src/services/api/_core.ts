@@ -1474,6 +1474,13 @@ export const sdKbApi = {
   review:      (id: any, data: unknown) => api.post(`/sd/kb/${id}/review`, data),
   knownErrors:        ()     => api.get('/sd/known-errors'),
   knownErrorTickets:  (id: any)   => api.get(`/sd/known-errors/${id}/tickets`),
+  // Calidad de la base (revisión 2026-11)
+  quality:            ()     => api.get('/sd/kb/quality'),
+  runQuality:         ()     => api.post('/sd/kb/quality/run'),
+  createCorrection:   (data: { question: string; answer: string; is_public?: boolean; gap_id?: string }) => api.post('/sd/kb/corrections', data),
+  setCorrectionStatus: (id: string, status: string) => api.patch(`/sd/kb/corrections/${id}`, { status }),
+  setGapStatus:       (id: string, status: string) => api.patch(`/sd/kb/gaps/${id}`, { status }),
+  setFindingStatus:   (id: string, status: string) => api.patch(`/sd/kb/findings/${id}`, { status }),
 }
 
 // ── Enterprise ────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { nexusAgentApi } from '../../services/api'
+import { nexusAgentApi, sdKbApi } from '../../services/api'
 import { useConfirm } from '../../context/ConfirmContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 
@@ -21,6 +21,9 @@ interface AssistContext {
 interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
+  // Revisión 2026-11: artículos citados y si se aplicó la corrección de un experto.
+  sources?: Array<{ id: string; number: string; title: string }>
+  correction?: boolean
 }
 
 // TODO type: conversation summary payload — needs shared type from nexusAgentApi
@@ -146,7 +149,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
         ..._entityCtx,
       })
       setConvId(data.conversation_id)
-      setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
+      setMessages(prev => [...prev, { role: 'assistant', content: data.message, sources: data.sources || [], correction: !!data.correction_applied }])
       qc.invalidateQueries({ queryKey: ['ai-conversations'] })
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: '⚠ Error de conexión con NexusAssist.' }])
@@ -235,7 +238,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
           </div>
         )}
         {messages.map((m, i) => (
-          <div key={i} style={{ display:'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+          <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
             <div style={{ maxWidth:'85%', padding:'10px 14px',
               borderRadius: m.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
               background: m.role === 'user' ? 'var(--accent-muted)' : 'var(--surface-2)',
@@ -243,6 +246,9 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
               fontSize: "var(--text-base)", lineHeight:1.55, whiteSpace:'pre-wrap' }}>
               {m.content}
             </div>
+            {m.role === 'assistant' && i > 0 && messages[i - 1]?.role === 'user' && (
+              <PieDeRespuesta mensaje={m} pregunta={messages[i - 1].content} />
+            )}
           </div>
         ))}
         {loading && (
@@ -272,6 +278,57 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
         <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginTop:5, textAlign:'center' }}>{t('nexusassist.enter_enviar_shift_enter_nueva_linea')}</div>
       </div>
       <style>{`@keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}`}</style>
+    </div>
+  )
+}
+
+
+// Revisión 2026-11: fuentes citadas, aviso de respuesta validada y «Corregir»:
+// quien puede publicar en la base deja la respuesta buena y se aplica al momento
+// a las preguntas parecidas (también a los clientes si lo marca).
+function PieDeRespuesta({ mensaje, pregunta }: { mensaje: ChatMessage; pregunta: string }) {
+  const { t } = useAppLang()
+  const [abierto, setAbierto] = useState(false)
+  const [respuesta, setRespuesta] = useState(mensaje.content)
+  const [publica, setPublica] = useState(false)
+  const [estado, setEstado] = useState<'' | 'ok' | 'error' | 'denegado'>('')
+  const { mutate: guardar, isPending } = useMutation({
+    mutationFn: () => sdKbApi.createCorrection({ question: pregunta, answer: respuesta.trim(), is_public: publica }),
+    onSuccess: () => { setEstado('ok'); setAbierto(false) },
+    onError: (e: unknown) => setEstado((e as { response?: { status?: number } })?.response?.status === 403 ? 'denegado' : 'error'),
+  })
+  const chip = { fontSize: 'var(--text-2xs)', padding: '2px 8px', borderRadius: 10, border: '.5px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-2)', textDecoration: 'none' } as const
+  return (
+    <div style={{ maxWidth: '85%', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+        {mensaje.correction && <span style={{ ...chip, color: 'var(--success)', borderColor: 'var(--success)' }}>✓ {t('nexusassist.respuesta_validada')}</span>}
+        {(mensaje.sources || []).map(s => (
+          <a key={s.id} href="/service-desk?tab=kb" title={s.title} style={chip}>📖 {s.number} · {s.title.slice(0, 40)}</a>
+        ))}
+        {!abierto && estado !== 'ok' && (
+          <button type="button" onClick={() => setAbierto(true)} style={{ ...chip, cursor: 'pointer', fontFamily: 'inherit' }}>✎ {t('nexusassist.corregir')}</button>
+        )}
+        {estado === 'ok' && <span style={{ ...chip, color: 'var(--success)' }}>✓ {t('nexusassist.correccion_guardada')}</span>}
+      </div>
+      {abierto && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8, border: '.5px solid var(--surface-4)', borderRadius: 8, background: 'var(--surface-2)' }}>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('nexusassist.corregir_ayuda')}</div>
+          <textarea aria-label={t('nexusassist.corregir')} value={respuesta} onChange={e => setRespuesta(e.target.value)} rows={4}
+            style={{ background: 'var(--surface-1)', border: '.5px solid var(--surface-4)', borderRadius: 8, padding: 8, fontSize: 'var(--text-sm)', fontFamily: 'inherit', resize: 'vertical' }} />
+          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+            <input type="checkbox" checked={publica} onChange={e => setPublica(e.target.checked)} /> {t('nexusassist.tambien_clientes')}
+          </label>
+          {estado === 'denegado' && <div role="alert" style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>{t('nexusassist.correccion_sin_permiso')}</div>}
+          {estado === 'error' && <div role="alert" style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>{t('nexusassist.correccion_error')}</div>}
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={() => setAbierto(false)} style={{ ...chip, cursor: 'pointer', fontFamily: 'inherit' }}>{t('nexusassist.cancelar')}</button>
+            <button type="button" disabled={isPending || !respuesta.trim()} onClick={() => guardar()}
+              style={{ ...chip, cursor: 'pointer', fontFamily: 'inherit', background: 'var(--accent)', color: 'var(--on-accent)', borderColor: 'var(--accent)' }}>
+              {t('nexusassist.guardar_correccion')}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

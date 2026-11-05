@@ -19,14 +19,18 @@ const SESSION_KEY = 'portal_ai_session_id'
 
 type ChatRole = 'user' | 'assistant'
 
+type Fuente = { id: string; number: string; title: string }
+
 interface ChatMessage {
   role: ChatRole
   content: string
+  sources?: Fuente[]   // revisión 2026-11: artículos de la base en que se apoya
 }
 
 interface ChatPostResponse {
   session_id?: string
   response?: string
+  sources?: Fuente[]
 }
 
 const SUGGESTIONS = [
@@ -94,7 +98,7 @@ export default function PortalAIChatWidget() {
         setSessionId(data.session_id)
         try { localStorage.setItem(SESSION_KEY, data.session_id) } catch { /* noop */ }
       }
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response || '...' }])
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response || '...', sources: data.sources || [] }])
     } catch (e: unknown) {
       const detail =
         (e as { response?: { data?: { detail?: unknown } }; message?: unknown })?.response?.data?.detail ||
@@ -231,6 +235,11 @@ export default function PortalAIChatWidget() {
               whiteSpace: 'pre-wrap', wordBreak: 'break-word',
             }}>
               {m.content}
+              {!!m.sources?.length && (
+                <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--surface-4)', fontSize: 11, color: 'var(--text-3)' }}>
+                  {t('portalaichatwidget.fuentes')}: {m.sources.map(s => `${s.title} (${s.number})`).join(' · ')}
+                </div>
+              )}
             </div>
           ))
         )}

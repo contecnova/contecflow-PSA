@@ -2313,6 +2313,25 @@ Not reviewed screen by screen (**Not verified** beyond the endpoints and jobs).
 
 **Security.** `GET /sd/kb`, `GET /sd/kb/{id}`, `/sd/kb/suggest`, `/deflected` and `/helpful` need a portal client or an internal user (`lector_de_la_kb`).
 
+**Quality loop (revision 2026-11, what contecmind already had).** *Service Desk → KB → Calidad*. One service (`app/services/service_desk/kb_calidad.py`) answers every AI question against the knowledge base: NexusAssist, the portal AI chat and the portal L1 bot.
+
+- **Measured before:**
+  - NexusAssist searched `ai_kb_articles`, which was empty (0 rows) while the Service Desk base had the real articles.
+  - The portal AI chat did not look at the base at all.
+  - The L1 bot looked for the whole question as a literal substring.
+- **Citations.** The articles that pass the relevance threshold go to the model with their number, and the model is told to cite them (`[KB-0001]`). The answer returns `sources` (number and title), which the assistant and the portal widget show under the reply. For clients, only public articles are used. Thresholds:
+  - `SD_KB_RAG_MIN_SCORE_VECTOR` (0.35): cosine similarity, with the sentence model.
+  - `SD_KB_RAG_MIN_SCORE_WORDS` (0.5): share of the question's words found, without the sentence model.
+  - `SD_KB_RAG_MAX_SOURCES` (3).
+- **Word search without the sentence model.** Accents are ignored, and words longer than five letters compare by their first six letters. «¿Cómo restablezco mi contraseña?» now finds «Como restablecer tu contrasena» (measured: before, it found nothing).
+- **Expert corrections.** *Corregir* under any assistant reply, or *Responder* on an unanswered question, saves the right answer (`POST /sd/kb/corrections`; only people who can publish to the base, `puede_publicar`). It applies at once to similar questions (`SD_KB_CORRECTION_MATCH`, 0.8: cosine with the sentence model, word overlap without it) and goes ahead of the articles. The reply shows *Respuesta validada por un experto*. A correction is internal unless *También para los clientes* is ticked. Archive it from the Calidad view.
+- **Unanswered questions.** A client question (portal chat or L1 bot) with neither article nor correction is recorded in `sd_kb_gaps`. Repeated questions are grouped (same words in any order) and counted. From the list: *Responder* (creates a correction and closes it), *Crear artículo* (the title comes pre-filled; saving closes it) or *Descartar* (it no longer comes back, but is still counted). Internal assistant questions are not recorded: most are about data, not the base.
+- **Alerts** (daily job `kb_pasada_de_calidad`, 03:10; admins can run it with *Revisar ahora*, `POST /sd/kb/quality/run`):
+  - Stale: a published article untouched for `SD_KB_STALE_DAYS` (180; 0 = off). Its author is notified once per version.
+  - Contradictory: published articles more similar than `SD_KB_CONTRADICTION_SIMILARITY` (0.75) are compared with AI (module `knowledge_base` in the AI Hub), at most `SD_KB_CONTRADICTION_MAX_PAIRS` (10, 0 = off) pairs per run. A pair is not compared again until one of the two articles changes. This needs the sentence model (stored vectors) and an AI provider; without either it is skipped and the run says why.
+- **Tables:** `sd_kb_corrections`, `sd_kb_gaps`, `sd_kb_findings` (migration 133). **Endpoints:** `GET /sd/kb/quality`, `PATCH /sd/kb/corrections|gaps|findings/{id}` (status).
+- `/service-desk?tab=kb` opens the KB tab directly; alerts and citations link there.
+
 **Limitations.** The pgvector path is **Not verified** here. The local stack uses `postgres:16-alpine`.
 
 ---
@@ -2578,6 +2597,10 @@ The `sla` group also has `SLA_PREDICTION_HOURS_*` and `SLA_PREDICTION_SEVERITY_*
 | `SD_EVENT_AUTO_RESOLVE` | true | Resolve the incident on recovery if untouched |
 | `SD_ONCALL_PRIORITIES` / `SD_ONCALL_SMS` | `p1_critical,p2_high` / true | Which priorities page on-call, and whether by SMS |
 | `SD_KB_REQUIRE_REVIEW` / `SD_KB_REVIEWER_GROUP_ID` | false / "" | KB review, and who reviews (empty: admins) |
+| `SD_KB_RAG_MIN_SCORE_VECTOR` / `SD_KB_RAG_MIN_SCORE_WORDS` / `SD_KB_RAG_MAX_SOURCES` | 0.35 / 0.5 / 3 | Relevance to cite an article (with / without sentence model), and articles per answer |
+| `SD_KB_CORRECTION_MATCH` | 0.8 | Similarity for an expert correction to apply |
+| `SD_KB_STALE_DAYS` | 180 | Days untouched before a published article is flagged (0: off) |
+| `SD_KB_CONTRADICTION_SIMILARITY` / `SD_KB_CONTRADICTION_MAX_PAIRS` | 0.75 / 10 | Which article pairs are compared with AI, and how many per daily run (0: off) |
 | `SD_TIME_TO_TIMESHEET` | true | Ticket time goes to the timesheet |
 | `SD_ASSET_REFRESH_DAYS` | 7 (≥0) | Renewal ticket lead time; 0 = off |
 | `SD_EVENT_MAX_ATTEMPTS` / `SD_EVENT_BATCH_SIZE` | 5 / 200 | Outbox retries and batch size |
@@ -3412,7 +3435,7 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 - **Without a provider the warning becomes a reply.** It is stored as the assistant's answer. In the inline editor, the warning or error text **replaces or is appended to the user's field**, and every inline call creates a new conversation.
 - **The current record is not given to the model.** The panel sends `context_type`/`context_id`, but they are only stored, not used to build the context.
 - **The original text is stored even when a policy redacts it.** The message is persisted before redaction.
-- **Knowledge-base retrieval is keyword-only under TF-IDF.** With the default TF-IDF backend, vector retrieval never matches (different vector lengths), and no KB embedding is stored, so a keyword `LIKE` search does the work.
+- **Knowledge-base retrieval is keyword-only under TF-IDF.** With the default TF-IDF backend no KB vector is stored, so retrieval works by words (accent-insensitive, by stem). Since 2026-11 it searches the Service Desk base (before: `ai_kb_articles`, empty), cites the articles it uses and applies expert corrections. See *Knowledge base → Quality loop*.
 - **Token counts are not recorded.** `tokens_used` is stored as 0 on messages; real token counts are only in `ai_usage_logs`.
 
 ### NexusOracle — `/oracle`
@@ -4049,6 +4072,13 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **15 
 | service_desk | SD_ONCALL_SMS | bool | true | Also page by SMS (needs env `TWILIO_*`) | rt |
 | service_desk | SD_KB_REQUIRE_REVIEW | bool | false | KB articles need a reviewer before publishing | rt |
 | service_desk | SD_KB_REVIEWER_GROUP_ID | str | `''` | Reviewer queue (empty: admins) | rt |
+| service_desk | SD_KB_RAG_MIN_SCORE_VECTOR | float | 0.35 | Minimum cosine to cite an article | rt |
+| service_desk | SD_KB_RAG_MIN_SCORE_WORDS | float | 0.5 | Without sentence model: share of words to cite an article | rt |
+| service_desk | SD_KB_RAG_MAX_SOURCES | int | 3 | Articles given to the AI and cited per answer | rt |
+| service_desk | SD_KB_CORRECTION_MATCH | float | 0.8 | Similarity for an expert correction to apply | rt |
+| service_desk | SD_KB_STALE_DAYS | int | 180 | Days untouched before an article is flagged (0: off) | rt |
+| service_desk | SD_KB_CONTRADICTION_SIMILARITY | float | 0.75 | Similarity for two articles to be compared with AI | rt |
+| service_desk | SD_KB_CONTRADICTION_MAX_PAIRS | int | 10 | Pairs compared with AI per daily run (0: off) | rt |
 | service_desk | SD_TIME_TO_TIMESHEET | bool | true | Ticket time on tickets with a project goes to the agent's timesheet | rt |
 | service_desk | SD_ASSET_REFRESH_DAYS | int | 7 | Days before an asset expiry that open a renewal ticket (0 = off) | rt |
 | service_desk | SD_EVENT_MAX_ATTEMPTS | int | 5 | Event delivery, max attempts | rt (global only) |
@@ -5188,6 +5218,13 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SD_ONCALL_SMS` | `True` | Send SMS to on-call. |
 | `SD_KB_REQUIRE_REVIEW` | `False` | KB articles need review. |
 | `SD_KB_REVIEWER_GROUP_ID` | `''` | KB reviewer group. |
+| `SD_KB_RAG_MIN_SCORE_VECTOR` | `0.35` | Minimum cosine to cite a KB article. |
+| `SD_KB_RAG_MIN_SCORE_WORDS` | `0.5` | Without sentence model: share of words to cite an article. |
+| `SD_KB_RAG_MAX_SOURCES` | `3` | KB articles per AI answer. |
+| `SD_KB_CORRECTION_MATCH` | `0.8` | Similarity for an expert correction to apply. |
+| `SD_KB_STALE_DAYS` | `180` | Days before a published article is flagged as stale (0: off). |
+| `SD_KB_CONTRADICTION_SIMILARITY` | `0.75` | Similarity for two articles to be compared with AI. |
+| `SD_KB_CONTRADICTION_MAX_PAIRS` | `10` | Article pairs compared with AI per daily run (0: off). |
 | `SD_TIME_TO_TIMESHEET` | `True` | Ticket time posts to timesheets. |
 | `SD_ASSET_REFRESH_DAYS` | `7` | Asset refresh cadence. |
 | `SD_EVENT_MAX_ATTEMPTS` | `5` | Ticket-event retry cap. |

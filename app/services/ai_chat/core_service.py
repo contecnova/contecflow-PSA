@@ -13,7 +13,6 @@ from app.schemas.ai_chat import (
     deserialize_tool_calls,
     deserialize_tool_results,
 )
-from app.services.ai_chat.rag_service import kb_rag_context
 from app.services.ai_chat.prompt_service import get_prompt
 from app.services.ai_chat.context_service import build_tenant_context
 
@@ -109,10 +108,14 @@ def prepare_chat(db: Session, conversation_id, user_id: str, context_type=None, 
     # Obtener el objeto User para pasar a build_tenant_context
     user = db.query(User).filter(User.id == user_id).first()
     ctx = build_tenant_context(db, user)
-    kb_ctx = kb_rag_context(db, effective_message)
+    # Revisión 2026-11: la base del Service Desk (antes `ai_kb_articles`, vacía),
+    # con la corrección del experto delante y los artículos para citar.
+    from app.services.service_desk.kb_calidad import contexto as contexto_kb
+    kb = contexto_kb(db, effective_message, solo_publico=False)
+    conv.fuentes_kb = {"sources": kb["sources"], "correction": kb["correction"]}
     system = get_prompt(db, "contecflowassist", system_template).format(
         context=json.dumps(ctx, ensure_ascii=False)
-    ) + kb_ctx + _pagina_del_usuario(  # la pagina de ahora; si no llega, la de la conversacion
+    ) + kb["prompt"] + _pagina_del_usuario(  # la pagina de ahora; si no llega, la de la conversacion
         db, context_type or conv.context_type, context_id if context_type else conv.context_id)
 
     if conv.context_type == "inline_editor":

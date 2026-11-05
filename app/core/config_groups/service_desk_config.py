@@ -62,6 +62,20 @@ class ServiceDeskSettingsMixin:
     # administrador).
     SD_KB_REQUIRE_REVIEW: bool = Field(default=False, env="SD_KB_REQUIRE_REVIEW")
     SD_KB_REVIEWER_GROUP_ID: str = Field(default="", env="SD_KB_REVIEWER_GROUP_ID")
+    # Calidad de la base de conocimiento (revisión 2026-11).
+    # Relevancia mínima para citar un artículo: por vectores (coseno) o, sin
+    # modelo de frases, fracción de palabras de la pregunta que aparecen.
+    SD_KB_RAG_MIN_SCORE_VECTOR: float = Field(default=0.35, env="SD_KB_RAG_MIN_SCORE_VECTOR")
+    SD_KB_RAG_MIN_SCORE_WORDS: float = Field(default=0.5, env="SD_KB_RAG_MIN_SCORE_WORDS")
+    SD_KB_RAG_MAX_SOURCES: int = Field(default=3, env="SD_KB_RAG_MAX_SOURCES")
+    # Parecido mínimo entre preguntas para aplicar la corrección de un experto.
+    SD_KB_CORRECTION_MATCH: float = Field(default=0.8, env="SD_KB_CORRECTION_MATCH")
+    # Días sin tocar un artículo publicado para avisar de que hay que revisarlo (0: no).
+    SD_KB_STALE_DAYS: int = Field(default=180, env="SD_KB_STALE_DAYS")
+    # Contradicciones: parecido mínimo para comparar dos artículos con IA, y
+    # pares como mucho por pasada (0: no se buscan).
+    SD_KB_CONTRADICTION_SIMILARITY: float = Field(default=0.75, env="SD_KB_CONTRADICTION_SIMILARITY")
+    SD_KB_CONTRADICTION_MAX_PAIRS: int = Field(default=10, env="SD_KB_CONTRADICTION_MAX_PAIRS")
 
     # ── Tiempo ───────────────────────────────────────────────────────────────
     # El tiempo de un ticket con proyecto pasa a los partes del agente (y de

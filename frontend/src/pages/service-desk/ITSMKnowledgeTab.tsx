@@ -6,9 +6,10 @@ import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import RcaWizardModal from '../../components/servicedesk/RcaWizardModal'
 
-import { extractErr } from '../../utils/helpers'
+import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
 import { sdKbApi, problemsApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { COLOR, alpha } from '../../constants/theme'
@@ -448,6 +449,7 @@ function KB() {
   const ts = useAppTSimple()
   const [devolviendo, setDevolviendo] = useState<KbArticle | null>(null)
   const [nota, setNota] = useState('')
+  const [vista, setVista] = useState<'articulos' | 'calidad'>('articulos')
   const refrescarKb = () => qc.invalidateQueries({ queryKey: ['sd-kb'] })
   const { mutate: enviarARevision } = useMutation({
     mutationFn: (id: string | number) => sdKbApi.submit(id),
@@ -479,8 +481,11 @@ function KB() {
 
   const STATUS_COLOR: Record<string, string> = { published: COLOR.success, draft: COLOR.warning, in_review: 'var(--accent)', archived: COLOR.text2 }
 
+  if (vista === 'calidad') return <div><SelectorDeVista vista={vista} setVista={setVista} /><CalidadKB /></div>
+
   return (
     <div>
+      <SelectorDeVista vista={vista} setVista={setVista} />
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         <input placeholder={t('itsmknowledge.buscar_articulos')} aria-label={t('itsmknowledge.buscar_articulos')} value={search} onChange={e => setSearch(e.target.value)} style={{ ...IS, flex: 1 }} />
         <Button onClick={() => { setEditing(null); setShowNew(true) }}>{t('itsmknowledge.nuevo_articulo')}</Button>
@@ -539,15 +544,17 @@ type KBArticleModalProps = {
   article: KbArticle | null
   onClose: () => void
   onSaved: () => void
+  /** Para un alta: lo que ya se sabe (p. ej. el título desde una pregunta sin respuesta). */
+  inicial?: { title?: string }
 }
 
-function KBArticleModal({ article, onClose, onSaved }: KBArticleModalProps) {
+function KBArticleModal({ article, onClose, onSaved, inicial }: KBArticleModalProps) {
   const { t } = useAppT()
   const idPrefix = useId()
   const toast = useToast()
   const isEdit = !!article
   const [form, setForm] = useState({
-    title: article?.title || '',
+    title: article?.title || inicial?.title || '',
     summary: article?.summary || '',
     body: article?.body || '',
     tags: article?.tags || '',
@@ -581,6 +588,155 @@ function KBArticleModal({ article, onClose, onSaved }: KBArticleModalProps) {
         </div>
       </div>
     </Modal>
+  )
+}
+
+// ── Calidad de la base (revisión 2026-11) ───────────────────────────────────
+
+type Hueco = { id: string; question: string; times_asked: number; source: string; last_asked_at: string | null }
+type Correccion = { id: string; question: string; answer: string; is_public: boolean; usage_count: number; last_used_at: string | null }
+type Aviso = { id: string; kind: 'stale' | 'contradiction'; article_number?: string; other_article_number?: string; detail?: string; first_seen_at?: string }
+type Calidad = { gaps: Hueco[]; corrections: Correccion[]; findings: Aviso[]; counts: { gaps: number; corrections: number; findings: number } }
+
+function useCalidad() {
+  return useQuery<Calidad>({ queryKey: ['sd-kb-quality'], queryFn: () => sdKbApi.quality().then(r => r.data as Calidad), staleTime: 30000 })
+}
+
+function SelectorDeVista({ vista, setVista }: { vista: string; setVista: (v: 'articulos' | 'calidad') => void }) {
+  const { t } = useAppT()
+  const { data } = useCalidad()
+  const pendientes = (data?.counts.gaps ?? 0) + (data?.counts.findings ?? 0)
+  return (
+    <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+      {(['articulos', 'calidad'] as const).map(v => (
+        <button key={v} role="tab" aria-selected={vista === v} type="button" onClick={() => setVista(v)}
+          style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${vista === v ? 'var(--accent)' : 'var(--surface-4)'}`, background: vista === v ? 'var(--accent-muted)' : 'transparent', color: vista === v ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)' }}>
+          {t('itsmknowledge.vista_' + v)}{v === 'calidad' && pendientes > 0 ? ` (${pendientes})` : ''}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function CalidadKB() {
+  const { t } = useAppT()
+  const qc = useQueryClient()
+  const toast = useToast()
+  const { data, isLoading } = useCalidad()
+  const { hasRole } = useAuth()
+  const esAdmin = hasRole('admin')
+  const [respondiendo, setRespondiendo] = useState<Hueco | null>(null)
+  const [respuesta, setRespuesta] = useState('')
+  const [publica, setPublica] = useState(true)
+  const [articuloDe, setArticuloDe] = useState<Hueco | null>(null)
+  const refrescar = () => qc.invalidateQueries({ queryKey: ['sd-kb-quality'] })
+  const alFallar = (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+  const { mutate: responder, isPending } = useMutation({
+    mutationFn: (h: Hueco) => sdKbApi.createCorrection({ question: h.question, answer: respuesta.trim(), is_public: publica, gap_id: h.id }),
+    onSuccess: () => { refrescar(); setRespondiendo(null); setRespuesta(''); toast.success(t('itsmknowledge.correccion_guardada')) },
+    onError: alFallar,
+  })
+  const { mutate: estado } = useMutation({
+    mutationFn: ({ tipo, id, status }: { tipo: 'gap' | 'finding' | 'correction'; id: string; status: string }) =>
+      tipo === 'gap' ? sdKbApi.setGapStatus(id, status) : tipo === 'finding' ? sdKbApi.setFindingStatus(id, status) : sdKbApi.setCorrectionStatus(id, status),
+    onSuccess: refrescar, onError: alFallar,
+  })
+  const { mutate: pasar, isPending: pasando } = useMutation({
+    mutationFn: () => sdKbApi.runQuality(), onSuccess: refrescar, onError: alFallar,
+  })
+  if (isLoading || !data) return <Spinner />
+  const tarjeta: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 14px', display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between' }
+  const boton: CSSProperties = { padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', fontSize: 'var(--text-xs)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }
+  const titulo: CSSProperties = { fontSize: 'var(--text-md)', fontWeight: 700, margin: '18px 0 8px' }
+  const vacio = (texto: string) => <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{texto}</div>
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('itsmknowledge.calidad_intro')}</div>
+        {esAdmin && <button type="button" style={boton} disabled={pasando} onClick={() => pasar()}>{pasando ? '…' : t('itsmknowledge.revisar_ahora')}</button>}
+      </div>
+
+      <div style={titulo}>❓ {t('itsmknowledge.sin_respuesta')} ({data.gaps.length})</div>
+      {data.gaps.length === 0 ? vacio(t('itsmknowledge.sin_respuesta_vacio')) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {data.gaps.map(h => (
+            <div key={h.id} style={tarjeta}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 'var(--text-base)', color: 'var(--text-1)' }}>{h.question}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
+                  {t('itsmknowledge.veces', { n: h.times_asked })} · {t('itsmknowledge.origen_' + h.source)}{h.last_asked_at ? ` · ${fmtDateTime(h.last_asked_at)}` : ''}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button type="button" style={{ ...boton, color: 'var(--accent)' }} onClick={() => { setRespondiendo(h); setRespuesta('') }}>{t('itsmknowledge.responder')}</button>
+                <button type="button" style={boton} onClick={() => setArticuloDe(h)}>{t('itsmknowledge.crear_articulo')}</button>
+                <button type="button" style={boton} onClick={() => estado({ tipo: 'gap', id: h.id, status: 'dismissed' })}>{t('itsmknowledge.descartar')}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={titulo}>⚠ {t('itsmknowledge.avisos')} ({data.findings.length})</div>
+      {data.findings.length === 0 ? vacio(t('itsmknowledge.avisos_vacio')) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {data.findings.map(f => (
+            <div key={f.id} style={tarjeta}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 'var(--text-base)', color: 'var(--text-1)' }}>
+                  {f.kind === 'stale' ? `🕰 ${t('itsmknowledge.caducado', { kb: f.article_number ?? '' })}` : `⇄ ${t('itsmknowledge.contradiccion', { a: f.article_number ?? '', b: f.other_article_number ?? '' })}`}
+                </div>
+                {f.detail && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginTop: 4 }}>{f.detail}</div>}
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button type="button" style={{ ...boton, color: COLOR.success }} onClick={() => estado({ tipo: 'finding', id: f.id, status: 'resolved' })}>{t('itsmknowledge.resuelto')}</button>
+                <button type="button" style={boton} onClick={() => estado({ tipo: 'finding', id: f.id, status: 'dismissed' })}>{t('itsmknowledge.descartar')}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={titulo}>✓ {t('itsmknowledge.correcciones')} ({data.corrections.length})</div>
+      {data.corrections.length === 0 ? vacio(t('itsmknowledge.correcciones_vacio')) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {data.corrections.map(c => (
+            <div key={c.id} style={tarjeta}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{c.question}</div>
+                <div style={{ fontSize: 'var(--text-base)', color: 'var(--text-1)', marginTop: 4, whiteSpace: 'pre-wrap' }}>{c.answer}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
+                  {c.is_public ? t('itsmknowledge.tambien_clientes') : t('itsmknowledge.solo_interna')} · {t('itsmknowledge.usada', { n: c.usage_count })}
+                </div>
+              </div>
+              <button type="button" style={boton} onClick={() => estado({ tipo: 'correction', id: c.id, status: 'archived' })}>{t('itsmknowledge.archivar')}</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {respondiendo && (
+        <Modal open title={t('itsmknowledge.responder')} onClose={() => setRespondiendo(null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{respondiendo.question}</div>
+            <textarea aria-label={t('itsmknowledge.respuesta')} placeholder={t('itsmknowledge.respuesta')} rows={6} value={respuesta} onChange={e => setRespuesta(e.target.value)}
+              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontFamily: 'inherit', resize: 'vertical' }} />
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'var(--text-sm)' }}>
+              <input type="checkbox" checked={publica} onChange={e => setPublica(e.target.checked)} />{t('itsmknowledge.tambien_clientes')}
+            </label>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('itsmknowledge.responder_ayuda')}</div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button variant="secondary" onClick={() => setRespondiendo(null)}>{t('common.cancel')}</Button>
+              <Button disabled={isPending || !respuesta.trim()} onClick={() => responder(respondiendo)}>{t('itsmknowledge.guardar_respuesta')}</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {articuloDe && (
+        <KBArticleModal article={null} inicial={{ title: articuloDe.question }} onClose={() => setArticuloDe(null)}
+          onSaved={() => { estado({ tipo: 'gap', id: articuloDe.id, status: 'answered' }); qc.invalidateQueries({ queryKey: ['sd-kb'] }); setArticuloDe(null) }} />
+      )}
+    </div>
   )
 }
 

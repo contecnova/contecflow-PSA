@@ -103,16 +103,32 @@ _VACIAS = frozenset({
 })
 
 
+def _sin_tildes(texto: str) -> str:
+    import unicodedata
+    return unicodedata.normalize("NFKD", texto.lower()).encode("ascii", "ignore").decode()
+
+
+def _raiz(palabra: str) -> str:
+    """Las seis primeras letras: «restablezco» y «restablecer» comparten «restab».
+
+    Revisión 2026-11, medido en la copia: «¿Cómo restablezco mi contraseña?» no
+    encontraba «Como restablecer tu contrasena» (otra persona del verbo, y la
+    eñe escrita sin tilde). Las de hasta cinco letras van enteras (siglas).
+    """
+    return palabra if len(palabra) <= 5 else palabra[:6]
+
+
 def _por_palabras(q, texto: str, limite: int) -> list[tuple[float, KBArticle]]:
-    palabras = list(dict.fromkeys(p for p in re.findall(r"\w{3,}", texto.lower()) if p not in _VACIAS))[:8]
+    palabras = list(dict.fromkeys(p for p in re.findall(r"\w{3,}", _sin_tildes(texto)) if p not in _VACIAS))[:8]
     if not palabras:
         return []
-    candidatos = q.filter(or_(*[KBArticle.title.ilike(f"%{p}%") for p in palabras],
-                              *[KBArticle.body.ilike(f"%{p}%") for p in palabras])).limit(50).all()
+    raices = [_raiz(p) for p in palabras]
+    candidatos = q.filter(or_(*[KBArticle.title.ilike(f"%{r}%") for r in raices],
+                              *[KBArticle.body.ilike(f"%{r}%") for r in raices])).limit(50).all()
     puntuados = []
     for a in candidatos:
-        contenido = texto_de(a).lower()
-        puntuados.append((sum(1 for p in palabras if p in contenido) / len(palabras), a))
+        contenido = _sin_tildes(texto_de(a))
+        puntuados.append((sum(1 for r in raices if r in contenido) / len(raices), a))
     puntuados.sort(key=lambda x: x[0], reverse=True)
     return puntuados[:limite]
 
@@ -130,7 +146,9 @@ def sugerir(db: Session, texto: str, *, solo_publico: bool, limite: int = 5) -> 
     except Exception:
         logger.warning("busqueda por vectores fallida; se busca por palabras", exc_info=True)
         puntuados = None
+    metodo = "vector"
     if puntuados is None:
-        puntuados = _por_palabras(q, texto, limite)
+        puntuados, metodo = _por_palabras(q, texto, limite), "words"
+    # `method`: la escala de `score` depende de él (coseno o fracción de palabras).
     return [{"id": a.id, "number": a.number, "title": a.title, "summary": a.summary,
-             "score": round(s, 4)} for s, a in puntuados]
+             "score": round(s, 4), "method": metodo} for s, a in puntuados]
