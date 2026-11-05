@@ -483,9 +483,9 @@ Rules enforced in `imputation_service.py`:
   - **Delegation works:** the delegate is stored in the decision row (`approval_decisions.delegate_to`, migration 129) and can decide; before, they were notified and got 403.
   - **Everyone who can decide is notified,** in the app and by email with a link to the inbox: the user, every active user of the role, the group members, the department, or the requester's manager. Before: only a named user or the *first* user of the role, in the app only; group, department and manager steps notified nobody.
   - **Reminders:** `reminder_hours` of a step re-notifies the approvers every N hours while it is pending (it was stored and never read).
-  - **Approve or reject from the email** (`app/services/approval_engine/por_correo.py`): each approver's email carries a signed link for that approver and that step, valid `APPROVAL_EMAIL_LINK_HOURS` (72). It opens `/approvals/decide`, a page without login that shows the summary; deciding is a button (POST), never opening the link, because mail scanners open links on their own. The decision goes through the same checks as the inbox (authorization, segregation of duties, double vote, quorum); rejecting needs a reason; once decided or once the step changes, the link answers 410.
+  - **Approve or reject from the email** (`app/services/approval_engine/por_correo.py`): each approver's email carries a signed link for that approver and that step, valid `APPROVAL_EMAIL_LINK_HOURS` (72). It opens `/approvals/decide`, a page without login that shows the summary; deciding is a button (POST), never opening the link, because mail scanners open links on their own. The decision goes through the same checks as the inbox (authorization, segregation of duties, double vote, quorum); rejecting needs a reason; once decided or once the step changes, the link answers 410. Endpoints: `GET /api/v1/approvals/email-decision?token=` (summary) and `POST /api/v1/approvals/email-decision` (`{token, decision, note}`), both public and authorised by the signed token.
   - **Slack / Teams:** a pending approval is posted once per step to the configured Slack/Teams integrations (event `approval.required`). The Block Kit approval card existed only in the preview and its buttons pointed to a route that does not exist; they now open the inbox. The preview endpoint had a dead duplicate of the card, removed.
-  - **Out of office:** in the inbox («Fuera de la oficina») each user can set a delegate between two dates. While it lasts, their approval notices also go to the delegate, and the delegate can decide the steps they would have decided (one level: A→B and B→A does not loop). Columns `users.away_delegate_id/away_from/away_until` (migration 131).
+  - **Out of office:** in the inbox («Fuera de la oficina») each user can set a delegate between two dates. While it lasts, their approval notices also go to the delegate, and the delegate can decide the steps they would have decided (one level: A→B and B→A does not loop). Columns `users.away_delegate_id/away_from/away_until` (migration 131). Endpoints: `GET/PUT /api/v1/approvals/out-of-office` (only the session user's own absence; the delegate must be an active user of the same company).
 
 **Limitations.**
 - **Only three sources create requests.** Requests are opened automatically only for:
@@ -2674,6 +2674,24 @@ Workflow `wait` timers do **not** run in Celery: they run in the API process's s
 | 115 | `alm_contracts.response_hours`; `sd_tickets.uc_vendor_responded_at`, `uc_response_due`, `uc_response_breached` |
 | 116 | Optional `sd_kb_articles.embedding_vec` (pgvector) |
 | 117 | Data only: encrypts the e-sign credentials stored in plain text in `app_settings` (`esign.*` keys matched by `settings_service.es_sensible`) |
+| 118 | Automations that fire: trigger stored as text, event outbox |
+| 119 | SHA-256 fingerprint of API keys, so they authenticate |
+| 120 | Custom roles that apply: assignable and unique per organisation |
+| 121 | BPMN engine: process instances and their steps |
+| 122 | SSO: provider display name and groups claim |
+| 123 | Rows without organisation assigned to theirs (and the client decision on an invoice) |
+| 124 | Integrations: deletes data invented by simulated syncs |
+| 125 | Uniqueness per organisation for business codes and names |
+| 126 | Each company's own domain (`subdomain` entry mode) |
+| 127 | Reason for suspending a company |
+| 128 | Company deletion: quarantine before purging its data |
+| 129 | Approvals: step delegate and last reminder |
+| 130 | AI providers: fallback order (`priority`) |
+| 131 | Out of office: approval delegate between two dates |
+| 132 | Scheduled automations: `schedule_cron` and `next_run_at` |
+| 133 | Knowledge-base quality: `sd_kb_corrections`, `sd_kb_gaps`, `sd_kb_findings` |
+| 134 | MCP: `mcp_pending_actions` (writes waiting for human approval) |
+| 135 | Data only: rows without a company re-homed from their own record; mixed ITSM snapshots deleted |
 
 ---
 
@@ -3918,7 +3936,7 @@ This section covers every screen an administrator uses to configure contecflow-P
     - `setup.sh` creates `APP_DB_USER` (default `contecflow_app`, no superuser, no BYPASSRLS), generates `APP_DB_PASSWORD` in `.env` and points `DATABASE_URL` at it. Migrations keep the owner in `DATABASE_MIGRATIONS_URL`. `CONTECFLOW_DB_APP_ROLE=0` skips this.
     - In docker compose, the `migrate` service runs `python -m app.db.rls`, and the app uses `APP_DB_USER` when it is defined (otherwise the owner, as before).
   - **Checking it:**
-    - *Admin → Estado sistema* shows whether it is armed: connection role, and tables with RLS out of those expected.
+    - *Admin → Estado sistema* (`GET /api/v1/settings/db-isolation`, admin) shows whether it is armed: connection role, and tables with RLS out of those expected.
     - The API logs a warning at startup when it is not armed.
   - **Measured on a copy with the application role:**
     - 97 menu routes and 2268 API calls with 0 errors.
@@ -4119,7 +4137,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **15 groups, 123 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **18 groups, 172 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4255,6 +4273,51 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **15 
 | observability | METRICS_AUTH_TOKEN | str | None | Bearer token for `/metrics`; empty disables auth | rt (global only). **Stored and audited in plaintext** |
 | timeouts | OUTBOUND_HTTP_TIMEOUT_SECONDS | float | 10.0 | Default timeout for outbound HTTP | rt via `outbound_http_timeout()` (24 call sites) |
 | timeouts | OUTBOUND_AI_TIMEOUT_SECONDS | float | 30.0 | Default timeout for outbound AI calls | rt via `outbound_ai_timeout()` |
+| ai | AI_PROVIDER_ERROR_COOLDOWN_SECONDS | int | 300 | A failing provider is set aside for (s), then retried | rt |
+| ai | MCP_WRITE_MODE | str | `off` | MCP — tools that write: off (hidden), approval (a human approves each call) or direct | rt |
+| automations | APPROVAL_EMAIL_LINK_HOURS | int | 72 | Approvals — hours the approve/reject link of the email is valid | rt |
+| automations | AUTOMATIONS_DEADLINE_DAYS | int | 2 | "Task due soon": days before the due date | rt |
+| automations | AUTOMATIONS_ENABLED | bool | true | Rules run on events and on the periodic scan (off: only the simulation) | rt |
+| automations | AUTOMATIONS_EVENT_BATCH_SIZE | int | 200 | Events processed per run | rt |
+| automations | AUTOMATIONS_EVENT_MAX_ATTEMPTS | int | 3 | Attempts per event before it is left as failed | rt |
+| automations | AUTOMATIONS_MAX_CHAIN_DEPTH | int | 3 | A rule may trigger another one up to this depth | rt |
+| automations | AUTOMATIONS_TIMESHEET_WEEKDAY | int | 5 | "Timesheet not submitted": from this weekday (ISO, 1=Mon … 7=Sun) | rt |
+| automations | AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS | int | 10 | Webhook action — timeout (s) | rt |
+| automations | BPMN_MAX_AUTOMATIC_STEPS | int | 500 | BPM — automatic steps in a row before an instance fails (loop guard) | rt |
+| automations | NOTIFICATIONS_DIGEST_HOUR | int | 8 | Daily notice digest — local hour (0-23) from which it is emailed | rt |
+| automations | NOTIFICATIONS_DIGEST_MAX_ITEMS | int | 20 | Daily notice digest — notices listed at most | rt |
+| locale | SCENARIO_CAPACITY_ROLES | str | `pm,team_lead,employee,subcontractor` | Scenarios — roles whose capacity counts (comma separated) | rt |
+| risk | RISK_BUDGET_OVER_FACTOR | float | 2.0 | Budget — points per % above 100 % | rt |
+| risk | RISK_BUDGET_WARN_FACTOR | float | 3.0 | Budget — points per % above the warning | rt |
+| risk | RISK_BUDGET_WARN_PCT | float | 85.0 | Budget — % spent where risk starts | rt |
+| risk | RISK_CACHE_MINUTES | int | 60 | Scores are reused for (minutes) | rt |
+| risk | RISK_DELAY_FACTOR | float | 0.8 | Delay probability — % per score point | rt |
+| risk | RISK_DELAY_MAX_PCT | float | 95.0 | Delay probability — maximum (%) | rt |
+| risk | RISK_DELAY_PCT_PER_WEEK | float | 20.0 | Predicted delay — probability % per week | rt |
+| risk | RISK_HISTORY_POINTS | int | 12 | Detail — history points shown | rt |
+| risk | RISK_LEVEL_CRITICAL | float | 75.0 | Risk score — critical from (0-100) | rt |
+| risk | RISK_LEVEL_HIGH | float | 50.0 | Risk score — high from (0-100) | rt |
+| risk | RISK_LEVEL_MEDIUM | float | 25.0 | Risk score — medium from (0-100) | rt |
+| risk | RISK_POINTS_PER_HIGH_RISK | float | 25.0 | Resources — points per open high-probability risk | rt |
+| risk | RISK_POINTS_PER_OPEN_CR | float | 20.0 | Scope — points per open change request | rt |
+| risk | RISK_SCHEDULE_FACTOR | float | 1.5 | Schedule — points per % behind plan | rt |
+| risk | RISK_WEIGHT_BUDGET | float | 0.3 | Risk score — weight of budget (0-1) | rt |
+| risk | RISK_WEIGHT_RESOURCE | float | 0.15 | Risk score — weight of resources (0-1) | rt |
+| risk | RISK_WEIGHT_SCHEDULE | float | 0.4 | Risk score — weight of schedule (0-1) | rt |
+| risk | RISK_WEIGHT_SCOPE | float | 0.15 | Risk score — weight of scope (0-1) | rt |
+| service_desk | SD_AUTONOMOUS_AGENT_ENABLED | bool | false | Autonomous agent — scan new tickets every 5 min (comments and may resolve) | rt |
+| service_desk | SD_AUTONOMY_RESOLVE_THRESHOLD | float | 0.8 | Autonomous agent — confidence to resolve on its own (0-1) | rt |
+| service_desk | SD_AUTONOMY_SUGGEST_THRESHOLD | float | 0.5 | Autonomous agent — confidence to comment a playbook (0-1) | rt |
+| tenants | IMPERSONATION_ENABLED | bool | true | Platform support may sign in as a company user (with a reason, audited) | rt |
+| tenants | IMPERSONATION_MAX_MINUTES | int | 30 | Sign in as — maximum session length (minutes) | rt |
+| tenants | TENANT_DELETION_QUARANTINE_DAYS | int | 30 | Company deletion — quarantine before its data is erased (days) | rt |
+| timeouts | AI_AGENT_TURN_TIMEOUT_SECONDS | int | 90 | NexusAgent — timeout per model turn (s) | rt |
+| timeouts | AI_LOCAL_HTTP_TIMEOUT_SECONDS | int | 120 | Ollama (local model) call — timeout (s) | rt |
+| timeouts | AI_MODELS_LIST_TIMEOUT_SECONDS | int | 30 | AI "Sync models" — timeout (s) | rt |
+| timeouts | SSO_CLOCK_SKEW_SECONDS | int | 60 | SSO — clock skew tolerated when validating the id_token (seconds) | rt |
+| timeouts | SSO_HTTP_TIMEOUT_SECONDS | float | 10.0 | SSO — timeout calling the identity provider (seconds) | rt |
+| tokens | DEVELOPER_TOKEN_TTL_MINUTES | int | 60 | Developer-portal app token TTL (minutes) | rt |
+| tokens | PASSKEY_PASSWORDLESS_ENABLED | bool | true | Allow signing in with a passkey alone (no password) | rt |
 
 ---
 

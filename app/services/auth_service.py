@@ -1087,6 +1087,22 @@ def sso_timeout_http() -> float:
         return float(_cfg.SSO_HTTP_TIMEOUT_SECONDS)
 
 
+def sso_holgura_de_reloj() -> int:
+    """Segundos de holgura de reloj al validar el id_token (ajuste global, sin tenant).
+
+    Revisión 2026-11 (medido: estaba en Admin y se leía solo de `.env`).
+    """
+    from app.core.config import settings as _cfg
+    try:
+        from app.db.session import SessionLocal
+        from app.services.settings_service import get_runtime_int
+        with SessionLocal() as _db:
+            v = get_runtime_int(_db, "SSO_CLOCK_SKEW_SECONDS")
+        return int(v) if v is not None else int(_cfg.SSO_CLOCK_SKEW_SECONDS)
+    except Exception:
+        return int(_cfg.SSO_CLOCK_SKEW_SECONDS)
+
+
 def correo_de_usuario(db: Session, user_id: str) -> Optional[str]:
     """El correo de cualquier usuario (sin filtro de tenant): quien suplanta."""
     from app.db.session import sin_filtro_de_tenant

@@ -130,3 +130,20 @@ def test_EL_HALLAZGO_gemini_que_razona_sin_texto_da_un_error_claro(monkeypatch):
         ia._call_gemini("k", "gemini-2.5-flash", [{"role": "user", "content": "hola"}], None, 10, 0.2)
     r = ia._call_gemini("k", "gemini-2.5-flash", [{"role": "user", "content": "hola"}], None, 256, 0.2)
     assert r["text"] == "OK" and r["tokens_out"] == 21, "el razonamiento se factura"
+
+
+def test_EL_HALLAZGO_la_pausa_tras_error_se_ajusta_desde_admin(db, llamadas):
+    """Medido 2026-11-05: el ajuste estaba en Admin y se leía solo de `.env`."""
+    from app.services import settings_service
+    p = _proveedor(db, "Principal", is_default=True)
+    p.status, p.last_error_at = "error", datetime.now(timezone.utc) - timedelta(seconds=30)
+    _proveedor(db, "Respaldo")
+    db.commit()
+    _llamar(db)
+    assert llamadas[0][0] == "Respaldo", "con la pausa por defecto (300 s) sigue apartado"
+    settings_service.set_runtime_value(db, "ai", "AI_PROVIDER_ERROR_COOLDOWN_SECONDS", 10, None)
+    db.commit()
+    settings_service.invalidate_cache()
+    llamadas.clear()
+    _llamar(db)
+    assert llamadas[0][0] == "Principal", "con 10 s desde Admin, ya vuelve"

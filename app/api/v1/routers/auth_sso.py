@@ -36,6 +36,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _holgura_sso() -> int:
+    from app.services.auth_service import sso_holgura_de_reloj
+    return sso_holgura_de_reloj()
+
+
 def _timeout() -> float:
     """Auditoria 2026-11: antes 5 y 10 s escritos aqui."""
     from app.services.auth_service import sso_timeout_http
@@ -390,7 +395,7 @@ def _validar_id_token_y_extraer_identidad(
             algorithms=_ALGORITMOS,
             audience=config.oidc_client_id,
             issuer=issuer if verificar_iss else None,
-            leeway=settings.SSO_CLOCK_SKEW_SECONDS,
+            leeway=_holgura_sso(),
             options={"verify_exp": True, "verify_iss": verificar_iss, "require": ["exp", "iat"]},
         )
     # intentional: chained re-raise preserves context

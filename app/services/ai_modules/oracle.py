@@ -90,7 +90,7 @@ def _oracle_project_delay(db: Session, projects: list, now: datetime) -> list:
             existing.recommended_action = action
         else:
             pred = AIPrediction(
-                organization_id=p.organization_id,   # revisión 2026-11: el job no tiene empresa
+                organization_id=getattr(p, "organization_id", None),   # revisión 2026-11: el job no tiene empresa
                 prediction_type="project_delay", entity_type="project", entity_id=p.id,
                 probability=probability, severity=severity,
                 title=title, explanation=explanation, recommended_action=action,
@@ -159,7 +159,7 @@ def _oracle_sla_breach(db: Session, open_tickets: list, now: datetime) -> list:
         ).first()
         if not existing:
             db.add(AIPrediction(
-                organization_id=t.organization_id,
+                organization_id=getattr(t, "organization_id", None),
                 prediction_type="sla_breach", entity_type="ticket", entity_id=t.id,
                 probability=probability, severity=severity,
                 title=f"Riesgo de incumplimiento SLA — Ticket {t.number}",
@@ -201,7 +201,7 @@ def _oracle_burnout(db: Session, active_users: list, now: datetime) -> list:
             existing.severity    = severity
         else:
             db.add(AIPrediction(
-                organization_id=u.organization_id,
+                organization_id=getattr(u, "organization_id", None),
                 prediction_type="burnout", entity_type="user", entity_id=u.id,
                 probability=probability,
                 severity=severity,
@@ -259,7 +259,7 @@ def _oracle_budget_overrun(db: Session, projects: list) -> list:
                     f"facturación {round(revenue_ratio*100)}% → posibles pérdidas reales."
                 )
             db.add(AIPrediction(
-                organization_id=p.organization_id,
+                organization_id=getattr(p, "organization_id", None),
                 prediction_type="budget_overrun", entity_type="project", entity_id=p.id,
                 probability=min(worst_ratio - 0.5, 0.99),
                 severity="critical" if worst_ratio > 1 else "high",

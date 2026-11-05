@@ -676,7 +676,7 @@ def proveedor_desde_entorno():
     )
 
 
-def _disponible():
+def _disponible(db: Session = None):
     """Proveedor elegible: no en error, o con el error ya enfriado.
 
     Revision 2026-11: un fallo dejaba el proveedor en «error» para siempre
@@ -685,7 +685,14 @@ def _disponible():
     """
     from datetime import timedelta
     from sqlalchemy import or_
-    limite = datetime.now(timezone.utc) - timedelta(seconds=int(settings.AI_PROVIDER_ERROR_COOLDOWN_SECONDS or 300))
+    # Revisión 2026-11 (medido: el ajuste estaba en Admin y no tenía efecto): se
+    # lee en tiempo real, con el valor de `.env` como respaldo.
+    segundos = None
+    if db is not None:
+        from app.services.settings_service import get_runtime_int
+        segundos = get_runtime_int(db, "AI_PROVIDER_ERROR_COOLDOWN_SECONDS")
+    limite = datetime.now(timezone.utc) - timedelta(
+        seconds=int(segundos if segundos is not None else (settings.AI_PROVIDER_ERROR_COOLDOWN_SECONDS or 300)))
     return or_(AIProvider.status != "error", AIProvider.last_error_at.is_(None), AIProvider.last_error_at < limite)
 
 
@@ -709,7 +716,7 @@ def get_default_provider(
     un solo cliente tiene que poder configurarse sin abrir la aplicación.
     """
     base_q = db.query(AIProvider).filter(
-        _disponible(),
+        _disponible(db),
         AIProvider.is_active == True,  # audit #36 soft-delete
     )
 
@@ -762,7 +769,7 @@ def _try_fallback_providers(
     """
     # Get all available active providers
     query = db.query(AIProvider).filter(
-        _disponible(),
+        _disponible(db),
         AIProvider.is_active == True,  # audit #36 soft-delete
     )
 
@@ -1235,7 +1242,7 @@ def call_ai(
             elegido = _seleccionar_proveedor(db, ruta["provider_id"], is_superadmin, organization_id)
             if elegido is not None and elegido.is_active and (
                     elegido.status != "error" or db.query(AIProvider.id).filter(
-                        AIProvider.id == elegido.id, _disponible()).first()):
+                        AIProvider.id == elegido.id, _disponible(db)).first()):
                 provider_id = elegido.id
         model = model or ruta.get("model")
     p = _seleccionar_proveedor(db, provider_id, is_superadmin, organization_id)
