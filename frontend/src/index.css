@@ -234,6 +234,12 @@
 
 html { scroll-behavior: smooth; }
 
+/* Revisión 2026-11: un <button> no hereda el color del texto (el navegador le
+   pone el suyo, negro). Medido: 79 botones en 9 pantallas se leían mal en tema
+   oscuro (el catálogo BPM entero, clientes, contratos, bandeja…). Los botones
+   que fijan su color no cambian. */
+button { color: inherit; }
+
 body {
   background: var(--bg);
   color: var(--text-1);
