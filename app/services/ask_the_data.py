@@ -337,6 +337,15 @@ LIMIT 200
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def _verificar(pregunta: str, sql: str) -> dict:
+    from app.services.ask_verificacion import verificar
+    try:
+        return verificar(pregunta, sql)
+    except Exception:
+        logger.warning("ask_the_data: la verificación falló", exc_info=True)
+        return {"verdict": "not_checked", "checks": [], "detail": "La verificación falló: nada comprobado."}
+
+
 def ask(
     question: str,
     db: Session,
@@ -402,6 +411,9 @@ def ask(
             "row_count": len(rows),
             "truncated": len(rows) >= MAX_ROWS,
             "error": None,
+            # Revisión 2026-11: ¿responde a esta pregunta o a otra parecida? Se
+            # mira la consulta del modelo, antes del filtro de empresa y el LIMIT.
+            "verification": _verificar(question, _normalize_sql_for_duckdb(raw_sql)),
         }
 
     except SQLValidationError as exc:
@@ -420,6 +432,7 @@ def ask(
                     "row_count": len(rows),
                     "truncated": len(rows) >= MAX_ROWS,
                     "error": None,
+                    "verification": _verificar(question, fallback_sql),
                 }
             except Exception:
                 logger.warning("Fallback SQL también falló para org_id=%s", org_id, exc_info=True)

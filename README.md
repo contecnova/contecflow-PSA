@@ -2884,6 +2884,14 @@ If the chosen provider fails, every other active provider is tried once. If none
   2. `validate_sql` checks it: SELECT only, a keyword blacklist, a whitelist of 9 OLAP tables, and LIMIT capped at 200.
   3. It injects an `organization_id = <org>` filter.
   4. The query runs on DuckDB only. It retries once with the error as feedback.
+  5. **Verification (revision 2026-11, what contecintelligence had).** `ask_verificacion.verificar` checks that the query answers *this* question and not a similar one. It reads the tree of the LLM's query (DuckDB `json_serialize_sql`, no new dependency), before our tenant filter and LIMIT are added. Checks:
+     - `time_window`: the question limits a period and the query does not filter by a date column.
+     - `breakdown`: «por proyecto», «by month» and so on, with an ungrouped total.
+     - `ranking`: «top», «los que más», «highest», with no ORDER BY. «mayor que» counts as a filter, not a ranking.
+     - `units`: a percentage without a division or a `*_pct` column, or an average without `avg`.
+     - `distinct`: «distintos» without `COUNT(DISTINCT)` or `SELECT DISTINCT`.
+
+     The answer carries `verification: {verdict, checks}`. The widget shows *Responde a lo preguntado (N comprobaciones)*, the warnings, or *Sin comprobar* when nothing applied. A verdict is `verified` only if at least one check ran; when nothing could be checked it says `not_checked`, never `verified`. Intent patterns cover Spanish and English; questions in Chinese stay unchecked.
 - **Visual builder:**
   - `GET /api/v1/bi/intelligence/query-builder/schema`
   - `POST /api/v1/bi/intelligence/query-builder/preview` (500 rows)

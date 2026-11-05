@@ -57,6 +57,24 @@ interface AskResult {
   sql?: string
   columns?: string[]
   rows?: Array<Record<string, unknown>>
+  // Revisión 2026-11: ¿responde a esta pregunta o a otra parecida?
+  verification?: { verdict: 'verified' | 'warning' | 'not_checked'; checks: Array<{ name: string; status: string }> }
+}
+
+// Lo que se comprobó, en el idioma del usuario. «No comprobado» se dice tal cual:
+// un «verificado» sin haber mirado nada sería peor que no verificar.
+function Verificacion({ v }: { v?: AskResult['verification'] }) {
+  const { t } = useAppLang()
+  if (!v) return null
+  const avisos = v.checks.filter(c => c.status === 'warning')
+  const hechas = v.checks.filter(c => c.status !== 'skipped').length
+  const color = v.verdict === 'warning' ? COLOR.warning : v.verdict === 'verified' ? COLOR.success : 'var(--text-3)'
+  return (
+    <div role={v.verdict === 'warning' ? 'alert' : undefined} style={{ fontSize: 'var(--text-xs)', color, background: alpha(v.verdict === 'not_checked' ? '#888888' : color, '12'), border: `1px solid ${alpha(v.verdict === 'not_checked' ? '#888888' : color, '30')}`, borderRadius: 7, padding: '7px 10px' }}>
+      <strong>{t('askdatawidget.verif_' + v.verdict, { n: hechas })}</strong>
+      {avisos.map(c => <div key={c.name} style={{ marginTop: 3 }}>⚠ {t('askdatawidget.verif_aviso_' + c.name)}</div>)}
+    </div>
+  )
 }
 
 export default function AskDataWidget({ style = {} }: { style?: React.CSSProperties }) {
@@ -219,6 +237,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
                   }}>{mutation.data.sql}</pre>
                 )}
 
+                <Verificacion v={mutation.data.verification} />
                 <ResultTable columns={mutation.data.columns} rows={mutation.data.rows} />
               </>
             )}
