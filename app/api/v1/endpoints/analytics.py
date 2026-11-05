@@ -9,7 +9,7 @@ import logging
 from pydantic import BaseModel, Field
 
 from app.db.session import get_db
-from app.core.deps import require_admin_or_pm, get_current_user, require_internal_user
+from app.core.deps import require_admin, require_admin_or_pm, get_current_user, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 # Legacy metrics fully migrated to MODULAR_METRICS_REGISTRY — see #109/#104.
@@ -1064,6 +1064,23 @@ def delete_ask_example(example_id: str, db: Session = Depends(get_db),
     if not ask_banco.borrar(db, current_user.organization_id, example_id):
         raise HTTPException(404, "No existe")
     return APIResponse.ok(data={"deleted": example_id})
+
+
+# ── Estado y carga del almacén analítico (revisión 2026-11) ──────────────────
+@router.get("/olap/status", summary="Última carga del almacén analítico y filas de la empresa")
+def olap_status(current_user: User = Depends(require_internal_user)):
+    from app.services.olap.etl import estado
+    return APIResponse.ok(data=estado(current_user.organization_id))
+
+
+@router.post("/olap/refresh", summary="Recargar ya el almacén analítico desde la base (admin)")
+def olap_refresh(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    from app.db.session import sin_filtro_de_tenant
+    from app.services.olap.etl import run_full_etl
+    # La carga es de TODAS las empresas (el almacén es uno; cada consulta lleva
+    # el filtro de su empresa), igual que el trabajo nocturno.
+    with sin_filtro_de_tenant(db):
+        return APIResponse.ok(data=run_full_etl(db))
 
 
 @router.get("/olap/kpis", summary="KPIs del OLAP (DuckDB)")

@@ -1,5 +1,12 @@
 // 中文 (自动翻译)
 const zh = {
+  dataexplorer: {
+    almacen_vacio: "分析库为空：首次加载（每晚 01:00）之前 Ask the Data 没有数据。",
+    almacen_estado: "分析数据加载于 {fecha}：贵公司 {imputaciones} 条工时、{proyectos} 个项目、{tickets} 个工单、{oportunidades} 个商机。",
+    almacen_fallo: "上次加载失败：{error}",
+    almacen_cargar: "立即加载",
+    almacen_cargado: "分析库已加载",
+  },
   puesta: {
     intro: "本公司尚需配置的事项。每一项都根据数据测量，不能手动勾选。",
     necesarios: "必需（{hechos}/{total}）",

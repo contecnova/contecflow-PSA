@@ -1,5 +1,12 @@
 // Español
 const es = {
+  dataexplorer: {
+    almacen_vacio: "El almacén analítico está vacío: Ask the Data no tiene datos hasta la primera carga (cada noche a la 01:00).",
+    almacen_estado: "Datos analíticos cargados el {fecha}: {imputaciones} imputaciones, {proyectos} proyectos, {tickets} tickets, {oportunidades} oportunidades de tu empresa.",
+    almacen_fallo: "la última carga falló: {error}",
+    almacen_cargar: "Cargar ahora",
+    almacen_cargado: "Almacén analítico cargado",
+  },
   puesta: {
     intro: "Lo que falta por configurar en esta empresa. Cada punto se mide sobre sus datos: no se marca a mano.",
     necesarios: "Necesarios ({hechos} de {total})",

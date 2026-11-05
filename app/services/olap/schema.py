@@ -127,6 +127,13 @@ CREATE TABLE IF NOT EXISTS fact_tickets (
     satisfaction    INTEGER
 );
 
+-- Revisión 2026-11: cada carga deja su resultado (antes un fallo sólo iba al log).
+CREATE TABLE IF NOT EXISTS etl_runs (
+    run_at          TIMESTAMP,
+    status          VARCHAR,
+    detail          VARCHAR
+);
+
 -- ── Indexes for common query patterns ────────────────────────────────────────
 
 CREATE INDEX IF NOT EXISTS idx_fact_imp_date    ON fact_imputations(date_key);

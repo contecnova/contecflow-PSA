@@ -337,6 +337,9 @@ export const analyticsApi = {
   ask:             (question: any)      => api.post('/analytics/ask', { question }),
   // Revisión 2026-11: banco de preguntas validadas de Ask-the-Data.
   askExamples:     ()                   => api.get('/analytics/ask/examples'),
+  // Revisión 2026-11: estado y carga del almacén analítico.
+  olapStatus:      ()                   => api.get('/analytics/olap/status'),
+  olapRefresh:     ()                   => api.post('/analytics/olap/refresh'),
   saveAskExample:  (question: string, sql: string) => api.post('/analytics/ask/examples', { question, sql }),
   deleteAskExample:(id: string)         => api.delete(`/analytics/ask/examples/${id}`),
   olapKpis:        (params?: any)        => api.get('/analytics/olap/kpis', { params }),

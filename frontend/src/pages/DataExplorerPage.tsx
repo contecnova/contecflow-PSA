@@ -12,6 +12,7 @@ import NarrativeCard from '../components/bi/NarrativeCard'
 import AskDataWidget from '../components/bi/AskDataWidget'
 import VisualQueryBuilderWidget from '../components/bi/VisualQueryBuilderWidget'
 import BiQueryBuilderPanel from '../components/bi/BiQueryBuilderPanel'
+import EstadoDelAlmacen from '../components/bi/EstadoDelAlmacen'
 
 export default function DataExplorerPage(): JSX.Element {
   const { lang } = useAppLang()
@@ -27,6 +28,7 @@ export default function DataExplorerPage(): JSX.Element {
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <EstadoDelAlmacen />
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(360px, 1fr))', gap: 14 }}>
           <NarrativeCard lang={lang} />
           <AskDataWidget />

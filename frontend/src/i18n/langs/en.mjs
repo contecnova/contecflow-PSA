@@ -1,4 +1,11 @@
 const en = {
+  dataexplorer: {
+    almacen_vacio: "The analytics store is empty: Ask the Data has no data until the first load (every night at 01:00).",
+    almacen_estado: "Analytics data loaded on {fecha}: {imputaciones} time entries, {proyectos} projects, {tickets} tickets, {oportunidades} opportunities of your company.",
+    almacen_fallo: "the last load failed: {error}",
+    almacen_cargar: "Load now",
+    almacen_cargado: "Analytics store loaded",
+  },
   puesta: {
     intro: "What is left to configure in this company. Each item is measured on its data, not ticked by hand.",
     necesarios: "Required ({hechos} of {total})",

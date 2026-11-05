@@ -101,13 +101,26 @@ def test_reintenta_una_vez_con_los_valores_reales(db, olap, monkeypatch):
     assert "'opened'" in pedidas[1] and '"open"' in pedidas[1]       # el modelo recibió los valores reales
 
 
-def test_sin_valor_parecido_no_reintenta(db, olap, monkeypatch):
+def test_sin_valor_parecido_tambien_reintenta_con_los_que_existen(db, olap, monkeypatch):
+    """«abierto» no se parece a open/closed por escritura; el modelo sí lo entiende viendo los valores."""
+    pedidas = []
+
+    def modelo(pregunta, db, **k):
+        pedidas.append(k.get("feedback"))
+        return ("SELECT ticket_id FROM fact_tickets WHERE status = 'zzzz'" if len(pedidas) == 1
+                else "SELECT ticket_id FROM fact_tickets WHERE status <> 'closed' ORDER BY ticket_id")
+    monkeypatch.setattr(atd, "_generate_sql", modelo)
+    r = atd.ask("tickets zzzz", db, org_id="1")
+    assert len(pedidas) == 2 and '"closed", "open"' in pedidas[1]
+    assert [f["ticket_id"] for f in r["rows"]] == ["t1", "t2"] and r["retried_with_real_values"]
+
+
+def test_columna_sin_datos_no_reintenta(db, olap, monkeypatch):
     pedidas = []
     monkeypatch.setattr(atd, "_generate_sql",
-                        lambda *a, **k: pedidas.append(1) or "SELECT ticket_id FROM fact_tickets WHERE status = 'zzzz'")
-    r = atd.ask("tickets zzzz", db, org_id="1")
-    assert len(pedidas) == 1 and r["zero_result_hints"][0]["closest"] == []
-    assert r["zero_result_hints"][0]["sample"] == ["closed", "open"]
+                        lambda *a, **k: pedidas.append(1) or "SELECT ticket_id FROM fact_tickets WHERE status = 'x'")
+    r = atd.ask("tickets x", db, org_id="sin-datos")
+    assert len(pedidas) == 1 and r["zero_result_hints"][0]["sample"] == []
 
 
 def test_like_que_si_existe_no_cuenta_como_falta(db, olap):

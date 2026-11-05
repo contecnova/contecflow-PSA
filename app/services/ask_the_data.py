@@ -395,7 +395,11 @@ def _sin_filas(resultado: dict, pregunta: str, db: Session, raw_sql: str, **quie
     resultado = {**resultado, "zero_result_hints": lista}
     reintentar = get_runtime_bool(db, "ASK_DATA_RETRY_WITH_REAL_VALUES", org)
     reintentar = settings.ASK_DATA_RETRY_WITH_REAL_VALUES if reintentar is None else reintentar
-    if not reintentar or not any(not p["exists"] and p["closest"] for p in lista):
+    # Se reintenta si algún valor buscado no existe y la columna tiene datos,
+    # aunque ninguno se le parezca por escritura: «abierto» frente a
+    # assigned/in_progress/closed sólo lo resuelve quien entiende la pregunta
+    # (medido con la base real, 2026-11-05).
+    if not reintentar or not any(not p["exists"] and (p["closest"] or p["sample"]) for p in lista):
         return resultado
     try:
         nuevo = _generate_sql(pregunta, db, feedback=ask_valores_reales.como_feedback(lista), **quien)
