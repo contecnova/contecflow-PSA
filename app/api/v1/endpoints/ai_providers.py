@@ -224,6 +224,21 @@ def discover_unsaved(data: dict = Body(...), _=Depends(require_admin)):
     return APIResponse.ok(data={"models": modelos})
 
 
+@router.get("/spend-today", summary="Gasto en IA de hoy frente al tope diario de la empresa")
+def gasto_de_hoy(db: Session = Depends(get_db), cu=Depends(require_admin)):
+    from app.services.ai_provider_service import gasto_de_hoy as _gasto, presupuesto_diario
+    from app.services.settings_service import get_runtime_float
+    org = cu.organization_id
+    tope = presupuesto_diario(db, org)
+    gastado = _gasto(db, org)
+    aviso = float(get_runtime_float(db, "AI_DAILY_BUDGET_WARN_PCT", org) or 0)
+    return APIResponse.ok(data={
+        "spent_usd": round(gastado, 4), "budget_usd": tope, "warn_pct": aviso,
+        "used_pct": round(gastado / tope * 100, 1) if tope > 0 else None,
+        "blocked": tope > 0 and gastado >= tope,
+    })
+
+
 @router.get("/routing", summary="Proveedor y modelo por función")
 def get_routing(db: Session = Depends(get_db), cu=Depends(require_admin)):
     return APIResponse.ok(data={

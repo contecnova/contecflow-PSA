@@ -1312,6 +1312,7 @@ export const scheduledReportsApi = {
 
 // ── AI Providers ──────────────────────────────────────────────────────────────
 export const aiProvidersApi = {
+  spendToday: () => api.get('/ai-providers/spend-today'),
   list:        ()         => api.get('/ai-providers'),
   catalog:     ()         => api.get('/ai-providers/catalog'),
   stats:       ()         => api.get('/ai-providers/stats'),

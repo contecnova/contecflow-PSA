@@ -1,6 +1,9 @@
 // 中文 (自动翻译)
 const zh = {
   ai: {
+    gasto_con_tope: "今日 AI 支出：{gastado} USD / {tope} USD（{pct}%）",
+    gasto_sin_tope: "今日 AI 支出：{gastado} USD（无每日上限：AI_DAILY_BUDGET_USD）",
+    gasto_cortado: "已达上限：AI 停用至 UTC 00:00",
     add_first_provider: "添加首个提供商",
     add_provider: "添加提供商",
     add_provider_action: "添加提供商",

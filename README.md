@@ -3769,6 +3769,15 @@ Header buttons: **Diagnóstico**, **Sync all models**.
 - Table `ai_providers`. API keys are encrypted with `encrypt_value` (Fernet `v2:` with a per-record salt, or KMS) and never returned (`has_api_key` only).
 - Alternative: `.env` `AI_PROVIDER` / `AI_API_KEY` / `AI_MODEL` / `AI_BASE_URL`.
 
+**Daily AI spend cap per company (2026-11-05, what contecintelligence had).**
+- **Before:** only `AI_COST_ALERT_USD_PER_DAY` existed. It wrote a warning in the log, and it added up the spend of **every** company.
+- **Now:** each company sets `AI_DAILY_BUDGET_USD` (0 = no cap, the default). When today's successful spend (since 00:00 UTC) reaches it, `call_ai` refuses before calling the provider (`PresupuestoDeIAAgotado`).
+  - The API answers **429** with the reason.
+  - The portal chat tells the client that the assistant reached its limit for today, instead of a demo answer.
+  - The warning is now per company.
+- **Attribution:** every `ai_usage_logs` row now carries the company of the call explicitly (session, then user), including background jobs. Before, it depended on the session stamp and was empty for jobs.
+- **Visibility:** the AI Hub shows today's spend against the cap (`GET /api/v1/ai-providers/spend-today`, admin). It warns from `AI_DAILY_BUDGET_WARN_PCT` (80 %) and says when calls are stopped.
+
 **Since 2026-11-05 (what contecmind had, added to this hub without a second screen):**
 - **The `.env` provider is shown** as a card marked «Desde .env» (it worked but appeared nowhere, so the hub and AI Governance said «no provider» while Gemini answered). It can be tested (`POST /ai-providers/env/test`) and imported (`POST /ai-providers/env/import`): it becomes a normal, editable provider of the company with the key encrypted. The other screens that show «active provider» (AI Governance, NexusAgent) read the same list.
 - **«Por función» tab:** provider and model per function (assistant, agent, planning, service desk drafts, auto-resolution, changes, KB, documents, contracts, meetings, BI narrative, Ask the Data, semantic tie-break, client portal, voice, AI modules). Empty means the default provider. Stored per company (`app_settings.ai_routing`); `call_ai(module=…)` applies it when the call does not ask for a specific provider, and falls back to the default if the chosen one is set aside.
@@ -4144,7 +4153,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **18 groups, 172 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **18 groups, 174 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4281,6 +4290,8 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **18 
 | timeouts | OUTBOUND_HTTP_TIMEOUT_SECONDS | float | 10.0 | Default timeout for outbound HTTP | rt via `outbound_http_timeout()` (24 call sites) |
 | timeouts | OUTBOUND_AI_TIMEOUT_SECONDS | float | 30.0 | Default timeout for outbound AI calls | rt via `outbound_ai_timeout()` |
 | ai | AI_PROVIDER_ERROR_COOLDOWN_SECONDS | int | 300 | A failing provider is set aside for (s), then retried | rt |
+| ai | AI_DAILY_BUDGET_USD | float | 0.0 | AI — daily spend cap per company in USD; calls stop until 00:00 UTC (0: no cap) | rt |
+| ai | AI_DAILY_BUDGET_WARN_PCT | float | 80.0 | AI — % of the daily cap from which the AI Hub warns | rt |
 | ai | MCP_WRITE_MODE | str | `off` | MCP — tools that write: off (hidden), approval (a human approves each call) or direct | rt |
 | automations | APPROVAL_EMAIL_LINK_HOURS | int | 72 | Approvals — hours the approve/reject link of the email is valid | rt |
 | automations | AUTOMATIONS_DEADLINE_DAYS | int | 2 | "Task due soon": days before the due date | rt |

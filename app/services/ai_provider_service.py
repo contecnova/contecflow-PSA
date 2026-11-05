@@ -1116,13 +1116,17 @@ def _llamar_con_respaldo(db: Session, p, messages: list, system, model, max_toke
 
 
 def _registrar_uso(db: Session, p, result: dict, *, user_id, module,
-                   latency: int, error_msg) -> None:
+                   latency: int, error_msg, organization_id=None) -> None:
     """Escribe la fila de `AIUsageLog`. Un fallo al registrar no rompe la llamada.
 
     El `rollback` del `except` no es opcional: sin el, una sesion en transaccion
     abortada haria fallar todo lo que viene despues, incluido el aviso de coste.
+    Revisión 2026-11: con la empresa de la llamada explícita (antes dependía del
+    sellado de la sesión, vacío en los trabajos de fondo); es lo que suma el
+    gasto diario de cada empresa.
     """
     db.add(AIUsageLog(
+        organization_id=organization_id,
         provider_id=p.id if p else None,
         user_id=user_id,
         module=module,
@@ -1141,7 +1145,58 @@ def _registrar_uso(db: Session, p, result: dict, *, user_id, module,
         db.rollback()
 
 
-def _avisar_si_el_coste_diario_se_pasa(db: Session, result: dict) -> None:
+class PresupuestoDeIAAgotado(RuntimeError):
+    """La empresa ha llegado a su tope diario de gasto en IA (`AI_DAILY_BUDGET_USD`)."""
+
+
+def _inicio_de_hoy() -> datetime:
+    return datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def gasto_de_hoy(db: Session, organization_id) -> float:
+    """Coste (USD) de las llamadas con éxito de la empresa desde las 00:00 UTC."""
+    from app.db.session import sin_filtro_de_tenant
+    with sin_filtro_de_tenant(db):
+        return float(db.query(func.sum(AIUsageLog.cost_usd)).filter(
+            AIUsageLog.organization_id == organization_id,
+            AIUsageLog.created_at >= _inicio_de_hoy(),
+            AIUsageLog.success == True,   # noqa: E712 — comparación SQL
+        ).scalar() or 0)
+
+
+def presupuesto_diario(db: Session, organization_id) -> float:
+    """Tope diario de la empresa (0: sin tope)."""
+    from app.services.settings_service import get_runtime_float
+    return float(get_runtime_float(db, "AI_DAILY_BUDGET_USD", organization_id) or 0)
+
+
+def _exigir_presupuesto(db: Session, organization_id) -> None:
+    """Revisión 2026-11 (lo que contecintelligence tenía): un tope real, que la
+    empresa decide. Sin tope (0, por defecto) no corta nada."""
+    if not organization_id:
+        return
+    tope = presupuesto_diario(db, organization_id)
+    if tope > 0 and gasto_de_hoy(db, organization_id) >= tope:
+        raise PresupuestoDeIAAgotado(
+            f"La empresa ha alcanzado su límite diario de gasto en IA ({tope:.2f} USD). "
+            "Se restablece a las 00:00 UTC o lo puede subir un administrador (AI_DAILY_BUDGET_USD).")
+
+
+def _org_de_la_llamada(db: Session, organization_id, user_id):
+    if organization_id:
+        return organization_id
+    if db.info.get("organization_id"):
+        return db.info["organization_id"]
+    if user_id:
+        from app.models.user import User
+        from app.db.session import sin_filtro_de_tenant
+        with sin_filtro_de_tenant(db):
+            usuario = db.get(User, user_id)
+        return getattr(usuario, "organization_id", None)
+    return None
+
+
+def _avisar_si_el_coste_diario_se_pasa(db: Session, result: dict, organization_id=None) -> None:
     """Avisa en el log si el gasto acumulado del dia supera el umbral.
 
     Es un aviso y no un corte: cortar la IA a media jornada por un umbral de
@@ -1151,19 +1206,14 @@ def _avisar_si_el_coste_diario_se_pasa(db: Session, result: dict) -> None:
         return
     try:
         from app.services.settings_service import get_runtime_float
-        threshold = (get_runtime_float(db, "AI_COST_ALERT_USD_PER_DAY")
+        threshold = (get_runtime_float(db, "AI_COST_ALERT_USD_PER_DAY", organization_id)
                      or settings.AI_COST_ALERT_USD_PER_DAY)
-        today_start = datetime.now(timezone.utc).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        today_cost = db.query(func.sum(AIUsageLog.cost_usd)).filter(
-            AIUsageLog.created_at >= today_start,
-            AIUsageLog.success == True,   # noqa: E712 — comparación SQL, no Python
-        ).scalar() or 0
+        # Revisión 2026-11: por empresa (antes sumaba el gasto de todas).
+        today_cost = gasto_de_hoy(db, organization_id)
         if today_cost > threshold:
             _logger.warning(
-                "AI_COST_ALERT: coste diario acumulado $%.4f supera el umbral $%.2f.",
-                today_cost, threshold,
+                "AI_COST_ALERT: empresa %s, coste diario acumulado $%.4f supera el umbral $%.2f.",
+                organization_id, today_cost, threshold,
             )
     except Exception as alert_exc:
         _logger.debug("Cost alert check failed (non-critical): %s", alert_exc)
@@ -1232,6 +1282,8 @@ def call_ai(
     )
     if bloqueo:
         return bloqueo
+    org_de_la_llamada = _org_de_la_llamada(db, organization_id, user_id)
+    _exigir_presupuesto(db, org_de_la_llamada)
 
     # Proveedor y modelo por funcion (Hub de IA → «Por función»), si los hay y
     # la llamada no pide uno concreto. Si el elegido no esta disponible, el
@@ -1254,9 +1306,9 @@ def call_ai(
     latency = int((time.time() - t0) * 1000)
 
     _registrar_uso(db, p, result, user_id=user_id, module=module,
-                   latency=latency, error_msg=error_msg)
+                   latency=latency, error_msg=error_msg, organization_id=org_de_la_llamada)
     if error_msg is None:
-        _avisar_si_el_coste_diario_se_pasa(db, result)
+        _avisar_si_el_coste_diario_se_pasa(db, result, org_de_la_llamada)
 
     final_text = _aplicar_guardrail_de_salida(
         db, result.get("text", "") or "", governance_user, module,

@@ -51,6 +51,11 @@ class AISettingsMixin:
     # herramienta que escribe. off: no la ve. approval: se abre una aprobación
     # (tipo «mcp_action») y se ejecuta solo si se aprueba. direct: se ejecuta.
     MCP_WRITE_MODE: str = Field(default="off", env="MCP_WRITE_MODE")
+    # Tope diario de gasto en IA por empresa, en USD (0: sin tope). Al
+    # alcanzarlo las llamadas se cortan hasta las 00:00 UTC (revisión 2026-11).
+    AI_DAILY_BUDGET_USD: float = Field(default=0.0, env="AI_DAILY_BUDGET_USD")
+    # Porcentaje del tope a partir del cual el Hub de IA avisa.
+    AI_DAILY_BUDGET_WARN_PCT: float = Field(default=80.0, env="AI_DAILY_BUDGET_WARN_PCT")
     # Tope de la llamada de «Probar»: con 10, los modelos que razonan (Gemini 2.5,
     # o-series) gastaban todo en pensar y la prueba fallaba con el proveedor sano.
     AI_TEST_MAX_TOKENS: int = Field(default=256, env="AI_TEST_MAX_TOKENS")

@@ -585,6 +585,7 @@ export default function AIHubPage(): JSX.Element {
         </div>
       )}
     >
+      <GastoDeHoy />
       {/* Tabs */}
       <Tabs
         items={[
@@ -961,6 +962,30 @@ function RoutingTab({ providers }: { providers: any[] }) {
       <div style={{ marginTop: 14 }}>
         <Button onClick={() => guardar()} disabled={isPending || rutas === null} loading={isPending}>Guardar</Button>
       </div>
+    </div>
+  )
+}
+
+
+// Revisión 2026-11: gasto de IA de hoy frente al tope diario de la empresa
+// (AI_DAILY_BUDGET_USD). Avisa desde AI_DAILY_BUDGET_WARN_PCT; al llegar, las
+// llamadas se cortan hasta las 00:00 UTC.
+function GastoDeHoy() {
+  const t = useAppT()
+  const { data } = useQuery<{ spent_usd: number; budget_usd: number; warn_pct: number; used_pct: number | null; blocked: boolean }>({
+    queryKey: ['ai-spend-today'],
+    queryFn: () => aiProvidersApi.spendToday().then((r: any) => r.data),
+    refetchInterval: 60000,
+  })
+  if (!data) return null
+  const avisa = data.used_pct !== null && data.used_pct >= data.warn_pct
+  const color = data.blocked ? 'var(--danger)' : avisa ? 'var(--warning)' : 'var(--text-2)'
+  return (
+    <div role={data.blocked || avisa ? 'alert' : undefined} style={{ marginBottom: 12, fontSize: 'var(--text-sm)', color }}>
+      {data.budget_usd > 0
+        ? t('ai.gasto_con_tope', { gastado: data.spent_usd.toFixed(2), tope: data.budget_usd.toFixed(2), pct: data.used_pct ?? 0 })
+        : t('ai.gasto_sin_tope', { gastado: data.spent_usd.toFixed(2) })}
+      {data.blocked && ` · ${t('ai.gasto_cortado')}`}
     </div>
   )
 }

@@ -657,6 +657,16 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
+# Revisión 2026-11: tope diario de gasto en IA de la empresa (AI_DAILY_BUDGET_USD).
+from app.services.ai_provider_service import PresupuestoDeIAAgotado as _PresupuestoDeIAAgotado  # noqa: E402
+
+
+@app.exception_handler(_PresupuestoDeIAAgotado)
+async def _presupuesto_de_ia_agotado(_request, exc):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=429, content={"detail": str(exc)})
+
+
 @app.exception_handler(HTTPException)
 async def http_exception_sanitizer(_request: Request, exc: HTTPException):
     safe_detail = sanitize_http_detail(exc.status_code, exc.detail)

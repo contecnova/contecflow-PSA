@@ -1,6 +1,9 @@
 // Español
 const es = {
   ai: {
+    gasto_con_tope: "Gasto en IA hoy: {gastado} USD de {tope} USD ({pct} %)",
+    gasto_sin_tope: "Gasto en IA hoy: {gastado} USD (sin tope diario: AI_DAILY_BUDGET_USD)",
+    gasto_cortado: "tope alcanzado: la IA está cortada hasta las 00:00 UTC",
     agent_title: 'NexusAgent',
     oracle_title: 'NexusOracle',
     temperature: 'Temperatura',

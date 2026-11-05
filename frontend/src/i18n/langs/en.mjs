@@ -1,5 +1,8 @@
 const en = {
     ai: {
+    gasto_con_tope: "AI spend today: {gastado} USD of {tope} USD ({pct} %)",
+    gasto_sin_tope: "AI spend today: {gastado} USD (no daily cap: AI_DAILY_BUDGET_USD)",
+    gasto_cortado: "cap reached: AI is stopped until 00:00 UTC",
       add_first_provider: 'Add first provider',
       add_provider: 'Add provider',
       add_provider_action: 'Add provider',

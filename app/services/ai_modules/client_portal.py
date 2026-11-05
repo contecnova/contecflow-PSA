@@ -141,9 +141,15 @@ def _client_portal_chat_for_user(db: Session, client_user, message: str, session
             db, messages, system=system,
             module="client_portal", max_tokens=800
         )
-    except Exception:
-        _log.exception("Client portal chat AI call failed for session=%s", getattr(session, "id", None))
-        response_text = client_demo_response(message, project_data)
+    except Exception as exc:
+        from app.services.ai_provider_service import PresupuestoDeIAAgotado
+        if isinstance(exc, PresupuestoDeIAAgotado):
+            # Revisión 2026-11: el tope diario de la empresa; se dice, no se inventa.
+            response_text = ("El asistente ha alcanzado su límite de uso de hoy. Vuelve a intentarlo mañana "
+                             "o escribe al equipo desde Soporte.")
+        else:
+            _log.exception("Client portal chat AI call failed for session=%s", getattr(session, "id", None))
+            response_text = client_demo_response(message, project_data)
 
     respuesta = AIClientChatMessage(session_id=session.id, role="assistant", content=response_text)
     db.add(respuesta)

@@ -35,6 +35,7 @@ from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.services.ai_dispatch import call_ai, get_default_provider
+from app.services.ai_provider_service import PresupuestoDeIAAgotado
 from app.services.ai_governance import check_prompt
 
 router = APIRouter()
@@ -198,6 +199,8 @@ def chat(
             is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
             organization_id=getattr(current_user, "organization_id", None),
         )
+    except PresupuestoDeIAAgotado as e:
+        raise HTTPException(429, str(e))
     except ValueError as e:
         raise HTTPException(400, f"Error de datos: {str(e)}")
     except ConnectionError as e:
