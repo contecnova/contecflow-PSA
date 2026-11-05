@@ -107,7 +107,7 @@ from app.models.raci import (  # noqa: F401
     ProjectChangelogEntry, ChangelogEntryType,
 )
 from app.models.sessions import UserSession  # noqa: F401
-from app.models.governance import TenantPolicyPack, ComplianceEvidence  # noqa: F401
+from app.models.governance import TenantPolicyPack, ComplianceEvidence, RetentionPolicy, LegalHold  # noqa: F401
 from app.models.abac import (  # noqa: F401
     AttributeDefinition, UserAttribute, ABACPolicy, PolicyAudit,
 )

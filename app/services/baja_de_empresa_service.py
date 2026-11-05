@@ -159,9 +159,21 @@ def _soltar_referencias_externas(db: Session, org_id: str, borrar: set, borrados
                     borrados[t.name] = borrados.get(t.name, 0) + n
 
 
+class BloqueoLegalImpidePurga(RuntimeError):
+    """La empresa tiene bloqueos legales activos: sus datos no se pueden borrar."""
+
+
 def purgar(db: Session, org_id: str) -> dict:
-    """Borra todo lo de la empresa en una transacción. Devuelve filas por tabla."""
+    """Borra todo lo de la empresa en una transacción. Devuelve filas por tabla.
+
+    Revisión 2026-11: con un bloqueo legal activo no se borra nada (la purga se
+    niega y la empresa sigue en cuarentena hasta que se levante).
+    """
     from app.db.session import sin_filtro_de_tenant
+    from app.services.retencion import bloqueos_activos
+    activos = bloqueos_activos(db, org_id)
+    if activos:
+        raise BloqueoLegalImpidePurga(", ".join(sorted({b.case_reference for b in activos})))
     borrados: dict = {}
     with sin_filtro_de_tenant(db):
         borrar, se_quedan = _usuarios_que_se_van(db, org_id)

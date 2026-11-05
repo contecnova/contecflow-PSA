@@ -115,6 +115,8 @@ class Settings(
     COMPLIANCE_GDPR_MAX_DAYS: int = Field(default=30, env="COMPLIANCE_GDPR_MAX_DAYS")
     COMPLIANCE_MFA_MIN_COVERAGE_PCT: float = Field(default=100.0, env="COMPLIANCE_MFA_MIN_COVERAGE_PCT")
     COMPLIANCE_MIN_PASSWORD_LENGTH: int = Field(default=12, env="COMPLIANCE_MIN_PASSWORD_LENGTH")
+    # Revisión 2026-11: ninguna política de retención puede guardar menos días que esto.
+    RETENTION_MIN_DAYS: int = Field(default=30, env="RETENTION_MIN_DAYS")
     # Aprobaciones: horas que vale el enlace de aprobar/rechazar del correo.
     APPROVAL_EMAIL_LINK_HOURS: int = Field(default=72, env="APPROVAL_EMAIL_LINK_HOURS")
     # «Entrar como» (soporte de plataforma): activo y duracion maxima de la sesion.

@@ -13,7 +13,7 @@ import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
-import { grcApi, approvalsApi, usersApi } from '../services/api'
+import { grcApi, approvalsApi, usersApi, governanceApi } from '../services/api'
 import { advancedConfigApi } from '../services/settingsApi'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -709,6 +709,120 @@ type ControlMedido = { id: string; status: 'pass' | 'attention' | 'info' | 'not_
 type InformeDeCumplimiento = { generated_at: string; organization_name?: string; summary: Record<string, number>; controls: ControlMedido[] }
 const COLOR_CONTROL: Record<string, string> = { pass: 'var(--success)', attention: 'var(--danger)', info: 'var(--accent)', not_measurable: 'var(--text-3)' }
 
+type PoliticaDeRetencion = { entity: string; hold_fields: string[]; keep_days: number | null; is_active: boolean; last_run_at: string | null; last_deleted: number | null }
+type Bloqueo = { id: string; case_reference: string; reason?: string; entity: string; field: string; value: string; is_active: boolean; created_at: string; released_at?: string }
+
+/** Retención por tipo de registro y bloqueo legal (revisión 2026-11). */
+function RetencionTab() {
+  const t = useAppT()
+  const toast = useToast()
+  const qc = useQueryClient()
+  const { data } = useQuery<{ policies: PoliticaDeRetencion[]; min_days: number }>({
+    queryKey: ['retention'], queryFn: () => governanceApi.retentionPolicies().then(r => r.data),
+  })
+  const { data: bloqueos = [] } = useQuery<Bloqueo[]>({ queryKey: ['legal-holds'], queryFn: () => governanceApi.legalHolds().then(r => r.data) })
+  const [dias, setDias] = useState<Record<string, string>>({})
+  const [previas, setPrevias] = useState<Record<string, { expired: number; held: number; would_delete: number }>>({})
+  const [nuevo, setNuevo] = useState({ case_reference: '', reason: '', entity: '*', field: 'client_id', value: '' })
+  const error = (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+  const refrescar = () => { qc.invalidateQueries({ queryKey: ['retention'] }); qc.invalidateQueries({ queryKey: ['legal-holds'] }) }
+  const diasDe = (p: PoliticaDeRetencion) => Number(dias[p.entity] ?? p.keep_days ?? 365)
+  const previa = async (p: PoliticaDeRetencion) => {
+    try { const r = await governanceApi.retentionPreview(p.entity, diasDe(p)); setPrevias(v => ({ ...v, [p.entity]: r.data })) } catch (e) { error(e) }
+  }
+  const guardar = async (p: PoliticaDeRetencion, activa: boolean) => {
+    try { await governanceApi.saveRetention(p.entity, { keep_days: diasDe(p), is_active: activa }); toast.success(t('grc.retencion_guardada')); refrescar() } catch (e) { error(e) }
+  }
+  const aplicar = async () => {
+    try {
+      const r = await governanceApi.retentionRun()
+      const total = Object.values(r.data as Record<string, { deleted: number }>).reduce((a, x) => a + x.deleted, 0)
+      toast.success(t('grc.retencion_aplicada', { n: total })); refrescar()
+    } catch (e) { error(e) }
+  }
+  const crear = async () => {
+    try { await governanceApi.createLegalHold(nuevo); setNuevo({ ...nuevo, case_reference: '', reason: '', value: '' }); refrescar() } catch (e) { error(e) }
+  }
+  const campos = Array.from(new Set((data?.policies || []).filter(p => nuevo.entity === '*' || p.entity === nuevo.entity).flatMap(p => p.hold_fields)))
+  const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 9px', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 'var(--text-sm)' }
+  const th: CSSProperties = { textAlign: 'left', padding: '6px 8px', fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase' }
+  if (!data) return <Spinner />
+  return (
+    <div style={{ display: 'grid', gap: 22 }}>
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <h3 style={{ margin: 0, fontSize: 'var(--text-md)', flex: 1 }}>{t('grc.retencion_titulo')}</h3>
+          <Button size="sm" variant="secondary" onClick={aplicar}>{t('grc.retencion_aplicar_ya')}</Button>
+        </div>
+        <p style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('grc.retencion_intro', { min: data.min_days })}</p>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+          <thead><tr><th style={th}>{t('grc.retencion_tipo')}</th><th style={th}>{t('grc.retencion_dias')}</th><th style={th}>{t('grc.retencion_previa')}</th><th style={th}>{t('grc.retencion_estado')}</th><th style={th} /></tr></thead>
+          <tbody>
+            {data.policies.map(p => {
+              const v = previas[p.entity]
+              return (
+                <tr key={p.entity} style={{ borderTop: '1px solid var(--surface-4)' }}>
+                  <td style={{ padding: 8, fontWeight: 600 }}>{t(`grc.retencion_tipo_${p.entity}`)}</td>
+                  <td style={{ padding: 8 }}>
+                    <input type="number" min={data.min_days} aria-label={t('grc.retencion_dias')} value={dias[p.entity] ?? p.keep_days ?? ''} placeholder="365"
+                      onChange={e => setDias(d => ({ ...d, [p.entity]: e.target.value }))} style={{ ...campo, width: 90 }} />
+                  </td>
+                  <td style={{ padding: 8, color: 'var(--text-2)' }}>
+                    {v ? t('grc.retencion_previa_resultado', { borraria: v.would_delete, retenidos: v.held, vencidos: v.expired })
+                      : <button type="button" onClick={() => previa(p)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)', padding: 0 }}>{t('grc.retencion_ver_previa')}</button>}
+                  </td>
+                  <td style={{ padding: 8, color: p.is_active ? 'var(--success)' : 'var(--text-3)' }}>
+                    {p.is_active ? t('grc.retencion_activa') : t('grc.retencion_apagada')}
+                    {p.last_run_at && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('grc.retencion_ultima', { n: p.last_deleted ?? 0, fecha: new Date(p.last_run_at).toLocaleString() })}</div>}
+                  </td>
+                  <td style={{ padding: 8, whiteSpace: 'nowrap' }}>
+                    <Button size="sm" variant={p.is_active ? 'secondary' : 'primary'} onClick={() => guardar(p, !p.is_active)}>
+                      {p.is_active ? t('grc.retencion_apagar') : t('grc.retencion_activar')}
+                    </Button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h3 style={{ margin: '0 0 6px', fontSize: 'var(--text-md)' }}>{t('grc.bloqueo_titulo')}</h3>
+        <p style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('grc.bloqueo_intro')}</p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          <input aria-label={t('grc.bloqueo_caso')} placeholder={t('grc.bloqueo_caso')} value={nuevo.case_reference} onChange={e => setNuevo({ ...nuevo, case_reference: e.target.value })} style={campo} />
+          <select aria-label={t('grc.retencion_tipo')} value={nuevo.entity} onChange={e => setNuevo({ ...nuevo, entity: e.target.value })} style={campo}>
+            <option value="*">{t('grc.bloqueo_todos')}</option>
+            {data.policies.map(p => <option key={p.entity} value={p.entity}>{t(`grc.retencion_tipo_${p.entity}`)}</option>)}
+          </select>
+          <select aria-label={t('grc.bloqueo_campo')} value={nuevo.field} onChange={e => setNuevo({ ...nuevo, field: e.target.value })} style={campo}>
+            {campos.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <input aria-label={t('grc.bloqueo_valor')} placeholder={t('grc.bloqueo_valor')} value={nuevo.value} onChange={e => setNuevo({ ...nuevo, value: e.target.value })} style={{ ...campo, minWidth: 260, fontFamily: 'var(--font-mono)' }} />
+          <Button size="sm" onClick={crear} disabled={!nuevo.case_reference.trim() || !nuevo.value.trim()}>{t('grc.bloqueo_crear')}</Button>
+        </div>
+        {bloqueos.length === 0 ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('grc.bloqueo_ninguno')}</div> : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+            <tbody>
+              {bloqueos.map(b => (
+                <tr key={b.id} style={{ borderTop: '1px solid var(--surface-4)', opacity: b.is_active ? 1 : 0.6 }}>
+                  <td style={{ padding: 8, fontWeight: 600 }}>{b.case_reference}</td>
+                  <td style={{ padding: 8 }}>{b.entity === '*' ? t('grc.bloqueo_todos') : t(`grc.retencion_tipo_${b.entity}`)}</td>
+                  <td style={{ padding: 8, fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>{b.field} = {b.value}</td>
+                  <td style={{ padding: 8, color: b.is_active ? 'var(--warning)' : 'var(--text-3)' }}>{b.is_active ? t('grc.bloqueo_activo') : t('grc.bloqueo_levantado')}</td>
+                  <td style={{ padding: 8, textAlign: 'right' }}>
+                    {b.is_active && <Button size="sm" variant="secondary" onClick={async () => { try { await governanceApi.releaseLegalHold(b.id); refrescar() } catch (e) { error(e) } }}>{t('grc.bloqueo_levantar')}</Button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </div>
+  )
+}
+
 /** Informe de evidencias medido sobre el sistema vivo (revisión 2026-11). */
 function InformeDeCumplimientoTab() {
   const t = useAppT()
@@ -869,6 +983,7 @@ export default function GrcPage(): JSX.Element {
     { id: 'auditlog',   label: 'Audit Log' },
     { id: 'access',     label: _t('grc.acceso_pestana') },
     { id: 'compliance', label: _t('grc.informe_pestana') },
+    { id: 'retention',  label: _t('grc.retencion_pestana') },
   ]
 
   return (
@@ -901,6 +1016,7 @@ export default function GrcPage(): JSX.Element {
         {tab === 'auditlog'   && <AuditLogTab />}
         {tab === 'access'     && <ExplicarAccesoTab />}
         {tab === 'compliance' && <InformeDeCumplimientoTab />}
+        {tab === 'retention'  && <RetencionTab />}
       </div>
     </PageShell>
   )

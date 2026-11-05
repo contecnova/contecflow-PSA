@@ -7,6 +7,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.schemas.governance import PolicyPackUpsert, EvidenceCreate
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import require_admin
@@ -229,6 +230,93 @@ def compliance_control_status(
         "platform_security_baseline": _linea_base_medida(db, organization_id),
         "controls": rows,
     })
+
+
+# ── Retención y bloqueo legal (revisión 2026-11) ─────────────────────────────
+class PoliticaIn(BaseModel):
+    keep_days: int = Field(..., ge=1, le=36500)
+    is_active: bool = False
+
+
+class BloqueoIn(BaseModel):
+    case_reference: str = Field(..., min_length=2, max_length=120)
+    reason: Optional[str] = Field(None, max_length=2000)
+    entity: str = Field("*", max_length=40)
+    field: str = Field(..., max_length=60)
+    value: str = Field(..., min_length=1, max_length=255)
+
+
+@router.get("/retention/policies", summary="Políticas de retención de la empresa (admin)")
+def retention_policies(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    from app.services import retencion
+    return APIResponse.ok(data={"policies": retencion.politicas(db, current_user.organization_id),
+                                "min_days": retencion.minimo_de_dias(db, current_user.organization_id)})
+
+
+@router.put("/retention/policies/{entity}", summary="Guardar la política de un tipo (admin)")
+def save_retention_policy(entity: str, payload: PoliticaIn, db: Session = Depends(get_db),
+                          current_user: User = Depends(require_admin)):
+    from app.services import retencion
+    return APIResponse.ok(data=retencion.guardar_politica(db, current_user.organization_id, current_user, entity,
+                                                          payload.keep_days, payload.is_active))
+
+
+@router.get("/retention/preview", summary="Cuánto borraría hoy una política (admin)")
+def retention_preview(entity: str, keep_days: int = Query(..., ge=1, le=36500), db: Session = Depends(get_db),
+                      current_user: User = Depends(require_admin)):
+    from app.services import retencion
+    if entity not in retencion.TIPOS:
+        raise HTTPException(422, f"Tipo desconocido: {entity}")
+    return APIResponse.ok(data=retencion.vista_previa(db, current_user.organization_id, entity, keep_days))
+
+
+@router.post("/retention/run", summary="Aplicar ahora las políticas activas (admin)")
+def retention_run(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    from app.services import retencion
+    return APIResponse.ok(data=retencion.aplicar(db, current_user.organization_id, current_user))
+
+
+@router.get("/legal-holds", summary="Bloqueos legales de la empresa (admin)")
+def legal_holds(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    from app.db.session import sin_filtro_de_tenant
+    from app.models.governance import LegalHold
+    with sin_filtro_de_tenant(db):
+        filas = db.query(LegalHold).filter(LegalHold.organization_id == current_user.organization_id) \
+            .order_by(LegalHold.created_at.desc()).all()
+    return APIResponse.ok(data=[{
+        "id": h.id, "case_reference": h.case_reference, "reason": h.reason, "entity": h.entity, "field": h.field,
+        "value": h.value, "is_active": h.is_active, "created_at": h.created_at, "released_at": h.released_at,
+    } for h in filas])
+
+
+@router.post("/legal-holds", summary="Crear un bloqueo legal (admin)")
+def create_legal_hold(payload: BloqueoIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    from app.models.governance import LegalHold
+    from app.services import retencion
+    from app.services.audit import audit_log
+    retencion.validar_bloqueo(payload.entity, payload.field)
+    h = LegalHold(organization_id=current_user.organization_id, created_by=current_user.id, **payload.model_dump())
+    db.add(h)
+    db.flush()
+    audit_log(db, current_user, "LEGAL_HOLD", "legal_hold", h.id, h.case_reference, new_values=payload.model_dump())
+    db.commit()
+    return APIResponse.ok(data={"id": h.id})
+
+
+@router.post("/legal-holds/{hold_id}/release", summary="Levantar un bloqueo legal (admin)")
+def release_legal_hold(hold_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    from app.db.session import sin_filtro_de_tenant
+    from app.models.governance import LegalHold
+    from app.services.audit import audit_log
+    with sin_filtro_de_tenant(db):
+        h = db.query(LegalHold).filter(LegalHold.id == hold_id,
+                                       LegalHold.organization_id == current_user.organization_id).first()
+    if h is None:
+        raise HTTPException(404, "No existe")
+    h.is_active, h.released_at, h.released_by = False, datetime.now(timezone.utc), current_user.id
+    audit_log(db, current_user, "LEGAL_HOLD_RELEASED", "legal_hold", h.id, h.case_reference)
+    db.commit()
+    return APIResponse.ok(data={"id": h.id, "is_active": False})
 
 
 # ── AI module governance ───────────────────────────────────────────────────────

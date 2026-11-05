@@ -251,6 +251,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("COMPLIANCE_GDPR_MAX_DAYS", "int", "Compliance report — maximum days for an open GDPR request"),
         ("COMPLIANCE_MFA_MIN_COVERAGE_PCT", "float", "Compliance report — minimum % of active users with a second factor"),
         ("COMPLIANCE_MIN_PASSWORD_LENGTH", "int", "Compliance report — minimum password length the policy must require"),
+        ("RETENTION_MIN_DAYS", "int", "Retention — no policy may keep a record type for fewer days than this"),
     ],
     "risk": [
         ("RISK_WEIGHT_SCHEDULE", "float", "Risk score — weight of schedule (0-1)"),

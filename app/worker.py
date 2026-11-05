@@ -188,6 +188,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.purgar_empresas_caducadas",
         "schedule": crontab(hour=2, minute=40),
     },
+    # Retención y bloqueo legal (revisión 2026-11).
+    "aplicar-retencion": {
+        "task": "app.worker.aplicar_retencion",
+        "schedule": crontab(hour=2, minute=55),
+    },
     # Resumen diario de avisos: corre cada hora; cada usuario lo recibe una vez
     # al día a partir de NOTIFICATIONS_DIGEST_HOUR en su zona (revisión 2026-11).
     "resumen-diario-de-avisos": {
@@ -1782,6 +1787,13 @@ def purgar_empresas_caducadas():
     """Borra los datos de las empresas cuya cuarentena de baja ha vencido."""
     from app.services.baja_de_empresa_service import purgar_caducadas_job
     purgar_caducadas_job()
+
+
+@celery_app.task(name="app.worker.aplicar_retencion")
+def aplicar_retencion():
+    """Políticas de retención activas de todas las empresas (respetan el bloqueo legal)."""
+    from app.services.retencion import aplicar_job
+    aplicar_job()
 
 
 @celery_app.task(name="app.worker.resumen_diario_de_avisos")

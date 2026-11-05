@@ -1761,6 +1761,14 @@ export const governanceApi = {
   stats:   () => api.get('/governance/stats'),
   logs:    () => api.get('/governance/logs?limit=100'),
   update:  (module: any, data: unknown) => api.patch(`/governance/config/${module}`, data),
+  // Revisión 2026-11: retención y bloqueo legal.
+  retentionPolicies: () => api.get('/governance/retention/policies'),
+  saveRetention:     (entity: string, data: { keep_days: number; is_active: boolean }) => api.put(`/governance/retention/policies/${entity}`, data),
+  retentionPreview:  (entity: string, keep_days: number) => api.get('/governance/retention/preview', { params: { entity, keep_days } }),
+  retentionRun:      () => api.post('/governance/retention/run'),
+  legalHolds:        () => api.get('/governance/legal-holds'),
+  createLegalHold:   (data: { case_reference: string; reason?: string; entity: string; field: string; value: string }) => api.post('/governance/legal-holds', data),
+  releaseLegalHold:  (id: string) => api.post(`/governance/legal-holds/${id}/release`),
 }
 
 // ── Epic Dependencies ─────────────────────────────────────────────────────────
