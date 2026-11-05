@@ -38,6 +38,7 @@ class RuleCreate(BaseModel):
     trigger_type: str
     trigger_conditions: Optional[dict] = None
     actions: List[dict]
+    schedule_cron: Optional[str] = None   # disparador «scheduled»: cron de cinco campos
 
 
 class RuleUpdate(BaseModel):
@@ -48,6 +49,7 @@ class RuleUpdate(BaseModel):
     trigger_type: Optional[str] = None
     trigger_conditions: Optional[dict] = None
     actions: Optional[List[dict]] = None
+    schedule_cron: Optional[str] = None
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────

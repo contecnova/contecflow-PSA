@@ -190,7 +190,30 @@ def _riesgo(obj, nuevo: bool) -> list:
                                  "risk_score": float(obj.risk_score), "status": _v(obj.status)})]
 
 
+def _factura(obj, nuevo: bool) -> list:
+    """Revisión 2026-11: enviada y cobrada (la vencida sale del barrido)."""
+    estado = (None, _v(obj.status)) if nuevo else _cambio(obj, "status")
+    disparador = {"sent": "invoice_sent", "paid": "invoice_paid"}.get(estado[1]) if estado else None
+    if not disparador:
+        return []
+    from app.services.automations_service import contexto_de_factura
+    return [(disparador, contexto_de_factura(obj))]
+
+
+def _aprobacion(obj, nuevo: bool) -> list:
+    """Revisión 2026-11: pedida, aprobada o rechazada (venga del motor, del correo o de una regla)."""
+    estado = (None, obj.status) if nuevo else _cambio(obj, "status")
+    disparador = {"pending": "approval_requested", "approved": "approval_approved",
+                  "rejected": "approval_rejected"}.get(estado[1]) if estado else None
+    if not disparador or (disparador == "approval_requested" and not nuevo):
+        return []
+    return [(disparador, {"approval_id": obj.id, "entity_type": obj.entity_type, "entity_id": obj.entity_id,
+                          "workflow_id": obj.workflow_id, "user_id": obj.requested_by, "status": estado[1],
+                          "title": obj.entity_summary})]
+
+
 def _vigilados() -> dict:
+    from app.models.billing_reports import ApprovalRequest, Invoice
     from app.models.expenses import Expense
     from app.models.financial import Timesheet
     from app.models.pipeline import Opportunity, Risk
@@ -201,10 +224,22 @@ def _vigilados() -> dict:
     from app.models.task import Task
     return {Task: _tarea, Project: _proyecto, Ticket: _ticket, TicketEvent: None, Expense: _gasto,
             Timesheet: _parte, Absence: _ausencia, Sprint: _sprint, Opportunity: _oportunidad,
-            Risk: _riesgo}
+            Risk: _riesgo, Invoice: _factura, ApprovalRequest: _aprobacion}
 
 
 _VIGILADOS: Optional[dict] = None
+
+
+def _dar_id(obj) -> None:
+    """Revisión 2026-11: en un alta el `id` aún es None en `before_flush` (el valor
+    por defecto se aplica al insertar), así que el evento salía sin `task_id` y
+    toda acción sobre «la tarea del evento» fallaba. Se asigna aquí, con el
+    mismo valor por defecto de la columna."""
+    columna = type(obj).__table__.c.get("id")
+    if getattr(obj, "id", None) is not None or columna is None or columna.default is None:
+        return
+    if getattr(columna.default, "is_callable", False):
+        obj.id = columna.default.arg(None)
 
 
 def eventos_del_flush(session) -> list[tuple[Optional[str], str, dict]]:
@@ -221,6 +256,8 @@ def eventos_del_flush(session) -> list[tuple[Optional[str], str, dict]]:
             if not nuevo and not session.is_modified(obj, include_collections=False):
                 continue
             fn = _VIGILADOS[cls]
+            if nuevo:
+                _dar_id(obj)
             try:
                 pares = _evento_de_ticket(session, obj, nuevo) if fn is None else fn(obj, nuevo)
             except Exception:

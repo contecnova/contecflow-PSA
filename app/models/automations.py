@@ -54,6 +54,16 @@ class TriggerType(str, enum.Enum):
     expense_approved      = "expense_approved"
     expense_rejected      = "expense_rejected"
     opportunity_stage_changed = "opportunity_stage_changed"
+    # Facturas (revisión 2026-11)
+    invoice_sent          = "invoice_sent"
+    invoice_paid          = "invoice_paid"
+    invoice_overdue       = "invoice_overdue"         # barrido
+    # Aprobaciones (revisión 2026-11)
+    approval_requested    = "approval_requested"
+    approval_approved     = "approval_approved"
+    approval_rejected     = "approval_rejected"
+    # Programada: según `schedule_cron`, sin esperar a un cambio (revisión 2026-11)
+    scheduled             = "scheduled"
 
 
 class ActionType(str, enum.Enum):
@@ -67,6 +77,9 @@ class ActionType(str, enum.Enum):
     send_webhook          = "send_webhook"         # alias historico de call_webhook
     send_slack_message    = "send_slack_message"
     send_teams_message    = "send_teams_message"
+    assign                = "assign"
+    update_field          = "update_field"
+    create_approval       = "create_approval"
     change_task_status    = "change_task_status"
     change_task_priority  = "change_task_priority"
     create_task           = "create_task"
@@ -92,7 +105,12 @@ class AutomationRule(Base):
 
     # Trigger
     trigger_type       = Column(String(64), nullable=False, index=True)
-    trigger_conditions = Column(Text, nullable=True)   # JSON: {"field": "status", "operator": "equals", "value": "done"}
+    # JSON: una condición {"field", "operator", "value"} o un grupo
+    # {"match": "all"|"any", "conditions": [...]} (anidable, revisión 2026-11).
+    trigger_conditions = Column(Text, nullable=True)
+    # Disparador «scheduled»: cron de cinco campos en la zona de la empresa.
+    schedule_cron      = Column(String(100), nullable=True)
+    next_run_at        = Column(DateTime(timezone=True), nullable=True, index=True)
 
     # Actions (JSON array)
     actions            = Column(Text, nullable=False)  # JSON: [{"type": "send_alert", "params": {...}}]

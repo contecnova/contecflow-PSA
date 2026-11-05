@@ -3503,7 +3503,9 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 1. Press **+ Nueva regla**.
 2. Fill in name, description and project (empty = all projects of the organization).
 3. Pick a trigger. The list comes from the engine (`GET /automations/catalog`): only triggers that something actually emits are offered.
-4. Optionally tick "Añadir condición": one field/operator/value condition. The fields offered are the ones the trigger's event carries. Operators: equals, not_equals, greater_than, less_than, contains. A condition that cannot be evaluated (missing field, non-numeric value for a numeric operator) is **false**.
+4. Optionally tick "Añadir condición" and add one or more field/operator/value rows. With two or more, choose **Se cumplen todas** (AND) or **Basta con una** (OR). The fields offered are the ones the trigger's event carries. Operators: equals, not_equals, greater_than, less_than, contains. A condition that cannot be evaluated (missing field, non-numeric value for a numeric operator, an empty group) is **false**.
+   - Stored as one condition `{field, operator, value}` or a group `{"match": "all"|"any", "conditions": [...]}`. Groups can be nested through the API (the screen edits one level and keeps nested groups untouched). Revision 2026-11; before, a rule had at most one condition.
+   - With the **Programada (calendario)** trigger, a **Cuándo (cron)** field appears: five fields (minute hour day month weekday) in the organisation's time zone, with presets (every day 9:00, weekdays 9:00, Mondays 8:00, 1st of the month, every hour). The card shows the next run.
 5. Add one or more actions. Required parameters are marked `*`; saving a rule with an unknown trigger, an unknown action or a missing required parameter returns 422 with the reason.
 6. Press **Crear regla**.
 
@@ -3515,7 +3517,7 @@ On each rule card:
 
 **Ver plantillas** offers 7 templates, all made of triggers and actions the engine runs.
 
-**Triggers (29).**
+**Triggers (36).**
 
 | Category | Triggers | Source |
 |---|---|---|
@@ -3529,10 +3531,14 @@ On each rule card:
 | Service Desk | ticket_created, ticket_resolved, ticket_reopened | on save |
 | Service Desk | ticket_escalated, ticket_sla_at_risk, ticket_sla_breached (from the ticket event outbox) | on save |
 | Finance & CRM | expense_submitted, expense_approved, expense_rejected, opportunity_stage_changed | on save |
+| Finance | invoice_sent, invoice_paid (status change) | on save |
+| Finance | invoice_overdue (status sent/overdue and due date passed; nothing else marks invoices overdue) | periodic scan |
+| Approvals | approval_requested, approval_approved, approval_rejected (from the screen, the email link or a rule) | on save |
+| Schedule | scheduled: runs on its cron, without any change. Context: `project_id` (the rule's), `weekday`, `hour` | periodic scan |
 
 "On save" means the event is recorded in the same transaction as the change, whatever path made it (screen, API, Jira sync, AI, another rule). Scan triggers act **once per rule and item** (`dedupe_key`): an overdue task notifies once per due date, a project crosses the budget condition once.
 
-**Actions (13).**
+**Actions (16).**
 
 | Action | What it does |
 |---|---|
@@ -3547,6 +3553,9 @@ On each rule card:
 | change_project_status | On the event's project |
 | escalate_ticket | Raises the support level (never lowers it) and records an `escalated` ticket event |
 | change_ticket_status | On the event's ticket |
+| assign | The event's ticket or task to a person (`to_user`, email in the organisation) or to the member of `to_role` with the fewest open items |
+| update_field | One of an allow-list of fields without their own action: task due/start date, estimated hours, story points; ticket priority, support level. Dates accept `+N` / `-N` days from today |
+| create_approval | Opens an approval on the event's record (expense, invoice, timesheet, leave, ticket, task, opportunity or project; `entity_type` overrides it). The workflow is chosen by its conditions as when a person asks. Requester: the event's user, else the rule's author. Skips if one is already pending |
 
 An action that fails is recorded and the next ones still run. A rule's action can trigger another rule; the chain stops at `AUTOMATIONS_MAX_CHAIN_DEPTH`.
 
@@ -3554,12 +3563,13 @@ An action that fails is recorded and the next ones still run. A rule's action ca
 - `AUTOMATIONS_ENABLED` (default true). Off: rules do not run; Probar still simulates.
 - `AUTOMATIONS_MAX_CHAIN_DEPTH` (3), `AUTOMATIONS_EVENT_BATCH_SIZE` (200), `AUTOMATIONS_EVENT_MAX_ATTEMPTS` (3).
 - `AUTOMATIONS_DEADLINE_DAYS` (2), `AUTOMATIONS_TIMESHEET_WEEKDAY` (5 = Friday), `AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS` (10).
-- `AUTOMATIONS_SCAN_MINUTES` (15, environment only: read when the beat/scheduler starts).
+- `AUTOMATIONS_SCAN_MINUTES` (15, environment only: read when the beat/scheduler starts). It is also the precision of scheduled rules: a rule due at 8:00 runs in the first sweep after 8:00. If several instants were missed (worker down), it runs once and jumps to the next future one (`automation_rules.schedule_cron/next_run_at`, migration 132).
 - `send_email` uses `SMTP_*`; Slack/Teams use incoming webhooks in Enterprise → Integraciones.
 
 **Technical notes.**
 - Endpoints (`app/api/v1/endpoints/automations.py`, `app/services/automations_service.py`): `GET/POST /api/v1/automations`, `PATCH/DELETE /api/v1/automations/{id}`, `POST /api/v1/automations/{id}/test` (simulation), `GET /api/v1/automations/catalog`, `GET /api/v1/automations/templates/list`, `GET /api/v1/automations/{id}/executions`, `POST /api/v1/automations/run-scheduled`. Every by-id call returns 404 for a rule of another organization.
 - Event capture: `app/services/automation_events.py`, a `before_flush` listener on the session (same pattern as the ticket outbox). It writes `automation_events` only when the organization has an active rule for that trigger.
+  - On a new record the listener assigns the primary key before reading the event (revision 2026-11). Before, `id` was still `None` in `before_flush`, so a `task_created` event had no `task_id` and every action on "the event's task" failed with "El evento no trae tarea".
 - Processing: Celery `automations_procesar_eventos` (queued on commit; beat every minute as a safety net) and `automations_escanear` (every `AUTOMATIONS_SCAN_MINUTES`). The same two jobs exist in APScheduler (`app/services/automation_jobs.py`).
 - Tables: `automation_rules` (`trigger_type` is VARCHAR(64) since migration 118; it was a 14-value Postgres enum), `automation_executions` (+ `dedupe_key`), `automation_events`.
 - Migration 118 also fills `organization_id` of existing rules from their project or creator, and adds `automation` to the `alerttype` enum.
@@ -3859,6 +3869,7 @@ This section covers every screen an administrator uses to configure contecflow-P
    - **Traducciones del back-office.** Override any back-office text for **your whole company**. Saved per organisation in `app_settings` (key `app_translations`, `{lang: {module: {key: text}}}`) via `GET/PUT /api/v1/settings/app-translations` (PUT: admin). Everyone in the company gets them on their next page load. Leaving a field empty removes the override.
    - **Portal cliente.** Override portal texts. Stored in `org_brandings.portal_translations` and delivered to clients inside `GET /portal/branding` (`translations`). Saving merges key by key, so saving one text no longer wipes the rest of that language.
    - The client portal applies the language stored on the client's profile when they sign in, and its menu group titles are translated in its eight languages.
+   - **Importar JSON / Exportar JSON** sit side by side at the top of both translation tabs. Export downloads the language being edited, every key with its current text, in exactly the format import accepts (`{lang: {module: {key: text}}}` for the back-office, `{lang: {key: text}}` for the portal): export, translate, import, save. Before, the back-office export wrote `{module: …}` and re-importing it failed, and the portal export ignored the saved overrides.
 8. **Tipos tarea.** CRUD on `task_types`.
 9. **Tarifas.** Rate tables and entries (`rate_tables`, `rate_entries`). `rate_card_service` reads them.
 10. **Numeración.** Code sequences (`numbering_sequences`): prefix, format, reset. `app/services/numbering.py::next_numbered_code` reads them for tasks, risks, milestones, pipeline and the worker.

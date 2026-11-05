@@ -24,6 +24,12 @@ function Section({ icon, title, description, children }: { icon?: ReactNode; tit
   )
 }
 
+function descargarJSON(nombre: string, datos: unknown) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' }))
+  const a = document.createElement('a'); a.href = url; a.download = nombre; a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function IdiomasSection() {
   const toast = useToast()
   const qc = useQueryClient()
@@ -125,13 +131,25 @@ export function IdiomasSection() {
     onError: (e: any) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
+  // Revisión 2026-11: exporta el MISMO formato que acepta «Importar JSON»
+  // ({idioma: {módulo: {clave: texto}}}), con todas las claves y los textos
+  // actuales; antes exportaba {módulo: …} y al reimportarlo daba error.
   const exportJSON = () => {
-    const data = JSON.stringify(appTranslations, null, 2)
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url
-    a.download = `contecflow_translations_${appLang}.json`; a.click()
-    URL.revokeObjectURL(url)
+    const modelo: Record<string, Record<string, string>> = {}
+    for (const k of allKeys) {
+      (modelo[k.module] ??= {})[k.key] = String(getAppVal(appLang, k.module, k.key) ?? '')
+    }
+    descargarJSON(`contecflow_translations_${appLang}.json`, { [appLang]: modelo })
+  }
+
+  // Igual para el portal: {idioma: {clave: texto}}, con lo personalizado.
+  const exportPortalJSON = () => {
+    const modelo: Record<string, string> = {}
+    for (const { key } of getPortalKeys()) {
+      modelo[key] = String(portalEdits[key]?.[portalLang] ?? portalTrans[portalLang]?.[key]
+        ?? (PORTAL_TRANSLATIONS as any)[portalLang]?.[key] ?? '')
+    }
+    descargarJSON(`portal_translations_${portalLang}.json`, { [portalLang]: modelo })
   }
 
   const fs: CSSProperties = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit' }
@@ -204,9 +222,16 @@ export function IdiomasSection() {
             <div>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>IMPORTAR JSON</div>
               <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-                📤 Importar JSON
+                📥 Importar JSON
                 <input type="file" accept="application/json" style={{ display: 'none' }} onChange={importJSON} />
               </label>
+            </div>
+            <div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>EXPORTAR JSON</div>
+              <button type="button" onClick={exportJSON}
+                style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+                📤 Exportar JSON
+              </button>
             </div>
           </div>
 
@@ -218,7 +243,7 @@ export function IdiomasSection() {
           <div style={{ border: '1px solid var(--surface-4)', borderTop: 'none', borderRadius: '0 0 8px 8px', maxHeight: 500, overflowY: 'auto' }}>
             {filteredKeys.slice(0, 200).map((item, idx) => {
               const currentVal = getAppVal(appLang, item.module, item.key)
-              const isModified = appEdits[appLang]?.[item.module]?.[item.key] !== undefined
+              const isModified = appEdits[item.module]?.[item.key] !== undefined
               return (
                 <div key={item.full_key}
                   style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr', gap: 8, padding: '6px 14px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', alignItems: 'center' }}>
@@ -250,10 +275,6 @@ export function IdiomasSection() {
               {filteredKeys.length} claves · {allKeys.length} total · {hasUnsaved && <span style={{ color: 'var(--warning)' }}>{t('settingsadvanced.cambios_sin_guardar')}</span>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={exportJSON}
-                style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-                📥 Exportar JSON
-              </button>
               <button onClick={() => saveAppTrans()} disabled={!hasUnsaved}
                 style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: hasUnsaved ? 'var(--accent)' : 'var(--surface-4)', color: hasUnsaved ? 'var(--surface-0)' : 'var(--text-2)', cursor: hasUnsaved ? 'pointer' : 'default', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit' }}>
                 💾 Guardar traduccion
@@ -285,7 +306,7 @@ export function IdiomasSection() {
             <div>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>IMPORTAR JSON</div>
               <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-                📤 Importar JSON
+                📥 Importar JSON
                 <input type="file" accept="application/json" style={{ display: 'none' }} onChange={e => {
                   const file = e.target.files?.[0]
                   if (!file) return
@@ -312,6 +333,13 @@ export function IdiomasSection() {
                   reader.readAsText(file)
                 }} />
               </label>
+            </div>
+            <div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>EXPORTAR JSON</div>
+              <button type="button" onClick={exportPortalJSON}
+                style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+                📤 Exportar JSON
+              </button>
             </div>
           </div>
 
@@ -354,43 +382,6 @@ export function IdiomasSection() {
               {hasUnsaved && <span style={{ color: 'var(--warning)', marginLeft: 8 }}>{t('settingsadvanced.cambios_sin_guardar')}</span>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-                📤 Importar JSON
-                <input type="file" accept="application/json" style={{ display: 'none' }} onChange={e => {
-                  const file = e.target.files?.[0]
-                  if (!file) return
-                  const reader = new FileReader()
-                  reader.onload = evt => {
-                    try {
-                      const data = JSON.parse(String(evt.target?.result ?? ''))
-                      setPortalEdits((prev: Record<string, any>) => {
-                        const merged: Record<string, any> = { ...prev }
-                        for (const [lang, keys] of Object.entries(data as Record<string, any>)) {
-                          for (const [key, value] of Object.entries(keys as Record<string, any>)) {
-                            if (!merged[key]) merged[key] = {}
-                            merged[key][lang] = value
-                          }
-                        }
-                        return merged
-                      })
-                      setHasUnsaved(true)
-                      toast.success('Traducciones importadas. Revisa y guarda para aplicar.')
-                    } catch {
-                      toast.error('Error al leer el archivo JSON')
-                    }
-                  }
-                  reader.readAsText(file)
-                }} />
-              </label>
-              <button onClick={() => {
-                const data = JSON.stringify(PORTAL_TRANSLATIONS, null, 2)
-                const blob = new Blob([data], { type: 'application/json' })
-                const url = URL.createObjectURL(blob); const a = document.createElement('a')
-                a.href = url; a.download = 'portal_translations.json'; a.click()
-                URL.revokeObjectURL(url)
-              }} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-                📥 Exportar JSON
-              </button>
               <button onClick={() => {
                 // Solo lo editado: el servidor lo fusiona por clave (vacío = quitar).
                 const cambios: Record<string, any> = {}

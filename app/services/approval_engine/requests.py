@@ -16,11 +16,14 @@ from fastapi import HTTPException
 
 from app.services.approval_engine._base import _apply_entity_final_decision, _is_authorized, _notify_requester_approved, _record_sod_violation, find_default_workflow, log_financial_approval_event, logger, notify_approver, scope_request_query
 
-def create_approval_request(payload, db: Session, current_user: User) -> dict:
+def create_approval_request(payload, db: Session, current_user: User, confirmar: bool = True) -> dict:
     """
     payload must have: workflow_id (optional), entity_type, entity_id, entity_summary (optional)
     Returns serialised ApprovalRequest dict (caller should use _request_out).
     Raises HTTPException if no workflow found.
+
+    `confirmar=False` (revisión 2026-11): la abre una automatización dentro de
+    su propia transacción; se hace flush y quien llama confirma.
     """
 
     wf_id = payload.workflow_id
@@ -68,8 +71,11 @@ def create_approval_request(payload, db: Session, current_user: User) -> dict:
             note=req.final_note,
         )
         _apply_entity_final_decision(req, "approved", current_user, db)
-        db.commit()
-        db.refresh(req)
+        if confirmar:
+            db.commit()
+            db.refresh(req)
+        else:
+            db.flush()
         return req
 
     req = ApprovalRequest(
@@ -101,8 +107,11 @@ def create_approval_request(payload, db: Session, current_user: User) -> dict:
     if first_step:
         notify_approver(req, first_step, db)
 
-    db.commit()
-    db.refresh(req)
+    if confirmar:
+        db.commit()
+        db.refresh(req)
+    else:
+        db.flush()
     from app.core.events import emit, EventType
     emit(db, EventType.APPROVAL_REQUESTED,
          {"entity_type": req.entity_type, "entity_id": req.entity_id,

@@ -45,6 +45,8 @@ def _v(x):
 
 _CAMPOS_TAREA = ["status", "old_status", "priority", "assignee_id", "project_id"]
 _CAMPOS_TICKET = ["priority", "ticket_type", "support_level", "status", "project_id"]
+_CAMPOS_FACTURA = ["total", "status", "client_name", "project_id", "number"]
+_CAMPOS_APROBACION = ["entity_type", "status", "workflow_id", "user_id", "project_id"]
 
 #: disparador -> categoria, campos que trae el contexto (para las condiciones)
 #: y si sale del barrido periodico en vez de un cambio.
@@ -78,6 +80,15 @@ CATALOGO_DISPARADORES: dict[str, dict] = {
     "expense_approved":          {"category": "finance", "fields": ["amount", "project_id", "user_id"]},
     "expense_rejected":          {"category": "finance", "fields": ["amount", "project_id", "user_id"]},
     "opportunity_stage_changed": {"category": "finance", "fields": ["stage", "old_stage", "client_name"]},
+    # Revisión 2026-11: facturas, aprobaciones y reglas programadas.
+    "invoice_sent":              {"category": "finance", "fields": _CAMPOS_FACTURA},
+    "invoice_paid":              {"category": "finance", "fields": _CAMPOS_FACTURA},
+    "invoice_overdue":           {"category": "finance", "fields": _CAMPOS_FACTURA + ["days_overdue"], "scan": True},
+    "approval_requested":        {"category": "approvals", "fields": _CAMPOS_APROBACION},
+    "approval_approved":         {"category": "approvals", "fields": _CAMPOS_APROBACION},
+    "approval_rejected":         {"category": "approvals", "fields": _CAMPOS_APROBACION},
+    "scheduled":                 {"category": "schedule", "fields": ["project_id", "weekday", "hour"],
+                                  "schedule": True},
 }
 assert set(CATALOGO_DISPARADORES) == {t.value for t in TriggerType}
 
@@ -121,10 +132,33 @@ CATALOGO_ACCIONES: dict[str, dict] = {
     "change_project_status": {"category": "projects", "params": [_p("status", "select", _ESTADOS_PROYECTO, True)]},
     "escalate_ticket":       {"category": "service_desk", "params": [_p("to_level", "select", ["l2", "l3"], True)]},
     "change_ticket_status":  {"category": "service_desk", "params": [_p("status", "select", _ESTADOS_TICKET, True)]},
+    # Revisión 2026-11
+    "assign":                {"category": "work",
+                              "params": [_p("to_user"), _p("to_role", "select", _ROLES)],
+                              "note": "the event's task or ticket; with a role, to its least loaded member"},
+    "update_field":          {"category": "work",
+                              "params": [_p("field", "select", None, True), _p("value", required=True)],
+                              "note": "dates accept +N (days from today)"},
+    "create_approval":       {"category": "approvals",
+                              "params": [_p("entity_type"), _p("summary")],
+                              "note": "the workflow is chosen by its conditions, as when someone asks"},
 }
 #: Alias historicos: se ejecutan, pero no se ofrecen.
 _ALIAS = {"send_alert": "create_alert", "send_webhook": "call_webhook"}
 _OPERADORES = {"equals", "not_equals", "greater_than", "less_than", "contains"}
+_GRUPOS = {"all", "any"}
+
+#: Campos que «actualizar campo» puede tocar: los que no tienen ya su propia
+#: acción (estado y prioridad de tarea, estado de ticket y proyecto la tienen).
+CAMPOS_ACTUALIZABLES: dict[str, tuple[str, str]] = {
+    "task.due_date": ("task", "date"),
+    "task.start_date": ("task", "date"),
+    "task.estimated_hours": ("task", "number"),
+    "task.story_points": ("task", "int"),
+    "ticket.priority": ("ticket", "enum"),
+    "ticket.support_level": ("ticket", "enum"),
+}
+CATALOGO_ACCIONES["update_field"]["params"][0]["options"] = sorted(CAMPOS_ACTUALIZABLES)
 
 
 def catalogo() -> dict:
@@ -140,18 +174,50 @@ def _faltan(tipo: str, params: dict) -> list[str]:
     faltan = [d["key"] for d in defs if d["required"] and not str(params.get(d["key"]) or "").strip()]
     if tipo == "send_email" and not (params.get("to") or params.get("email") or params.get("to_role")):
         faltan.append("to | to_role")
+    if tipo == "assign" and not (params.get("to_user") or params.get("to_role")):
+        faltan.append("to_user | to_role")
+    if tipo == "update_field" and params.get("field") and params["field"] not in CAMPOS_ACTUALIZABLES:
+        faltan.append(f"field válido ({', '.join(sorted(CAMPOS_ACTUALIZABLES))})")
     return faltan
 
 
-def validar_regla(trigger_type: Optional[str], conditions: Optional[dict], actions: Optional[list]) -> None:
+def _validar_condicion(c: dict) -> None:
+    if not isinstance(c, dict):
+        raise HTTPException(422, "Condición mal formada")
+    if "conditions" in c or "match" in c:
+        if c.get("match", "all") not in _GRUPOS:
+            raise HTTPException(422, f"Grupo desconocido: {c.get('match')} (all | any)")
+        hijas = c.get("conditions")
+        # Un grupo vacío no se puede evaluar: no se acepta (antes «sin condición» = siempre).
+        if not isinstance(hijas, list) or not hijas:
+            raise HTTPException(422, "Un grupo de condiciones necesita al menos una")
+        for h in hijas:
+            _validar_condicion(h)
+        return
+    if not c.get("field"):
+        raise HTTPException(422, "La condicion necesita un campo")
+    if c.get("operator", "equals") not in _OPERADORES:
+        raise HTTPException(422, f"Operador desconocido: {c.get('operator')}")
+
+
+def validar_cron(expr: Optional[str]):
+    """El disparador de una expresión cron de cinco campos; 422 si no vale."""
+    from apscheduler.triggers.cron import CronTrigger
+    try:
+        return CronTrigger.from_crontab((expr or "").strip())
+    except (ValueError, TypeError) as e:
+        raise HTTPException(422, f"Expresión cron no válida «{expr}»: {e}")
+
+
+def validar_regla(trigger_type: Optional[str], conditions: Optional[dict], actions: Optional[list],
+                  schedule_cron: Optional[str] = None) -> None:
     """422 si la regla nombra algo que el motor no sabe hacer."""
     if trigger_type is not None and trigger_type not in CATALOGO_DISPARADORES:
         raise HTTPException(422, f"Disparador desconocido: {trigger_type}")
+    if trigger_type == "scheduled":
+        validar_cron(schedule_cron)
     if conditions:
-        if not conditions.get("field"):
-            raise HTTPException(422, "La condicion necesita un campo")
-        if conditions.get("operator", "equals") not in _OPERADORES:
-            raise HTTPException(422, f"Operador desconocido: {conditions.get('operator')}")
+        _validar_condicion(conditions)
     if actions is not None:
         if not actions:
             raise HTTPException(422, "La regla necesita al menos una accion")
@@ -177,6 +243,8 @@ def serialize_rule(r: AutomationRule) -> dict:
         "is_active": r.is_active, "is_global": r.is_global,
         "trigger_type": _v(r.trigger_type),
         "trigger_conditions": json.loads(r.trigger_conditions) if r.trigger_conditions else None,
+        "schedule_cron": r.schedule_cron,
+        "next_run_at": r.next_run_at.isoformat() if r.next_run_at else None,
         "actions": json.loads(r.actions) if r.actions else [],
         "run_count": r.run_count or 0,
         "last_run_at": str(r.last_run_at)[:16] if r.last_run_at else None,
@@ -194,6 +262,18 @@ def check_conditions(conditions: Optional[dict], context: dict) -> bool:
     """
     if not conditions:
         return True
+    if "conditions" in conditions or "match" in conditions:
+        # Grupo (revisión 2026-11). Vacío o mal formado no se cumple.
+        hijas = conditions.get("conditions")
+        if not isinstance(hijas, list) or not hijas:
+            return False
+        resultados = (check_conditions(h, context) if isinstance(h, dict) and h else False for h in hijas)
+        match = conditions.get("match", "all")
+        if match == "all":
+            return all(resultados)
+        if match == "any":
+            return any(resultados)
+        return False
     field = conditions.get("field")
     operator = conditions.get("operator", "equals")
     value = conditions.get("value")
@@ -566,6 +646,132 @@ def _accion_conditional_branch(db: Session, atype, action: dict, params: dict, c
                     "branch_results": execute_actions(acciones, context, db) if acciones else []})
 
 
+# ── Revisión 2026-11: asignar, actualizar campo, crear aprobación ──────────
+
+_TICKET_CERRADO = ("resolved", "closed", "cancelled")
+
+
+def _menos_cargado(db: Session, role: str, org: Optional[str], de_tickets: bool) -> Optional[User]:
+    """El miembro activo del rol con menos trabajo abierto (empate: el primero por nombre)."""
+    usuarios = sorted(_usuarios_del_rol(db, role, org), key=lambda u: (u.full_name or "", u.id))
+    if not usuarios:
+        return None
+    ids = [u.id for u in usuarios]
+    if de_tickets:
+        from app.models.service_desk import Ticket
+        carga = dict(db.query(Ticket.assigned_to_user_id, func.count(Ticket.id)).filter(
+            Ticket.assigned_to_user_id.in_(ids), Ticket.status.notin_(_TICKET_CERRADO))
+            .group_by(Ticket.assigned_to_user_id).all())
+    else:
+        carga = dict(db.query(Task.assignee_id, func.count(Task.id)).filter(
+            Task.assignee_id.in_(ids), Task.is_active.is_(True), Task.status.notin_(_TAREA_ABIERTA))
+            .group_by(Task.assignee_id).all())
+    return min(usuarios, key=lambda u: carga.get(u.id, 0))
+
+
+def _accion_assign(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
+    """Asigna la tarea o el ticket del evento a una persona o al menos cargado de un rol."""
+    ticket = _ticket_del_evento(db, context)
+    tarea = None if ticket else _tarea_del_evento(db, context, params)
+    if not (ticket or tarea):
+        results.append({"action": atype, "ok": False, "error": "El evento no trae tarea ni ticket"})
+        return
+    org = _org(context)
+    if params.get("to_user"):
+        quien = db.query(User).filter(User.email == str(params["to_user"]).strip().lower(),
+                                      User.is_active.is_(True), User.organization_id == org).first()
+        if not quien:
+            results.append({"action": atype, "ok": False, "error": f"Usuario no encontrado: {params['to_user']}"})
+            return
+    else:
+        quien = _menos_cargado(db, params["to_role"], org, de_tickets=bool(ticket))
+        if not quien:
+            results.append({"action": atype, "ok": False, "error": f"Nadie activo con rol {params['to_role']}"})
+            return
+    if ticket:
+        ticket.assigned_to_user_id = quien.id
+        results.append({"action": atype, "ok": True, "ticket": ticket.number, "assignee": quien.email})
+    else:
+        tarea.assignee_id = quien.id
+        results.append({"action": atype, "ok": True, "task": tarea.code, "assignee": quien.email})
+
+
+def _valor_de_campo(tipo: str, columna, valor: str):
+    texto = str(valor).strip()
+    if tipo == "date":
+        if texto.startswith("+") or texto.startswith("-"):
+            return timeutil.today() + timedelta(days=int(texto))
+        from datetime import date
+        return date.fromisoformat(texto)
+    if tipo == "number":
+        return float(texto)
+    if tipo == "int":
+        return int(texto)
+    if tipo == "enum":
+        return columna.type.enum_class(texto)
+    return texto
+
+
+def _accion_update_field(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
+    campo = params["field"]
+    if campo not in CAMPOS_ACTUALIZABLES:
+        results.append({"action": atype, "ok": False, "error": f"Campo no permitido: {campo}"})
+        return
+    entidad, tipo = CAMPOS_ACTUALIZABLES[campo]
+    obj = _ticket_del_evento(db, context) if entidad == "ticket" else _tarea_del_evento(db, context, params)
+    if not obj:
+        results.append({"action": atype, "ok": False, "error": f"El evento no trae {entidad}"})
+        return
+    atributo = campo.split(".", 1)[1]
+    try:
+        valor = _valor_de_campo(tipo, type(obj).__table__.c[atributo], params["value"])
+    except (ValueError, TypeError) as e:
+        results.append({"action": atype, "ok": False, "error": f"Valor no válido para {campo}: {e}"})
+        return
+    setattr(obj, atributo, valor)
+    results.append({"action": atype, "ok": True, "field": campo, "value": str(_v(valor))})
+
+
+#: Qué entidad aprueba una regla, según lo que trae el evento (la primera que haya).
+_ENTIDAD_DEL_EVENTO = (("expense_id", "expense"), ("invoice_id", "invoice"), ("timesheet_id", "timesheet"),
+                       ("absence_id", "leave"), ("ticket_id", "ticket"), ("task_id", "task"),
+                       ("opportunity_id", "opportunity"), ("project_id", "project"))
+
+
+def _accion_create_approval(db: Session, atype, action: dict, params: dict, context: dict, results: list) -> None:
+    """Abre una aprobación sobre el registro del evento, con el flujo que elijan sus condiciones."""
+    from app.models.billing_reports import ApprovalRequest
+    from app.schemas.approvals import ApprovalRequestIn
+    from app.services.approval_engine.requests import create_approval_request
+    clave, tipo = next(((k, t) for k, t in _ENTIDAD_DEL_EVENTO if context.get(k)), (None, None))
+    if not clave:
+        results.append({"action": atype, "ok": False, "error": "El evento no trae nada que aprobar"})
+        return
+    tipo = (params.get("entity_type") or "").strip() or tipo
+    entidad = str(context[clave])
+    if db.query(ApprovalRequest.id).filter(ApprovalRequest.entity_type == tipo, ApprovalRequest.entity_id == entidad,
+                                           ApprovalRequest.status == "pending").first():
+        results.append({"action": atype, "ok": True, "skipped": "ya hay una aprobación pendiente"})
+        return
+    solicitante_id = context.get("user_id") or context.get("rule_owner_id")
+    solicitante = db.query(User).filter(User.id == solicitante_id, User.organization_id == _org(context)).first() \
+        if solicitante_id else None
+    if not solicitante:
+        results.append({"action": atype, "ok": False, "error": "Sin solicitante: ni usuario del evento ni autor de la regla"})
+        return
+    resumen = (params.get("summary") or context.get("title") or context.get("code")
+               or f"{tipo} {entidad}")
+    contexto = {k: v for k, v in context.items() if isinstance(v, (str, int, float, bool)) or v is None}
+    try:
+        req = create_approval_request(
+            ApprovalRequestIn(entity_type=tipo, entity_id=entidad, entity_summary=str(resumen)[:500],
+                              context=contexto), db, solicitante, confirmar=False)
+    except HTTPException as e:
+        results.append({"action": atype, "ok": False, "error": str(e.detail)})
+        return
+    results.append({"action": atype, "ok": True, "approval_id": req.id, "entity_type": tipo})
+
+
 _ACCIONES = {
     ActionType.create_alert: _accion_create_alert,
     ActionType.send_alert: _accion_create_alert,
@@ -583,6 +789,9 @@ _ACCIONES = {
     ActionType.escalate_ticket: _accion_escalate_ticket,
     ActionType.change_ticket_status: _accion_change_ticket_status,
     ActionType.conditional_branch: _accion_conditional_branch,
+    ActionType.assign: _accion_assign,
+    ActionType.update_field: _accion_update_field,
+    ActionType.create_approval: _accion_create_approval,
 }
 assert {a.value for a in ActionType} == {a.value for a in _ACCIONES}
 assert set(CATALOGO_ACCIONES) | set(_ALIAS) | {"conditional_branch"} == {a.value for a in ActionType}
@@ -652,30 +861,38 @@ def disparar(db: Session, trigger_type: str, context: dict, org_id: Optional[str
         if clave and db.query(AutomationExecution.id).filter(
                 AutomationExecution.rule_id == rule.id, AutomationExecution.dedupe_key == clave).first():
             continue
-        previa = db.info.get(PROFUNDIDAD)
-        db.info[PROFUNDIDAD] = profundidad + 1
-        try:
-            results = execute_actions(json.loads(rule.actions) if rule.actions else [], context, db)
-            db.flush()
-        finally:
-            if previa is None:
-                db.info.pop(PROFUNDIDAD, None)
-            else:
-                db.info[PROFUNDIDAD] = previa
-        success = all(r.get("ok", True) for r in results)
-        db.add(AutomationExecution(
-            rule_id=rule.id, organization_id=org_id, dedupe_key=clave,
-            trigger_context=json.dumps(_contexto_publico(context), default=str),
-            actions_taken=json.dumps(results, default=str),
-            success=success,
-            error=None if success else "; ".join(str(r.get("error")) for r in results if not r.get("ok", True))[:500],
-        ))
-        rule.run_count = (rule.run_count or 0) + 1
-        rule.last_run_at = datetime.now(timezone.utc)
-        rule.last_error = None if success else json.dumps(
-            [r for r in results if not r.get("ok", True)], default=str)[:500]
-        ejecutadas.append({"rule_id": rule.id, "success": success})
+        ejecutadas.append(_ejecutar_regla(db, rule, context, profundidad, clave))
     return {"rules": ejecutadas}
+
+
+def _ejecutar_regla(db: Session, rule: AutomationRule, context: dict, profundidad: int,
+                    clave: Optional[str]) -> dict:
+    """Corre las acciones de una regla y deja constancia. No hace commit."""
+    from app.services.automation_events import PROFUNDIDAD
+    context = {**context, "rule_owner_id": rule.created_by}
+    previa = db.info.get(PROFUNDIDAD)
+    db.info[PROFUNDIDAD] = profundidad + 1
+    try:
+        results = execute_actions(json.loads(rule.actions) if rule.actions else [], context, db)
+        db.flush()
+    finally:
+        if previa is None:
+            db.info.pop(PROFUNDIDAD, None)
+        else:
+            db.info[PROFUNDIDAD] = previa
+    success = all(r.get("ok", True) for r in results)
+    db.add(AutomationExecution(
+        rule_id=rule.id, organization_id=rule.organization_id, dedupe_key=clave,
+        trigger_context=json.dumps(_contexto_publico(context), default=str),
+        actions_taken=json.dumps(results, default=str),
+        success=success,
+        error=None if success else "; ".join(str(r.get("error")) for r in results if not r.get("ok", True))[:500],
+    ))
+    rule.run_count = (rule.run_count or 0) + 1
+    rule.last_run_at = datetime.now(timezone.utc)
+    rule.last_error = None if success else json.dumps(
+        [r for r in results if not r.get("ok", True)], default=str)[:500]
+    return {"rule_id": rule.id, "success": success}
 
 
 # ── Barrido periodico: fechas y umbrales ────────────────────────────────────
@@ -762,7 +979,26 @@ def _barrer_partes(db: Session, org: str, hoy) -> int:
     return n
 
 
+def _barrer_facturas_vencidas(db: Session, org: str, hoy) -> int:
+    """Enviadas y con el vencimiento pasado (nada marca hoy `overdue` por sí solo)."""
+    from app.models.billing_reports import Invoice, InvoiceStatus
+    n = 0
+    for f in db.query(Invoice).filter(Invoice.organization_id == org, Invoice.due_date < hoy,
+                                      Invoice.status.in_([InvoiceStatus.sent, InvoiceStatus.overdue])):
+        r = disparar(db, "invoice_overdue", {**contexto_de_factura(f), "days_overdue": (hoy - f.due_date).days},
+                     org, clave=f"invoice_overdue:{f.id}:{f.due_date}")
+        n += len(r["rules"])
+    return n
+
+
+def contexto_de_factura(f) -> dict:
+    return {"invoice_id": f.id, "number": f.number, "project_id": f.project_id, "client_id": f.client_id,
+            "client_name": f.client_name, "total": float(f.total or 0), "status": _v(f.status),
+            "due_date": str(f.due_date) if f.due_date else None}
+
+
 _BARRIDOS = {
+    "invoice_overdue": _barrer_facturas_vencidas,
     "task_overdue": _barrer_tareas_vencidas,
     "task_deadline_approaching": _barrer_tareas_que_vencen,
     "budget_threshold": _barrer_presupuesto,
@@ -788,8 +1024,67 @@ def escanear(db: Session, org_id: Optional[str] = None) -> dict:
                 except Exception:
                     logger.exception("automatizaciones: el barrido %s fallo en %s", disparador, org)
         salida[disparador] = total
+    salida["scheduled"] = _correr_programadas(db, org_id)
     db.commit()
     return {"executed": sum(salida.values()), "by_trigger": salida}
+
+
+# ── Reglas programadas (revisión 2026-11) ───────────────────────────────────
+
+def _zona_de(db: Session, org_id: Optional[str]):
+    from app.models.mfa import Organization
+    org = db.get(Organization, org_id) if org_id else None
+    return timeutil.resolve_zone(getattr(org, "timezone", None))
+
+
+def proxima_ejecucion(db: Session, rule: AutomationRule, desde: Optional[datetime] = None) -> Optional[datetime]:
+    """Siguiente instante del cron de la regla, en la zona de su empresa (guardado en UTC)."""
+    if _v(rule.trigger_type) != "scheduled" or not rule.schedule_cron:
+        return None
+    from apscheduler.triggers.cron import CronTrigger
+    zona = _zona_de(db, rule.organization_id)
+    disparador = CronTrigger.from_crontab(rule.schedule_cron, timezone=zona)
+    ahora = (desde or datetime.now(timezone.utc)).astimezone(zona)
+    siguiente = disparador.get_next_fire_time(None, ahora)
+    return siguiente.astimezone(timezone.utc) if siguiente else None
+
+
+def _correr_programadas(db: Session, org_id: Optional[str] = None) -> int:
+    """Las reglas programadas que ya tocan. Una vez por instante (`dedupe_key`)
+    aunque el barrido se retrase: si se perdieron varios, corre una y salta al
+    siguiente futuro, sin ponerse al día en ráfaga."""
+    from app.services.service_desk.ticket_events import como_organizacion
+    ahora = datetime.now(timezone.utc)
+    q = db.query(AutomationRule).filter(AutomationRule.trigger_type == "scheduled",
+                                        AutomationRule.is_active.is_(True),
+                                        AutomationRule.organization_id.isnot(None),
+                                        AutomationRule.next_run_at.isnot(None),
+                                        AutomationRule.next_run_at <= ahora)
+    if org_id:
+        q = q.filter(AutomationRule.organization_id == org_id)
+    n = 0
+    for rule in q.all():
+        org = rule.organization_id
+        if not _encendidas(db, org):
+            continue
+        instante = rule.next_run_at
+        clave = f"scheduled:{rule.id}:{instante.isoformat()}"
+        local = instante.astimezone(_zona_de(db, org))
+        ctx = {"organization_id": org, "event_type": "scheduled", "project_id": rule.project_id,
+               "scheduled_for": instante.isoformat(), "weekday": local.isoweekday(), "hour": local.hour}
+        with como_organizacion(db, org):
+            try:
+                with db.begin_nested():
+                    ya = db.query(AutomationExecution.id).filter(
+                        AutomationExecution.rule_id == rule.id, AutomationExecution.dedupe_key == clave).first()
+                    condiciones = json.loads(rule.trigger_conditions) if rule.trigger_conditions else None
+                    if not ya and check_conditions(condiciones, ctx):
+                        _ejecutar_regla(db, rule, ctx, 0, clave)
+                        n += 1
+            except Exception:
+                logger.exception("automatizaciones: la regla programada %s fallo", rule.id)
+            rule.next_run_at = proxima_ejecucion(db, rule, desde=ahora)
+    return n
 
 
 def run_scheduled_automations(db: Session, org_id: Optional[str] = None) -> dict:
@@ -813,6 +1108,9 @@ _EFECTO = {
     "change_project_status": "pondría el proyecto del evento en {status}",
     "escalate_ticket": "escalaría el ticket del evento a {to_level}",
     "change_ticket_status": "pondría el ticket del evento en {status}",
+    "assign": "asignaría la tarea o el ticket del evento a {to_user}{to_role}",
+    "update_field": "pondría {field} = {value}",
+    "create_approval": "abriría una aprobación sobre el registro del evento",
 }
 
 
@@ -848,7 +1146,8 @@ def simular(rule: AutomationRule, db: Session) -> dict:
         try:
             texto = _EFECTO[tipo].format(n=n, **{k: params.get(k, "") for k in
                                                  ("message", "role", "subject", "url", "status", "priority",
-                                                  "task_title", "to_level")})
+                                                  "task_title", "to_level", "to_user", "to_role",
+                                                  "field", "value")})
         except (KeyError, IndexError):
             texto = tipo
         pasos.append({"action": tipo, "ok": error is None, "would": texto, "error": error})
@@ -960,7 +1259,8 @@ def _proyecto_de_mi_organizacion(db: Session, project_id: Optional[str], current
 
 
 def create_rule_db(payload, db: Session, current_user) -> dict:
-    validar_regla(payload.trigger_type, payload.trigger_conditions, payload.actions)
+    validar_regla(payload.trigger_type, payload.trigger_conditions, payload.actions,
+                  getattr(payload, "schedule_cron", None))
     _proyecto_de_mi_organizacion(db, payload.project_id, current_user)
     rule = AutomationRule(
         name=payload.name,
@@ -973,7 +1273,10 @@ def create_rule_db(payload, db: Session, current_user) -> dict:
         actions=json.dumps(payload.actions),
         created_by=current_user.id,
         organization_id=current_user.organization_id,
+        schedule_cron=(getattr(payload, "schedule_cron", None) or "").strip() or None
+        if payload.trigger_type == "scheduled" else None,
     )
+    rule.next_run_at = proxima_ejecucion(db, rule)
     db.add(rule)
     db.commit()
     return serialize_rule(regla_de(db, rule.id, current_user))
@@ -982,7 +1285,11 @@ def create_rule_db(payload, db: Session, current_user) -> dict:
 def update_rule_db(rule_id: str, payload, db: Session, current_user) -> dict:
     rule = regla_de(db, rule_id, current_user)
     data = payload.model_dump(exclude_unset=True)
+    tipo_final = data.get("trigger_type") or _v(rule.trigger_type)
+    cron_final = data["schedule_cron"] if "schedule_cron" in data else rule.schedule_cron
     validar_regla(data.get("trigger_type"), data.get("trigger_conditions"), data.get("actions"))
+    if tipo_final == "scheduled":
+        validar_cron(cron_final)
     if "project_id" in data:
         _proyecto_de_mi_organizacion(db, data["project_id"], current_user)
         data["project_id"] = data["project_id"] or None
@@ -991,8 +1298,13 @@ def update_rule_db(rule_id: str, payload, db: Session, current_user) -> dict:
         data["trigger_conditions"] = json.dumps(data["trigger_conditions"]) if data["trigger_conditions"] else None
     if "actions" in data:
         data["actions"] = json.dumps(data["actions"])
+    if "schedule_cron" in data:
+        data["schedule_cron"] = (data["schedule_cron"] or "").strip() or None
     for k, v in data.items():
         setattr(rule, k, v)
+    if tipo_final != "scheduled":
+        rule.schedule_cron = None
+    rule.next_run_at = proxima_ejecucion(db, rule)
     db.commit()
     return serialize_rule(regla_de(db, rule_id, current_user))
 

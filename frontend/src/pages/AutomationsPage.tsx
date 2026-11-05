@@ -9,7 +9,7 @@
 import { useId, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, fmtDateTime } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -31,17 +31,33 @@ const TRIGGER_ICONS: Record<string, string> = {
   ticket_created: '🎫', ticket_resolved: '✅', ticket_reopened: '🔄', ticket_escalated: '↑',
   ticket_sla_at_risk: '🚨', ticket_sla_breached: '🔴',
   expense_submitted: '💸', expense_approved: '✅', expense_rejected: '❌', opportunity_stage_changed: '📈',
+  invoice_sent: '🧾', invoice_paid: '💶', invoice_overdue: '⏰',
+  approval_requested: '📝', approval_approved: '✅', approval_rejected: '❌', scheduled: '🗓',
 }
 const ACTION_ICONS: Record<string, string> = {
   create_alert: '🔔', notify_user: '👤', notify_role: '👥', send_email: '📧', call_webhook: '🔗',
   send_webhook: '🔗', send_slack_message: '💬', send_teams_message: 'Ⓜ', change_task_status: '🔄',
   change_task_priority: '🔺', create_task: '🆕', change_project_status: '📁', escalate_ticket: '↑',
-  change_ticket_status: '🎫', send_alert: '🔔',
+  change_ticket_status: '🎫', send_alert: '🔔', assign: '👤', update_field: '✎', create_approval: '📝',
 }
+
+// Revisión 2026-11: condiciones en grupo («todas» / «alguna»). La pantalla edita
+// un nivel; un grupo anidado que venga de la API se conserva tal cual.
+type Condicion = { field?: string; operator?: string; value?: string; match?: string; conditions?: Condicion[] }
+const esGrupo = (c: Condicion | null | undefined) => !!c && ('conditions' in c || 'match' in c)
+function aGrupo(c: Condicion | null | undefined): { match: string; conditions: Condicion[] } {
+  if (!c) return { match: 'all', conditions: [] }
+  if (esGrupo(c)) return { match: c.match || 'all', conditions: c.conditions || [] }
+  return { match: 'all', conditions: [c] }
+}
+const CRON_PLANTILLAS: Array<[string, string]> = [
+  ['cron_daily', '0 9 * * *'], ['cron_weekdays', '0 9 * * 1-5'], ['cron_monday', '0 8 * * 1'],
+  ['cron_monthly', '0 9 1 * *'], ['cron_hourly', '0 * * * *'],
+]
 
 type ParamDef = { key: string; type: string; options?: string[] | null; required?: boolean }
 type Catalog = {
-  triggers: Array<{ type: string; category: string; fields: string[]; scan?: boolean }>
+  triggers: Array<{ type: string; category: string; fields: string[]; scan?: boolean; schedule?: boolean }>
   actions: Array<{ type: string; category: string; params: ParamDef[] }>
   operators: string[]
 }
@@ -134,11 +150,13 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
         <div style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border-strong)', borderRadius: 8, padding: '6px 12px', fontSize: "var(--text-sm)" }}>
           <span style={{ color: 'var(--purple)', fontWeight: 700 }}>{t('automations.si_label')} </span>
           <span style={{ color: 'var(--text-1)' }}>{trigger.icon} {highlightText(t('automations.trig_' + rule.trigger_type, trigger.label), highlightTerm)}</span>
-          {rule.trigger_conditions && (
-            <span style={{ color: 'var(--text-2)' }}>
-              {' '}· {rule.trigger_conditions.field} {t('automations.op_' + rule.trigger_conditions.operator)} <strong style={{ color: 'var(--text-1)' }}>{rule.trigger_conditions.value}</strong>
+          {rule.schedule_cron && <span style={{ color: 'var(--text-2)' }}> · <code>{rule.schedule_cron}</code></span>}
+          {rule.trigger_conditions && aGrupo(rule.trigger_conditions).conditions.map((c: Condicion, i: number) => (
+            <span key={i} style={{ color: 'var(--text-2)' }}>
+              {i === 0 ? ' · ' : ` ${t(aGrupo(rule.trigger_conditions).match === 'any' ? 'automations.or_lbl' : 'automations.and_lbl')} `}
+              {esGrupo(c) ? `(${t('automations.nested_group')})` : <>{c.field} {t('automations.op_' + c.operator)} <strong style={{ color: 'var(--text-1)' }}>{c.value}</strong></>}
             </span>
-          )}
+          ))}
         </div>
         <span style={{ fontSize: "var(--text-lg-em)", color: 'var(--text-3)' }}>→</span>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -158,6 +176,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
       <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
         <span>⚡ {rule.run_count || 0} {t('automations.executions')}</span>
         {rule.last_run_at && <span>{t('automations.last_exec')}: {rule.last_run_at}</span>}
+        {rule.next_run_at && rule.is_active && <span>🗓 {t('automations.next_run')}: {fmtDateTime(rule.next_run_at)}</span>}
         {rule.last_error && <span style={{ color: 'var(--danger)' }}>⚠ {rule.last_error.slice(0, 60)}</span>}
       </div>
     </div>
@@ -181,7 +200,13 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
     actions: rule?.actions || [{ type: 'create_alert', params: { message: '', severity: 'warning' } }],
   })
   const [hasCondition, setHasCondition] = useState(!!rule?.trigger_conditions)
-  const [condition, setCondition] = useState(rule?.trigger_conditions || { field: '', operator: 'equals', value: '' })
+  const inicial = aGrupo(rule?.trigger_conditions)
+  const [match, setMatch] = useState(inicial.match)
+  const [condiciones, setCondiciones] = useState<Condicion[]>(
+    inicial.conditions.length ? inicial.conditions : [{ field: '', operator: 'equals', value: '' }])
+  const [cron, setCron] = useState<string>(rule?.schedule_cron || '0 9 * * 1-5')
+  const cambiarCondicion = (i: number, campo: string, valor: string) =>
+    setCondiciones(cs => cs.map((c, j) => j === i ? { ...c, [campo]: valor } : c))
 
   const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => (r.data as any)?.items ?? r.data ?? []) })
   const projects = Array.isArray(projRaw) ? projRaw : []
@@ -208,13 +233,14 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
 
   const fields = triggerDefs.find(d => d.type === form.trigger_type)?.fields ?? []
   const isScan = !!triggerDefs.find(d => d.type === form.trigger_type)?.scan
+  const isSchedule = !!triggerDefs.find(d => d.type === form.trigger_type)?.schedule
 
   const handleSave = () => {
-    const payload = {
-      ...form,
-      trigger_conditions: hasCondition && condition.field ? condition : null,
-    }
-    mutate(payload as any)
+    // Las filas a medias no se mandan; una sola condición viaja como antes.
+    const validas = condiciones.filter(c => esGrupo(c) || c.field)
+    const trigger_conditions = !hasCondition || !validas.length ? null
+      : validas.length === 1 && !esGrupo(validas[0]) ? validas[0] : { match, conditions: validas }
+    mutate({ ...form, trigger_conditions, schedule_cron: isSchedule ? cron.trim() : null } as any)
   }
 
   return (
@@ -267,25 +293,64 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
                 {t('automations.add_condition')}
               </label>
             </div>
-            {hasCondition && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, padding: '10px 14px', background: 'var(--surface-3)', borderRadius: 8 }}>
+            {isSchedule && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '10px 14px', background: 'var(--surface-3)', borderRadius: 8 }}>
                 <div>
-                  <label htmlFor={`${idPrefix}-condition-field`} style={ls}>{t('automations.field_lbl')}</label>
-                  <select id={`${idPrefix}-condition-field`} value={condition.field} onChange={e => setCondition((c: any) => ({ ...c, field: e.target.value }))} style={fs}>
+                  <label htmlFor={`${idPrefix}-cron`} style={ls}>{t('automations.cron_lbl')}</label>
+                  <input id={`${idPrefix}-cron`} value={cron} onChange={e => setCron(e.target.value)} style={{ ...fs, fontFamily: 'var(--font-mono)' }} placeholder="0 9 * * 1-5" />
+                </div>
+                <div>
+                  <label htmlFor={`${idPrefix}-cron-preset`} style={ls}>{t('automations.cron_preset')}</label>
+                  <select id={`${idPrefix}-cron-preset`} value={CRON_PLANTILLAS.find(([, c]) => c === cron.trim())?.[1] ?? ''} onChange={e => e.target.value && setCron(e.target.value)} style={fs}>
                     <option value="">{t('automations.select_lbl')}</option>
-                    {fields.map((f: string) => <option key={f} value={f}>{f}</option>)}
+                    {CRON_PLANTILLAS.map(([k, c]) => <option key={c} value={c}>{t('automations.' + k)}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label htmlFor={`${idPrefix}-condition-operator`} style={ls}>{t('automations.operator_lbl')}</label>
-                  <select id={`${idPrefix}-condition-operator`} value={condition.operator} onChange={e => setCondition((c: any) => ({ ...c, operator: e.target.value }))} style={fs}>
-                    {(catalog?.operators ?? []).map(o => <option key={o} value={o}>{t('automations.op_' + o, o)}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor={`${idPrefix}-condition-value`} style={ls}>{t('automations.value_lbl')}</label>
-                  <input id={`${idPrefix}-condition-value`} value={condition.value} onChange={e => setCondition((c: any) => ({ ...c, value: e.target.value }))} style={fs} placeholder={t('automations.value_lbl')} />
-                </div>
+                <div style={{ gridColumn: '1/-1', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('automations.cron_help')}</div>
+              </div>
+            )}
+            {hasCondition && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 14px', background: 'var(--surface-3)', borderRadius: 8 }}>
+                {condiciones.length > 1 && (
+                  <div role="radiogroup" aria-label={t('automations.match_lbl')} style={{ display: 'flex', gap: 14, fontSize: 'var(--text-sm)' }}>
+                    {(['all', 'any'] as const).map(m => (
+                      <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                        <input type="radio" name={`${idPrefix}-match`} checked={match === m} onChange={() => setMatch(m)} />
+                        {t('automations.match_' + m)}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {condiciones.map((c, i) => esGrupo(c) ? (
+                  <div key={i} style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>({t('automations.nested_group')})</div>
+                ) : (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 10, alignItems: 'end' }}>
+                    <div>
+                      <label htmlFor={`${idPrefix}-condition-field-${i}`} style={ls}>{t('automations.field_lbl')}</label>
+                      <select id={`${idPrefix}-condition-field-${i}`} value={c.field || ''} onChange={e => cambiarCondicion(i, 'field', e.target.value)} style={fs}>
+                        <option value="">{t('automations.select_lbl')}</option>
+                        {fields.map((f: string) => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor={`${idPrefix}-condition-operator-${i}`} style={ls}>{t('automations.operator_lbl')}</label>
+                      <select id={`${idPrefix}-condition-operator-${i}`} value={c.operator || 'equals'} onChange={e => cambiarCondicion(i, 'operator', e.target.value)} style={fs}>
+                        {(catalog?.operators ?? []).map(o => <option key={o} value={o}>{t('automations.op_' + o, o)}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor={`${idPrefix}-condition-value-${i}`} style={ls}>{t('automations.value_lbl')}</label>
+                      <input id={`${idPrefix}-condition-value-${i}`} value={c.value || ''} onChange={e => cambiarCondicion(i, 'value', e.target.value)} style={fs} placeholder={t('automations.value_lbl')} />
+                    </div>
+                    <button type="button" aria-label={t('automations.remove_condition')} disabled={condiciones.length === 1}
+                      onClick={() => setCondiciones(cs => cs.filter((_, j) => j !== i))}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: condiciones.length === 1 ? 'default' : 'pointer', fontSize: 'var(--text-lg)', paddingBottom: 8 }}>×</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setCondiciones(cs => [...cs, { field: '', operator: 'equals', value: '' }])}
+                  style={{ alignSelf: 'flex-start', background: 'transparent', border: '1px dashed var(--purple-border)', borderRadius: 8, padding: '5px 12px', color: 'var(--purple)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
+                  {t('automations.add_condition_row')}
+                </button>
               </div>
             )}
           </div>
@@ -326,7 +391,7 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
                         {param.type === 'select' ? (
                           <select value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} style={fs}>
                             <option value="">{t('automations.select_lbl')}</option>
-                            {param.options?.map((o: string) => <option key={o} value={o}>{o}</option>)}
+                            {param.options?.map((o: string) => <option key={o} value={o}>{t('automations.opt_' + o.replace('.', '_'), o)}</option>)}
                           </select>
                         ) : (
                           <input type={param.type === 'number' ? 'number' : 'text'} value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} style={fs} placeholder={t('automations.param_' + param.key, param.key)} />
