@@ -3412,6 +3412,25 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 - **The agent loop is not logged or governed.** It bypasses `call_ai`, so there are no `ai_usage_logs`, no cost accounting and no guardrails; the only input check is a keyword blocklist.
 - **Streamed runs never reach History.** History items show only a status, and the non-streamed status is never polled.
 
+### External agents (MCP) — `POST /api/v1/mcp`
+*Roles:* any internal user, with their own permissions. The company switches it on in *AI Governance → Modules → Agentes externos (MCP)*.
+
+**Purpose.** Claude, a company copilot or another product use Contecflow's data as tools, through the Model Context Protocol (revision 2026-11, what contecintelligence already had). The tools are NexusAgent's 37 (`AGENT_TOOLS`); nothing is duplicated.
+
+**How to connect.**
+1. *AI Governance → Modules*: switch on *Agentes externos (MCP)*. Unlike the other modules, it is **off** until someone switches it on, because it opens a door to the outside.
+2. Create an API key (*Reservas → API keys*, `POST /bookings/api-keys`) with scope `read`, or `write` if the agent must write.
+3. In the agent: server URL `https://<host>/api/v1/mcp`, header `Authorization: Bearer nxpm_…` (or `X-API-Key`). Transport: Streamable HTTP, one JSON-RPC message per POST.
+
+**Governance.**
+- The key acts **as its owner**: role, organisation, financial tools only for admin/hr, as in NexusAgent.
+- Read-only by default: the 7 tools that write (create/update task, create risk, project and ticket status, reassign tickets, send notification) are not even listed unless `MCP_ALLOW_WRITE` is on (*Admin → AI*). A `read` key never sees them; `write` or `admin` is needed. An area-scoped key (`projects`, `tasks`…) cannot open MCP.
+- The daily limit is the module's `max_actions_per_day` in AI Governance.
+- Every call is logged in the AI action log (module `mcp`), allowed, failed or blocked.
+- A new NexusAgent tool that is neither `get_`/`search_` nor listed as a write tool breaks the import of `app/services/mcp_service.py` on purpose, so a write is never exposed as a read.
+
+**Protocol.** `initialize` (versions 2025-06-18 and 2025-03-26), `ping`, `tools/list`, `tools/call`; `resources/list` and `prompts/list` return empty lists. Notifications get 202, batches 400, `GET /mcp` 405. A tool failure comes back as a result with `isError: true` so the model can correct itself. Measured on a copy with a `read` key: 30 tools listed, `search_projects` answered, the call logged.
+
 ### NexusAssist (in-app AI assistant) — floating panel (Cmd+I) and inline editor
 *Roles:* any authenticated user (`POST /ai/chat` uses `get_current_user`).
 

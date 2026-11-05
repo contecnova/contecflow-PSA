@@ -123,7 +123,7 @@ RUTAS = _rutas_guardadas()
 # 989 desde 2026-11-05: entran la baja, la exportacion y «entrar como» de
 # empresas (superadmin) y, en el Hub de IA, probar/descubrir sin guardar y las
 # rutas por funcion (admin).
-RUTAS_ESPERADAS = 997  # +5: calidad de la base de conocimiento (correcciones, huecos, avisos, pasada)
+RUTAS_ESPERADAS = 998  # +1: POST /mcp (servidor MCP para agentes externos)
 
 
 def test_se_sondean_todas_las_rutas_con_guarda():

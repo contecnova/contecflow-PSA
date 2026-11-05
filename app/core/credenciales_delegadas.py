@@ -73,6 +73,12 @@ def comprobar_alcance(metodo: str, ruta: str, alcances: list[str]) -> None:
     if vedada and not (metodo in _LECTURA and ruta in _LECTURAS_PERMITIDAS):
         raise _no("Una clave de API o un token de aplicación no pueden gestionar credenciales", 403)
     generales = set(alcances) & set(ALCANCES_GENERALES)
+    if ruta == "/api/v1/mcp":
+        # MCP va siempre por POST: la escritura se decide por herramienta
+        # (`mcp_service.permite_escribir`). Un token de área no abre MCP.
+        if not generales:
+            raise _no("MCP necesita una credencial de alcance read, write o admin", 403)
+        return
     if generales:
         if metodo not in _LECTURA and not generales & {"write", "admin"}:
             raise _no("La credencial solo tiene alcance de lectura (read)", 403)

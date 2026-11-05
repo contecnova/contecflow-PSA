@@ -230,7 +230,10 @@ def compliance_control_status(
 AI_MODULES = [
     "nexusassist", "nexusagent", "nexusoracle", "meeting_assistant",
     "sprint_planning", "contract_intelligence", "knowledge_base", "portal_ai", "voice",
+    "mcp",
 ]
+#: Sin fila, apagados: abren una puerta hacia fuera (revisión 2026-11).
+APAGADOS_SIN_CONFIGURAR = {"mcp"}
 
 
 @router.get("/config", summary="Configuración de módulos de IA gobernados")
@@ -243,7 +246,7 @@ def get_ai_module_config(
     return APIListResponse.ok(items=[
         {
             "module": m,
-            "is_enabled": by_module[m].is_enabled if m in by_module else True,
+            "is_enabled": by_module[m].is_enabled if m in by_module else m not in APAGADOS_SIN_CONFIGURAR,
         }
         for m in AI_MODULES
     ])

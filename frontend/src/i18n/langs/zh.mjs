@@ -578,6 +578,8 @@ const zh = {
     err: "错误",
   },
   governance: {
+    mcp_label: "外部代理（MCP）",
+    mcp_desc: "Claude 或其他代理通过 POST /api/v1/mcp 使用 API 密钥调用 NexusAgent 工具，身份为密钥所有者。默认关闭；除非设置 MCP_ALLOW_WRITE，否则只读。",
     title: "AI 治理",
     subtitle: "管理 AI 模块、用量和审计日志",
     kpi_active_modules: "已启用模块",

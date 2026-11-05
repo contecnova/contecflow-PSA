@@ -22,6 +22,7 @@ const MODULE_CFG: Record<string, { icon: string; labelKey: string; descKey: stri
   knowledge_base:       { icon: '📚', labelKey: 'governance.knowledge_base_label',        descKey: 'governance.knowledge_base_desc' },
   portal_ai:            { icon: '🌐', labelKey: 'governance.portal_ai_label',             descKey: 'governance.portal_ai_desc' },
   voice:                { icon: '🎤', labelKey: 'governance.voice_label',                 descKey: 'governance.voice_desc' },
+  mcp:                  { icon: '🔌', labelKey: 'governance.mcp_label',                   descKey: 'governance.mcp_desc' },
 }
 
 interface GovConfigItem {

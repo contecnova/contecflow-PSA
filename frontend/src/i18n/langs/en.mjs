@@ -441,6 +441,8 @@ const en = {
     err: 'err',
   },
                   governance: {
+    mcp_label: "External agents (MCP)",
+    mcp_desc: "Claude or other agents use NexusAgent's tools at POST /api/v1/mcp with an API key, acting as its owner. Off until you switch it on; read-only unless MCP_ALLOW_WRITE is set.",
                     title: 'AI Governance',
                     subtitle: 'Manage AI modules, usage, and audit logs',
                     kpi_active_modules: 'Active modules',

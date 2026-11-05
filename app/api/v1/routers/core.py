@@ -11,7 +11,7 @@ from app.api.v1.endpoints import (
     alerts, settings, timesheets, capacity, profitability, pipeline,
     contracts, risks, skills, absences, changes, deliverables,
     advanced_config, analytics, client_portal, portal_conversations, service_desk, sprints,
-    expenses, automations, enterprise, bpmn_processes, user_costs,
+    expenses, automations, enterprise, bpmn_processes, user_costs, mcp,
 )
 from app.api.v1.endpoints import collaboration as collaboration_pkg
 from app.api.v1.endpoints import collaboration_portal
@@ -26,6 +26,7 @@ router.include_router(imputations.router,     prefix="/imputations",     tags=["
 router.include_router(dashboard.router,       prefix="/dashboard",       tags=["Dashboard"])
 router.include_router(alerts.router,          prefix="/alerts",          tags=["Alertas"])
 router.include_router(settings.router,        prefix="/settings",        tags=["Configuración"])
+router.include_router(mcp.router,             tags=["MCP"])
 router.include_router(timesheets.router,      prefix="/timesheets",      tags=["Timesheets"])
 router.include_router(capacity.router,        prefix="/capacity",        tags=["Capacidad"])
 router.include_router(profitability.router,   prefix="/profitability",   tags=["Rentabilidad"])
