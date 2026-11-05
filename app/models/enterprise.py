@@ -12,9 +12,10 @@ Enterprise models:
 """
 from sqlalchemy import (
     Column, String, Float, DateTime, ForeignKey, Text,
-    Boolean, Integer, Enum, Date
+    Boolean, Integer, Enum, Date, BigInteger, Index
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy import event as _sa_event
+from sqlalchemy.orm import Session as _SesionBase, relationship
 from sqlalchemy.sql import func
 import enum
 import uuid
@@ -53,7 +54,33 @@ class AuditLog(Base):
     # When
     created_at  = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
+    # Cadena a prueba de manipulación (revisión 2026-11): ver app/services/cadena_auditoria.py
+    seq          = Column(BigInteger, nullable=True)
+    prev_hash    = Column(String(64), nullable=True)
+    entry_hash   = Column(String(64), nullable=True)
+    chain_key_id = Column(String(16), nullable=True)
+
+    __table_args__ = (Index("ix_audit_logs_org_seq", "organization_id", "seq"),)
+
     user = relationship("User", foreign_keys=[user_id])
+
+
+@_sa_event.listens_for(AuditLog, "before_insert")
+def _encadenar_auditoria(mapper, connection, target) -> None:
+    from app.services.cadena_auditoria import encadenar
+    encadenar(connection, target)
+
+
+@_sa_event.listens_for(_SesionBase, "after_flush")
+def _olvidar_cabezas_de_auditoria(session, flush_context) -> None:
+    from app.services.cadena_auditoria import olvidar_cabezas
+    olvidar_cabezas(session)
+
+
+@_sa_event.listens_for(_SesionBase, "before_flush")
+def _olvidar_cabezas_antes(session, flush_context, instances) -> None:
+    from app.services.cadena_auditoria import olvidar_cabezas
+    olvidar_cabezas(session)
 
 
 # ── Per-project permissions ───────────────────────────────────────────────────

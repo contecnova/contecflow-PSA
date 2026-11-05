@@ -35,6 +35,40 @@ def get_audit_log(
     return APIResponse.ok(data=_svc.get_audit_log(db, resource, resource_id, user_id, action, date_from, date_to, page, page_size))
 
 
+# ── Cadena a prueba de manipulación (revisión 2026-11) ──────────────────────
+@router.get("/audit-log/chain/verify", summary="Verifica la cadena del registro de auditoría de la empresa (admin)")
+def verify_audit_chain(
+    expected_seq: Optional[int] = Query(None, ge=1), expected_hash: Optional[str] = Query(None, max_length=64),
+    db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+):
+    from app.services import cadena_auditoria
+    esperada = {"seq": expected_seq, "entry_hash": expected_hash} if expected_seq and expected_hash else None
+    return APIResponse.ok(data=cadena_auditoria.verificar(db, current_user.organization_id, esperada))
+
+
+@router.get("/audit-log/chain/export", summary="Exportación firmada (Ed25519) del registro de auditoría (admin)")
+def export_audit_chain(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    import json as _json
+    from fastapi.responses import Response
+    from app.services import cadena_auditoria
+    from app.services.audit import audit_log
+    from app.services.settings_service import get_runtime_int
+    limite = int(get_runtime_int(db, "AUDIT_EXPORT_MAX_ROWS", current_user.organization_id) or 0) or 1
+    doc = cadena_auditoria.exportar(db, current_user.organization_id, limite)
+    audit_log(db, current_user, "EXPORT", "audit_chain", resource_name="signed export",
+              metadata={"rows": len(doc["entries"]), "head": doc["head"], "ok": doc["verification"]["ok"]})
+    db.commit()
+    nombre = f"audit-chain-{datetime.now(timezone.utc):%Y%m%d-%H%M%S}.json"
+    return Response(_json.dumps(doc, ensure_ascii=False, indent=1), media_type="application/json",
+                    headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+
+
+@router.get("/audit-log/chain/public-key", summary="Clave pública (PEM) que firma las exportaciones del registro")
+def audit_chain_public_key(current_user: User = Depends(require_admin)):
+    from app.services import cadena_auditoria
+    return APIResponse.ok(data={"public_key_pem": cadena_auditoria.clave_publica_pem(), "alg": "Ed25519"})
+
+
 @router.get("/audit-log/stats", summary="Estadísticas del audit log")
 def audit_stats(
     days: int = Query(30, ge=1, le=365),

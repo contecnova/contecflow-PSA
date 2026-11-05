@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, downloadBlob } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -476,6 +476,85 @@ function IntegrationsTab() {
 }
 
 
+type RoturaDeCadena = { id: string; seq: number | null; reason: string; expected_seq?: number }
+type VerificacionDeCadena = {
+  ok: boolean; rows_checked: number; breaks: RoturaDeCadena[]; breaks_total: number
+  head: { seq: number; entry_hash: string | null }; checked_at: string
+  expected_head?: { seq: number; found: boolean }
+}
+
+/** Cadena a prueba de manipulación del registro (revisión 2026-11). */
+function CadenaDeAuditoria() {
+  const t = useAppT()
+  const toast = useToast()
+  const [resultado, setResultado] = useState<VerificacionDeCadena | null>(null)
+  const [ocupado, setOcupado] = useState<'' | 'verificar' | 'exportar'>('')
+  const verificar = async (esperada?: { seq: number; entry_hash: string }) => {
+    setOcupado('verificar')
+    try {
+      const params = esperada ? { expected_seq: esperada.seq, expected_hash: esperada.entry_hash } : undefined
+      const r = await enterpriseApi.verifyAuditChain(params)
+      setResultado(r.data as VerificacionDeCadena)
+    } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setOcupado('') }
+  }
+  const exportar = async () => {
+    setOcupado('exportar')
+    try {
+      const r = await enterpriseApi.exportAuditChain()
+      downloadBlob(r.data as Blob, `audit-chain-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.json`)
+    } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setOcupado('') }
+  }
+  const comparar = async (fichero?: File) => {
+    if (!fichero) return
+    try {
+      const head = JSON.parse(await fichero.text())?.head
+      if (!head?.seq || !head?.entry_hash) { toast.error(t('enterprise.cadena_fichero_sin_cabeza')); return }
+      await verificar(head)
+    } catch { toast.error(t('enterprise.cadena_fichero_sin_cabeza')) }
+  }
+  const color = resultado ? (resultado.ok ? 'var(--success)' : 'var(--danger)') : 'var(--text-3)'
+  return (
+    <div style={{ ...card, padding: '14px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{t('enterprise.cadena_titulo')}</div>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{t('enterprise.cadena_ayuda')}</div>
+        </div>
+        <Button size="sm" onClick={() => verificar()} disabled={!!ocupado}>{ocupado === 'verificar' ? '…' : t('enterprise.cadena_verificar')}</Button>
+        <Button size="sm" variant="secondary" onClick={exportar} disabled={!!ocupado}>{ocupado === 'exportar' ? '…' : t('enterprise.cadena_exportar')}</Button>
+        <label style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', cursor: 'pointer' }}>
+          {t('enterprise.cadena_comparar')}
+          <input type="file" accept="application/json,.json" style={{ display: 'none' }}
+            onChange={e => { comparar(e.target.files?.[0]); e.target.value = '' }} />
+        </label>
+      </div>
+      {resultado && (
+        <div role="status" style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, border: `1px solid ${color}`, background: 'var(--surface-1)' }}>
+          <div style={{ fontWeight: 700, color }}>
+            {resultado.ok ? t('enterprise.cadena_ok') : resultado.breaks_total > 0 ? t('enterprise.cadena_rota', { n: resultado.breaks_total }) : t('enterprise.cadena_no_casa')}
+          </div>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>
+            {t('enterprise.cadena_recorridas', { n: resultado.rows_checked })}
+            {resultado.head.entry_hash && <> · {t('enterprise.cadena_cabeza')} #{resultado.head.seq} <code style={{ fontFamily: 'var(--font-mono)' }}>{resultado.head.entry_hash.slice(0, 16)}…</code></>}
+          </div>
+          {resultado.expected_head && (
+            <div style={{ fontSize: "var(--text-sm)", marginTop: 4, color: resultado.expected_head.found ? 'var(--success)' : 'var(--danger)' }}>
+              {t(resultado.expected_head.found ? 'enterprise.cadena_cabeza_sigue' : 'enterprise.cadena_cabeza_falta', { seq: resultado.expected_head.seq })}
+            </div>
+          )}
+          {resultado.breaks.length > 0 && (
+            <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: "var(--text-sm)" }}>
+              {resultado.breaks.slice(0, 20).map((b, i) => (
+                <li key={i}>#{b.seq ?? '—'} · {t(`enterprise.cadena_razon_${b.reason}`)}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AuditTab() {
   const traducir = useAppT()
   const { data: logs = [] } = useQuery({
@@ -497,6 +576,7 @@ function AuditTab() {
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
+      <CadenaDeAuditoria />
       <div style={{ ...card, padding: '12px 14px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
           <div style={{ background: 'var(--surface-2)', border: '.5px solid var(--surface-4)', borderRadius: 8, padding: 10 }}>

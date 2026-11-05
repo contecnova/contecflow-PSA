@@ -4178,7 +4178,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **18 groups, 174 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 groups, 175 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4318,6 +4318,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **18 
 | ai | AI_DAILY_BUDGET_USD | float | 0.0 | AI — daily spend cap per company in USD; calls stop until 00:00 UTC (0: no cap) | rt |
 | ai | AI_DAILY_BUDGET_WARN_PCT | float | 80.0 | AI — % of the daily cap from which the AI Hub warns | rt |
 | ai | MCP_WRITE_MODE | str | `off` | MCP — tools that write: off (hidden), approval (a human approves each call) or direct | rt |
+| audit | AUDIT_EXPORT_MAX_ROWS | int | 100000 | Audit log — maximum rows in the signed export (the most recent) | rt |
 | automations | APPROVAL_EMAIL_LINK_HOURS | int | 72 | Approvals — hours the approve/reject link of the email is valid | rt |
 | automations | AUTOMATIONS_DEADLINE_DAYS | int | 2 | "Task due soon": days before the due date | rt |
 | automations | AUTOMATIONS_ENABLED | bool | true | Rules run on events and on the periodic scan (off: only the simulation) | rt |
@@ -4722,6 +4723,27 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 - Not verified against a real IdP: only with a simulated IdP that signs real RS256 tokens (`tests/test_sso_oidc_y_passkeys.py`). The Okta token URL is built as `{issuer}/v1/token`, which fits custom authorization servers; org-level Okta issuers may need the generic OIDC type.
 
 **Auditoría.** `GET /api/v1/enterprise/audit-log`. The UI shows the general log and password-reset events.
+
+**Auditoría → Cadena de integridad (tamper-evident log, 2026-11-05; brought from contecmind/contecintelligence).** Each `audit_logs` row is chained to the previous row **of its company**, so a change, a deletion or a forged entry made directly in the database is detected.
+- **How to use it.** *Verificar* walks the company's whole chain and says how many entries it checked, the last one (number and hash) and, if broken, where and why: *modified*, *does not link to the previous one*, *an entry before this one is missing*, *signed with an unknown key*. *Exportar firmado* downloads the chain as JSON signed with Ed25519 (and records an `EXPORT audit_chain` entry). *Comparar con una exportación…* loads an earlier export and checks that its last entry is still there unchanged: that is what reveals deleting the **newest** entries, which the chain alone cannot see.
+- **How it works.** Columns `seq` (1, 2, 3… per company, no gaps), `prev_hash`, `entry_hash` (HMAC-SHA256 of the row's fields plus `seq` and `prev_hash`) and `chain_key_id`. The HMAC key is derived from `SECRET_KEY` and is not in the database: someone with database access can change a row but cannot recompute its hash. Hashed fields: company, user name, IP, user agent, action, resource, resource id and name, old/new values, metadata, time. **`user_id` is not hashed**: deleting a user sets it to NULL (`ON DELETE SET NULL`), legitimately. The chain is computed in the `before_insert` event of `AuditLog`, so every writer is covered (`audit_log()`, SCIM, organisations). A per-company Postgres lock (`pg_advisory_xact_lock`) plus a unique index on (company, `seq`) keep concurrent writers from forking it.
+- **Key rotation.** Rows signed with an earlier `SECRET_KEY` keep verifying while it is listed in `SECRET_KEY_PREVIOUS`; otherwise they show as *unknown key*, not as modified.
+- **For the auditor.** The export carries the public key (`public_key_pem`; also `GET /api/v1/enterprise/audit-log/chain/public-key`) and `signature` = Ed25519 over the canonical JSON of the document without `signature` (`sort_keys`, separators `,` `:`, UTF-8). Checked with this standalone script (no Contecflow code needed, only the `cryptography` package; it rejected an export with one changed field):
+  ```python
+  import base64, json, sys
+  from cryptography.hazmat.primitives.serialization import load_pem_public_key
+  doc = json.load(open(sys.argv[1], encoding="utf-8"))
+  firma = base64.b64decode(doc.pop("signature"))
+  canon = json.dumps(doc, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+  load_pem_public_key(doc["public_key_pem"].encode()).verify(firma, canon)   # InvalidSignature if altered
+  ents = doc["entries"]
+  assert all(b["prev_hash"] == a["entry_hash"] and b["seq"] == a["seq"] + 1 for a, b in zip(ents, ents[1:]))
+  ```
+  The auditor can check the signature and the links, **not recompute each hash** (the HMAC key is secret); the per-entry check is the `verification` block signed inside the export. Pin the public key from the endpoint, not only from the file.
+- **Endpoints** (`require_admin`, the caller's company): `GET /enterprise/audit-log/chain/verify[?expected_seq=&expected_hash=]`, `GET /enterprise/audit-log/chain/export`, `GET /enterprise/audit-log/chain/public-key`. Setting: `AUDIT_EXPORT_MAX_ROWS` (100000; the newest rows, `truncated: true` when cut).
+- **Existing rows.** Migration 137 chains them per company in creation order: the chain proves nothing changed **from that moment**, not before.
+- **Measured (copy of the real database, 2026-11-05).** Migration: 18 rows in 2 companies chained, both verify. With the unprivileged role and RLS active (a session of company B sees 0 rows of A): writing a company-less row from B's session joins the global chain correctly. 3 threads × 40 rows in one company: 122 rows, no break, 1.9 s. Without the lock (planted), 80 of 120 writes were rejected by the unique index, so both are needed. In the browser: deleting the last 2 rows was caught by *Comparar*, changing row #10 by *Verificar*. Tests: `tests/test_cadena_auditoria_2026_11.py` (13; validated by removing a field from the hash, the gap check and the in-flush cache: each is caught).
+- **Limitations.** Within one company, audit writes queue on the lock until each transaction commits: a long transaction that writes an audit entry early makes other audit writers of that company wait. Deleting the newest entries is only caught against an earlier export (or its head). The database owner can still disable everything; this detects, it does not prevent. GRC, settings and financial-approval audit tables (`grc_audit_logs`, `settings_audit_log`, `financial_approval_audit_logs`) are **not** chained.
 
 **API Keys.**
 - Endpoints: `GET|POST /api/v1/bookings/api-keys` (create: `require_any_manager`), `DELETE /bookings/api-keys/{id}`. Table `api_keys`: bcrypt hash, SHA-256 `key_digest` (migration 119) and the visible prefix. The key (`nxpm_…`) is shown once.

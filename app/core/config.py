@@ -108,6 +108,8 @@ class Settings(
     TENANT_SELECTION_TOKEN_MINUTES: int = Field(default=5, env="TENANT_SELECTION_TOKEN_MINUTES")
     # Baja de una empresa: dias de cuarentena antes de borrar sus datos.
     TENANT_DELETION_QUARANTINE_DAYS: int = Field(default=30, env="TENANT_DELETION_QUARANTINE_DAYS")
+    # Revisión 2026-11: filas máximas de la exportación firmada del registro de auditoría (las últimas).
+    AUDIT_EXPORT_MAX_ROWS: int = Field(default=100000, env="AUDIT_EXPORT_MAX_ROWS")
     # Aprobaciones: horas que vale el enlace de aprobar/rechazar del correo.
     APPROVAL_EMAIL_LINK_HOURS: int = Field(default=72, env="APPROVAL_EMAIL_LINK_HOURS")
     # «Entrar como» (soporte de plataforma): activo y duracion maxima de la sesion.

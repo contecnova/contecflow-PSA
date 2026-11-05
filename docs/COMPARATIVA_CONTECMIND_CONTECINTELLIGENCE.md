@@ -54,7 +54,7 @@ What the two sister products do, whether Contecflow already has it, and what was
 
 | # | Capability | From | What it would give Contecflow | Effort |
 |---|---|---|---|---|
-| 1 | **Tamper-evident audit log**: each entry chained by hash, a «verify» button and a signed export | both | Proof for audits (ISO 27001, SOC 2, ENS) that nobody altered the log. Today `audit_logs` has no chain. | Medium |
+| 1 | ✅ **Done 2026-11-05** (Enterprise → Auditoría → Cadena de integridad; `audit_logs` only) — **Tamper-evident audit log**: each entry chained by hash, a «verify» button and a signed export | both | Proof for audits (ISO 27001, SOC 2, ENS) that nobody altered the log. Today `audit_logs` has no chain. | Medium |
 | 2 | **Access explainer**: «why can / can't this user do X?» for a user and an action | both | Contecflow stacks role, ABAC, GRC matrix, project permissions, modules and company. Today an admin has no way to see which layer denies. | Medium |
 | 3 | ✅ **Done 2026-11-05** — **👍 / 👎 on assistant and portal answers** feeding the quality loop (a 👎 opens an unanswered question) | mind | Closes the loop on internal questions, which today never become gaps on purpose. | Small |
 | 4 | ✅ **Done 2026-11-05** — **Daily AI spend cap per company** (hard limit, not only an alert) | intelligence | Cost control for a multi-company SaaS. Today `AI_COST_ALERT_USD_PER_DAY` only logs a warning. | Small |

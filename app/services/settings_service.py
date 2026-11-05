@@ -245,6 +245,9 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("IMPERSONATION_ENABLED", "bool", "Platform support may sign in as a company user (with a reason, audited)"),
         ("IMPERSONATION_MAX_MINUTES", "int", "Sign in as — maximum session length (minutes)"),
     ],
+    "audit": [
+        ("AUDIT_EXPORT_MAX_ROWS", "int", "Audit log — maximum rows in the signed export (the most recent)"),
+    ],
     "risk": [
         ("RISK_WEIGHT_SCHEDULE", "float", "Risk score — weight of schedule (0-1)"),
         ("RISK_WEIGHT_BUDGET", "float", "Risk score — weight of budget (0-1)"),

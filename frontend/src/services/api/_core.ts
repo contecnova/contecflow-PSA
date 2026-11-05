@@ -1514,6 +1514,9 @@ export const oauthIntegrationsApi = {
 
 export const enterpriseApi = {
   auditLog:                (params?: any) => api.get('/enterprise/audit-log', { params }),
+  // Revisión 2026-11: cadena a prueba de manipulación.
+  verifyAuditChain:        (params?: { expected_seq?: number; expected_hash?: string }) => api.get('/enterprise/audit-log/chain/verify', { params }),
+  exportAuditChain:        () => api.get('/enterprise/audit-log/chain/export', { responseType: 'blob' }),
   ssoList:                 ()       => api.get('/enterprise/sso'),
   ssoCreate:               (data: unknown)   => api.post('/enterprise/sso', data),
   ssoUpdate:               (id: any, data: unknown) => api.patch(`/enterprise/sso/${id}`, data),
