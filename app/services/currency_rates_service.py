@@ -23,7 +23,8 @@ def list_exchange_rates(
         q = q.filter(ExchangeRate.from_currency == base_currency.upper())
     if target_currency:
         q = q.filter(ExchangeRate.to_currency == target_currency.upper())
-    return q.order_by(ExchangeRate.effective_date.desc()).limit(200).all()
+    from app.services.exchange_rate_service import PROPIOS_PRIMERO
+    return q.order_by(ExchangeRate.effective_date.desc(), PROPIOS_PRIMERO).limit(200).all()
 
 
 def upsert_exchange_rate(
@@ -34,8 +35,14 @@ def upsert_exchange_rate(
     effective_date: date,
     source: str = "manual",
 ) -> tuple:
-    """Returns (rate_obj, created: bool, previous_snapshot: dict|None)."""
-    existing_q = db.query(ExchangeRate).filter(
+    """Returns (rate_obj, created: bool, previous_snapshot: dict|None).
+
+    Revisión 2026-11: el tipo manual es de la empresa de la sesión (sin empresa:
+    global). Antes actualizaba el primero que encontrara, también el global.
+    """
+    from app.services.exchange_rate_service import org_de_la_sesion, solo_de
+    org = org_de_la_sesion(db)
+    existing_q = solo_de(db.query(ExchangeRate), org).filter(
         ExchangeRate.from_currency == from_currency,
         ExchangeRate.to_currency == to_currency,
         ExchangeRate.effective_date == effective_date,
@@ -56,6 +63,7 @@ def upsert_exchange_rate(
         db.refresh(existing)
         return existing, False, previous
     rate_obj = ExchangeRate(
+        organization_id=org,
         from_currency=from_currency,
         to_currency=to_currency,
         rate=rate,
@@ -82,7 +90,7 @@ def get_rate(
             ExchangeRate.to_currency == to_c,
             ExchangeRate.effective_date <= ref_date,
         )
-        .order_by(ExchangeRate.effective_date.desc())
+        .order_by(ExchangeRate.effective_date.desc(), ExchangeRate.organization_id.is_(None))
         .first()
     )
 
@@ -101,7 +109,7 @@ def get_rate_inverse(
             ExchangeRate.to_currency == from_c,
             ExchangeRate.effective_date <= ref_date,
         )
-        .order_by(ExchangeRate.effective_date.desc())
+        .order_by(ExchangeRate.effective_date.desc(), ExchangeRate.organization_id.is_(None))
         .first()
     )
 

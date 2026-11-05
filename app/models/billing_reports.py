@@ -477,6 +477,9 @@ class RolePermission(Base):
     Columnas: role, module, action → allowed (bool).
     """
     __tablename__ = "grc_role_permissions"
+    # Revisión 2026-11: sin empresa = valores por defecto de la plataforma; con
+    # empresa = sus excepciones (ver grc_service). Las globales las ve todo el mundo.
+    _tenant_filter_include_global = True
 
     id      = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7

@@ -395,31 +395,45 @@ def generate_bi_story(
 
 
 def persist_metric_snapshot(db: Session) -> dict:
-    """Compute current ITSM KPIs and persist as an hourly snapshot.
+    """Compute current ITSM KPIs and persist an hourly snapshot PER COMPANY.
 
     Snapshot stored in ``sd_itsm_metric_snapshots``.
     Called from Celery beat task ``analytics_snapshot`` every hour.
 
-    Returns summary of snapshot saved.
+    Revisión 2026-11: calculaba UNA fila con los tickets de todas las empresas
+    y sin empresa (medido en una copia: filas que ninguna empresa podía ver y
+    que mezclaban datos de todas). Ahora una por empresa con tickets.
     """
+    from app.db.session import sin_filtro_de_tenant
+    from app.models.service_desk import Ticket
+    with sin_filtro_de_tenant(db):
+        orgs = [o for (o,) in db.query(Ticket.organization_id).filter(
+            Ticket.organization_id.isnot(None)).distinct()]
+    resumenes = [_snapshot_de_empresa(db, org) for org in orgs]
+    db.commit()
+    total = sum(r["tickets_total"] for r in resumenes)
+    return {
+        "snapshots": len(resumenes),
+        "tickets_total": total,
+        "sla_compliance_pct": round(sum(r["sla_compliance_pct"] for r in resumenes) / len(resumenes), 1)
+        if resumenes else 100.0,
+        "by_organization": resumenes,
+    }
+
+
+def _snapshot_de_empresa(db: Session, org: str) -> dict:
+    from app.db.session import sin_filtro_de_tenant
     from app.models.service_desk import ITSMMetricSnapshot
     from app.services.service_desk.metrics_service import compute_itil_metrics
     import uuid as _uuid
 
-    # Last 24h window for KPI snapshot
     now = datetime.now(tz=timezone.utc)
     since_24h = now - timedelta(hours=24)
-
-    tickets_24h = (
-        db.query(Ticket)
-        .filter(Ticket.created_at >= since_24h)
-        .all()
-    )
-    open_count = (
-        db.query(Ticket)
-        .filter(Ticket.status.notin_(["resolved", "closed", "cancelled"]))
-        .count()
-    )
+    with sin_filtro_de_tenant(db):
+        tickets_24h = db.query(Ticket).filter(Ticket.organization_id == org, Ticket.created_at >= since_24h).all()
+        open_count = db.query(Ticket).filter(
+            Ticket.organization_id == org,
+            Ticket.status.notin_(["resolved", "closed", "cancelled"])).count()
 
     metrics = compute_itil_metrics(tickets_24h)
     resolved = [t for t in tickets_24h if t.resolved_at]
@@ -428,8 +442,9 @@ def persist_metric_snapshot(db: Session) -> dict:
     sla_pct = round(len(sla_ok) / len(resolved) * 100, 1) if resolved else 100.0
     csat_scores = [t.csat_score for t in tickets_24h if t.csat_score]
 
-    snapshot = ITSMMetricSnapshot(
+    db.add(ITSMMetricSnapshot(
         id=str(_uuid.uuid4()),
+        organization_id=org,
         snapshot_at=now,
         period_hours=24,
         tickets_total=len(tickets_24h),
@@ -442,18 +457,9 @@ def persist_metric_snapshot(db: Session) -> dict:
         breached_sla=sum(1 for t in tickets_24h
                          if getattr(t, "sla_resolution_status", None)
                          and t.sla_resolution_status.value == "breached"),
-    )
-    db.add(snapshot)
-    db.commit()
-
-    _bi_logger.info(
-        "Metric snapshot saved: total=%d open=%d sla=%.1f%%",
-        len(tickets_24h), open_count, sla_pct,
-    )
-    return {
-        "snapshot_at": now.isoformat(),
-        "tickets_total": len(tickets_24h),
-        "sla_compliance_pct": sla_pct,
-        "mttr_minutes": metrics.get("mttr_minutes"),
-    }
+    ))
+    _bi_logger.info("Metric snapshot saved: org=%s total=%d open=%d sla=%.1f%%",
+                    org, len(tickets_24h), open_count, sla_pct)
+    return {"organization_id": org, "tickets_total": len(tickets_24h), "sla_compliance_pct": sla_pct,
+            "mttr_minutes": metrics.get("mttr_minutes")}
 

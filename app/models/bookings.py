@@ -94,8 +94,15 @@ class ResourceBooking(Base):
 # ── Exchange Rates ────────────────────────────────────────────────────────────
 
 class ExchangeRate(Base):
-    """Currency exchange rates against base currency (EUR by default)."""
+    """Currency exchange rates against base currency (EUR by default).
+
+    Revisión 2026-11: sin empresa = tipo global (BCE o sembrado), que ven todas;
+    con empresa = el que fija esa empresa, que gana a igual fecha. Antes el
+    filtro estricto escondía los globales a los usuarios de empresa (medido: 12
+    tipos sin empresa) y rentabilidad convertía 1 a 1 sin avisar.
+    """
     __tablename__ = "exchange_rates"
+    _tenant_filter_include_global = True
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7

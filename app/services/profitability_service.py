@@ -52,7 +52,7 @@ def get_fx_rate(
             ExchangeRate.to_currency == to_currency,
             ExchangeRate.effective_date <= as_of,
         )
-        .order_by(ExchangeRate.effective_date.desc())
+        .order_by(ExchangeRate.effective_date.desc(), ExchangeRate.organization_id.is_(None))
         .first()
     )
     rate = row.rate if row else 1.0

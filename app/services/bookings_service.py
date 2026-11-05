@@ -336,7 +336,7 @@ def get_exchange_rates_data(base: str, db) -> dict:
             ExchangeRate.from_currency == row.from_currency,
             ExchangeRate.to_currency == row.to_currency,
             ExchangeRate.effective_date == row.max_date,
-        ).first()
+        ).order_by(ExchangeRate.organization_id.is_(None)).first()   # el propio antes que el global
         if rate:
             latest_rates[rate.to_currency] = {
                 "rate": rate.rate,
@@ -360,8 +360,12 @@ def upsert_exchange_rate_record(payload: dict, db) -> dict:
     source = payload.get("source", "manual")
     effective_date = date.fromisoformat(payload.get("effective_date", str(timeutil.today())))
     primary_obj = None
+    # Revisión 2026-11: el tipo manual es de la empresa de la sesión (sin
+    # empresa: global); antes actualizaba el que hubiera, también el global.
+    from app.services.exchange_rate_service import org_de_la_sesion, solo_de
+    org = org_de_la_sesion(db)
     for idx, (fc, tc, r) in enumerate([(from_currency, to_currency, rate_value), (to_currency, from_currency, round(1 / rate_value, 6))]):
-        existing = db.query(ExchangeRate).filter(
+        existing = solo_de(db.query(ExchangeRate), org).filter(
             ExchangeRate.from_currency == fc,
             ExchangeRate.to_currency == tc,
             ExchangeRate.effective_date == effective_date,
@@ -372,7 +376,8 @@ def upsert_exchange_rate_record(payload: dict, db) -> dict:
             if idx == 0:
                 primary_obj = existing
         else:
-            obj = ExchangeRate(from_currency=fc, to_currency=tc, rate=r, effective_date=effective_date, source=source)
+            obj = ExchangeRate(organization_id=org, from_currency=fc, to_currency=tc, rate=r,
+                               effective_date=effective_date, source=source)
             db.add(obj)
             if idx == 0:
                 primary_obj = obj
@@ -399,7 +404,7 @@ def convert_currency_amount(payload: dict, db) -> dict:
         ExchangeRate.from_currency == from_curr,
         ExchangeRate.to_currency == to_curr,
         ExchangeRate.effective_date <= on_date,
-    ).order_by(ExchangeRate.effective_date.desc()).first()
+    ).order_by(ExchangeRate.effective_date.desc(), ExchangeRate.organization_id.is_(None)).first()
     if not rate_row:
         raise HTTPException(404, f"Sin tipo de cambio {from_curr}→{to_curr}. Configura los tipos en Configuración → Monedas.")
     converted = round(amount * rate_row.rate, 2)

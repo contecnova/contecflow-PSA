@@ -1384,9 +1384,10 @@ def _serie_sla_compliance_pct(ctx: _Ctx) -> Optional[list[float]]:
     if metric_key == "sla_compliance_pct":
         try:
             from app.models.service_desk import ITSMMetricSnapshot
-            row = db.query(ITSMMetricSnapshot.sla_compliance_pct).order_by(
-                ITSMMetricSnapshot.snapshot_at.desc()
-            ).first()
+            q = db.query(ITSMMetricSnapshot.sla_compliance_pct)
+            if organization_id:   # revisión 2026-11: la instantánea es por empresa
+                q = q.filter(ITSMMetricSnapshot.organization_id == organization_id)
+            row = q.order_by(ITSMMetricSnapshot.snapshot_at.desc()).first()
             return _current(float(row[0]) if row and row[0] is not None else 0.0)
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)

@@ -43,6 +43,21 @@ ECB_CURRENCIES = {
 }
 
 
+def org_de_la_sesion(db: Session):
+    """La empresa a la que pertenece lo que se escribe ahora (None: global)."""
+    from app.db.rls import tenant_de
+    return tenant_de(getattr(db, "info", {}) or {}) or None
+
+
+def solo_de(q, org):
+    """Solo los tipos de esa empresa (None: solo los globales). Para escribir."""
+    return q.filter(ExchangeRate.organization_id == org) if org else q.filter(ExchangeRate.organization_id.is_(None))
+
+
+#: A igual fecha, el tipo propio de la empresa antes que el global.
+PROPIOS_PRIMERO = ExchangeRate.organization_id.is_(None)
+
+
 def sync_ecb_rates(db: Session, force: bool = False) -> dict:
     """
     Fetch the ECB daily reference rates and upsert into the exchange_rates table.
@@ -71,7 +86,7 @@ def sync_ecb_rates(db: Session, force: bool = False) -> dict:
 
         # Check if we already have today's data unless forced
         if not force:
-            existing = db.query(ExchangeRate).filter(
+            existing = solo_de(db.query(ExchangeRate), None).filter(
                 ExchangeRate.from_currency == "EUR",
                 ExchangeRate.effective_date == rate_date,
             ).first()
@@ -126,7 +141,7 @@ def _upsert_pair(db: Session, from_c: str, to_c: str, rate: float,
             pending.source = "ecb"
             return
 
-    existing = db.query(ExchangeRate).filter(
+    existing = solo_de(db.query(ExchangeRate), None).filter(   # el BCE escribe el tipo global
         ExchangeRate.from_currency == from_c,
         ExchangeRate.to_currency == to_c,
         ExchangeRate.effective_date == eff_date,
@@ -196,5 +211,5 @@ def get_rate(db: Session, from_c: str, to_c: str,
         ExchangeRate.from_currency == from_c,
         ExchangeRate.to_currency   == to_c,
         ExchangeRate.effective_date <= ref,
-    ).order_by(ExchangeRate.effective_date.desc()).first()
+    ).order_by(ExchangeRate.effective_date.desc(), PROPIOS_PRIMERO).first()
     return row.rate if row else None
