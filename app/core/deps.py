@@ -72,7 +72,11 @@ def get_current_user(
         db.info["organization_id"] = None
         db.info["is_superadmin"] = True
     else:
-        db.info["organization_id"] = getattr(user, "organization_id", None)
+        # La empresa activa es la del token (claim `org`), validada: pertenencia
+        # vigente y, en modo subdominio, la del host. Tokens antiguos sin claim:
+        # la de la ficha del usuario. Ver app/services/entrada_service.py.
+        from app.services.entrada_service import organizacion_de_la_peticion
+        db.info["organization_id"] = organizacion_de_la_peticion(db, user, payload, request)
         db.info["is_superadmin"] = False
         from app.db.session import exigir_organizacion_activa
         exigir_organizacion_activa(db, db.info["organization_id"])

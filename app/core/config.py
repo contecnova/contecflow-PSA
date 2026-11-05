@@ -94,6 +94,14 @@ class Settings(
     INBOUND_EMAIL_SECRET: str = Field(default="", env="INBOUND_EMAIL_SECRET")
     TRUST_PROXY_HEADERS: bool = Field(default=False, env="TRUST_PROXY_HEADERS")
     TRUSTED_PROXY_CIDRS: str = Field(default="127.0.0.1/32,::1/128", env="TRUSTED_PROXY_CIDRS")
+    # Como se entra en la empresa (tenant). Lo elige cada despliegue; una maquina
+    # usa uno solo: email_selector (por defecto) | subdomain | org_field.
+    # Ver app/services/entrada_service.py.
+    TENANT_ENTRY_MODE: str = Field(default="email_selector", env="TENANT_ENTRY_MODE")
+    # Modo subdomain: <slug>.TENANT_ROOT_DOMAIN (ademas del dominio propio de cada empresa).
+    TENANT_ROOT_DOMAIN: str = Field(default="", env="TENANT_ROOT_DOMAIN")
+    # Vida del token que solo sirve para elegir empresa tras la contrasena.
+    TENANT_SELECTION_TOKEN_MINUTES: int = Field(default=5, env="TENANT_SELECTION_TOKEN_MINUTES")
 
     # ── Git integration (GitHub/GitLab webhook secrets) ───────────────────────
     # When non-empty, webhook requests are verified with HMAC-SHA256 (GitHub) or

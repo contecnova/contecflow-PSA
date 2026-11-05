@@ -7,6 +7,7 @@ import api, { projectsApi, tasksApi } from '../../services/api'
 import GlobalSearch from './GlobalSearch'
 import QuickCreateMenu from './QuickCreateMenu'
 import NexusAssistPanel from './NexusAssistPanel'
+import SelectorDeEmpresa from './SelectorDeEmpresa'
 import GlobalChatPanel from './GlobalChatPanel'
 import VoiceCommandModal from './VoiceCommandModal'
 import UserProfilePanel from './UserProfilePanel'
@@ -1050,6 +1051,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
             </NavLink>
           )
         })()}
+        {user && <SelectorDeEmpresa />}
         {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6,
             padding: '3px 4px 3px 8px', background: 'var(--surface-3)',

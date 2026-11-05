@@ -84,8 +84,12 @@ def create_access_token(subject: str, extra: dict = None, expires_delta: timedel
     return jwt.encode(payload, key, algorithm=ALGORITHM, headers={"kid": kid})
 
 
-def create_mfa_challenge_token(subject: str) -> str:
-    """Short-lived token used to complete MFA after password validation."""
+def create_mfa_challenge_token(subject: str, org: Optional[str] = None) -> str:
+    """Short-lived token used to complete MFA after password validation.
+
+    `org`: la empresa ya decidida al entrar; la sesion que se abra tras el
+    segundo factor sera de esa empresa.
+    """
     expire = datetime.now(timezone.utc) + timedelta(minutes=5)
     jti = str(uuid.uuid4())
     payload = {
@@ -95,17 +99,23 @@ def create_mfa_challenge_token(subject: str) -> str:
         "purpose": "login",
         "jti": jti,
     }
+    if org:
+        payload["org"] = org
     kid, key = get_jwt_signing_key()
     return jwt.encode(payload, key, algorithm=ALGORITHM, headers={"kid": kid}), jti
 
 
-def create_refresh_token(subject: str, db=None, org_id: Optional[str] = None) -> tuple[str, str]:
-    """Returns (token, jti). The jti must be stored per-user for rotation validation."""
+def create_refresh_token(subject: str, db=None, org_id: Optional[str] = None,
+                         org: Optional[str] = None) -> tuple[str, str]:
+    """Returns (token, jti). The jti must be stored per-user for rotation validation.
+
+    `org`: la empresa activa de la sesion; el refresco la conserva.
+    """
     expire = datetime.now(timezone.utc) + timedelta(days=_refresh_ttl_days(db, org_id))
     jti = str(uuid.uuid4())
     kid, key = get_jwt_signing_key()
     token = jwt.encode(
-        {"sub": subject, "exp": expire, "type": "refresh", "jti": jti},
+        {"sub": subject, "exp": expire, "type": "refresh", "jti": jti, **({"org": org} if org else {})},
         key,
         algorithm=ALGORITHM,
         headers={"kid": kid},

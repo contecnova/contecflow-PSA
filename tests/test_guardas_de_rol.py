@@ -114,13 +114,13 @@ EXENCIONES_ESPERADAS = {
     # como su pantalla (el generador de informes).
     # 93 desde 2026-11-04: PATCH /auth/mfa/webauthn/credentials/{id} (renombrar
     # una passkey propia).
-    "acotada al propio usuario": 93,
+    "acotada al propio usuario": 94,  # +1 2026-11: cambio de empresa en la sesión
     "superficie: API key": 7,
     "superficie: portal de cliente": 21,
     # 38 desde 2026-11-02: POST /sd/events/{source} autentica el token de la
     # organizacion y POST /sd/kb/{id}/deflected exige `lector_de_la_kb`
     # (cliente del portal o usuario); el clasificador no reconoce ninguno.
-    "superficie: sin sujeto autenticado": 38,
+    "superficie: sin sujeto autenticado": 39,  # +1 2026-11: elegir empresa tras la contraseña
 }
 
 #: Rutas de escritura que sí llevan guarda de rol. Sólo puede subir.

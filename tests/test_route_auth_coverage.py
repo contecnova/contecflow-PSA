@@ -52,6 +52,8 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     # Auditoria 2026-11: acceso con passkey sin contrasena; la passkey es la credencial.
     ("POST", "/api/v1/auth/passkey/login/start"): "reto WebAuthn del acceso sin contraseña",
     ("POST", "/api/v1/auth/passkey/login/finish"): "acceso sin contraseña: verifica la passkey",
+    ("POST", "/api/v1/auth/select-organization"): "elegir empresa tras la contraseña: exige el token de elección firmado",
+    ("GET", "/api/v1/auth/entry-config"): "el login necesita saber el modo de entrada y la marca de la empresa del host",
     ("POST", "/api/v1/auth/mfa/webauthn/authenticate/finish"): "respuesta WebAuthn que emite el token",
     ("GET", "/api/v1/auth/sso/{config_id}/authorize"): "redirección al IdP",
     ("POST", "/api/v1/auth/password/forgot"): "recuperación de contraseña",

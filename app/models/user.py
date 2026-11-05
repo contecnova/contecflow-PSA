@@ -45,6 +45,9 @@ class User(Base):
     coste interno, configuración SSO/MFA y pertenencia a una o varias
     organizaciones."""
     __tablename__ = "users"
+    # Revision multitenant 2026-11: en la empresa activa se ven los usuarios de
+    # su ficha y los que tienen pertenencia en ella (app/db/session.py).
+    _tenant_filter_members = True
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     username = Column(String(100), unique=True, nullable=False, index=True)

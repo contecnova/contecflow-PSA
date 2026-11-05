@@ -1,5 +1,13 @@
+export interface OrganizacionElegible {
+  id: string
+  name: string
+  slug: string
+  logo_url?: string | null
+}
+
 export type LoginFlowResult =
   | { kind: 'success'; user: Record<string, unknown> }
+  | { kind: 'org'; selectionToken: string; organizations: OrganizacionElegible[]; user: Record<string, unknown> }
   | { kind: 'mfa'; mfaChallengeToken: string; mfaMethods: string[]; user: Record<string, unknown> }
   | { kind: 'error'; message: string }
 
@@ -15,6 +23,14 @@ export function resolveLoginResponse(payload: Record<string, unknown>): LoginFlo
   const detail = typeof payload.detail === 'string' ? payload.detail : ''
   if (detail) {
     return { kind: 'error', message: detail }
+  }
+
+  // Pertenece a varias empresas: elige una antes del segundo factor.
+  if (payload.organization_selection_required && typeof payload.selection_token === 'string') {
+    const organizations = Array.isArray(payload.organizations)
+      ? (payload.organizations as OrganizacionElegible[])
+      : []
+    return { kind: 'org', selectionToken: payload.selection_token, organizations, user }
   }
 
   if (mfaRequired && !mfaChallengeToken) {

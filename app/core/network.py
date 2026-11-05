@@ -102,6 +102,18 @@ def extract_client_ip(request) -> str:
     return direct_ip
 
 
+def extract_host(request) -> str:
+    """El host pedido, sin puerto. `X-Forwarded-Host` solo si viene de un proxy de confianza."""
+    if request is None:
+        return ""
+    host = request.headers.get("host", "")
+    direct_ip = _parse_ip(request.client.host if request.client else None)
+    trust, _ = _effective_proxy_config()
+    if trust and direct_ip and _is_trusted_proxy(direct_ip):
+        host = request.headers.get("x-forwarded-host", "") or host
+    return host.split(",")[0].strip().split(":")[0].lower()
+
+
 # ── Outbound SSRF guard ──────────────────────────────────────────────────────
 # Single policy shared by every outbound integration (Slack/Teams webhooks,
 # automations, etc.). Mirrors the OIDC discovery guard in auth_service

@@ -13,6 +13,23 @@ export interface LoginCredentials {
   username: string
   password: string
   mfa_code?: string
+  /** Código de la empresa (modo de entrada `org_field`). */
+  organization?: string
+}
+
+/** Una empresa entre las que se puede entrar. */
+export interface OrganizacionDeEntrada {
+  id: string
+  name: string
+  slug: string
+  logo_url?: string | null
+  primary_color?: string | null
+}
+
+/** Cómo se entra en este despliegue (`TENANT_ENTRY_MODE`). */
+export interface ConfiguracionDeEntrada {
+  mode: 'email_selector' | 'subdomain' | 'org_field'
+  organization: OrganizacionDeEntrada | null
 }
 
 export interface LoginResponse {
@@ -23,6 +40,9 @@ export interface LoginResponse {
   mfa_required?: boolean
   mfa_challenge_token?: string
   mfa_methods?: string[]
+  organization_selection_required?: boolean
+  organizations?: OrganizacionDeEntrada[]
+  selection_token?: string
 }
 
 export interface MfaValidatePayload {
@@ -116,6 +136,16 @@ export const authApi = {
 
   passkeyLoginFinish: (payload: { webauthn_challenge_token: string; credential: Record<string, unknown> }): Promise<AxiosResponse<LoginResponse>> =>
     api.post('/auth/passkey/login/finish', payload),
+
+  // Revisión multitenant 2026-11: en qué empresa se entra y cambio de empresa.
+  entryConfig: (): Promise<AxiosResponse<ConfiguracionDeEntrada>> =>
+    api.get('/auth/entry-config'),
+  selectOrganization: (payload: { selection_token: string; organization_id: string }): Promise<AxiosResponse<LoginResponse>> =>
+    api.post('/auth/select-organization', payload),
+  myOrganizations: (): Promise<AxiosResponse<{ current: string | null; items: OrganizacionDeEntrada[] }>> =>
+    api.get('/auth/organizations'),
+  switchOrganization: (organization_id: string): Promise<AxiosResponse<LoginResponse>> =>
+    api.post('/auth/switch-organization', { organization_id }),
 
   forgotPassword: (payload: ForgotPasswordPayload): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.post('/auth/password/forgot', payload),

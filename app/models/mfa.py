@@ -48,6 +48,8 @@ class Organization(Base):
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name         = Column(String(255), nullable=False)
     slug         = Column(String(100), nullable=False, unique=True, index=True)
+    # Dominio propio de la empresa (modo de entrada `subdomain`): app.cliente.com
+    domain       = Column(String(255), nullable=True, unique=True)
     plan         = Column(String(20), default="starter")  # starter | pro | enterprise
     is_active    = Column(Boolean, default=True)
     max_users    = Column(Integer, default=25)

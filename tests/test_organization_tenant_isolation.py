@@ -222,6 +222,9 @@ def test_no_new_model_escapes_tenant_filtering():
 #   own-org     → assert_org_id_is_own en el cuerpo (operación del propio tenant)
 #   machine     → autenticación propia por token de máquina (SCIM, embed)
 ORG_ID_ROUTE_GUARDS = {
+    # Revisión multitenant 2026-11: lista solo las empresas a las que pertenece
+    # el propio usuario (entrada_service.organizaciones_del_usuario).
+    ("GET", "/api/v1/auth/organizations"): "own_memberships",
     ("GET",    "/api/v1/organizations"): "superadmin",
     ("POST",   "/api/v1/organizations"): "superadmin",
     ("GET",    "/api/v1/organizations/{org_id}"): "superadmin",

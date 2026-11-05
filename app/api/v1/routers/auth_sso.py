@@ -21,7 +21,6 @@ from urllib.parse import urlparse
 from app.db.session import get_db
 from app.core.config import settings
 from app.core.encryption import decrypt_value
-from app.core.security import create_access_token, create_refresh_token
 from app.services.session_security import register_or_rotate_user_session
 
 import app.services.auth_service as _svc
@@ -447,6 +446,9 @@ def sso_callback(
 
         # Buscar o crear usuario
         user = _svc.create_or_update_sso_user(db, config, email, name, claims)
+        # La empresa es la del proveedor SSO (revision multitenant 2026-11).
+        from app.services import entrada_service as _entrada
+        org = _entrada.confirmar(db, user, request, config.organization_id)
 
         # Enforce MFA for SSO users too (TOTP or WebAuthn passkeys).
         has_totp    = bool(user.mfa_enabled and user.mfa_secret)
@@ -460,7 +462,7 @@ def sso_callback(
             return {
                 "token_type":         "bearer",
                 "mfa_required":       True,
-                "mfa_challenge_token": _issue_mfa_challenge(db, user),
+                "mfa_challenge_token": _issue_mfa_challenge(db, user, org),
                 "mfa_methods":        methods,
                 "user": {
                     "id": user.id, "email": user.email,
@@ -469,8 +471,7 @@ def sso_callback(
                 },
             }
 
-        access_token = create_access_token(subject=user.id, extra={"role": user.role})
-        new_refresh_token, new_jti = create_refresh_token(subject=user.id)
+        access_token, new_refresh_token, new_jti = _entrada.emitir_tokens(user, org)
         register_or_rotate_user_session(
             db=db,
             user_id=user.id,

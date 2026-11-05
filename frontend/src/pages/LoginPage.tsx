@@ -5,8 +5,9 @@ import type { User } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import LangSelector from '../components/LangSelector'
 import { authApi } from '../services/api'
-import type { LoginResponse } from '../services/api/auth'
+import type { ConfiguracionDeEntrada, LoginResponse } from '../services/api/auth'
 import { resolveLoginResponse } from '../utils/loginFlow'
+import type { OrganizacionElegible } from '../utils/loginFlow'
 import { startAuthentication, webauthnSupported } from '../lib/webauthn'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -193,6 +194,12 @@ export default function LoginPage(): JSX.Element {
   const [mfaMethods, setMfaMethods] = useState<string[]>([])
   const [mfaCode, setMfaCode] = useState('')
 
+  // Empresa (revisión multitenant 2026-11): modo de entrada del despliegue,
+  // código de empresa (modo org_field) y selector si pertenece a varias.
+  const [entrada, setEntrada] = useState<ConfiguracionDeEntrada | null>(null)
+  const [orgCode, setOrgCode] = useState('')
+  const [eleccion, setEleccion] = useState<{ token: string; organizations: OrganizacionElegible[] } | null>(null)
+
   // SSO providers
   const [ssoProviders, setSsoProviders] = useState<Array<{ id: string; provider: string; name: string; icon?: string }>>([])
 
@@ -217,20 +224,14 @@ export default function LoginPage(): JSX.Element {
     window.history.replaceState({}, '', '/login')
     setSsoLoading(true); setError('')
     authApi.ssoCallback(configId, { code, state, redirect_uri: `${window.location.origin}/login` })
-      .then(({ data }) => {
-        const parsed = resolveLoginResponse(data as Record<string, unknown>)
-        if (parsed.kind === 'mfa') {
-          setMfaChallengeToken(parsed.mfaChallengeToken)
-          setMfaMethods(parsed.mfaMethods)
-          return
-        }
-        const user = extractUser(data)
-        acceptSession(user)
-        navAfterLogin(user)
-      })
+      .then(({ data }) => procesar(data))
       .catch(e => setError(extractErrorMsg(e, t('login.sso_error'))))
       .finally(() => setSsoLoading(false))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    authApi.entryConfig().then(({ data }) => setEntrada(data)).catch(() => undefined)
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -245,24 +246,54 @@ export default function LoginPage(): JSX.Element {
     navigate(user.role === 'employee' ? '/imputar' : '/tasks', { replace: true })
   }
 
+  /** Una respuesta de login (contraseña, SSO, passkey o empresa elegida): sesión, segundo factor o selector. */
+  function procesar(data: LoginResponse) {
+    const parsed = resolveLoginResponse(data as Record<string, unknown>)
+    if (parsed.kind === 'error') { setError(parsed.message); return }
+    if (parsed.kind === 'org') {
+      setEleccion({ token: parsed.selectionToken, organizations: parsed.organizations })
+      setError('')
+      return
+    }
+    if (parsed.kind === 'mfa') {
+      setEleccion(null)
+      setMfaChallengeToken(parsed.mfaChallengeToken)
+      setMfaMethods(parsed.mfaMethods)
+      setError('')
+      return
+    }
+    const user = extractUser(data)
+    acceptSession(user)
+    navAfterLogin(user)
+  }
+
+  async function elegirEmpresa(organizationId: string) {
+    if (!eleccion) return
+    setLoading(true); setError('')
+    try {
+      const { data } = await authApi.selectOrganization({ selection_token: eleccion.token, organization_id: organizationId })
+      procesar(data)
+    } catch (e) {
+      setEleccion(null)
+      setError(extractErrorMsg(e, t('login.credentials_error')))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // ── normal submit ──────────────────────────────────────────────────────────
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (trap.trim()) return
     if (!username || !password) { setError(t('login.input_error')); return }
+    const pideEmpresa = entrada?.mode === 'org_field'
+    if (pideEmpresa && !orgCode.trim()) { setError(t('login.org_required')); return }
     setLoading(true); setError('')
     try {
-      const { data } = await authApi.login({ username, password })
-      const parsed = resolveLoginResponse(data as Record<string, unknown>)
-      if (parsed.kind === 'mfa') {
-        setMfaChallengeToken(parsed.mfaChallengeToken)
-        setMfaMethods(parsed.mfaMethods)
-        setError('')
-        return
-      }
-      const user = extractUser(data)
-      acceptSession(user)
-      navAfterLogin(user)
+      const { data } = await authApi.login({
+        username, password, ...(pideEmpresa ? { organization: orgCode.trim() } : {}),
+      })
+      procesar(data)
     } catch (e) {
       setError(extractErrorMsg(e, t('login.credentials_error')))
     } finally {
@@ -324,9 +355,7 @@ export default function LoginPage(): JSX.Element {
       const { data } = await authApi.passkeyLoginFinish({
         webauthn_challenge_token: startData.webauthn_challenge_token, credential,
       })
-      const user = extractUser(data)
-      acceptSession(user)
-      navAfterLogin(user)
+      procesar(data)
     } catch (e) {
       setError(extractErrorMsg(e, t('login.passkey_error')))
     } finally {
@@ -397,7 +426,7 @@ export default function LoginPage(): JSX.Element {
               <path d="M16 12V20M12 16H20" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" />
             </svg>
           </div>
-          <span style={st.logoText}>Contecflow</span>
+          <span style={st.logoText}>{entrada?.organization?.name || 'Contecflow'}</span>
         </div>
 
         {/* Session expired banner */}
@@ -408,8 +437,34 @@ export default function LoginPage(): JSX.Element {
           </div>
         )}
 
-        {/* ── MFA step ────────────────────────────────────────── */}
-        {mfaChallengeToken ? (
+        {/* ── Selector de empresa (pertenece a varias) ──────────── */}
+        {eleccion ? (
+          <div style={st.form}>
+            <p style={{ fontSize: 14, color: 'var(--text-2)', margin: 0, lineHeight: 1.6 }}>
+              {t('login.choose_org')}
+            </p>
+            <div role="list" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {eleccion.organizations.map(o => (
+                <button key={o.id} role="listitem" type="button" disabled={loading}
+                  onClick={() => { void elegirEmpresa(o.id) }}
+                  style={{ ...st.btnSecondary, justifyContent: 'flex-start', padding: '0 14px', color: 'var(--text-1)' }}>
+                  {o.logo_url
+                    ? <img src={o.logo_url} alt="" style={{ width: 20, height: 20, borderRadius: 4 }} />
+                    : <span aria-hidden="true" style={{ width: 20, height: 20, borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)', fontSize: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{o.name.slice(0, 1)}</span>}
+                  <span>{o.name}</span>
+                </button>
+              ))}
+            </div>
+            {error && (
+              <div style={st.errorBanner} role="alert"><span>⚠</span><span>{error}</span></div>
+            )}
+            <button type="button" onClick={() => { setEleccion(null); setError('') }}
+              style={{ ...st.linkBtn, textAlign: 'center', width: '100%', fontSize: 12 }}>
+              {t('login.mfa_cancel')}
+            </button>
+          </div>
+
+        ) : mfaChallengeToken ? (
           <form onSubmit={handleMfaVerify} style={st.form} noValidate>
             <p style={{ fontSize: 14, color: 'var(--text-2)', margin: 0, lineHeight: 1.6 }}>
               {t('login.mfa_prompt')}
@@ -549,6 +604,24 @@ export default function LoginPage(): JSX.Element {
                   onChange={e => setTrap(e.target.value)}
                 />
               </div>
+
+              {/* Empresa (modo org_field) */}
+              {entrada?.mode === 'org_field' && (
+                <div>
+                  <label style={st.label} htmlFor="login_org">{t('login.org_label')}</label>
+                  <input
+                    id="login_org"
+                    type="text"
+                    autoComplete="organization"
+                    value={orgCode}
+                    onChange={e => setOrgCode(e.target.value)}
+                    placeholder={t('login.org_placeholder')}
+                    style={st.input as CSSProperties}
+                    onFocus={focusIn}
+                    onBlur={focusOut}
+                  />
+                </div>
+              )}
 
               {/* Username */}
               <div>

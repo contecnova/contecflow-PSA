@@ -123,8 +123,8 @@ def mfa_challenge_query(db: Session):
     return q
 
 
-def issue_mfa_challenge(db: Session, user: User) -> str:
-    token, jti = create_mfa_challenge_token(user.id)
+def issue_mfa_challenge(db: Session, user: User, org: Optional[str] = None) -> str:
+    token, jti = create_mfa_challenge_token(user.id, org=org)
     db.query(MFAChallenge).filter(
         MFAChallenge.user_id == user.id,
         MFAChallenge.consumed_at.is_(None),

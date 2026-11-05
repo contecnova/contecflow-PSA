@@ -9,6 +9,7 @@ from app.schemas.users import UserPublic
 class LoginRequest(BaseModel):
     username: str = Field(..., description="Nombre de usuario o correo electrónico para iniciar sesión")
     password: str = Field(..., description="Contraseña del usuario")
+    organization: Optional[str] = Field(default=None, description="Código de la empresa (modo de entrada `org_field`)")
 
 
 class TokenResponse(BaseModel):
@@ -19,6 +20,9 @@ class TokenResponse(BaseModel):
     mfa_required: bool = Field(default=False, description="Indica si se requiere autenticación multifactor")
     mfa_challenge_token: Optional[str] = Field(default=None, description="Token de desafío para completar el flujo MFA")
     mfa_methods: Optional[list[str]] = Field(default=None, description="Métodos MFA disponibles para el usuario")
+    organization_selection_required: bool = Field(default=False, description="Pertenece a varias empresas: tiene que elegir una")
+    organizations: Optional[list[dict]] = Field(default=None, description="Empresas entre las que elegir")
+    selection_token: Optional[str] = Field(default=None, description="Token corto que solo sirve para elegir empresa")
 
 
 class RefreshRequest(BaseModel):

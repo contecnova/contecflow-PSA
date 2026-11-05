@@ -1619,6 +1619,11 @@ const es = {
     unsupported: 'Este navegador no admite passkeys.',
   },
   login: {
+    org_label: 'Empresa',
+    org_placeholder: 'Código de tu empresa',
+    org_required: 'Escribe el código de tu empresa',
+    choose_org: 'Perteneces a varias empresas. ¿En cuál quieres entrar?',
+    switch_org: 'Cambiar de empresa',
     brand_title: 'Bienvenido a la nueva era de la gestión',
     brand_subtitle: 'Contecflow revoluciona tu productividad',
     brand_description: 'La plataforma profesional para equipos que buscan eficiencia, control y crecimiento. Descubre la experiencia de gestión más avanzada, segura y flexible del mercado.',

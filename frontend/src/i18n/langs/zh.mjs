@@ -1480,6 +1480,11 @@ const zh = {
     unsupported: "此浏览器不支持通行密钥。",
   },
   login: {
+    org_label: "公司",
+    org_placeholder: "您的公司代码",
+    org_required: "请输入您的公司代码",
+    choose_org: "您属于多家公司。要进入哪一家？",
+    switch_org: "切换公司",
     brand_title: "欢迎来到管理新时代",
     brand_subtitle: "Contecflow 革新您的生产力",
     brand_description: "为追求效率、控制和成长的团队打造的专业平台。发现市场上最先进、安全、灵活的管理体验。",

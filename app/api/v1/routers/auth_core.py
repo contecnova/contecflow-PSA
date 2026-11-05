@@ -5,6 +5,8 @@ Core authentication flows separated from MFA/SSO/Sessions for maintainability.
 from fastapi import APIRouter, Depends, HTTPException, Response, status, Body, Request
 from sqlalchemy.orm import Session
 from typing import Optional
+
+from pydantic import BaseModel
 from datetime import datetime, timezone
 import logging
 import os
@@ -15,8 +17,6 @@ from app.services.audit import audit_log
 from app.core.security import (
     verify_password,
     get_password_hash,
-    create_access_token,
-    create_refresh_token,
     decode_token,
     validate_password_policy,
 )
@@ -194,7 +194,7 @@ def _exigir_mfa_de_la_organizacion(db: Session, user, tiene_factor: bool) -> Non
         )
 
 
-def _reto_de_segundo_factor(db: Session, user, has_totp: bool, has_passkeys: bool):
+def _reto_de_segundo_factor(db: Session, user, has_totp: bool, has_passkeys: bool, org=None):
     """Devuelve el reto de MFA en vez de los tokens de sesion.
 
     Aqui NO se emiten cookies de autenticacion: la sesion no existe hasta que se
@@ -209,15 +209,15 @@ def _reto_de_segundo_factor(db: Session, user, has_totp: bool, has_passkeys: boo
     return TokenResponse(
         user=UserPublic.model_validate(user),
         mfa_required=True,
-        mfa_challenge_token=_issue_mfa_challenge(db, user),
+        mfa_challenge_token=_issue_mfa_challenge(db, user, org),
         mfa_methods=methods,
     )
 
 
-def _abrir_sesion(db: Session, user, request: Request, response: Response):
-    """Emite el par de tokens, registra la sesion y pone las cookies."""
-    access_token = create_access_token(subject=user.id, extra={"role": user.role})
-    refresh_token, new_jti = create_refresh_token(subject=user.id)
+def _abrir_sesion(db: Session, user, request: Request, response: Response, org=None):
+    """Emite el par de tokens (de la empresa `org`), registra la sesion y pone las cookies."""
+    from app.services.entrada_service import emitir_tokens
+    access_token, refresh_token, new_jti = emitir_tokens(user, org)
     register_or_rotate_user_session(
         db=db,
         user_id=user.id,
@@ -266,26 +266,100 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
         _rechazar_credenciales(bucket, db=db, user=user, request=request)
 
     _clear_login_failure(bucket)
-    if not user.is_superadmin:
-        # Revision 2026-11: SSO y passkey ya lo comprobaban; la contrasena no.
-        from app.db.session import exigir_organizacion_activa
-        exigir_organizacion_activa(db, user.organization_id)
+    # En que empresa entra (revision multitenant 2026-11): segun el modo del
+    # despliegue, la del host, la del codigo, la unica o la que elija. Un
+    # rechazo por empresa responde como una contrasena mala.
+    from app.services import entrada_service as _entrada
+    try:
+        org = _entrada.decidir(db, user, request, codigo=payload.organization)
+    except _entrada.EleccionPendiente as pendiente:
+        org, eleccion = None, pendiente.organizaciones
+    else:
+        eleccion = None
 
     user.last_login = datetime.now(timezone.utc)
     audit_log(db, user, "LOGIN", "users", user.id, user.full_name)
     _auditar_en_soc(db, user, request, exito=True)
+    if eleccion is not None:
+        return _pedir_eleccion(db, user, eleccion)
 
     # Segundo factor: quien tenga TOTP o passkeys registradas no recibe tokens
     # hasta superar el reto.
+    return _segundo_factor_o_sesion(db, user, request, response, org)
+
+
+def _segundo_factor_o_sesion(db: Session, user, request: Request, response: Response, org):
     has_totp = bool(user.mfa_enabled and user.mfa_secret)
     has_passkeys = _svc.user_has_passkeys(db, user.id)
-
     _exigir_mfa_de_la_organizacion(db, user, has_totp or has_passkeys)
-
     if has_totp or has_passkeys:
-        return _reto_de_segundo_factor(db, user, has_totp, has_passkeys)
+        return _reto_de_segundo_factor(db, user, has_totp, has_passkeys, org)
+    return _abrir_sesion(db, user, request, response, org)
 
-    return _abrir_sesion(db, user, request, response)
+
+def _pedir_eleccion(db: Session, user, organizaciones: list):
+    """Pertenece a varias empresas: aun no hay sesion, solo un token para elegir."""
+    from app.services import entrada_service as _entrada
+    _svc.commit_db(db)
+    return TokenResponse(
+        user=UserPublic.model_validate(user),
+        organization_selection_required=True,
+        organizations=[_entrada.resumen(o) for o in organizaciones],
+        selection_token=_entrada.token_de_eleccion(user),
+    )
+
+
+class EleccionIn(BaseModel):
+    selection_token: str
+    organization_id: str
+
+
+@router.post("/select-organization", response_model=TokenResponse,
+             summary="Elegir empresa tras la contraseña (usuarios de varias empresas)")
+@limiter.limit("10/minute")
+def select_organization(request: Request, response: Response, payload: EleccionIn, db: Session = Depends(get_db)):
+    from app.services import entrada_service as _entrada
+    user = _svc.lookup_user_by_id_active(db, _entrada.leer_token_de_eleccion(payload.selection_token))
+    if not user:
+        raise HTTPException(401, "Usuario no encontrado o desactivado")
+    org = _entrada.decidir(db, user, request, elegida=payload.organization_id)
+    return _segundo_factor_o_sesion(db, user, request, response, org)
+
+
+class CambioIn(BaseModel):
+    organization_id: str
+
+
+@router.get("/organizations", summary="Mis empresas y la activa")
+def my_organizations(request: Request, db: Session = Depends(get_db),
+                     current_user: User = Depends(get_current_user)):
+    from app.services import entrada_service as _entrada
+    activas = _entrada.organizaciones_del_usuario(db, current_user)
+    return {"current": current_user.organization_id,
+            "items": [_entrada.resumen(o) for o in activas]}
+
+
+@router.post("/switch-organization", response_model=TokenResponse, summary="Cambiar de empresa en la sesión")
+@limiter.limit("20/minute")
+def switch_organization(request: Request, response: Response, payload: CambioIn,
+                        db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.services import entrada_service as _entrada
+    if _entrada.modo() != "email_selector":
+        raise HTTPException(409, "En este despliegue la empresa la fija el acceso, no se cambia en la sesión")
+    org = _entrada.decidir(db, current_user, request, elegida=payload.organization_id)
+    jti = _current_refresh_jti(request)
+    if jti:
+        revoke_session_by_jti(db=db, user_id=current_user.id, refresh_token_jti=jti, reason="switch_organization")
+    return _abrir_sesion(db, current_user, request, response, org)
+
+
+@router.get("/entry-config", summary="Cómo se entra en este despliegue (público)")
+def entry_config(request: Request, db: Session = Depends(get_db)):
+    """El modo de entrada y, en modo subdominio, la empresa del host (para su marca)."""
+    from app.services import entrada_service as _entrada
+    org = _entrada.organizacion_por_host(db, request) if _entrada.modo() == "subdomain" else None
+    return {"mode": _entrada.modo(),
+            "organization": _entrada.resumen(org) if org and org.is_active else None}
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -314,9 +388,16 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
     if active_session is None:
         raise HTTPException(status_code=401, detail="Refresh token ya fue utilizado o es inválido. Por seguridad, debes iniciar sesión de nuevo.")
 
-    # Issue new token pair and rotate JTI
-    access_token = create_access_token(subject=user.id, extra={"role": user.role})
-    new_refresh_token, new_jti = create_refresh_token(subject=user.id)
+    # Issue new token pair and rotate JTI. La empresa activa se conserva, y se
+    # vuelve a validar: pertenencia vigente y empresa activa.
+    from app.services import entrada_service as _entrada
+    org = token_data.get("org")
+    if org and not user.is_superadmin:
+        if not _entrada.pertenece(db, user, org):
+            raise HTTPException(status_code=401, detail="Ya no perteneces a esa organización: vuelve a entrar")
+        from app.db.session import exigir_organizacion_activa
+        exigir_organizacion_activa(db, org)
+    access_token, new_refresh_token, new_jti = _entrada.emitir_tokens(user, org)
     register_or_rotate_user_session(
         db=db,
         user_id=user.id,

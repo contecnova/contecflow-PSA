@@ -3784,7 +3784,13 @@ This section covers every screen an administrator uses to configure contecflow-P
   - **`deps.get_current_client`** (portal collaboration and conversations) did not publish the tenant, and an uninitialised `TenantSession` does not filter. It does now.
   - **Hand-written SQL:** the scheduled-reports summary counted every company's reports; it is now scoped.
   - **No database-level isolation:** there is no Postgres RLS (0 tables) and the application connects as a superuser role. Isolation relies entirely on `TenantSession`.
-- **Single active org per user.** Filtering uses `users.organization_id` only. `user_organization_memberships` rows (added by `assign-user`) do **not** change what a user sees, and no "switch organization" endpoint exists in the route table.
+- **Entering a company (since 2026-11-05).** Each deployment chooses one mode in `.env` (`TENANT_ENTRY_MODE`; code in `app/services/entrada_service.py`):
+  - `email_selector` (default): email and password. With one active company the user enters it directly. With several, the login answers `organization_selection_required` with the list and a 5-minute `selection_token` that is only valid for `POST /auth/select-organization`; the login screen shows a picker. The header shows a company switcher (`POST /auth/switch-organization`) for users in more than one.
+  - `subdomain`: the host decides: `<slug>.TENANT_ROOT_DOMAIN` or the company's own `domain` (migration 126). The login shows that company's name. A user who is not a member of that company cannot enter, and a session of another company is refused on that host (403). `X-Forwarded-Host` is honoured only from trusted proxies (`TRUST_PROXY_HEADERS`, `TRUSTED_PROXY_CIDRS`).
+  - `org_field`: the login asks for the company code (slug). A wrong code answers like a wrong password.
+  - The chosen company travels as the `org` claim of the access and refresh tokens (and the MFA challenge, so the second factor keeps it). On every request it is re-checked: the user must still belong to it (its own record or a membership) and it must be active; if the membership was removed, the session falls back to the company of the user's own record. Passkey and SSO go through the same decision (SSO uses its provider's company). Superadmins enter no company and see all, as before.
+  - Users are visible in a company if their own record is there **or** they have a membership in it (`_tenant_filter_members` on `User`).
+  - Not verified: a real wildcard DNS and certificate for subdomains; it was tested with `Host` headers.
 - **Limitations (measured):**
   - Writes (UPDATE/DELETE) are **not** narrowed by the listener; each endpoint's own WHERE clause has to be correct.
   - Public, unauthenticated endpoints have no tenant context. Examples: `/forms/public/*`, `/webhooks/fire/{slug}`, the Slack and Teams inbound command receivers. Their queries run unfiltered.

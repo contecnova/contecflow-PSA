@@ -52,6 +52,22 @@ def _is_tenant_exempt(model) -> bool:
     return getattr(model, "_tenant_exempt", False) is True
 
 
+def _miembros_de(model, org_id):
+    """Usuarios de la empresa: los de su ficha y los que tienen pertenencia en ella.
+
+    Revision multitenant 2026-11: con varias empresas por usuario, filtrar solo
+    por `users.organization_id` escondia en la empresa activa a sus miembros
+    de otra ficha (y al propio usuario, al recargarlo tras un commit).
+    """
+    from sqlalchemy import or_, select
+    from app.models.user import UserOrganizationMembership
+    return or_(
+        model.organization_id == org_id,
+        model.id.in_(select(UserOrganizationMembership.user_id)
+                     .where(UserOrganizationMembership.organization_id == org_id)),
+    )
+
+
 def _tenant_filter_for_model(query, model, org_id):
     """Inject tenant isolation filter into *query* for the given *model*.
 
@@ -72,6 +88,8 @@ def _tenant_filter_for_model(query, model, org_id):
         return query
 
     if hasattr(model, "organization_id"):
+        if getattr(model, "_tenant_filter_members", False):
+            return query.filter(_miembros_de(model, org_id))
         # Some models (e.g. AppSetting) mark themselves to also include
         # global (org_id IS NULL) rows alongside tenant-specific ones.
         if getattr(model, "_tenant_filter_include_global", False):
@@ -174,6 +192,8 @@ def _tenant_where_for_model(stmt, model, org_id):
         return stmt
 
     if hasattr(model, "organization_id"):
+        if getattr(model, "_tenant_filter_members", False):
+            return stmt.where(_miembros_de(model, org_id))
         if getattr(model, "_tenant_filter_include_global", False):
             from sqlalchemy import or_
             return stmt.where(or_(model.organization_id == org_id, model.organization_id.is_(None)))
@@ -400,6 +420,11 @@ if _TENANT_AUTO_FILTER_GLOBAL:
         # own WHERE clauses and would be incorrectly narrowed otherwise.
         if not execute_state.is_select:
             return
+        if execute_state.is_column_load:
+            # Recarga de atributos caducados de un objeto que YA esta en la
+            # sesion (tras un commit, o `refresh`): se cargo antes con el filtro
+            # puesto. `db.get` y las consultas nuevas no pasan por aqui.
+            return
         if execute_state.is_relationship_load:
             # Relationship loads already inherit their parent's tenant scope
             # (parent row was filtered when loaded). Skipping avoids double
@@ -468,7 +493,21 @@ if _TENANT_AUTO_FILTER_GLOBAL:
                 )
                 continue
             include_global = getattr(model, "_tenant_filter_include_global", False)
-            if include_global:
+            if getattr(model, "_tenant_filter_members", False):
+                from sqlalchemy import or_ as _or_m, select as _select_m
+                from app.models.user import UserOrganizationMembership as _Pertenencia
+                criteria_options.append(
+                    _with_loader_criteria(
+                        model,
+                        lambda cls: _or_m(
+                            cls.organization_id == org_id,
+                            cls.id.in_(_select_m(_Pertenencia.user_id)
+                                       .where(_Pertenencia.organization_id == org_id)),
+                        ),
+                        include_aliases=True,
+                    )
+                )
+            elif include_global:
                 from sqlalchemy import or_ as _or
                 criteria_options.append(
                     _with_loader_criteria(

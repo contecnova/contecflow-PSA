@@ -31,7 +31,6 @@ from app.services.auth_service import (
     read_ephemeral_token as _read_ephemeral_token,
     set_auth_cookies as _set_auth_cookies,
 )
-from app.core.security import create_access_token, create_refresh_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -174,8 +173,9 @@ def mfa_validate(
             logger.warning("SOC mfa_failed audit raised for user=%s", user.id, exc_info=True)
         raise HTTPException(401, "Código 2FA incorrecto")
 
-    access_token = create_access_token(subject=user.id, extra={"role": user.role})
-    new_refresh_token, new_jti = create_refresh_token(subject=user.id)
+    from app.services import entrada_service as _entrada
+    org = _entrada.confirmar(db, user, request, challenge_data.get("org"))
+    access_token, new_refresh_token, new_jti = _entrada.emitir_tokens(user, org)
     _consume_mfa_challenge(challenge_row)
     register_or_rotate_user_session(
         db=db,
@@ -502,8 +502,9 @@ def webauthn_auth_finish(
     cred.sign_count = int(getattr(verification, "new_sign_count", cred.sign_count))
     cred.last_used_at = datetime.now(timezone.utc)
 
-    access_token = create_access_token(subject=user.id, extra={"role": user.role})
-    new_refresh_token, new_jti = create_refresh_token(subject=user.id)
+    from app.services import entrada_service as _entrada
+    org = _entrada.confirmar(db, user, request, mfa_data.get("org"))
+    access_token, new_refresh_token, new_jti = _entrada.emitir_tokens(user, org)
     _consume_mfa_challenge(challenge_row)
     register_or_rotate_user_session(
         db=db,
@@ -599,13 +600,21 @@ def passkey_login_finish(
     user = _svc.lookup_user_by_id_active(db, cred.user_id)
     if not user:
         raise HTTPException(401, "Usuario no encontrado o desactivado")
-    if _svc.organizacion_desactivada(db, user.organization_id):
-        raise HTTPException(403, "La organización de este usuario está desactivada")
+    from app.services import entrada_service as _entrada
+    try:
+        org = _entrada.decidir(db, user, request)
+    except _entrada.EleccionPendiente as pendiente:
+        # La passkey ya prueba quien es: falta elegir empresa, como tras la contrasena.
+        _svc.commit_db(db)
+        from app.schemas.users import UserPublic
+        return {"token_type": "bearer", "organization_selection_required": True,
+                "organizations": [_entrada.resumen(o) for o in pendiente.organizaciones],
+                "selection_token": _entrada.token_de_eleccion(user),
+                "user": UserPublic.model_validate(user).model_dump(mode="json")}
 
     cred.sign_count = int(getattr(verification, "new_sign_count", cred.sign_count))
     cred.last_used_at = datetime.now(timezone.utc)
-    access_token = create_access_token(subject=user.id, extra={"role": user.role})
-    new_refresh_token, new_jti = create_refresh_token(subject=user.id)
+    access_token, new_refresh_token, new_jti = _entrada.emitir_tokens(user, org)
     register_or_rotate_user_session(db=db, user_id=user.id, request=request,
                                     refresh_token_jti=new_jti, auth_method="passkey")
     _svc.commit_db(db)
