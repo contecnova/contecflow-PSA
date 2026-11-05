@@ -2896,7 +2896,7 @@ If the chosen provider fails, every other active provider is tried once. If none
      - `units`: a percentage without a division or a `*_pct` column, or an average without `avg`.
      - `distinct`: «distintos» without `COUNT(DISTINCT)` or `SELECT DISTINCT`.
 
-     The answer carries `verification: {verdict, checks}`. The widget shows *Responde a lo preguntado (N comprobaciones)*, the warnings, or *Sin comprobar* when nothing applied. A verdict is `verified` only if at least one check ran; when nothing could be checked it says `not_checked`, never `verified`. Intent patterns cover Spanish and English; questions in Chinese stay unchecked.
+     The answer carries `verification: {verdict, checks}`. The widget shows *Responde a lo preguntado (N comprobaciones)*, the warnings, or *Sin comprobar* when nothing applied. A verdict is `verified` only if at least one check ran; when nothing could be checked it says `not_checked`, never `verified`. Intent patterns cover Spanish, English and Chinese. The Chinese ones have no word boundaries (`\b` does not separate Chinese characters), so they are separate patterns: 三月 / 本月 / 去年, 按项目 / 每个月, 前5 / 最多, 占比 / 平均, 不同 / 去重.
 - **Visual builder:**
   - `GET /api/v1/bi/intelligence/query-builder/schema`
   - `POST /api/v1/bi/intelligence/query-builder/preview` (500 rows)

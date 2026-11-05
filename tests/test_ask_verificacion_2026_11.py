@@ -20,6 +20,16 @@ CASOS = [
     ("Porcentaje de tickets con SLA incumplido", "SELECT COUNT(*) FROM fact_tickets WHERE sla_breached", "warning", "units"),
     ("Hours by project last month", "SELECT SUM(hours) FROM fact_imputations", "warning", "time_window"),
     ("proyectos con presupuesto mayor que 1000", "SELECT name FROM dim_project WHERE budget>1000", "not_checked", None),
+    # Chino (revisión 2026-11): antes todas quedaban «sin comprobar».
+    ("三月份登记了多少工时？", "SELECT SUM(hours) FROM fact_imputations", "warning", "time_window"),
+    ("三月份登记了多少工时？",
+     "SELECT SUM(i.hours) FROM fact_imputations i JOIN dim_date d ON d.date_key=i.date_key WHERE d.month=3", "verified", None),
+    ("按项目统计工时", "SELECT SUM(hours) FROM fact_imputations", "warning", "breakdown"),
+    ("工时最多的前5个项目", "SELECT project_id, SUM(hours) h FROM fact_imputations GROUP BY project_id LIMIT 5", "warning", "ranking"),
+    ("有工单的不同客户有多少？", "SELECT COUNT(client_id) FROM fact_tickets", "warning", "distinct"),
+    ("SLA 违约工单的占比", "SELECT COUNT(*) FROM fact_tickets WHERE sla_breached", "warning", "units"),
+    ("项目的平均利润率", "SELECT SUM(margin) FROM fact_projects", "warning", "units"),
+    ("列出进行中的项目", "SELECT name FROM dim_project WHERE status='active'", "not_checked", None),
 ]
 
 
