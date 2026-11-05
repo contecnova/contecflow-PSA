@@ -13,6 +13,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CreditCard, Download } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import FichaDeFactura from '../components/invoices/FichaDeFactura'
 import { alpha } from '../constants/theme'
 
 interface InvoiceLine {
@@ -25,6 +26,7 @@ interface InvoiceLine {
 interface InvoiceItem {
   id: string | number
   number?: string
+  currency?: string
   project_code?: string
   client_name?: string
   po_reference?: string
@@ -173,6 +175,10 @@ function InvoicesTab() {
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
+  // Revisión 2026-11: la columna de acciones era `auto` y cada fila es su propia
+  // rejilla, así que las filas con y sin botón se desalineaban.
+  const COLUMNAS = '150px 80px 1fr 110px 120px 120px 110px 120px 40px'
+  const [abierta, setAbierta] = useState<string | null>(null)
   const STATUS_CFG: Record<InvoiceStatus, { label: string; color: string }> = {
     draft: { label: t('invoices.status_draft'), color: 'var(--text-2)' },
     sent: { label: t('invoices.status_sent'), color: 'var(--accent)' },
@@ -247,11 +253,17 @@ function InvoicesTab() {
         }
       />
 
+      {abierta && (
+        <FichaDeFactura id={abierta} onClose={() => setAbierta(null)}
+          onPdf={() => { const inv = invoices.find(i => String(i.id) === abierta); if (inv) downloadPdf(inv) }}
+          onEstado={st => updateStatus({ id: abierta, status: st as InvoiceStatus })}
+          etiquetaDeEstado={st => STATUS_CFG[st as InvoiceStatus] || { label: st, color: 'var(--text-2)' }} />
+      )}
       {isLoading ? <Spinner /> : invoices.length === 0 ? (
         <EmptyState icon="📄" title={t('invoices.empty_title')} description={t('invoices.empty_description')} />
       ) : (
         <div data-export-table="invoices-list" style={{...card,overflow:'hidden'}}>
-          <div style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'10px 18px',borderBottom:'1px solid var(--surface-4)',fontSize: "var(--text-2xs)",fontWeight:700,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'0.07em',alignItems:'center'}}>
+          <div style={{display:'grid',gridTemplateColumns:COLUMNAS,gap:12,padding:'10px 18px',borderBottom:'1px solid var(--surface-4)',fontSize: "var(--text-2xs)",fontWeight:700,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'0.07em',alignItems:'center'}}>
             <SortableTH col="number" sort={invSort} onSort={setInvSort}>{t('invoices.number')}</SortableTH>
             <SortableTH col="project_code" sort={invSort} onSort={setInvSort}>{t('invoices.project')}</SortableTH>
             <SortableTH col="client_name" sort={invSort} onSort={setInvSort}>{t('invoices.client')}</SortableTH>
@@ -266,8 +278,8 @@ function InvoicesTab() {
             const cfg = STATUS_CFG[(inv.status as InvoiceStatus) || 'draft'] || {label:inv.status || '—',color:'var(--text-2)'}
             const isOverdue = inv.status === 'sent' && inv.due_date && new Date(inv.due_date) < new Date()
             return (
-              <div key={inv.id} style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'12px 18px',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)',alignItems:'center'}}>
-                <span style={{fontSize: "var(--text-sm)",fontFamily:'var(--font-mono)',color:'var(--accent)'}}>{inv.number}</span>
+              <div key={inv.id} style={{display:'grid',gridTemplateColumns:COLUMNAS,gap:12,padding:'12px 18px',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)',alignItems:'center'}}>
+                <button type="button" onClick={() => setAbierta(String(inv.id))} title={t('invoices.ficha_abrir')} style={{fontSize: "var(--text-sm)",fontFamily:'var(--font-mono)',color:'var(--accent)',background:'none',border:'none',padding:0,cursor:'pointer',textAlign:'left',textDecoration:'underline',textUnderlineOffset:3}}>{inv.number}</button>
                 <span style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{inv.project_code||'—'}</span>
                 <div>
                   <div style={{fontSize: "var(--text-base)",fontWeight:600}}>{inv.client_name||'—'}</div>
@@ -275,10 +287,11 @@ function InvoicesTab() {
                 </div>
                 <span style={{fontSize: "var(--text-sm)",color:'var(--text-2)'}}>{inv.issue_date}</span>
                 <span style={{fontSize: "var(--text-sm)",color:isOverdue?'var(--danger)':'var(--text-2)'}}>{inv.due_date||'—'}{isOverdue&&' ⚠'}</span>
-                <span style={{fontSize: "var(--text-base)",fontWeight:700,fontFamily:'var(--font-mono)'}}>{(inv.total||0).toLocaleString(localeActivo(),{minimumFractionDigits:2})}€</span>
+                <span style={{fontSize: "var(--text-base)",fontWeight:700,fontFamily:'var(--font-mono)'}}>{(inv.total||0).toLocaleString(localeActivo(),{style:'currency',currency:inv.currency||'EUR'})}</span>
                 <span style={{fontSize: "var(--text-xs)",fontWeight:700,padding:'2px 8px',borderRadius:20,background:alpha(cfg.color, '20'),color:cfg.color}}>{cfg.label}</span>
                 <div style={{display:'flex',gap:6}}>
                   {inv.status === 'draft' && <button onClick={() => updateStatus({id:inv.id,status:'sent'})} style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border-strong)',borderRadius:6,padding:'3px 10px',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.send')}</button>}
+                  {inv.status === 'draft' && <button onClick={() => setAbierta(String(inv.id))} style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'3px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.ficha_editar')}</button>}
                   {inv.status === 'sent' && <button onClick={() => updateStatus({id:inv.id,status:'paid'})} style={{background:'var(--success-bg)',border:'1px solid var(--success-border)',borderRadius:6,padding:'3px 10px',color:'var(--success)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.paid')}</button>}
                 </div>
                 <button onClick={() => downloadPdf(inv)} title={t('invoices.download_pdf')} disabled={pdfLoadingId === inv.id}

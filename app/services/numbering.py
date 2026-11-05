@@ -25,7 +25,17 @@ def _render_sequence(sequence: NumberingSequence, number: int, year: int, year_s
 
 
 def _org(db: Session) -> Optional[str]:
-    return db.info.get("organization_id")
+    """La empresa de la secuencia: la misma que el sello pondrá en la fila nueva.
+
+    Revisión 2026-11. Un superadmin no tiene empresa en la sesión, pero al
+    insertar la secuencia el sello le pone la suya propia: se buscaba la de
+    «sin empresa», nunca aparecía, y crear una factura daba 500.
+    """
+    from app.db.session import _org_del_superadmin
+    info = db.info
+    if info.get("organization_id") is not None or info.get("fila_global"):
+        return info.get("organization_id")
+    return _org_del_superadmin(info)
 
 
 def _lock_sequence(db: Session, entity: str, org_id: Optional[str] = None):

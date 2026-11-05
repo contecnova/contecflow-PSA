@@ -1,4 +1,7 @@
-from typing import Any, Dict, Optional
+from datetime import date
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 from fastapi import APIRouter, Body, HTTPException, Query, Response, status, Depends
 from sqlalchemy.orm import Session
@@ -63,6 +66,56 @@ def invoice_summary(
 ):
     return APIResponse.ok(data=billing_reports_service.get_invoice_summary(db))
 
+
+
+
+# ── Ficha, edición y borrado (revisión 2026-11) ─────────────────────────────
+class LineaDeFacturaIn(BaseModel):
+    description: str = Field(..., min_length=1, max_length=500)
+    quantity: float = Field(1, ge=0)
+    unit: str = Field("h", max_length=20)
+    unit_price: float = Field(..., ge=0)
+    discount_pct: float = Field(0, ge=0, le=100)
+    source_type: Optional[str] = Field(None, max_length=20)
+    source_ids: Optional[Any] = None
+
+
+class EdicionDeFacturaIn(BaseModel):
+    client_name: Optional[str] = Field(None, max_length=255)
+    client_address: Optional[str] = None
+    client_vat: Optional[str] = Field(None, max_length=50)
+    client_email: Optional[str] = Field(None, max_length=255)
+    issue_date: Optional[date] = None
+    due_date: Optional[date] = None
+    tax_rate: Optional[float] = Field(None, ge=0, le=100)
+    currency: Optional[str] = Field(None, max_length=3)
+    notes: Optional[str] = None
+    po_reference: Optional[str] = Field(None, max_length=100)
+    period_from: Optional[date] = None
+    period_to: Optional[date] = None
+    lines: Optional[List[LineaDeFacturaIn]] = None
+
+
+@router.get("/{invoice_id}", response_model=APIResponse[InvoiceOut], summary="Ficha de una factura con sus líneas")
+def get_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+                _rol: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=billing_reports_service.obtener_factura(db, invoice_id))
+
+
+@router.patch("/{invoice_id}", response_model=APIResponse[InvoiceOut], summary="Editar un borrador (cabecera y líneas)")
+def edit_invoice(invoice_id: str, payload: EdicionDeFacturaIn, db: Session = Depends(get_db),
+                 current_user: User = Depends(get_current_user), _rol: User = Depends(require_any_manager)):
+    datos = payload.model_dump(exclude_unset=True)
+    if "lines" in datos:
+        datos["lines"] = [dict(l) for l in datos["lines"] or []]
+    return APIResponse.ok(data=billing_reports_service.editar_factura(db, current_user, invoice_id, datos))
+
+
+@router.delete("/{invoice_id}", summary="Borrar un borrador")
+def delete_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+                   _rol: User = Depends(require_any_manager)):
+    billing_reports_service.borrar_factura(db, current_user, invoice_id)
+    return APIResponse.ok(data={"deleted": invoice_id})
 
 @router.post("/{invoice_id}/payment-link", status_code=status.HTTP_201_CREATED)
 def create_payment_link(

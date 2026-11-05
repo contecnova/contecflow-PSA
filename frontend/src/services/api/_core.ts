@@ -748,6 +748,10 @@ export const invoicesApi = {
   create:        (data: unknown)            => api.post('/invoices', data),
   updateStatus:  (id: any, status: any)      => api.patch(`/billing-reports/invoices/${id}/status`, { status }),
   pdf:           (id: any)              => api.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
+  // Revisión 2026-11: ficha, edición de borradores y borrado.
+  get:           (id: any)              => api.get(`/invoices/${id}`),
+  update:        (id: any, data: unknown) => api.patch(`/invoices/${id}`, data),
+  remove:        (id: any)              => api.delete(`/invoices/${id}`),
   fromTimesheets:(data: unknown)            => api.post('/invoices/from-timesheets', data),
 }
 

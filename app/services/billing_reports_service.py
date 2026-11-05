@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, text
+from sqlalchemy import func
 from sqlalchemy.exc import OperationalError
 
 from app.core.config import settings
@@ -74,8 +74,14 @@ def _lock_project_for_update(db: Session, project_id: str):
 
 def _set_serializable_if_postgres(db: Session) -> None:
     # Transaction-level hardening for financial writes in PostgreSQL.
+    # Revisión 2026-11: el nivel sólo se puede fijar ANTES de la primera consulta de
+    # la transacción, y cuando llega aquí ya se han hecho (cargar el usuario, el
+    # `set_config` del RLS): Postgres lo rechazaba y crear una factura o cambiar
+    # su estado daba 500. Se cierra la transacción de la petición y el SET va el
+    # primero de la nueva, por el driver para no pasar por el evento del RLS.
     if is_postgres():
-        db.execute(text("SET LOCAL TRANSACTION ISOLATION LEVEL SERIALIZABLE"))
+        db.commit()
+        db.connection().exec_driver_sql("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
 
 
 def _is_serialization_failure(exc: OperationalError) -> bool:
@@ -492,6 +498,10 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
             raise HTTPException(status_code=404, detail="Proyecto no encontrado o no accesible")
 
     client_name = payload.client_name or (project.client_name if project else None) or "Sin cliente"
+    # Revisión 2026-11: el importe de cada línea lo calcula el servidor (antes se
+    # aceptaba el `amount` que mandara el navegador).
+    for l in payload.lines:
+        l["amount"] = importe_de_linea(l)
     subtotal = sum(l.get("amount", 0) for l in payload.lines)
     tax_amount = round(subtotal * payload.tax_rate / 100, 2)
     total = round(subtotal + tax_amount, 2)
@@ -566,6 +576,104 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
         joinedload(Invoice.project), joinedload(Invoice.lines)
     ).filter(Invoice.id == inv.id).first()
     return invoice_out(inv)
+
+
+def importe_de_linea(linea: dict) -> float:
+    """cantidad × precio × (1 − descuento %), redondeado a céntimos."""
+    cantidad = float(linea.get("quantity", 1) or 0)
+    precio = float(linea.get("unit_price", 0) or 0)
+    descuento = float(linea.get("discount_pct", 0) or 0)
+    return round(cantidad * precio * (1 - descuento / 100), 2)
+
+
+# ── Ficha, edición y borrado (revisión 2026-11) ─────────────────────────────
+# La pantalla sólo dejaba enviar, marcar como pagada y bajar el PDF: no había
+# forma de abrir una factura ni de corregir un borrador. Una factura ENVIADA no
+# se modifica (es un documento emitido): se anula y se hace otra.
+
+_CABECERA_EDITABLE = ("client_name", "client_address", "client_vat", "client_email", "issue_date", "due_date",
+                      "tax_rate", "notes", "po_reference", "period_from", "period_to", "currency")
+
+
+def _factura(db: Session, invoice_id: str, *, bloquear: bool = False) -> Invoice:
+    q = _scope_invoice_query(db).options(joinedload(Invoice.project), joinedload(Invoice.lines)) \
+        .filter(Invoice.id == invoice_id)
+    if bloquear and is_postgres():
+        q = q.with_for_update(of=Invoice)   # sólo la factura: las uniones externas no se pueden bloquear
+    inv = q.first()
+    if not inv:
+        raise HTTPException(404, "Factura no encontrada")
+    return inv
+
+
+def _exigir_borrador(inv: Invoice) -> None:
+    estado = inv.status.value if isinstance(inv.status, enum.Enum) else str(inv.status)
+    if estado != "draft":
+        raise HTTPException(409, "Sólo se modifica un borrador: una factura emitida se anula y se hace otra")
+
+
+def _imputaciones_de(lineas: list) -> set:
+    ids = set()
+    for l in lineas:
+        if l.get("source_type") == "timesheet":
+            crudo = l.get("source_ids") or []
+            ids |= set(json.loads(crudo) if isinstance(crudo, str) else crudo)
+    return ids
+
+
+def obtener_factura(db: Session, invoice_id: str) -> dict:
+    return invoice_out(_factura(db, invoice_id))
+
+
+def editar_factura(db: Session, current_user: User, invoice_id: str, datos: dict) -> dict:
+    """Cabecera y/o líneas de un borrador; los totales se recalculan."""
+    inv = _factura(db, invoice_id, bloquear=True)
+    _exigir_borrador(inv)
+    antes = {"total": float(inv.total or 0), "lines": len(inv.lines)}
+    for campo in _CABECERA_EDITABLE:
+        if campo in datos:
+            setattr(inv, campo, datos[campo])
+    if "lines" in datos:
+        nuevas = list(datos["lines"] or [])
+        # Las horas que deja de facturar vuelven a estar libres; las nuevas se marcan.
+        db.query(Imputation).filter(Imputation.invoiced_invoice_id == inv.id).update(
+            {"is_invoiced": False, "invoiced_invoice_id": None}, synchronize_session=False)
+        for l in list(inv.lines):
+            db.delete(l)
+        db.flush()
+        for i, l in enumerate(nuevas):
+            db.add(InvoiceLine(invoice_id=inv.id, order=i, description=l.get("description", ""),
+                               quantity=l.get("quantity", 1), unit=l.get("unit", "h"),
+                               unit_price=l.get("unit_price", 0), discount_pct=l.get("discount_pct", 0),
+                               amount=importe_de_linea(l), source_type=l.get("source_type"),
+                               source_ids=json.dumps(l.get("source_ids", []) if not isinstance(l.get("source_ids"), str)
+                                                     else json.loads(l["source_ids"])),
+                               organization_id=inv.organization_id))
+        horas = _imputaciones_de(nuevas)
+        if horas:
+            db.query(Imputation).filter(Imputation.id.in_(horas)).update(
+                {"is_invoiced": True, "invoiced_invoice_id": inv.id}, synchronize_session=False)
+        subtotal = round(sum(importe_de_linea(l) for l in nuevas), 2)
+    else:
+        subtotal = round(sum(float(l.amount or 0) for l in inv.lines), 2)
+    inv.subtotal = subtotal
+    inv.tax_amount = round(subtotal * float(inv.tax_rate or 0) / 100, 2)
+    inv.total = round(subtotal + float(inv.tax_amount), 2)
+    audit_log(db, current_user, "UPDATE", "invoices", inv.id, inv.number, old_values=antes,
+              new_values={"total": float(inv.total), "lines": len(datos.get("lines", inv.lines))})
+    db.commit()
+    db.expire_all()
+    return obtener_factura(db, invoice_id)
+
+
+def borrar_factura(db: Session, current_user: User, invoice_id: str) -> None:
+    inv = _factura(db, invoice_id, bloquear=True)
+    _exigir_borrador(inv)
+    db.query(Imputation).filter(Imputation.invoiced_invoice_id == inv.id).update(
+        {"is_invoiced": False, "invoiced_invoice_id": None}, synchronize_session=False)
+    audit_log(db, current_user, "DELETE", "invoices", inv.id, inv.number, old_values={"total": float(inv.total or 0)})
+    db.delete(inv)
+    db.commit()
 
 
 def _aprobacion_antes_de_enviar(inv, current_user: User, db: Session) -> None:

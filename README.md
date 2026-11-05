@@ -1516,8 +1516,12 @@ General notes that apply to every module here:
    - `overdue` → `paid` | `cancelled`
 
    The UI has only two buttons: **Enviar** (draft → sent) and **Pagada** (sent → paid). A `sent` invoice past its due date is only shown in red.
-3. Download a PDF with the per-row download button.
-4. **Sync.** Choose `xero` or `quickbooks` and press bulk sync (`POST /accounting/push-invoices-bulk`, limit 100). The last sync and the pending count are shown.
+3. **Open an invoice.** Click its number (or **Editar** on a draft). The record (`components/invoices/FichaDeFactura.tsx`) shows the header, project, period, address, the lines and the totals, and carries the actions: send, paid, cancel, PDF.
+   - **A draft can be edited**: header fields (client, VAT number, email, address, dates, PO, tax rate, notes) and the lines (add, remove, quantity, unit, price, discount). The totals are previewed while typing and recomputed by the server on save.
+   - **A draft can be deleted.** Its imputations are released (`invoiced_invoice_id` cleared) so the hours can be invoiced again.
+   - **An issued invoice is not modified** (409): it is cancelled and a new one is made. The record says so.
+4. Download a PDF with the per-row download button.
+5. **Sync.** Choose `xero` or `quickbooks` and press bulk sync (`POST /accounting/push-invoices-bulk`, limit 100). The last sync and the pending count are shown.
 
 **Configuration.**
 - `DEFAULT_TAX_RATE` and `DEFAULT_CURRENCY`.
@@ -1528,13 +1532,20 @@ General notes that apply to every module here:
 **Technical notes.**
 - **Endpoints:**
   - `GET/POST /api/v1/invoices`, `GET /invoices/summary`, `GET /invoices/{id}/pdf`, `POST /invoices/from-timesheets`
+  - `GET /invoices/{id}` (record), `PATCH /invoices/{id}` and `DELETE /invoices/{id}` (drafts only; pm or admin)
+- **Line amounts are computed by the server** (`importe_de_linea`: quantity × price × (1 − discount/100), rounded to cents). Whatever `amount` the browser sends is ignored.
+- **Fixed 05-11-2026, measured on a copy of the Postgres database.** Creating an invoice and changing its status returned 500 on Postgres, and the tests (SQLite) did not see it:
+  - `SERIALIZABLE` was requested after the request had already run queries (loading the user, the RLS `set_config`). It is now set as the first statement of a fresh transaction.
+  - A superadmin (the company's admin) has no company in the session. The numbering sequence was stored under their own company by the insert stamp, then searched for under "no company", so it was never found. `numbering._org` now follows the same rule as the stamp. This applies to every numbered entity, not just invoices.
+  - The list's columns were misaligned: each row had its own `auto` actions column. They now share a fixed template.
   - Status changes go to a different router: `PATCH /api/v1/billing-reports/invoices/{id}/status`
   - `GET /accounting/sync-status`, `POST /accounting/push-invoices-bulk`, `/accounting/xero/test`, `/accounting/qb/test`
 - **Tables:** `invoices`, `invoice_lines`, `imputations.is_invoiced`.
 - **Worker:** `generate_retainer_invoices` (Celery beat, daily at 07:00) creates monthly invoices for `recurring_retainer` projects on their `retainer_day`, using the client's time zone.
 
 **Limitations.**
-- **Lines cannot be typed by hand.** They come only from timesheets, and they are displayed with a hardcoded `€` and `h`.
+- Lines from timesheets keep their source imputations; lines typed by hand have none.
+- The record and the list rows use the invoice's own currency. The summary cards and the line preview inside "Nueva factura" still show a fixed `€`, and the summary adds amounts without converting between currencies.
 - **Nothing ever sets `overdue`.** No job does it. `/invoices/summary` computes "overdue" on the fly.
 - **Cancelling locks the hours.** Cancelling does not clear `is_invoiced`, so those hours cannot be invoiced again.
 - **Accounting sync status is free text.** It is tracked as text markers in `invoices.internal_notes` (`[XERO sync …]`), and bulk sync picks every invoice in `sent`. It depends on an external service and has not been verified against live Xero or QuickBooks.
