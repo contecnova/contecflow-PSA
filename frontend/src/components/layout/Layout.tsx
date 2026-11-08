@@ -31,7 +31,7 @@ import {
   Search, LogOut, ChevronRight, ChevronLeft, Menu, X, Activity,
   Timer, Flag, Layers, Shield, Keyboard, BarChart, LayoutGrid,
   Wrench, GitMerge, FolderOpen, ScrollText, ClipboardCheck,
-  CalendarRange, Plus, Inbox, Database, Wallet,
+  CalendarRange, Plus, Inbox, Database, Wallet, MessageSquareText,
 } from 'lucide-react'
 
 const ROUTE_LABELS: Record<string, string> = {
@@ -58,7 +58,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/sla-calendars': 'SLA Calendars', '/agent-dashboard': 'Agent Dashboard',
   '/reports': 'Reports', '/report-builder': 'Report Builder',
   '/executive': 'Executive Dashboard',
-  '/data-explorer': 'Data Explorer', '/predictions': 'Predictions',
+  '/data-explorer': 'Data Explorer', '/ask-company': 'Ask the company', '/predictions': 'Predictions',
   '/data-platform': 'Data Platform', '/data-governance': 'Data Governance',
   '/evm': 'EVM — Earned Value', '/portfolio': 'Project Portfolio', '/sprint-charts': 'Burnup & Velocity',
   '/cumulative-flow': 'Cumulative Flow', '/risk-scores': 'Project Risk',
@@ -109,7 +109,7 @@ const ROUTE_SECTION: Record<string, string> = {
   '/sla-calendars': 'Support', '/agent-dashboard': 'Support',
   '/reports': 'Analytics', '/report-builder': 'Analytics',
   '/executive': 'Analytics',
-  '/data-explorer': 'Analytics', '/predictions': 'Analytics',
+  '/data-explorer': 'Analytics', '/ask-company': 'Analytics', '/predictions': 'Analytics',
   '/data-platform': 'Analytics', '/data-governance': 'Analytics',
   '/evm': 'Analytics', '/portfolio': 'Analytics', '/sprint-charts': 'Analytics',
   '/cumulative-flow': 'Analytics', '/risk-scores': 'Analytics',
@@ -139,7 +139,7 @@ const PATH_NAV_KEY: Record<string, string> = {
   '/org-chart': 'org_chart', '/milestone-billing': 'milestone_billing',
   '/rate-cards': 'rate_cards', '/service-desk': 'service_desk',
   '/agent-dashboard': 'agent_dashboard', '/report-builder': 'report_builder',
-  '/data-explorer': 'data_explorer', '/predictions': 'predictions',
+  '/data-explorer': 'data_explorer', '/ask-company': 'ask_company', '/predictions': 'predictions',
   '/data-platform': 'data_platform', '/data-governance': 'data_governance',
   '/sprint-charts': 'sprint_charts', '/cumulative-flow': 'cumulative_flow',
   '/risk-scores': 'risk_scores', '/ai-hub': 'ai_hub', '/nexus-agent': 'nexus_agent',
@@ -333,9 +333,10 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/sla-calendars',   icon: <Calendar size={SZ} />,      label: 'SLA Calendars',    roles: ['admin','pm'] },
     { to: '/agent-dashboard', icon: <LayoutGrid size={SZ} />,    label: 'Agent Dashboard',  roles: ['admin','pm'] },
   ]},
-  { id: 'analisis', label: 'Analytics & BI', groupKey: 'group_analytics', icon: <BarChart2 size={12} />, roles: ['admin','pm','hr','employee'], items: [
+  { id: 'analisis', label: 'Analytics & BI', groupKey: 'group_analytics', icon: <BarChart2 size={12} />, roles: ['admin','pm','team_lead','hr','employee'], items: [
     { to: '/executive',       icon: <LayoutDashboard size={SZ} />, label: 'Executive Dashboard', roles: ['admin','pm'] },
     { to: '/data-explorer',   icon: <Search size={SZ} />,          label: 'Data Explorer',       roles: ['admin','pm'] },
+    { to: '/ask-company',     icon: <MessageSquareText size={SZ} />, label: 'Ask the company',   roles: ['admin','pm','team_lead','hr','employee'] },
     { to: '/reports',         icon: <FileText size={SZ} />,        label: 'Reports',             roles: ['admin','pm','hr','employee'] },
     { to: '/report-builder',  icon: <Wrench size={SZ} />,          label: 'Report Builder',      roles: ['admin','pm'] },
     { to: '/predictions',     icon: <Brain size={SZ} />,           label: 'Predictions',         roles: ['admin','pm'] },

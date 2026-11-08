@@ -120,6 +120,7 @@ const DeveloperPortalPage    = lazy(() => import('./pages/DeveloperPortalPage'))
 const BIPage                 = lazy(() => import('./pages/BIPage'))
 const BIProjectDetailPage    = lazy(() => import('./pages/BIProjectDetailPage'))
 const DataExplorerPage       = lazy(() => import('./pages/DataExplorerPage'))
+const PreguntarALaEmpresaPage = lazy(() => import('./pages/PreguntarALaEmpresaPage'))
 const PredictionsPage        = lazy(() => import('./pages/PredictionsPage'))
 const DataPlatformPage       = lazy(() => import('./pages/DataPlatformPage'))
 const DataGovernancePage     = lazy(() => import('./pages/DataGovernancePage'))
@@ -147,6 +148,7 @@ const ChatAdminPage          = lazy(() => import('./pages/ChatAdminPage'))
 const SafeBIPage              = withRouteBoundary(BIPage, 'BI')
 const SafeBIProjectDetail     = withRouteBoundary(BIProjectDetailPage, 'BI')
 const SafeDataExplorer        = withRouteBoundary(DataExplorerPage, 'BI')
+const SafePreguntarALaEmpresa = withRouteBoundary(PreguntarALaEmpresaPage, 'BI')
 const SafePredictions         = withRouteBoundary(PredictionsPage, 'BI')
 const SafeDataPlatform        = withRouteBoundary(DataPlatformPage, 'BI')
 const SafeDataGovernance      = withRouteBoundary(DataGovernancePage, 'BI')
@@ -181,7 +183,7 @@ const TABLE_ROUTES = new Set([
 const FINANCE_ROUTES = new Set([
   '/profitability','/revenue','/budgets','/pipeline','/evm','/portfolio',
   '/scenarios','/nps','/report-builder','/milestone-billing',
-  '/data-explorer','/predictions','/data-platform','/data-governance',
+  '/data-explorer','/ask-company','/predictions','/data-platform','/data-governance',
 ])
 
 function SmartPageLoader() {
@@ -597,6 +599,7 @@ function AppRoutes() {
       <Route path="/gantt" element={<ProtectedRoute roles={['admin','pm','team_lead','employee']}><Layout><SafeGantt /></Layout></ProtectedRoute>} />
       {/* Nuevas rutas top-level (sustituyen al antiguo /bi) */}
       <Route path="/data-explorer"   element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeDataExplorer   /></Layout></ProtectedRoute>} />
+      <Route path="/ask-company"     element={<ProtectedRoute roles={['admin','pm','team_lead','hr','employee']}><Layout><SafePreguntarALaEmpresa /></Layout></ProtectedRoute>} />
       <Route path="/predictions"     element={<ProtectedRoute roles={['admin','pm']}><Layout><SafePredictions    /></Layout></ProtectedRoute>} />
       <Route path="/data-platform"   element={<ProtectedRoute roles={['admin']}>     <Layout><SafeDataPlatform   /></Layout></ProtectedRoute>} />
       <Route path="/data-governance" element={<ProtectedRoute roles={['admin']}>     <Layout><SafeDataGovernance /></Layout></ProtectedRoute>} />

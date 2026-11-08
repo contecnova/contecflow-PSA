@@ -65,11 +65,21 @@ PROVIDER_REGISTRY: dict[str, dict[str, Any]] = {
         ],
     },
     "contecmind": {
-        "label": "contecmind (document search)",
+        "label": "contecmind (document management)",
         "fields": [
             ("base_url",      "str", False, "Base URL",      None),
             ("client_id",     "str", False, "Client ID",     None),
             ("client_secret", "str", True,  "Client secret", None),
+            ("area_id",       "str", False, "Area for documents uploaded from contecflow", None),
+        ],
+    },
+    "contecintelligence": {
+        "label": "contecintelligence (conversational analytics)",
+        "fields": [
+            ("base_url",      "str", False, "Base URL",      None),
+            ("client_id",     "str", False, "Client ID",     None),
+            ("client_secret", "str", True,  "Client secret", None),
+            ("source_id",     "str", False, "Default source", None),
         ],
     },
     "monitoring": {

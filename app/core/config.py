@@ -450,6 +450,20 @@ class Settings(
     # Con un mensaje que no es un comando, contestar con la base de conocimiento.
     TEAMS_KB_ANSWERS_ENABLED: bool = Field(default=True, env="TEAMS_KB_ANSWERS_ENABLED")
 
+    # ── Conectores con contecmind y contecintelligence (revisión 2026-11) ─────
+    # Credenciales en Ajustes → Integraciones; esto es cómo se comportan.
+    CONECTOR_TIMEOUT_SECONDS: float = Field(default=15.0, env="CONECTOR_TIMEOUT_SECONDS")
+    CONECTOR_TOKEN_TTL_SECONDS: int = Field(default=300, env="CONECTOR_TOKEN_TTL_SECONDS")
+    CONECTOR_LOG_RETENTION_DAYS: int = Field(default=30, env="CONECTOR_LOG_RETENTION_DAYS")
+    CONECTOR_STATUS_WINDOW_HOURS: int = Field(default=24, env="CONECTOR_STATUS_WINDOW_HOURS")
+    CONTECMIND_WRITER_ROLES: str = Field(default="admin,pm,team_lead", env="CONTECMIND_WRITER_ROLES")
+    CONTECMIND_SUGGEST_LIMIT: int = Field(default=5, env="CONTECMIND_SUGGEST_LIMIT")
+    CONTECMIND_UPLOAD_MAX_MB: int = Field(default=50, env="CONTECMIND_UPLOAD_MAX_MB")
+    CONTECMIND_ROOT_FOLDER: str = Field(default="contecflow", env="CONTECMIND_ROOT_FOLDER")
+    CONTECINTELLIGENCE_ANALYST_ROLES: str = Field(default="admin,pm", env="CONTECINTELLIGENCE_ANALYST_ROLES")
+    CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS: float = Field(default=120.0, env="CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS")
+    CONTECINTELLIGENCE_HANDOFF_ENABLED: bool = Field(default=True, env="CONTECINTELLIGENCE_HANDOFF_ENABLED")
+
     # NOTE: AI cost alerting lives in AISettingsMixin.
 
     # ── Stripe payment gateway (v23.8) ────────────────────────────────────────

@@ -672,7 +672,10 @@ async def http_exception_sanitizer(_request: Request, exc: HTTPException):
     safe_detail = sanitize_http_detail(exc.status_code, exc.detail)
     if safe_detail != exc.detail:
         logger.warning("Sanitized HTTPException detail (status=%s)", exc.status_code)
-    return JSONResponse(status_code=exc.status_code, content={"detail": safe_detail})
+    # Revisión 2026-11: las cabeceras de la excepción se perdían aquí (el
+    # `WWW-Authenticate` de un 401, el código de fallo de los conectores).
+    return JSONResponse(status_code=exc.status_code, content={"detail": safe_detail},
+                        headers=getattr(exc, "headers", None))
 
 
 @app.exception_handler(RequestValidationError)
@@ -690,6 +693,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Request-ID", "X-Requested-With"],
+    expose_headers=["X-Conector-Codigo", "Content-Disposition"],
 )
 
 # Audit #C1: CSRF protection — Origin/Referer check (always on) + optional

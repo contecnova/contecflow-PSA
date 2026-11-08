@@ -36,6 +36,8 @@ export type {
   ChangePasswordPayload,
 } from './auth'
 
+export { conectoresApi, mensajeDeConector, codigoDeConector } from './conectores'
+export type { Ficha as FichaDocumental, DocHit, Enlace, DocDetalle, Aprobacion, EstadoProducto, Fuente, Metrica, RespuestaCI } from './conectores'
 export { usersApi } from './users'
 export type {
   UserListItem,

@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { projectsApi, contractsApi } from '../services/api'
+import DocumentosDeFicha from '../components/conectores/DocumentosDeFicha'
 import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, ViewToggle } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -312,7 +313,7 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
   }
 
   return (
-    <Modal open title={`${contract.code} — ${contract.name}`} onClose={onClose} width={680}>
+    <Modal open title={`${contract.code} — ${contract.name}`} onClose={onClose} width={760}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color, border: `1px solid ${alpha(cfg.color, '40')}`, textTransform: 'uppercase' }}>{cfg.label}</span>
         <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{contract.contract_type_label}</span>
@@ -394,6 +395,9 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
           </div>
         )}
       </div>
+
+      {/* Revisión 2026-11: el contrato firmado y sus anexos viven en contecmind, con versiones y aprobación. */}
+      <div style={{ marginBottom: 20 }}><DocumentosDeFicha ficha="contract" id={contract.id} preguntar /></div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <Button variant="secondary" onClick={onClose}>Cerrar</Button>

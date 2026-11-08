@@ -14,6 +14,8 @@ Probes must never raise — wrap the underlying call in try/except.
 """
 from __future__ import annotations
 
+from contextvars import ContextVar
+
 import logging
 from typing import Callable, Optional
 
@@ -226,7 +228,25 @@ def _test_webhooks(cfg: dict, db: Session) -> dict:
     return {"ok": True, "detail": f"Secretos cargados: {', '.join(configured)} (verificación pasiva)"}
 
 
+_org_de_la_prueba: ContextVar[Optional[str]] = ContextVar("org_de_la_prueba", default=None)
+
+
+def _probar_conector(clave: str):
+    """contecmind y contecintelligence: credencial de aplicación y salud (revisión 2026-11).
+
+    El alta de la EMPRESA necesita un usuario; la prueba completa está en
+    `POST /conectores/{producto}/probar`, que es la que usa la pantalla.
+    """
+    def probe(cfg: dict, db: Session) -> dict:
+        from app.services.conectores import anfitrion
+        r = anfitrion.probar(db, anfitrion.PRODUCTOS[clave], _org_de_la_prueba.get())
+        return {"ok": r["ok"], "detail": r["detail"]}
+    return probe
+
+
 _PROBES: dict[str, Callable[[dict, Session], dict]] = {
+    "contecmind":           _probar_conector("contecmind"),
+    "contecintelligence":   _probar_conector("contecintelligence"),
     "smtp":                 _test_smtp,
     "aws_s3":               _test_aws_s3,
     "ms_graph":             _test_ms_graph,
@@ -253,6 +273,7 @@ def test_provider_connection(db: Session, provider: str, org_id: Optional[str] =
     if probe is None:
         return {"ok": False, "detail": f"no test probe defined for {provider}", "provider": provider}
     try:
+        _org_de_la_prueba.set(org_id)
         cfg = get_provider_config(db, provider, org_id=org_id)
         result = probe(cfg, db)
     except Exception as exc:

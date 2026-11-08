@@ -1,4 +1,5 @@
 import ConfigCorreoEntrante from '../service-desk/ConfigCorreoEntrante'
+import EstadoDeConectores from '../../components/conectores/EstadoDeConectores'
 import type { CSSProperties, ReactNode } from 'react'
 import { Fragment, useState, useEffect, useMemo } from 'react'
 import { useToast } from '../../context/ToastContext'
@@ -794,6 +795,8 @@ const RUNTIME_GROUPS = [
   { id: 'ui_branding',     label: 'Branding / UI',      description: 'Nombre del producto, embed BI, etiqueta WebAuthn.' },
   { id: 'observability',   label: 'Observabilidad',     description: 'Token Bearer para el endpoint /metrics.' },
   { id: 'timeouts',        label: 'Timeouts',           description: 'Tiempos de espera por defecto para llamadas HTTP/AI a APIs externas.' },
+  { id: 'audit',           label: 'Auditoría y cumplimiento', description: 'Exportación firmada del registro y umbrales del informe de cumplimiento.' },
+  { id: 'conectores',      label: 'Conectores contecmind / contecintelligence', description: 'Tiempos de espera, roles que escriben o analizan, tamaño de subida y registro de llamadas.' },
 ]
 
 
@@ -1074,6 +1077,7 @@ export function IntegrationCredentialsSection() {
       title={t('settingsadvanced.credenciales_de_integracion')}
       description="SMTP, AWS S3, Microsoft Graph, Slack, Stripe, etc. Los secretos se cifran en reposo (Fernet/HKDF + opcional AWS KMS) y nunca se devuelven en las respuestas."
     >
+      <EstadoDeConectores />
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
         {providers.map((p: any) => (
           <button

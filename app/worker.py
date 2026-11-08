@@ -193,6 +193,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.aplicar_retencion",
         "schedule": crontab(hour=2, minute=55),
     },
+    # Registro de llamadas de los conectores contecmind/contecintelligence (revisión 2026-11).
+    "purgar-registro-de-conectores": {
+        "task": "app.worker.purgar_registro_de_conectores",
+        "schedule": crontab(hour=3, minute=5),
+    },
     # Resumen diario de avisos: corre cada hora; cada usuario lo recibe una vez
     # al día a partir de NOTIFICATIONS_DIGEST_HOUR en su zona (revisión 2026-11).
     "resumen-diario-de-avisos": {
@@ -1810,6 +1815,18 @@ def aplicar_retencion():
     """Políticas de retención activas de todas las empresas (respetan el bloqueo legal)."""
     from app.services.retencion import aplicar_job
     aplicar_job()
+
+
+@celery_app.task(name="app.worker.purgar_registro_de_conectores")
+def purgar_registro_de_conectores():
+    """Borra las llamadas a los conectores más antiguas que CONECTOR_LOG_RETENTION_DAYS."""
+    from app.db.session import SessionLocal
+    from app.services.conectores.estado import purgar
+    db = SessionLocal()
+    try:
+        _logging.getLogger(__name__).info("conectores: %s llamadas antiguas borradas", purgar(db))
+    finally:
+        db.close()
 
 
 @celery_app.task(name="app.worker.resumen_diario_de_avisos")

@@ -181,12 +181,17 @@ def test_integration(provider: str, db: Session = Depends(get_db), current_user:
 def update_integration(provider: str, key: str, payload: SettingUpdate, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     try:
         from app.core.network import extract_client_ip
-        return APIResponse.ok(data=_creds.set_credential(
+        resultado = _creds.set_credential(
             db, provider, key, payload.value if payload.value != "" else None,
             current_user.organization_id, updated_by=str(current_user.id),
             actor_ip=extract_client_ip(request),
             actor_ua=request.headers.get("user-agent"),
-        ))
+        )
+        # Revisión 2026-11: los tokens guardados de un conector son de la credencial anterior.
+        from app.services.conectores.anfitrion import PRODUCTOS, olvidar_tokens
+        if provider in PRODUCTOS:
+            olvidar_tokens(PRODUCTOS[provider])
+        return APIResponse.ok(data=resultado)
     except ValueError as e:
         raise HTTPException(400, str(e))
 

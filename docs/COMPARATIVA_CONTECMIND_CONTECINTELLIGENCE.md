@@ -91,3 +91,19 @@ What the two sister products do, whether Contecflow already has it, and what was
 | Settings copilot (natural language → setting) | both | Low value next to a searchable settings screen. |
 | Sandboxed code execution (Docker/gVisor) | intelligence | Contecflow does not run user code. |
 | Per-company request rate limits | intelligence | Rejected for now: rate limiting is per IP address (`app/core/ratelimit.py`, slowapi). A per-company quota only matters with a noisy tenant, and none has been measured. |
+
+## 5. Connected, not brought in (2026-11-08)
+
+Section 1 is what was **copied** into contecflow because it belongs to the daily PSA work and must work without the other products. This section is what is **connected**: the other product owns it, so contecflow calls it with the identity of the person using it, and nothing is duplicated. Details, screens and settings: README «Connectors with contecmind and contecintelligence».
+
+| Product | What contecflow uses | Where it shows |
+|---|---|---|
+| contecmind | Search by topic, document record and original, upload to the record's folder, folder tree, questions over a folder with citations, versions and approval requests | Ticket (documents that may solve it), project (Documents tab), contract, knowledge-base article, search, document window |
+| contecintelligence | Questions over all sources (live, with chart/table, query and signed receipt), certified metrics, «why did it change», anomalies, receipt verification | Analytics → Ask the company; «Ask in contecintelligence» from Ask the Data |
+
+**Kept in contecflow on purpose (not replaced by the connectors).** The portal knowledge base (contecmind cannot serve an anonymous portal visitor), Ask the Data over contecflow's own warehouse (works without contecintelligence and is the source contecintelligence itself can read), the ticket's own attachments (files the customer sent, not company documents).
+
+**Pending in the other repositories (reported, not changed from here):**
+- contecmind: upload of a new version is only under `/admin/documents/{id}/control/versions`, closed to integrations; `/qa` and `/ask` over the whole corpus are closed too.
+- Neither product analyses contract clauses.
+- Not verified against the real products with a registered application (see the README's limitations); verified against a double that follows their contract, and the live liveness/readiness/token routes.

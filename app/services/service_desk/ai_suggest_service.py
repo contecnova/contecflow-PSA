@@ -47,9 +47,16 @@ def build_ai_ticket_suggestion(db: Session, ticket_id: str, payload: Optional[di
 
     kb_matches = _compute_kb_matches(db, query_text)
     canned_matches = _compute_canned_matches(db, query_text)
-    from app.services.service_desk.contecmind import buscar_documentos
-    docs = buscar_documentos(db, ticket.organization_id, current_user.email, query_text)
-    doc_context = "\n\n".join(f"[{d['title']}] {d['snippet']}" for d in docs.documentos) or "(sin documentos)"
+    # Revisión 2026-11: el cliente común de los conectores (antes uno propio en
+    # service_desk/contecmind.py). Sin contecmind, o si falla, se redacta sin documentos.
+    from app.services.conectores import contecmind as _cm
+    from app.services.conectores.anfitrion import ErrorDeConector
+    documentos, docs_configurado, docs_error = [], True, None
+    try:
+        documentos = _cm.buscar(db, current_user, query_text)
+    except ErrorDeConector as e:
+        docs_configurado, docs_error = e.codigo != "no_configurado", (None if e.codigo == "no_configurado" else e.detalle)
+    doc_context = "\n\n".join(f"[{d['title']}] {d['snippet']}" for d in documentos) or "(sin documentos)"
 
     kb_context = "\n\n".join(
         [f"[{k['number']}] {k['title']}\n{k.get('summary') or ''}" for k in kb_matches]
@@ -110,7 +117,7 @@ def build_ai_ticket_suggestion(db: Session, ticket_id: str, payload: Optional[di
         "ai_error": ai_error,
         "kb_matches": kb_matches,
         "canned_matches": canned_matches,
-        "documents": docs.documentos,
-        "documents_configured": docs.configurado,
-        "documents_error": docs.error,
+        "documents": documentos,
+        "documents_configured": docs_configurado,
+        "documents_error": docs_error,
     }

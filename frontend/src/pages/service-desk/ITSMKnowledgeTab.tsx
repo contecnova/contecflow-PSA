@@ -1,4 +1,5 @@
 import { useAppT } from "../../hooks/useAppT";
+import DocumentosDeFicha from '../../components/conectores/DocumentosDeFicha'
 import { useId, useState } from 'react'
 import { useAppT as useAppTSimple } from '../../i18n/AppLangContext'
 import type { ChangeEvent, CSSProperties } from 'react'
@@ -766,6 +767,8 @@ export function LecturaDeArticulo({ id, onClose }: { id: string | number; onClos
             {data.tags && <span>🏷 {data.tags}</span>}
             <span>{data.is_public ? ts('itsmknowledge.publico') : ts('itsmknowledge.interno')}</span>
           </div>
+          {/* Revisión 2026-11: los documentos de origen del artículo, en contecmind. El portal no los ve. */}
+          <div style={{ marginTop: 18 }}><DocumentosDeFicha ficha="kb_article" id={String(id)} /></div>
         </div>
       ) : <Spinner />}
     </Modal>

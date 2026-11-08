@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { analyticsApi } from '../../services/api'
+import { analyticsApi, conectoresApi } from '../../services/api'
 import { Search, Send, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucide-react'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -299,7 +300,25 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
             )}
           </div>
         )}
+        {(mutation.data || mutation.isError) && question.trim() && <PasarAContecintelligence pregunta={question.trim()} />}
       </div>
+    </div>
+  )
+}
+
+/** Revisión 2026-11: con contecintelligence configurado, la misma pregunta sobre TODAS las fuentes. */
+function PasarAContecintelligence({ pregunta }: { pregunta: string }) {
+  const { t } = useAppLang()
+  const navigate = useNavigate()
+  const disp = useQuery({ queryKey: ['conectores', 'ci-disponible'], queryFn: conectoresApi.ciDisponible, staleTime: 60_000, retry: false })
+  if (!disp.data?.configurado || !disp.data.pasar_preguntas) return null
+  return (
+    <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 12px', borderRadius: 8, background: 'var(--surface-2)', border: '1px dashed var(--surface-4)' }}>
+      <span style={{ flex: 1, minWidth: 220, fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{t('ci.pasar_texto')}</span>
+      <button type="button" onClick={() => navigate(`/ask-company?q=${encodeURIComponent(pregunta)}`)}
+        style={{ background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 7, padding: '5px 12px', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+        {t('ci.pasar')} →
+      </button>
     </div>
   )
 }

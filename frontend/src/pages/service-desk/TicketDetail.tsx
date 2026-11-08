@@ -8,6 +8,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, Spinner, Modal } from '../../components/ui'
 import AIInlineEditorRaw from '../../components/AIInlineEditor'
 import DocumentsPanelRaw from '../../components/DocumentsPanel'
+import DocumentosDeFicha from '../../components/conectores/DocumentosDeFicha'
 import { COLOR, alpha } from '../../constants/theme'
 import { almExtApi, sdApprovalsApi, sdCannedApi, ticketsApi, usersApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
@@ -679,6 +680,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
 
           <SeguirYFusionar ticketId={ticketId} />
           <div style={{ marginBottom: 20 }}><DocumentsPanel ticketId={ticketId} /></div>
+          <div style={{ marginBottom: 20 }}><DocumentosDeFicha ficha="ticket" id={ticketId} sugerir /></div>
 
           {(ticket.history || []).length > 0 && (
             <div>

@@ -2902,6 +2902,7 @@ If the chosen provider fails, every other active provider is tried once. If none
 
 **How to use it.**
 - **Ask the Data:** type a question, then submit. Open the SQL toggle to see the generated query.
+  - With contecintelligence configured, **«Ask in contecintelligence»** under the answer passes the same question to **Analytics → Ask the company**, which asks across all the company's sources (see «Connectors with contecmind and contecintelligence»).
 - **Constructor visual de consultas** (`VisualQueryBuilderWidget`):
   1. "Selecciona entidad..."
   2. Tick the **Columnas** you want.
@@ -4106,7 +4107,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 
 **How to use it.**
 1. Open **Settings → Sistema → Config. dinámica**.
-2. Pick one of the 15 group pills: SLA, Service Desk, Health scoring, Semantic, Política contraseñas, Locale y jornada, Tokens, Rotación de claves, IA, Feature flags, Almacenamiento, Red / Proxy, Branding / UI, Observabilidad, Timeouts.
+2. Pick one of the **20** group pills, one per group of `RUNTIME_FLAG_GROUPS` (SLA, Service Desk, Automatizaciones, Empresas, Riesgo del proyecto, Health scoring, Semantic, Política contraseñas, Locale y jornada, Tokens, Rotación de claves, IA, Feature flags, Almacenamiento, Red / Proxy, Branding / UI, Observabilidad, Timeouts, Auditoría y cumplimiento, Conectores). Until 2026-11-08 the screen listed its groups by hand and two were missing — **Auditoría y cumplimiento** (6 keys) and the new **Conectores** (11) —: they were read live and nobody could change them from Admin. `tests/test_ajustes_en_vivo_tienen_pantalla_2026_11.py` now fails if a server group has no pill.
 3. Change a value. The row becomes "dirty".
 4. Save that row. Each save is one `PUT`.
 
@@ -4167,13 +4168,14 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 - Reads resolve org row → global row → env. The cache is 60 s, with Redis invalidation.
 - The audit log (`settings_audit_log`, scope `integration`) stores **hashes** of secrets, not the values.
 
-**Providers (14) and whether the product reads them from this store (measured with `get_credential` / `get_provider_config`):**
+**Providers (15) and whether the product reads them from this store (measured with `get_credential` / `get_provider_config`):**
 
 | Provider | Fields | Read from this store by | Test probe |
 |---|---|---|---|
 | `smtp` | host, port, user, password\*, from | `auth_service` (password mail), service desk mail | SMTP connect |
 | `sd_mailbox` | protocol (imap/graph), host, port, user, password\*, folder, mailbox | `service_desk/buzones.py` | **none** |
-| `contecmind` | base_url, client_id, client_secret\* | `service_desk/contecmind.py` | **none** |
+| `contecmind` | base_url, client_id, client_secret\*, area_id | `conectores/anfitrion.py` (documents panel, search, ticket draft) | alive + ready + token (`POST /conectores/contecmind/probar` also checks the company) |
+| `contecintelligence` | base_url, client_id, client_secret\*, source_id | `conectores/anfitrion.py` (Ask the company, metrics) | alive + ready + token (`POST /conectores/contecintelligence/probar` also checks the company) |
 | `monitoring` | ingest_token\* | `service_desk/monitoring_ingest.py` | **none** |
 | `aws_s3` | bucket, region, access_key\*, secret_key\* | `s3_service.py` | yes |
 | `ms_graph` | tenant_id, client_id, client_secret\*, teams_webhook\*, teams_bot_app_id, sharepoint_site_id | **only** `service_desk/buzones.py` (Graph mailbox). **The `/m365` endpoints read `settings.AZURE_*` / `TEAMS_WEBHOOK_URL` from env and ignore this store.** | token request |
@@ -4197,7 +4199,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 groups, 188 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **20 groups, 199 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4350,6 +4352,17 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **19 
 | audit | COMPLIANCE_MFA_MIN_COVERAGE_PCT | float | 100.0 | Compliance report — minimum % of active users with a second factor | rt |
 | audit | COMPLIANCE_MIN_PASSWORD_LENGTH | int | 12 | Compliance report — minimum password length the policy must require | rt |
 | audit | COMPLIANCE_STALE_ACCOUNT_DAYS | int | 90 | Compliance report — an active account without sign-in for more days is flagged | rt |
+| conectores | CONECTOR_TIMEOUT_SECONDS | float | 15.0 | Connectors — timeout of a call to contecmind or contecintelligence (s) | rt |
+| conectores | CONECTOR_TOKEN_TTL_SECONDS | int | 300 | Connectors — lifetime asked for a user's delegated token (s) | rt |
+| conectores | CONECTOR_LOG_RETENTION_DAYS | int | 30 | Connectors — days the call log is kept | rt |
+| conectores | CONECTOR_STATUS_WINDOW_HOURS | int | 24 | Connectors — hours the status panel summarises | rt |
+| conectores | CONTECMIND_WRITER_ROLES | str | `admin,pm,team_lead` | contecmind — roles that may upload and request approvals (CSV); the rest read | rt |
+| conectores | CONTECMIND_SUGGEST_LIMIT | int | 5 | contecmind — documents suggested on a ticket | rt |
+| conectores | CONTECMIND_UPLOAD_MAX_MB | int | 50 | contecmind — maximum size of a document uploaded from contecflow (MB) | rt |
+| conectores | CONTECMIND_ROOT_FOLDER | str | `contecflow` | contecmind — root folder where each record gets its own folder | rt |
+| conectores | CONTECINTELLIGENCE_ANALYST_ROLES | str | `admin,pm` | contecintelligence — roles that enter as analyst (CSV); the rest as viewer | rt |
+| conectores | CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS | float | 120.0 | contecintelligence — timeout of a question (s) | rt |
+| conectores | CONTECINTELLIGENCE_HANDOFF_ENABLED | bool | true | contecintelligence — Ask the Data offers to pass a question it cannot answer | rt |
 | audit | RETENTION_MIN_DAYS | int | 30 | Retention — no policy may keep a record type for fewer days than this | rt |
 | automations | APPROVAL_EMAIL_LINK_HOURS | int | 72 | Approvals — hours the approve/reject link of the email is valid | rt |
 | automations | AUTOMATIONS_DEADLINE_DAYS | int | 2 | "Task due soon": days before the due date | rt |
@@ -4983,6 +4996,56 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 
 ---
 
+### Connectors with contecmind and contecintelligence (revisión 2026-11)
+*Roles:* configuration and status, admin (`Settings → Credentials`). Screens, any internal user (not subcontractors); what each person sees and may do inside the other product is decided **there**, with that person's identity.
+
+**Why connectors and not only "bring it in".** Two different things, kept apart on purpose:
+- **Brought into contecflow** (see `docs/COMPARATIVA_CONTECMIND_CONTECINTELLIGENCE.md`): what is part of the daily PSA work and must work without the other products installed — portal knowledge base, AI guardrails, Ask the Data over contecflow's own data, signed audit chain.
+- **Connected**: what the other product owns and does better, so it is not duplicated. **contecmind** keeps documents with versions, permissions, OCR and approval; **contecintelligence** asks across all the company's sources (ERP, CRM, contecflow…) with certified metrics and a signed receipt per answer. Without them configured, contecflow works the same and the panels say so.
+
+**Where it shows (what a user sees).**
+| Screen | What | Product |
+|---|---|---|
+| Service Desk → ticket | **Documents** panel: linked documents, upload to the ticket's folder, search and link, and **«Documents that may solve it»** (searched by the ticket's subject). Next to the ticket's own attachments, which answer a different question (files the customer sent) | contecmind |
+| Projects → project → **Documents** tab | Same panel, plus **ask the project's documents** (answer with numbered citations and page) | contecmind |
+| Contracts → contract | Same panel with questions (e.g. «when does it expire?»): the signed contract and annexes live in contecmind | contecmind |
+| Knowledge base (operator) → article → **Read** | Source documents of the article. The client portal does **not** show them | contecmind |
+| Search (`/search`) | A **Documents · contecmind** group under contecflow's own results | contecmind |
+| Document window (from any of the above) | Type, size, status, review date, lock, text excerpt, **versions with their state** and **request approval** of a version, download the original | contecmind |
+| Analytics → **Ask the company** (`/ask-company`) | Question → live progress → answer with chart and table, the query used and the **signed receipt** (verify button). **Certified metrics** tab: query with a breakdown, and **«Why did it change?»** between two periods | contecintelligence |
+| Data Explorer → Ask the Data | After an answer (or an error), **«Ask in contecintelligence»** passes the same question to `/ask-company` (switch `CONTECINTELLIGENCE_HANDOFF_ENABLED`) | contecintelligence |
+| Settings → Credentials → **In-house connectors** | Per product: configured or not, calls, failures, p50/p95 latency, last error, per-operation table, and **Test** (alive, ready, application credential, company registered) | both |
+
+**How it works.**
+1. contecflow is a *host application* of each product (same protocol, measured in their OpenAPI on 05-11-2026): application credential → application token (`POST {api}/oauth/token`, cached until shortly before expiry) → exchanged for a **delegated token of the person** using contecflow (`POST {api}/tokens/exchange` with `tenant` = contecflow company id, `subject` = e-mail, `role`, `scopes`, `ttl_s`, cached per person/role/scopes). The browser never sees the application credential.
+2. **Role.** contecmind: `reader` always; `writer` only to write (upload, create a folder, request approval) and only for the roles in `CONTECMIND_WRITER_ROLES`; anyone else gets «your role cannot upload» **without calling contecmind**. contecintelligence: `analyst` for the roles in `CONTECINTELLIGENCE_ANALYST_ROLES`, `viewer` for the rest (a viewer can ask; certified metrics answer 403 and the screen says why).
+3. **Records.** Each record type is loaded with **the same scoped loader as its own screen** (`get_scoped_ticket_or_404`, `get_project_scoped_or_404`, `get_contract` for managers, `get_scoped_kb_article_or_404`): who cannot open the ticket cannot see or touch its documents. The list is `app/services/conectores/fichas.py`.
+4. **Folders.** Each record gets its folder in contecmind the first time something is uploaded: `CONTECMIND_ROOT_FOLDER / <type> / <code — name>` in the configured area (or the first area the person can read). Stored in `carpetas_documentales`.
+5. **Links.** `enlaces_documentales` keeps the link and what is needed to draw it (title, type, size, origin: uploaded / linked). Removing a link does not delete the document in contecmind. Every link/unlink is audited.
+6. **Upload.** Size limit `CONTECMIND_UPLOAD_MAX_MB` checked before calling; sent with an `Idempotency-Key` (hash of record + content), so a retried upload does not create two documents.
+7. **Errors with a name.** Every failure reaches the screen as a sentence and in the `X-Conector-Codigo` header: `no_configurado` (409), `no_alta` (403, the company is not mapped in the other product), `sin_permiso` (403), `no_encontrado` (404), `rechazado` (502), `no_responde` / `no_listo` (503).
+8. **Status.** Every call is written to `conector_llamadas` (operation, result, HTTP status, ms). The panel summarises `CONECTOR_STATUS_WINDOW_HOURS`; the Celery task `purgar_registro_de_conectores` (daily 03:05) deletes rows older than `CONECTOR_LOG_RETENTION_DAYS`.
+9. **Test.** «Alive?» and «ready?» separately — contecmind `/health` and `/health/ready`, contecintelligence `/livez` and `/readyz` (measured: its `/health` requires a session and answers 401) —, then the application credential, then the exchange with the admin's identity (company registered).
+
+**Setting it up (both sides).**
+- **In contecmind** (its admin, `/api/v1/admin/apps`): create an application with scopes `documents:read`, `documents:search` and, to upload, `documents:write`; map the external tenant = **contecflow company id** to the contecmind tenant.
+- **In contecintelligence** (its admin, `/api/admin/apps`): create an application with at least `chat:ask`, `sources:read`, `metrics:read`, `receipts:read`; map the external tenant = contecflow company id.
+- **In contecflow**: `Settings → Credentials → contecmind` (base URL, client id, secret, optional area) and `→ contecintelligence` (base URL, client id, secret, default source). Changing a credential forgets the cached tokens. Then **Test** in the connectors panel.
+- Behaviour settings: `Settings → Dynamic config → Conectores contecmind / contecintelligence` (table below).
+
+**Technical notes.**
+- **Endpoints** (`/api/v1/conectores`): `GET /estado`, `POST /{producto}/probar` (admin); contecmind `GET /contecmind/disponible`, `GET /contecmind/buscar`, `GET /contecmind/documentos/{id}`, `GET …/original`, `GET|POST …/aprobacion`, `GET|POST /contecmind/fichas/{entidad}/{id}/documentos`, `DELETE …/documentos/{enlace}`, `GET …/sugerencias`, `POST …/subir`, `GET …/carpeta`, `POST …/preguntar`; contecintelligence `GET /contecintelligence/disponible`, `GET …/fuentes`, `POST …/preguntar`, `POST …/preguntar/directo` (SSE, the product's events relayed as they arrive), `GET …/metricas`, `POST …/metricas/consultar|explicar|anomalias`, `GET …/recibos/{id}[/verificar]`, `POST …/token` (short-lived delegated token for embeddable components; never the application secret).
+- **Code:** `app/services/conectores/` (`anfitrion.py` common client, `contecmind.py`, `contecintelligence.py`, `fichas.py`, `estado.py`), `app/api/v1/endpoints/conectores.py`; screens `components/conectores/*`, `pages/PreguntarALaEmpresaPage.tsx`. The ticket draft suggestion (`ai_suggest_service`) uses the same client (the old `service_desk/contecmind.py` is gone).
+- **Tables:** `conector_llamadas`, `enlaces_documentales`, `carpetas_documentales` (migration `141_conectores_contec`, RLS by company like every table with `organization_id`).
+- **Tests:** `tests/test_conectores_contec_2026_11.py` (17) with a double of each product that follows its contract (exchange with role and scopes, writes that require the writer role, idempotent upload, the real SSE format). Five planted defects were caught.
+
+**Limitations (measured, not guessed).**
+- **Not verified end to end against the real products with a registered application:** registering one in their admin was not done from this session. Measured against the running products on 05-11-2026: the liveness/readiness routes, the token route and its rejection of a wrong credential (401 → `rechazado`), and the exchange/data routes requiring a token. Everything else is verified against the contract double, also in the browser.
+- **A new version of a document** cannot be uploaded from contecflow: contecmind has it only under `/admin/documents/{id}/control/versions`, closed to integrations. It is uploaded as a new document; versioning happens in contecmind. To open it, contecmind must add that route to its integration surface (another repository).
+- **Questions over the whole contecmind corpus** (`/qa`, `/ask`) are closed to integrations; questions are asked over the record's folder (`/folders/{id}/summary`), which is open.
+- **Clause analysis of contracts** exists in neither product.
+- The `<ci-chat>` / `<ci-metric>` web components of contecintelligence's SDK are not bundled (they are distributed as TypeScript from its repository); contecflow draws its own screens over the same API, and offers `POST …/token` for whoever embeds them.
+
 ### Slack & Teams integration hub
 **There is no dedicated screen.** Slack and Teams appear in Enterprise → Integraciones (records and test buttons) and as actions in Automations.
 
@@ -5261,7 +5324,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 328)
+#### 4.2 Settings fields (`Settings`, 339)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5628,6 +5691,17 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `TEAMS_BOT_TOKEN_SCOPE` | `'https://api.botframework.com/.default'` | Scope of that token. |
 | `TEAMS_BOT_ALLOWED_SERVICE_HOSTS` | `'smba.trafficmanager.net,*.botframework.com,*.botframework.azure.us'` | Hosts the bot may reply to (CSV, `*` wildcards). The `serviceUrl` must also equal the one in the signed token. |
 | `TEAMS_KB_ANSWERS_ENABLED` | `True` | Teams bot — a message that is not a command is answered from the knowledge base |
+| `CONECTOR_TIMEOUT_SECONDS` | `15.0` | Connectors — timeout of a call to contecmind or contecintelligence (s) |
+| `CONECTOR_TOKEN_TTL_SECONDS` | `300` | Connectors — lifetime asked for a user's delegated token (s) |
+| `CONECTOR_LOG_RETENTION_DAYS` | `30` | Connectors — days the call log is kept |
+| `CONECTOR_STATUS_WINDOW_HOURS` | `24` | Connectors — hours the status panel summarises |
+| `CONTECMIND_WRITER_ROLES` | `'admin,pm,team_lead'` | contecmind — roles that may upload and request approvals (CSV) |
+| `CONTECMIND_SUGGEST_LIMIT` | `5` | contecmind — documents suggested on a ticket |
+| `CONTECMIND_UPLOAD_MAX_MB` | `50` | contecmind — maximum upload size (MB) |
+| `CONTECMIND_ROOT_FOLDER` | `'contecflow'` | contecmind — root folder for the records' folders |
+| `CONTECINTELLIGENCE_ANALYST_ROLES` | `'admin,pm'` | contecintelligence — roles that enter as analyst (CSV) |
+| `CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS` | `120.0` | contecintelligence — timeout of a question (s) |
+| `CONTECINTELLIGENCE_HANDOFF_ENABLED` | `True` | contecintelligence — Ask the Data offers to pass a question |
 
 #### 4.3 Variables read directly with `os.getenv` (not in `Settings`)
 
@@ -5730,7 +5804,7 @@ The remaining 92 segments have ≤ 12 routes each. `/api/v1` responses carry `x-
 
 #### 6.4 Response envelope
 
-`app/core/responses.py` defines `APIResponse[T] = {data, meta?}` and `APIListResponse[T] = {items, meta:{total, page, page_size, has_more}}`. Adoption is not total: there are 1,860 `APIResponse/APIListResponse.ok(` calls under `app/api` for 2,051 routes, and `docs/RESPONSE_WRAPPER_MIGRATION.md` describes an incremental migration. No test enforces the envelope. Errors are `{"detail": …}` (sanitised by `sanitize_http_detail`); unhandled exceptions return `{"detail": "Internal Server Error", "request_id": …}`.
+`app/core/responses.py` defines `APIResponse[T] = {data, meta?}` and `APIListResponse[T] = {items, meta:{total, page, page_size, has_more}}`. Adoption is not total: there are 1,860 `APIResponse/APIListResponse.ok(` calls under `app/api` for 2,051 routes, and `docs/RESPONSE_WRAPPER_MIGRATION.md` describes an incremental migration. No test enforces the envelope. Errors are `{"detail": …}` (sanitised by `sanitize_http_detail`); unhandled exceptions return `{"detail": "Internal Server Error", "request_id": …}`. The handler keeps the exception's **headers** (fixed 2026-11-08: before, it dropped them, so a 401 left without `WWW-Authenticate` and the connectors' `X-Conector-Codigo` never arrived); CORS exposes `X-Conector-Codigo` and `Content-Disposition` to the browser.
 
 #### 6.5 Rate limits
 

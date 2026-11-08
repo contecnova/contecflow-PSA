@@ -6,11 +6,12 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { epicsApi, projectsApi, tasksApi, clientsApi, ticketsApi, contractsApi } from '../services/api'
+import { epicsApi, projectsApi, tasksApi, clientsApi, ticketsApi, contractsApi, conectoresApi, mensajeDeConector } from '../services/api'
+import DocumentoContecmind from '../components/conectores/DocumentoContecmind'
 import { Button, Spinner, EmptyState, DataTable } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Search } from 'lucide-react'
+import { FileText, Search } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppT } from '../i18n/AppLangContext'
@@ -56,6 +57,35 @@ const ENTITY_TYPES = [
 
 const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const inp: CSSProperties   = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+
+// Revisión 2026-11: los documentos de contecmind, con los permisos de quien busca.
+function DocumentosEnLaBusqueda({ q }: { q: string }) {
+  const t = useAppT()
+  const [abierto, setAbierto] = useState<string | null>(null)
+  const disp = useQuery({ queryKey: ['conectores', 'cm-disponible'], queryFn: conectoresApi.cmDisponible, staleTime: 60_000, retry: false })
+  const docs = useQuery({ queryKey: ['conectores', 'buscar', q], queryFn: () => conectoresApi.buscar(q, 8),
+    enabled: !!disp.data?.configurado && q.length >= 2, retry: false, staleTime: 5000 })
+  if (!disp.data?.configurado) return null
+  const items = docs.data?.items ?? []
+  return (
+    <section aria-label={t('docs.titulo')} style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <FileText size={16} color="var(--accent)" aria-hidden />
+        <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)' }}>{t('docs.titulo')} · contecmind</span>
+        {docs.isFetching && <Spinner size={14} />}
+      </div>
+      {docs.isError ? <div role="alert" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{mensajeDeConector(docs.error, t('docs.error_generico'))}</div>
+        : !docs.isFetching && items.length === 0 ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('docs.sin_resultados')}</div>
+        : items.map(d => (
+          <button key={d.document_id} type="button" onClick={() => setAbierto(d.document_id)} style={{ ...panel, padding: '12px 16px', marginBottom: 6, cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>{d.title}</div>
+            {d.snippet && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{d.snippet}</div>}
+          </button>
+        ))}
+      {abierto && <DocumentoContecmind id={abierto} puedeEscribir={!!disp.data?.puede_escribir} onClose={() => setAbierto(null)} />}
+    </section>
+  )
+}
 
 // ── Full-text search ──────────────────────────────────────────────────────────
 function FTSMode() {
@@ -177,6 +207,7 @@ function FTSMode() {
           ))}
         </div>
       )}
+      {q.trim().length >= 2 && <DocumentosEnLaBusqueda q={q.trim()} />}
     </div>
   )
 }

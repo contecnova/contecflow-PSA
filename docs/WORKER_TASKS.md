@@ -36,6 +36,7 @@
 | 22 | `predictive_scan` | Hourly | Predictive AI | 15m | Normal |
 | 23 | `predictive_model_eval_retrain` | Nightly (3am) | ML | 2h | Low |
 | 24 | `sync_connector_data` | On-demand | Connectors | 1h | Normal |
+| 24b | `purgar_registro_de_conectores` | Daily 03:05 | Conectores contecmind/contecintelligence: borra el registro de llamadas más antiguo que `CONECTOR_LOG_RETENTION_DAYS` | 5m | Low |
 
 **Total: 24 tasks across 12 domains**
 
