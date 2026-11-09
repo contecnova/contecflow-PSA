@@ -3500,7 +3500,7 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
   6. An action log row is written.
 
 **Limitations (measured).**
-- **Without a provider the warning becomes a reply** in the chat, stored as the assistant's answer.
+- **Without a provider (or on a provider error)** the panel gets the notice as an error (503); nothing is saved in the conversation.
 - **The inline editor** (`/mejorar`, `/resumir`…) calls `POST /ai/texto`: it saves no conversation, a missing provider is an error that leaves the field as it was, and after a change it offers **Deshacer**.
 - **The stored message is the redacted one.** Input policies run before the message is saved; a blocked message is not saved (400).
 - **Knowledge-base retrieval is keyword-only under TF-IDF.** With the default TF-IDF backend no KB vector is stored, so retrieval works by words (accent-insensitive, by stem). It searches the Service Desk base, cites the articles it uses and applies expert corrections. See *Knowledge base → Quality loop*.

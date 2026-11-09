@@ -31,3 +31,15 @@ def test_EL_HALLAZGO_el_historial_guarda_lo_redactado_y_un_bloqueo_no_guarda_nad
     assert r.status_code == 400
     db.expire_all()
     assert db.query(AIMessage).count() == antes
+
+
+def test_EL_HALLAZGO_sin_proveedor_el_aviso_no_se_guarda_como_respuesta(client, pm_token, db, monkeypatch):
+    """Medido: sin proveedor, el aviso quedaba guardado como respuesta del asistente."""
+    from app.models.ai_chat import AIMessage
+    from app.services.ai_provider_service import AVISO_SIN_PROVEEDOR
+    monkeypatch.setattr("app.api.v1.endpoints.ai_chat.call_ai", lambda *a, **k: AVISO_SIN_PROVEEDOR, raising=False)
+    antes = db.query(AIMessage).count()
+    r = client.post("/api/v1/ai/chat", headers=auth(pm_token), json={"message": "¿Cómo va el proyecto?"})
+    assert r.status_code == 503, r.text
+    db.expire_all()
+    assert db.query(AIMessage).count() == antes

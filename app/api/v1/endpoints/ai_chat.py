@@ -240,6 +240,13 @@ def chat(
     if assistant_text.startswith("[Mensaje bloqueado por política de gobernanza"):
         raise HTTPException(400, assistant_text.strip("[]"))
 
+    # Revisión 2026-11: un aviso de la IA (sin proveedor, error del proveedor) no
+    # es una respuesta: no se guarda como tal en la conversación (ni la pregunta
+    # que no se pudo contestar) y llega como error al panel.
+    if _gobernado.es_aviso_de_ia(assistant_text):
+        db.rollback()
+        raise HTTPException(503, assistant_text)
+
     # Guardar respuesta
     latency = int((time.time() - t0) * 1000)
     message_id = None
