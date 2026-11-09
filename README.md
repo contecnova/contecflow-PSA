@@ -1544,7 +1544,7 @@ General notes that apply to every module here:
 - Lines from timesheets keep their source imputations; lines typed by hand have none.
 - The record and the list rows use the invoice's own currency. The summary cards and the line preview inside "Nueva factura" still show a fixed `€`, and the summary adds amounts without converting between currencies.
 - **Nothing ever sets `overdue`.** No job does it. `/invoices/summary` computes "overdue" on the fly.
-- **Cancelling locks the hours.** Cancelling does not clear `is_invoiced`, so those hours cannot be invoiced again.
+- **Cancelling or deleting releases what the invoice had marked:** its hours go back to not invoiced and its milestones to `approved`, so they can be invoiced again.
 - **Accounting sync status is free text.** It is tracked as text markers in `invoices.internal_notes` (`[XERO sync …]`), and bulk sync picks every invoice in `sent`. It depends on an external service and has not been verified against live Xero or QuickBooks.
 
 ---

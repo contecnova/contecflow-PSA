@@ -666,11 +666,26 @@ def editar_factura(db: Session, current_user: User, invoice_id: str, datos: dict
     return obtener_factura(db, invoice_id)
 
 
+def liberar_lo_facturado(db: Session, inv) -> None:
+    """Devuelve a «por facturar» lo que esta factura había marcado.
+
+    Revisión 2026-11. Medido antes: anular una factura no soltaba sus horas
+    (`Imputation.is_invoiced`) ni sus hitos (`billing_status="invoiced"`), así
+    que no se podían volver a facturar nunca; borrar un borrador soltaba las
+    horas pero no los hitos. Ahora borrar y anular pasan por aquí.
+    """
+    from app.models.financial import ProjectMilestone
+    db.query(Imputation).filter(Imputation.invoiced_invoice_id == inv.id).update(
+        {"is_invoiced": False, "invoiced_invoice_id": None}, synchronize_session=False)
+    db.query(ProjectMilestone).filter(ProjectMilestone.invoice_id == inv.id).update(
+        {"invoice_id": None, "is_billed": False, "billed_at": None, "billing_status": "approved"},
+        synchronize_session=False)
+
+
 def borrar_factura(db: Session, current_user: User, invoice_id: str) -> None:
     inv = _factura(db, invoice_id, bloquear=True)
     _exigir_borrador(inv)
-    db.query(Imputation).filter(Imputation.invoiced_invoice_id == inv.id).update(
-        {"is_invoiced": False, "invoiced_invoice_id": None}, synchronize_session=False)
+    liberar_lo_facturado(db, inv)
     audit_log(db, current_user, "DELETE", "invoices", inv.id, inv.number, old_values={"total": float(inv.total or 0)})
     db.delete(inv)
     db.commit()
@@ -734,6 +749,8 @@ def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db
         inv.status = new_status
     if new_status == "paid":
         inv.paid_date = timeutil.today()
+    if new_status == "cancelled":
+        liberar_lo_facturado(db, inv)
     audit_log(db, current_user, "UPDATE", "invoices", inv.id, inv.number,
               old_values={"status": old_status}, new_values={"status": inv.status.value if isinstance(inv.status, enum.Enum) else str(inv.status)})
     try:
