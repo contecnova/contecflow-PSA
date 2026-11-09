@@ -771,7 +771,20 @@ def update_preferences_record(user_id: str, payload: dict, db: Session) -> dict:
     if "language"          in payload: pref.language          = payload["language"]
     if "ui_density"        in payload: pref.ui_density        = payload["ui_density"]
     if "extra" in payload:
-        pref.extra = json.dumps(payload["extra"]) if payload["extra"] is not None else None
+        # Revisión 2026-11: `extra` se fusiona por claves (una clave a null se
+        # borra), para que cada pantalla guarde lo suyo sin pisar lo de otra.
+        if payload["extra"] is None:
+            pref.extra = None
+        else:
+            if not isinstance(payload["extra"], dict):
+                raise HTTPException(422, "extra es un objeto de claves")
+            actual = json.loads(pref.extra) if pref.extra else {}
+            for clave, valor in payload["extra"].items():
+                if valor is None:
+                    actual.pop(clave, None)
+                else:
+                    actual[clave] = valor
+            pref.extra = json.dumps(actual) if actual else None
 
     db.commit()
     return {"ok": True}

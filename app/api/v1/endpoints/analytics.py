@@ -859,9 +859,9 @@ def _ejecutar_metrica(metric_id: str, db, *, d_from, d_to, top_n, project_id,
     —hay métricas que ajustan las columnas según los datos—, y aquí se
     normalizan las dos formas.
 
-    Un fallo del manejador se traga a propósito y devuelve vacío: el catálogo
-    de métricas se consulta desde un panel con varias a la vez, y una que
-    reviente no debe tumbar la pantalla entera.
+    Un fallo del manejador no tumba la respuesta (el catálogo se consulta desde
+    paneles con varias métricas a la vez), pero ya no se disfraza de «sin
+    datos»: va con `meta.error`, queda en el log y no se cachea (revisión 2026-11).
     """
     handler = METRIC_REGISTRY[metric_id]
     try:
@@ -871,7 +871,9 @@ def _ejecutar_metrica(metric_id: str, db, *, d_from, d_to, top_n, project_id,
             client_id=client_id, group_by=group_by, organization_id=organization_id,
         )
     except Exception:
-        return [], meta
+        logger.exception("La métrica %s falló", metric_id)
+        db.rollback()
+        return [], {**meta, "error": "No se pudo calcular esta métrica"}
 
     if isinstance(resultado, tuple):
         rows, parche = resultado
@@ -931,7 +933,10 @@ def run_query(
             return APIResponse.ok(data=cacheada)
 
     rows: list = []
-    if metric_id in METRIC_REGISTRY:
+    if metric_id not in METRIC_REGISTRY:
+        # En el catálogo sin cálculo: se dice, no se enseña vacío como si fuera un dato.
+        meta = {**meta, "error": "Esta métrica no tiene cálculo"}
+    else:
         rows, meta = _ejecutar_metrica(
             metric_id, db, d_from=d_from, d_to=d_to, top_n=top_n, project_id=project_id,
             department=department, project_ids=project_ids, user_id=user_id,
@@ -940,7 +945,7 @@ def run_query(
         )
 
     response = _respuesta_de_metrica(metric_id, meta, filtros, rows)
-    if not no_cache:
+    if not no_cache and not meta.get("error"):
         _cache_set(cache_key, response, ttl_seconds=_get_metric_cache_ttl(metric_id))
     return APIResponse.ok(data=response)
 

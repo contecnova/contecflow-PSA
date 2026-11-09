@@ -3,14 +3,13 @@ import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { analyticsApi, scheduledReportsApi } from '../services/api'
+import api, { analyticsApi, scheduledReportsApi } from '../services/api'
 import { Card, Button, Spinner, EmptyState } from '../components/ui'
 import { Page } from '../components/ui'
 import {
-  BarChart2, Grid3X3, Search, Zap, TrendingUp, Pin, Calendar,
+  BarChart2, Grid3X3, Search, Zap, Pin, Calendar,
   Table as TableIcon, BarChartBig,
 } from 'lucide-react'
-import BiAdvancedViz from '../components/bi/BiAdvancedViz'
 import { fmtCurrency, extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { CHART_COLORS_EXTENDED, alpha } from '../constants/theme'
@@ -36,10 +35,6 @@ const STATUS_COLORS: Record<string, string> = {
 }
 const CAT_ICONS: Record<string, string> = { Horas: '⏱️', Costes: '💸', Rentabilidad: '💰', Capacidad: '📅', Proyectos: '⬡', Negocio: '💼', RRHH: '👥', 'Service Desk': '🎫', Agilidad: '🏃', ALM: '🔑', IA: '🧠', Estrategia: '🎯', Bienestar: '🧘', OKR: '🎯', NPS: '⭐', Formación: '🎓', Git: '🔀', Ingresos: '📈', Gastos: '🧾', Sprints: '🏃', Tareas: '✅', Portfolio: '🗂️', Facturación: '🧾', Alertas: '🔔', Automatizaciones: '⚙️', CMDB: '🖥️' }
 
-// ── Saved reports storage (using window var instead of localStorage per policy) ─
-const _savedStore: { reports: any[] } = { reports: [] }
-function getSaved() { return _savedStore.reports }
-function setSaved(r: any[]) { _savedStore.reports = r }
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 const PRESETS = [
@@ -309,6 +304,8 @@ function DataTable({ data, isCurrency, isPercent }: { data: any[]; isCurrency?: 
 // ── Chart renderer ────────────────────────────────────────────────────────────
 function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height = 320 }: { data: any[]; chartType?: any; meta?: any; color?: string; height?: number }) {
   const traducir = useAppT()
+  // Revisión 2026-11: un cálculo que falla lo dice; antes salía como «sin datos».
+  if (meta?.error) return <EmptyState svgIcon={<BarChartBig size={36} />} title={meta.error} />
   if (!data || data.length === 0) return <EmptyState svgIcon={<BarChartBig size={36} />} title={traducir('reports.sin_datos')} description="No hay datos disponibles para este gráfico" />
 
   const isCurrency = meta?.y_label?.includes('€')
@@ -714,7 +711,9 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
                 </div>
               )}
               <button onClick={() => {
-                const csv = [Object.keys(result.rows[0] || {}).join(','), ...result.rows.map((r: any) => Object.values(r).join(','))].join('\n')
+                // Revisión 2026-11: cada valor entre comillas (una coma o un salto de línea rompían las columnas).
+                const celda = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
+                const csv = [Object.keys(result.rows[0] || {}).map(celda).join(','), ...result.rows.map((r: any) => Object.values(r).map(celda).join(','))].join('\n')
                 const a = document.createElement('a'); a.href = 'data:text/csv,' + encodeURIComponent(csv); a.download = `${metric}.csv`; a.click()
               }} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '6px 12px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>⬇ CSV</button>
               <button onClick={() => {
@@ -1113,22 +1112,32 @@ export default function ReportsPage() {
   // Los programados son de responsables (la API solo los sirve a ellos).
   const veProgramados = hasRole('admin', 'pm', 'team_lead', 'hr')
   const [mode, setMode] = useState<any>('explorer') // explorer | dashboard | presets
-  const [saved, setSavedState] = useState<any[]>(() => getSaved())
   const [editingReport, setEditingReport] = useState<any>(null)
+  // Revisión 2026-11: los guardados viven en las preferencias del usuario en el
+  // servidor (`extra.informes_guardados`); antes, en una variable que se perdía
+  // al recargar la página.
+  const qc = useQueryClient()
+  const toast = useToast()
+  const { data: prefs } = useQuery<any>({
+    queryKey: ['user-preferences'],
+    queryFn: () => api.get('/users/me/preferences').then((r: any) => r.data),
+    staleTime: 5 * 60 * 1000,
+  })
+  const saved: any[] = Array.isArray(prefs?.extra?.informes_guardados) ? prefs.extra.informes_guardados : []
+  const guardar = useMutation({
+    mutationFn: (lista: any[]) => api.patch('/users/me/preferences', { extra: { informes_guardados: lista } }),
+    onMutate: (lista: any[]) => qc.setQueryData(['user-preferences'], (old: any) => ({ ...(old || {}), extra: { ...(old?.extra || {}), informes_guardados: lista } })),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['user-preferences'] }),
+    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo guardar el informe')),
+  })
 
   const saveReport = (config: any) => {
     const existing = saved.find((r: any) => r.name === config.name)
     const report = { ...config, id: existing?.id || Date.now().toString(), savedAt: new Date().toISOString() }
-    const next = existing ? saved.map((r: any) => r.id === report.id ? report : r) : [...saved, report]
-    setSaved(next)
-    setSavedState(next)
+    guardar.mutate(existing ? saved.map((r: any) => r.id === report.id ? report : r) : [...saved, report])
   }
 
-  const removeReport = (id: any) => {
-    const next = saved.filter((r: any) => r.id !== id)
-    setSaved(next)
-    setSavedState(next)
-  }
+  const removeReport = (id: any) => guardar.mutate(saved.filter((r: any) => r.id !== id))
 
   const openReport = (r: any) => { setEditingReport(r); setMode('explorer') }
 
@@ -1146,7 +1155,6 @@ export default function ReportsPage() {
     { id: 'overview',  label: 'Métricas',         Icon: Grid3X3 },
     { id: 'explorer',  label: 'Explorador',       Icon: Search },
     { id: 'presets',   label: 'Plantillas',       Icon: Zap },
-    { id: 'advanced',  label: 'Visualizaciones',  Icon: TrendingUp },
     { id: 'dashboard', label: `Guardados${saved.length ? ` (${saved.length})` : ''}`, Icon: Pin },
     ...(veProgramados ? [{ id: 'scheduled', label: 'Programados', Icon: Calendar }] : []),
   ]
@@ -1223,7 +1231,6 @@ export default function ReportsPage() {
         )
       )}
       {/* Visualizaciones avanzadas (BI) */}
-      {mode === 'advanced' && <BiAdvancedViz />}
 
       {/* Scheduled Reports */}
       {mode === 'scheduled' && veProgramados && <ScheduledReportsTab />}

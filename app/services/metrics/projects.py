@@ -159,6 +159,37 @@ def metric_projects_by_type(
     return rows, {}
 
 
+@register_metric("projects_by_client")
+def metric_projects_by_client(
+    db: Session,
+    d_from: date,
+    d_to: date,
+    top_n: int,
+    project_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    project_ids: Optional[list[str]] = None,
+    **kwargs
+) -> tuple[list[dict], dict]:
+    """Proyectos activos y completados por cliente (revisión 2026-11: estaba en
+    el catálogo sin cálculo y salía siempre vacío)."""
+    q = db.query(Project.client_name, Project.status, func.count(Project.id).label("n")) \
+        .group_by(Project.client_name, Project.status)
+    if project_ids:
+        q = q.filter(Project.id.in_(project_ids))
+    por_cliente: dict[str, dict] = {}
+    for r in q.all():
+        estado = r.status.value if hasattr(r.status, "value") else str(r.status)
+        fila = por_cliente.setdefault(r.client_name or "Sin cliente",
+                                      {"label": r.client_name or "Sin cliente", "value": 0, "activos": 0, "completados": 0})
+        fila["value"] += r.n
+        if estado == "active":
+            fila["activos"] += r.n
+        elif estado in ("completed", "closed"):
+            fila["completados"] += r.n
+    rows = sorted(por_cliente.values(), key=lambda x: x["value"], reverse=True)[:top_n]
+    return rows, {}
+
+
 @register_metric("deliverables_status")
 def metric_deliverables_status(
     db: Session,

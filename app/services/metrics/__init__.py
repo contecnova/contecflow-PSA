@@ -98,6 +98,7 @@ METRICS_OWNERSHIP: dict[str, str] = {
     "tasks_by_project":            "metrics.projects",
     "projects_by_status":          "metrics.projects",
     "projects_by_type":            "metrics.projects",
+    "projects_by_client":          "metrics.projects",
     "deliverables_status":         "metrics.projects",
     "tasks_lead_time":             "metrics.projects",
     "tasks_blocked_by_project":    "metrics.projects",

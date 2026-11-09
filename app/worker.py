@@ -23,11 +23,6 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.run_alert_engine",
         "schedule": crontab(hour=8, minute=0),
     },
-    # Weekly load report every Monday at 9am
-    "weekly-load-report": {
-        "task": "app.worker.send_weekly_report",
-        "schedule": crontab(hour=9, minute=0, day_of_week=1),
-    },
     # Check missing imputations every weekday at 18:00
     "check-missing-imputations": {
         "task": "app.worker.check_missing_imputations",
@@ -514,20 +509,6 @@ def check_missing_imputations():
                     missing.append(emp.email)
 
         return {"missing_today": len(missing), "users": missing}
-
-
-@celery_app.task(name="app.worker.send_weekly_report")
-def send_weekly_report():
-    """Send weekly load summary to managers."""
-    from app.db.session import worker_db_session
-    from app.models.user import User, UserRole
-    with worker_db_session() as db:
-        admins = db.query(User).filter(
-            User.role.in_([UserRole.admin, UserRole.hr]),
-            User.is_active == True,
-        ).all()
-        # Here you would generate and send the report
-        return {"report_sent_to": [u.email for u in admins]}
 
 
 @celery_app.task(name="app.worker.generate_retainer_invoices")

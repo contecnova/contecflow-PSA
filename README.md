@@ -14,7 +14,7 @@ This README is the complete functional and technical documentation of the soluti
 | Alembic migrations | 98, one linear chain, head `144_presupuestos` |
 | Backend tests | The whole suite was last run on 2026-11-04 (4,139 passed, 22 skipped, 1 xfailed; the 2 structural checks that failed that day pass). Since then every change runs the tests of what it touches |
 | Frontend tests | 40 files, 130 tests, all passing |
-| Celery beat entries | 53 (over 35 tasks); `setup.sh`, `setup.bat` and Docker run them with Celery beat (APScheduler off) |
+| Celery beat entries | 40 (one task each, measured in `app/worker.py`); `setup.sh`, `setup.bat` and Docker run them with Celery beat (APScheduler off) |
 | Runtime settings (editable in Admin) | 123 keys in 15 groups |
 | UI languages | Spanish, English, Chinese |
 
@@ -2958,7 +2958,6 @@ If the chosen provider fails, every other active provider is tried once. If none
   3. Filter by project, user, department or top-N.
   4. Use **💾 Guardar** to save, **⬇ CSV** to export, or **📷 PNG** to capture (html2canvas). The current period is compared with the previous one.
 - **Plantillas:** about 107 presets, hardcoded in the frontend.
-- **Visualizaciones:** advanced chart gallery (`BiAdvancedViz`).
 - **Guardados:** reports saved with 💾.
 - **Programados:**
   1. Fill in Nombre, Métrica (8 fixed choices), Frecuencia (daily/weekly/monthly), Destinatarios (comma-separated) and "adjuntar PDF".
@@ -2979,15 +2978,14 @@ If the chosen provider fails, every other active provider is tried once. If none
 - Worker `run_scheduled_reports` runs hourly at :00 and calls `scheduled_reports.run_due_reports`. PDFs use reportlab; email uses smtplib with STARTTLS.
 
 **Limitations (measured).**
-- **Saved reports disappear on reload.** "Guardar" stores them in a module-level JS variable; nothing is persisted.
-- **Visualizaciones shows sample data, not yours.** Every chart there draws hardcoded sample data, and the heatmap uses `Math.random()`.
-- **`projects_by_client` is always empty.** It is in the catalogue with no handler, and handler exceptions are swallowed into empty rows.
-- **The CSV export breaks on commas.** Values are joined without quoting.
+- **Saved reports** are kept per user on the server (preferences, `extra.informes_guardados`), so they survive a reload and follow the user to another device.
+- **A metric that fails says so** (`meta.error`, logged and not cached) instead of showing an empty chart; the same if a catalogue metric has no calculation.
+- **The CSV quotes every value**, so commas and line breaks stay inside their column.
 - Scheduled reports:
   - The PDF holds the chosen metric, computed with the same registry as the screen (`/analytics/query`), for the period in its filters or the screen's default. 📄 opens that same PDF (`/billing-reports/scheduled-reports/{id}/preview-pdf`). If the PDF cannot be built, the run fails with the reason; *Incluir PDF* off sends the email without attachment.
   - Without SMTP (`SMTP_HOST`, `SMTP_USER`) the run fails and says so; it is not marked as sent.
   - The next run is at `send_hour` (UTC) on the configured `day_of_week` (weekly) or `day_of_month` (monthly, the last day if the month is shorter), set on create and recalculated on edit.
-- Worker `send_weekly_report` (Monday 09:00) is a stub that only collects admin emails.
+- A weekly summary by email is a scheduled report: pick the metric, weekly frequency and the recipients.
 
 ### Report Builder — `/report-builder`
 *Roles:* admin, pm (route). Backend: `/reports/preview` and `/reports/export` use `require_internal_user`; `/reports/schema` and `/reports/templates` use any authenticated user.
@@ -3859,7 +3857,6 @@ Header buttons: **Diagnóstico**, **Sync all models**.
 |---|---|---|
 | `run_alert_engine` | daily 08:00 | Rules-based alerts (all tenants) |
 | `run_scheduled_reports` | hourly :00 | Scheduled report emails (PDF without data; silent "success" without SMTP) |
-| `send_weekly_report` | Monday 09:00 | Stub: collects emails, sends nothing |
 | `check_missing_imputations` | weekdays 18:00 | Computes missing hours, sends nothing |
 | `olap_nightly_etl` | daily 01:00 | Fills the DuckDB OLAP file |
 | `bi_scheduled_delivery_run` | hourly :45 | Separate BI delivery service (not used by these pages) |
@@ -5918,7 +5915,6 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 | Entry | Task | Cadence | Purpose |
 |---|---|---|---|
 | run-alert-engine-daily | run_alert_engine | daily 08:00 | Alert engine |
-| weekly-load-report | send_weekly_report | Mon 09:00 | Weekly load summary to managers |
 | check-missing-imputations | check_missing_imputations | Mon–Fri 18:00 | Remind users who did not log today's time |
 | generate-retainer-invoices | generate_retainer_invoices | daily 07:00 | Recurring retainer invoices (by `retainer_day`) |
 | run-scheduled-reports | run_scheduled_reports | hourly :00 | Due scheduled reports |
