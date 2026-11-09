@@ -348,6 +348,10 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 }
 
 /* ── Page content ─────────────────────────────────────────────── */
+/* Revisión 2026-11: un campo con ancho fijo (p. ej. `width: 360`) no puede ser
+   más ancho que su contenedor; a 390 px empujaba la página (5 pantallas). */
+.page-content :is(input, select, textarea) { max-width: 100%; }
+
 .page-content {
   padding: var(--page-pad-y) var(--page-pad-x);
   max-width: var(--page-max-w);
@@ -1845,6 +1849,10 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 /* Tab-style toggle: pill-shaped segmented control */
 .ds-segmented {
   display: inline-flex;
+  /* Revisión 2026-11: en pantallas estrechas hace scroll dentro de sí mismo
+     en vez de empujar la página (medido en /reports a 390 px). */
+  max-width: 100%;
+  overflow-x: auto;
   background: var(--surface-3);
   border: 1px solid var(--surface-4);
   border-radius: var(--radius-md);
