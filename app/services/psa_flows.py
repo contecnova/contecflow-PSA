@@ -307,6 +307,9 @@ def close_sprint_flow(db: Session, project_id: str, sprint_id: str) -> dict:
     )
     if not sprint:
         raise HTTPException(status_code=404, detail="Sprint no encontrado")
+    # Revisión 2026-11: sólo se cierra el que está en marcha.
+    if sprint.status != SprintStatus.active:
+        raise HTTPException(status_code=400, detail=f"Sólo se cierra un sprint activo; este está «{sprint.status.value}»")
 
     sprint.status = SprintStatus.completed
     sprint.closed_at = datetime.now(timezone.utc)
@@ -321,8 +324,10 @@ def close_sprint_flow(db: Session, project_id: str, sprint_id: str) -> dict:
     duration_weeks = max((sprint.end_date - sprint.start_date).days / 7, 0.5) if sprint.start_date else 1
     sprint.velocity = round(sprint.completed_points / duration_weeks, 1)
 
-    incomplete = [st for st in sprint.sprint_tasks if st.task and st.task.status != "done"]
-    # Mover tareas incompletas al backlog (status = 'backlog')
+    # Lo que queda sin terminar vuelve al backlog; una cancelada sigue cancelada
+    # (revisión 2026-11: antes también la reabría).
+    incomplete = [st for st in sprint.sprint_tasks
+                  if st.task and str(getattr(st.task.status, "value", st.task.status)) not in ("done", "cancelled")]
     for st in incomplete:
         st.task.status = "backlog"
 

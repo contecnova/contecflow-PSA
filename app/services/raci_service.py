@@ -620,9 +620,11 @@ def generate_changelog(
         .filter(
             _Task.project_id == project_id,
             _Task.status == TaskStatus.done,
-            (_Task.updated_at >= since_dt) | (_Task.updated_at == None),
+            # Revisión 2026-11: cuenta cuándo se terminó, no la última edición;
+            # una tarea sin ninguna de las dos fechas ya no entra siempre.
+            func.coalesce(_Task.completed_at, _Task.updated_at) >= since_dt,
         )
-        .order_by(_Task.priority, _Task.updated_at.desc())
+        .order_by(_Task.priority, func.coalesce(_Task.completed_at, _Task.updated_at).desc())
         .limit(100)
         .all()
     )
@@ -652,7 +654,7 @@ def generate_changelog(
         entry = PCE(
             project_id=project_id,
             version_tag=version_tag,
-            entry_date=(task.updated_at or task.created_at).date() if (task.updated_at or task.created_at) else timeutil.today(),
+            entry_date=(task.completed_at or task.updated_at or task.created_at).date() if (task.completed_at or task.updated_at or task.created_at) else timeutil.today(),
             entry_type=_guess_type(task),
             title=task.title,
             description=task.description,

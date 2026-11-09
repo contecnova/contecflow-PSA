@@ -160,6 +160,9 @@ def start_sprint(
     enforce_abac(db, current_user, "sprint", sprint_id, action="update")
     sprint = svc.get_sprint_with_tasks(db, sprint_id, project_id, current_user)
     if not sprint: raise HTTPException(404, "Sprint no encontrado")
+    # Revisión 2026-11: antes se podía volver a iniciar uno terminado o cancelado.
+    if sprint.status != SprintStatus.planning:
+        raise HTTPException(400, f"Sólo se inicia un sprint en planificación; este está «{sprint.status.value}»")
 
     # Only one active sprint per project
     active = svc.get_active_sprint_for_project(db, project_id, current_user)

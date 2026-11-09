@@ -626,9 +626,19 @@ def close_cab_vote(cr_id: str, decision: str, reason: Optional[str], current_use
         raise ValueError("CR no encontrada")
     if decision not in ["approved", "rejected"]:
         raise ValueError("decision debe ser approved o rejected")
+    # Revisión 2026-11: sólo se cierra una votación abierta, y una decisión que
+    # va contra el recuento (o con empate) necesita su motivo, que queda auditado.
+    estado = str(getattr(cr.status, "value", cr.status))
+    if estado not in ("submitted", "under_review"):
+        raise ValueError(f"Sólo se cierra una votación abierta; esta CR está «{estado}»")
+    votos = [v.vote for v in db.query(CABVote).filter(CABVote.change_request_id == cr_id).all()]
+    a_favor, en_contra = votos.count("approve"), votos.count("reject")
+    mayoria = "approved" if a_favor > en_contra else "rejected" if en_contra > a_favor else None
+    if decision != mayoria and not (reason or "").strip():
+        raise ValueError(f"La decisión no sigue la votación ({a_favor} a favor, {en_contra} en contra): indica el motivo")
     cr.status = decision
     audit_log(db, current_user, "CAB_CLOSE", "change_requests", cr_id, cr.code,
-              new_values={"decision": decision, "reason": reason})
+              new_values={"decision": decision, "reason": reason, "a_favor": a_favor, "en_contra": en_contra})
     db.commit()
     return {"ok": True, "new_status": cr.status}
 

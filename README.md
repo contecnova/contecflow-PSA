@@ -554,7 +554,7 @@ Rules enforced in `imputation_service.py`:
 - Tables: `projects`, `project_phases`, `project_members`.
 
 **Limitations.**
-- **The Gantt link opens the wrong view.** "View in Gantt" goes to `/gantt?project=…`, but `GanttPage` ignores the query string and opens with all projects.
+- **"View in Gantt"** opens `/gantt?project=…` with that project selected.
 
 ### Lessons learned — `/lessons`
 *Roles:* menu admin, pm, team_lead (Projects); route and panels, any internal user. Validating or archiving: `LESSONS_VALIDATOR_ROLES`. Deleting: admin (the normal path is archiving).
@@ -614,8 +614,8 @@ Rules enforced in `imputation_service.py`:
 - Tables: `sprints`, `sprint_tasks`, `sprint_retro_notes`.
 
 **Limitations.**
-- **Start does not check the current status.** A `completed` sprint can be started again.
-- **Close reopens cancelled tasks.** It moves every task whose status is not `done` (including `cancelled`) to `backlog`, bypassing the task transition rules.
+- **Start and close check the status.** Only a `planning` sprint can be started, and only an `active` one can be closed (400 otherwise).
+- **Close moves unfinished tasks to `backlog`.** Done and cancelled tasks keep their status. This move is a sprint rule and does not go through the task transition rules.
 
 ### Sprint Planning AI — `/sprint-planning`
 *Roles:* Menu: admin, pm. Route: any authenticated user. Generate, status change and delete need admin or pm.
@@ -633,7 +633,7 @@ Rules enforced in `imputation_service.py`:
 
 **Limitations.**
 - **It is not AI.** The generator (`cmdb_service.generate_sprint_plan`) is a deterministic greedy fill. It only considers tasks in `todo`, sorted by **story points descending** and then by priority, so large low-priority tasks are picked before small critical ones.
-- **Generating changes tasks.** It **writes `story_points = 1` to every unestimated task** and commits that change to `tasks`.
+- **Unestimated tasks count as 1 point in the plan only.** The plan marks them `unestimated`; the tasks themselves are not changed.
 - **Accepting a plan does nothing else.** It only changes `sprint_plans.status`. No tasks are added to the sprint.
 - **No backend test** references `/cmdb/sprint-plans`.
 
@@ -679,7 +679,7 @@ Rules enforced in `imputation_service.py`:
 
 **Limitations.**
 - **No editing in the UI.** `PATCH …/changelog/{entry_id}` exists, but the page never calls it.
-- **The generator uses `updated_at`, not `completed_at`.** Any later edit puts an old task back in the window. Done tasks with a null `updated_at` are always included.
+- **The generator uses the completion date** (`completed_at`, or `updated_at` when it is missing) for the window and the entry date. A done task with neither date is left out.
 
 ### UAT — `/uat`
 *Roles:* Menu: admin, pm, team_lead. Route: any authenticated user. Create, update and delete are `require_any_manager`.
@@ -722,8 +722,7 @@ Rules enforced in `imputation_service.py`:
 
 **Limitations.**
 - **Baseline draws nothing.** The *Baseline* toggle needs `baseline_start` and `baseline_end`, which no backend model or schema provides.
-- **Saving changes needs admin or pm.** Employees and team_leads can open the page, but dragging (`bulk-dates`) and creating dependencies require admin or pm, so they get 403.
-- **`?project=` is ignored.**
+- **Read-only for other roles.** Dragging (`bulk-dates`), creating dependencies and Auto-planificar need admin or pm, as on the server. Other roles see the chart without them.
 
 ### Epics & Roadmap — `/epics`
 *Roles:* Menu: admin, pm, team_lead. Route: any authenticated user. Create, update and delete need admin or pm.
@@ -761,8 +760,8 @@ Rules enforced in `imputation_service.py`:
 **Technical notes.** `/api/v1/deliverables/{project_id}`, `…/{del_id}`, `…/{del_id}/deliver`, `…/accept`, `…/reject`. Table `deliverables`.
 
 **Limitations.**
-- **Accept can be done without delivering.** The status dropdown sends a plain `PATCH` and offers every status, including `accepted` and `rejected`, so the "only delivered can be accepted" rule of `/accept` can be skipped.
-- **Reject checks nothing.** It checks neither the current status nor that the deliverable belongs to the project in the URL (`get_deliverable(db, del_id)`).
+- **Accept and reject need a delivered deliverable**, also when the status is changed with `PATCH` (400 otherwise).
+- **Reject checks the project in the URL** (404 if the deliverable belongs to another project).
 - **`/deliver` is unused.** The endpoint, which stores `document_url`, is not called by the page.
 - **No notifications.** None are sent.
 
@@ -796,9 +795,9 @@ Rules enforced in `imputation_service.py`:
 **Technical notes.** `/api/v1/changes/{project_id}`, `…/{cr_id}`, `…/submit`, `…/review`, `…/implement`, `/changes/all/pending`, `/api/v1/cab/changes`, `/cab/windows`, `/cab/changes/{id}/vote`, `/cab/changes/{id}/close`. Tables: `change_requests`, `cab_votes`, `maintenance_windows`, `change_request_windows`.
 
 **Limitations.**
-- **Closing ignores the votes.** The person closing picks approved or rejected; the vote tally plays no part.
-- **Closing checks no status.** Any CR can be closed, even an `implemented` one.
-- **pm gets 403 on Close.** The close buttons are shown to pm, but the endpoint needs admin.
+- **Closing follows the votes.** A decision against the majority, or with a tie, needs a reason. The reason and the tally go to the audit log.
+- **Only an open vote can be closed** (`submitted` or `under_review`).
+- **Close is for admin**, as on the server. The buttons show for any open CR, without a minimum number of votes.
 - **Impacts are informational only.** Approving or implementing a CR does not apply `cost_impact` or `schedule_impact_days` to the project budget or dates.
 - **No approval engine and no notifications.**
 
@@ -824,7 +823,7 @@ Rules enforced in `imputation_service.py`:
 **Technical notes.** `/api/v1/risks/{project_id}`, `…/{risk_id}`, `/risks/all/portfolio`. Table `risks`.
 
 **Limitations.**
-- **Inactive projects can't be picked.** The project picker lists only `status=active` projects, so you cannot add a risk to a project in `planning`.
+- **The project picker lists every live project** (all statuses except completed, closed, cancelled and archived).
 - **Portfolio view stops at 50.** It returns the top 50 non-closed risks.
 
 ### Dependencies — `/dependencies`

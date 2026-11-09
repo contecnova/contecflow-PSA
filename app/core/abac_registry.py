@@ -79,7 +79,6 @@ ABAC_COVERED_PREFIXES: dict[str, tuple[str, str]] = {
     "/api/v1/budgets":               ("budget",           "read"),
     "/api/v1/rate-cards":            ("rate_card",        "read"),
     "/api/v1/profitability":         ("profitability",    "read"),
-    "/api/v2/profitability":         ("profitability",    "read"),
     "/api/v1/revenue":               ("revenue",          "read"),
     "/api/v1/revenue-forecast":      ("revenue",          "read"),
     "/api/v1/revenue-recognition":   ("revenue",          "read"),
@@ -173,6 +172,13 @@ ABAC_COVERED_PREFIXES: dict[str, tuple[str, str]] = {
 # cada prefijo de la API esté aquí o en el registro de arriba, así que un dominio
 # nuevo no puede quedarse sin decisión por descuido.
 ABAC_EXEMPT_PREFIXES: dict[str, str] = {
+    # Revisión 2026-11. Conectores con contecmind y contecintelligence: la
+    # configuración es de la empresa y sólo la toca admin; las consultas corren
+    # con las credenciales de la empresa. No hay recurso ABAC por fila.
+    "/api/v1/conectores": "Configuración de la empresa (require_admin); consultas acotadas a su organización",
+    # Lecciones aprendidas: conocimiento compartido de la empresa, acotado por
+    # organización (TenantSession); configurar exige admin.
+    "/api/v1/lessons": "Conocimiento compartido de la empresa, acotado por organización; configurar exige admin",
     # Auditoria 2026-11: instancias del motor BPMN. Cada consulta se acota a la
     # organizacion del usuario y completar un paso exige el rol de su calle
     # (`bpmn_engine.puede_completar`); no hay recurso ABAC por instancia.
@@ -212,5 +218,4 @@ ABAC_EXEMPT_PREFIXES: dict[str, str] = {
     # (FastAPI las monta aparte, y quedan deshabilitadas por entorno), así que
     # declararlas exentas de ABAC no describía nada real y hacía fallar el test
     # de prefijos obsoletos.
-    "/api/v2/version":         "descubrimiento de versión, público",
 }

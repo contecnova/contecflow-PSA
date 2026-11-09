@@ -274,6 +274,15 @@ function ReviewCRModal({ cr, projectId, onClose }: { cr: ChangeRequest; projectI
 // ── CAB Board Tab ─────────────────────────────────────────────────────────────
 function CABBoard() {
   const t = useAppT() as (key: string) => string
+  const { hasRole } = useAuth() as RoleAuth
+  // Cerrar es de admin en el servidor. Contra el recuento, o con empate, pide motivo (revisión 2026-11).
+  const cerrar = (cr: ChangeRequest, decision: 'approved' | 'rejected') => {
+    const aFavor = cr.votes?.approve ?? 0, enContra = cr.votes?.reject ?? 0
+    const mayoria = aFavor > enContra ? 'approved' : enContra > aFavor ? 'rejected' : null
+    if (decision === mayoria) { close({ id: cr.id, decision }); return }
+    const reason = window.prompt(`La decisión no sigue la votación (${aFavor} a favor, ${enContra} en contra). Motivo:`)
+    if (reason && reason.trim()) close({ id: cr.id, decision, reason })
+  }
   const toast = useToast()
   const qc = useQueryClient()
   const { data: pendingCRs = [], isLoading } = useQuery<ChangeRequest[]>({
@@ -290,7 +299,7 @@ function CABBoard() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: close } = useMutation({
-    mutationFn: ({ id, decision }: { id: string | number; decision: 'approved' | 'rejected' }) => cabApi.close(id, { decision }),
+    mutationFn: ({ id, decision, reason }: { id: string | number; decision: 'approved' | 'rejected'; reason?: string }) => cabApi.close(id, { decision, reason }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['cab-pending'] }); qc.invalidateQueries({ queryKey: ['changes'] }); qc.invalidateQueries({ queryKey: ['all-pending-crs'] }); },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -332,10 +341,10 @@ function CABBoard() {
                       <button onClick={() => vote({ id:cr.id, vote:'reject' })} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 14px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>✗ Rechazar</button>
                       <button onClick={() => vote({ id:cr.id, vote:'abstain' })} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'4px 14px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>Abstener</button>
                     </>}
-                    {(cr.votes?.total ?? 0) >= 3 && !['approved','rejected'].includes(cr.status ?? '') && (
+                    {hasRole('admin') && ['submitted', 'under_review'].includes(cr.status ?? '') && (
                       <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
-                        <button onClick={() => close({ id:cr.id, decision:'approved' })} style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--success)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', fontWeight:500 }}>Cerrar: Aprobada</button>
-                        <button onClick={() => close({ id:cr.id, decision:'rejected' })} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', fontWeight:500 }}>Cerrar: Rechazada</button>
+                        <button onClick={() => cerrar(cr, 'approved')} style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--success)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', fontWeight:500 }}>Cerrar: Aprobada</button>
+                        <button onClick={() => cerrar(cr, 'rejected')} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', fontWeight:500 }}>Cerrar: Rechazada</button>
                       </div>
                     )}
                   </div>

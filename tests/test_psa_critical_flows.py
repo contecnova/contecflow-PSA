@@ -253,6 +253,9 @@ def test_sprint_close_generates_velocity_metrics_flow(client, pm_token, db):
     )
     assert add_tasks.status_code == 200, add_tasks.text
 
+    # Revisión 2026-11: sólo se cierra un sprint activo.
+    start = client.post(f"/api/v1/sprints/{project_id}/sprints/{sprint_id}/start", headers=auth(pm_token))
+    assert start.status_code == 200, start.text
     close = client.post(f"/api/v1/sprints/{project_id}/sprints/{sprint_id}/close", headers=auth(pm_token))
     assert close.status_code == 200, close.text
     payload = close.json()["data"]
@@ -275,7 +278,7 @@ def test_sprint_close_generates_velocity_metrics_flow(client, pm_token, db):
         assert any(task["id"] == open_task_id for task in backlog_tasks), "La tarea incompleta no está en el backlog tras cerrar el sprint"
 
 
-def test_capacity_plan_blocked_by_approved_absence_flow(client, pm_token, db):
+def test_capacity_plan_blocked_by_approved_absence_flow(client, pm_token, hr_token, db):
     monday = date.today() - timedelta(days=date.today().weekday())
 
     absence = client.post(
@@ -294,7 +297,7 @@ def test_capacity_plan_blocked_by_approved_absence_flow(client, pm_token, db):
     approve = client.post(
         f"/api/v1/absences/{absence_id}/review",
         json={"approved": True},
-        headers=auth(pm_token),
+        headers=auth(hr_token),  # nadie aprueba lo suyo (segregación de funciones)
     )
     assert approve.status_code in (200, 201), approve.text
 

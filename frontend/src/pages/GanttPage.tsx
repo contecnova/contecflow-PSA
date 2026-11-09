@@ -15,6 +15,7 @@ import { Button, Spinner, EmptyState } from '../components/ui'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useAppT } from '../i18n/AppLangContext'
 import GanttChart from '../components/GanttChart'
+import { useAuth } from '../context/AuthContext'
 import SmartScheduleModal from '../components/SmartScheduleModal'
 import { Sparkles } from 'lucide-react'
 
@@ -58,10 +59,14 @@ export default function GanttPage(): JSX.Element {
   const _qc           = useQueryClient()
   const { invalidate } = useInvalidate()
 
-  const [projectId, setProjectId] = useState('')
+  // `?project=` desde la ficha del proyecto (revisión 2026-11: se ignoraba).
+  const [projectId, setProjectId] = useState(() => new URLSearchParams(window.location.search).get('project') || '')
   const [filter, setFilter]       = useState('')
   const [showBaseline, setShowBaseline] = useState(false)
   const [smartScheduleOpen, setSmartScheduleOpen] = useState(false)
+  // Mover fechas y crear dependencias exige admin o pm en el servidor: para el
+  // resto el Gantt es de consulta (revisión 2026-11; antes arrastraban y les daba 403).
+  const puedeEditar = useAuth().hasRole('admin', 'pm')
 
   // ── data ────────────────────────────────────────────────────────────────────
   const { data: projects = [] } = useQuery<ProjectItem[]>({
@@ -206,14 +211,14 @@ export default function GanttPage(): JSX.Element {
                 {t('gantt.baseline')}
               </Button>
               {/* I27: Auto-planificar tareas sin fecha (botón en Gantt) */}
-              <Button
+              {puedeEditar && <Button
                 size="sm"
                 variant="subtle"
                 onClick={() => setSmartScheduleOpen(true)}
                 title={traducir('gantt.sugerir_fechas_para_tareas_sin_planificar_usando')}
               >
                 <Sparkles size={13} style={{ marginRight: 4 }} /> Auto-planificar
-              </Button>
+              </Button>}
             </div>
           }
           showListExport={false}
@@ -238,8 +243,8 @@ export default function GanttPage(): JSX.Element {
             tasks={tasks as unknown as ComponentProps<typeof GanttChart>['tasks']}
             projects={projects as unknown as ComponentProps<typeof GanttChart>['projects']}
             mode="project"
-            onTaskUpdate={handleTaskUpdate}
-            onDepCreate={handleDepCreate}
+            onTaskUpdate={puedeEditar ? handleTaskUpdate : undefined}
+            onDepCreate={puedeEditar ? handleDepCreate : undefined}
             showBaseline={showBaseline}
             dependencies={dependencies as unknown as ComponentProps<typeof GanttChart>['dependencies']}
             aiSuggestions={aiSuggestionsByTask}

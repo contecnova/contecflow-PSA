@@ -86,7 +86,13 @@ def update_deliverable(
     if not d:
         raise HTTPException(404, "Entregable no encontrado")
     enforce_abac(db, current_user, "deliverable", del_id, action="update")
-    d = deliverable_service.update_deliverable(db, d, payload.model_dump(exclude_unset=True))
+    cambios = payload.model_dump(exclude_unset=True)
+    # Revisión 2026-11: aceptar y rechazar tienen su regla (sólo un entregado);
+    # editando el estado a mano se la saltaba.
+    if cambios.get("status") in ("accepted", "rejected") and cambios["status"] != str(getattr(d.status, "value", d.status)) \
+            and str(getattr(d.status, "value", d.status)) != "delivered":
+        raise HTTPException(400, "Sólo se acepta o rechaza un entregable entregado")
+    d = deliverable_service.update_deliverable(db, d, cambios)
     return APIResponse.ok(data=_del_out(d))
 
 
@@ -132,9 +138,11 @@ def reject(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    d = deliverable_service.get_deliverable(db, del_id)
+    d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
         raise HTTPException(404, "No encontrado")
+    if d.status != "delivered":
+        raise HTTPException(400, "Solo se pueden rechazar entregables entregados")
     enforce_abac(db, current_user, "deliverable", del_id, action="update")
     d = deliverable_service.mark_rejected(db, d, reason)
     return APIResponse.ok(data=_del_out(d))

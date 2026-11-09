@@ -330,7 +330,9 @@ export default function RisksPage() {
   const [view, setView] = useState<'list' | 'cards'>('list')
   const qc = useQueryClient()
 
-  const { data: projects = [] } = useQuery<ProjectItem[]>({ queryKey: ['projects', { status: 'active' }], queryFn: () => projectsApi.list({ status: 'active' }).then(r => (r.data ?? []) as ProjectItem[]) })
+  // Cualquier proyecto vivo, no sólo los activos: un riesgo se anota también en
+  // planificación o en pausa (revisión 2026-11).
+  const { data: projects = [] } = useQuery<ProjectItem[]>({ queryKey: ['projects', 'vivos'], queryFn: () => projectsApi.list().then(r => ((r.data ?? []) as ProjectItem[]).filter(p => !['completed', 'closed', 'cancelled', 'archived'].includes(String((p as { status?: string }).status ?? '')))) })
 
   const { data: risksData, isLoading } = useQuery<RisksResponse>({
     queryKey: ['risks', selectedProject],

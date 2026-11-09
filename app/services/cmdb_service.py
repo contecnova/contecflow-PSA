@@ -374,16 +374,15 @@ def generate_sprint_plan(
     if not backlog_raw:
         raise HTTPException(400, "No hay tareas en estado 'todo' en este proyecto")
 
-    unestimated_ids = set()
-    for t in backlog_raw:
-        if t.story_points is None:
-            t.story_points = 1
-            unestimated_ids.add(t.id)
+    # Revisión 2026-11: la estimación por defecto vive sólo en el plan; antes
+    # se escribía `story_points = 1` en cada tarea sin estimar y se guardaba.
+    unestimated_ids = {t.id for t in backlog_raw if t.story_points is None}
+    puntos = {t.id: (1 if t.story_points is None else t.story_points) for t in backlog_raw}
 
     PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     backlog = sorted(
         backlog_raw,
-        key=lambda t: (-t.story_points, PRIORITY_ORDER.get(t.priority or "low", 3))
+        key=lambda t: (-puntos[t.id], PRIORITY_ORDER.get(t.priority or "low", 3))
     )
 
     selected = []; total = 0; reasoning_parts = []
@@ -391,14 +390,14 @@ def generate_sprint_plan(
 
     for t in backlog:
         if t.id in must_include:
-            selected.append(t); total += t.story_points
+            selected.append(t); total += puntos[t.id]
             est_note = " (sin estimar — asignado 1p por defecto)" if t.id in unestimated_ids else ""
-            reasoning_parts.append(f"• '{t.title}' incluida por prioridad manual ({t.story_points}p){est_note}")
+            reasoning_parts.append(f"• '{t.title}' incluida por prioridad manual ({puntos[t.id]}p){est_note}")
 
     for t in backlog:
         if t.id in {s.id for s in selected}:
             continue
-        pts = t.story_points
+        pts = puntos[t.id]
         est_note = " [~1p sin estimación]" if t.id in unestimated_ids else ""
         if total + pts <= team_capacity:
             selected.append(t); total += pts
@@ -429,7 +428,7 @@ def generate_sprint_plan(
     db.add(plan); db.flush()
     for i, t in enumerate(selected):
         db.add(SprintPlanTask(plan_id=plan.id, task_id=t.id, priority=i,
-                              ai_note=f"{t.story_points}p · {t.priority or 'normal'}"))
+                              ai_note=f"{puntos[t.id]}p · {t.priority or 'normal'}"))
     db.commit(); db.refresh(plan)
     db.expire_all()
 
@@ -441,7 +440,7 @@ def generate_sprint_plan(
         "ai_reasoning": reasoning,
         "unestimated_count": unestimated_count,
         "tasks": [{"task_id": t.id, "title": t.title,
-                   "story_points": t.story_points, "priority": t.priority,
+                   "story_points": puntos[t.id], "priority": t.priority,
                    "unestimated": t.id in unestimated_ids}
                   for t in selected],
     }
