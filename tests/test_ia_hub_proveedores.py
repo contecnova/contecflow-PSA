@@ -117,19 +117,46 @@ def test_el_proveedor_del_env_se_importa_una_vez_con_la_clave_cifrada(client, ad
     assert client.post("/api/v1/ai-providers/env/import", headers=auth(admin_token)).status_code == 409
 
 
-def test_EL_HALLAZGO_gemini_que_razona_sin_texto_da_un_error_claro(monkeypatch):
-    """Forma medida con la API real (gemini-2.5-flash, maxOutputTokens=10)."""
+def _gemini(monkeypatch, *respuestas):
     from types import SimpleNamespace
+    cola, topes = iter(respuestas), []
+
+    def post(url, json=None, **k):
+        topes.append(json["generationConfig"]["maxOutputTokens"])
+        return SimpleNamespace(status_code=200, json=lambda: next(cola))
+    monkeypatch.setattr(ia.httpx, "post", post)
+    return topes
+
+
+_MENSAJE = [{"role": "user", "content": "hola"}]
+
+
+def test_EL_HALLAZGO_gemini_que_razona_sin_texto_reintenta_y_si_no_da_un_error_claro(monkeypatch):
+    """Forma medida con la API real (gemini-2.5-flash, maxOutputTokens=10)."""
     sin_texto = {"candidates": [{"content": {"role": "model"}, "finishReason": "MAX_TOKENS"}],
                  "usageMetadata": {"promptTokenCount": 4, "thoughtsTokenCount": 7}}
     con_texto = {"candidates": [{"content": {"role": "model", "parts": [{"text": "OK"}]}, "finishReason": "STOP"}],
                  "usageMetadata": {"promptTokenCount": 4, "candidatesTokenCount": 1, "thoughtsTokenCount": 20}}
-    respuestas = iter([sin_texto, con_texto])
-    monkeypatch.setattr(ia.httpx, "post", lambda *a, **k: SimpleNamespace(status_code=200, json=lambda: next(respuestas)))
+    topes = _gemini(monkeypatch, sin_texto, con_texto)
+    r = ia._call_gemini("k", "gemini-2.5-flash", _MENSAJE, None, 10, 0.2)
+    assert r["text"] == "OK" and topes == [10, 17]
+    assert r["tokens_out"] == 7 + 21, "se factura el razonamiento de los dos intentos"
+    _gemini(monkeypatch, sin_texto, sin_texto)
     with pytest.raises(ValueError, match="razonamiento"):
-        ia._call_gemini("k", "gemini-2.5-flash", [{"role": "user", "content": "hola"}], None, 10, 0.2)
-    r = ia._call_gemini("k", "gemini-2.5-flash", [{"role": "user", "content": "hola"}], None, 256, 0.2)
-    assert r["text"] == "OK" and r["tokens_out"] == 21, "el razonamiento se factura"
+        ia._call_gemini("k", "gemini-2.5-flash", _MENSAJE, None, 10, 0.2)
+
+
+def test_EL_HALLAZGO_gemini_cortado_a_media_frase_se_completa(monkeypatch):
+    """Medido 2026-11-09: el resumen ejecutivo acababa en «una falta crítica de»."""
+    cortado = {"candidates": [{"content": {"parts": [{"text": "El portfolio presenta una falta crítica de"}]},
+                               "finishReason": "MAX_TOKENS"}],
+               "usageMetadata": {"candidatesTokenCount": 9, "thoughtsTokenCount": 790}}
+    entero = {"candidates": [{"content": {"parts": [{"text": "El portfolio presenta una falta crítica de datos."}]},
+                              "finishReason": "STOP"}],
+              "usageMetadata": {"candidatesTokenCount": 11, "thoughtsTokenCount": 700}}
+    topes = _gemini(monkeypatch, cortado, entero)
+    r = ia._call_gemini("k", "gemini-2.5-flash", _MENSAJE, None, 800, 0.2)
+    assert r["text"].endswith("datos.") and not r["truncado"] and topes == [800, 1590]
 
 
 def test_EL_HALLAZGO_la_pausa_tras_error_se_ajusta_desde_admin(db, llamadas):

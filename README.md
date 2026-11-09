@@ -2528,7 +2528,7 @@ What each tool actually does, from the code and the Spanish manual:
 **Limitations.**
 
 - Discovery providers, drift and baseline, reconciliation, SNMP scan and token rotation have **no UI**: no frontend call to those endpoints was found. They are API only.
-- The *Agents* tab is visible to `pm`, but its endpoints are admin-only, so a pm gets 403.
+- **Agents and Classes are for admin**, as on the server; pm doesn't see those tabs.
 - In a multi-organisation install, a CI with no organisation, owner or project is visible only to the superadmin.
 - **Not verified** against real cloud providers.
 
@@ -2878,8 +2878,8 @@ If the chosen provider fails, every other active provider is tried once. If none
 **Limitations (measured).**
 - There is no revenue KPI: `get_kpi_summary` does not compute revenue. Revenue is on the Finance dashboard.
 - Narrative issues:
-  - A provider *error* ("⚠️ AI provider error…") does not match the fallback check, so the error text is displayed and cached for 1 h.
-  - The cache key ignores the language.
+  - Any AI notice (no provider, provider error) falls back to the template; it is never shown or cached as the summary. The cache is per language.
+  - A reasoning model (Gemini 2.5) that hits the token cap while thinking no longer returns a summary cut mid-sentence: the call is repeated once with the answer's full budget plus what it spent thinking (measured 09-11-2026: «…una falta crítica de»).
   - The fallback template is Spanish only for `lang=es`; every other language gets English.
 
 ### Data Explorer — `/data-explorer`
@@ -3175,15 +3175,9 @@ There are no filters.
 - There is no worker job.
 
 **Limitations (measured).**
-- **The list and the detail can disagree for the same project.**
-  - The list has no AC fallback: a project with hours logged but no `cost_amount` shows CPI "—" in the list and a real CPI in the modal.
-  - Without dates, the list shows SPI 1.0 while the detail shows "—".
-- The list runs about 5 queries per project.
-- **The page colours contradict the definitions:**
-  - TCPI is coloured green at ≥ 1.1. That is inverted: TCPI > 1 is bad.
-  - CPI/SPI cells have no yellow band.
-  - "Bajo presupuesto ✓" appears at CPI ≥ 0.9, which is over budget.
-- **CPI/SPI are computed differently on other screens** (Portfolio, the ML features, Profitability), so the same project can show different values.
+- **One calculation.** The list, the detail and Portfolio use `ProjectService.evm` (with its BAC and AC fallbacks), so they show the same values. The list runs about 6 queries per project.
+- **Traffic light from Admin.** The server returns `cpi_status`, `spi_status` and `tcpi_status` with `EVM_INDEX_GREEN_MIN` and `EVM_INDEX_RED_BELOW` (group `health`); TCPI is judged by its inverse, since higher is worse. The portfolio CPI/SPI are ΣEV/ΣAC and ΣEV/ΣPV, with the number of projects in red.
+- **Profitability computes its own CPI/SPI** over the selected period and with costs converted to the organisation currency; the ML features encode CPI as a model input. Those values can differ from this page.
 
 ### Project Portfolio — `/portfolio`
 *Roles:* admin, pm (route). Backend: list and dashboard use `get_current_user`; writes use `require_admin_or_pm` (delete operations also ABAC).
@@ -3215,8 +3209,8 @@ There are no filters.
 
 **Limitations (measured).**
 - **There is no scoring or prioritisation.** Rows are sorted by RAG only; `display_order` and `rag_override` have no UI.
-- **Projects without `budget_amount` show grey.** `get_evm_quick` has no BAC or AC fallbacks, so these projects get BAC 0 and grey.
-- **Creating a portfolio with empty dates likely fails silently.** The form sends `''` for empty dates, and pydantic rejects `''` for `Optional[date]` (checked with a snippet), so this should return 422. The mutations have no error handler. Not verified end to end.
+- **EVM per project** is the same calculation as the EVM page, with its BAC and AC fallbacks.
+- **Empty dates are sent as `null`**, and every portfolio action shows its error if it fails.
 - `portfolios.budget_spent` is never written.
 
 ### Burnup & Velocity — `/sprint-charts`
@@ -3240,7 +3234,7 @@ There are no filters.
 
 **Limitations (measured).**
 - **Scope is constant.** The code has no scope history, so scope creep is not shown.
-- **Removed tasks still count in the burnup.** It does not filter `sprint_tasks.is_active`; the burndown does.
+- **Removed tasks don't count** in the burnup, in the planned points on start, or in the points and backlog moves on close.
 - **The velocity chart mixes units.** It plots points/week on the same axis as the points bars and labels the average "pts".
 
 ### Cumulative Flow — `/cumulative-flow`
@@ -3334,10 +3328,10 @@ There are no filters.
 - `/analytics/exports/resources-csv` exists, but no page calls it.
 
 **Limitations (measured).**
-- **Everyone exports only their own hours.** The frontend never sends `user_id`, so admin, PM and HR all get only their own imputations.
-- **Imputation cost columns are always included.** The "include costs" checkbox has no effect on imputations.
-- **The admin-only restriction on project costs is frontend-only.** Any manager can request them from the API.
-- **Jira sync always returns 404.** It sends a project id where the backend expects a Jira config id, so the result is "Jira config not found".
+- **Whose hours:** admin and hr export everyone's (or one person's with `user_id`), with a Person column; everyone else exports their own.
+- **Cost columns are optional** and only for admin and hr (the checkbox sends `include_costs`).
+- **Project amounts are for admin**, also on the server.
+- **Jira sync** imports issues as tasks of the chosen project through `POST /jira/sync`.
 
 ### Data Platform — `/data-platform`
 *Roles:* admin (route and every connector endpoint).
@@ -4170,7 +4164,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 227 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 229 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4250,6 +4244,8 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | health | PROJECT_HEALTH_BUDGET_RATIO_GOOD | float | 0.8 | Budget ratio "good" when ≤ | rt |
 | health | PROJECT_HEALTH_BUDGET_RATIO_OK | float | 1.0 | Budget ratio "ok" when ≤ | rt |
 | health | PROJECT_HEALTH_BUDGET_RATIO_WARN | float | 1.2 | Budget ratio "warn" when ≤ | rt |
+| health | EVM_INDEX_GREEN_MIN | float | 0.9 | EVM — CPI/SPI green from (TCPI: its inverse) | rt (`project_service`) |
+| health | EVM_INDEX_RED_BELOW | float | 0.85 | EVM — CPI/SPI red below (TCPI: its inverse) | rt (`project_service`) |
 | semantic | SEM_THRESHOLD_EXPERT_CACHE | float | 0.92 | Semantic classifier: expert-cache hit threshold | rt |
 | semantic | SEM_THRESHOLD_CRITICAL | float | 0.9 | Similarity band, critical | rt (key built as `SEM_THRESHOLD_{x}`) |
 | semantic | SEM_THRESHOLD_HIGH | float | 0.72 | Similarity band, high | rt |
@@ -4914,7 +4910,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
   1. this page (`/jira/*`, `app_settings`);
   2. Service Desk `/api/v1/integrations/jira/configs[/{id}[/test|/sync-log]]`, `/integrations/jira/sync/{config_id}`, `/integrations/jira/tickets/{id}/push`, with tables `sd_jira_configs`, `sd_jira_field_map`, `sd_jira_sync_map` and `sd_jira_sync_log`;
   3. `/api/v1/integrations-hub/jira/{test,issues,search,transition}`, which uses `integration_configs`.
-- The Exports page calls `POST /integrations/jira/sync/{projectId}`, but that route expects a **config id**.
+- The Exports page uses `POST /jira/sync` with `project_id`; `POST /integrations/jira/sync/{config_id}` is the manual poll of one configuration.
 - The module docstring mentions `GET /jira/sync-log`, but that route does not exist.
 - A real Jira round trip is **Not verified**.
 
@@ -5321,7 +5317,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 367)
+#### 4.2 Settings fields (`Settings`, 369)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5564,6 +5560,8 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `PROJECT_HEALTH_BUDGET_RATIO_GOOD` | `0.8` | Project-health scoring weights/thresholds. |
 | `PROJECT_HEALTH_BUDGET_RATIO_OK` | `1.0` | Project-health scoring weights/thresholds. |
 | `PROJECT_HEALTH_BUDGET_RATIO_WARN` | `1.2` | Project-health scoring weights/thresholds. |
+| `EVM_INDEX_GREEN_MIN` | `0.9` | EVM traffic light: CPI/SPI green from this value (TCPI by its inverse). |
+| `EVM_INDEX_RED_BELOW` | `0.85` | EVM traffic light: CPI/SPI red below this value (TCPI by its inverse). |
 
 **Semantic engine (`config_groups/semantic_config.py`) — 9 variables**
 

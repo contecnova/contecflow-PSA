@@ -7,6 +7,8 @@ import type { ComponentType, CSSProperties} from 'react';
 import PageShell from '../components/layout/PageShell'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '../context/ToastContext';
+import { extractErr } from '../utils/helpers';
 import { portfolioApi, projectsApi } from '../services/api';
 import { useAppT } from '../i18n/AppLangContext'
 import {
@@ -89,6 +91,13 @@ const RAG: Record<string, { color: string; label: string; Icon: ComponentType<an
 };
 
 // ── RAG pill ───────────────────────────────────────────────────────────────────
+// Revisión 2026-11: una fecha vacía va como null (con '' la API da 422) y el
+// presupuesto como número.
+function aEnviar(data: PortfolioFormData) {
+  return { ...data, budget_total: data.budget_total ? Number(data.budget_total) : null,
+    start_date: data.start_date || null, end_date: data.end_date || null }
+}
+
 function RagPill({ rag }: { rag: RagLevel }) {
   const r = RAG[rag] || RAG.grey;
   return (
@@ -153,6 +162,7 @@ function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem 
 
 // ── Add project to portfolio modal ─────────────────────────────────────────────
 function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portfolioId: string | number; existingIds: Array<string | number>; onClose: () => void; onAdded: () => void }) {
+  const toast = useToast();
   const t = useAppT()
   const [search, setSearch] = useState('');
   const qc = useQueryClient();
@@ -165,6 +175,7 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
   const { mutate: addProject } = useMutation({
     mutationFn: (pid: string | number) => portfolioApi.addProject(portfolioId, pid),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portfolio-dashboard', portfolioId] }); onAdded(); },
+    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo añadir el proyecto')),
   });
 
   const available = allProjects.filter(p => !existingIds.includes(p.id) &&
@@ -199,6 +210,7 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
 
 // ── Portfolio dashboard ────────────────────────────────────────────────────────
 function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | number; onClose: () => void }) {
+  const toast = useToast();
   const t = useAppT()
   const qc = useQueryClient();
   const [showAddProject, setShowAddProject] = useState(false);
@@ -214,6 +226,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
   const { mutate: removeProject } = useMutation({
     mutationFn: (pid: string | number) => portfolioApi.removeProject(portfolioId, pid),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portfolio-dashboard', portfolioId] }),
+    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo quitar el proyecto')),
   });
 
   if (!portfolioId) return null;
@@ -358,6 +371,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PortfolioPage() {
+  const toast = useToast();
   const t = useAppT() as (key: string) => string
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -370,18 +384,21 @@ export default function PortfolioPage() {
   });
 
   const { mutate: createPortfolio } = useMutation({
-    mutationFn: (data: PortfolioFormData) => portfolioApi.create({ ...data, budget_total: data.budget_total ? Number(data.budget_total) : null }),
+    mutationFn: (data: PortfolioFormData) => portfolioApi.create(aEnviar(data)),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portfolios'] }); setShowCreate(false); },
+    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo crear la cartera')),
   });
 
   const { mutate: updatePortfolio } = useMutation({
-    mutationFn: ({ id, data }: { id: string | number; data: PortfolioFormData }) => portfolioApi.update(id, { ...data, budget_total: data.budget_total ? Number(data.budget_total) : null }),
+    mutationFn: ({ id, data }: { id: string | number; data: PortfolioFormData }) => portfolioApi.update(id, aEnviar(data)),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portfolios'] }); setEditing(null); },
+    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo guardar la cartera')),
   });
 
   const { mutate: deletePortfolio } = useMutation({
     mutationFn: (id: string | number) => portfolioApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portfolios'] }),
+    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo borrar la cartera')),
   });
 
   return (

@@ -72,9 +72,11 @@ export default function ExportsPage(): JSX.Element {
       // llamado `.csv`— y quedó anotado. Ya hay contrapartida: el formato va al
       // servidor y la extensión vuelve a salir del botón, esta vez porque
       // coinciden.
+      // Revisión 2026-11: admin y hr reciben las horas de todos; el resto, las suyas.
       const { data } = await integrationsApi.exportImputations({
         date_from: imputForm.date_from,
         date_to: imputForm.date_to,
+        include_costs: imputForm.include_costs,
         formato: imputForm.format,
       })
       downloadBlob(data, `imputaciones_${imputForm.date_from}_${imputForm.date_to}.${imputForm.format}`)
@@ -151,7 +153,7 @@ export default function ExportsPage(): JSX.Element {
               </button>
             ))}
           </div>
-          {hasRole('admin') && (
+          {hasRole('admin', 'hr') && (
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", cursor: 'pointer' }}>
               <input type="checkbox" checked={imputForm.include_costs}
                 onChange={e => setImputForm(f => ({ ...f, include_costs: e.target.checked }))} />
@@ -159,6 +161,9 @@ export default function ExportsPage(): JSX.Element {
             </label>
           )}
         </div>
+        <p style={{ color: 'var(--text-2)', fontSize: "var(--text-sm)", margin: '0 0 12px' }}>
+          {hasRole('admin', 'hr') ? 'Incluye las horas de todas las personas.' : 'Incluye tus horas.'}
+        </p>
         <Button onClick={exportImputations} disabled={loading.imput} icon="↓">
           {loading.imput ? 'Generando...' : `Descargar ${imputForm.format.toUpperCase()}`}
         </Button>

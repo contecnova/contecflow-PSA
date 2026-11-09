@@ -33,6 +33,10 @@ interface EvmData {
   cpi?: number
   spi?: number
   tcpi?: number
+  // Semáforo calculado en el servidor con los umbrales de Admin (EVM_INDEX_*).
+  cpi_status?: HealthKey
+  spi_status?: HealthKey
+  tcpi_status?: HealthKey
   cv?: number
   sv?: number
   eac?: number
@@ -55,8 +59,12 @@ const HEALTH_ICON: Record<HealthKey, ComponentType<{ size?: number; color?: stri
   grey: Clock as unknown as ComponentType<{ size?: number; color?: string }>,
 };
 
-function IndexBadge({ label, value, good, format = fmtIdx }: { label: string; value?: number | null; good?: number; format?: (n: number | null | undefined) => string }) {
-  const color = value == null ? 'var(--text-3)' : value >= (good || 0.9) ? 'var(--success)' : value >= 0.8 ? 'var(--warning)' : 'var(--danger)';
+const COLOR_DE_ESTADO: Record<string, string> = { green: 'var(--success)', yellow: 'var(--warning)', red: 'var(--danger)', grey: 'var(--text-3)' };
+
+// Revisión 2026-11: el color sale del estado que da el servidor; antes cada
+// pantalla tenía sus umbrales y el de TCPI estaba al revés (más alto es peor).
+function IndexBadge({ label, value, status, format = fmtIdx }: { label: string; value?: number | null; status?: string; format?: (n: number | null | undefined) => string }) {
+  const color = value == null ? 'var(--text-3)' : status ? (COLOR_DE_ESTADO[status] ?? 'var(--text-1)') : 'var(--text-1)';
   return (
     <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '12px 16px', minWidth: 120 }}>
       <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
@@ -143,10 +151,10 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Valores base</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <IndexBadge label="BAC" value={data.bac} good={Infinity} format={fmtEur} />
-              <IndexBadge label="PV" value={data.pv} good={Infinity} format={fmtEur} />
-              <IndexBadge label="EV" value={data.ev} good={Infinity} format={fmtEur} />
-              <IndexBadge label="AC" value={data.ac} good={Infinity} format={fmtEur} />
+              <IndexBadge label="BAC" value={data.bac} format={fmtEur} />
+              <IndexBadge label="PV" value={data.pv} format={fmtEur} />
+              <IndexBadge label="EV" value={data.ev} format={fmtEur} />
+              <IndexBadge label="AC" value={data.ac} format={fmtEur} />
             </div>
           </div>
 
@@ -154,9 +162,9 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{t('evm.indices_de_rendimiento')}</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <IndexBadge label="CPI" value={data.cpi} />
-              <IndexBadge label="SPI" value={data.spi} />
-              <IndexBadge label="TCPI" value={data.tcpi} good={1.1} />
+              <IndexBadge label="CPI" value={data.cpi} status={data.cpi_status} />
+              <IndexBadge label="SPI" value={data.spi} status={data.spi_status} />
+              <IndexBadge label="TCPI" value={data.tcpi} status={data.tcpi_status} />
             </div>
           </div>
 
@@ -173,8 +181,8 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
           <div>
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{t('evm.prevision_final')}</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <IndexBadge label="EAC" value={data.eac} good={Infinity} format={fmtEur} />
-              <IndexBadge label="ETC" value={data.etc} good={Infinity} format={fmtEur} />
+              <IndexBadge label="EAC" value={data.eac} format={fmtEur} />
+              <IndexBadge label="ETC" value={data.etc} format={fmtEur} />
               <VarianceBadge label="VAC" value={data.vac} />
             </div>
           </div>
@@ -218,10 +226,15 @@ export default function EVMPage(): JSX.Element {
       {portfolio.length > 0 && (() => {
         // `flatMap` filtra y estrecha el tipo a la vez: un `filter(x => x != null)`
         // deja el array con el tipo de antes y TypeScript sigue viendo nulos.
-        const cpis = portfolio.flatMap(p => p.cpi != null ? [p.cpi] : []);
-        const avgCpi  = cpis.length ? cpis.reduce((s, v) => s + v, 0) / cpis.length : null;
-        const spis = portfolio.flatMap(p => p.spi != null ? [p.spi] : []);
-        const avgSpi  = spis.length ? spis.reduce((s, v) => s + v, 0) / spis.length : null;
+        // Índices de la cartera: suma de EV entre suma de AC (o de PV), no la media de índices.
+        const conAc = portfolio.filter(p => (p.ac || 0) > 0);
+        const sumAc = conAc.reduce((s, p) => s + (p.ac || 0), 0);
+        const avgCpi = sumAc > 0 ? conAc.reduce((s, p) => s + (p.ev || 0), 0) / sumAc : null;
+        const conPv = portfolio.filter(p => (p.pv || 0) > 0);
+        const sumPv = conPv.reduce((s, p) => s + (p.pv || 0), 0);
+        const avgSpi = sumPv > 0 ? conPv.reduce((s, p) => s + (p.ev || 0), 0) / sumPv : null;
+        const cpiRojos = portfolio.filter(p => p.cpi_status === 'red').length;
+        const spiRojos = portfolio.filter(p => p.spi_status === 'red').length;
         const totalBac = portfolio.reduce((s, p) => s + (p.bac || 0), 0);
         const totalAc  = portfolio.reduce((s, p) => s + (p.ac || 0), 0);
         const reds     = portfolio.filter((p) => p.health === 'red').length;
@@ -229,8 +242,8 @@ export default function EVMPage(): JSX.Element {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 14, marginBottom: 28 }}>
             {[
               { label: 'Proyectos activos', value: portfolio.length, sub: `${reds} en riesgo`, color: reds > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: Target },
-              { label: 'CPI medio cartera', value: fmtIdx(avgCpi), sub: (avgCpi ?? 0) >= 0.9 ? 'Bajo presupuesto ✓' : 'Sobre presupuesto ✗', color: avgCpi == null ? 'var(--text-2)' : avgCpi >= 0.9 ? 'var(--success)' : 'var(--danger)', Icon: DollarSign },
-              { label: 'SPI medio cartera', value: fmtIdx(avgSpi), sub: (avgSpi ?? 0) >= 0.9 ? 'En plazo ✓' : 'Retrasado ✗', color: avgSpi == null ? 'var(--text-2)' : avgSpi >= 0.9 ? 'var(--success)' : 'var(--danger)', Icon: Clock },
+              { label: 'CPI de la cartera', value: fmtIdx(avgCpi), sub: `${cpiRojos} proyecto${cpiRojos === 1 ? '' : 's'} con CPI en rojo`, color: cpiRojos > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: DollarSign },
+              { label: 'SPI de la cartera', value: fmtIdx(avgSpi), sub: `${spiRojos} proyecto${spiRojos === 1 ? '' : 's'} con SPI en rojo`, color: spiRojos > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: Clock },
               { label: 'Presupuesto total', value: fmtEur(totalBac), sub: `Gastado: ${fmtEur(totalAc)}`, color: 'var(--text-1)', Icon: BarChart2 },
             ].map(({ label, value, sub, color, Icon }) => (
               <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '16px 20px' }}>
@@ -288,10 +301,10 @@ export default function EVMPage(): JSX.Element {
                     <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtEur(p.bac)}</td>
                     <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtEur(p.ev)}</td>
                     <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtEur(p.ac)}</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 600, color: p.cpi == null ? 'var(--text-3)' : p.cpi >= 0.9 ? 'var(--success)' : 'var(--danger)' }}>
+                    <td style={{ padding: '12px 14px', fontWeight: 600, color: COLOR_DE_ESTADO[p.cpi_status ?? 'grey'] }}>
                       {fmtIdx(p.cpi)}
                     </td>
-                    <td style={{ padding: '12px 14px', fontWeight: 600, color: p.spi == null ? 'var(--text-3)' : p.spi >= 0.9 ? 'var(--success)' : 'var(--danger)' }}>
+                    <td style={{ padding: '12px 14px', fontWeight: 600, color: COLOR_DE_ESTADO[p.spi_status ?? 'grey'] }}>
                       {fmtIdx(p.spi)}
                     </td>
                     <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtEur(p.eac)}</td>

@@ -52,9 +52,11 @@ def _to_number(value, default: float = 0.0) -> float:
         return default
 
 
-def _build_cache_key(org_id: Optional[str]) -> str:
+def _build_cache_key(org_id: Optional[str], lang: str = "es") -> str:
     # Versioned key to invalidate stale narratives after KPI/LLM improvements.
-    raw = f"bi_narrative:v2:{org_id or 'global'}"
+    # v3 (revisión 2026-11): con el idioma, y fuera las narrativas cortadas a
+    # media frase que guardó la v2.
+    raw = f"bi_narrative:v3:{org_id or 'global'}:{lang}"
     return hashlib.md5(raw.encode()).hexdigest()  # noqa: S324
 
 
@@ -87,7 +89,7 @@ def generate_narrative(
     """
     from app.services.analytics_service import cache_get, cache_set
 
-    cache_key = _build_cache_key(org_id)
+    cache_key = _build_cache_key(org_id, lang)
 
     if not force_refresh:
         cached = cache_get(cache_key)
@@ -124,8 +126,12 @@ def generate_narrative(
         finally:
             db.close()
 
-        if not narrative_text or "No hay ningún proveedor de IA configurado" in narrative_text:
-            raise RuntimeError("No AI provider configured for storytelling")
+        # Revisión 2026-11: cualquier aviso de la IA (sin proveedor, error del
+        # proveedor…) va a la plantilla; antes sólo se reconocía uno y el texto
+        # del error se enseñaba y se guardaba una hora como si fuera el resumen.
+        from app.services.ai_provider_service import es_aviso_de_ia
+        if not narrative_text or es_aviso_de_ia(narrative_text):
+            raise RuntimeError("La IA no dio un resumen")
     except Exception as exc:
         logger.warning("LLM narrative generation failed: %s", exc)
         narrative_text = _fallback_narrative(kpis, lang)

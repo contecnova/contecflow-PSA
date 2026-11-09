@@ -316,18 +316,21 @@ def close_sprint_flow(db: Session, project_id: str, sprint_id: str) -> dict:
     if not sprint.end_date:
         sprint.end_date = timeutil.today()
 
+    # Sólo las tareas que siguen en el sprint (revisión 2026-11: también contaba
+    # las quitadas, en los puntos y en lo que vuelve al backlog).
+    en_el_sprint = [st for st in sprint.sprint_tasks if st.task and st.is_active is not False]
     sprint.completed_points = sum(
         st.task.story_points or 0
-        for st in sprint.sprint_tasks
-        if st.task and st.task.status == "done"
+        for st in en_el_sprint
+        if st.task.status == "done"
     )
     duration_weeks = max((sprint.end_date - sprint.start_date).days / 7, 0.5) if sprint.start_date else 1
     sprint.velocity = round(sprint.completed_points / duration_weeks, 1)
 
     # Lo que queda sin terminar vuelve al backlog; una cancelada sigue cancelada
     # (revisión 2026-11: antes también la reabría).
-    incomplete = [st for st in sprint.sprint_tasks
-                  if st.task and str(getattr(st.task.status, "value", st.task.status)) not in ("done", "cancelled")]
+    incomplete = [st for st in en_el_sprint
+                  if str(getattr(st.task.status, "value", st.task.status)) not in ("done", "cancelled")]
     for st in incomplete:
         st.task.status = "backlog"
 

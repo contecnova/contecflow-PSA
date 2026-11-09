@@ -432,10 +432,12 @@ def get_resource_snapshots_for_user(db: Session, user_id: str, limit: int):
 
 
 def get_imputations_for_export(
-    db: Session, user_id: str, date_from: Optional[date], date_to: Optional[date]
+    db: Session, user_id: Optional[str], date_from: Optional[date], date_to: Optional[date]
 ):
-    """Fetch imputations for CSV export with optional date filters."""
-    q = db.query(Imputation).filter(Imputation.user_id == user_id)
+    """Imputaciones para exportar; sin `user_id`, las de todos (la sesión acota la empresa)."""
+    q = db.query(Imputation)
+    if user_id:
+        q = q.filter(Imputation.user_id == user_id)
     if date_from:
         q = q.filter(Imputation.date >= date_from)
     if date_to:

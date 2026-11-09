@@ -274,29 +274,44 @@ def _call_gemini(api_key, model, messages, system, max_tokens, temperature) -> d
     for m in _con_adjuntos(messages, "gemini"):
         role = "user" if m["role"] == "user" else "model"
         contents.append({"role": role, "parts": (m.get("_partes") or []) + [{"text": m["content"]}]})
-    body = {
-        "contents": contents,
-        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": temperature},
-    }
-    resp = httpx.post(url, json=body, timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS"))
-    if resp.status_code != 200:
-        raise Exception(f"Gemini {resp.status_code}: {resp.text[:200]}")
-    data  = resp.json()
-    candidato = (data.get("candidates") or [{}])[0]
-    partes = (candidato.get("content") or {}).get("parts") or []
-    text  = "".join(p.get("text", "") for p in partes if not p.get("thought"))
-    usage = data.get("usageMetadata", {})
+    # Revisión 2026-11, medido con la API real: los modelos 2.5 «piensan» y el
+    # razonamiento cuenta dentro de `maxOutputTokens`. Con el tope justo la
+    # respuesta llegaba cortada a media frase (`finishReason: MAX_TOKENS`) y se
+    # devolvía tal cual: el resumen ejecutivo acababa en «una falta crítica de».
+    # Si se corta por el tope y hubo razonamiento, se repite una vez dando a la
+    # respuesta su presupuesto entero además de lo que gastó en pensar.
+    tope = max_tokens
+    gastado_antes = 0
+    for intento in range(2):
+        body = {
+            "contents": contents,
+            "generationConfig": {"maxOutputTokens": tope, "temperature": temperature},
+        }
+        resp = httpx.post(url, json=body, timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS"))
+        if resp.status_code != 200:
+            raise Exception(f"Gemini {resp.status_code}: {resp.text[:200]}")
+        data  = resp.json()
+        candidato = (data.get("candidates") or [{}])[0]
+        partes = (candidato.get("content") or {}).get("parts") or []
+        text  = "".join(p.get("text", "") for p in partes if not p.get("thought"))
+        usage = data.get("usageMetadata", {})
+        pensado = usage.get("thoughtsTokenCount", 0)
+        cortado = candidato.get("finishReason") == "MAX_TOKENS"
+        if intento == 0 and cortado and pensado:
+            gastado_antes = usage.get("candidatesTokenCount", 0) + pensado
+            tope = max_tokens + pensado
+            continue
+        break
     if not text:
-        # Revision 2026-11, medido con la API real: los modelos 2.5 «piensan»
-        # y con un tope bajo gastan todo en razonar; la respuesta llega sin
-        # `parts` y antes reventaba con KeyError 'parts'.
         motivo = candidato.get("finishReason") or "sin texto"
-        raise ValueError(f"Gemini no devolvió texto ({motivo}; {usage.get('thoughtsTokenCount', 0)} tokens "
-                         f"de razonamiento de {max_tokens}): sube el máximo de tokens del proveedor")
-    return {"text": text, "model": model,
+        raise ValueError(f"Gemini no devolvió texto ({motivo}; {pensado} tokens "
+                         f"de razonamiento de {tope}): sube el máximo de tokens del proveedor")
+    if cortado:
+        _logger.warning("Gemini cortó la respuesta en el tope (%s tokens, %s de razonamiento)", tope, pensado)
+    return {"text": text, "model": model, "truncado": cortado,
             "tokens_in": usage.get("promptTokenCount", 0),
-            # El razonamiento se factura como salida.
-            "tokens_out": usage.get("candidatesTokenCount", 0) + usage.get("thoughtsTokenCount", 0)}
+            # El razonamiento se factura como salida, también el del primer intento.
+            "tokens_out": usage.get("candidatesTokenCount", 0) + pensado + gastado_antes}
 
 
 def espera_de_ia(clave: str) -> float:

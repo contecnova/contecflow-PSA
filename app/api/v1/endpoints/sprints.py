@@ -174,7 +174,8 @@ def start_sprint(
         sprint.start_date = timeutil.today()
 
     # Calculate planned points
-    sprint.planned_points = sum(st.task.story_points or 0 for st in sprint.sprint_tasks if st.task)
+    # Sólo las tareas que siguen en el sprint (revisión 2026-11: también contaba las quitadas).
+    sprint.planned_points = sum(st.task.story_points or 0 for st in sprint.sprint_tasks if st.task and st.is_active is not False)
 
     svc.commit_db(db)
     return APIResponse.ok(data={"ok": True, "sprint": _sprint_out(sprint)})
@@ -265,7 +266,8 @@ def get_burnup(
     if not sprint.start_date or not sprint.end_date:
         return APIResponse.ok(data={"burnup": [], "sprint": _sprint_out(sprint)})
 
-    tasks = [st.task for st in sprint.sprint_tasks if st.task]
+    # Revisión 2026-11: sin las tareas quitadas del sprint, como el burndown.
+    tasks = [st.task for st in sprint.sprint_tasks if st.task and st.is_active is not False]
     total_scope = sum(t.story_points or 0 for t in tasks)
 
     today  = timeutil.today()

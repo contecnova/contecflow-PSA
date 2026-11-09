@@ -37,3 +37,7 @@ class HealthSettingsMixin:
     PROJECT_HEALTH_BUDGET_RATIO_GOOD: float = Field(default=0.80, env="PROJECT_HEALTH_BUDGET_RATIO_GOOD")
     PROJECT_HEALTH_BUDGET_RATIO_OK: float = Field(default=1.00, env="PROJECT_HEALTH_BUDGET_RATIO_OK")
     PROJECT_HEALTH_BUDGET_RATIO_WARN: float = Field(default=1.20, env="PROJECT_HEALTH_BUDGET_RATIO_WARN")
+    # Semáforo de los índices EVM (CPI, SPI; TCPI por su inverso). Revisión
+    # 2026-11: estaban fijos en el servidor y en la pantalla, y el de TCPI al revés.
+    EVM_INDEX_GREEN_MIN: float = Field(default=0.90, env="EVM_INDEX_GREEN_MIN")
+    EVM_INDEX_RED_BELOW: float = Field(default=0.85, env="EVM_INDEX_RED_BELOW")

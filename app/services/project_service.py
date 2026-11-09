@@ -225,70 +225,26 @@ class ProjectService(ServiceBase):
             "has_schedule": pct_time is not None,
             "total_tasks": tasks_total.cnt or 0,
             "done_tasks": tasks_done.cnt or 0,
-            "health": _evm_health(cpi, spi),
+            "health": _evm_health(cpi, spi, self.db),
+            "cpi_status": estado_de_indice(cpi, self.db),
+            "spi_status": estado_de_indice(spi, self.db),
+            "tcpi_status": estado_de_indice(tcpi, self.db, menor_es_mejor=True),
             "start_date": proj.start_date.isoformat() if proj.start_date else None,
             "planned_end": proj.end_date_planned.isoformat() if proj.end_date_planned else None,
         }
 
     def evm_portfolio(self) -> list:
-        """EVM summary for all active/on-hold projects."""
-        active = self.db.query(Project).filter(
+        """EVM de los proyectos activos o en pausa, con el mismo cálculo que la ficha.
+
+        Revisión 2026-11: tenía su propia copia sin los respaldos de AC y de
+        fechas, y la lista y la ficha daban valores distintos del mismo proyecto.
+        """
+        activos = self.db.query(Project.id).filter(
             Project.status.in_([ProjectStatus.active, ProjectStatus.on_hold])
         ).all()
-
-        results = []
-        today = timeutil.today()
-        for proj in active:
-            bac = proj.budget_amount or 0.0
-            if bac == 0:
-                total_est = self.db.query(func.sum(Task.estimated_hours)).filter(
-                    Task.project_id == proj.id
-                ).scalar() or 0.0
-                avg_rate = self.db.query(func.avg(Imputation.hourly_rate_snapshot)).filter(
-                    Imputation.project_id == proj.id,
-                    Imputation.hourly_rate_snapshot.isnot(None),
-                ).scalar() or 0.0
-                bac = total_est * avg_rate
-
-            ac = self.db.query(func.sum(Imputation.cost_amount)).filter(
-                Imputation.project_id == proj.id,
-                Imputation.cost_amount.isnot(None),
-            ).scalar() or 0.0
-
-            total_est_h = self.db.query(func.sum(Task.estimated_hours)).filter(
-                Task.project_id == proj.id
-            ).scalar() or 0.0
-            done_est_h = self.db.query(func.sum(Task.estimated_hours)).filter(
-                Task.project_id == proj.id, Task.status == TaskStatus.done
-            ).scalar() or 0.0
-            pct = (done_est_h / total_est_h) if total_est_h > 0 else 0.0
-            ev = bac * pct
-
-            start, end = proj.start_date, proj.end_date_planned
-            if start and end and end > start:
-                pct_t = min((today - start).days / (end - start).days, 1.0)
-            else:
-                pct_t = pct
-            pv = bac * max(pct_t, 0)
-
-            cpi = round(ev / ac, 3) if ac > 0 else None
-            spi = round(ev / pv, 3) if pv > 0 else None
-            eac = round(bac / cpi, 2) if cpi and cpi > 0 else None
-
-            results.append({
-                "project_id": proj.id,
-                "project_name": proj.name,
-                "bac": round(bac, 2),
-                "ac": round(ac, 2),
-                "ev": round(ev, 2),
-                "pv": round(pv, 2),
-                "cpi": cpi,
-                "spi": spi,
-                "eac": eac,
-                "pct_complete": round(pct * 100, 1),
-                "health": _evm_health(cpi, spi),
-            })
-
+        campos = ("project_id", "project_name", "bac", "ac", "ev", "pv", "cpi", "spi", "eac", "tcpi",
+                  "pct_complete", "health", "cpi_status", "spi_status", "tcpi_status", "has_schedule")
+        results = [{k: d[k] for k in campos} for d in (self.evm(pid) for (pid,) in activos) if d]
         return sorted(results, key=lambda r: r["health"] == "red", reverse=True)
 
 
@@ -308,14 +264,31 @@ def _empty_enrichment() -> dict:
     }
 
 
-def _evm_health(cpi: Optional[float], spi: Optional[float]) -> str:
+def estado_de_indice(valor: Optional[float], db: Session, menor_es_mejor: bool = False) -> str:
+    """Semáforo de un índice EVM con los umbrales de Admin (`EVM_INDEX_*`).
+
+    CPI y SPI: mejor cuanto más alto. TCPI (el CPI que haría falta para acabar
+    en presupuesto): mejor cuanto más bajo, así que se juzga su inverso.
+    """
+    if valor is None:
+        return "grey"
+    if menor_es_mejor:
+        if valor <= 0:
+            return "green"
+        valor = 1 / valor
+    from app.services.settings_service import get_runtime_float
+    verde = get_runtime_float(db, "EVM_INDEX_GREEN_MIN")
+    rojo = get_runtime_float(db, "EVM_INDEX_RED_BELOW")
+    if valor >= verde:
+        return "green"
+    return "red" if valor < rojo else "yellow"
+
+
+def _evm_health(cpi: Optional[float], spi: Optional[float], db: Session) -> str:
     if cpi is None or spi is None:
         return "grey"
-    if cpi >= 0.9 and spi >= 0.9:
-        return "green"
-    if cpi < 0.85 or spi < 0.85:
-        return "red"
-    return "yellow"
+    estados = {estado_de_indice(cpi, db), estado_de_indice(spi, db)}
+    return "red" if "red" in estados else "yellow" if "yellow" in estados else "green"
 
 
 # ── Backward-compat standalone functions ──────────────────────────────────────

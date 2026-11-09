@@ -297,6 +297,8 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("PROJECT_HEALTH_BUDGET_RATIO_GOOD", "float", "Budget ratio — Good ≤"),
         ("PROJECT_HEALTH_BUDGET_RATIO_OK", "float", "Budget ratio — OK ≤"),
         ("PROJECT_HEALTH_BUDGET_RATIO_WARN", "float", "Budget ratio — Warn ≤"),
+        ("EVM_INDEX_GREEN_MIN", "float", "EVM — CPI/SPI green from (TCPI: its inverse)"),
+        ("EVM_INDEX_RED_BELOW", "float", "EVM — CPI/SPI red below (TCPI: its inverse)"),
     ],
     "semantic": [
         ("SEM_THRESHOLD_EXPERT_CACHE", "float", "Expert cache threshold (0-1)"),

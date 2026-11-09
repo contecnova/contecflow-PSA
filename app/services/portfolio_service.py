@@ -8,70 +8,23 @@ from sqlalchemy import func
 
 from app.models.portfolio import Portfolio, PortfolioProject
 from app.models.project import Project
-from app.models.task import Task, TaskStatus
-from app.models.imputation import Imputation
 from app.models.financial import ProjectMilestone
 from app.models.user import User
-from app.core import timeutil
 
 
 # ── EVM ───────────────────────────────────────────────────────────────────────
 
 def get_evm_quick(db: Session, project_id: str) -> dict:
-    """Fast EVM snapshot for a project."""
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
+    """EVM de un proyecto con el mismo cálculo que la ficha y la lista de EVM.
+
+    Revisión 2026-11: tenía su copia sin respaldos de BAC y AC (proyectos sin
+    `budget_amount` salían en gris) y otro semáforo.
+    """
+    from app.services.project_service import calculate_evm
+    d = calculate_evm(project_id, db)
+    if not d:
         return {"cpi": None, "spi": None, "pct_complete": 0, "health": "grey", "ac": 0, "bac": 0, "ev": 0}
-
-    bac = proj.budget_amount or 0.0
-    ac = (
-        db.query(func.sum(Imputation.cost_amount))
-        .filter(
-            Imputation.project_id == project_id,
-            Imputation.cost_amount.isnot(None),
-        )
-        .scalar() or 0.0
-    )
-
-    total_est = (
-        db.query(func.sum(Task.estimated_hours))
-        .filter(Task.project_id == project_id)
-        .scalar() or 0.0
-    )
-    done_est = (
-        db.query(func.sum(Task.estimated_hours))
-        .filter(Task.project_id == project_id, Task.status == TaskStatus.done)
-        .scalar() or 0.0
-    )
-    pct = (done_est / total_est) if total_est > 0 else 0.0
-    ev = bac * pct
-
-    today = timeutil.today()
-    s, e = proj.start_date, proj.end_date_planned
-    pct_t = min((today - s).days / (e - s).days, 1.0) if s and e and e > s else pct
-    pv = bac * max(pct_t, 0)
-
-    cpi = round(ev / ac, 3) if ac > 0 else None
-    spi = round(ev / pv, 3) if pv > 0 else None
-
-    def _health(c, s):
-        if c is None or s is None:
-            return "grey"
-        if c >= 0.9 and s >= 0.9:
-            return "green"
-        if c < 0.85 or s < 0.85:
-            return "red"
-        return "yellow"
-
-    return {
-        "cpi": cpi,
-        "spi": spi,
-        "pct_complete": round(pct * 100, 1),
-        "health": _health(cpi, spi),
-        "ac": round(ac, 2),
-        "bac": round(bac, 2),
-        "ev": round(ev, 2),
-    }
+    return {k: d[k] for k in ("cpi", "spi", "pct_complete", "health", "ac", "bac", "ev")}
 
 
 # ── Portfolio CRUD ────────────────────────────────────────────────────────────

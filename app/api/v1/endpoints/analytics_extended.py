@@ -390,6 +390,7 @@ def export_imputations_csv(
     user_id: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    include_costs: bool = False,
     formato: str = "csv",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -404,18 +405,25 @@ def export_imputations_csv(
     La ruta conserva el sufijo `-csv` a proposito: renombrarla romperia al
     cliente otra vez, y el formato lo decide el parametro, no el nombre.
     """
-    query_user_id = user_id if user_id and current_user.role in ["admin"] else current_user.id
+    # Revisión 2026-11: admin y hr exportan las de todos (o las de `user_id`);
+    # el resto, las suyas. Antes la pantalla no mandaba `user_id` y todos
+    # exportaban sólo las propias. Las columnas de coste son opcionales y sólo
+    # para admin y hr, como la estructura de costes.
+    ve_todo = getattr(current_user.role, "value", current_user.role) in ("admin", "hr")
+    query_user_id = (user_id or None) if ve_todo else current_user.id
+    con_costes = include_costs and ve_todo
 
     imputations = analytics_service.get_imputations_for_export(db, query_user_id, date_from, date_to)
 
-    cabecera = [
-        "Date", "Project", "Task", "Hours", "Billable", "Approved",
-        "Hourly Rate", "Cost", "Description",
-    ]
+    cabecera = ["Date", "Person", "Project", "Task", "Hours", "Billable", "Approved"]
+    if con_costes:
+        cabecera += ["Hourly Rate", "Cost"]
+    cabecera += ["Description"]
     filas = []
     for imp in imputations:
-        filas.append([
+        fila = [
             imp.date,
+            imp.user.full_name if getattr(imp, "user", None) else "",
             imp.project.name if imp.project else "",
             # Auditoria 2026-08: aqui habia `imp.task.name`, y `Task` no tiene
             # esa columna — se llama `title`. Reventaba con `AttributeError`,
@@ -430,10 +438,10 @@ def export_imputations_csv(
             imp.hours,
             "Yes" if imp.is_billable else "No",
             "Yes" if imp.is_approved else "No",
-            imp.hourly_rate_snapshot or "",
-            imp.cost_amount or "",
-            imp.description or "",
-        ])
+        ]
+        if con_costes:
+            fila += [imp.hourly_rate_snapshot or "", imp.cost_amount or ""]
+        filas.append(fila + [imp.description or ""])
 
     return respuesta_tabular(
         formato, nombre="imputations", cabecera=cabecera, filas=filas)
@@ -465,6 +473,8 @@ def export_projects_csv(
     from app.services.project_service import proyectos_para_exportar
 
     proyectos = proyectos_para_exportar(db, current_user)
+    # Revisión 2026-11: los importes, sólo para admin (antes sólo lo frenaba la pantalla).
+    include_costs = include_costs and getattr(current_user.role, "value", current_user.role) == "admin"
 
     cabecera = [
         "Code", "Name", "Client", "Type", "Status",

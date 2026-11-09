@@ -481,7 +481,9 @@ export const integrationsApi = {
   // proyectos hubo que anadirlo (`/analytics/exports/projects-csv`).
   exportImputations: (params: unknown) => api.get('/analytics/exports/imputations-csv', { params, responseType: 'blob' }),
   exportProjects:    (params: unknown) => api.get('/analytics/exports/projects-csv', { params, responseType: 'blob' }),
-  jiraSync:          (projectId: any) => api.post(`/integrations/jira/sync/${projectId}`),
+  // Importa issues de Jira como tareas del proyecto (revisión 2026-11: llamaba a
+  // una ruta que espera el id de una configuración y siempre daba 404).
+  jiraSync:          (projectId: any) => api.post('/jira/sync', { project_id: projectId }),
 }
 
 export const clientsApi = {

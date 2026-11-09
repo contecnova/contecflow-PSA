@@ -663,8 +663,8 @@ export default function CMDBPage(): JSX.Element {
           { id: 'list',     label: t('cmdb.tab_inventory') },
           { id: 'topology', label: t('cmdb.tab_topology') },
           { id: '3d',       label: t('cmdb.tab_3d') },
-          { id: 'agents',   label: t('cmdb.tab_agents') },
-          ...(user?.role === 'admin' ? [{ id: 'classes', label: t('cmdb.tab_classes') }] : []),
+          // Agentes y clases son de admin en el servidor (revisión 2026-11: pm veía Agentes y recibía 403).
+          ...(user?.role === 'admin' ? [{ id: 'agents', label: t('cmdb.tab_agents') }, { id: 'classes', label: t('cmdb.tab_classes') }] : []),
         ]}
         active={tab}
         onChange={setTab}
