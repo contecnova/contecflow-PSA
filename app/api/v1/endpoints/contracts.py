@@ -9,7 +9,7 @@ from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services import contract_service
-from app.services.contract_service import serialize_contract as _contract_out
+from app.services.contract_service import horas_usadas as _horas_usadas, serialize_contract as _contract_out
 from app.schemas.contracts import ContractIn, ContractUpdate, WorkOrderIn
 
 router = APIRouter()
@@ -34,7 +34,8 @@ def list_contracts(
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(page_size)
-    items = [_contract_out(c) for c in contracts]
+    horas = _horas_usadas(db, contracts)
+    items = [_contract_out(c, horas[c.id]) for c in contracts]
     return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
@@ -52,7 +53,7 @@ def create_contract(
         c = contract_service.create_contract(db, current_user.id, **payload.model_dump())
     except IntegrityError:
         raise HTTPException(status_code=409, detail="Código de contrato duplicado. Inténtalo de nuevo.")
-    return APIResponse.ok(data=_contract_out(c))
+    return APIResponse.ok(data=_contract_out(c, _horas_usadas(db, [c])[c.id]))
 
 
 @router.get("/{contract_id}", summary="Detalle de un contrato")
@@ -74,7 +75,7 @@ def get_contract(
     c = contract_service.get_contract(db, contract_id, current_user)
     if not c:
         raise HTTPException(404, "Contrato no encontrado")
-    return APIResponse.ok(data=_contract_out(c))
+    return APIResponse.ok(data=_contract_out(c, _horas_usadas(db, [c])[c.id]))
 
 
 @router.patch("/{contract_id}", summary="Actualizar contrato")
@@ -88,7 +89,7 @@ def update_contract(
     if not c:
         raise HTTPException(404, "Contrato no encontrado")
     c = contract_service.update_contract(db, c, payload.model_dump(exclude_unset=True))
-    return APIResponse.ok(data=_contract_out(c))
+    return APIResponse.ok(data=_contract_out(c, _horas_usadas(db, [c])[c.id]))
 
 
 @router.delete("/{contract_id}", summary="Eliminar contrato")

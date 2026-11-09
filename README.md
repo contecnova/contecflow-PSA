@@ -1490,7 +1490,7 @@ General notes that apply to every module here:
 - **Tables:** `contracts`, `work_orders`.
 
 **Limitations.**
-- **The hours bag never moves.** `contracts.hours_used` is never written anywhere in `app/` (grep found no writer), so `hours_pct` stays at 0% unless someone edits the database.
+- **Hours used** in an hours bag are the hours logged on the contract's project within its dates (calculated on read from imputations; one grouped query for the whole list).
 - **Nothing expires on its own.** No job moves contracts to `expired`.
 - **Work order "invoiced" is only a label.** It creates no invoice.
 - **This is not the ASC 606 contract.** Those live in `rev_contracts` under `/revenue`. There is no link between the two tables.

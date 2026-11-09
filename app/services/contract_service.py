@@ -191,10 +191,35 @@ CONTRACT_TYPE_LABELS = {
 }
 
 
-def serialize_contract(c) -> dict:
+def horas_usadas(db: Session, contratos) -> dict:
+    """Horas imputadas al proyecto de cada contrato dentro de su vigencia.
+
+    Revisión 2026-11: `contracts.hours_used` no lo escribía nadie y la bolsa de
+    horas marcaba siempre 0 %. Se calcula de las imputaciones —el dato ya está—
+    en una consulta para toda la lista (por proyecto y día).
+    """
+    from sqlalchemy import func as _f
+    from app.models.imputation import Imputation
+    contratos = list(contratos)
+    proyectos = {c.project_id for c in contratos if c.project_id}
+    if not proyectos:
+        return {c.id: 0.0 for c in contratos}
+    filas = (db.query(Imputation.project_id, Imputation.date, _f.sum(Imputation.hours))
+             .filter(Imputation.project_id.in_(proyectos))
+             .group_by(Imputation.project_id, Imputation.date).all())
+    salida = {}
+    for c in contratos:
+        salida[c.id] = round(sum(h or 0 for pid, d, h in filas if pid == c.project_id
+                                 and (not c.start_date or d >= c.start_date)
+                                 and (not c.end_date or d <= c.end_date)), 2)
+    return salida
+
+
+def serialize_contract(c, horas: Optional[float] = None) -> dict:
+    usadas = horas if horas is not None else (c.hours_used or 0)
     hours_pct = None
     if c.hours_bag and c.hours_bag > 0:
-        hours_pct = round(((c.hours_used or 0) / c.hours_bag) * 100, 1)
+        hours_pct = round((usadas / c.hours_bag) * 100, 1)
     return {
         "id": c.id, "code": c.code, "name": c.name,
         "project_id": c.project_id,
@@ -205,7 +230,7 @@ def serialize_contract(c) -> dict:
         "total_amount": c.total_amount,
         "hourly_rate": c.hourly_rate,
         "hours_bag": c.hours_bag,
-        "hours_used": c.hours_used,
+        "hours_used": usadas,
         "hours_pct": hours_pct,
         "monthly_retainer": c.monthly_retainer,
         "start_date": str(c.start_date) if c.start_date else None,
