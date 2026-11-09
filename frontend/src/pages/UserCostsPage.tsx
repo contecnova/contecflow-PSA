@@ -105,7 +105,7 @@ export default function UserCostsPage() {
       />
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', marginBottom: 24 }}>
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))', marginBottom: 24 }}>
         <KpiBox icon="🧮" label="Coste/hora medio"
                 value={fmtCur(summary?.avg_cost_per_hour, 'EUR', lang)}
                 sub={`${summary?.users_with_cost ?? 0} personas`} />
@@ -142,7 +142,7 @@ export default function UserCostsPage() {
                       description="Carga los predefinidos para empezar (España, Francia, US, Brasil, etc.)"
                       ctaLabel="Cargar países" onCta={() => seedCountriesMut.mutate(false)} />
         ) : (
-          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))' }}>
             {countries.map(c => (
               <CountryCard key={c.id} c={c} onEdit={() => setEditCountry(c)} />
             ))}
@@ -156,11 +156,11 @@ export default function UserCostsPage() {
         icon={<Wallet size={16} />}
         actions={
           <Input placeholder="Buscar persona o departamento…" value={search}
-                 onChange={(e: { target: { value: string } }) => setSearch(e.target.value)} style={{ width: 280 }} />
+                 onChange={(e: { target: { value: string } }) => setSearch(e.target.value)} style={{ width: 280, maxWidth: '100%' }} />
         }
       >
         {loadingSummary ? <Spinner /> : (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--surface-1)', textAlign: 'left' }}>
@@ -245,11 +245,11 @@ export default function UserCostsPage() {
 function Section({ title, icon, actions, children }: { title: ReactNode; icon: ReactNode; actions?: ReactNode; children: ReactNode }) {
   return (
     <div style={{ marginBottom: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h3 style={{ fontSize: 'var(--text-md)', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
           {icon}{title}
         </h3>
-        <div>{actions}</div>
+        <div style={{ maxWidth: '100%' }}>{actions}</div>
       </div>
       {children}
     </div>
@@ -287,7 +287,7 @@ function CountryCard({ c, onEdit }: { c: CountryRow; onEdit: () => void }) {
         <span style={{ fontWeight: 600 }}>{c.country_code} · {c.country_name}</span>
         {c.is_default && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>predefinido</span>}
       </div>
-      <div style={{ display: 'flex', gap: 14, fontSize: 'var(--text-sm)' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontSize: 'var(--text-sm)' }}>
         <span><strong>{((c.employer_cost_pct ?? 0) * 100).toFixed(1)}%</strong> coste empresa</span>
         <span style={{ color: 'var(--text-3)' }}>{c.productive_hours_year} {t('usercosts.h_ano')}</span>
         <span style={{ color: 'var(--text-3)' }}>{c.currency}</span>

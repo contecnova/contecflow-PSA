@@ -15,6 +15,7 @@ import PageShell from '../components/layout/PageShell'
 import { GitBranch } from 'lucide-react'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 interface ScenarioProject {
   id?: string | number
@@ -71,6 +72,7 @@ const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'v
 
 export default function ScenariosPage() {
   const t = useAppT()
+  const narrow = useMediaQuery('(max-width: 900px)')
   const qc = useQueryClient()
   const toast = useToast()
   const [selected, setSelected] = useState<string | number | null>(null)
@@ -108,7 +110,7 @@ export default function ScenariosPage() {
         <Button onClick={()=>setShowCreate(true)}>{t('scenarios.nuevo_escenario')}</Button>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'340px 1fr', gap:20 }}>
+      <div style={{ display:'grid', gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '340px minmax(0, 1fr)', gap:20 }}>
         <div>
           {isLoading ? <Spinner /> : scenarios.length === 0 ? (
             <EmptyState icon="🔮" title={t('scenarios.no_scenarios')} description="Crea un escenario para simular el impacto en capacidad" />
@@ -127,15 +129,15 @@ export default function ScenariosPage() {
 
         <div>
           {!selected ? (
-            <div style={{ ...card, padding:'48px', textAlign:'center', color:'var(--text-3)' }}>
+            <div style={{ ...card, padding: narrow ? '32px 16px' : '48px', textAlign:'center', color:'var(--text-3)' }}>
               <div style={{ fontSize: "var(--text-5xl)", marginBottom:12 }}>🔮</div>
               <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:6 }}>{t('scenarios.selecciona_un_escenario')}</div>
               <div style={{ fontSize: "var(--text-sm)" }}>{t('scenarios.o_crea_uno_nuevo_para_simular_el')}</div>
             </div>
           ) : !detail ? <Spinner /> : (
             <div>
-              <div style={{ ...card, padding:'16px 20px', marginBottom:16, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <div>
+              <div style={{ ...card, padding:'16px 20px', marginBottom:16, display:'flex', flexWrap:'wrap', gap:12, justifyContent:'space-between', alignItems:'center' }}>
+                <div style={{ minWidth:0 }}>
                   <div style={{ fontSize: "var(--text-md-em)", fontWeight:500 }}>{detail.name}</div>
                   <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{detail.description || '—'} · horizonte {detail.horizon_weeks} semanas</div>
                 </div>
@@ -148,7 +150,7 @@ export default function ScenariosPage() {
               {results && (
                 <div>
                   {/* KPIs */}
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(140px, 100%), 1fr))', gap:12, marginBottom:20 }}>
                     {[
                       { l:'Resultado', v: results.feasible?'✓ Viable':'✗ Inviable', c: results.feasible?'var(--success)':'var(--danger)' },
                       { l:'Semanas sobrecargadas', v: results.overloaded_weeks_count, c: (results.overloaded_weeks_count ?? 0)>0?'var(--danger)':'var(--success)' },
@@ -193,7 +195,7 @@ export default function ScenariosPage() {
                 <div style={{ ...card, padding:'16px 20px', marginTop:16 }}>
                   <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>{t('scenarios.proyectos_en_el_escenario')}</div>
                   {(detail.projects ?? []).map(p => (
-                    <div key={p.id} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
+                    <div key={p.id} style={{ display:'flex', flexWrap:'wrap', gap:'4px 12px', justifyContent:'space-between', padding:'8px 0', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                       <div>
                         <span style={{ fontWeight:500, marginRight:8 }}>{p.name}</span>
                         {p.is_existing && <span style={{ fontSize: "var(--text-2xs)", padding:'1px 5px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>Existente</span>}

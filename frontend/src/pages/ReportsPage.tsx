@@ -16,6 +16,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { CHART_COLORS_EXTENDED, alpha } from '../constants/theme'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
+import useMediaQuery from '../hooks/useMediaQuery'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
@@ -498,6 +499,7 @@ function SummaryBar({ summary, meta, prevSummary }: { summary?: any; meta?: any;
 // ── Report panel ──────────────────────────────────────────────────────────────
 function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: any; initialChart?: any; onSave?: any }) {
   const traducir = useAppT()
+  const narrow = useMediaQuery('(max-width: 900px)')
   const today = new Date().toISOString().split('T')[0]
   const threeMonthsAgo = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
 
@@ -567,9 +569,9 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
     <div>
       {/* Controls bar */}
       <div style={{ background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: narrow ? 'repeat(2, minmax(0, 1fr))' : '2fr 1.5fr 1.5fr 1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
           {/* Metric selector */}
-          <div>
+          <div style={narrow ? { gridColumn: '1 / -1' } : undefined}>
             <label style={ls}>{traducir('reports.metrica')}</label>
             <select value={metric} onChange={e => handleMetricChange(e.target.value)} style={fs}>
               <option value="">{traducir('reports.seleccionar_metrica')}</option>
@@ -629,15 +631,15 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
 
         <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Date range */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             <label style={{ ...ls, marginBottom: 0 }}>📅 Desde</label>
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...fs, width: 140 }} />
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...fs, width: 140, maxWidth: '100%' }} />
             <label style={{ ...ls, marginBottom: 0 }}>Hasta</label>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...fs, width: 140 }} />
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...fs, width: 140, maxWidth: '100%' }} />
           </div>
 
           {/* Presets */}
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {DATE_PRESETS.map(p => (
               <button key={p.label} onClick={() => setDatePreset(p.days)}
                 style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
@@ -647,7 +649,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           </div>
 
           {/* Chart type */}
-          <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginLeft: 'auto' }}>
             {CHART_TYPES.map(ct => (
               <button key={ct.id} onClick={() => setChartType(ct.id)} title={ct.label}
                 style={{ padding: '5px 10px', borderRadius: 6, border: `1px solid ${chartType === ct.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: chartType === ct.id ? 'var(--accent-glow)' : 'var(--surface-2)', color: chartType === ct.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -667,7 +669,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Elige entre {Object.values(catalogue || {}).flat().length || '...'} {traducir('reports.metricas_disponibles')}</div>
           </div>
           {/* Métricas populares como acceso rápido */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(180px, 100%), 1fr))', gap: 10 }}>
             {[
               { id: 'hours_by_month', label: 'Horas por mes', icon: '⏱️', cat: 'Horas' },
               { id: 'margin_by_project', label: 'Margen por proyecto', icon: '💰', cat: 'Rentabilidad' },
@@ -693,9 +695,9 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
         <div style={{ textAlign: 'center', padding: 60 }}><Spinner /></div>
       ) : result ? (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
                 <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, margin: 0 }}>{result.meta?.label}</h3>
                 <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: 'var(--surface-4)', color: 'var(--text-2)', fontWeight: 700, textTransform: 'uppercase' }}>
                   {result.meta?.category}
@@ -704,10 +706,10 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
               </div>
               <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: '4px 0 0' }}>{result.meta?.description}</p>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {onSave && (
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input value={reportName} onChange={e => setReportName(e.target.value)} placeholder={traducir('reports.report_name')} style={{ ...fs, width: 200, fontSize: "var(--text-sm)" }} />
+                <div style={{ display: 'flex', gap: 6, minWidth: 0 }}>
+                  <input value={reportName} onChange={e => setReportName(e.target.value)} placeholder={traducir('reports.report_name')} style={{ ...fs, width: 200, minWidth: 0, fontSize: "var(--text-sm)" }} />
                   <Button size="sm" onClick={() => onSave({ name: reportName || result.meta?.label, metric, chartType, color, dateFrom, dateTo, projectId, userId, department, topN })} disabled={!metric}>💾 Guardar</Button>
                 </div>
               )}
@@ -755,7 +757,7 @@ function ReportsDashboard({ saved, onRemove, onOpen }: { saved: any[]; onRemove?
   const _d90 = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(480px, 1fr))', gap: 20 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(480px, 100%), 1fr))', gap: 20 }}>
       {saved.map((r: any) => (
         <Card key={r.id} style={{ padding: 18 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -1085,7 +1087,7 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: any[]; sup
           {filtered.length === 0 ? 'Sin resultados' : `${filtered.length} plantilla${filtered.length !== 1 ? 's' : ''} encontrada${filtered.length !== 1 ? 's' : ''}`}
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))', gap: 12 }}>
         {filtered.map((p: any) => (
           <button key={p.id} type="button" onClick={() => onOpen(p)}
             style={{ background: 'var(--surface-2)', border: `1px solid ${alpha(p.color, '25')}`, borderRadius: 12,

@@ -14,6 +14,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 const fs: CSSProperties = { width: '100%', background: 'var(--surface-4)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
@@ -349,7 +350,7 @@ function BiPresetsTab() {
           ))}
           {items.length > 16 && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', alignSelf: 'center' }}>+{items.length - 16} {traducir('reportbuilder.mas')}</span>}
         </div>
-        <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
           <button onClick={runPreview}
             style={{ padding: '7px 16px', borderRadius: 8, background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }}>
             Vista previa
@@ -390,6 +391,7 @@ function BiPresetsTab() {
 // ── Main page ──────────────────────────────────────────────────────────────
 export default function ReportBuilderPage() {
   const traducir = useAppT()
+  const narrow = useMediaQuery('(max-width: 900px)')
   const t = useAppT()
   const { data: schema } = useSchema()
   const qc = useQueryClient()
@@ -510,7 +512,7 @@ export default function ReportBuilderPage() {
       />
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
         {['builder', 'templates', 'presets'].map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             background: activeTab === t ? 'var(--accent-glow)' : 'none',
@@ -535,8 +537,8 @@ export default function ReportBuilderPage() {
               {traducir('reportbuilder.no_hay_plantillas_guardadas_crea_un_informe')}
             </div>
           ) : templates.map(t => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px' }}>
-              <div style={{ flex: 1 }}>
+            <div key={t.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: "var(--text-md)", color: 'var(--text-1)', fontWeight: 600 }}>{t.name}</div>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>
                   {entities[t.query?.entity || '']?.label || t.query?.entity}
@@ -556,7 +558,7 @@ export default function ReportBuilderPage() {
           ))}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '300px minmax(0, 1fr)', gap: 20, alignItems: 'start' }}>
           {/* ── Left panel ── */}
           <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
@@ -645,7 +647,7 @@ export default function ReportBuilderPage() {
           </div>
 
           {/* ── Right panel ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
             {/* Toolbar */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {preview && (
@@ -671,7 +673,7 @@ export default function ReportBuilderPage() {
                 value={tplName}
                 onChange={e => setTplName(e.target.value)}
                 placeholder={traducir('reportbuilder.nombre_de_la_plantilla')}
-                style={{ ...fs, width: 190 }}
+                style={{ ...fs, width: 190, maxWidth: '100%' }}
               />
               <button
                 onClick={saveTemplate}

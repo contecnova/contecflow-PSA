@@ -128,7 +128,7 @@ export default function ExportsPage(): JSX.Element {
         <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 20 }}>
           {t('exports.descarga_el_registro_de_horas_en_excel')}
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 14, marginBottom: 16 }}>
           <div>
             <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Desde</label>
             <input type="date" value={imputForm.date_from}
@@ -142,7 +142,7 @@ export default function ExportsPage(): JSX.Element {
               style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16, alignItems: 'center' }}>
           <div style={{ display: 'flex', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
             {(['xlsx', 'csv'] as const).map((fmt) => (
               <button key={fmt} onClick={() => setImputForm(f => ({ ...f, format: fmt }))}
@@ -174,7 +174,7 @@ export default function ExportsPage(): JSX.Element {
             el servidor devolvía un CSV. Ahora hay selector, como en el de
             imputaciones, y la etiqueta dice el formato que de verdad se va a
             descargar. */}
-        <div style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16, alignItems: 'center' }}>
           <div style={{ display: 'flex', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
             {(['xlsx', 'csv'] as const).map((fmt) => (
               <button key={fmt} onClick={() => setProjForm(f => ({ ...f, format: fmt }))}
@@ -203,9 +203,9 @@ export default function ExportsPage(): JSX.Element {
           <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 20 }}>
             {t('exports.importa_issues_de_jira_como_tareas_en')}
           </p>
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
             <select value={jiraProject} onChange={e => setJiraProject(e.target.value)}
-              style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: jiraProject ? 'var(--text-1)' : 'var(--text-2)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              style={{ flex: '1 1 200px', minWidth: 0, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: jiraProject ? 'var(--text-1)' : 'var(--text-2)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">Selecciona proyecto...</option>
               {projects.filter(p => p.status === 'active').map(p => (
                 <option key={p.id} value={p.id}>{p.code} — {p.name}</option>

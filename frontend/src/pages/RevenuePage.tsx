@@ -289,7 +289,7 @@ export default function RevenuePage() {
       <PageHeader icon={<TrendingUp size={18} />} title={t('profitability.revenue')} subtitle={t('profitability.revenue_subtitle')} />
 
       {/* KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:28 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap:14, marginBottom:28 }}>
         {[
           { label:'Total reconocido', value:fmt(summary?.total_recognised), icon:'✅' },
           { label:'Total diferido',   value:fmt(summary?.total_deferred),   icon:'⏳' },
@@ -305,7 +305,7 @@ export default function RevenuePage() {
       </div>
 
       {/* Tab nav */}
-      <div style={{ display:'flex', gap:8, marginBottom:24 }}>
+      <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:24 }}>
         {TABS.map(tb => (
           <button key={tb.id} onClick={() => setTab(tb.id)}
             style={{ padding:'8px 16px', borderRadius:8, border:`.5px solid ${tab===tb.id?'rgba(0,212,255,0.25)':'var(--surface-4)'}`, background:tab===tb.id?'var(--accent-muted)':'transparent', color:tab===tb.id?'var(--accent)':'var(--text-2)', fontSize: "var(--text-base)", fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
@@ -352,14 +352,14 @@ export default function RevenuePage() {
                 const pct = r.contract_value > 0 ? Math.round(r.total_recognised / r.contract_value * 100) : 0
                 return (
                   <div key={r.id} style={{ ...card, padding:'16px 20px' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                      <div style={{ flex:1 }}>
-                        <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:6 }}>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:'12px 20px', justifyContent:'space-between', alignItems:'flex-start' }}>
+                      <div style={{ flex:'1 1 260px', minWidth:0 }}>
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'center', marginBottom:6 }}>
                           <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{r.project_name}</span>
                           <span style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', padding:'1px 6px', borderRadius:4, background:'var(--surface-2)' }}>{r.project_code}</span>
                           <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>{mCfg.icon} {mCfg.label}</span>
                         </div>
-                        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:10 }}>
+                        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(110px, 100%), 1fr))', gap:16, marginBottom:10 }}>
                           <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Valor contrato</div><div style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{fmt(r.contract_value)}</div></div>
                           <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Reconocido</div><div style={{ fontSize: "var(--text-md)", fontWeight:500, color:'var(--success)' }}>{fmt(r.total_recognised)}</div></div>
                           <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Diferido</div><div style={{ fontSize: "var(--text-md)", fontWeight:500, color:'var(--warning)' }}>{fmt(r.total_deferred)}</div></div>
@@ -374,7 +374,7 @@ export default function RevenuePage() {
                           </div>
                         )}
                       </div>
-                      <div style={{ marginLeft:20 }}>
+                      <div>
                         <Button onClick={() => setShowCompute(r)}>{t('revenue.calcular_periodo')}</Button>
                       </div>
                     </div>
@@ -390,8 +390,8 @@ export default function RevenuePage() {
       {tab === 'asc606' && (
         <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
           {/* Top bar */}
-          <div style={{ display:'flex', gap:10, alignItems:'center', justifyContent:'space-between' }}>
-            <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'center', justifyContent:'space-between' }}>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'center' }}>
               <select value={dashYear} onChange={e => setDashYear(Number(e.target.value))} style={{ ...fs, width:'auto' }}>
                 {[currentYear-1, currentYear, currentYear+1].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
@@ -399,7 +399,7 @@ export default function RevenuePage() {
                 <RefreshCw size={13} style={{ marginRight:4 }} />{runningMonthly ? 'Procesando...' : 'Ejecutar reconocimiento'}
               </Button>
             </div>
-            <div style={{ display:'flex', gap:10 }}>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
               <Button variant="secondary" onClick={() => setShowCloseModal(true)}><Lock size={13} style={{ marginRight:4 }} />{t('revenue.cerrar_periodo')}</Button>
               <Button onClick={() => setShowCreateContract(true)}>{t('revenue.nuevo_contrato')}</Button>
             </div>
@@ -407,7 +407,7 @@ export default function RevenuePage() {
 
           {/* Dashboard KPIs */}
           {asc606Dashboard && (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap:12 }}>
               {[
                 { label:'Total reconocido', value: fmt(asc606Dashboard.total_recognized), icon:'✅' },
                 { label:'Contratos activos', value: asc606Dashboard.contracts?.length || 0, icon:'📑' },
@@ -474,8 +474,8 @@ export default function RevenuePage() {
                   return (
                     <div key={c.id} style={{ ...card, padding:'14px 18px' }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                        <div>
-                          <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6 }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', marginBottom:6 }}>
                             <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{c.name}</span>
                             <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>
                               {mCfg.icon} {mCfg.label}
@@ -484,7 +484,7 @@ export default function RevenuePage() {
                               <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-3)', color:'var(--text-3)' }}>Inactivo</span>
                             )}
                           </div>
-                          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:10 }}>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(110px, 100%), 1fr))', gap:16, marginBottom:10 }}>
                             <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Valor contrato</div><div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{fmt(c.contract_value)}</div></div>
                             <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Moneda</div><div style={{ fontSize: "var(--text-base)" }}>{c.currency}</div></div>
                             <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Inicio</div><div style={{ fontSize: "var(--text-base)" }}>{c.start_date || '—'}</div></div>
@@ -509,8 +509,8 @@ export default function RevenuePage() {
       {tab === 'entries' && (
         <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
           {/* Filters */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto auto', gap:10, alignItems:'flex-end' }}>
-            <div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-end' }}>
+            <div style={{ flex:'1 1 220px', minWidth:0 }}>
               <label style={ls}>Contrato</label>
               <select value={entryFilter.contract_id} onChange={e => setEntryFilter(f=>({...f, contract_id:e.target.value}))} style={fs}>
                 <option value="">{t('revenue.todos_los_contratos')}</option>

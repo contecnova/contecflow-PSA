@@ -19,6 +19,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Star } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import useMediaQuery from '../hooks/useMediaQuery'
 import type { CSSProperties } from 'react'
 import { localeActivo } from '../utils/helpers'
 
@@ -128,6 +129,7 @@ function NPSGauge({ nps }: { nps?: number | null }) {
 
 export default function NPSPage() {
   const t = useAppT()
+  const narrow = useMediaQuery('(max-width: 900px)')
   const [clientId,    setClientId]    = useState<string | number | null>(null)
   const [npsDays,     setNpsDays]     = useState(90)
   const [scoreInput,  setScoreInput]  = useState(9)
@@ -196,7 +198,7 @@ export default function NPSPage() {
         subtitle={t('nps.subtitle')}
       showListExport={false}
       />
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '260px minmax(0, 1fr)', gap: 20, alignItems: 'start' }}>
         {/* Leaderboard sidebar */}
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
@@ -235,14 +237,14 @@ export default function NPSPage() {
         </div>
         {/* Right panel */}
         {!clientId ? (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 60, textAlign: 'center', color: 'var(--surface-5)', fontSize: "var(--text-md)" }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: narrow ? '32px 16px' : 60, textAlign: 'center', color: 'var(--surface-5)', fontSize: "var(--text-md)" }}>
             {t('nps.select_client')}
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
             {/* Client header */}
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ flex: 1 }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16 }}>
+              <div style={{ flex: 1, minWidth: 180 }}>
                 <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color: 'var(--text-1)' }}>{selectedClient?.name || clientId}</div>
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{selectedClient?.contact_email || ''}</div>
               </div>
@@ -261,14 +263,14 @@ export default function NPSPage() {
             </div>
             {/* NPS summary */}
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>{t('nps.nps')}</div>
                 <select value={npsDays} onChange={e => setNpsDays(Number(e.target.value))}
                   style={{ ...fs, width: 120 }}>
                   {[30, 60, 90, 180, 365].map(d => <option key={d} value={d}>{t('nps.last_days').replace('{d}', String(d))}</option>)}
                 </select>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 16, alignItems: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '120px minmax(0, 1fr)', gap: 16, alignItems: 'center' }}>
                 <div>
                   <NPSGauge nps={summary?.nps} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
@@ -299,7 +301,7 @@ export default function NPSPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
                   <label style={ls}>{t('nps.score_label')}</label>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
                       <button key={n} onClick={() => setScoreInput(n)} style={{
                         width: 32, height: 32, borderRadius: 6,

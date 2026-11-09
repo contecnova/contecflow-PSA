@@ -448,7 +448,7 @@ export default function ContractsPage(): JSX.Element {
         title={t('contracts.title')}
         subtitle={t('contracts.subtitle')}
         actions={
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">{traducir('contracts.todos_los_estados')}</option>
@@ -474,7 +474,7 @@ export default function ContractsPage(): JSX.Element {
                 borderRadius: 10, marginBottom: 6, cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}
                 onClick={() => setDetail(c)}>
                 <span style={{ fontSize: "var(--text-lg)" }}>{icon}</span>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>
                     {c.code} — {c.name}
                   </span>
@@ -492,14 +492,14 @@ export default function ContractsPage(): JSX.Element {
       )}
 
       {/* Stats */}
-      <div style={{ display: 'flex', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 14, marginBottom: 24 }}>
         {[
           { label: 'Total contratos', value: contracts.length, color: 'var(--text-2)' },
           { label: 'Activos', value: active, color: 'var(--accent)' },
           { label: 'Valor total', value: fmtCurrency(totalValue), color: 'var(--success)' },
           { label: 'OTs abiertas', value: contracts.reduce((s, c) => s + (c.work_orders?.filter(w => w.status === 'open').length || 0), 0), color: 'var(--warning)' },
         ].map(({ label, value, color }) => (
-          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px', flex: 1 }}>
+          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px', minWidth: 0 }}>
             <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
           </div>
@@ -509,7 +509,8 @@ export default function ContractsPage(): JSX.Element {
       {isLoading ? <Spinner /> : contracts.length === 0 ? (
         <EmptyState icon="📄" title={traducir('contracts.no_contracts')} description="Crea el primer contrato para este entorno" />
       ) : view === 'list' ? (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflowX: 'auto' }}>
+          <div style={{ minWidth: 760 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="name" sort={contractSort} onSort={setContractSort}>Contrato</SortableTH>
             <SortableTH col="contract_type_label" sort={contractSort} onSort={setContractSort}>Tipo</SortableTH>
@@ -540,9 +541,10 @@ export default function ContractsPage(): JSX.Element {
               </button>
             )
           })}
+          </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
           {sortedContracts.map(c => {
             const cfg = STATUS_CFG[c.status || ''] || STATUS_CFG.draft
             return (
@@ -550,8 +552,8 @@ export default function ContractsPage(): JSX.Element {
                 style={{ background: 'var(--surface-2)', border: `1px solid ${alpha(cfg.color, '30')}`, borderRadius: 12, padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
                 onMouseLeave={e => e.currentTarget.style.borderColor = alpha(cfg.color, '30')}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                  <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                  <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)', marginBottom: 2 }}>{c.code}</div>
                     <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{c.name}</div>
                     {c.client_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>🏢 {c.client_name}</div>}

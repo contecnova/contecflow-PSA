@@ -226,7 +226,7 @@ export default function EVMPage(): JSX.Element {
         const totalAc  = portfolio.reduce((s, p) => s + (p.ac || 0), 0);
         const reds     = portfolio.filter((p) => p.health === 'red').length;
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 14, marginBottom: 28 }}>
             {[
               { label: 'Proyectos activos', value: portfolio.length, sub: `${reds} en riesgo`, color: reds > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: Target },
               { label: 'CPI medio cartera', value: fmtIdx(avgCpi), sub: (avgCpi ?? 0) >= 0.9 ? 'Bajo presupuesto ✓' : 'Sobre presupuesto ✗', color: avgCpi == null ? 'var(--text-2)' : avgCpi >= 0.9 ? 'var(--success)' : 'var(--danger)', Icon: DollarSign },
@@ -252,7 +252,7 @@ export default function EVMPage(): JSX.Element {
       ) : portfolio.length === 0 ? (
         <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>{t('evm.sin_proyectos_activos_con_datos_suficientes')}</div>
       ) : (
-        <div style={{ background: 'var(--surface-2)', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface-2)', borderRadius: 14, overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
             <thead>
               <tr style={{ background: 'var(--surface-3)' }}>

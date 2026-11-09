@@ -193,7 +193,7 @@ function InvoicesTab() {
     <div>
       {/* Summary KPIs */}
       {summary && (
-        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12,marginBottom:24}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(min(150px, 100%), 1fr))',gap:12,marginBottom:24}}>
           {[
             {label: t('invoices.total_invoiced'), value: `${((summary.total_invoiced||0)/1000).toFixed(0)}K€`, color: 'var(--text-1)', icon: '📄'},
             {label: t('invoices.total_paid'), value: `${((summary.total_paid||0)/1000).toFixed(0)}K€`, color: 'var(--success)', icon: '✓'},
@@ -212,20 +212,20 @@ function InvoicesTab() {
 
       <Toolbar
         style={{ marginBottom: 20 }}
-        left={
-          <>
-            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={{...fs,width:280,flex:'2 1 240px'}}>
+      >
+        {/* Mismo reparto que left/right de Toolbar, pero el bloque derecho
+            puede partir línea: en un móvil no cabe entero. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={{...fs,width:280,flex:'2 1 240px',minWidth:0,maxWidth:'100%'}}>
               <option value="">{t('invoices.all_projects')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{...fs,width:160,flex:'1 1 160px',color:statusFilter?'var(--accent)':'var(--text-1)'}}>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{...fs,width:160,flex:'1 1 160px',minWidth:0,maxWidth:'100%',color:statusFilter?'var(--accent)':'var(--text-1)'}}>
               <option value="">{t('invoices.all_statuses')}</option>
               {Object.entries(STATUS_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
-          </>
-        }
-        right={
-          <>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', maxWidth: '100%', marginLeft: 'auto' }}>
             <select value={syncProvider} onChange={e => setSyncProvider(e.target.value)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
                 padding: '7px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)", fontFamily: 'var(--font-sans)', outline: 'none' }}>
@@ -249,9 +249,8 @@ function InvoicesTab() {
               </span>
             )}
             <Button onClick={() => setShowCreate(true)}>{t('invoices.new_invoice')}</Button>
-          </>
-        }
-      />
+        </div>
+      </Toolbar>
 
       {abierta && (
         <FichaDeFactura id={abierta} onClose={() => setAbierta(null)}
@@ -262,7 +261,8 @@ function InvoicesTab() {
       {isLoading ? <Spinner /> : invoices.length === 0 ? (
         <EmptyState icon="📄" title={t('invoices.empty_title')} description={t('invoices.empty_description')} />
       ) : (
-        <div data-export-table="invoices-list" style={{...card,overflow:'hidden'}}>
+        <div data-export-table="invoices-list" style={{...card,overflowX:'auto'}}>
+          <div style={{minWidth:1000}}>
           <div style={{display:'grid',gridTemplateColumns:COLUMNAS,gap:12,padding:'10px 18px',borderBottom:'1px solid var(--surface-4)',fontSize: "var(--text-2xs)",fontWeight:700,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'0.07em',alignItems:'center'}}>
             <SortableTH col="number" sort={invSort} onSort={setInvSort}>{t('invoices.number')}</SortableTH>
             <SortableTH col="project_code" sort={invSort} onSort={setInvSort}>{t('invoices.project')}</SortableTH>
@@ -301,6 +301,7 @@ function InvoicesTab() {
               </div>
             )
           })}
+          </div>
         </div>
       )}
 
