@@ -3436,7 +3436,7 @@ There are no filters.
   - `app_settings` JSON (GDPR, sensitivity, lineage, rules, views, bookmarks)
   - BI access audit: `audit_logs` rows with `resource = bi:<type>` (with the tamper-evident chain)
   - tables `dashboard_comments`, `dashboard_versions`, `dashboard_shares`, `dashboard_notifications`
-- **Erasure** (`execute_erasure`) anonymises `users` PII fields and the requester fields on `sd_tickets`. The portability export is real: profile, tickets and consent.
+- **Erasure** (`execute_erasure`, and Enterprise → GDPR, the same code: `app/services/supresion_service.py`): the user row gets a pseudonymous email and username, «[ERASED]» as name and empty contact fields, and is deactivated without a password (its id stays, so hours, expenses and invoices still add up); every text column of every table holding exactly their email, full name or username (in their companies) is replaced; their sessions, MFA, passkeys, tokens, API keys and push subscriptions are deleted; their `dim_user` row in the analytics store is deleted (the report says so if it could not be). Ticket requester fields are cleared too. The portability export is real: profile, tickets and consent.
 - **Governance checks are plain rules:**
   - DuckDB file missing
   - DuckDB file older than 26 h
@@ -3448,7 +3448,7 @@ There are no filters.
 - **BI access audit is written by the system**: report preview and export, the Data Explorer queries (visual, saved and BI builder) and Ask-the-Data each record who read what, from which IP. There is no way to add audit events by hand.
 - **The forms save**: lineage without SQL, field classification, and masks `hash`, `redact`, `suppress`, `pseudonymize`. Errors are shown.
 - **Retention, legal holds, masks, classification and access control** live in their own sections; this panel edits only the check rules. The summary shows the findings and the date of the last check.
-- **Erasure covers** the user row, ticket requester fields, consents and consent history; the resolved request keeps the subject id pseudonymised. It does not touch other tables or DuckDB `dim_user`.
+- **Erasure replaces exact copies only**: free text that mentions the person inside a longer sentence (a comment, a description) is not rewritten. The resolved request keeps the subject id pseudonymised.
 - **Masks are applied** by the report engine (Report builder, Data Explorer and CSV export): `pseudonymize`/`hash` → a hash, `redact` → `***`, `suppress` → empty. Field classifications are stored but not enforced.
 - Consent is kept per user and purpose.
 
@@ -4821,7 +4821,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 **GDPR.**
 - Create erasure or portability requests and process them.
 - Endpoints: `GET|POST /api/v1/gdpr/requests`, `POST /gdpr/requests/{id}/process`.
-- Erasure calls `_gdpr_erase_user`; portability exports the user's data as JSON.
+- Erasure runs the same erasure as Data Governance (`supresion_service`) and stores what it touched, without the original email; portability exports the user's data as JSON.
 
 **Email.**
 - Send an email, manage templates, view logs.

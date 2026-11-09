@@ -411,30 +411,12 @@ def execute_erasure(db: Session, *, subject_id: str, org_id: Optional[str]) -> d
     else:
         user = user_q.filter(User.id == subject_id).first()
 
-    user_id_for_tickets = subject_id
-
-    if user:
-        user_id_for_tickets = user.id
-        original_email = user.email
-        # Anonymise User row
-        user.email = _anon_hash(original_email) + "@erased.invalid"
-        user.username = _anon_hash(user.username)
-        user.full_name = "[ERASED]"
-        user.first_name = "[ERASED]"
-        user.last_name = "[ERASED]"
-        user.phone = None
-        user.avatar_url = None
-        db.add(user)
-        report["operations"].append({
-            "table": "users",
-            "row_id": user.id,
-            "fields_cleared": ["email", "username", "full_name", "first_name", "last_name", "phone", "avatar_url"],
-        })
-
+    user_id_for_tickets = user.id if user else subject_id
+    original_email = user.email if user else subject_id
     # ── Anonymise ticket requester fields ─────────────────────────────────────
     tickets = db.query(Ticket).filter(
         (Ticket.requester_user_id == user_id_for_tickets) |
-        (Ticket.requester_email == subject_id)
+        (Ticket.requester_email == original_email)
     ).all()
 
     for t in tickets:
@@ -451,6 +433,15 @@ def execute_erasure(db: Session, *, subject_id: str, org_id: Optional[str]) -> d
             "count": len(tickets),
             "fields_cleared": ["requester_name", "requester_email", "requester_user_id"],
         })
+
+    # ── La persona: ficha, copias exactas en todas las tablas, credenciales y almacén ──
+    if user:
+        from app.services.supresion_service import suprimir_persona
+        detalle = suprimir_persona(db, user)
+        report["operations"].append({"table": "users", "row_id": user.id, "action": "anonymised"})
+        report["operations"] += [{"table": t, "count": n, "action": "anonymised"} for t, n in detalle["tablas"].items()]
+        report["operations"] += [{"table": t, "count": n, "action": "deleted"} for t, n in detalle["credenciales"].items()]
+        report["operations"].append({"table": "duckdb", "action": detalle["almacen"]})
 
     # ── Purge analytics consent & DSR snapshot (no historical PII) ───────────
     claves = {subject_id} | ({user.id} if user else set())

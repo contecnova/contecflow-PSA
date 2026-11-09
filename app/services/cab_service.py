@@ -911,28 +911,12 @@ def create_gdpr_request(payload, current_user, db: Session) -> dict:
     return {"ok": True, "id": req.id, "deadline": str(deadline)}
 
 
-def _gdpr_erase_user(user) -> dict:
-    """Anonymise a user record in-place and return export metadata."""
-    import secrets as _secrets
-    original_email = user.email
-    anon_id = _secrets.token_hex(8)
-    anonymised = {
-        "username": f"deleted_{anon_id}",
-        "email": f"deleted_{anon_id}@anonymised.contecflow",
-        "full_name": f"Usuario Eliminado ({anon_id[:6]})",
-        "first_name": None, "last_name": None,
-        "phone": None, "job_title": None,
-    }
-    for field, value in anonymised.items():
-        if hasattr(user, field):
-            setattr(user, field, value)
-    user.is_active = False
-    user.hashed_password = None
-    return {
-        "anonymised": anonymised,
-        "original_email": original_email,
-        "records_kept": ["imputations", "timesheets", "expenses"],
-    }
+def _gdpr_erase_user(db: Session, user) -> dict:
+    """Supresión de una persona (el mismo borrado que Gobierno del dato). No guarda su correo original."""
+    from app.services.supresion_service import suprimir_persona
+    detalle = suprimir_persona(db, user)
+    return {"anonymised": True, "tablas": detalle["tablas"], "credenciales": detalle["credenciales"],
+            "almacen": detalle["almacen"], "records_kept": ["imputations", "timesheets", "expenses"]}
 
 
 def _gdpr_portability_export(db: Session, user) -> dict:
@@ -967,7 +951,7 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
     export_data: dict = {}
 
     if req.request_type == GDPRRequestType.erasure and user:
-        export_data = _gdpr_erase_user(user)
+        export_data = _gdpr_erase_user(db, user)
     elif req.request_type == GDPRRequestType.portability and user:
         export_data = _gdpr_portability_export(db, user)
 
