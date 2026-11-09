@@ -196,9 +196,27 @@ export default function ContecflowAgentPage() {
     queryFn: () => nexusAgentApi.history().then(r => r.data),
   })
 
+  // Revisión 2026-11: sin streaming la ejecución se encola y vuelve «queued»;
+  // antes se pintaba eso como resultado y no se volvía a preguntar. Ahora se
+  // sondea su estado hasta que termina y se abre la ejecución completa.
+  const [enCola, setEnCola] = useState<string | null>(null)
+  useQuery({
+    queryKey: ['agent-status', enCola],
+    enabled: !!enCola,
+    refetchInterval: 1500,
+    queryFn: async () => {
+      const estado = (await nexusAgentApi.status(enCola as string)).data
+      if (estado?.status === 'done' || estado?.status === 'failed') {
+        setResult((await nexusAgentApi.detail(enCola as string)).data)
+        setEnCola(null)
+        refetch()
+      }
+      return estado
+    },
+  })
   const { mutate: run, isPending } = useMutation({
     mutationFn: (inst: string) => nexusAgentApi.run(inst, permitirEscritura).then(r => r.data),
-    onSuccess: data => { setResult(data); refetch() },
+    onSuccess: data => { setResult(data); if (data?.execution_id) setEnCola(String(data.execution_id)); refetch() },
     onError: e => toast.error(extractErr(e, traducir('nexusagent.error_ejecutar'))),
   })
 

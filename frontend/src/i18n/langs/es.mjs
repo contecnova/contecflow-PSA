@@ -5435,6 +5435,7 @@ const es = {
     ultimo_run: 'Último run:',
   },
   semanticengine: {
+    backend_en_uso_distinto: 'Se está usando en realidad:',
     describe_las_capacidades_rol_tecnologias_y_area: 'Describe las capacidades, rol, tecnologías y área de experiencia de este usuario. Cuanto más detallado, mejor será la asignación automática.',
     texto_del_perfil: 'Texto del perfil *',
     describe_las_capacidades_rol_tecnologias_y_area_2: 'Describe las capacidades, rol, tecnologías y área de experiencia...',

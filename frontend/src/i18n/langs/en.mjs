@@ -6127,6 +6127,7 @@ const en = {
     ultimo_run: 'Last run:',
   },
   semanticengine: {
+    backend_en_uso_distinto: 'Actually in use:',
     describe_las_capacidades_rol_tecnologias_y_area: 'Describe this user\'s skills, role, technologies and area of expertise. The more detail, the better the automatic assignment.',
     texto_del_perfil: 'Profile text *',
     describe_las_capacidades_rol_tecnologias_y_area_2: 'Describe the skills, role, technologies and area of expertise...',

@@ -195,11 +195,13 @@ def chat(
     if limit_err:
         raise HTTPException(429, limit_err)
 
-    # NOTA: los guardrails check_prompt / check_output ahora se aplican en
-    # el dispatcher central `call_ai()`. Aquí ya no se invocan para evitar
-    # auditoría duplicada. Si `call_ai` recibe un mensaje bloqueado, devuelve
-    # un texto con prefijo "[Mensaje bloqueado por política de gobernanza...]"
-    effective_message = payload.message
+    # Revisión 2026-11: las políticas de entrada se aplican ANTES de guardar el
+    # mensaje; antes se guardaba el original aunque una política lo redactara
+    # (sólo se redactaba lo que iba al proveedor). Un bloqueo no guarda nada.
+    effective_message, bloqueo = _gobernado.guardrail_de_instruccion(
+        db, current_user, payload.message, module="nexusassist")
+    if bloqueo:
+        raise HTTPException(400, str(bloqueo).strip("[]"))
 
     # Obtener o crear conversación, persistir mensaje y construir historial
     conv = None

@@ -6138,6 +6138,7 @@ const zh = {
     ultimo_run: '最近运行：',
   },
   semanticengine: {
+    backend_en_uso_distinto: '实际使用的是：',
     describe_las_capacidades_rol_tecnologias_y_area: '请描述该用户的能力、角色、技术栈与专长领域。描述越详细，自动分派的效果越好。',
     texto_del_perfil: '画像描述 *',
     describe_las_capacidades_rol_tecnologias_y_area_2: '请描述能力、角色、技术栈与专长领域……',

@@ -638,8 +638,8 @@ class SemanticAssigner(ServiceBase):
                     # si fuera un mal candidato en vez de un candidato sin datos.
                     continue
                 score = self._hybrid_score(
-                    item_emb, json.loads(p.embedding),
-                    self._get_history_embeddings(p.user_id, item_type),
+                    item_emb, self._vector_comparable(p.embedding, p.profile_text, len(item_emb)),
+                    self._get_history_embeddings(p.user_id, item_type, len(item_emb)),
                 )
 
             carga = self._carga_del_perfil(p, current_week)
@@ -768,7 +768,7 @@ class SemanticAssigner(ServiceBase):
         best = None
         for fb in feedbacks:
             try:
-                fb_emb = json.loads(fb.embedding)
+                fb_emb = self._vector_comparable(fb.embedding, fb.text_snippet, len(item_emb))
                 sim    = _cosine(item_emb, fb_emb)
                 if sim >= threshold:
                     if best is None or sim > best["score"]:
@@ -778,7 +778,23 @@ class SemanticAssigner(ServiceBase):
                 continue
         return best
 
-    def _get_history_embeddings(self, user_id: str, item_type: str) -> list:
+    def _vector_comparable(self, guardado, texto, dimension: int) -> list:
+        """El vector guardado, o el de su texto si no es comparable con el actual.
+
+        Revisión 2026-11. Con TF-IDF el vocabulario se fija al crear cada
+        asignador (perfiles + caché, que crecen), pero los vectores de perfiles,
+        historial y correcciones se guardaron con un vocabulario anterior: de
+        otra longitud, el coseno da 0 y el ranking quedaba en manos de la carga.
+        """
+        try:
+            vector = json.loads(guardado) if isinstance(guardado, str) else (guardado or [])
+        except (TypeError, ValueError):
+            vector = []
+        if len(vector) != dimension and texto:
+            return self._encode_single(texto)
+        return vector
+
+    def _get_history_embeddings(self, user_id: str, item_type: str, dimension: Optional[int] = None) -> list:
         """Recupera embeddings del historial resuelto por este usuario.
         Bug 3 fix: returns list of (embedding, created_at) tuples for temporal decay."""
         rows = self.db.query(SemEmbeddingCache).filter(
@@ -789,7 +805,9 @@ class SemanticAssigner(ServiceBase):
         result = []
         for r in rows:
             try:
-                result.append((json.loads(r.embedding), r.created_at))
+                vector = (self._vector_comparable(r.embedding, r.text_snippet, dimension)
+                          if dimension is not None else json.loads(r.embedding))
+                result.append((vector, r.created_at))
             except Exception as e:
                 logger.warning(f"Failed to parse embedding cache: {e}", exc_info=True)
                 continue

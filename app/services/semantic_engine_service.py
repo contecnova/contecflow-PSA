@@ -52,6 +52,23 @@ def resolve_embeddings_backend_and_model(cfg) -> tuple[str, str]:
     return "tfidf", "all-MiniLM-L6-v2"
 
 
+def backend_en_uso(cfg) -> str:
+    """El backend que el motor usa de verdad: `transformer` o `tfidf`.
+
+    Revisión 2026-11: la pantalla enseñaba el configurado; sin
+    sentence-transformers instalado (la imagen Docker) o sin el modelo
+    descargado, el motor cae a TF-IDF en silencio.
+    """
+    import importlib.util
+    from app.services import semantic_classifier as sc
+    configurado, modelo = resolve_embeddings_backend_and_model(cfg)
+    if configurado != "transformer":
+        return "tfidf"
+    if sc._MODEL_INSTANCE is not None and sc._MODEL_NAME in (modelo, "tfidf"):
+        return "transformer" if sc._USE_TRANSFORMER else "tfidf"
+    return "transformer" if importlib.util.find_spec("sentence_transformers") else "tfidf"
+
+
 def get_assigner(db: Session):
     return SemanticAssigner(db)
 
@@ -84,6 +101,7 @@ def serialize_config(cfg) -> dict:
         "embeddings_backend":     embeddings_backend,
         "local_model_name":       cfg.local_model_name,
         "effective_model_name":   effective_model_name,
+        "backend_en_uso":         backend_en_uso(cfg),
     }
 
 

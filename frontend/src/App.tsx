@@ -585,7 +585,7 @@ function AppRoutes() {
           <Layout><ProjectPermissionsPage /></Layout>
         </ProtectedRoute>
       } />
-      <Route path="/semantic-engine"  element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeSemanticEngine /></Layout></ProtectedRoute>} />
+      <Route path="/semantic-engine"  element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><SafeSemanticEngine /></Layout></ProtectedRoute>} />
       <Route path="/resource-forecast" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ResourceForecastPage /></Layout></ProtectedRoute>} />
       <Route path="/resource-scheduler" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ResourceSchedulerPage /></Layout></ProtectedRoute>} />
       <Route path="/rate-cards"        element={<ProtectedRoute roles={['admin','pm']}><Layout><RateCardsPage /></Layout></ProtectedRoute>} />

@@ -3440,7 +3440,7 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 - **Background runs** (`run_agent_task`) publish the requester's company in their session and pick the provider for that company. Test: `tests/test_agente_en_segundo_plano_empresa_2026_11.py`.
 - **The page is translated.** Texts, examples, tool descriptions and messages go through the i18n files (es/en/zh). Checked in the browser in English: no Spanish left.
 - **Spend is governed and recorded** (each turn through `turno_de_agente`, see AI Hub → Daily AI spend cap). **Governance policies too:** the instruction goes through the same input guardrails as `call_ai` (blocked → error event / failed execution; redacted → the model gets the redacted text) and the final answer through the output guardrails, on both paths (`guardrail_de_instruccion`, `guardrail_de_respuesta`). Test: `tests/test_agente_guardarrailes_2026_11.py` (validated by removing the input check on the streamed path and the output check on the worker path).
-- **Streamed runs never reach History.** History items show only a status, and the non-streamed status is never polled.
+- **Both ways reach History.** A streamed run is saved when it ends; a non-streamed run is queued and the screen polls its status until it is done, then opens it.
 
 ### External agents (MCP) — `POST /api/v1/mcp`
 *Roles:* any internal user, with their own permissions. The company switches it on in *AI Governance → Modules → Agentes externos (MCP)*.
@@ -3491,7 +3491,7 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 **Limitations (measured).**
 - **Without a provider the warning becomes a reply** in the chat, stored as the assistant's answer.
 - **The inline editor** (`/mejorar`, `/resumir`…) calls `POST /ai/texto`: it saves no conversation, a missing provider is an error that leaves the field as it was, and after a change it offers **Deshacer**.
-- **The original text is stored even when a policy redacts it.** The message is persisted before redaction.
+- **The stored message is the redacted one.** Input policies run before the message is saved; a blocked message is not saved (400).
 - **Knowledge-base retrieval is keyword-only under TF-IDF.** With the default TF-IDF backend no KB vector is stored, so retrieval works by words (accent-insensitive, by stem). It searches the Service Desk base, cites the articles it uses and applies expert corrections. See *Knowledge base → Quality loop*.
 - **Token counts are not recorded.** `tokens_used` is stored as 0 on messages; real token counts are only in `ai_usage_logs`.
 
@@ -3564,10 +3564,10 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 - Effort estimation is a keyword and word-count heuristic.
 
 **Limitations (measured).**
-- **PMs get 403 on every write button.** The route allows PMs, but writes need admin or hr.
+- **Configuring the engine is for admin and hr** (profiles, mode, embeddings), as on the server. PMs open the page to test suggestions; hr can open it too.
 - **"Precisión" is meaningless.** Rejections are never recorded (only `was_accepted: true`), so it is 100 % or "—".
-- **The real embeddings backend may differ from what the UI shows.** The default model name `all-MiniLM-L6-v2` selects the "transformer" backend, which overrides `SEMANTIC_EMBEDDINGS_BACKEND=tfidf`. In the Docker image sentence-transformers is not installed, so the engine silently uses TF-IDF while the UI reports the transformer model.
-- **Similarity scores may collapse to zero under TF-IDF.** The vocabulary is refitted per request, so stored and new vectors can differ in length, and cosine returns 0 when lengths differ. Ranking would then depend on workload only. Likely from the code; not runtime-verified.
+- **The screen says which backend is really in use** (`backend_en_uso`). With the transformer configured but sentence-transformers missing (the Docker image) or the model unavailable, the engine uses TF-IDF and the screen warns about it.
+- **Stored vectors stay comparable.** Under TF-IDF the vocabulary is fitted per assigner; a stored profile, history or correction vector of another length is re-encoded from its text instead of scoring 0.
 - **LLM tie-break.** When it runs without a user (task and ticket creation), it uses the session's company for provider, spend cap and log. Only a candidate's id is accepted. The answer is not stored as expert feedback, so it never overwrites a person's correction.
 - **Some settings have no effect.** `SEM_TOP_K_HISTORY` and `SEM_MULTI_ROLE_FACTOR` are read but unused. The runtime `SEM_THRESHOLD_*` values are shadowed by the `sem_config` column defaults.
 

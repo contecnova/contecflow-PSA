@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import { useState, useEffect } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
+import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { semanticApi, usersApi } from '../services/api'
@@ -188,6 +189,9 @@ export default function SemanticEnginePage() {
   const [opStatus, setOpStatus] = useState<{ type: string; startedAt: number | null }>({ type: 'idle', startedAt: null })
   const [opElapsed, setOpElapsed] = useState(0)
   const [hfModelDraft, setHfModelDraft] = useState('')
+  // Configurar el motor (perfiles, modo, embeddings) es de admin y hr en el
+  // servidor; pm entra a probar sugerencias (revisión 2026-11: veía los botones y le daban 403).
+  const puedeEditar = useAuth().hasRole('admin', 'hr')
 
   useEffect(() => {
     if (!opStatus.startedAt) {
@@ -289,12 +293,14 @@ export default function SemanticEnginePage() {
                 {generating ? `Generando perfiles… ${opElapsed}s` : rebuilding ? `Reconstruyendo embeddings… ${opElapsed}s` : opStatus.type === 'failed' ? 'Última operación: fallo' : 'Última operación: completada'}
               </div>
             )}
+            {puedeEditar && <>
             <Button variant="secondary" onClick={() => rebuildEmb()} disabled={rebuilding}>
               {rebuilding ? 'Reconstruyendo...' : '🔄 Reconstruir embeddings'}
             </Button>
             <Button onClick={() => autoGenerate()} disabled={generating}>
               {generating ? 'Generando...' : '✨ Auto-generar perfiles'}
             </Button>
+            </>}
           </div>
         }
       showListExport={false}
@@ -334,7 +340,7 @@ export default function SemanticEnginePage() {
             <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>{traducir('semanticengine.modo_del_motor')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {Object.entries(ENGINE_MODES).map(([key, meta]) => (
-                <button key={key} onClick={() => saveConfig({ engine_mode: key })} disabled={savingConfig}
+                <button key={key} onClick={() => saveConfig({ engine_mode: key })} disabled={savingConfig || !puedeEditar}
                   style={{ padding: '12px 16px', borderRadius: 8, border: `2px solid ${config.engine_mode === key ? 'var(--accent)' : 'var(--surface-4)'}`, background: config.engine_mode === key ? 'var(--accent-muted)' : 'transparent', cursor: savingConfig ? 'wait' : 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.15s', opacity: savingConfig ? 0.7 : 1 }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                     <span style={{ fontSize: "var(--text-xl)" }}>{meta.icon}</span>
@@ -376,6 +382,12 @@ export default function SemanticEnginePage() {
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6 }}>
                   {EMBEDDINGS_BACKENDS[config.embeddings_backend || 'tfidf']?.desc}
                 </div>
+                {config.backend_en_uso && config.backend_en_uso !== (config.embeddings_backend || 'tfidf') && (
+                  // Revisión 2026-11: el configurado no siempre es el que se usa.
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--warning)', marginTop: 6 }}>
+                    {traducir('semanticengine.backend_en_uso_distinto')} {EMBEDDINGS_BACKENDS[config.backend_en_uso]?.label ?? config.backend_en_uso}
+                  </div>
+                )}
               </div>
 
               <div style={{ marginBottom: 10 }}>
@@ -390,7 +402,7 @@ export default function SemanticEnginePage() {
                   />
                   <Button
                     variant="secondary"
-                    disabled={(config.embeddings_backend || 'tfidf') !== 'transformer' || savingConfig || !hfModelDraft.trim()}
+                    disabled={!puedeEditar || (config.embeddings_backend || 'tfidf') !== 'transformer' || savingConfig || !hfModelDraft.trim()}
                     onClick={() => saveConfig({ embeddings_backend: 'transformer', local_model_name: hfModelDraft.trim() })}
                   >
                     Guardar
@@ -433,7 +445,7 @@ export default function SemanticEnginePage() {
               ].map(f => (
                 <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' }}>
                   <span style={{ fontSize: "var(--text-base)" }}>{f.label}</span>
-                  <button onClick={() => saveConfig({ [f.key]: !f.val })}
+                  <button onClick={() => saveConfig({ [f.key]: !f.val })} disabled={!puedeEditar}
                     style={{ width: 44, height: 24, borderRadius: 12, background: f.val ? 'var(--success-border)' : 'var(--surface-4)', border: `1px solid ${f.val ? 'rgba(52,211,153,0.38)' : 'var(--surface-4)'}`, cursor: 'pointer', position: 'relative', transition: 'all 0.2s' }}>
                     <div style={{ width: 18, height: 18, borderRadius: 9, background: f.val ? 'var(--success)' : 'var(--text-2)', position: 'absolute', top: 2, left: f.val ? 22 : 2, transition: 'all 0.2s' }} />
                   </button>
@@ -477,10 +489,10 @@ export default function SemanticEnginePage() {
                 <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 12, background: u.is_available !== false ? 'var(--success-bg)' : 'var(--danger-bg)', color: u.is_available !== false ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>
                   {u.is_available !== false ? 'Disponible' : 'No disponible'}
                 </span>
-                <button onClick={() => setEditProfile(u)}
+                {puedeEditar && <button onClick={() => setEditProfile(u)}
                   style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                   ✏️ Editar
-                </button>
+                </button>}
               </div>
             ))}
             </div>

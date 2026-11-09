@@ -26,6 +26,8 @@ vi.mock('../services/api', () => ({
   currencyApi: { rates: () => Promise.resolve({ data: [] }), upsert: vi.fn() },
   userCostsApi: { summary: () => Promise.resolve({ data: null }) },
 }))
+vi.mock('../services/api/todasLasPaginas', () => ({ todasLasPaginas: () => Promise.resolve({ data: [] }) }))
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ hasRole: () => true }) }))
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
 vi.mock('../i18n/AppLangContext', () => ({ useAppLang: () => ({ t: (k: string) => k, lang: 'en' }) }))
 
@@ -47,6 +49,6 @@ describe('FinanceDashboardPage', () => {
     expect(screen.queryByText('999,999')).toBeNull()
     // Pipeline: solo las abiertas (ni ganadas ni perdidas), con `expected_revenue`.
     expect(screen.getAllByText('70,000').length).toBeGreaterThan(0)
-    expect(screen.getByText('1 oportunidades abiertas')).toBeTruthy()
+    expect(screen.getByText('1 oportunidades abiertas · hoy')).toBeTruthy()
   })
 })

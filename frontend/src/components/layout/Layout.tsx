@@ -355,7 +355,7 @@ const NAV_GROUPS: NavGroupConfig[] = [
   { id: 'ia', label: 'AI & Automation', groupKey: 'group_ai', icon: <Brain size={12} />, roles: ['admin','pm'], items: [
     { to: '/nexus-agent',     icon: <Zap size={SZ} />,           label: 'NexusAgent',       roles: ['admin','pm'] },
     { to: '/oracle',          icon: <Eye size={SZ} />,           label: 'NexusOracle',      roles: ['admin','pm'] },
-    { to: '/semantic-engine', icon: <Brain size={SZ} />,         label: 'AI Assignment',    roles: ['admin','pm'] },
+    { to: '/semantic-engine', icon: <Brain size={SZ} />,         label: 'AI Assignment',    roles: ['admin','pm','hr'] },
     { to: '/automations',     icon: <Bot size={SZ} />,           label: 'Automations',      roles: ['admin','pm'] },
     { to: '/bpm',             icon: <Network size={SZ} />,       label: 'BPM Procesos',     roles: ['admin','pm','team_lead'] },
   ]},
