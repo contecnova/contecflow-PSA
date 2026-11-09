@@ -40,7 +40,6 @@ from app.api.v1.router import api_router
 import app.services.service_desk.ticket_events  # noqa: F401,E402
 import app.services.automation_events  # noqa: F401,E402
 import app.services.preferencias_de_aviso  # noqa: F401,E402  (filtro de avisos por preferencia)
-from app.api.v2.router import api_v2_router
 
 
 def _read_alembic_revisions(database_url: str) -> set[str] | None:
@@ -743,13 +742,11 @@ async def security_headers_middleware(request: Request, call_next):
     # --- API version header logic ---
     # En producción solo se expone el número major (v1/v2) sin patch — no se
     # revela el SemVer exacto para no facilitar el fingerprinting de versiones.
-    if path.startswith(settings.API_V2_STR):
-        response.headers["x-api-version"] = "2"
-    elif path.startswith(settings.API_V1_STR):
+    # Revisión 2026-11: v1 es la API. Antes toda respuesta salía marcada como
+    # obsoleta por un /api/v2 de tres rutas que nadie usaba; ahora sólo lleva
+    # `Deprecation` la ruta que de verdad tiene sucesora (y la dice en `Link`).
+    if path.startswith(settings.API_V1_STR):
         response.headers["x-api-version"] = "1"
-        # Si v2 está montada, marcamos v1 como deprecated
-        response.headers["x-api-deprecated"] = "true"
-        response.headers["deprecation"] = "true"
 
     response.headers["X-Content-Type-Options"] = "nosniff"
     # Document file/preview endpoints need to render inside the SPA's iframe (same origin).
@@ -849,11 +846,6 @@ _ROUTER_GUARDS = [
 app.include_router(
     api_router,
     prefix=settings.API_V1_STR,
-    dependencies=_ROUTER_GUARDS,
-)
-app.include_router(
-    api_v2_router,
-    prefix=settings.API_V2_STR,
     dependencies=_ROUTER_GUARDS,
 )
 

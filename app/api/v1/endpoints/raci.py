@@ -55,10 +55,6 @@ def get_project_raci(
     current_user: User = Depends(get_current_user),
     response: Response = None,
 ):
-    if response is not None:
-        response.headers["x-api-version"] = "1"
-        response.headers["x-api-deprecated"] = "true"
-        response.headers["deprecation"] = "true"
     try:
         return APIResponse.ok(data=_svc.get_project_raci(project_id, db))
     except ValueError as e:
@@ -74,10 +70,6 @@ def upsert_raci(
     current_user: User = Depends(require_any_manager),
     response: Response = None,
 ):
-    if response is not None:
-        response.headers["x-api-version"] = "1"
-        response.headers["x-api-deprecated"] = "true"
-        response.headers["deprecation"] = "true"
     try:
         return APIResponse.ok(data=_svc.upsert_raci(project_id, payload.entries, db))
     except ValueError as e:
@@ -93,10 +85,6 @@ def delete_raci_entry(
     current_user: User = Depends(require_any_manager),
     response: Response = None,
 ):
-    if response is not None:
-        response.headers["x-api-version"] = "1"
-        response.headers["x-api-deprecated"] = "true"
-        response.headers["deprecation"] = "true"
     enforce_abac(db, current_user, "raci_entry", entry_id, action="delete")
     try:
         _svc.delete_raci_entry(project_id, entry_id, db)
@@ -120,10 +108,6 @@ def get_sprint_retrospective(
     current_user: User = Depends(get_current_user),
     response: Response = None,
 ):
-    if response is not None:
-        response.headers["x-api-version"] = "1"
-        response.headers["x-api-deprecated"] = "true"
-        response.headers["deprecation"] = "true"
     try:
         return APIResponse.ok(data=_svc.get_sprint_retrospective(project_id, sprint_id, db))
     except ValueError as e:
@@ -333,10 +317,6 @@ def export_uat_report(
     current_user: User = Depends(get_current_user),
     response: Response = None,
 ):
-    if response is not None:
-        response.headers["x-api-version"] = "1"
-        response.headers["x-api-deprecated"] = "true"
-        response.headers["deprecation"] = "true"
     try:
         return APIResponse.ok(data=_svc.export_uat_report(project_id, db))
     except ValueError as e:

@@ -9,7 +9,7 @@ This README is the complete functional and technical documentation of the soluti
 | Measured (2026-11-03) | Value |
 |---|---|
 | Menu entries (screens reachable from the sidebar) | 97, plus the client portal and public forms |
-| HTTP API routes | 2,051 (2,043 under `/api/v1`, 3 under `/api/v2`, 5 public) and 6 WebSockets |
+| HTTP API routes | 2,131 (2,125 under `/api/v1`, 6 outside) and 6 WebSockets |
 | Mapped database models | 415 (414 scoped by organization, 1 exempt) |
 | Alembic migrations | 98, one linear chain, head `144_presupuestos` |
 | Backend tests | The whole suite was last run on 2026-11-04 (4,139 passed, 22 skipped, 1 xfailed; the 2 structural checks that failed that day pass). Since then every change runs the tests of what it touches |
@@ -1277,7 +1277,6 @@ The KPI row shows active objectives, average progress and on-track objectives (�
 
 **Limitations.**
 - **There is no way to enrol anyone from the UI.** `trainingApi.enroll` exists but no component calls it, and there is no control to change an enrolment's status. Enrolments only exist if created through the API or seed data.
-- Most training endpoints answer with `x-api-deprecated: true` / `deprecation: true` headers. No successor API was found (Not verified whether one is planned).
 - An employee can't create their own certificate (admin/hr only) but can edit and delete it once it exists.
 - The certificate list returns every certificate in the organisation to any logged-in user (no per-user filter unless `user_id` is passed).
 
@@ -1419,7 +1418,6 @@ General notes that apply to every module here:
   - `/clients/{client_id}/health-composite`
   - Portal users: `GET/POST/PATCH /api/v1/portal/clients`
 - **Tables:** `clients`, `client_portal_configs`, `client_users`, `client_user_projects`.
-- **Deprecation headers.** `GET/POST/PATCH/DELETE /clients…` answer with `x-api-deprecated: true` even though they are the endpoints this screen uses.
 
 **Limitations.**
 - **`POST /api/v1/clients/{cid}/portal-users` has no screen.** Neither do its siblings `GET` and `PATCH /clients/{cid}/portal-users/{uid}`: no frontend code calls them (checked with grep across `frontend/src`). The screen creates portal users through a different service, `POST /portal/clients` → `client_portal_service.create_client`.
@@ -1604,7 +1602,7 @@ General notes that apply to every module here:
 **Configuration.** Exchange rates for multi-currency projects. No dedicated runtime settings were found.
 
 **Technical notes.**
-- **Endpoints:** `GET /api/v1/profitability/summary` and `GET /profitability/projects` (admin or PM), `GET /profitability/{project_id}` (admin or PM, checked in the handler), `GET/POST/PATCH/DELETE /profitability/{pid}/milestones[/{id}]`. There is also a v2 router, `/api/v2/profitability`.
+- **Endpoints:** `GET /api/v1/profitability/summary` and `GET /profitability/projects` (admin or PM), `GET /profitability/{project_id}` (admin or PM, checked in the handler), `GET/POST/PATCH/DELETE /profitability/{pid}/milestones[/{id}]`.
 - **Tables:** `projects`, `imputations`, `project_milestones`, currency rates.
 
 **Limitations.**
@@ -5125,9 +5123,9 @@ This section is for developers and operators who install, run, configure, extend
                                ▼
    ┌──────────────────────── FastAPI app (app/main.py) ─────────────────────────┐
    │ middlewares: ExceptionHandler · CORS · CSRF · security headers · req logger │
-   │ router guards (every /api/v1 and /api/v2 route, HTTP and WebSocket):        │
+   │ router guards (every /api/v1 route, HTTP and WebSocket):                    │
    │   bind_request_timezone → apply_abac_for_route → enforce_grc_matrix         │
-   │ /api/v1 (2,043 routes) · /api/v2 (3) · /health · /ready · /status · /metrics│
+   │ /api/v1 (2,125 routes) · /health · /ready · /status · /metrics              │
    │ endpoints (app/api) ──► services (app/services) ──► ORM models (app/models) │
    │ TenantSession + do_orm_execute tenant filter + before_flush org stamping    │
    │ APScheduler in-process when ENABLE_APSCHEDULER=1 (default): mirrors beat     │
@@ -5212,7 +5210,6 @@ There is no dedicated search engine for the core domain. Measured:
 | `app/worker.py` | Celery app, 34 tasks, 52 beat entries | 1,767 lines |
 | `app/api/v1/endpoints/` | Endpoint modules (128 top-level + 41 in 7 sub-packages: `admin`, `ai`, `collaboration`, `integrations`, `projects`, `service_desk`, `v239`) | 169 `.py` |
 | `app/api/v1/routers/` | 5 domain aggregators (`core`, `delivery`, `ai_domain`, `platform`, `framework`) + auth routers (`auth_core`, `auth_mfa`, `auth_saml`, `auth_sessions`, `auth_sso`) | 10 modules |
-| `app/api/v2/` | `meta.py`, `profitability.py` | 3 routes |
 | `app/services/` | Business logic (158 top-level modules + 12 sub-packages, e.g. `service_desk`, `collaboration`, `approval_engine`, `cmdb`, `olap`, `stt`) | 357 `.py` |
 | `app/models/` | SQLAlchemy models | 64 files, 415 mapped classes, 416 tables |
 | `app/schemas/` | Pydantic schemas | 48 files |
@@ -5337,7 +5334,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 366)
+#### 4.2 Settings fields (`Settings`, 365)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5348,7 +5345,6 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `PROJECT_NAME` | `'Contecflow'` | App title (OpenAPI, /health). |
 | `VERSION` | `'23.9.3'` | Version string reported by /health and OpenAPI. |
 | `API_V1_STR` | `'/api/v1'` | Mount prefix of API v1 (also docs URLs). |
-| `API_V2_STR` | `'/api/v2'` | Mount prefix of API v2. |
 | `ENVIRONMENT` | `'development'` | `development`/`test`/`staging`/`production` (validator rejects anything else). Drives secret hardening, Secure cookies, HSTS, docs exposure, schema-drift enforcement. |
 | `LOG_LEVEL` | `'INFO'` | Root/uvicorn log level. |
 | `SECRET_KEY` | *(required)* | **Required.** JWT legacy key and the root of field-level encryption (PBKDF2/HKDF). ≥32 chars, ≥10 distinct chars, no placeholder. |
@@ -5812,7 +5808,7 @@ It also sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`, which is clamped to `ACCESS_TOKEN
 
 #### 6.1 Surface (measured by importing `app.main:app`)
 
-2,051 HTTP routes: 2,043 under `/api/v1`, 3 under `/api/v2` (`/version`, 2× `/profitability`), 5 outside (`/health`, `/ready`, `/status`, `/status/embed.js`, `/widget/ticket.js`). By method: GET 874 · POST 757 · DELETE 201 · PATCH 177 · PUT 39. 6 WebSockets: `/api/v1/ws/notifications`, `/api/v1/ws/portal-notifications`, `/api/v1/ws/doc/{doc_id}`, `/api/v1/collaboration/ws`, `/api/v1/bi/collaboration/dashboards/{dashboard_key}/updates`, `/api/v1/bi/intelligence/realtime/stream`. `/metrics` is added only with `METRICS_ENABLED=1`.
+2,131 HTTP routes: 2,125 under `/api/v1`, 6 outside (`/health`, `/ready`, `/status`, `/status/page.js`, `/status/embed.js`, `/widget/ticket.js`). By method: GET 913 · POST 783 · DELETE 209 · PATCH 183 · PUT 43 (measured with `app.openapi()` on 2026-11-09). 6 WebSockets: `/api/v1/ws/notifications`, `/api/v1/ws/portal-notifications`, `/api/v1/ws/doc/{doc_id}`, `/api/v1/collaboration/ws`, `/api/v1/bi/collaboration/dashboards/{dashboard_key}/updates`, `/api/v1/bi/intelligence/realtime/stream`. `/metrics` is added only with `METRICS_ENABLED=1`.
 
 Routes per first path segment under `/api/v1` (122 segments; top 30):
 
@@ -5829,7 +5825,7 @@ Routes per first path segment under `/api/v1` (122 segments; top 30):
 | `billing-reports` | 35 | `documents` | 25 | `sprints`, `ai`, `integrations`, `scim` | 13 each |
 | | | `pipeline` | 24 | `analytics`, `activity`, `ai-modules` | 22 each |
 
-The remaining 92 segments have ≤ 12 routes each. `/api/v1` responses carry `x-api-version: 1`, `x-api-deprecated: true` and `deprecation: true`; `/api/v2` carries `x-api-version: 2`. v2 is a 3-route stub, not a replacement.
+The remaining 92 segments have ≤ 12 routes each. `/api/v1` responses carry `x-api-version: 1`. Only a route with a real successor carries `Deprecation` and a `Link: rel="successor-version"` (the old task-suggestion route).
 
 #### 6.2 OpenAPI
 
@@ -5889,7 +5885,7 @@ slowapi `Limiter` with Redis storage when `REDIS_URL` is reachable (in-memory ot
 
 #### 7.2 Global route guards (`app/main.py::_ROUTER_GUARDS`)
 
-Applied as router dependencies to **all** `/api/v1` and `/api/v2` routes, HTTP and WebSocket, in this order:
+Applied as router dependencies to **all** `/api/v1` routes, HTTP and WebSocket, in this order:
 
 1. `bind_request_timezone` (`app/core/timezone_context.py`, `async` on purpose): publishes user → organisation → UTC timezone in a `ContextVar` so `timeutil.today()` is the caller's day.
 2. `apply_abac_for_route` (`app/core/abac_dependency.py`): route-prefix ABAC as a dependency. ABAC is **fail-open**: without active policies it restricts nothing. There are also explicit `enforce_abac(...)` calls in endpoints (`tests/test_abac_coverage.py`).
@@ -6059,8 +6055,7 @@ DOCS.md §16 lists generic steps (activate the venv, check `DATABASE_URL`, `alem
 1. **Unit tests run only on SQLite.** PostgreSQL-specific behaviour (pg_trgm, pgvector, collation, PostgreSQL parity) is skipped without a server.
 2. **TypeScript is not strict** (`strictNullChecks` and `noImplicitAny` off, with 226/387 known errors).
 3. **The response envelope is not universal** (1,860 `.ok(` for 2,051 routes, no guard test).
-4. **`/api/v2` is a 3-route stub** while every `/api/v1` response is flagged deprecated.
-5. **6 non-reversible downgrades** (§5).
+4. **6 non-reversible downgrades** (§5).
 
 #### 13.2 Not verified
 

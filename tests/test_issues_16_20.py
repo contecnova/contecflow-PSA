@@ -405,45 +405,6 @@ class TestPersistedSLAMetrics:
 # Issue #19 — API v2 Scaffolding
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestAPIv2:
-    """Issue #19: API v2 contract surface is distinct from v1."""
-
-    def test_v2_version_endpoint_accessible(self, client):
-        """/api/v2/version returns 200 with version metadata."""
-        res = client.get("/api/v2/version")
-        assert res.status_code == 200
-        data = res.json()
-        assert data["api_version"] == 2
-
-    def test_v2_response_lists_breaking_changes(self, client):
-        """v2/version lists breaking changes vs v1."""
-        res = client.get("/api/v2/version")
-        assert res.status_code == 200
-        data = res.json()
-        assert "breaking_changes_vs_v1" in data
-        assert len(data["breaking_changes_vs_v1"]) > 0
-
-    def test_v1_header_x_api_deprecated_is_true(self, client, admin_token):
-        """v1 responses now include X-API-Deprecated: true since v2 exists."""
-        res = client.get("/api/v1/auth/me", headers=auth(admin_token))
-        # Header may be present; if v2 is mounted, middleware sets it
-        assert res.headers.get("x-api-deprecated") == "true"
-
-    def test_v2_header_x_api_version_is_2(self, client):
-        """v2 responses include X-API-Version: 2."""
-        res = client.get("/api/v2/version")
-        assert res.headers.get("x-api-version") == "2"
-
-    def test_v1_still_works(self, client, admin_token):
-        """All existing v1 endpoints remain accessible after v2 is added."""
-        res = client.get("/api/v1/auth/me", headers=auth(admin_token))
-        assert res.status_code == 200
-
-    def test_v2_path_prefix_distinct_from_v1(self, client):
-        """v2 is mounted at /api/v2, not /api/v1."""
-        from app.core.config import settings
-        assert settings.API_V2_STR == "/api/v2"
-        assert settings.API_V2_STR != settings.API_V1_STR
 
 
 # ─────────────────────────────────────────────────────────────────────────────

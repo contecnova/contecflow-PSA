@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import date, timedelta
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_admin_or_pm, require_any_manager
+from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
@@ -60,11 +60,6 @@ def get_profitability_summary(
     total_margin = total_revenue - total_cost
     portfolio_margin_pct = (total_margin / total_revenue * 100) if total_revenue > 0 else 0
 
-    if response is not None:
-        response.headers["x-api-version"] = "1"
-        response.headers["x-api-deprecated"] = "true"
-        response.headers["deprecation"] = "true"
-
     return APIResponse.ok(data={
         "projects": sorted(results, key=lambda x: x["gross_margin"]),
         "portfolio": {
@@ -89,10 +84,6 @@ def get_profitability_projects(
     response: Response = None,
 ):
     """Returns a flat list of projects with profitability metrics (margin_pct, revenue, cost, etc.)."""
-    if response is not None:
-        response.headers["x-api-version"] = "1"
-        response.headers["x-api-deprecated"] = "true"
-        response.headers["deprecation"] = "true"
     projects = profitability_service.get_summary_projects(db, status)
     project_ids = [p.id for p in projects]
 
@@ -123,10 +114,6 @@ def get_project_profitability(
     current_user: User = Depends(get_current_user),
     response: Response = None,
 ):
-    if response is not None:
-        response.headers["x-api-version"] = "1"
-        response.headers["x-api-deprecated"] = "true"
-        response.headers["deprecation"] = "true"
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
 
@@ -187,10 +174,6 @@ def get_milestones(
     current_user: User = Depends(get_current_user),
     response: Response = None,
 ):
-    if response is not None:
-        response.headers["x-api-version"] = "1"
-        response.headers["x-api-deprecated"] = "true"
-        response.headers["deprecation"] = "true"
     milestones = profitability_service.list_milestones(db, project_id)
     return APIListResponse.ok(items=[_milestone_out(m) for m in milestones])
 

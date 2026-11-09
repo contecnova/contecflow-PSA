@@ -105,7 +105,6 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/ai-governance/pii-types"): "catálogo estático de tipos de PII",
     ("GET", "/api/v1/bi/embed/sdk-config"): "config pública del SDK de embed",
     ("GET", "/api/v1/bi/embed/view"): "página de indicadores para un iframe (Teams, SharePoint); el token de embed es la credencial y se valida dentro",
-    ("GET", "/api/v2/version"): "versión de la API",
     ("OPTIONS", "/api/v1/collaboration/tus"): "descubrimiento de capacidades TUS por spec",
     # ── Tickets WebSocket: la credencial se valida al abrir el socket ────────
     ("GET", "/api/v1/ws/portal-ticket"): "emite ticket WS de un solo uso para el portal",

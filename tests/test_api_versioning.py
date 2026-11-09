@@ -9,25 +9,19 @@ import pytest
 from tests.conftest import auth
 
 
-# ── v1 / v2 versioning ────────────────────────────────────────────────────────
+# ── Versionado ────────────────────────────────────────────────────────────────
+# Revisión 2026-11: v1 es la API. Antes todo salía con `deprecation: true` por un
+# /api/v2 de tres rutas sin consumidores; sólo una ruta tiene sucesora de verdad.
 
-def test_api_v2_compatibility_surface_available(client, admin_token, db):
-    res = client.get("/api/v2/profitability/summary", headers=auth(admin_token))
-    assert res.status_code == 200
-    assert res.headers.get("x-api-version") == "2"
-    body = res.json()
-    assert body.get("api_version") == "v2"
-    assert "base_currency" in body
-    assert body.get("currency_normalized") is None
-    assert "portfolio" in body
-
-
-def test_api_v1_is_marked_deprecated(client, admin_token, db):
+def test_v1_no_se_anuncia_obsoleta(client, admin_token, db):
     res = client.get("/api/v1/profitability/summary", headers=auth(admin_token))
-    assert res.status_code == 200
-    assert res.headers.get("x-api-version") == "1"
-    assert res.headers.get("x-api-deprecated") == "true"
-    assert res.headers.get("deprecation") == "true"
+    assert res.status_code == 200 and res.headers.get("x-api-version") == "1"
+    assert "deprecation" not in res.headers and "x-api-deprecated" not in res.headers
+    assert client.get("/api/v2/version").status_code == 404
+
+
+
+
 
 
 # ── Legacy aliases /projects/* — ELIMINADOS en 2026-05-13 (audit #107) ───────
