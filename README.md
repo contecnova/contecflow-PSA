@@ -3799,7 +3799,7 @@ Header buttons: **Diagnóstico**, **Sync all models**.
 - The governance tab reads `/api/v1/ai-governance/policies`, `/audit-log` and `/audit-log/stats`.
 
 **Limitations (measured).**
-- **PATCH accepts any model attribute** (mass assignment), including `organization_id`, `total_cost_usd` and `created_by`.
+- **PATCH edits only the provider's own fields** (name, provider, key, base URL, version, models, priority, default, tokens, temperature, timeout, active); anything else, such as `organization_id` or `total_cost_usd`, answers 400.
 - **`POST /ai-providers/chat` can use another tenant's provider.** It calls `call_ai` without organization scoping, and a caller-supplied `provider_id` is not org-checked, so any internal user can use another tenant's provider and key.
 - **Usage stats include deleted providers.**
 - **A provider can drop out of rotation after one failure.** A single timeout or 429 marks it `error`, and it stays out until an admin acts (see the intro).

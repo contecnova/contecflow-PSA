@@ -551,8 +551,22 @@ def get_provider(db: Session, pid: str, *, is_superadmin: bool, organization_id)
     return q.first()
 
 
+#: Lo que se puede editar de un proveedor. Revisión 2026-11: se escribía
+#: cualquier atributo que llegara (también `organization_id`, `total_cost_usd`
+#: o `created_by`), así que un administrador podía mover un proveedor a otra
+#: empresa o falsear su gasto acumulado.
+CAMPOS_EDITABLES_DEL_PROVEEDOR = frozenset({
+    "name", "provider", "api_key", "api_base_url", "api_version", "default_model", "available_models",
+    "priority", "is_default", "max_tokens", "temperature", "timeout_seconds", "is_active",
+})
+
+
 def update_provider(db: Session, provider, data: dict, *,
                     is_superadmin: bool, organization_id) -> object:
+    fuera = set(data) - CAMPOS_EDITABLES_DEL_PROVEEDOR
+    if fuera:
+        from fastapi import HTTPException
+        raise HTTPException(400, f"No se pueden cambiar: {', '.join(sorted(fuera))}")
     if data.get("is_default"):
         _clear_default(db, is_superadmin=is_superadmin, organization_id=organization_id)
 
