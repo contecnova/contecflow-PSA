@@ -6918,6 +6918,12 @@ const zh = {
     sin_datos_suficientes_para_generar_narrativa_ejecuta: '数据不足，无法生成解读。请先运行 OLAP ETL。',
   },
   nexusassist: {
+    asistente_ia: "AI 助手",
+    borrar_historial: "清除历史",
+    borrando: "正在清除…",
+    borrar_historial_ayuda: "你与 NexusAssist 的所有对话将被归档并从历史中隐藏。",
+    cerrar: "关闭",
+    error_conexion: "⚠ 无法连接 NexusAssist。",
     voto_up: "有帮助",
     voto_down: "没有帮助",
     voto_gracias: "谢谢：我们会审核",

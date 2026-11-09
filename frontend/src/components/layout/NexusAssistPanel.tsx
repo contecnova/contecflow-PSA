@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { nexusAgentApi, sdKbApi } from '../../services/api'
 import { useConfirm } from '../../context/ConfirmContext'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { Plus, Trash2, X } from 'lucide-react'
 
 const LAST_CONV_KEY = 'nexusassist_last_conversation_id'
 
@@ -38,6 +39,9 @@ interface Props {
   onClose: () => void
   context?: AssistContext
 }
+
+const botonIcono: React.CSSProperties = { width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  background: 'transparent', border: '.5px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-2)', cursor: 'pointer', padding: 0 }
 
 export default function ContecflowAssistPanel({ open, onClose, context }: Props) {
   const { t } = useAppLang()
@@ -153,7 +157,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
       setMessages(prev => [...prev, { id: data.message_id || undefined, role: 'assistant', content: data.message, sources: data.sources || [], correction: !!data.correction_applied }])
       qc.invalidateQueries({ queryKey: ['ai-conversations'] })
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: '⚠ Error de conexión con NexusAssist.' }])
+      setMessages(prev => [...prev, { role: 'assistant', content: t('nexusassist.error_conexion') }])
     }
     setLoading(false)
   }
@@ -170,42 +174,41 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
       background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12,
       display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'-4px 0 24px rgba(0,0,0,0.18)',
     }}>
-      <div style={{ padding:'16px 20px', borderBottom:'.5px solid var(--surface-4)',
-        background:'var(--surface-2)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-        <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-          <span style={{ fontSize: "var(--text-xl-em)" }}>🤖</span>
-          <div>
-            <div style={{ fontSize: "var(--text-md)", fontWeight:600 }}>NexusAssist</div>
-            <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>Asistente IA</div>
+      {/* Revisión 2026-11: título, ruta y tres acciones no cabían en 420 px y la
+          ✕ quedaba fuera del panel. La ruta va bajo el nombre y las acciones son
+          iconos con su descripción. */}
+      <div style={{ padding:'14px 16px', borderBottom:'.5px solid var(--surface-4)',
+        background:'var(--surface-2)', display:'flex', alignItems:'center', gap:10 }}>
+        <span aria-hidden style={{ fontSize: "var(--text-xl-em)", flexShrink:0 }}>🤖</span>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize: "var(--text-md)", fontWeight:600 }}>NexusAssist</div>
+          <div title={pageLabel || undefined} style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            {t('nexusassist.asistente_ia')}{pageLabel ? <span style={{ color:'var(--accent)' }}> · {pageLabel}</span> : null}
           </div>
         </div>
-        {pageLabel && (
-          <div style={{ fontSize: "var(--text-2xs)", padding:'2px 8px', borderRadius:10,
-            background:'rgba(79,142,247,0.12)', color:'var(--accent)',
-            border:'.5px solid rgba(79,142,247,0.25)', whiteSpace:'nowrap', flexShrink:0 }}>
-            📍 {pageLabel}
-          </div>
-        )}
-        <div style={{ display:'flex', gap:8 }}>
-          <button onClick={() => { localStorage.removeItem(LAST_CONV_KEY); setConvId(null); setMessages([]) }}
-            style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6,
-              padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
-            {t('nexusassist.nueva')}
+        <div style={{ display:'flex', gap:4, flexShrink:0 }}>
+          <button type="button" title={t('nexusassist.nueva')} aria-label={t('nexusassist.nueva')}
+            onClick={() => { localStorage.removeItem(LAST_CONV_KEY); setConvId(null); setMessages([]) }}
+            style={botonIcono}>
+            <Plus size={16} />
           </button>
           <button
             type="button"
+            title={t(isClearingHistory ? 'nexusassist.borrando' : 'nexusassist.borrar_historial')}
+            aria-label={t('nexusassist.borrar_historial')}
             disabled={conversations.length === 0 || isClearingHistory}
             onClick={() => openConfirm({
-              title: 'Borrar historial',
-              message: 'Se archivarán todas las conversaciones de Nexus Assist de tu usuario. Esta acción ocultará el histórico actual.',
+              title: t('nexusassist.borrar_historial'),
+              message: t('nexusassist.borrar_historial_ayuda'),
               danger: true,
               onConfirm: () => clearHistory(),
             })}
-            style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6,
-              padding:'4px 10px', color:'var(--text-2)', cursor: conversations.length === 0 || isClearingHistory ? 'not-allowed' : 'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', opacity: conversations.length === 0 || isClearingHistory ? 0.5 : 1 }}>
-            {isClearingHistory ? 'Borrando...' : 'Borrar historial'}
+            style={{ ...botonIcono, cursor: conversations.length === 0 || isClearingHistory ? 'not-allowed' : 'pointer', opacity: conversations.length === 0 || isClearingHistory ? 0.4 : 1 }}>
+            <Trash2 size={16} />
           </button>
-          <button onClick={onClose} style={{ background:'transparent', border:'none', fontSize: "var(--text-lg-em)", cursor:'pointer', color:'var(--text-2)', padding:'2px 6px' }}>✕</button>
+          <button type="button" title={t('nexusassist.cerrar')} aria-label={t('nexusassist.cerrar')} onClick={onClose} style={botonIcono}>
+            <X size={16} />
+          </button>
         </div>
       </div>
       {!convId && messages.length === 0 && conversations.length > 0 && (

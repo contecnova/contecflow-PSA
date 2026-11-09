@@ -6907,6 +6907,12 @@ const en = {
     sin_datos_suficientes_para_generar_narrativa_ejecuta: 'Not enough data to generate the narrative. Run the OLAP ETL first.',
   },
   nexusassist: {
+    asistente_ia: "AI assistant",
+    borrar_historial: "Clear history",
+    borrando: "Clearing…",
+    borrar_historial_ayuda: "All your NexusAssist conversations will be archived and hidden from the history.",
+    cerrar: "Close",
+    error_conexion: "⚠ Could not reach NexusAssist.",
     voto_up: "Helpful",
     voto_down: "Not helpful",
     voto_gracias: "Thanks: it will be reviewed",
