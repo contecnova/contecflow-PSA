@@ -259,13 +259,15 @@ export default function PageHeader({
       )}
 
       {/* Título + acciones */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-        <div>
+      {/* Revisión 2026-11: en pantallas estrechas las acciones bajan de línea
+          en vez de salirse (medido en /cmdb a 390 px: +346 px de desborde). */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 240px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {icon && (
               <div style={{
                 width: 36, height: 36, borderRadius: 10,
-                background: 'var(--accent-muted)', border: '1px solid rgba(79,142,247,0.25)',
+                background: 'var(--accent-muted)', border: '1px solid var(--accent-muted)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'var(--accent)', flexShrink: 0,
               }}>
@@ -299,7 +301,7 @@ export default function PageHeader({
         </div>
         {/* Actions slot */}
         {(actions || showListExport) && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', maxWidth: '100%' }}>
             {actions}
             {showListExport && <AutoListExportButton exportTargetSelector={exportTargetSelector} exportFilePrefix={exportFilePrefix} />}
           </div>

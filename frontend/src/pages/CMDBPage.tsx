@@ -455,7 +455,9 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
         )}
       </div>
 
-      <div style={{ ...ps, overflowX: 'auto' }}>
+      {/* `position: relative`: el texto oculto de la cabecera es absoluto y, sin
+          esto, escapaba del recorte y ensanchaba la página en móvil. */}
+      <div style={{ ...ps, overflowX: 'auto', position: 'relative' }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
           {t('cmdb.registered_agents', { n: agents.length })}
         </div>
@@ -833,7 +835,7 @@ export default function CMDBPage(): JSX.Element {
           </>}
         </div>
       ) : (
-        <div style={{...ps, overflowX:'auto'}}>
+        <div style={{...ps, overflowX:'auto', position:'relative'}}>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize: "var(--text-base)"}}>
             <thead>
               <tr style={{borderBottom:'1px solid var(--surface-4)'}}>
