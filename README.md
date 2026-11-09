@@ -2884,8 +2884,8 @@ If the chosen provider fails, every other active provider is tried once. If none
 - **PII redaction is regex-based** (`app/services/ai_governance.py`). It applies only if the organization has active `AIGuardrailPolicy` rows. None are seeded and there is no UI to create them, so by default nothing is redacted. It checks only the last user message, not the system prompt, which carries the tenant data context.
 - **Azure is probably broken.** It is called with a `Bearer` header on the generic path, with no deployment or `api-version`. Not verified.
 - **o1/o3/o4-mini may be rejected.** They are offered, but `max_tokens`/`temperature` are always sent. Not verified.
+- **Each company's provider.** `call_ai` chooses the provider with the caller's company (the one passed, else the session's, else the user's) and not as superadmin unless the caller says so; a provider asked for by id must be the company's or a global one. A background job without a company filter no longer picks another company's provider and key.
 - **One door.** Every AI call goes through `call_ai` (or `turno_de_agente` for the agent's tool turns): governance, the daily spending cap and the usage log apply to all. `tests/test_ia_una_puerta_2026_11.py` fails if any other file talks to Anthropic's API.
-- **Some callers can use another tenant's provider.** `call_ai` defaults `is_superadmin=True`, so a caller that does not pass it can pick another organization's provider and key. Affected callers: `POST /ai-providers/chat`, the AI Assignment tie-break, and the NexusAgent worker path.
 
 **Data layer for BI.** Several BI widgets read a DuckDB OLAP file, not Postgres:
 - Location: `DUCKDB_PATH`, otherwise `/var/contecflow/olap.duckdb`, otherwise `/tmp/contecflow/olap.duckdb`.
@@ -3834,7 +3834,6 @@ Header buttons: **Diagnóstico**, **Sync all models**.
 
 **Limitations (measured).**
 - **PATCH edits only the provider's own fields** (name, provider, key, base URL, version, models, priority, default, tokens, temperature, timeout, active); anything else, such as `organization_id` or `total_cost_usd`, answers 400.
-- **`POST /ai-providers/chat` can use another tenant's provider.** It calls `call_ai` without organization scoping, and a caller-supplied `provider_id` is not org-checked, so any internal user can use another tenant's provider and key.
 - **Usage stats include deleted providers.**
 - **A provider can drop out of rotation after one failure.** A single timeout or 429 marks it `error`, and it stays out until an admin acts (see the intro).
 
@@ -4807,7 +4806,6 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 **Limitations (measured).**
 - `max_users` is checked when a user is created (`/users`, SCIM single and bulk, SSO) and in `assign-user` (`organizations_service.exigir_cupo`, `check_org_user_limit`); `max_projects` when a project is created. Test: `tests/test_empresas_alta_baja.py`.
 - **`max_projects` and `plan` have no enforcement anywhere** (grep).
-- **`organizations.is_active=false` does not block password login.** It is checked only by SSO auto-provisioning, SCIM, the worker and ML training.
 - `assign-user` sets `users.organization_id` only if it was empty. A second membership does not change the user's tenant (see the multi-tenant model).
 
 ---
@@ -4916,11 +4914,11 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 - `GET|POST /api/v1/webhooks`, `GET /webhooks/{id}/logs`, `POST /webhooks/{id}/rotate`, `DELETE /webhooks/{id}`.
 - Public `POST /webhooks/fire/{slug}`, rate-limited to 20/min.
 - Tables `webhook_triggers`, `webhook_trigger_logs`.
+- The log keeps the request headers except credentials: any header whose name contains authorization, cookie, signature, token, secret, api-key, apikey, password or x-auth is stored as `[oculto]`. Migration `153` did the same to the logs already stored (unreadable truncated ones were emptied).
 
 **Limitations (measured).**
 - A trigger **without a secret is never callable** (401).
 - Only `workflow_id` is executed. It runs as a background task after the response; `rule_id` and `field_mapping` are stored but not used by the fire handler.
-- **All request headers are written to the log** (`json.dumps(dict(request.headers))`).
 
 ---
 

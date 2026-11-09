@@ -178,6 +178,14 @@ def create_webhook_trigger(
         raise HTTPException(400, str(e))
 
 
+_SENSIBLES = ("authorization", "cookie", "signature", "token", "secret", "api-key", "apikey", "password", "x-auth")
+
+
+def _cabecera_sensible(nombre: str) -> bool:
+    n = nombre.lower()
+    return any(x in n for x in _SENSIBLES)
+
+
 @router.post("/webhooks/fire/{slug}", summary="Disparar webhook — endpoint público")
 @limiter.limit("20/minute")
 async def fire_webhook(
@@ -221,7 +229,10 @@ async def fire_webhook(
         raise HTTPException(401, "Firma HMAC inválida")
 
     # Log the call and update fire stats (DB op → threadpool)
-    await run_db(_svc.log_webhook_fire, trigger, payload_str, json.dumps(dict(request.headers)), db)
+    # Revisión 2026-11: sin credenciales en el log (antes se guardaban todas las
+    # cabeceras, con Authorization, Cookie y la firma).
+    cabeceras = {k: ("[oculto]" if _cabecera_sensible(k) else v) for k, v in request.headers.items()}
+    await run_db(_svc.log_webhook_fire, trigger, payload_str, json.dumps(cabeceras), db)
 
     # Fire the workflow/rule in background
     if trigger.workflow_id:

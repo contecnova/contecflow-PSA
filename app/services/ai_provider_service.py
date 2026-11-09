@@ -14,7 +14,7 @@ import json
 from datetime import datetime, timezone
 
 import httpx
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -1093,8 +1093,8 @@ def _seleccionar_proveedor(db: Session, provider_id, is_superadmin: bool, organi
             db, is_superadmin=is_superadmin, organization_id=organization_id
         )
     q = db.query(AIProvider).filter(AIProvider.id == provider_id)
-    if not is_superadmin and organization_id:
-        q = q.filter(AIProvider.organization_id == organization_id)
+    if not is_superadmin and organization_id:   # el de su empresa o uno global (compartido)
+        q = q.filter(or_(AIProvider.organization_id == organization_id, AIProvider.organization_id.is_(None)))
     return q.first()
 
 
@@ -1393,7 +1393,7 @@ def call_ai(
     model: str = None,
     max_tokens: int = None,
     provider_id: str = None,
-    is_superadmin: bool = True,
+    is_superadmin: bool = False,
     organization_id=None,
     skip_guardrails: bool = False,
 ) -> str:
@@ -1426,6 +1426,11 @@ def call_ai(
         return bloqueo
     org_de_la_llamada = _org_de_la_llamada(db, organization_id, user_id)
     _exigir_presupuesto(db, org_de_la_llamada)
+    # Revisión 2026-11: el proveedor se elige con la empresa de la llamada (la de
+    # la sesión o la del usuario) y no como superadministrador por defecto. Antes
+    # un trabajo de fondo sin filtro de empresa podía usar el proveedor —y la
+    # clave— de otra.
+    organization_id = organization_id or org_de_la_llamada
 
     # Proveedor y modelo por funcion (Hub de IA → «Por función»), si los hay y
     # la llamada no pide uno concreto. Si el elegido no esta disponible, el
