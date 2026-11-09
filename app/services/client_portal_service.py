@@ -609,12 +609,20 @@ def update_my_profile(payload: dict, current_client, db: Session, min_password_l
 
 # ── Invoices ──────────────────────────────────────────────────────────────────
 
+# Revisión 2026-11. Medido antes: el portal enseñaba también los borradores
+# (internos hasta emitirse) sin mirar `can_view_budget`, y aprobar un borrador
+# desde el portal lo marcaba como enviado. Ahora el cliente sólo ve y decide
+# sobre facturas emitidas, y sólo con ese permiso; su decisión no cambia el
+# estado de la factura, queda en `client_approval_status` y en las notas.
+_FACTURAS_DEL_CLIENTE = (InvoiceStatus.sent, InvoiceStatus.overdue, InvoiceStatus.paid)
+
+
 def list_client_invoices(status: Optional[str], current_client, db: Session) -> list:
 
     accessible = current_client.get_project_ids()
-    if not accessible:
+    if not accessible or not current_client.can_view_budget:
         return []
-    q = db.query(Invoice).filter(Invoice.project_id.in_(accessible))
+    q = db.query(Invoice).filter(Invoice.project_id.in_(accessible), Invoice.status.in_(_FACTURAS_DEL_CLIENTE))
     if status:
         q = q.filter(Invoice.status == status)
     invoices = q.order_by(Invoice.issue_date.desc()).limit(200).all()
@@ -642,8 +650,9 @@ def approve_client_invoice(invoice_id: str, approved: bool, reason: str, current
     inv = db.query(Invoice).filter(
         Invoice.id == invoice_id,
         Invoice.project_id.in_(accessible),
+        Invoice.status.in_((InvoiceStatus.sent, InvoiceStatus.overdue)),
     ).first()
-    if not inv:
+    if not inv or not current_client.can_view_budget:
         raise ValueError("Factura no encontrada")
 
     action = "APROBADA" if approved else "RECHAZADA"
@@ -654,8 +663,6 @@ def approve_client_invoice(invoice_id: str, approved: bool, reason: str, current
 
     existing = (inv.internal_notes or "").strip()
     inv.internal_notes = f"{existing}\n{note_line}".strip() if existing else note_line
-    if approved and inv.status == InvoiceStatus.draft:
-        inv.status = InvoiceStatus.sent
     inv.client_approval_status = "approved" if approved else "rejected"
 
     db.add(ClientMessage(

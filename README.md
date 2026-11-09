@@ -1817,7 +1817,7 @@ Still open: times are shown in UTC; the profile password change does not ask for
 - **Base URL.** `CLIENT_API` uses a hardcoded `baseURL: '/api/v1'` and ignores `VITE_API_URL`, unlike the main client.
 
 **Limitations (measured).**
-- **Clients see draft invoices, and approving one sends it.** `GET /portal/invoices` returns **all** invoices of the user's projects, including `draft`, with no `can_view_budget` gate. Approving a `draft` from the portal switches it to `sent` (`approve_client_invoice`). Invoices with no `project_id` are never shown.
+- **Invoices in the portal:** the client sees only issued invoices (sent, overdue, paid) and only with *can view budget*. Approving or rejecting records the client's decision (`client_approval_status`, a note and a message to the team); it does not change the invoice status.
 - **No screen creates surveys.** Surveys are created only through `POST /portal/surveys` (manager), so the Encuestas section stays empty unless they are created via the API.
 - **Most module toggles are ignored.** `enabled_modules` and the other portal settings listed under Clients do not hide portal sections.
 - **The AI chat needs an AI provider.** Without one, the client gets a short summary of their project and is pointed to Messages.
