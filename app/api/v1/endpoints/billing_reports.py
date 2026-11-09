@@ -352,7 +352,10 @@ def download_invoice_pdf(
         for l in lines
     ]
 
+    from app.services.settings_service import simbolos_de_moneda
+    _moneda = (getattr(inv, "currency", None) or settings.DEFAULT_CURRENCY).upper()
     pdf_bytes = _invoice_pdf.generate_invoice_pdf(
+        simbolo=simbolos_de_moneda(db, current_user.organization_id).get(_moneda, _moneda),
         invoice_number=inv.number,
         issue_date=inv.issue_date,
         due_date=inv.due_date,

@@ -17,6 +17,8 @@ export interface OrgSettings {
   weekly_capacity_hours: number
   vacation_days_per_year: number
   tax_rate: number
+  /** Monedas de la empresa (`SUPPORTED_CURRENCIES`, Admin). Vacía hasta que responde el servidor. */
+  currencies: string[]
   [extra: string]: unknown
 }
 
@@ -28,6 +30,7 @@ const FALLBACK: OrgSettings = {
   weekly_capacity_hours: 40,
   vacation_days_per_year: 23,
   tax_rate: 21.0,
+  currencies: [],
 }
 
 export function useOrgSettings(): OrgSettings {

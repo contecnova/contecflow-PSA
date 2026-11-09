@@ -249,6 +249,9 @@ class Settings(
     DEFAULT_TIMEZONE: str = Field(default="Europe/Madrid", env="DEFAULT_TIMEZONE")
     DEFAULT_LANGUAGE: str = Field(default="es", env="DEFAULT_LANGUAGE")
     DEFAULT_CURRENCY: str = Field(default="EUR", env="DEFAULT_CURRENCY")
+    # Revisión 2026-11: las monedas que ofrecen las pantallas y sus símbolos (antes, listas fijas en cada sitio).
+    SUPPORTED_CURRENCIES: str = Field(default="EUR,USD,GBP,PLN,CHF,SEK,DKK,NOK,JPY,CAD,AUD,MXN,BRL", env="SUPPORTED_CURRENCIES")
+    CURRENCY_SYMBOLS: str = Field(default="EUR:€,USD:$,GBP:£", env="CURRENCY_SYMBOLS")
 
     # ── Business rules ────────────────────────────────────────────────────────
     DEFAULT_TAX_RATE: float = Field(default=21.0, env="DEFAULT_TAX_RATE")
@@ -480,6 +483,11 @@ class Settings(
     LESSONS_WEIGHT_CATEGORY: float = Field(default=0.15, env="LESSONS_WEIGHT_CATEGORY")
     LESSONS_WEIGHT_TEXT: float = Field(default=0.20, env="LESSONS_WEIGHT_TEXT")
     LESSONS_PENDING_LOOKBACK_DAYS: int = Field(default=180, env="LESSONS_PENDING_LOOKBACK_DAYS")
+
+    # ── Gastos (revisión 2026-11) ──────────────────────────────────────────────
+    EXPENSE_MILEAGE_RATE: float = Field(default=0.26, env="EXPENSE_MILEAGE_RATE")
+    EXPENSE_ATTACHMENT_MAX_MB: int = Field(default=10, env="EXPENSE_ATTACHMENT_MAX_MB")
+    EXPENSE_MANAGER_ROLES: str = Field(default="admin,pm", env="EXPENSE_MANAGER_ROLES")
 
     # NOTE: AI cost alerting lives in AISettingsMixin.
 

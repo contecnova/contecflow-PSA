@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import CondicionesDelFlujo from '../components/aprobaciones/CondicionesDelFlujo'
 import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
@@ -295,6 +296,10 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: any; onBack: () =>
 
   return (
     <div>
+      {wf.entity_type !== 'document' && (
+        <CondicionesDelFlujo workflowId={workflowId} entityType={wf.entity_type} actuales={parsedConditions}
+          onGuardado={() => qc.invalidateQueries({ queryKey: ['approval-workflow', workflowId] })} />
+      )}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
         <button aria-label={t('approvals.back')} onClick={onBack} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('approvals.back')}</button>
         <div style={{ flex: 1 }}>

@@ -151,26 +151,22 @@ def metric_expenses_by_project(
         from app.models.expenses import Expense
         from app.models.project import Project
 
-        q_base = db.query(
-            Expense.project_id,
-            func.sum(Expense.amount).label("total"),
-        ).filter(
-            Expense.expense_date >= d_from,
-            Expense.expense_date <= d_to,
-        )
+        # Revisión 2026-11: con reparto entre proyectos cuenta la parte de cada uno.
+        from app.services.gastos_avanzados import totales_por_proyecto
+        from app.models.expenses import ExpenseAllocation
         if project_ids:
-            q_base = q_base.filter(Expense.project_id.in_(project_ids))
-        q_base = q_base.group_by(Expense.project_id).order_by(func.sum(Expense.amount).desc()).limit(top_n)
-
-        proj_ids = [r.project_id for r in q_base.all()]
-        proj_map = {p.id: p.name for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()} if proj_ids else {}
-
-        rows = []
-        for r in q_base.all():
-            rows.append({
-                "label": proj_map.get(r.project_id, str(r.project_id) if r.project_id else "Sin proyecto"),
-                "value": round(float(r.total or 0), 2),
-            })
+            candidatos = list(project_ids)
+        else:
+            candidatos = {pid for (pid,) in db.query(Expense.project_id).filter(
+                Expense.expense_date >= d_from, Expense.expense_date <= d_to, Expense.project_id.isnot(None)).distinct()}
+            candidatos |= {pid for (pid,) in db.query(ExpenseAllocation.project_id).join(
+                Expense, Expense.id == ExpenseAllocation.expense_id).filter(
+                Expense.expense_date >= d_from, Expense.expense_date <= d_to).distinct()}
+            candidatos = list(candidatos)
+        totales = totales_por_proyecto(db, candidatos, desde=d_from, hasta=d_to)
+        orden = sorted(totales.items(), key=lambda x: -x[1])[:top_n]
+        proj_map = {p.id: p.name for p in db.query(Project).filter(Project.id.in_([k for k, _ in orden])).all()} if orden else {}
+        rows = [{"label": proj_map.get(pid, str(pid)), "value": round(float(v), 2)} for pid, v in orden]
     except Exception:
         rows = []
 

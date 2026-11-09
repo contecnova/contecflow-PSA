@@ -694,7 +694,7 @@ export default function SubcontractorsPage() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const { currency } = useOrgSettings()
+  const { currency, currencies: monedasDeLaEmpresa } = useOrgSettings()
   const [selected, setSelected] = useState<Sub | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ name: '', company: '', email: '', phone: '', country: 'España', currency: currency, vat_number: '', notes: '' })
@@ -880,7 +880,7 @@ export default function SubcontractorsPage() {
             <div>
               <label style={lbl}>Moneda</label>
               <select value={form.currency} onChange={e => setForm(f=>({...f,currency:e.target.value}))} style={inp}>
-                {['EUR','USD','GBP','CHF','MXN'].map(c => <option key={c} value={c}>{c}</option>)}
+                {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
@@ -921,7 +921,7 @@ export default function SubcontractorsPage() {
             <div>
               <label style={lbl}>Moneda</label>
               <select value={editForm.currency} onChange={e => setEditForm(f=>({...f,currency:e.target.value}))} style={inp}>
-                {['EUR','USD','GBP','CHF','MXN'].map(c => <option key={c} value={c}>{c}</option>)}
+                {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>

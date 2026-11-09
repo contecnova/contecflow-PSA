@@ -80,9 +80,8 @@ def _get_profitability(tool_input, db, user, now, is_financial_role):
     for p in projects:
         hours = db.query(func.sum(Imputation.hours)).filter(Imputation.project_id == p.id).scalar() or 0
         cost = db.query(func.sum(Imputation.cost_amount)).filter(Imputation.project_id == p.id).scalar() or 0
-        expenses_total = db.query(func.sum(Expense.amount)).filter(
-            Expense.project_id == p.id, Expense.status == "approved"
-        ).scalar() or 0
+        from app.services.gastos_avanzados import totales_por_proyecto
+        expenses_total = totales_por_proyecto(db, [p.id]).get(p.id, 0)
         invoiced = db.query(func.sum(Invoice.total)).filter(
             Invoice.project_id == p.id, Invoice.status.in_(["sent","paid"])
         ).scalar() or 0

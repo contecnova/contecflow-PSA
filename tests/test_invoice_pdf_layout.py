@@ -231,13 +231,17 @@ def test_una_factura_sin_lineas_se_genera():
     ("EUR", "€"), ("USD", "$"), ("GBP", "£"),
 ])
 def test_el_simbolo_de_las_monedas_conocidas(moneda, simbolo):
-    assert _importe(1234.5, moneda) == f"1,234.50 {simbolo}"
+    """Los símbolos salen de `CURRENCY_SYMBOLS` (Admin → Locale), no de una lista en el código."""
+    from app.services.settings_service import simbolos_de_moneda
+    assert _importe(1234.5, simbolos_de_moneda()[moneda]) == f"1,234.50 {simbolo}"
 
 
 def test_una_moneda_no_listada_usa_su_codigo():
     """«1,234.50 CHF» es correcto y legible. Inventar un símbolo o dejarlo en
     blanco sería peor."""
-    assert _importe(1234.5, "CHF") == "1,234.50 CHF"
+    from app.services.settings_service import simbolos_de_moneda
+    assert "CHF" not in simbolos_de_moneda()
+    assert _importe(1234.5, simbolos_de_moneda().get("CHF", "CHF")) == "1,234.50 CHF"
 
 
 def test_las_fechas_van_en_formato_espanol():

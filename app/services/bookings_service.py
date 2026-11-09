@@ -13,9 +13,7 @@ import subprocess
 import time as _time_sleep
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
-from app.core.outbound_url import validate_outbound_url
 from app.core.config import settings
-from app.core.security import create_access_token
 from app.models.billing_reports import Invoice, InvoiceLine
 from app.models.billing_reports import AutomationWorkflow
 from app.models.billing_reports import WorkflowExecution
@@ -26,9 +24,7 @@ from app.models.bookings import SLASchedule
 from app.models.bookings import SLAHoliday
 from app.models.bookings import ApiKey
 from app.models.bookings import RecurringInvoice
-from app.models.bookings import OAuthState
 from app.models.bookings import WorkflowQueueItem
-from app.models.enterprise import SSOConfig
 from app.models.pipeline import Opportunity, OpportunityStage
 from app.models.project import Project, ProjectStatus
 from app.models.service_desk import Ticket
@@ -42,7 +38,6 @@ from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_CURRENCIES = ["EUR", "USD", "GBP", "PLN", "CHF", "SEK", "DKK", "NOK", "JPY", "CAD", "AUD", "MXN", "BRL"]
 ALLOWED_TERRAFORM_COMMANDS = {"plan", "apply", "destroy"}
 
 
@@ -344,7 +339,8 @@ def get_exchange_rates_data(base: str, db) -> dict:
                 "source": rate.source,
             }
     latest_rates[base] = {"rate": 1.0, "effective_date": str(timeutil.today()), "source": "base"}
-    return {"base": base, "rates": latest_rates, "currencies": SUPPORTED_CURRENCIES}
+    from app.services.settings_service import monedas
+    return {"base": base, "rates": latest_rates, "currencies": monedas(db, db.info.get("organization_id"))}
 
 
 def upsert_exchange_rate_record(payload: dict, db) -> dict:

@@ -9,6 +9,7 @@ from datetime import date
 from app.db.session import get_db
 from app.core.deps import (
     get_current_user,
+    require_admin,
     require_admin_or_pm,
     require_any_manager,
     require_internal_user,
@@ -25,7 +26,6 @@ from app.services.expense_service import (
     list_pending_expenses as svc_list_pending_expenses,
     list_all_expenses as svc_list_all_expenses,
     list_team_expenses as svc_list_team_expenses,
-    list_project_expenses as svc_list_project_expenses,
     create_expense_record as svc_create_expense,
     admin_update_expense as svc_admin_update_expense,
     update_my_expense as svc_update_my_expense,
@@ -109,12 +109,15 @@ def project_expense_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    expenses = svc_list_project_expenses(db, project_id)
-    total = sum(e.amount for e in expenses)
-    billable = sum(e.amount for e in expenses if e.is_billable)
+    # Revisión 2026-11: con reparto entre proyectos cuenta la parte de este proyecto.
+    from app.services.gastos_avanzados import gastos_de_proyecto
+    partes = gastos_de_proyecto(db, project_id)
+    expenses = [e for e, _ in partes]
+    total = sum(importe for _, importe in partes)
+    billable = sum(importe for e, importe in partes if e.is_billable)
     by_cat: dict = {}
-    for e in expenses:
-        by_cat[e.category] = by_cat.get(e.category, 0) + e.amount
+    for e, importe in partes:
+        by_cat[e.category] = by_cat.get(e.category, 0) + importe
     return APIResponse.ok(data={
         "total": round(total, 2),
         "billable": round(billable, 2),
@@ -192,6 +195,7 @@ def reimburse_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    enforce_abac(db, current_user, "expense", expense_id, action="approve")
     return APIResponse.ok(data=svc_reimburse_expense(db, expense_id))
 
 
@@ -231,3 +235,89 @@ async def ocr_receipt(
     image_bytes = await read_and_validate_upload(file, UploadProfile.RECEIPT)
     extracted = await svc_ocr_receipt(image_bytes, file.content_type)
     return APIResponse.ok(data={"ok": True, "extracted": extracted})
+
+
+# ── Revisión 2026-11: políticas, justificantes y reparto ──────────────────────
+# La lógica vive en `app/services/gastos_avanzados.py`.
+
+from pydantic import BaseModel, Field  # noqa: E402
+
+from app.services import gastos_avanzados as gav  # noqa: E402
+
+
+class PoliticaIn(BaseModel):
+    nombre: Optional[str] = Field(None, min_length=2, max_length=200)
+    categoria: Optional[str] = Field(None, max_length=30)
+    limite_por_gasto: Optional[float] = Field(None, ge=0)
+    limite_diario: Optional[float] = Field(None, ge=0)
+    justificante_desde: Optional[float] = Field(None, ge=0)
+    justificacion_desde: Optional[float] = Field(None, ge=0)
+    accion: Optional[str] = Field(None, pattern="^(bloquear|avisar)$")
+    activa: Optional[bool] = None
+
+
+class ParteIn(BaseModel):
+    project_id: str = Field(min_length=1, max_length=36)
+    percentage: float = Field(gt=0, le=100)
+
+
+@router.get("/policies", summary="Políticas de gasto de la empresa")
+def list_policies(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    return APIResponse.ok(data={"items": gav.politicas(db)})
+
+
+@router.post("/policies", summary="Crear una política de gasto (admin)")
+def create_policy(body: PoliticaIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    return APIResponse.ok(data=gav.crear_politica(db, current_user, body.model_dump(exclude_unset=True)))
+
+
+@router.patch("/policies/{policy_id}", summary="Editar una política de gasto (admin)")
+def update_policy(policy_id: str, body: PoliticaIn, db: Session = Depends(get_db),
+                  current_user: User = Depends(require_admin)):
+    return APIResponse.ok(data=gav.editar_politica(db, current_user, policy_id, body.model_dump(exclude_unset=True)))
+
+
+@router.delete("/policies/{policy_id}", summary="Borrar una política de gasto (admin)")
+def delete_policy(policy_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    gav.borrar_politica(db, current_user, policy_id)
+    return APIResponse.ok(data={"ok": True})
+
+
+@router.get("/{expense_id}/policy-check", summary="Qué políticas incumple el gasto (antes de enviarlo)")
+def policy_check(expense_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    return APIResponse.ok(data=gav.comprobar(db, current_user, expense_id))
+
+
+@router.get("/{expense_id}/attachments", summary="Justificantes y documentos del gasto")
+def list_attachments(expense_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    return APIResponse.ok(data={"items": gav.adjuntos(db, current_user, expense_id)})
+
+
+@router.post("/{expense_id}/attachments", summary="Adjuntar un justificante o documento")
+async def add_attachment(expense_id: str, file: UploadFile = File(...), db: Session = Depends(get_db),
+                         current_user: User = Depends(require_internal_user)):
+    contenido = await read_and_validate_upload(file, UploadProfile.RECEIPT)
+    return APIResponse.ok(data=gav.subir_adjunto(db, current_user, expense_id, contenido, file.filename or "justificante",
+                                                 file.content_type))
+
+
+@router.get("/attachments/{attachment_id}/url", summary="URL firmada y de corta vida para ver el justificante")
+def attachment_url(attachment_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    return APIResponse.ok(data={"url": gav.url_de_adjunto(db, current_user, attachment_id)})
+
+
+@router.delete("/attachments/{attachment_id}", summary="Quitar un justificante")
+def delete_attachment(attachment_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    gav.borrar_adjunto(db, current_user, attachment_id)
+    return APIResponse.ok(data={"ok": True})
+
+
+@router.get("/{expense_id}/allocations", summary="Reparto del gasto entre proyectos")
+def get_allocations(expense_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    return APIResponse.ok(data={"items": gav.reparto(db, current_user, expense_id)})
+
+
+@router.put("/{expense_id}/allocations", summary="Repartir el gasto entre proyectos (suma 100 %; vacío lo quita)")
+def put_allocations(expense_id: str, body: list[ParteIn], db: Session = Depends(get_db),
+                    current_user: User = Depends(require_internal_user)):
+    return APIResponse.ok(data={"items": gav.repartir(db, current_user, expense_id, [p.model_dump() for p in body])})

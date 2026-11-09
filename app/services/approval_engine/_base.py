@@ -348,6 +348,11 @@ def _matches_conditions(conditions: dict, context: dict) -> bool:
         return False
     if conditions.get("department") and department != conditions.get("department"):
         return False
+    # Revisión 2026-11: «excede una política de gasto» y «de este proyecto».
+    if conditions.get("policy_exceeded") is not None and bool(context.get("policy_exceeded")) != bool(conditions["policy_exceeded"]):
+        return False
+    if conditions.get("project_id") and context.get("project_id") != conditions.get("project_id"):
+        return False
     try:
         if conditions.get("amount_gt") is not None and float(amount or 0) <= float(conditions["amount_gt"]):
             return False

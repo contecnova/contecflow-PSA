@@ -82,6 +82,7 @@ def get_org_defaults(db: Session = Depends(get_db), current_user: User = Depends
         "weekly_capacity_hours": g_float(db, "DEFAULT_WEEKLY_CAPACITY_HOURS", org_id),
         "vacation_days_per_year": g_int(db, "DEFAULT_VACATION_DAYS_PER_YEAR", org_id),
         "tax_rate": g_float(db, "DEFAULT_TAX_RATE", org_id),
+        "currencies": _svc.monedas(db, org_id),
     })
 
 def _es_admin(user: User) -> bool:

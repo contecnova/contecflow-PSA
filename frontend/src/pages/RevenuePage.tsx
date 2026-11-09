@@ -146,7 +146,7 @@ export default function RevenuePage() {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
-  const { currency } = useOrgSettings()
+  const { currency, currencies: monedasDeLaEmpresa } = useOrgSettings()
   const fmt = (n: number | null | undefined) => fmtEur(n, currency)
   const [tab, setTab] = useState('summary')
   const [showCreate, setShowCreate] = useState(false)
@@ -711,7 +711,7 @@ export default function RevenuePage() {
               </div>
               <div><label style={ls}>Moneda</label>
                 <select value={contractForm.currency} onChange={e=>setContractForm(f=>({...f,currency:e.target.value}))} style={fs}>
-                  {['EUR','USD','GBP','CHF'].map(c => <option key={c} value={c}>{c}</option>)}
+                  {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>

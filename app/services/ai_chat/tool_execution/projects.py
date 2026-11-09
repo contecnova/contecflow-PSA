@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from sqlalchemy import func, or_
 
-from app.models.expenses import Expense
 from app.models.imputation import Imputation
 from app.models.pipeline import Risk
 from app.models.project import Project
@@ -77,12 +76,8 @@ def _get_budget_status(tool_input, db, user, now, is_financial_role):
           .filter(Imputation.project_id.in_(project_ids))
           .group_by(Imputation.project_id).all()
     }
-    expenses_by_project = {
-        pid: amt for pid, amt in
-        db.query(Expense.project_id, func.sum(Expense.amount))
-          .filter(Expense.project_id.in_(project_ids), Expense.status == "approved")
-          .group_by(Expense.project_id).all()
-    }
+    from app.services.gastos_avanzados import totales_por_proyecto
+    expenses_by_project = totales_por_proyecto(db, project_ids)
     for p in projects:
         hours = hours_by_project.get(p.id) or 0
         expenses_total = expenses_by_project.get(p.id) or 0

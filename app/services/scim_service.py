@@ -236,6 +236,9 @@ def create_scim_user(org_id: str, payload: dict, db: Session) -> User:
     ).first()
     if existing:
         raise HTTPException(status_code=409, detail="Usuario ya existe")
+    # Revisión 2026-11: el cupo del plan también por SCIM (antes se saltaba).
+    from app.services.organizations_service import exigir_cupo
+    exigir_cupo(db, org_id, "users")
 
     role = parse_role(((payload.get("roles") or [{}])[0] or {}).get("value"))
     active = payload.get("active", True)
@@ -419,6 +422,11 @@ def process_bulk_operation(
         ).first()
         if existing:
             raise ValueError(f"User '{user_name}' already exists")
+        from app.services.organizations_service import exigir_cupo
+        try:
+            exigir_cupo(db, org_id, "users")
+        except HTTPException as e:
+            raise ValueError(str(e.detail)) from e
         role = parse_role(((data.get("roles") or [{}])[0] or {}).get("value"))
         new_user = User(
             username=user_name,

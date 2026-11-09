@@ -64,3 +64,18 @@ def test_el_dominio_no_se_repite_entre_empresas(client, superadmin_token, db):
     r = client.post("/api/v1/organizations", headers=auth(superadmin_token), json={
         "name": "Otra", "slug": "otra", "domain": "app.cliente.com"})
     assert r.status_code == 400 and "dominio" in r.text
+
+
+def test_el_limite_de_usuarios_tambien_por_scim(client, superadmin_token, db):
+    """Medido el 09-11-2026: SCIM creaba usuarios sin mirar el cupo del plan."""
+    from fastapi import HTTPException
+    import pytest
+    from app.services.scim_service import create_scim_user, process_bulk_operation
+    datos = _alta(client, superadmin_token, admin_email="jefa@cliente-nuevo.com", max_users=1)  # el admin ya ocupa 1
+    org = datos["id"]
+    with pytest.raises(HTTPException) as e:
+        create_scim_user(org, {"userName": "scim1", "emails": [{"value": "scim1@cliente-nuevo.com"}]}, db)
+    assert e.value.status_code == 409
+    with pytest.raises(ValueError, match="límite"):
+        process_bulk_operation(org, {"method": "POST", "path": "/Users",
+                                     "data": {"userName": "scim2", "emails": [{"value": "scim2@cliente-nuevo.com"}]}}, db)

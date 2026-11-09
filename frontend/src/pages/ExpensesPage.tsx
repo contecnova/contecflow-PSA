@@ -23,6 +23,8 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer
 } from 'recharts'
 import { alpha } from '../constants/theme'
+import DetalleDeGasto from '../components/gastos/DetalleDeGasto'
+import PoliticasDeGasto from '../components/gastos/PoliticasDeGasto'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const CATEGORIES: Record<string, { label: string; icon: string; color: string }> = {
@@ -87,6 +89,8 @@ type Expense = {
   user_name?: string
   notes?: string
   receipt_url?: string
+  km?: number | null
+  policy_flags?: { mensaje: string }[]
   is_billable?: boolean
   submitted_at?: string
   reviewed_by_name?: string
@@ -96,12 +100,18 @@ type Expense = {
 }
 
 function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onAction?: (exp: Expense) => ReactNode; isManager?: boolean }) {
+  const t = useAppT()
+  const [detalle, setDetalle] = useState(false)
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', alignItems: 'center' }}>
       <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{expense.code}</span>
       <CatBadge cat={expense.category || ''} />
       <div>
-        <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{expense.description}</div>
+        <button type="button" onClick={() => setDetalle(true)} title={t('gas.abrir_detalle')}
+          style={{ fontSize: "var(--text-base)", fontWeight: 600, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-1)', textAlign: 'left', fontFamily: 'inherit' }}>
+          {expense.description}
+        </button>
+        {(expense.policy_flags ?? []).length > 0 && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--warning)' }}>⚠ {t('gas.excede_politica')}</span>}
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>
           {expense.project_name || 'Sin proyecto'} · {expense.expense_date}
           {isManager && <span style={{ marginLeft: 8 }}>· {expense.user_name}</span>}
@@ -128,6 +138,7 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
       <div style={{ display: 'flex', gap: 6 }}>
         {onAction && onAction(expense)}
       </div>
+      {detalle && <DetalleDeGasto gasto={{ ...expense, amount: expense.amount as number }} editable={expense.status === 'draft' || !!isManager} onClose={() => setDetalle(false)} />}
     </div>
   )
 }
@@ -138,12 +149,12 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
   const qc = useQueryClient()
   const toast = useToast()
   const { invalidate: _invalidate } = useInvalidate()
-  const { currency: defaultCurrency } = useOrgSettings()
+  const { currency: defaultCurrency, currencies: monedasDeLaEmpresa } = useOrgSettings()
   const isEdit = !!expense
   const [ocrLoading, setOcrLoading] = useState(false)
   const [form, setForm] = useState<{
     project_id: string; category: string; description: string; amount: string | number;
-    currency: string; expense_date: string; is_billable: boolean; notes: string; receipt_url: string
+    currency: string; expense_date: string; is_billable: boolean; notes: string; km: string
   }>({
     project_id:  expense?.project_id  || '',
     category:    expense?.category    || 'travel',
@@ -153,7 +164,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
     expense_date: expense?.expense_date || new Date().toISOString().slice(0, 10),
     is_billable: expense?.is_billable ?? true,
     notes:       expense?.notes       || '',
-    receipt_url: expense?.receipt_url || '',
+    km:          expense?.km ? String(expense.km) : '',
   })
   const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
 
@@ -227,12 +238,17 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         </div>
         <div>
           <label style={ls}>Importe *</label>
-          <input type="number" step="0.01" value={form.amount} onChange={set('amount')} style={fs} placeholder="Importe" aria-label="Importe" />
+          <input type="number" step="0.01" value={form.km ? '' : form.amount} disabled={!!form.km} onChange={set('amount')} style={fs}
+            placeholder={form.km ? traducir('gas.importe_por_km') : 'Importe'} aria-label="Importe" />
+        </div>
+        <div>
+          <label style={ls}>{traducir('gas.km')}</label>
+          <input type="number" step="0.1" min={0} value={form.km} onChange={set('km')} style={fs} placeholder={traducir('gas.km_ayuda')} aria-label={traducir('gas.km')} />
         </div>
         <div>
           <label style={ls}>Moneda</label>
           <select value={form.currency} onChange={set('currency')} style={fs}>
-            {['EUR','USD','GBP','PLN','CHF'].map(c => <option key={c} value={c}>{c}</option>)}
+            {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div>
@@ -247,25 +263,11 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
           <label style={ls}>Notas adicionales</label>
           <textarea value={form.notes} onChange={set('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Notas adicionales" aria-label="Notas adicionales" />
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
-          <label style={ls}>{traducir('expenses.url_del_justificante_factura_opcional')}</label>
-          <input
-            value={form.receipt_url}
-            onChange={set('receipt_url')}
-            style={fs}
-            placeholder={traducir('expenses.url_del_justificante')}
-            aria-label={traducir('expenses.url_del_justificante')}
-          />
-          {form.receipt_url && (
-            <a href={form.receipt_url} target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', marginTop: 4, display: 'inline-block' }}>
-              🔗 Ver justificante
-            </a>
-          )}
-        </div>
+        <div style={{ gridColumn: '1/-1', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('gas.justificantes_en_el_detalle')}</div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate(form)} disabled={isPending || !form.description || !form.amount || !form.expense_date} loading={isPending}>
+          <Button onClick={() => { const { km, ...resto } = form; mutate(km ? { ...resto, km: Number(km), amount: Number(resto.amount) || 0 } : resto) }}
+            disabled={isPending || !form.description || (!form.amount && !form.km) || !form.expense_date} loading={isPending}>
             {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear gasto'}
           </Button>
         </div>
@@ -682,6 +684,7 @@ export default function ExpensesPage(): JSX.Element {
       { id: 'pending', label: '⏳ Pendientes aprobación' },
       { id: 'team', label: 'Equipo' },
     ] : []),
+    ...(hasRole('admin') ? [{ id: 'politicas', label: t('gas.tab_politicas') }] : []),
   ]
 
   return (
@@ -716,6 +719,7 @@ export default function ExpensesPage(): JSX.Element {
       {tab === 'my'      && <MyExpenses />}
       {tab === 'pending' && <PendingApproval />}
       {tab === 'team'    && <TeamExpenses />}
+      {tab === 'politicas' && <PoliticasDeGasto categorias={Object.entries(CATEGORIES).map(([id, c]) => ({ id, label: c.label }))} />}
     </PageShell>
   )
 }

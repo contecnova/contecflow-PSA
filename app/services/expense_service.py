@@ -211,7 +211,12 @@ async def ocr_receipt(image_bytes: bytes, content_type: str) -> dict:
         raise HTTPException(503, "API de IA no configurada (ANTHROPIC_API_KEY ausente).")
 
     b64 = base64.b64encode(image_bytes).decode()
-    media_type = content_type if content_type != "application/pdf" else "image/png"
+    # Un PDF va como documento (`application/pdf`); antes se mandaba como imagen
+    # PNG y el proveedor lo rechazaba.
+    if content_type == "application/pdf":
+        bloque = {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": b64}}
+    else:
+        bloque = {"type": "image", "source": {"type": "base64", "media_type": content_type, "data": b64}}
 
     _SYSTEM = (
         "Eres un asistente experto en contabilidad. Analiza la imagen de un recibo o factura y extrae "
@@ -231,7 +236,7 @@ async def ocr_receipt(image_bytes: bytes, content_type: str) -> dict:
         "messages": [{
             "role": "user",
             "content": [
-                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}},
+                bloque,
                 {"type": "text", "text": "Por favor extrae los datos de este recibo."},
             ],
         }],
@@ -251,7 +256,8 @@ async def ocr_receipt(image_bytes: bytes, content_type: str) -> dict:
         # urlopen bloqueante dentro de una corrutina: hasta 30 s de event loop
         # congelado para toda la aplicación por cada OCR de recibo.
         def _fetch() -> dict:
-            with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+            from app.services.ai_provider_service import espera_de_ia
+            with urllib.request.urlopen(req, timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS")) as resp:  # noqa: S310
                 return _json.loads(resp.read().decode())
 
         response_body = await run_in_threadpool(_fetch)
@@ -403,6 +409,8 @@ def create_expense_record(db: Session, payload, user_id: str, code: str):
             raise HTTPException(400, "No se pueden generar gastos facturables en proyectos cerrados")
 
     expense = Expense(code=code, user_id=user_id, **payload.model_dump())
+    from app.services.gastos_avanzados import aplicar_kilometraje
+    aplicar_kilometraje(db, expense)
 
     if expense.is_billable and expense.project_id:
         project = db.query(Project).filter(Project.id == expense.project_id).first()
@@ -415,11 +423,7 @@ def create_expense_record(db: Session, payload, user_id: str, code: str):
     expense = db.query(Expense).options(joinedload(Expense.project)).filter(
         Expense.id == expense.id
     ).first()
-    from app.core.events import emit, EventType
-    emit(db, EventType.EXPENSE_SUBMITTED,
-         {"code": expense.code, "amount": expense.amount, "category": expense.category,
-          "project_id": expense.project_id, "status": str(expense.status)},
-         resource_type="expense", resource_id=expense.id, project_id=expense.project_id)
+    # Crear deja un borrador: el evento «enviado» lo emite el envío (`submit_expense_record`).
     return expense
 
 
@@ -436,6 +440,8 @@ def admin_update_expense(db: Session, expense_id: str, payload):
 
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(e, k, v)
+    from app.services.gastos_avanzados import aplicar_kilometraje
+    aplicar_kilometraje(db, e)
     db.commit()
     db.refresh(e)
     return e
@@ -448,10 +454,16 @@ def update_my_expense(db: Session, expense_id: str, user_id: str, payload):
     ).first()
     if not expense:
         raise HTTPException(404, "Gasto no encontrado")
-    if expense.status != ExpenseStatus.draft:
-        raise HTTPException(400, "Solo se pueden editar gastos en borrador")
+    if expense.status not in (ExpenseStatus.draft, ExpenseStatus.rejected):
+        raise HTTPException(400, "Solo se pueden editar gastos en borrador o rechazados")
+    if expense.status == ExpenseStatus.rejected:
+        # Corregir un gasto rechazado lo devuelve a borrador para volver a enviarlo;
+        # el motivo del rechazo se queda a la vista hasta entonces.
+        expense.status = ExpenseStatus.draft
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(expense, k, v)
+    from app.services.gastos_avanzados import aplicar_kilometraje
+    aplicar_kilometraje(db, expense)
     db.commit()
     return expense
 
@@ -465,8 +477,12 @@ def submit_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
         raise HTTPException(404)
     if expense.status != ExpenseStatus.draft:
         raise HTTPException(400, "El gasto ya ha sido enviado")
+    # Revisión 2026-11: las políticas de gasto bloquean aquí o dejan el aviso para la aprobación.
+    from app.services.gastos_avanzados import antes_de_enviar
+    contexto_politica = antes_de_enviar(db, expense)
     expense.status = ExpenseStatus.submitted
     expense.submitted_at = datetime.now(timezone.utc)
+    expense.rejection_reason = None
     db.commit()
     from app.core.events import emit, EventType
     emit(db, EventType.EXPENSE_SUBMITTED,
@@ -475,7 +491,8 @@ def submit_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
     from app.services.approval_engine import fuentes
     fuentes.abrir(db, "expense", expense.id,
                   f"Gasto {expense.code or ''} · {expense.description or ''} · {expense.amount} {expense.currency}",
-                  user_id, {"amount": expense.amount, "category": str(getattr(expense.category, "value", expense.category))})
+                  user_id, {"amount": expense.amount, "category": str(getattr(expense.category, "value", expense.category)),
+                            "project_id": expense.project_id, **contexto_politica})
     return {"ok": True}
 
 
@@ -571,5 +588,12 @@ def serialize_expense(e) -> dict:
         "rejection_reason": e.rejection_reason,
         "reimbursed_at": str(e.reimbursed_at)[:10] if e.reimbursed_at else None,
         "notes": e.notes,
+        "km": e.km,
+        "policy_flags": _avisos(e),
         "created_at": str(e.created_at)[:10] if e.created_at else None,
     }
+
+
+def _avisos(e) -> list:
+    from app.services.gastos_avanzados import avisos_guardados
+    return avisos_guardados(e)

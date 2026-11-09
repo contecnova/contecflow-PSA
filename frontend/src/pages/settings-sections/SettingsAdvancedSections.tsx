@@ -796,6 +796,7 @@ const RUNTIME_GROUPS = [
   { id: 'observability',   label: 'Observabilidad',     description: 'Token Bearer para el endpoint /metrics.' },
   { id: 'timeouts',        label: 'Timeouts',           description: 'Tiempos de espera por defecto para llamadas HTTP/AI a APIs externas.' },
   { id: 'audit',           label: 'Auditoría y cumplimiento', description: 'Exportación firmada del registro y umbrales del informe de cumplimiento.' },
+  { id: 'gastos',          label: 'Gastos', description: 'Tarifa por km, tamaño de los justificantes y qué roles gestionan los gastos de todos.' },
   { id: 'lecciones',       label: 'Lecciones aprendidas', description: 'Categorías, quién valida, borrador con IA y cómo se buscan los casos parecidos (pesos y mínimo).' },
   { id: 'conectores',      label: 'Conectores contecmind / contecintelligence', description: 'Tiempos de espera, roles que escriben o analizan, tamaño de subida y registro de llamadas.' },
 ]

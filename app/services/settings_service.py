@@ -323,6 +323,8 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("DEFAULT_TIMEZONE", "str", "Default timezone"),
         ("DEFAULT_LANGUAGE", "str", "Default language"),
         ("DEFAULT_CURRENCY", "str", "Default currency"),
+        ("SUPPORTED_CURRENCIES", "str", "Currencies offered in the screens (CSV of ISO 4217 codes)"),
+        ("CURRENCY_SYMBOLS", "str", "Currency symbols on documents (CODE:symbol, CSV); a currency without one shows its code"),
         ("DEFAULT_TAX_RATE", "float", "Default tax rate (%)"),
         ("DEFAULT_WORKING_HOURS_PER_DAY", "float", "Working hours/day"),
         ("DEFAULT_WEEKLY_CAPACITY_HOURS", "float", "Weekly capacity (h)"),
@@ -394,6 +396,11 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("LESSONS_WEIGHT_CATEGORY", "float", "Lessons — weight of «same catalogue service or CI» (tickets)"),
         ("LESSONS_WEIGHT_TEXT", "float", "Lessons — weight of text similarity"),
         ("LESSONS_PENDING_LOOKBACK_DAYS", "int", "Lessons — closed projects, problems, incidents and sprints of the last N days count as pending"),
+    ],
+    "gastos": [
+        ("EXPENSE_MILEAGE_RATE", "float", "Expenses — mileage rate per km (the amount of a mileage expense = km × rate)"),
+        ("EXPENSE_ATTACHMENT_MAX_MB", "int", "Expenses — maximum size of a receipt or document (MB)"),
+        ("EXPENSE_MANAGER_ROLES", "str", "Expenses — roles that see and handle everyone's expenses and their receipts (CSV)"),
     ],
     "feature_flags": [
         ("M365_CALENDAR_SYNC_ENABLED", "bool", "M365 calendar sync"),
@@ -907,3 +914,23 @@ def _check_department_dependencies(department_id: str, db: Session) -> list[str]
         dependencies.append(f"{asset_count} Activo(s) asignado(s)")
 
     return dependencies
+
+
+def monedas(db: Session, org_id: Optional[str] = None) -> list[str]:
+    """Las monedas de la empresa (`SUPPORTED_CURRENCIES`), con la de por defecto siempre incluida."""
+    lista = [c.strip().upper() for c in str(get_runtime_str(db, "SUPPORTED_CURRENCIES", org_id) or "").split(",") if c.strip()]
+    defecto = str(get_runtime_str(db, "DEFAULT_CURRENCY", org_id) or "").upper()
+    if defecto and defecto not in lista:
+        lista.insert(0, defecto)
+    return lista
+
+
+def simbolos_de_moneda(db: Optional[Session] = None, org_id: Optional[str] = None) -> dict[str, str]:
+    crudo = get_runtime_str(db, "CURRENCY_SYMBOLS", org_id) if db is not None else app_settings.CURRENCY_SYMBOLS
+    salida = {}
+    for par in str(crudo or "").split(","):
+        if ":" in par:
+            k, v = par.split(":", 1)
+            if k.strip() and v.strip():
+                salida[k.strip().upper()] = v.strip()
+    return salida

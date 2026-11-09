@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from app.models.billing_reports import ApprovalRequest, Invoice
 from app.models.clients import Client
-from app.models.expenses import Expense
 from app.models.financial import ProjectMilestone, Timesheet
 from app.models.imputation import Imputation
 from app.models.pipeline import Opportunity, Risk, Contract
@@ -561,14 +560,6 @@ def _seccion_rentabilidad(ctx: _Alcance, projects):
             Imputation.project_id, Imputation.user_id
         ).all()
         # Expenses
-        q_exp = db.query(
-            Expense.project_id, func.sum(Expense.amount).label("total_exp")
-        ).filter(
-            Expense.project_id.in_(all_active_proj_ids),
-            Expense.status == "approved",
-        )
-        q_exp = _filter_by_org(q_exp, Expense, org_id)
-        exp_rows = q_exp.group_by(Expense.project_id).all()
         # Invoices
         q_inv = db.query(
             Invoice.project_id, func.sum(Invoice.total).label("invoiced")
@@ -584,13 +575,9 @@ def _seccion_rentabilidad(ctx: _Alcance, projects):
             rate = all_user_rates.get(row.user_id, 0) or 0
             proj_labor_cost[row.project_id] = proj_labor_cost.get(row.project_id, 0) + (row.hours * rate)
             proj_hours_total[row.project_id] = proj_hours_total.get(row.project_id, 0) + row.hours
-        exp_rows = db.query(
-            Expense.project_id, func.sum(Expense.amount).label("total_exp")
-        ).filter(
-            Expense.project_id.in_(all_active_proj_ids),
-            Expense.status == "approved",
-        ).group_by(Expense.project_id).all()
-        proj_expenses = {r.project_id: (r.total_exp or 0) for r in exp_rows}
+        # Revisión 2026-11: la misma suma que el resto (reparto entre proyectos, reembolsados incluidos).
+        from app.services.gastos_avanzados import totales_por_proyecto
+        proj_expenses = totales_por_proyecto(db, all_active_proj_ids)
         inv_rows = db.query(
             Invoice.project_id, func.sum(Invoice.total).label("invoiced")
         ).filter(

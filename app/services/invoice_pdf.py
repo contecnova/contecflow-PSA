@@ -37,13 +37,9 @@ from app.services._pdf_marca import PALETA_DE_FACTURA
 # Dos cosas muertas retiradas: `W, H = A4` (nunca se usaban) y una llamada a
 # `PS("Right", ...)` que construia un estilo y lo tiraba.
 
-# Simbolo de cada moneda. Una moneda no listada se muestra con su codigo, que es
-# correcto y legible: «1.234,00 CHF».
-_SIMBOLOS = {"EUR": "€", "USD": "$", "GBP": "£"}
-
-
-def _importe(valor, currency: str) -> str:
-    return f"{valor:,.2f} {_SIMBOLOS.get(currency, currency)}"
+def _importe(valor, etiqueta: str) -> str:
+    """Importe con la etiqueta de la moneda (su símbolo de `CURRENCY_SYMBOLS`, o su código: «1.234,00 CHF»)."""
+    return f"{valor:,.2f} {etiqueta}"
 
 
 def _fecha(d) -> str:
@@ -301,11 +297,17 @@ def generate_invoice_pdf(
     company_name: str = "Contecflow PSA",
     generated_by: str = "Contecflow",
     paleta=None,
+    simbolo: Optional[str] = None,
 ) -> bytes:
     """
     Genera un PDF de factura y devuelve los bytes en formato PDF.
     """
     currency = currency or settings.DEFAULT_CURRENCY
+    # El símbolo lo resuelve quien llama con el ajuste de su empresa
+    # (`settings_service.simbolos_de_moneda(db, org)`); sin él, el ajuste global.
+    if simbolo is None:
+        from app.services.settings_service import simbolos_de_moneda
+        simbolo = simbolos_de_moneda().get(str(currency).upper(), currency)
     # `paleta` la resuelve el llamador con `marca_de_organizacion()`, que es
     # quien tiene el `db` y el `organization_id`. Sin ella se usa la de
     # producto: los trabajos de fondo y los tests no tienen por que saber de
@@ -327,7 +329,7 @@ def generate_invoice_pdf(
                      period_from, period_to, est)
         + _bloque_de_cliente(client_name, client_address, client_vat,
                              client_email, est, paleta)
-        + _tabla_de_lineas(lines, currency, subtotal, tax_rate, tax_amount,
+        + _tabla_de_lineas(lines, simbolo, subtotal, tax_rate, tax_amount,
                            total, est, paleta)
         + _bloque_de_notas(notes, est, paleta)
         + _pie_de_factura(generated_by, invoice_number, est, paleta)
