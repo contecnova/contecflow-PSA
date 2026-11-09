@@ -206,7 +206,24 @@ def update_milestone(
     m = profitability_service.get_milestone(db, milestone_id, project_id)
     if not m:
         raise HTTPException(404, "Hito no encontrado")
-    m = profitability_service.update_milestone(db, m, payload.model_dump(exclude_unset=True))
+    cambios = payload.model_dump(exclude_unset=True)
+    # Revisión 2026-11: un único flujo de facturación por hitos. Facturar sólo
+    # lo hace la factura que genera Facturación por hitos; completar y reabrir
+    # pasan por su servicio (estado de facturación e ingresos ASC 606).
+    if "is_billed" in cambios or "billed_at" in cambios:
+        raise HTTPException(400, "Se factura desde Facturación por hitos, que genera la factura")
+    if "billing_amount" in cambios and m.billing_status in ("pending_approval", "approved", "invoiced"):
+        raise HTTPException(400, f"El importe no se cambia con el hito en «{m.billing_status}»")
+    completar = cambios.pop("is_completed", None)
+    cambios.pop("completed_date", None)
+    from app.services import milestone_service
+    if completar is True and not m.is_completed:
+        milestone_service.complete_milestone(m.id, current_user, db)
+    elif completar is False and m.is_completed:
+        milestone_service.uncomplete_milestone(m.id, current_user, db)
+    if cambios:
+        m = profitability_service.update_milestone(db, m, cambios)
+    db.refresh(m)
     return APIResponse.ok(data=_milestone_out(m))
 
 

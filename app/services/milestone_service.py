@@ -212,6 +212,9 @@ def decide_milestone_approval(
         raise HTTPException(404)
     if m.billing_status != "pending_approval":
         raise HTTPException(400, f"El milestone no está pendiente de aprobación (estado: {m.billing_status})")
+    # Revisión 2026-11: quien pidió la aprobación no la decide (segregación de funciones).
+    from app.services.approval_engine._base import exigir_que_no_sea_suyo
+    exigir_que_no_sea_suyo(db, m.approval_requested_by, current_user, "milestone", m.id)
 
     if approved:
         m.billing_status = "approved"
@@ -301,6 +304,9 @@ def generate_milestone_invoice(milestone_id: str, current_user: User, db: Sessio
         db.add(line)
 
         m.invoice_id = inv.id
+        # Revisión 2026-11: lo facturado queda fijo en el hito; uno sólo con
+        # porcentaje sumaba 0 en Rentabilidad, que suma `billing_amount`.
+        m.billing_amount = amount
         m.is_billed = True
         m.billed_at = timeutil.today()
         m.billing_status = "invoiced"

@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { profitabilityApi } from '../services/api'
 import { Card, Button, Modal, Spinner, EmptyState } from '../components/ui'
@@ -162,8 +163,9 @@ function MilestoneRow({ m, projectId, onUpdate }: { m: MilestoneItem; projectId:
         </div>
       )}
       <div style={{ display: 'flex', gap: 6 }}>
+        {/* Se factura en Facturación por hitos, que pide aprobación y genera la factura (revisión 2026-11). */}
         {m.is_completed && !m.is_billed && (
-          <button onClick={() => update({ is_billed: true, billed_at: new Date().toISOString().split('T')[0] })} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>💶 Facturar</button>
+          <Link to="/milestone-billing" style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--success)', fontSize: "var(--text-xs)", textDecoration: 'none' }}>💶 Facturar en Hitos →</Link>
         )}
         {m.is_billed && <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>✓ Facturado</span>}
         <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este hito de facturación?', onConfirm: () => del(), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>

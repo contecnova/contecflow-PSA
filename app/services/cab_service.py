@@ -1396,7 +1396,8 @@ def _revenue_time_and_material(db: Session, project, period: date, contract_val:
         Imputation.date >= month_start,
         Imputation.date <= month_end,
     ).scalar() or 0
-    rate = project.billing_rate or 100
+    # Revisión 2026-11: sin tarifa no se inventa una (antes, 100 por hora).
+    rate = project.billing_rate or 0
     amount_planned = round(hours * rate, 2)
     pct_complete = round(amount_planned / max(contract_val, 1) * 100, 1)
     return pct_complete, amount_planned
@@ -1417,6 +1418,47 @@ def _revenue_straight_line(rule, period: date, contract_val: float) -> tuple:
     prev_total = sum(e.amount_actual for e in rule.entries if e.period_date < period)
     pct_complete = round((prev_total + amount_planned) / max(contract_val, 1) * 100, 1)
     return pct_complete, amount_planned
+
+
+def _fin_de_mes(period: date) -> date:
+    fin = period.replace(day=28) + timedelta(days=4)
+    return fin - timedelta(days=fin.day)
+
+
+def _revenue_hitos(db: Session, project, period: date, contract_val: float, facturados: bool) -> tuple:
+    """Hitos del mes: `milestone` reconoce los completados; `milestone_billing`,
+    los aprobados o facturados. Devuelve (pct_complete, amount_planned).
+
+    Revisión 2026-11: ninguno de los dos tenía rama y reconocían 0.
+    """
+    from app.models.financial import ProjectMilestone
+    from app.services.milestone_service import compute_billing_amount
+    desde, hasta = period, _fin_de_mes(period)
+    q = db.query(ProjectMilestone).filter(ProjectMilestone.project_id == project.id,
+                                          ProjectMilestone.is_active == True)  # noqa: E712
+    if facturados:
+        def _fecha(m):
+            return m.billed_at or (m.approved_at.date() if m.approved_at else None)
+        hitos = [m for m in q.filter(ProjectMilestone.billing_status.in_(["approved", "invoiced"])).all()
+                 if _fecha(m) and desde <= _fecha(m) <= hasta]
+    else:
+        hitos = q.filter(ProjectMilestone.completed_date >= desde, ProjectMilestone.completed_date <= hasta).all()
+    importe = round(sum(compute_billing_amount(m, db) or 0 for m in hitos), 2)
+    return round(importe / max(contract_val, 1) * 100, 1), importe
+
+
+def _revenue_contrato_terminado(rule, project, period: date, contract_val: float) -> tuple:
+    """`completed_contract`: todo el contrato el mes en que el proyecto cierra.
+
+    Revisión 2026-11: no tenía rama y reconocía 0. Lo ya reconocido en meses
+    anteriores se descuenta.
+    """
+    fin = getattr(project, "end_date_real", None)
+    estado = str(getattr(project.status, "value", project.status))
+    if not fin or estado not in ("completed", "closed") or not (period <= fin <= _fin_de_mes(period)):
+        return 0.0, 0.0
+    previo = sum(e.amount_actual for e in rule.entries if e.period_date < period)
+    return 100.0, round(max(contract_val - previo, 0), 2)
 
 
 def compute_revenue_period(rule_id: str, period_str: str, db: Session) -> dict:
@@ -1447,6 +1489,12 @@ def compute_revenue_period(rule_id: str, period_str: str, db: Session) -> dict:
         pct_complete, amount_planned = _revenue_time_and_material(db, project, period, contract_val)
     elif rule.method == RecognitionMethod.straight_line:
         pct_complete, amount_planned = _revenue_straight_line(rule, period, contract_val)
+    elif rule.method == RecognitionMethod.milestone:
+        pct_complete, amount_planned = _revenue_hitos(db, project, period, contract_val, facturados=False)
+    elif rule.method == RecognitionMethod.milestone_billing:
+        pct_complete, amount_planned = _revenue_hitos(db, project, period, contract_val, facturados=True)
+    elif rule.method == RecognitionMethod.completed_contract:
+        pct_complete, amount_planned = _revenue_contrato_terminado(rule, project, period, contract_val)
 
     prev_cumulative = sum(e.amount_actual for e in rule.entries if e.period_date < period)
     cumulative = round(prev_cumulative + amount_planned, 2)

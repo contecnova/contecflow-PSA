@@ -1373,11 +1373,11 @@ General notes that apply to every module here:
 - `GET|POST /api/v1/currency/rates` (with fallbacks to legacy paths on 404)
 - `GET /api/v1/user-costs/summary`
 
-**Limitations (measured in the code).** Several KPIs do not show what their label says:
-- The clients, pipeline and invoices cards are not bound to the period selector.
-- **Cost per hour is hidden from PMs.** `/user-costs/summary` is `require_admin_or_hr`, so PMs get `null` and the card is empty.
-- **Saving an exchange rate fails for PMs.** `POST /currency/rates` is `require_admin`, so a PM gets 403.
-- **Errors are hidden.** The client, pipeline and invoice lists use `.catch(() => [])`, so a failure looks like "no data".
+**Limitations (measured in the code).**
+- **Clients, pipeline and pending invoices show today's figures**, not the selected period (the cards say «hoy»). They read every page of each list.
+- **Cost per hour is for admin and hr** (`/user-costs/summary`); PMs don't see those cards.
+- **Adding an exchange rate is for admin** (`POST /currency/rates`); others see the rates without the button.
+- If any list fails, a toast says not all data could be loaded.
 
 ---
 
@@ -1459,7 +1459,7 @@ General notes that apply to every module here:
 - **Only the stage can be edited.** The page sends only `{stage}` in PATCH. No other field can be changed after creation from this screen.
 - **"Generate proposal" is template substitution, not AI.** `proposal_service.render_proposal`.
 - **"Mark sent" sends nothing.** It only records a timestamp.
-- **Conversion ignores the stage.** "Convertir a proyecto" is offered whatever the stage is, and it forces `won`.
+- **Conversion marks the opportunity `won`.** It is offered in any open stage; a lost or cancelled opportunity can't be converted (400).
 
 ---
 
@@ -1570,8 +1570,8 @@ General notes that apply to every module here:
 - **ASC 606 hook.** Completing a milestone calls `revenue_service.recognize_on_milestone` (for milestone-method obligations).
 
 **Limitations.**
-- **No separation of duties.** No check stops the user who requested approval from approving it (none found in `decide_milestone_approval`).
-- **A second screen edits the same table.** `/profitability` changes these milestones through different endpoints (see that module), and its **Facturar** button bypasses this flow entirely.
+- **Separation of duties.** Whoever requested the approval can't approve or reject it (403).
+- **`/profitability` also edits these milestones**, but completing or reopening goes through this flow, and billing only happens here.
 
 ---
 
@@ -1595,8 +1595,8 @@ General notes that apply to every module here:
 - **Tables:** `projects`, `imputations`, `project_milestones`, currency rates.
 
 **Limitations.**
-- **"Facturar" only flips a flag.** It sends `PATCH {is_billed: true, billed_at}`. No invoice is created, and `billing_status` is not changed.
-- **Percentage-only milestones add no revenue.** They count as 0 here, because revenue sums `billing_amount` only.
+- **Billing goes through Milestone billing.** The **Facturar en Hitos** link opens that screen; the `PATCH` rejects `is_billed` and `billed_at` (400). Completing a milestone here uses the same service (billing status and ASC 606 recognition), and its amount can't change once approval is requested.
+- **Percentage-only milestones count once invoiced.** The invoice stores the billed amount in `billing_amount` (migration 148 filled it for milestones invoiced before). Until then they add 0.
 
 ---
 
@@ -1630,7 +1630,7 @@ General notes that apply to every module here:
 
 **Limitations.**
 - **The two engines write to different tables.** They do not reconcile with each other.
-- **Two legacy methods recognize nothing.** `milestone` and `completed_contract` have no branch in `compute_revenue_period`, so they recognize 0.
+- **Legacy methods per month.** `milestone` recognizes the milestones completed that month; `milestone_billing`, those approved or invoiced that month; `completed_contract`, the remaining contract value in the month the project closes (`end_date_real`, status completed or closed). `time_and_material` uses the project rate; without a rate it recognizes 0.
 - **Legacy auto-compute only handles `milestone_billing`.** The UI does not offer that method, and the auto-compute mutation (`_autoCompute`) has no button.
 - **"Run monthly" defaults to the current, unfinished month.** It is called with `currentMonth`.
 - **Very few tests.** No backend test was found for the legacy engine or for the `/revenue-recognition` endpoints. Only `tests/test_revenue_idempotency.py` covers the ASC 606 service.

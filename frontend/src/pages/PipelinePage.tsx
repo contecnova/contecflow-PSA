@@ -311,6 +311,11 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', marginTop: 4 }}>{t('pipeline.contrato_asc_606_creado_automaticamente')}</div>
                 )}
               </div>
+            ) : ['lost', 'cancelled'].includes(String(opp.stage)) ? (
+              // Una oportunidad perdida o cancelada no se convierte (revisión 2026-11).
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>
+                {t('pipeline.no_se_convierte_perdida')}
+              </div>
             ) : (
               <>
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>

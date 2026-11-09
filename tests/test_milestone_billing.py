@@ -30,7 +30,7 @@ def test_complete_milestone(client, pm_token, db):
     assert res.status_code == 200
     assert res.json()["data"]["billing_status"] == "completed"
 
-def test_milestone_flow_complete(client, pm_token, db):
+def test_milestone_flow_complete(client, pm_token, admin_token, db):
     """Flujo completo: create → complete → request_approval → approve → invoice."""
     pid = make_project(client, pm_token)
     ms = client.post(f"/api/v1/milestones/project/{pid}", json={
@@ -47,7 +47,8 @@ def test_milestone_flow_complete(client, pm_token, db):
     assert r.json()["data"]["billing_status"] == "pending_approval"
 
     # approve
-    r = client.post(f"/api/v1/milestones/{mid}/approve", json={"approved": True}, headers=auth(pm_token))
+    # Aprueba otro: quien pide no decide (segregación de funciones).
+    r = client.post(f"/api/v1/milestones/{mid}/approve", json={"approved": True}, headers=auth(admin_token))
     assert r.json()["data"]["billing_status"] == "approved"
 
     # generate invoice
@@ -55,12 +56,12 @@ def test_milestone_flow_complete(client, pm_token, db):
     assert r.status_code == 200
     assert r.json()["data"]["billing_status"] == "invoiced"
 
-def test_milestone_reject(client, pm_token, db):
+def test_milestone_reject(client, pm_token, admin_token, db):
     pid = make_project(client, pm_token)
     ms = client.post(f"/api/v1/milestones/project/{pid}", json={"name":"M","billing_amount":1000}, headers=auth(pm_token)).json()["data"]
     client.post(f"/api/v1/milestones/{ms['id']}/complete", headers=auth(pm_token))
     client.post(f"/api/v1/milestones/{ms['id']}/request-approval", headers=auth(pm_token))
-    r = client.post(f"/api/v1/milestones/{ms['id']}/approve", json={"approved": False, "rejection_reason": "Falta documentación"}, headers=auth(pm_token))
+    r = client.post(f"/api/v1/milestones/{ms['id']}/approve", json={"approved": False, "rejection_reason": "Falta documentación"}, headers=auth(admin_token))
     assert r.json()["data"]["billing_status"] == "rejected"
 
 def test_pending_dashboard(client, pm_token, db):

@@ -184,6 +184,10 @@ def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str)
     opp = oportunidad_propia(db, current_user, opp_id)
     if opp.project_id:
         raise HTTPException(400, f"Esta oportunidad ya está vinculada al proyecto {opp.project_id}")
+    # Revisión 2026-11: convertir marca la oportunidad como ganada; una perdida
+    # o cancelada no se resucita así.
+    if str(getattr(opp.stage, "value", opp.stage)) in ("lost", "cancelled"):
+        raise HTTPException(400, "Una oportunidad perdida o cancelada no se convierte en proyecto")
 
     code = next_numbered_code(db, "project", prefix="PRJ", padding=4)
 

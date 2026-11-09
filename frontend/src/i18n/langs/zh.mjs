@@ -2410,6 +2410,7 @@ const zh = {
     vinculada_al_proyecto: '已关联项目',
     contrato_asc_606_creado_automaticamente: '已自动创建 ASC 606 合同',
     convierte_esta_oportunidad_en_un_proyecto_activo: '将该商机转为进行中的项目。系统会自动创建 ASC 606 合同，并按合同类型匹配相应的收入确认方法。',
+    no_se_convierte_perdida: '已丢失或已取消的商机不能转换为项目。',
     nombre_cliente_codigo_o_responsable: '名称、客户、编号或负责人',
     no_se_pudo_cargar_el_pipeline: '无法加载商机管道',
     no_hay_oportunidades_visibles: '暂无可见商机',

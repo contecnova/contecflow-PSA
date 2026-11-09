@@ -150,8 +150,8 @@ def test_milestone_billed_update(client, pm_token, db):
         "is_billed": True,
         "billed_at": str(date.today()),
     }, headers=auth(pm_token))
-    assert res.status_code == 200
-    assert res.json()["data"]["is_billed"] is True
+    # Revisión 2026-11: se factura desde Facturación por hitos, que genera la factura.
+    assert res.status_code == 400
 
 
 def test_milestones_listed_in_profitability_detail(client, pm_token, db):

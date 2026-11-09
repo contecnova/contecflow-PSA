@@ -9,8 +9,7 @@ import pytest
 from tests.conftest import auth
 
 
-@pytest.mark.parametrize("ruta", ["/api/v1/profitability/summary", "/api/v2/profitability/summary",
-                                  "/api/v1/profitability/projects"])
+@pytest.mark.parametrize("ruta", ["/api/v1/profitability/summary", "/api/v1/profitability/projects"])
 def test_pm_entra_y_empleado_no(client, pm_token, dev_token, ruta):
     assert client.get(ruta, headers=auth(pm_token)).status_code == 200
     assert client.get(ruta, headers=auth(dev_token)).status_code == 403

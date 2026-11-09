@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { currencyApi, userCostsApi, unwrapList } from '../services/api'
+import { todasLasPaginas } from '../services/api/todasLasPaginas'
+import { useAuth } from '../context/AuthContext'
 import {
   DollarSign, TrendingUp, TrendingDown, CheckCircle2, Building2, Target, FileText,
   Calculator, AlertTriangle, Ruler, X, Plus,
@@ -83,30 +85,41 @@ export default function FinanceDashboardPage(): JSX.Element {
   })
   const profitSummary = (profitSummaryRaw ?? null) as ProfitSummary | null
 
-  const { data: clientsRaw = [], isLoading: lc } = useQuery({
+  // Revisión 2026-11: clientes, pipeline y facturas son la foto de hoy (no del
+  // periodo), completos y sin tragarse errores: antes se cortaban en 200/100 y un
+  // fallo se veía como «sin datos».
+  const { data: clientsRaw = [], isLoading: lc, isError: e1 } = useQuery({
     queryKey: ['fin-dash-clients'],
-    queryFn: () => api.get('/clients', { params: { page_size: 200 } }).then(unwrapList).catch(() => []),
+    queryFn: () => todasLasPaginas('/clients').then(r => r.data),
     staleTime: 60_000,
   })
   const clients = clientsRaw as ClientItem[]
 
-  const { data: pipelineRaw = [] } = useQuery({
+  const { data: pipelineRaw = [], isError: e2 } = useQuery({
     queryKey: ['fin-dash-pipeline'],
-    queryFn: () => api.get('/pipeline', { params: { page_size: 100 } }).then(unwrapList).catch(() => []),
+    queryFn: () => api.get('/pipeline').then(unwrapList),
     staleTime: 60_000,
   })
   const pipeline = pipelineRaw as PipelineItem[]
 
-  const { data: invoicesDataRaw } = useQuery({
+  const { data: invoicesDataRaw, isError: e3 } = useQuery({
     queryKey: ['fin-dash-invoices'],
-    queryFn: () => api.get('/invoices', { params: { page_size: 200 } }).then(unwrapList).catch(() => []),
+    queryFn: async () => {
+      // `/invoices` pagina con skip/limit (máximo 500): se recorre entero.
+      const todas: unknown[] = []
+      for (let skip = 0; ; skip += 500) {
+        const lote = unwrapList(await api.get('/invoices', { params: { skip, limit: 500 } })) as unknown[]
+        todas.push(...lote)
+        if (lote.length < 500) return todas
+      }
+    },
     staleTime: 60_000,
   })
   const invoicesData = (invoicesDataRaw ?? []) as InvoiceItem[]
 
-  const { data: topProjectsRaw = [] } = useQuery({
+  const { data: topProjectsRaw = [], isError: e4 } = useQuery({
     queryKey: ['fin-dash-top-proj', days],
-    queryFn: () => api.get('/profitability/projects', { params }).then(r => r.data).catch(() => []),
+    queryFn: () => api.get('/profitability/projects', { params }).then(r => r.data),
     staleTime: 60_000,
   })
   const topProjects = topProjectsRaw as ProjectProfitItem[]
@@ -114,17 +127,21 @@ export default function FinanceDashboardPage(): JSX.Element {
   const qc = useQueryClient()
   const [showRateForm, setShowRateForm] = useState(false)
   const [rateForm, setRateForm] = useState<RateFormState>({ from_currency: 'EUR', to_currency: 'USD', rate: '' })
-  const { data: ratesRaw = [] } = useQuery({
+  const { data: ratesRaw = [], isError: e5 } = useQuery({
     queryKey: ['currency-rates'],
-    queryFn: () => currencyApi.rates({}).then(r => r.data).catch(() => []),
+    queryFn: () => currencyApi.rates({}).then(r => r.data),
     staleTime: 300_000,
   })
   const rates = ratesRaw as CurrencyRate[]
 
-  // True cost-per-hour summary (admin/hr only — endpoint returns 403 otherwise)
-  const { data: costSummaryRaw } = useQuery({
+  // Coste/hora real: sólo admin y hr (el endpoint da 403 al resto, que no lo pide).
+  const { hasRole } = useAuth()
+  const veCostes = hasRole('admin', 'hr')
+  const puedeGuardarCambio = hasRole('admin')
+  const { data: costSummaryRaw, isError: e6 } = useQuery({
     queryKey: ['fin-dash-cost-summary'],
-    queryFn: () => userCostsApi.summary(undefined).then(r => r.data).catch(() => null),
+    enabled: veCostes,
+    queryFn: () => userCostsApi.summary(undefined).then(r => r.data),
     staleTime: 5 * 60_000,
     retry: false,
   })
@@ -135,9 +152,10 @@ export default function FinanceDashboardPage(): JSX.Element {
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar tipo de cambio')),
   })
 
+  const algunFallo = profitError || e1 || e2 || e3 || e4 || e5 || e6
   useEffect(() => {
-    if (profitError) toast.error('No se pudieron cargar los datos de rentabilidad')
-  }, [profitError]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (algunFallo) toast.error('No se pudieron cargar todos los datos del panel')
+  }, [algunFallo]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const revenue   = profitSummary?.portfolio?.total_revenue ?? 0
   const costs     = profitSummary?.portfolio?.total_cost ?? 0
@@ -204,11 +222,11 @@ export default function FinanceDashboardPage(): JSX.Element {
               sub={marginPct != null ? `${marginPct}% de margen` : undefined} />
             <KpiCard icon={<KpiIcon icon={ICON_BUILDING} />} label="Clientes activos"
               value={activeClients} color={COLOR.accent} accentBar={COLOR.accent}
-              sub={`${clients.length} total`} />
+              sub={`${clients.length} total · hoy`} />
             <KpiCard icon={<KpiIcon icon={ICON_TARGET} />} label="Pipeline"
               value={fmtCur(pipelineValue, lang)}
               color={COLOR.purple} accentBar={COLOR.purple}
-              sub={`${openOpportunities} oportunidades abiertas`} />
+              sub={`${openOpportunities} oportunidades abiertas · hoy`} />
             <KpiCard icon={<KpiIcon icon={ICON_FILE_TEXT} />} label="Facturas pendientes"
               value={fmtCur(pendingAmount, lang)}
               color={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
@@ -358,14 +376,14 @@ export default function FinanceDashboardPage(): JSX.Element {
 
       {/* Currency exchange rates */}
       <SectionCard title={t('financedashboard.tipos_de_cambio')}
-        badge={
+        badge={puedeGuardarCambio && (
           <button onClick={() => setShowRateForm(v => !v)}
             style={{ fontSize: 'var(--text-xs)', padding: '3px 9px', borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)',
               cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             {showRateForm ? <><X size={11} /> Cerrar</> : <><Plus size={11} /> {t('financedashboard.anadir')}</>}
           </button>
-        }
+        )}
       >
         {showRateForm && (
           <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>

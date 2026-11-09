@@ -2620,6 +2620,7 @@ const es = {
     vinculada_al_proyecto: 'Vinculada al proyecto',
     contrato_asc_606_creado_automaticamente: 'Contrato ASC 606 creado automáticamente',
     convierte_esta_oportunidad_en_un_proyecto_activo: 'Convierte esta oportunidad en un proyecto activo. Se creará automáticamente un contrato ASC 606 con el método de reconocimiento correspondiente al tipo de contrato.',
+    no_se_convierte_perdida: 'Una oportunidad perdida o cancelada no se convierte en proyecto.',
     nombre_cliente_codigo_o_responsable: 'Nombre, cliente, código o responsable',
     no_se_pudo_cargar_el_pipeline: 'No se pudo cargar el pipeline',
     no_hay_oportunidades_visibles: 'No hay oportunidades visibles',

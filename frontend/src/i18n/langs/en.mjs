@@ -2413,6 +2413,7 @@ const en = {
     vinculada_al_proyecto: 'Linked to project',
     contrato_asc_606_creado_automaticamente: 'ASC 606 contract created automatically',
     convierte_esta_oportunidad_en_un_proyecto_activo: 'Turns this opportunity into an active project. An ASC 606 contract is created automatically, with the recognition method matching the contract type.',
+    no_se_convierte_perdida: 'A lost or cancelled opportunity cannot be converted into a project.',
     nombre_cliente_codigo_o_responsable: 'Name, client, code or owner',
     no_se_pudo_cargar_el_pipeline: 'The pipeline could not be loaded',
     no_hay_oportunidades_visibles: 'No visible opportunities',
