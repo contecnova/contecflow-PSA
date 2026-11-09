@@ -930,8 +930,8 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
           }}
         >
           <Search size={12} />
-          <span style={{ flex: 1 }}>{text.search_placeholder}</span>
-          <span style={{ fontSize: "var(--text-2xs)", background: 'var(--surface-4)', borderRadius: 4,
+          <span className="app-topbar-texto" style={{ flex: 1 }}>{text.search_placeholder}</span>
+          <span className="app-topbar-texto" style={{ fontSize: "var(--text-2xs)", background: 'var(--surface-4)', borderRadius: 4,
             padding: '1px 4px', fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>⌘K</span>
         </button>
       </div>
@@ -962,7 +962,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
           }}
         >
           <Brain size={13} />
-          <span>{text.ai_short}</span>
+          <span className="app-topbar-texto">{text.ai_short}</span>
         </button>
         {/* I25: Voice command modal — accesible desde cualquier página */}
         <button
@@ -995,7 +995,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
           }}
         >
           <MessageSquare size={13} />
-          <span>Chat</span>
+          <span className="app-topbar-texto">Chat</span>
           {chatBadgeVisible && (
             <span style={{
               position: 'absolute', top: -5, right: -5,
@@ -1070,7 +1070,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
                 display: 'flex', alignItems: 'center', gap: 7 }}
             >
               <Avatar name={user.full_name} size={24} url={undefined} />
-              <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)',
+              <span className="app-topbar-texto" style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)',
                 maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user.full_name}
               </span>

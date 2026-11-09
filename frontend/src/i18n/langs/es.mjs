@@ -3961,7 +3961,7 @@ const es = {
     title: 'Forecast de recursos', period: 'Período', resource: 'Recurso',
     allocated: 'Asignado', available: 'Disponible', utilization: 'Utilización',
     by_project: 'Por proyecto', by_skill: 'Por skill', hire_needed: 'Necesidad de contratación',
-    subtitle: 'Project expense logging, approval and reimbursement',
+    subtitle: 'Proyección de la capacidad del equipo por proyecto y habilidad',
   },
 
   milestone_billing: {

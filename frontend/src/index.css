@@ -1434,6 +1434,22 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   }
 }
 
+/* Revisión 2026-11: en móvil la barra ocupaba 215 px en tres filas (buscador,
+   botones con texto y usuario). Por debajo de 640 px los botones son sólo
+   icono —conservan aria-label y title— y caben en una fila bajo la ruta. */
+@media (max-width: 640px) {
+  .app-topbar-texto { display: none !important; }
+  .app-topbar-center { flex: 0 0 auto; min-width: 0; order: 2; }
+  .app-topbar-center button { width: auto !important; padding: 7px 9px !important; }
+  .app-topbar-right { flex: 1 1 0; flex-wrap: nowrap; gap: 6px; min-width: 0; align-items: center; }
+  /* Todos a la misma altura: la lupa y el bloque del usuario quedaban más altos. */
+  .app-topbar-center button,
+  .app-topbar-right > button,
+  .app-topbar-right > a,
+  .app-topbar-right > div { height: 34px !important; min-height: 34px; box-sizing: border-box; display: flex; align-items: center; }
+  .app-topbar-right > button:not(:has(.app-topbar-texto)) { width: 34px !important; justify-content: center; padding: 0 !important; }
+}
+
 /* ── Print media ──────────────────────────────────────────────── */
 @media print {
   aside[aria-label="Navegación principal"],
