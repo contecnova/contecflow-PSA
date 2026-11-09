@@ -1652,27 +1652,35 @@ General notes that apply to every module here:
 ---
 
 ### Budgets — `/budgets`
-*Roles:* admin, pm. Component: `pages/BudgetsPage.tsx`.
+*Roles:* menu admin, pm (route `require_any_manager` for reading). Creating and editing: `BUDGET_MANAGER_ROLES` (default `admin,pm,hr`). Approving or rejecting without a workflow: `BUDGET_APPROVER_ROLES` (default `admin`). Components: `pages/BudgetsPage.tsx`, `components/presupuestos/FichaDePresupuesto.tsx`.
 
-**Purpose.** Annual budgets by department or project, with planned, actual and committed amounts per month.
+**Purpose.** Budgets for a **project**, a **planned project** (one that does not exist yet), a **department** or an **area** (several departments), built from lines, tracked against computed actuals, revised by versions and approved through the approval engine.
 
 **How to use it.**
-1. Create a budget: name, year, department (from `settingsApi.getDepartments`), total, and optional monthly plan. If no plan is given, the total is split into twelve equal months.
-2. Click a monthly cell to edit `planned`, `actual`, `committed` and notes.
-3. **Aprobar** sets `is_approved`.
-4. The summary shows planned against actual by month, and the deviation.
+1. **New budget**: name, scope and what it needs (project; department; the area's departments; for a planned project, its type), period (first and last month) and currency (the company's, `SUPPORTED_CURRENCIES`).
+2. **Lines** (tab *Partidas*), each of a type from `BUDGET_LINE_TYPES` (default `personal, licencias, subcontratacion, material, viajes, otros`):
+   - **staff** (`personal`): a person or a profile (for a project that has no team yet) × hours × cost per hour — the person's cost (`hourly_rate`) if none is typed; amount = hours × cost;
+   - the rest: an amount.
+   - Each line is split evenly over the months of the period (cents to the last month); the API also takes a month-by-month split, which must add up to the line and stay inside the period. Changing the period re-spreads lines whose months fall outside it.
+3. **Tracking** (tab *Seguimiento*): plan against actuals per month and per line type, the variance, *plan to date* and the **forecast at completion** (actuals up to the current month + plan for the remaining months). Actuals are computed, never typed:
+   - staff: the cost of the scope's time entries in the month (what the entry stored; else hours × the rate at the time; else the person's rate) — project scope by project, department and area by the people in those departments;
+   - the rest: approved or reimbursed expenses of the scope, each in the line type of its category (`BUDGET_EXPENSE_TYPE_MAP`); in a project, the expense's share of the split between projects.
+   - A planned project has no actuals until it is **linked** to the project once created (*Vincular*; all its versions follow).
+4. **Approval**: *Enviar a aprobación* (a budget without lines cannot be sent). With an approval workflow for `budget`, a request opens in the Approval Inbox (context: total amount, scope as category, project) and its final decision is applied here; without one, `BUDGET_APPROVER_ROLES` approve or reject (with a reason) in the budget itself. A sent or approved budget is not edited.
+5. **Versions** (re-forecasts): *Nueva versión* copies the budget and its lines as version + 1 in draft (one version in progress at a time). When it is approved, the previously approved version becomes *sustituido*. Lists show the latest version of each budget.
+6. The page shows the year's totals (plan, plan to date, actuals, forecast; each budget counts by its approved version when it has one, otherwise its latest), plan against actuals by month, and the list with each budget's scope, version, status, plan, actuals, variance to date and forecast. The years offered come from the data.
 
-**Configuration.** `DEFAULT_CURRENCY` for the budget's currency.
+**Configuration.** Group `presupuestos` in Admin → Dynamic config: `BUDGET_LINE_TYPES`, `BUDGET_EXPENSE_TYPE_MAP`, `BUDGET_APPROVER_ROLES`, `BUDGET_MANAGER_ROLES`.
 
 **Technical notes.**
-- **Endpoints:** `GET/POST /api/v1/budgets`, `PATCH /budgets/{id}/entry`, `POST /budgets/{id}/approve` (`require_admin`), `GET /budgets/summary`.
-- **Tables:** `budgets`, `budget_entries`.
+- **Endpoints** (`/api/v1/budgets`): `GET ""` (latest versions; `year`, `ambito`, `estado`), `GET /summary`, `POST ""`, `GET|PATCH /{id}`, `POST /{id}/lines`, `PATCH|DELETE /{id}/lines/{line_id}`, `POST /{id}/submit`, `POST /{id}/decision`, `POST /{id}/new-version`, `POST /{id}/link-project`.
+- **Tables:** `budgets` (with `ambito`, `area`, `cliente_id`, `tipo_proyecto`, `periodo_desde`, `periodo_hasta`, `version`, `origen_id`, `estado`, `motivo_rechazo`), `budget_lines` (migration `144_presupuestos`; the monthly plan that was in `budget_entries` became one *otros* line per budget, and that table was dropped — its hand-typed actuals were not carried over because actuals are now computed).
+- The project health score of the activity view uses the sum of the budget's lines and the project's `budget_hours`.
+- Code: `app/services/budgets_service.py`. Tests: `tests/test_presupuestos_2026_11.py` (7; five planted defects caught).
 
 **Limitations.**
-- **Actuals are typed by hand.** They are not fed from imputations, expenses or invoices.
-- **Months never lock.** `budget_entries.is_locked` is never set anywhere, so the "Mes cerrado contablemente" guard never fires.
-- **Approval locks nothing.** It does not freeze the budget.
-- **PMs get 403 on Aprobar.** The endpoint is admin-only.
+- Actuals come from time entries and expenses; supplier invoices and purchase commitments are not modelled, so there is no «committed» amount.
+- The month-by-month split of a line can be sent through the API; the screen spreads evenly.
 
 ---
 
@@ -4085,7 +4093,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 
 **How to use it.**
 1. Open **Settings → Sistema → Config. dinámica**.
-2. Pick one of the **22** group pills, one per group of `RUNTIME_FLAG_GROUPS` (SLA, Service Desk, Automatizaciones, Empresas, Riesgo del proyecto, Health scoring, Semantic, Política contraseñas, Locale y jornada, Tokens, Rotación de claves, IA, Feature flags, Almacenamiento, Red / Proxy, Branding / UI, Observabilidad, Timeouts, Auditoría y cumplimiento, Gastos, Lecciones aprendidas, Conectores). `tests/test_ajustes_en_vivo_tienen_pantalla_2026_11.py` fails if a server group has no pill.
+2. Pick one of the **23** group pills, one per group of `RUNTIME_FLAG_GROUPS` (SLA, Service Desk, Automatizaciones, Empresas, Riesgo del proyecto, Health scoring, Semantic, Política contraseñas, Locale y jornada, Tokens, Rotación de claves, IA, Feature flags, Almacenamiento, Red / Proxy, Branding / UI, Observabilidad, Timeouts, Auditoría y cumplimiento, Presupuestos, Gastos, Lecciones aprendidas, Conectores). `tests/test_ajustes_en_vivo_tienen_pantalla_2026_11.py` fails if a server group has no pill.
 3. Change a value. The row becomes "dirty".
 4. Save that row. Each save is one `PUT`.
 
@@ -4177,7 +4185,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **22 groups, 217 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 221 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4359,6 +4367,10 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **22 
 | gastos | EXPENSE_MILEAGE_RATE | float | 0.26 | Expenses — mileage rate per km (the amount of a mileage expense = km × rate) | rt |
 | gastos | EXPENSE_ATTACHMENT_MAX_MB | int | 10 | Expenses — maximum size of a receipt or document (MB) | rt |
 | gastos | EXPENSE_MANAGER_ROLES | str | `admin,pm` | Expenses — roles that see and handle everyone's expenses and their receipts (CSV) | rt |
+| presupuestos | BUDGET_LINE_TYPES | str | `personal,licencias,subcontratacion,material,viajes,otros` | Budgets — line types (CSV); «personal» is costed from time entries | rt |
+| presupuestos | BUDGET_EXPENSE_TYPE_MAP | str | `travel:viajes,accommodation:viajes,meals:viajes,software:licencias,hardware:material,training:otros,subcontract:subcontratacion,other:otros` | Budgets — which line type each expense category counts in (category:type, CSV) | rt |
+| presupuestos | BUDGET_APPROVER_ROLES | str | `admin` | Budgets — roles that approve or reject when no approval workflow applies (CSV) | rt |
+| presupuestos | BUDGET_MANAGER_ROLES | str | `admin,pm,hr` | Budgets — roles that create and edit budgets (CSV) | rt |
 | audit | RETENTION_MIN_DAYS | int | 30 | Retention — no policy may keep a record type for fewer days than this | rt |
 | automations | APPROVAL_EMAIL_LINK_HOURS | int | 72 | Approvals — hours the approve/reject link of the email is valid | rt |
 | automations | AUTOMATIONS_DEADLINE_DAYS | int | 2 | "Task due soon": days before the due date | rt |
@@ -5313,7 +5325,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 357)
+#### 4.2 Settings fields (`Settings`, 361)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5709,6 +5721,10 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `EXPENSE_MILEAGE_RATE` | `0.26` | Expenses — mileage rate per km (the amount of a mileage expense = km × rate) |
 | `EXPENSE_ATTACHMENT_MAX_MB` | `10` | Expenses — maximum size of a receipt or document (MB) |
 | `EXPENSE_MANAGER_ROLES` | `'admin,pm'` | Expenses — roles that see and handle everyone's expenses and their receipts (CSV) |
+| `BUDGET_LINE_TYPES` | `'personal,licencias,subcontratacion,material,viajes,otros'` | Budgets — line types (CSV); «personal» is costed from time entries |
+| `BUDGET_EXPENSE_TYPE_MAP` | `'travel:viajes,accommodation:viajes,meals:viajes,software:licencias,hardware:material,training:otros,subcontract:subcontratacion,other:otros'` | Budgets — which line type each expense category counts in (category:type, CSV) |
+| `BUDGET_APPROVER_ROLES` | `'admin'` | Budgets — roles that approve or reject when no approval workflow applies (CSV) |
+| `BUDGET_MANAGER_ROLES` | `'admin,pm,hr'` | Budgets — roles that create and edit budgets (CSV) |
 
 #### 4.3 Variables read directly with `os.getenv` (not in `Settings`)
 

@@ -402,6 +402,12 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("EXPENSE_ATTACHMENT_MAX_MB", "int", "Expenses — maximum size of a receipt or document (MB)"),
         ("EXPENSE_MANAGER_ROLES", "str", "Expenses — roles that see and handle everyone's expenses and their receipts (CSV)"),
     ],
+    "presupuestos": [
+        ("BUDGET_LINE_TYPES", "str", "Budgets — line types (CSV); «personal» is costed from time entries"),
+        ("BUDGET_EXPENSE_TYPE_MAP", "str", "Budgets — which line type each expense category counts in (category:type, CSV)"),
+        ("BUDGET_APPROVER_ROLES", "str", "Budgets — roles that approve or reject when no approval workflow applies (CSV)"),
+        ("BUDGET_MANAGER_ROLES", "str", "Budgets — roles that create and edit budgets (CSV)"),
+    ],
     "feature_flags": [
         ("M365_CALENDAR_SYNC_ENABLED", "bool", "M365 calendar sync"),
         ("M365_TEAMS_NOTIFICATIONS_ENABLED", "bool", "M365 Teams notifications"),

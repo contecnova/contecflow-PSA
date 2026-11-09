@@ -1,3 +1,4 @@
+import json
 """Seed v14/v15/v16: email templates, Slack config, presupuesto, AI governance."""
 import os
 
@@ -66,7 +67,7 @@ def seed_v14(db):
 
 def seed_v15(db):
     """Seed v15 — default Slack config, sample budget."""
-    from app.models.mfa import SlackConfig, Budget, BudgetEntry
+    from app.models.mfa import SlackConfig, Budget, BudgetLine
     import datetime
 
     if db.query(SlackConfig).count() == 0:
@@ -86,9 +87,12 @@ def seed_v15(db):
             year=year, department="Tecnología",
             total_amount=120000, currency=settings.DEFAULT_CURRENCY,
         )
+        b.ambito = "departamento"
+        b.periodo_desde, b.periodo_hasta = datetime.date(year, 1, 1), datetime.date(year, 12, 1)
         db.add(b); db.flush()
-        for m in range(1, 13):
-            db.add(BudgetEntry(budget_id=b.id, month=m, planned=10000.0))
+        db.add(BudgetLine(budget_id=b.id, organization_id=b.organization_id, tipo="licencias",
+                          descripcion="Licencias y servicios TI", importe=120000.0,
+                          meses=json.dumps({f"{year}-{m:02d}": 10000.0 for m in range(1, 13)})))
         db.flush()
 
     db.commit()

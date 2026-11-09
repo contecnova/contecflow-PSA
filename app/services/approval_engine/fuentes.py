@@ -12,10 +12,10 @@ nunca los veia. Ahora:
 - si se revisa desde la pantalla de origen, la solicitud pendiente se cierra
   con esa decision, para que no se quede en la bandeja.
 
-Tipos (los del disenador): `expense`, `timesheet` y `leave`; desde el
-04-11-2026 tambien `change_request` (Cambios: al enviar) e `invoice` (facturas:
-al pasar de borrador a enviada; la aprobacion la envia, el rechazo la deja en
-borrador).
+Tipos (los del disenador): `expense`, `timesheet`, `leave`, `change_request`
+(Cambios: al enviar), `invoice` (facturas: al pasar de borrador a enviada; la
+aprobacion la envia, el rechazo la deja en borrador) y `budget` (presupuestos:
+al enviar; la decision los aprueba o los rechaza).
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
-TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice")
+TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice", "budget")
 
 
 def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id: str,
@@ -79,6 +79,12 @@ def aplicar(req, decision: str, actor, db: Session) -> None:
             if cr and getattr(cr.status, "value", cr.status) in ("submitted", "under_review"):
                 change_service.review_change_request(db, cr, approved=aprobado, reviewer_id=actor.id,
                                                      resolution_notes=nota)
+        elif req.entity_type == "budget":
+            from app.services.budgets_service import aplicar_desde_bandeja
+            from app.models.mfa import Budget
+            b = db.query(Budget).filter(Budget.id == req.entity_id).first()
+            if b and b.estado == "enviado":
+                aplicar_desde_bandeja(db, actor, b.id, aprobado, nota)
         elif req.entity_type == "invoice":
             from app.models.billing_reports import Invoice, InvoiceStatus
             inv = db.query(Invoice).filter(Invoice.id == req.entity_id).first()

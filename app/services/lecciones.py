@@ -30,6 +30,8 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 
 from fastapi import HTTPException
+
+from app.core import timeutil
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -681,7 +683,7 @@ def valorar(db: Session, usuario, leccion_id: str, contexto_tipo: str, contexto_
 # ── Acciones de mejora ────────────────────────────────────────────────────────
 
 def _accion_dict(a: LeccionAccion) -> dict:
-    hoy = date.today()
+    hoy = timeutil.today()
     return {"id": a.id, "leccion_id": a.leccion_id, "descripcion": a.descripcion, "responsable_id": a.responsable_id,
             "fecha_limite": a.fecha_limite.isoformat() if a.fecha_limite else None, "estado": a.estado,
             "resultado": a.resultado, "cerrada_en": a.cerrada_en.isoformat() if a.cerrada_en else None,
@@ -748,7 +750,7 @@ def indicadores(db: Session, usuario) -> dict:
            .join(LeccionUso, LeccionUso.leccion_id == Leccion.id)
            .filter(LeccionUso.valor.in_(("util", "aplicada")))
            .group_by(Leccion.id).order_by(func.count(LeccionUso.id).desc()).limit(5).all())
-    hoy = date.today()
+    hoy = timeutil.today()
     abiertas = db.query(LeccionAccion).filter(LeccionAccion.estado.in_(("abierta", "en_curso")))
     # Por mes de calendario, los 12 últimos (el mes en curso, a medias, se marca).
     meses = []

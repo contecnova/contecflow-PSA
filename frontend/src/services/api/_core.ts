@@ -1809,13 +1809,6 @@ export const taskDependenciesApi = {
 }
 
 // ── Budgets ───────────────────────────────────────────────────────────────────
-export const budgetsApi = {
-  list:        (year: any) => api.get('/budgets', { params: { year } }),
-  summary:     (year: any) => api.get('/budgets/summary', { params: { year } }),
-  create:      (data: unknown) => api.post('/budgets', data),
-  updateEntry: (id: any, month: any, data: unknown) => api.patch(`/budgets/${id}/entry`, { month, ...(data as Record<string, unknown>) }),
-  approve:     (id: any) => api.post(`/budgets/${id}/approve`),
-}
 
 // ── SD Major Incidents ────────────────────────────────────────────────────────
 export const sdMajorIncidentsApi = {

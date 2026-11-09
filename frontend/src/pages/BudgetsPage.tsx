@@ -1,318 +1,183 @@
 /**
- * BudgetsPage — Presupuestos multi-período por departamento
+ * Presupuestos (revisión 2026-11): de proyecto (existente o previsto), de
+ * departamento o de área, con partidas, real calculado, versiones y aprobación.
+ * El detalle está en `components/presupuestos/FichaDePresupuesto.tsx`.
  */
-import { useState } from 'react'
-import type { CSSProperties, ChangeEvent } from 'react'
-import { extractErr, localeActivo } from '../utils/helpers'
-import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
-import { useToast } from '../context/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { budgetsApi } from '../services/api'
+import { useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { PieChart, Plus } from 'lucide-react'
+import { presupuestosApi, projectsApi } from '../services/api'
+import type { AmbitoDePresupuesto } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
-import { Button, Modal, Spinner, EmptyState } from '../components/ui'
+import { Button, EmptyState, KpiCard, Modal, Spinner } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { PieChart } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
-import { z } from 'zod'
-import { useFormValidation } from '../hooks/useFormValidation'
+import { useToast } from '../context/ToastContext'
+import { useAuth } from '../context/AuthContext'
+import { useOrgSettings } from '../hooks/useOrgSettings'
+import { extractErr, localeActivo } from '../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
+import FichaDePresupuesto, { colorDeEstado } from '../components/presupuestos/FichaDePresupuesto'
 
-interface DepartmentItem {
-  id: string | number
-  name: string
-  is_active?: boolean
-}
+const campo: CSSProperties = { width: '100%', boxSizing: 'border-box', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
+const fila: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) 150px 70px 110px repeat(4, 120px)', gap: 10, alignItems: 'center', padding: '10px 12px', fontSize: 'var(--text-sm)' }
+const AMBITOS: AmbitoDePresupuesto[] = ['proyecto', 'proyecto_previsto', 'departamento', 'area']
 
-interface BudgetEntry {
-  month: number
-  planned?: number
-  actual?: number
-  committed?: number
-  notes?: string
-  is_locked?: boolean
-}
-
-interface BudgetItem {
-  id: string | number
-  name: string
-  department?: string
-  is_approved?: boolean
-  planned_total?: number
-  actual_total?: number
-  deviation?: number
-  entries: BudgetEntry[]
-}
-
-interface BudgetSummaryMonth {
-  month: number
-  planned: number
-  actual: number
-}
-
-interface BudgetSummary {
-  total_planned?: number
-  total_actual?: number
-  deviation_pct?: number
-  by_month?: BudgetSummaryMonth[]
-}
-
-interface EntryEditState {
-  budget_id: string | number
-  month: number
-  entry: BudgetEntry
-}
-
-interface EntryFormState {
-  actual: number
-  committed: number
-  notes: string
-}
-
-const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
-const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
-
-const fmtEur = (n: number | null | undefined) => n == null ? '—' : new Intl.NumberFormat(localeActivo(),{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n)
-const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-
-const budgetSchema = z.object({
-  name: z.string().trim().min(1, 'El nombre es obligatorio'),
-  year: z.coerce.number().int().min(2000, 'El año no es válido').max(2100, 'El año no es válido'),
-  department: z.string().optional(),
-  total_amount: z.coerce.number().min(0, 'El importe total no puede ser negativo'),
-  currency: z.string().trim().min(1),
-})
-
-const budgetEntrySchema = z.object({
-  actual: z.coerce.number().min(0, 'El gasto real no puede ser negativo'),
-  committed: z.coerce.number().min(0, 'El importe comprometido no puede ser negativo'),
-  notes: z.string().optional(),
-})
-
-export default function BudgetsPage(): JSX.Element {
+export default function BudgetsPage() {
   const t = useAppT()
   const qc = useQueryClient()
-  const toast = useToast()
-  const [year, setYear] = useState(new Date().getFullYear())
-  const [selected, setSelected] = useState<string | number | null>(null)
-  const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ name:'', year:new Date().getFullYear(), department:'', total_amount:0, currency:'EUR' })
-  const [editEntry, setEditEntry] = useState<EntryEditState | null>(null)
-  const [entryForm, setEntryForm] = useState<EntryFormState>({ actual:0, committed:0, notes:'' })
-  const createValidation = useFormValidation(budgetSchema)
-  const entryValidation = useFormValidation(budgetEntrySchema)
-
-  const { data: budgetsRaw = [], isLoading } = useQuery({ queryKey:['budgets', year], queryFn:()=>budgetsApi.list(year).then(r=>r.data) })
-  const { data: summaryRaw } = useQuery({ queryKey:['budget-summary', year], queryFn:()=>budgetsApi.summary(year).then(r=>r.data) })
-  const { data: departmentsRaw = [] } = useQuery({ queryKey:['departments-select'], queryFn:()=>settingsApi.getDepartments().then(r=>r.data) })
-  const budgets = budgetsRaw as BudgetItem[]
-  const summary = (summaryRaw ?? null) as BudgetSummary | null
-  const departments = departmentsRaw as DepartmentItem[]
-
-  const { mutate: create, isPending } = useMutation({
-    mutationFn: (d: z.infer<typeof budgetSchema>) => budgetsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['budgets'] }); setShowCreate(false); createValidation.setErrors({}) },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
-  })
-  const { mutate: updateEntry } = useMutation({
-    mutationFn: ({ id, month, data }: { id: string | number; month: number; data: z.infer<typeof budgetEntrySchema> }) => budgetsApi.updateEntry(id, month, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['budgets'] }); setEditEntry(null); entryValidation.setErrors({}) },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
-  })
-  const { mutate: approve } = useMutation({
-    mutationFn: (id: string | number) => budgetsApi.approve(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['budgets'] }),
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
-  })
-
-  const chartData = summary?.by_month?.map((m) => ({ mes: MONTHS[m.month-1], Planificado: Math.round(m.planned), Real: Math.round(m.actual) })) || []
-
-  const setCreateField = (key: 'name' | 'year' | 'department' | 'total_amount' | 'currency') => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const value = key === 'year' || key === 'total_amount' ? +e.target.value : e.target.value
-    setForm(current => ({ ...current, [key]: value }))
-    createValidation.clearFieldError(key)
-  }
-
-  const setEntryField = (key: 'actual' | 'committed' | 'notes') => (e: ChangeEvent<HTMLInputElement>) => {
-    const value = key === 'actual' || key === 'committed' ? +e.target.value : e.target.value
-    setEntryForm(current => ({ ...current, [key]: value }))
-    entryValidation.clearFieldError(key)
-  }
-
-  const submitCreate = () => {
-    const result = createValidation.validateForm(form)
-    if (!result.success) {
-      return
-    }
-    create(result.data)
-  }
-
-  const submitEntry = () => {
-    const result = entryValidation.validateForm(entryForm)
-    if (!result.success) {
-      return
-    }
-    updateEntry({ id:editEntry!.budget_id, month:editEntry!.month, data:result.data })
-  }
-
+  const anioActual = new Date().getFullYear()
+  const [year, setYear] = useState<number>(anioActual)
+  const [ambito, setAmbito] = useState('')
+  const [abierto, setAbierto] = useState<string | null>(null)
+  const [nuevo, setNuevo] = useState(false)
+  const lista = useQuery({ queryKey: ['presupuestos', 'lista', year, ambito], queryFn: () => presupuestosApi.listar({ year, ambito: ambito || undefined }) })
+  const resumen = useQuery({ queryKey: ['presupuestos', 'resumen', year], queryFn: () => presupuestosApi.resumen(year) })
+  const todos = useQuery({ queryKey: ['presupuestos', 'años'], queryFn: () => presupuestosApi.listar({}) })
+  // Los años que ofrece el selector salen de los datos (y el actual), no de una lista escrita.
+  const anios = useMemo(() => Array.from(new Set([anioActual, ...(todos.data ?? []).map(b => b.year)])).sort(), [todos.data, anioActual])
+  const moneda = lista.data?.[0]?.currency
+  const dinero = (n?: number) => (n ?? 0).toLocaleString(localeActivo(), { style: 'currency', currency: moneda || 'EUR', maximumFractionDigits: 0 })
+  const r = resumen.data
   return (
     <PageShell>
-      <PageHeader icon={<PieChart size={18} />} title={t('budgets.title')} subtitle={t('budgets.subtitle')} />
-
-      {/* Year selector + summary */}
-      <div style={{ display:'flex', gap:16, marginBottom:24, alignItems:'center' }}>
-        <div style={{ display:'flex', gap:6 }}>
-          {[year-1, year, year+1].map(y => (
-            <button key={y} onClick={()=>setYear(y)}
-              style={{ padding:'6px 14px', borderRadius:8, border:`.5px solid ${year===y?'rgba(0,212,255,0.25)':'var(--surface-4)'}`, background:year===y?'var(--accent-muted)':'transparent', color:year===y?'var(--accent)':'var(--text-2)', fontSize: "var(--text-sm)", cursor:'pointer', fontFamily:'inherit', fontWeight:year===y?500:400 }}>
-              {y}
-            </button>
-          ))}
-        </div>
-        {summary && (
-          <div style={{ display:'flex', gap:16, marginLeft:12 }}>
-            {[['planned', fmtEur(summary.total_planned)], ['actual', fmtEur(summary.total_actual)], ['deviation', `${(summary.deviation_pct ?? 0) > 0 ? '+' : ''}${summary.deviation_pct ?? 0}%`]].map(([k,v]) => (
-              <div key={k} style={{ fontSize: "var(--text-sm)" }}><span style={{ color:'var(--text-2)', marginRight:6 }}>{t(`budgets.${k}`)}:</span><strong>{v}</strong></div>
-            ))}
-          </div>
-        )}
-        <Button onClick={()=>setShowCreate(true)} style={{ marginLeft:'auto' }}>{t('budgets.new_budget')}</Button>
+      <PageHeader icon={<PieChart size={18} />} title={t('pres.titulo')} subtitle={t('pres.subtitulo')}
+        actions={<Button icon={<Plus size={14} />} onClick={() => setNuevo(true)}>{t('pres.nuevo')}</Button>} />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        <select aria-label={t('pres.ejercicio')} value={year} onChange={e => setYear(Number(e.target.value))} style={{ ...campo, width: 120 }}>
+          {anios.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <select aria-label={t('pres.ambito')} value={ambito} onChange={e => setAmbito(e.target.value)} style={{ ...campo, width: 220 }}>
+          <option value="">{t('pres.todos_los_ambitos')}</option>
+          {AMBITOS.map(a => <option key={a} value={a}>{t(`pres.ambito_${a}`)}</option>)}
+        </select>
       </div>
-
-      {/* Monthly chart */}
-      {chartData.length > 0 && (
-        <div style={{ ...card, padding:'16px 20px', marginBottom:24 }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>{t('budgets.chart_title', {year})}</div>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={chartData}>
-              <XAxis dataKey="mes" tick={{fontSize: "var(--text-xs)"}} />
-              <YAxis tickFormatter={v=>`${Math.round(v/1000)}k€`} tick={{fontSize: "var(--text-2xs)"}} />
-              <Tooltip formatter={(v) => [fmtEur(typeof v === 'number' ? v : Number(v))]} />
-              <Bar dataKey="Planificado" fill="#85B7EB" radius={[3,3,0,0]} />
-              <Bar dataKey="Real" fill="#34d399" radius={[3,3,0,0]} />
+      {r && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, marginBottom: 14 }}>
+          <KpiCard label={t('pres.kpi_plan')} value={dinero(r.total_plan)} sub={t('pres.kpi_presupuestos', { n: r.presupuestos, a: r.aprobados })} />
+          <KpiCard label={t('pres.kpi_plan_hoy')} value={dinero(r.plan_hasta_hoy)} />
+          <KpiCard label={t('pres.kpi_real')} value={dinero(r.total_real)} danger={r.total_real > r.plan_hasta_hoy} />
+          <KpiCard label={t('pres.kpi_prevision')} value={dinero(r.prevision_cierre)} warning={r.prevision_cierre > r.total_plan} />
+        </div>
+      )}
+      {r && r.por_mes.length > 0 && (
+        <div style={{ height: 220, marginBottom: 16 }} role="img" aria-label={t('pres.plan_contra_real')}>
+          <ResponsiveContainer>
+            <BarChart data={r.por_mes}>
+              <CartesianGrid stroke="var(--surface-3)" vertical={false} />
+              <XAxis dataKey="mes" tick={{ fill: 'var(--text-3)', fontSize: 'var(--text-xs)' }} />
+              <YAxis tick={{ fill: 'var(--text-3)', fontSize: 'var(--text-xs)' }} />
+              <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)' }} formatter={(v: number) => dinero(v)} />
+              <Legend />
+              <Bar dataKey="plan" name={t('pres.plan')} fill="var(--surface-4)" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="real" name={t('pres.real')} fill="var(--accent)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
-
-      {/* Budgets list */}
-      {isLoading ? <Spinner /> : budgets.length === 0 ? (
-        <EmptyState icon="💼" title={t('budgets.empty_title')} description={t('budgets.empty_desc', {year})} />
-      ) : (
-        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-          {budgets.map(b => (
-            <div key={b.id} style={{ ...card, padding:'16px 20px' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
-                <div>
-                  <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:4 }}>
-                    <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{b.name}</span>
-                    {b.department && <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color:'var(--text-2)' }}>{b.department}</span>}
-                    {b.is_approved
-                      ? <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--success-bg)', color:'var(--success)' }}>✓ {t('budgets.approved')}</span>
-                      : <button onClick={()=>approve(b.id)} style={{ fontSize: "var(--text-xs)", padding:'2px 8px', borderRadius:4, background:'var(--warning-bg)', color:'var(--warning)', border:'.5px solid rgba(251,191,36,0.25)', cursor:'pointer', fontFamily:'inherit' }}>{t('budgets.approve')}</button>
-                    }
-                  </div>
-                  <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
-                    {t('budgets.planned')}: {fmtEur(b.planned_total)} · {t('budgets.actual')}: {fmtEur(b.actual_total)} · {t('budgets.deviation')}: <span style={{ color: (b.deviation ?? 0) > 0 ? 'var(--danger)' : 'var(--success)', fontWeight:500 }}>{(b.deviation ?? 0) > 0 ? '+' : ''}{fmtEur(b.deviation)}</span>
-                  </div>
-                </div>
-                <button onClick={()=>setSelected(selected===b.id?null:b.id)}
-                  style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'5px 12px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
-                  {selected===b.id ? t('budgets.hide_detail') : t('budgets.show_detail')}
-                </button>
-              </div>
-
-              {/* Monthly grid */}
-              {selected === b.id && (
-                <div style={{ overflowX:'auto' }}>
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize: "var(--text-xs)" }}>
-                    <thead>
-                      <tr style={{ background:'var(--surface-2)' }}>
-                        <th style={{ padding:'6px 10px', textAlign:'left', fontWeight:500, color:'var(--text-2)' }}>Mes</th>
-                        {MONTHS.map(m => <th key={m} style={{ padding:'6px 8px', textAlign:'right', fontWeight:500, color:'var(--text-2)', minWidth:65 }}>{m}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(['planned','actual','committed'] as const).map((field) => (
-                        <tr key={field} style={{ borderBottom:'.5px solid var(--surface-4)' }}>
-                          <td style={{ padding:'6px 10px', fontWeight:500, textTransform:'capitalize', color:'var(--text-2)' }}>{field}</td>
-                          {b.entries.map(e => {
-                            const val = Number(e[field]) || 0
-                            const planned = Number(e.planned) || 0
-                            const actual = Number(e.actual) || 0
-                            return (
-                              <td key={e.month} style={{ padding:'6px 8px', textAlign:'right', cursor: field==='actual'&&!e.is_locked?'pointer':'default' }}
-                                onClick={()=>{ if(field==='actual'&&!e.is_locked){ setEditEntry({budget_id:b.id,month:e.month,entry:e}); setEntryForm({actual:e.actual ?? 0,committed:e.committed ?? 0,notes:e.notes||''}) }}}>
-                                <span style={{ color: field==='actual'&&actual>planned?'var(--danger)':'var(--text-1)' }}>
-                                  {val > 0 ? `${(val/1000).toFixed(1)}k` : '—'}
-                                </span>
-                              </td>
-                            )
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', marginTop:6 }}>{t('budgets.edit_actual_hint')}</div>
-                </div>
-              )}
+      {lista.isLoading ? <Spinner /> : lista.isError ? <div role="alert" style={{ color: 'var(--danger)' }}>{extractErr(lista.error, GENERIC_ERROR_FALLBACK)}</div>
+        : (lista.data ?? []).length === 0 ? <EmptyState svgIcon={<PieChart size={26} />} title={t('pres.vacio')} description={t('pres.vacio_texto')} />
+        : (
+          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 10, overflowX: 'auto' }}>
+            <div style={{ ...fila, color: 'var(--text-3)', fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: 'uppercase' }}>
+              <span>{t('pres.nombre')}</span><span>{t('pres.ambito')}</span><span>{t('pres.version')}</span><span>{t('pres.estado')}</span>
+              <span style={{ textAlign: 'right' }}>{t('pres.plan')}</span><span style={{ textAlign: 'right' }}>{t('pres.real')}</span>
+              <span style={{ textAlign: 'right' }}>{t('pres.desv_hoy')}</span><span style={{ textAlign: 'right' }}>{t('pres.prevision')}</span>
             </div>
-          ))}
-        </div>
-      )}
-
-      {showCreate && (
-        <Modal open title={t('budgets.new_budget')} onClose={()=>setShowCreate(false)} width={480}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div>
-              <label style={ls}>{t('budgets.name')}</label>
-              <input value={form.name} onChange={setCreateField('name')} style={createValidation.inputStyle(fs, 'name')} />
-              {createValidation.errors.name && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.name}</div>}
-            </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              <div>
-                <label style={ls}>{t('budgets.year')}</label>
-                <input type="number" value={form.year} onChange={setCreateField('year')} style={createValidation.inputStyle(fs, 'year')} />
-                {createValidation.errors.year && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.year}</div>}
-              </div>
-              <div><label style={ls}>{t('budgets.department')}</label><select value={form.department} onChange={setCreateField('department')} style={fs}><option value="">{t('budgets.sin_departamento')}</option>{departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}</select></div>
-            </div>
-            <div>
-              <label style={ls}>{t('budgets.total_amount')}</label>
-              <input type="number" value={form.total_amount} onChange={setCreateField('total_amount')} style={createValidation.inputStyle(fs, 'total_amount')} />
-              {createValidation.errors.total_amount && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.total_amount}</div>}
-            </div>
-            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{t('budgets.monthly_distribution', {amount: fmtEur((form.total_amount||0)/12)})}</div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
-              <Button variant="secondary" onClick={()=>setShowCreate(false)}>{t('budgets.cancel')}</Button>
-              <Button onClick={submitCreate} disabled={isPending}>{isPending?t('budgets.creating'):t('budgets.create')}</Button>
-            </div>
+            {lista.data!.map(b => (
+              <button key={b.id} type="button" onClick={() => setAbierto(b.id)} style={{ ...fila, width: '100%', background: 'transparent', border: 'none', borderTop: '1px solid var(--surface-3)', textAlign: 'left', cursor: 'pointer', color: 'var(--text-1)', fontFamily: 'inherit' }}>
+                <span style={{ minWidth: 0 }}><strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</strong>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{b.project_name || b.department || b.area || ''} · {b.periodo_desde.slice(0, 7)} → {b.periodo_hasta.slice(0, 7)}</span></span>
+                <span style={{ color: 'var(--text-2)' }}>{t(`pres.ambito_${b.ambito}`)}</span>
+                <span>v{b.version}</span>
+                <span style={{ color: colorDeEstado(b.estado), fontWeight: 600 }}>{t(`pres.estado_${b.estado}`)}</span>
+                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(b.total_plan)}</span>
+                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(b.total_real)}</span>
+                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: (b.desviacion_hasta_hoy ?? 0) > 0 ? 'var(--danger)' : 'var(--success)' }}>{dinero(b.desviacion_hasta_hoy)}</span>
+                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: (b.prevision_cierre ?? 0) > b.total_plan ? 'var(--warning)' : undefined }}>{dinero(b.prevision_cierre)}</span>
+              </button>
+            ))}
           </div>
-        </Modal>
-      )}
-
-      {editEntry && (
-        <Modal open title={t('budgets.update_month', {month: MONTHS[editEntry.month-1]})} onClose={()=>setEditEntry(null)} width={400}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div>
-              <label style={ls}>{t('budgets.actual_amount')}</label>
-              <input type="number" value={entryForm.actual} onChange={setEntryField('actual')} style={entryValidation.inputStyle(fs, 'actual')} />
-              {entryValidation.errors.actual && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{entryValidation.errors.actual}</div>}
-            </div>
-            <div>
-              <label style={ls}>{t('budgets.committed_amount')}</label>
-              <input type="number" value={entryForm.committed} onChange={setEntryField('committed')} style={entryValidation.inputStyle(fs, 'committed')} />
-              {entryValidation.errors.committed && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{entryValidation.errors.committed}</div>}
-            </div>
-            <div><label style={ls}>{t('budgets.notes')}</label><input value={entryForm.notes} onChange={setEntryField('notes')} style={fs} /></div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
-              <Button variant="secondary" onClick={()=>setEditEntry(null)}>{t('budgets.cancel')}</Button>
-              <Button onClick={submitEntry}>{t('budgets.save')}</Button>
-            </div>
-          </div>
-        </Modal>
-      )}
+        )}
+      {nuevo && <NuevoPresupuesto onClose={() => setNuevo(false)} onCreado={id => { setNuevo(false); qc.invalidateQueries({ queryKey: ['presupuestos'] }); setAbierto(id) }} />}
+      {abierto && <FichaDePresupuesto id={abierto} onClose={() => setAbierto(null)} onAbrir={setAbierto} />}
     </PageShell>
+  )
+}
+
+function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado: (id: string) => void }) {
+  const t = useAppT()
+  const toast = useToast()
+  const { user } = useAuth() as { user?: { department?: string } }
+  const { currency, currencies } = useOrgSettings()
+  const anio = new Date().getFullYear()
+  const [f, setF] = useState({ name: '', ambito: 'proyecto', project_id: '', department: user?.department || '', area: '', tipo_proyecto: '',
+    desde: `${anio}-01`, hasta: `${anio}-12`, currency: '' })
+  const [guardando, setGuardando] = useState(false)
+  const proyectos = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data as unknown as { id: string; code?: string; name?: string }[]) })
+  const depts = useQuery<{ name: string }[]>({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data as unknown as { name: string }[]) })
+  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF(v => ({ ...v, [k]: e.target.value }))
+  const crear = async () => {
+    setGuardando(true)
+    try {
+      const d = await presupuestosApi.crear({
+        name: f.name, ambito: f.ambito, currency: f.currency || currency,
+        periodo_desde: `${f.desde}-01`, periodo_hasta: `${f.hasta}-01`,
+        ...(f.ambito === 'proyecto' ? { project_id: f.project_id } : {}),
+        ...(f.ambito === 'departamento' ? { department: f.department } : {}),
+        ...(f.ambito === 'area' ? { area: f.area } : {}),
+        ...(f.ambito === 'proyecto_previsto' ? { tipo_proyecto: f.tipo_proyecto || undefined } : {}),
+      })
+      onCreado(d.id)
+    } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setGuardando(false) }
+  }
+  const lbl: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 3 }
+  return (
+    <Modal open onClose={onClose} size="md" title={t('pres.nuevo')}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <label><span style={lbl}>{t('pres.nombre')}</span><input aria-label={t('pres.nombre')} value={f.name} onChange={set('name')} style={campo} /></label>
+        <label><span style={lbl}>{t('pres.ambito')}</span>
+          <select aria-label={t('pres.ambito')} value={f.ambito} onChange={set('ambito')} style={campo}>
+            {AMBITOS.map(a => <option key={a} value={a}>{t(`pres.ambito_${a}`)}</option>)}
+          </select></label>
+        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t(`pres.ambito_${f.ambito}_ayuda`)}</div>
+        {f.ambito === 'proyecto' && (
+          <label><span style={lbl}>{t('pres.proyecto')}</span>
+            <select aria-label={t('pres.proyecto')} value={f.project_id} onChange={set('project_id')} style={campo}>
+              <option value="">{t('pres.elige_proyecto')}</option>
+              {(proyectos.data ?? []).map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} — ` : ''}{p.name}</option>)}
+            </select></label>
+        )}
+        {f.ambito === 'departamento' && (
+          <label><span style={lbl}>{t('pres.departamento')}</span>
+            <select aria-label={t('pres.departamento')} value={f.department} onChange={set('department')} style={campo}>
+              <option value="">{t('pres.elige_departamento')}</option>
+              {(depts.data ?? []).map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
+            </select></label>
+        )}
+        {f.ambito === 'area' && (
+          <label><span style={lbl}>{t('pres.area')}</span>
+            <input aria-label={t('pres.area')} value={f.area} onChange={set('area')} style={campo} placeholder={(depts.data ?? []).map(d => d.name).slice(0, 3).join(', ')} /></label>
+        )}
+        {f.ambito === 'proyecto_previsto' && (
+          <label><span style={lbl}>{t('pres.tipo_proyecto')}</span><input aria-label={t('pres.tipo_proyecto')} value={f.tipo_proyecto} onChange={set('tipo_proyecto')} style={campo} /></label>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          <label><span style={lbl}>{t('pres.desde')}</span><input aria-label={t('pres.desde')} type="month" value={f.desde} onChange={set('desde')} style={campo} /></label>
+          <label><span style={lbl}>{t('pres.hasta')}</span><input aria-label={t('pres.hasta')} type="month" value={f.hasta} onChange={set('hasta')} style={campo} /></label>
+          <label><span style={lbl}>{t('pres.moneda')}</span>
+            <select aria-label={t('pres.moneda')} value={f.currency || currency} onChange={set('currency')} style={campo}>
+              {currencies.map(c => <option key={c} value={c}>{c}</option>)}
+            </select></label>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <Button variant="secondary" onClick={onClose}>{t('pres.cancelar')}</Button>
+          <Button loading={guardando} disabled={!f.name.trim() || !f.desde || !f.hasta} onClick={crear}>{t('pres.crear')}</Button>
+        </div>
+      </div>
+    </Modal>
   )
 }

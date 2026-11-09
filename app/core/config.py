@@ -489,6 +489,14 @@ class Settings(
     EXPENSE_ATTACHMENT_MAX_MB: int = Field(default=10, env="EXPENSE_ATTACHMENT_MAX_MB")
     EXPENSE_MANAGER_ROLES: str = Field(default="admin,pm", env="EXPENSE_MANAGER_ROLES")
 
+    # ── Presupuestos (revisión 2026-11) ───────────────────────────────────────
+    BUDGET_LINE_TYPES: str = Field(default="personal,licencias,subcontratacion,material,viajes,otros", env="BUDGET_LINE_TYPES")
+    BUDGET_EXPENSE_TYPE_MAP: str = Field(
+        default="travel:viajes,accommodation:viajes,meals:viajes,software:licencias,hardware:material,"
+                "training:otros,subcontract:subcontratacion,other:otros", env="BUDGET_EXPENSE_TYPE_MAP")
+    BUDGET_APPROVER_ROLES: str = Field(default="admin", env="BUDGET_APPROVER_ROLES")
+    BUDGET_MANAGER_ROLES: str = Field(default="admin,pm,hr", env="BUDGET_MANAGER_ROLES")
+
     # NOTE: AI cost alerting lives in AISettingsMixin.
 
     # ── Stripe payment gateway (v23.8) ────────────────────────────────────────

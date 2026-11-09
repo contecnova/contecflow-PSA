@@ -6,7 +6,7 @@ v15 models — all remaining pending features:
   SlackConfig           : Slack/Teams workspace connection
   SlackNotificationLog  : Audit of Slack messages sent
   Budget                : Multi-period department budgets
-  BudgetEntry           : Monthly actuals vs planned per budget
+  BudgetLine            : Budget line with its monthly split (revision 2026-11)
   AITaskEstimate        : AI-suggested hour estimates for tasks
   AITicketTriage        : AI triage result per SD ticket
   ScenarioModel         : What-if capacity scenario
@@ -221,7 +221,12 @@ class SlackNotificationLog(Base):
 # ── Multi-period Budgets ──────────────────────────────────────────────────────
 
 class Budget(Base):
-    """Annual budget for a department or cost centre."""
+    """Presupuesto de un proyecto (existente o previsto), un departamento o un área.
+
+    Revisión 2026-11: el plan sale de sus partidas (`budget_lines`, por meses);
+    el real se calcula (imputaciones y gastos), no se teclea. Versiones: cada
+    reprevisión es una fila nueva con `version` + 1 y el mismo `origen_id`.
+    """
     __tablename__ = "budgets"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -233,37 +238,49 @@ class Budget(Base):
     total_amount = Column(Float, nullable=False, default=0)
     currency    = Column(String(3), default=settings.DEFAULT_CURRENCY)
     notes       = Column(Text, nullable=True)
+    # Revisión 2026-11
+    ambito      = Column(String(20), nullable=False, default="departamento", server_default="departamento")  # proyecto | proyecto_previsto | departamento | area
+    area        = Column(String(255), nullable=True)            # área: departamentos separados por comas
+    cliente_id  = Column(String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True)
+    tipo_proyecto = Column(String(30), nullable=True)
+    periodo_desde = Column(Date, nullable=True)                 # primer día del primer mes
+    periodo_hasta = Column(Date, nullable=True)                 # primer día del último mes
+    version     = Column(Integer, nullable=False, default=1, server_default="1")
+    origen_id   = Column(String(36), nullable=True, index=True) # la primera versión de la cadena
+    estado      = Column(String(15), nullable=False, default="borrador", server_default="borrador", index=True)  # borrador | enviado | aprobado | rechazado | sustituido
+    motivo_rechazo = Column(Text, nullable=True)
     is_approved = Column(Boolean, default=False)
     approved_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
     created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
-    entries    = relationship("BudgetEntry", back_populates="budget",
-                              cascade="all, delete-orphan",
-                              order_by="BudgetEntry.month")
+    lines      = relationship("BudgetLine", back_populates="budget", cascade="all, delete-orphan",
+                              order_by="BudgetLine.created_at")
     approver   = relationship("User", foreign_keys=[approved_by])
     creator    = relationship("User", foreign_keys=[created_by])
     project    = relationship("Project")
 
 
-class BudgetEntry(Base):
-    """Monthly planned vs actual for a budget."""
-    __tablename__ = "budget_entries"
+class BudgetLine(Base):
+    """Una partida del presupuesto con su reparto por meses (`meses`: {"2026-01": 1000.0, …})."""
+    __tablename__ = "budget_lines"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    budget_id   = Column(String(36), ForeignKey("budgets.id", ondelete="CASCADE"),
-                         nullable=False, index=True)
-    month       = Column(Integer, nullable=False)   # 1-12
-    planned     = Column(Float, default=0)
-    actual      = Column(Float, default=0)
-    committed   = Column(Float, default=0)          # approved but not yet spent
-    notes       = Column(Text, nullable=True)
-    is_locked   = Column(Boolean, default=False)
-    updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    budget_id   = Column(String(36), ForeignKey("budgets.id", ondelete="CASCADE"), nullable=False, index=True)
+    tipo        = Column(String(30), nullable=False)            # de BUDGET_LINE_TYPES
+    descripcion = Column(String(500), nullable=False)
+    user_id     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)  # personal: una persona…
+    perfil      = Column(String(120), nullable=True)            # …o un perfil (para un proyecto que aún no tiene equipo)
+    horas       = Column(Float, nullable=True)
+    coste_hora  = Column(Float, nullable=True)
+    importe     = Column(Float, nullable=False, default=0)
+    meses       = Column(Text, nullable=False, default="{}")
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
-    budget = relationship("Budget", back_populates="entries")
+    budget = relationship("Budget", back_populates="lines")
+    user   = relationship("User")
 
 
 # ── AI Task Estimation ────────────────────────────────────────────────────────

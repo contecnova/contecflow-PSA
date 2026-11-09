@@ -297,13 +297,16 @@ def compute_health(db: Session, project_id: str) -> dict:
     schedule_score = round(max(0, 100 - (overdue / max(total_tasks, 1)) * 100), 1)
 
     budget_score = 80.0
+    # Revisión 2026-11: el total de un presupuesto es la suma de sus partidas (ya
+    # no `total_amount`), y las horas previstas del proyecto son `budget_hours`
+    # (`estimated_hours` no existe en el modelo: esta puntuación nunca se calculaba).
     budget = db.query(Budget).filter(Budget.project_id == project_id).first()
-    if budget and budget.total_amount:
+    if budget and sum(l.importe for l in budget.lines):
         actual_cost_q = db.query(func.sum(Imputation.hours)).filter(
             Imputation.project_id == project_id
         ).scalar() or 0
         project = db.query(Project).filter(Project.id == project_id).first()
-        estimated_hours = getattr(project, "estimated_hours", None)
+        estimated_hours = project.budget_hours if project else None
         if estimated_hours and estimated_hours > 0:
             ratio = actual_cost_q / estimated_hours
             if ratio <= _s.PROJECT_HEALTH_BUDGET_RATIO_GOOD:

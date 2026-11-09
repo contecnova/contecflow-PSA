@@ -45,7 +45,7 @@ from app.models.bookings import (  # noqa: F401
 )
 from app.models.mfa import (  # noqa: F401 — Organization required for User.organization relationship
     Organization, MFAConfig, MFABackupCode, SlackConfig, SlackNotificationLog,
-    Budget, BudgetEntry, AITaskEstimate, AITicketTriage,
+    Budget, BudgetLine, AITaskEstimate, AITicketTriage,
     ScenarioModel, ScenarioProject, PDFExportJob,
     WebAuthnCredential, MFAChallenge,
 )

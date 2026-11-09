@@ -39,6 +39,8 @@ export type {
 export { conectoresApi, mensajeDeConector, codigoDeConector } from './conectores'
 export { leccionesApi } from './lecciones'
 export { gastosApi } from './gastos'
+export { presupuestosApi } from './presupuestos'
+export type { Presupuesto, FichaPresupuesto, Partida, Informe as InformeDePresupuesto, Ambito as AmbitoDePresupuesto } from './presupuestos'
 export type { Justificante, Parte as ParteDeGasto, Politica as PoliticaDeGasto, Incumplimiento } from './gastos'
 export type { Leccion, Accion as AccionDeMejora, Borrador as BorradorDeLeccion, Recomendacion, Pendiente as PendienteDeLeccion, Hecho, OrigenLeccion } from './lecciones'
 export type { Ficha as FichaDocumental, DocHit, Enlace, DocDetalle, Aprobacion, EstadoProducto, Fuente, Metrica, RespuestaCI } from './conectores'
