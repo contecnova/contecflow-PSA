@@ -180,7 +180,7 @@ def get_capacity_board(
     week_from: Optional[str] = Query(None),
     week_to:   Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any_manager),  # revisión 2026-11: las horas de todos; sus hermanas usan esta guarda
 ):
     """
     Devuelve todos los CapacityPlan en el rango de semanas dado,
@@ -213,6 +213,7 @@ def create_capacity_plan(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # revisión 2026-11: planificaba a cualquiera; editar y borrar ya la exigían
 ):
     user_id = payload.get("user_id", current_user.id)
     week_start_val = payload.get("week_start")

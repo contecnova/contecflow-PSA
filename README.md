@@ -1080,7 +1080,7 @@ Cell colour: >100 % red, >85 % amber, >60 % accent, otherwise green.
 
 **Limitations.**
 - **Moving a plan by drag-and-drop skips both the over-capacity check and the absence check.** `capacity_service.update_capacity_plan` just sets the fields.
-- **`POST /capacity/plans` and `GET /capacity/board` only require a logged-in user** (`get_current_user`). Through the API, an employee or subcontractor can read the whole board and create plans for any `user_id`; only move/delete require a manager.
+- The board and every plan action (create, move, delete) need a manager role (admin, PM, team lead or HR).
 - Capacity plans are not shown on the Resources heatmap or in the Visual Scheduler, which read bookings only.
 
 ### Resource forecast — `/resource-forecast`
