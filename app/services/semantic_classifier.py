@@ -832,13 +832,18 @@ class SemanticAssigner(ServiceBase):
             # Antes sin estos kwargs, call_ai filtraba mal cuando había
             # providers scoped por org → fallo silencioso del modo hybrid.
             cu = getattr(self, "current_user", None)
-            kwargs = {}
+            # Revisión 2026-11: sin usuario se llamaba sin empresa (proveedor,
+            # tope de gasto y registro de otra o de ninguna); ahora, la de la sesión.
+            kwargs = {"is_superadmin": False, "organization_id": self.db.info.get("organization_id")}
             if cu is not None:
                 kwargs["is_superadmin"] = bool(getattr(cu, "is_superadmin", False))
                 kwargs["organization_id"] = getattr(cu, "organization_id", None)
                 kwargs["user_id"] = getattr(cu, "id", None)
+            from app.services.ai_provider_service import es_aviso_de_ia
             resp = call_ai(self.db, messages, system=system,
                            module="semantic_assign", max_tokens=200, **kwargs)
+            if es_aviso_de_ia(resp):
+                return None
             import re
             m = re.search(r'\{[^}]+\}', resp)
             if m:
@@ -847,21 +852,17 @@ class SemanticAssigner(ServiceBase):
                 except json.JSONDecodeError as parse_err:
                     logger.error(f"Invalid JSON from LLM response: {parse_err}")
                     return None
-                uid  = data.get("user_id")
+                uid  = str(data.get("user_id") or "")
                 reason = data.get("reason", "LLM suggestion")
-                # Bug 6 fix: cache LLM result into expert feedback so future
-                # identical/similar items hit level 1/2 instead of paying LLM cost
-                if uid:
-                    try:
-                        self.record_feedback(
-                            item_id=None,
-                            item_type=item_type,
-                            item_text=text,
-                            correct_user_id=uid,
-                            corrected_by="llm_auto",
-                        )
-                    except Exception:
-                        logger.debug("Best-effort cache of LLM suggestion as feedback failed", exc_info=True)
+                # Revisión 2026-11. Sólo vale un candidato: el modelo puede
+                # devolver cualquier identificador. Y ya no se guarda como
+                # corrección de experto: `record_feedback` sobrescribía la de un
+                # experto para el mismo texto y la respuesta del modelo pasaba a
+                # contestar en el nivel 1 como si fuera de una persona.
+                candidatos = {str(p.user_id) for p in profiles}
+                if uid not in candidatos:
+                    logger.warning("El LLM devolvió un usuario que no es candidato: %s", uid[:40])
+                    return None
                 return self._result(uid, 0.75, "llm", {}, False,
                                     f"LLM: {reason}")
         except Exception:

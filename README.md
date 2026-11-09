@@ -3575,10 +3575,7 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 - **"Precisión" is meaningless.** Rejections are never recorded (only `was_accepted: true`), so it is 100 % or "—".
 - **The real embeddings backend may differ from what the UI shows.** The default model name `all-MiniLM-L6-v2` selects the "transformer" backend, which overrides `SEMANTIC_EMBEDDINGS_BACKEND=tfidf`. In the Docker image sentence-transformers is not installed, so the engine silently uses TF-IDF while the UI reports the transformer model.
 - **Similarity scores may collapse to zero under TF-IDF.** The vocabulary is refitted per request, so stored and new vectors can differ in length, and cosine returns 0 when lengths differ. Ranking would then depend on workload only. Likely from the code; not runtime-verified.
-- **The LLM tie-break is unscoped and its answer is stored as expert knowledge:**
-  - It runs without the user, so it uses cross-tenant provider selection and skips guardrails.
-  - The returned user id is not checked against the candidates.
-  - The answer is stored as feedback with confidence 0.75 and later reused from the cache as "expert" with confidence 1.0.
+- **LLM tie-break.** When it runs without a user (task and ticket creation), it uses the session's company for provider, spend cap and log. Only a candidate's id is accepted. The answer is not stored as expert feedback, so it never overwrites a person's correction.
 - **Some settings have no effect.** `SEM_TOP_K_HISTORY` and `SEM_MULTI_ROLE_FACTOR` are read but unused. The runtime `SEM_THRESHOLD_*` values are shadowed by the `sem_config` column defaults.
 
 ### Automations — `/automations`

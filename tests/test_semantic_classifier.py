@@ -520,37 +520,25 @@ class TestBug4PriorityThresholds:
 # ── Bug 6: LLM results cached ─────────────────────────────────────────────────
 
 class TestBug6LLMResultCached:
-    """LLM suggestion must be written to expert feedback cache before returning."""
+    """Revisión 2026-11: la respuesta del modelo NO se guarda como corrección de
+    experto (pisaba la de una persona para el mismo texto)."""
 
-    def test_llm_result_calls_record_feedback(self):
-        """_llm_suggest must call self.record_feedback(...) with the selected user_id."""
+    def test_llm_result_does_not_call_record_feedback(self):
         user_id = "u-llm-001"
-        text    = "Deploy kubernetes cluster to production"
-        item_type = "task"
-
         profile = MagicMock()
         profile.user_id      = user_id
         profile.profile_text = "Senior DevOps engineer with Kubernetes experience"
 
-        db = _make_db()
-        assigner = _make_assigner(db=db)
-
+        assigner = _make_assigner(db=_make_db())
         llm_response_json = json.dumps({"user_id": user_id, "reason": "DevOps expert"})
 
         with patch("app.services.ai_provider_service.call_ai", return_value=llm_response_json):
             with patch.object(assigner, "record_feedback") as mock_fb:
-                result = assigner._llm_suggest(text, [profile], item_type)
+                result = assigner._llm_suggest("Deploy kubernetes cluster to production", [profile], "task")
 
         assert result is not None
         assert result["suggested_user_id"] == user_id
-        mock_fb.assert_called_once()
-        call_kwargs = mock_fb.call_args
-        assert call_kwargs[1]["correct_user_id"] == user_id or (
-            len(call_kwargs[0]) >= 4 and call_kwargs[0][3] == user_id
-        ), "record_feedback must be called with the LLM-selected user_id"
-        assert "llm_auto" in str(call_kwargs), (
-            "record_feedback must use corrected_by='llm_auto'"
-        )
+        mock_fb.assert_not_called()
 
     def test_llm_cache_write_failure_does_not_block_result(self):
         """A failure in record_feedback must not prevent the LLM result from being returned."""
