@@ -119,10 +119,14 @@ def get_runtime_group(group: str, db: Session = Depends(get_db), current_user: U
 
 @router.put("/runtime/{group}/{key}", summary="Update a runtime-flag value (admin)")
 def update_runtime_setting(group: str, key: str, payload: SettingUpdate, request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    # Revisión 2026-11: los de plataforma, sólo el superadmin y en la fila global.
+    plataforma = key in _svc.AJUSTES_DE_PLATAFORMA
+    if plataforma and not current_user.is_superadmin:
+        raise HTTPException(403, "Es un ajuste de la plataforma: sólo lo cambia el superadmin")
     try:
         from app.core.network import extract_client_ip
         return APIResponse.ok(data=_svc.set_runtime_value(
-            db, group, key, payload.value, current_user.organization_id,
+            db, group, key, payload.value, None if plataforma else current_user.organization_id,
             actor_id=str(current_user.id),
             actor_ip=extract_client_ip(request),
             actor_ua=request.headers.get("user-agent"),

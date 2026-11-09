@@ -54,10 +54,37 @@ def derive_alert_org_id(db: Session, *, user_id=None, project_id=None, task_id=N
 
 
 class AlertEngine:
-    """Core engine that generates alerts based on current data state."""
+    """Core engine that generates alerts based on current data state.
+
+    Revisión 2026-11: umbrales, severidad y encendido salen de Ajustes → Alertas
+    (`alert_configs` de la empresa de cada elemento; si no hay fila, la global y
+    después los valores por defecto del catálogo de alertas). Antes eran números
+    fijos aquí (100 %, 85 %, 7 días, 2 días) y la tabla no la leía nadie.
+    """
 
     def __init__(self, db: Session):
         self.db = db
+        self._configs: dict = {}
+
+    def _config(self, alert_type: AlertType, org_id) -> tuple:
+        """(encendida, umbral, severidad) de un tipo de alerta para una empresa."""
+        clave = (alert_type.value, org_id)
+        if clave not in self._configs:
+            from app.models.advanced_config import AlertConfig
+            from app.services.advanced_config_service import DEFAULT_ALERT_CONFIGS
+            filas = self.db.query(AlertConfig).filter(
+                AlertConfig.alert_type == alert_type.value,
+                or_(AlertConfig.organization_id == org_id, AlertConfig.organization_id.is_(None)),
+            ).all()
+            fila = next((f for f in filas if f.organization_id == org_id), None) or next(iter(filas), None)
+            defecto = next(d for d in DEFAULT_ALERT_CONFIGS if d[0] == alert_type.value)
+            if fila is None:
+                self._configs[clave] = (True, float(defecto[3]), AlertSeverity(defecto[9]))
+            else:
+                umbral = fila.threshold_value if fila.threshold_value is not None else defecto[3]
+                severidad = getattr(fila, "severity", None) or defecto[9]
+                self._configs[clave] = (bool(fila.is_enabled), float(umbral), AlertSeverity(severidad))
+        return self._configs[clave]
 
     def run_all(self) -> int:
         """Run all alert checks. Returns count of new alerts created."""
@@ -136,15 +163,16 @@ class AlertEngine:
             capacity = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
             load_pct = (hours / capacity) * 100 if capacity > 0 else 0
 
-            if load_pct > 100 and not self._alert_exists(AlertType.overload, user_id=user.id):
+            activa, umbral, severidad = self._config(AlertType.overload, user.organization_id)
+            if activa and load_pct > umbral and not self._alert_exists(AlertType.overload, user_id=user.id):
                 self._create_alert(
                     AlertType.overload,
-                    AlertSeverity.warning if load_pct < 120 else AlertSeverity.critical,
+                    severidad,
                     f"Sobreasignación: {user.full_name}",
                     f"{user.full_name} tiene {load_pct:.0f}% de carga esta semana ({hours:.1f}h / {capacity}h)",
                     user_id=user.id,
                     value=load_pct,
-                    threshold=100.0,
+                    threshold=umbral,
                 )
                 count += 1
         self.db.commit()
@@ -170,22 +198,24 @@ class AlertEngine:
             total_cost = cost_by_pid.get(p.id, 0.0)
             pct = (total_cost / p.budget_amount) * 100
 
-            if pct >= 100 and not self._alert_exists(AlertType.budget_critical, project_id=p.id):
+            critica, umbral_critico, sev_critica = self._config(AlertType.budget_critical, p.organization_id)
+            aviso, umbral_aviso, sev_aviso = self._config(AlertType.budget_exceeded, p.organization_id)
+            if critica and pct >= umbral_critico and not self._alert_exists(AlertType.budget_critical, project_id=p.id):
                 self._create_alert(
                     AlertType.budget_critical,
-                    AlertSeverity.critical,
+                    sev_critica,
                     f"Presupuesto agotado: {p.name}",
                     f"El proyecto {p.code} ha consumido {pct:.0f}% del presupuesto ({total_cost:.0f}€ / {p.budget_amount:.0f}€)",
-                    project_id=p.id, value=pct, threshold=100.0,
+                    project_id=p.id, value=pct, threshold=umbral_critico,
                 )
                 count += 1
-            elif pct >= 85 and not self._alert_exists(AlertType.budget_exceeded, project_id=p.id):
+            elif aviso and pct >= umbral_aviso and not self._alert_exists(AlertType.budget_exceeded, project_id=p.id):
                 self._create_alert(
                     AlertType.budget_exceeded,
-                    AlertSeverity.warning,
+                    sev_aviso,
                     f"Presupuesto al {pct:.0f}%: {p.name}",
                     f"El proyecto {p.code} ha consumido {pct:.0f}% del presupuesto",
-                    project_id=p.id, value=pct, threshold=85.0,
+                    project_id=p.id, value=pct, threshold=umbral_aviso,
                 )
                 count += 1
         self.db.commit()
@@ -193,20 +223,23 @@ class AlertEngine:
 
     def _check_blocked_tasks(self) -> int:
         count = 0
-        two_days_ago = timeutil.today() - timedelta(days=2)
-
-        blocked = self.db.query(Task).filter(
-            Task.status == TaskStatus.blocked,
-            Task.updated_at <= datetime.combine(two_days_ago, time.min, tzinfo=timezone.utc),
-        ).all()
+        blocked = self.db.query(Task).filter(Task.status == TaskStatus.blocked).all()
 
         for task in blocked:
+            activa, dias, severidad = self._config(
+                AlertType.task_blocked, derive_alert_org_id(self.db, task_id=task.id))
+            limite = datetime.combine(timeutil.today() - timedelta(days=dias), time.min, tzinfo=timezone.utc)
+            actualizada = task.updated_at
+            if actualizada is not None and actualizada.tzinfo is None:
+                actualizada = actualizada.replace(tzinfo=timezone.utc)
+            if not activa or actualizada is None or actualizada > limite:
+                continue
             if not self._alert_exists(AlertType.task_blocked, task_id=task.id):
                 self._create_alert(
                     AlertType.task_blocked,
-                    AlertSeverity.warning,
+                    severidad,
                     f"Tarea bloqueada: {task.code}",
-                    f"'{task.title}' lleva bloqueada más de 2 días. Razón: {task.blocked_reason or 'No especificada'}",
+                    f"'{task.title}' lleva bloqueada más de {dias:g} días. Razón: {task.blocked_reason or 'No especificada'}",
                     task_id=task.id,
                     project_id=task.project_id,
                     user_id=task.assignee_id,
@@ -217,7 +250,6 @@ class AlertEngine:
 
     def _check_no_imputation(self) -> int:
         count = 0
-        two_days_ago = timeutil.today() - timedelta(days=2)
 
         users = self.db.query(User).filter(
             User.is_active == True, User.status == UserStatus.active,
@@ -235,12 +267,13 @@ class AlertEngine:
 
         for user in users:
             last_imp = last_by_uid.get(user.id)
+            activa, dias, severidad = self._config(AlertType.no_imputation, user.organization_id)
 
-            if last_imp and last_imp < two_days_ago:
+            if activa and last_imp and last_imp < timeutil.today() - timedelta(days=dias):
                 if not self._alert_exists(AlertType.no_imputation, user_id=user.id):
                     self._create_alert(
                         AlertType.no_imputation,
-                        AlertSeverity.info,
+                        severidad,
                         f"Sin imputaciones: {user.full_name}",
                         f"{user.full_name} no ha registrado horas desde {last_imp}",
                         user_id=user.id,
@@ -253,25 +286,26 @@ class AlertEngine:
     def _check_deadline(self) -> int:
         count = 0
         today = timeutil.today()
-        warning_threshold = today + timedelta(days=7)
 
         at_risk = self.db.query(Project).filter(
             Project.status == ProjectStatus.active,
-            Project.end_date_planned <= warning_threshold,
             Project.end_date_planned >= today,
         ).all()
 
         for p in at_risk:
+            activa, dias, severidad = self._config(AlertType.deadline_risk, p.organization_id)
+            if not activa or p.end_date_planned > today + timedelta(days=dias):
+                continue
             if not self._alert_exists(AlertType.deadline_risk, project_id=p.id):
                 days_left = (p.end_date_planned - today).days
                 self._create_alert(
                     AlertType.deadline_risk,
-                    AlertSeverity.warning,
+                    severidad,
                     f"Deadline en {days_left} días: {p.name}",
                     f"El proyecto {p.code} tiene fecha límite el {p.end_date_planned}",
                     project_id=p.id,
                     value=days_left,
-                    threshold=7.0,
+                    threshold=dias,
                 )
                 count += 1
         self.db.commit()

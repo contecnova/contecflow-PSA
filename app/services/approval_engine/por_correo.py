@@ -25,7 +25,7 @@ _TIPO = "approval_email"
 
 def _horas(db: Session) -> int:
     from app.services.settings_service import get_runtime_int
-    return int(get_runtime_int(db, "APPROVAL_EMAIL_LINK_HOURS") or settings.APPROVAL_EMAIL_LINK_HOURS)
+    return int(get_runtime_int(db, "APPROVAL_EMAIL_LINK_HOURS", db.info.get("organization_id")) or settings.APPROVAL_EMAIL_LINK_HOURS)
 
 
 def crear_enlace(db: Session, req, user_id: str) -> str:

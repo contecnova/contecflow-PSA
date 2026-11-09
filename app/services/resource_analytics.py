@@ -273,45 +273,6 @@ class ResourceAnalyticsService:
         return sorted(result, key=lambda x: x["available_hours"], reverse=True)
 
     @staticmethod
-    def create_overload_alerts(db: Session) -> int:
-        """
-        Auto-scan for overloaded users and create alerts.
-
-        Returns: Number of alerts created
-        """
-        users = db.query(User).filter(User.is_active == True).all()
-        current_week = ResourceAnalyticsService.get_week_iso(timeutil.today())
-        count = 0
-
-        for user in users:
-            avail = ResourceAnalyticsService.get_user_availability(db, user.id, current_week)
-            if avail and avail["load_pct"] > 100:
-                # Check if alert already exists
-                existing = db.query(ResourceAlert).filter(
-                    and_(
-                        ResourceAlert.user_id == user.id,
-                        ResourceAlert.alert_type == ResourceAlertType.overload_warning,
-                        ResourceAlert.acknowledged_at == None,
-                    )
-                ).first()
-
-                if not existing:
-                    alert = ResourceAlert(
-                        user_id=user.id,
-                        alert_type=ResourceAlertType.overload_warning,
-                        context=f'{{"week": "{current_week}", "load_pct": {avail["load_pct"]}}}',
-                        severity="critical" if avail["load_pct"] > 150 else "warning",
-                    )
-                    db.add(alert)
-                    count += 1
-
-        if count > 0:
-            db.commit()
-            logger.info(f"Created {count} overload alerts")
-
-        return count
-
-    @staticmethod
     def update_utilization_snapshots(db: Session, week_iso: str) -> int:
         """
         Update resource utilization snapshots for a specific week.

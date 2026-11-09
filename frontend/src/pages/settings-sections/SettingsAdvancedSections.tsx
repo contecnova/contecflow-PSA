@@ -2,6 +2,7 @@ import ConfigCorreoEntrante from '../service-desk/ConfigCorreoEntrante'
 import EstadoDeConectores from '../../components/conectores/EstadoDeConectores'
 import type { CSSProperties, ReactNode } from 'react'
 import { Fragment, useState, useEffect, useMemo } from 'react'
+import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -805,6 +806,8 @@ const RUNTIME_GROUPS = [
 
 export function RuntimeGroupEditor({ groupId, description }: { groupId: string; description?: string }) {
   const { t } = useAppLang()
+  // Los ajustes de plataforma sólo los cambia el superadmin (revisión 2026-11).
+  const esSuperadmin = !!(useAuth().user as any)?.is_superadmin
   const toast = useToast()
   const qc = useQueryClient()
 
@@ -851,7 +854,7 @@ export function RuntimeGroupEditor({ groupId, description }: { groupId: string; 
               current={current}
               isBool={isBool}
               dirty={dirty}
-              disabled={isPending}
+              disabled={isPending || (it.plataforma && !esSuperadmin)}
               onChange={(v: any) => setDraft({ ...draft, [it.key]: v })}
               onSave={() => save({ key: it.key, value: isBool ? (current === 'true' || current === true) : current })}
             />
@@ -876,11 +879,11 @@ function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSa
     <>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         <span style={{ fontWeight: 600, color: 'var(--text-1)', fontSize: 'var(--text-sm)' }}>{item.label}</span>
-        <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-2xs)', fontFamily: 'ui-monospace, monospace' }}>{item.key}</span>
+        <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-2xs)', fontFamily: 'ui-monospace, monospace' }}>{item.key}{item.plataforma ? ' · plataforma (superadmin)' : ''}</span>
       </div>
       <div>
         {isBool ? (
-          <select value={String(current)} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
+          <select value={String(current)} onChange={(e) => onChange(e.target.value)} style={inputStyle} disabled={disabled && item.plataforma}>
             <option value="true">Activado</option>
             <option value="false">Desactivado</option>
           </select>
@@ -891,6 +894,7 @@ function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSa
             value={current}
             onChange={(e) => onChange(e.target.value)}
             style={inputStyle}
+            disabled={disabled && item.plataforma}
           />
         )}
       </div>

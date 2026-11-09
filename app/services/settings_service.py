@@ -480,6 +480,30 @@ def outbound_ai_timeout(db=None, default: float = 60.0) -> float:
     return getattr(app_settings, "OUTBOUND_AI_TIMEOUT_SECONDS", default)
 
 
+#: Ajustes de la plataforma: se leen en su fila global y sólo los cambia el
+#: superadmin (revisión 2026-11). Un admin de empresa podía «cambiarlos» para su
+#: empresa y no tenían efecto, porque nadie los lee por empresa. La guarda
+#: `tests/test_ajustes_de_plataforma_2026_11.py` comprueba que toda clave leída
+#: sólo en global está aquí (o se arregla su lectura).
+AJUSTES_DE_PLATAFORMA = frozenset({
+    # Claves y firma de tokens
+    "KEY_ROTATION_ENABLED", "JWT_KEY_ROTATION_DAYS", "JWT_KEY_RETENTION_COUNT", "INTEGRATION_SECRET_ROTATION_DAYS",
+    "DEVELOPER_TOKEN_TTL_MINUTES", "PASSKEY_PASSWORDLESS_ENABLED", "REFRESH_TOKEN_EXPIRE_DAYS",
+    # Red, métricas y tiempos de espera del servidor
+    "TRUST_PROXY_HEADERS", "TRUSTED_PROXY_CIDRS", "METRICS_AUTH_TOKEN",
+    "OUTBOUND_HTTP_TIMEOUT_SECONDS", "OUTBOUND_AI_TIMEOUT_SECONDS", "SSO_CLOCK_SKEW_SECONDS", "SSO_HTTP_TIMEOUT_SECONDS",
+    # Empresas y suplantación
+    "TENANT_DELETION_QUARANTINE_DAYS", "IMPERSONATION_ENABLED", "IMPERSONATION_MAX_MINUTES",
+    # Colas de eventos de los trabajos de fondo
+    "SD_EVENT_BATCH_SIZE", "SD_EVENT_MAX_ATTEMPTS", "AUTOMATIONS_EVENT_BATCH_SIZE",
+    # Proveedores de IA y motor semántico (una configuración para toda la instalación)
+    "AI_PROVIDER_ERROR_COOLDOWN_SECONDS", "SEMANTIC_EMBEDDINGS_BACKEND",
+    "SEM_WEIGHT_PROFILE", "SEM_WEIGHT_HISTORY", "SEM_TOP_K_HISTORY", "SEM_MULTI_ROLE_FACTOR",
+    # Nombre de la plataforma (respaldo cuando una empresa no tiene marca propia)
+    "PROJECT_NAME",
+})
+
+
 def get_runtime_group(db: Session, group: str, org_id: Optional[str] = None) -> list[dict]:
     """Return the effective value of every setting in a UI-exposed group."""
     spec = RUNTIME_FLAG_GROUPS.get(group)
@@ -489,7 +513,8 @@ def get_runtime_group(db: Session, group: str, org_id: Optional[str] = None) -> 
     out: list[dict] = []
     for key, type_, label in spec:
         value = getters[type_](db, key, org_id)
-        out.append({"key": key, "type": type_, "label": label, "value": value})
+        out.append({"key": key, "type": type_, "label": label, "value": value,
+                    "plataforma": key in AJUSTES_DE_PLATAFORMA})
     return out
 
 
@@ -587,14 +612,10 @@ def set_runtime_value(
 
 DEFAULT_SETTINGS = {
     "company_name": ("Contecflow", "Nombre de la empresa"),
-    "company_logo_url": ("", "URL del logotipo"),
     "currency": (app_settings.DEFAULT_CURRENCY, "Moneda principal"),
     "timezone": (app_settings.DEFAULT_TIMEZONE, "Zona horaria"),
     "language": (app_settings.DEFAULT_LANGUAGE, "Idioma de la interfaz"),
     "work_hours_per_day": (str(app_settings.DEFAULT_WORKING_HOURS_PER_DAY), "Horas laborales por día"),
-    "work_days_per_week": ("5", "Días laborales por semana"),
-    "budget_alert_threshold": ("90", "% presupuesto para alertas"),
-    "overload_threshold": ("100", "% carga para alerta de sobrecarga"),
     "idle_timeout_enabled": ("false", "Cierre de sesión por inactividad (true/false)"),
     "idle_timeout_minutes": ("30", "Minutos de inactividad antes de cerrar sesión"),
 }

@@ -3094,7 +3094,7 @@ There is also a **⚡ Presets BI** tab; see Limitations.
 
 **Configuration.**
 - `DEFAULT_WEEKLY_CAPACITY_HOURS` (runtime setting, default 40) is used when a user has no `weekly_capacity_hours`.
-- `budget_alert_threshold` and `overload_threshold` appear in Settings, but the engine **never reads them** (see Limitations).
+- **Settings → Alertas** (`alert_configs`) sets, per company, whether each alert is on, its threshold and its severity. Without a row, the catalogue default applies (overload 100 %, budget warning 90 % and critical 100 %, deadline 7 days, blocked 2 days, no hours 2 days).
 
 **Technical notes.**
 - **Operational alerts** (`app/api/v1/endpoints/alerts.py`, `app/services/alert_service.py`, table `alerts`):
@@ -3102,15 +3102,15 @@ There is also a **⚡ Presets BI** tab; see Limitations.
   - `POST /api/v1/alerts/run`
   - `PATCH /api/v1/alerts/{id}/read`
   - `PATCH /api/v1/alerts/{id}/resolve`
-- **Engine `AlertEngine.run_all`**, hardcoded rules:
+- **Engine `AlertEngine.run_all`**, rules with the thresholds of `alert_configs`:
 
-  | Rule | Fires when | Severity |
-  |---|---|---|
-  | overload | > 100 % of weekly capacity | warning; critical at ≥ 120 % |
-  | budget | ≥ 85 % of budget | warning; critical at ≥ 100 % |
-  | task_blocked | blocked > 2 days | — |
-  | no_imputation | no hours logged for > 2 days (employee/subcontractor only) | — |
-  | deadline_risk | due within 7 days | — |
+  | Rule | Fires when |
+  |---|---|
+  | overload | weekly load above the threshold % of capacity |
+  | budget_exceeded / budget_critical | cost at or above the warning / critical % of budget |
+  | task_blocked | blocked for more than the threshold days |
+  | no_imputation | no hours logged for more than the threshold days (employee/subcontractor only) |
+  | deadline_risk | active project due within the threshold days |
 
 - Worker `run_alert_engine` runs daily at 08:00. The engine only inserts rows; no email or notification is sent.
 - **Smart alerts** (`bi_smart_alerts_service`):
@@ -3124,7 +3124,7 @@ There is also a **⚡ Presets BI** tab; see Limitations.
   - Conditions: threshold above/below; strict monotonic trend up/down; anomaly when |z| ≥ 2.0, or robust MAD z ≥ 3.5, or deviation from the mean ≥ 35 %.
 
 **Limitations (measured).**
-- **Thresholds are hardcoded; the Settings values are inert.** `burnout_risk` and `hours_deviation` exist as alert types, but nothing generates them.
+- `burnout_risk` and `hours_deviation` can be configured, but the engine has no check for them yet.
 - The daily alert job runs without a tenant and covers all organizations; each alert takes the organization of its user or project.
 - **Units are mislabelled.** Budget percentages are shown as "€", and deadline days as "%". The user name never appears: the page reads `display_name`, but the API returns `full_name`.
 - Smart alerts:
@@ -4015,7 +4015,7 @@ This section covers every screen an administrator uses to configure contecflow-P
    | Database isolation | recommended | RLS armed (same measurement as `GET /settings/db-isolation`) | `?tab=system-state` |
 
    Data of another company never counts: every count filters by the caller's organisation, also for a superadmin. Tests: `tests/test_puesta_en_marcha_2026_11.py` (validated by removing the company filter and the «active» filter: both are caught).
-1. **General.** Edit the user-facing keys of `app_settings`. Missing global rows are seeded on the first GET (`DEFAULT_SETTINGS`): `company_name`, `company_logo_url`, `currency`, `timezone`, `language`, `work_hours_per_day`, `work_days_per_week`, `budget_alert_threshold`, `overload_threshold`, `idle_timeout_enabled`, `idle_timeout_minutes`. Change a value and save; each field is one `PATCH`.
+1. **General.** Edit the user-facing keys of `app_settings`. Missing global rows are seeded on the first GET (`DEFAULT_SETTINGS`): `company_name`, `currency`, `timezone`, `language`, `work_hours_per_day`, `idle_timeout_enabled`, `idle_timeout_minutes`. Change a value and save; each field is one `PATCH`.
 2. **Sesión.** Turn on **idle logout** (`idle_timeout_enabled`) and set its minutes (`idle_timeout_minutes`, default 30). These are read by `frontend/src/context/AuthContext.tsx` (staff app) and by `client_portal_service` (portal).
 3. **Usuarios.** User CRUD (`/users`): role, department, organization.
 4. **Vacaciones.** Edit vacation policies and per-user yearly balances (`vacation_policies`, `user_vacation_balances`). `absence_service` reads the balances.
@@ -4056,14 +4056,14 @@ This section covers every screen an administrator uses to configure contecflow-P
 **Limitations (measured).**
 - **`GET /settings/general`** (read by every signed-in user for the idle timeout): non-admins get only the general settings (factory keys and plain names, no dotted/internal keys), and nobody gets the value of a sensitive key (`token`, `secret`, `password`, `keyring`, `credential`, `*_key`, `client_id`): it comes back as `••••••••`. Admins also see the internal keys (read-only *System status* view), masked. The e-sign credentials (`esign.*`) are stored encrypted (`esign_service.cifrar_si_es_secreto`, migration 117); other internal keys are not encrypted. Tests: `tests/test_ajustes_generales_sin_fugas.py`, `tests/test_esign_secretos_cifrados.py`.
 - **`PATCH /settings/general/{key}`:** non-superadmins can write only general settings (403 otherwise), and the write goes to the organization's own row, created on first change; the global row is never overwritten from an organization.
-- **`budget_alert_threshold`, `overload_threshold`, `work_days_per_week` and `company_logo_url` have no reader** in `app/` or `frontend/src` other than the seed and the label map. Editing them changes nothing.
-- **Alertas (`alert_configs`) is not read by the alert engine.** `alert_service.py` uses hard-coded thresholds (100 %, 85 %, 7 days). Only the CRUD service touches `alert_configs`.
+- The general settings are company name, currency, timezone, language, working hours per day and idle timeout. The four that nothing read (`budget_alert_threshold`, `overload_threshold`, `work_days_per_week`, `company_logo_url`) were removed (migration 150); alert thresholds live in **Alertas**.
+- **Alertas (`alert_configs`) drives the alert engine**: for each item, the row of its company (else the global one, else the catalogue default) gives whether the alert is on, its threshold and its severity — overload %, budget warning and critical %, days before the deadline, days blocked, days without logging hours. `burnout_risk` and `hours_deviation` are configurable but the engine has no check for them yet.
 - Roles: see *Custom roles and module access* above.
 - **Tipos tarea (`task_types`) and Campos extra (`custom_fields`) have no reader** outside their own CRUD and settings tab.
 - **Nivel de log changes only the worker process that handled the request.** It is not persisted and not broadcast. With several Uvicorn workers or a Celery worker, other processes keep their level until restart.
 - `TemplatesSection` (`/advanced-config/templates`) is defined in `SettingsPageSections.tsx` but **no tab renders it** (dead code).
 - **Mandatory MFA and company branding on screen.** *Mandatory MFA* (`organizations.require_mfa`): Organizations → Edit has the switch (superadmin, as the endpoint requires; the company admin cannot, so the checklist item has no button). *Company branding* (`/api/v1/orgs/{id}/branding`): Settings → **Marca** edits the four fields something reads — name, header, accent and header-text colours, used by the PDFs (`app/services/_pdf_marca.py`; the logo is not used there) — with a header preview and «back to defaults»; the other fields of the API are read by nothing, so they are not on screen. Checked on a copy: saved in the browser, and the PDF brand for that company came back with the saved name and colours. The checklist has *Document branding* as a recommended item.
-- In the Users form, a non-superadmin admin's organization dropdown calls `GET /organizations` (`require_superadmin`), which fails for them.
+- **Companies in the Users form are for the superadmin.** A company admin creates and edits users in their own company (or companies they belong to); the server refuses any other with 403 — before, a company admin could create or move users into any company.
 
 #### Runtime settings ("Config. dinámica")
 
@@ -4090,20 +4090,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 - Every write appends to `settings_audit_log` with scope `runtime`. **The old and new values are stored in plaintext**, because runtime keys are treated as non-secret; that includes `METRICS_AUTH_TOKEN`.
 
 **Limitations (measured).**
-- **Some call sites read only the global row.** They call `get_runtime_*(db, "KEY")` without an org, so an org-scoped write by an admin who belongs to an organization is ignored there:
-
-  | Keys | Where they are read |
-  |---|---|
-  | `KEY_ROTATION_ENABLED`, `JWT_KEY_ROTATION_DAYS`, `JWT_KEY_RETENTION_COUNT`, `INTEGRATION_SECRET_ROTATION_DAYS` | `key_management.py` |
-  | `TRUST_PROXY_HEADERS`, `TRUSTED_PROXY_CIDRS` | not listed here |
-  | `METRICS_AUTH_TOKEN` | not listed here |
-  | `OUTBOUND_HTTP_TIMEOUT_SECONDS`, `OUTBOUND_AI_TIMEOUT_SECONDS` | not listed here |
-  | `SEMANTIC_EMBEDDINGS_BACKEND`, `AI_COST_ALERT_USD_PER_DAY`, `SEM_WEIGHT_*`, `SEM_TOP_K_HISTORY`, `SEM_MULTI_ROLE_FACTOR` | not listed here |
-  | `SD_EVENT_MAX_ATTEMPTS`, `SD_EVENT_BATCH_SIZE` | not listed here |
-  | `DEFAULT_PROJECT_TYPE`, `DEFAULT_BILLING_TYPE`, `DEFAULT_CURRENCY` | at least one call site |
-  | `PROJECT_NAME` | PDF branding in `billing_reports.py` |
-  | `REFRESH_TOKEN_EXPIRE_DAYS` | at least one call site |
-
+- **Platform settings vs company settings.** `AJUSTES_DE_PLATAFORMA` (`settings_service.py`) lists the keys read in their global row: key rotation and tokens, proxies, metrics token, server timeouts, company deletion and impersonation, worker event queues, AI provider cooldown and the semantic engine, and `PROJECT_NAME` (platform name, the fallback when a company has no branding). Only the superadmin changes them, always in the global row; other admins see them read-only. Every other key is read with the company. The guard `tests/test_ajustes_de_plataforma_2026_11.py` measures the reads in `app/` and fails if a key is read only globally without being a platform setting.
 - **Many call sites use `get_runtime_int(...) or settings.X`,** so a value of `0` falls back to the env value.
 - **Seven keys are exposed in the UI but no runtime read uses them, so editing them has no effect.** The "Consumer" column of the reference table marks them.
 

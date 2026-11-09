@@ -1453,8 +1453,8 @@ def instantiate_template(template_id: str, payload: dict, current_user: User, db
     code = f"PRJ-{next_num:03d}"
 
     from app.services.settings_service import get_runtime_str
-    _proj_type = get_runtime_str(db, "DEFAULT_PROJECT_TYPE") or settings.DEFAULT_PROJECT_TYPE
-    _bill_type = get_runtime_str(db, "DEFAULT_BILLING_TYPE") or settings.DEFAULT_BILLING_TYPE
+    _proj_type = get_runtime_str(db, "DEFAULT_PROJECT_TYPE", db.info.get("organization_id")) or settings.DEFAULT_PROJECT_TYPE
+    _bill_type = get_runtime_str(db, "DEFAULT_BILLING_TYPE", db.info.get("organization_id")) or settings.DEFAULT_BILLING_TYPE
     project = Project(
         code=payload.get("code", code),
         name=project_name,
@@ -1696,8 +1696,8 @@ def _defectos_de_proyecto(db: Session) -> dict:
     from app.services.settings_service import get_runtime_str
 
     return {
-        "project_type": get_runtime_str(db, "DEFAULT_PROJECT_TYPE") or settings.DEFAULT_PROJECT_TYPE,
-        "billing_type": get_runtime_str(db, "DEFAULT_BILLING_TYPE") or settings.DEFAULT_BILLING_TYPE,
+        "project_type": get_runtime_str(db, "DEFAULT_PROJECT_TYPE", db.info.get("organization_id")) or settings.DEFAULT_PROJECT_TYPE,
+        "billing_type": get_runtime_str(db, "DEFAULT_BILLING_TYPE", db.info.get("organization_id")) or settings.DEFAULT_BILLING_TYPE,
     }
 
 

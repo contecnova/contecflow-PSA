@@ -5,6 +5,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, advancedConfigApi } from '../services/settingsApi'
+import { useAuth } from '../context/AuthContext'
 import { usersApi, organizationsApi, biSmartAlertsApi, esignApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import { Search, Layers, Sparkles, Building2 } from 'lucide-react'
@@ -62,14 +63,10 @@ function Section({ icon, title, description, children }: { icon?: React.ReactNod
 
 const LABELS: Record<string, string> = {
   company_name: 'Nombre empresa',
-  company_logo_url: 'URL logotipo',
   currency: 'Moneda',
   timezone: 'Zona horaria',
   language: 'Idioma',
   work_hours_per_day: 'Horas/día',
-  work_days_per_week: 'Días laborables/semana',
-  budget_alert_threshold: '% alerta presupuesto',
-  overload_threshold: '% carga máxima',
 }
 
 // Settings cuya key empieza por estos prefijos son estado interno de servicios BI/ITSM
@@ -163,7 +160,10 @@ function UsersSection() {
   const { data: users = [], isLoading } = useQuery<any>({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
   const { data: roles = [] } = useQuery<any>({ queryKey: ['custom-roles'], queryFn: () => advancedConfigApi.getRoles().then(r => r.data) })
   const { data: departments = [] } = useQuery<any>({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
-  const { data: organizations = [] } = useQuery<any>({ queryKey: ['orgs-for-users'], queryFn: () => organizationsApi.list().then(r => r.data) })
+  // La lista de empresas y asignar a otras es del superadmin (la API la sirve
+  // sólo a él); un admin de empresa da de alta en la suya (revisión 2026-11).
+  const esSuperadmin = !!(useAuth().user as any)?.is_superadmin
+  const { data: organizations = [] } = useQuery<any>({ queryKey: ['orgs-for-users'], queryFn: () => organizationsApi.list().then(r => r.data), enabled: esSuperadmin })
   const roleMap = Object.fromEntries(roles.map((r: any) => [r.name, r]))
   const { mutate: createUser, isPending: creating } = useMutation<any, any, any>({ mutationFn: usersApi.create, onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setShowCreate(false) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const { mutate: updateUser, isPending: updating } = useMutation<any, any, any>({ mutationFn: ({ id, data }: any) => usersApi.update(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setEditUser(null) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
@@ -276,8 +276,8 @@ function UsersSection() {
           )})}
         </div>
       )}
-      <UserFormModal open={showCreate} roles={roles} departments={departments} organizations={organizations} onClose={() => setShowCreate(false)} onSave={createUser} isPending={creating} />
-      {editUser && <UserFormModal open roles={roles} departments={departments} organizations={organizations} user={editUser} onClose={() => setEditUser(null)} onSave={(data: any) => updateUser({ id: editUser.id, data })} isPending={updating} />}
+      <UserFormModal open={showCreate} roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} onClose={() => setShowCreate(false)} onSave={createUser} isPending={creating} />
+      {editUser && <UserFormModal open roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} user={editUser} onClose={() => setEditUser(null)} onSave={(data: any) => updateUser({ id: editUser.id, data })} isPending={updating} />}
     </Section>
   )
 }
@@ -318,7 +318,7 @@ const userEditSchema = userFormSchemaBase.extend({
   password: z.union([z.literal(''), z.string().min(6, 'Mínimo 6 caracteres')]).optional(),
 })
 
-function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], departments = [], organizations = [] }: any) {
+function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], departments = [], organizations = [], esSuperadmin = false }: any) {
   const { t } = useAppLang()
   const isEdit = !!user
   const [form, setForm] = useState({
@@ -360,7 +360,10 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
     e.preventDefault()
     const result = validation.validateForm(form)
     if (!result.success) return
-    onSave(form)
+    if (esSuperadmin) { onSave(form); return }
+    // Sin superadmin, las empresas no se tocan: el servidor da de alta en la propia.
+    const { organization_ids: _ids, organization_id: _principal, ...resto } = form
+    onSave(resto)
   }
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? `Editar — ${user.full_name}` : 'Nuevo Usuario'} width={580}>
@@ -383,6 +386,7 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         <div><label style={ls}>Cargo</label><input value={form.job_title} onChange={set('job_title')} style={fs} /></div>
         <div><label style={ls}>Horas semanales</label><input type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} style={validation.inputStyle(fs, 'weekly_capacity_hours')} />{errField('weekly_capacity_hours')}</div>
         <div><label style={ls}>Tarifa €/hora</label><input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} />{errField('hourly_rate')}</div>
+        {esSuperadmin && <>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>{t('settings.organizaciones_seleccion_multiple')}</label>
           <select multiple value={form.organization_ids} onChange={setOrganizations} style={{ ...fs, minHeight: 112 }}>
@@ -401,6 +405,7 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
             })}
           </select>
         </div>
+        </>}
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Zona horaria</label>
           <select value={form.timezone} onChange={set('timezone')} style={fs}>

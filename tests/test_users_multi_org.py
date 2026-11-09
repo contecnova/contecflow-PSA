@@ -14,7 +14,7 @@ def _ensure_org(db, org_id: str, slug: str, name: str):
     return org
 
 
-def test_update_user_allows_multiple_organizations_from_profile(client, admin_token, db):
+def test_update_user_allows_multiple_organizations_from_profile(client, superadmin_token, db):
     _ensure_org(db, "org-extra-1", "org-extra-1", "Org Extra 1")
 
     user = db.query(User).filter(User.username == "dev_test").first()
@@ -26,7 +26,7 @@ def test_update_user_allows_multiple_organizations_from_profile(client, admin_to
             "organization_id": "org-extra-1",
             "organization_ids": [str(user.organization_id), "org-extra-1"],
         },
-        headers=auth(admin_token),
+        headers=auth(superadmin_token),
     )
     assert res.status_code == 200, res.text
     data = res.json()["data"]
@@ -37,7 +37,7 @@ def test_update_user_allows_multiple_organizations_from_profile(client, admin_to
     assert {str(m.organization_id) for m in memberships} == {"1", "org-extra-1"}
 
 
-def test_create_user_with_multiple_organizations_from_profile(client, admin_token, db):
+def test_create_user_with_multiple_organizations_from_profile(client, superadmin_token, db):
     _ensure_org(db, "org-extra-2", "org-extra-2", "Org Extra 2")
     _ensure_org(db, "org-extra-3", "org-extra-3", "Org Extra 3")
 
@@ -50,7 +50,7 @@ def test_create_user_with_multiple_organizations_from_profile(client, admin_toke
         "organization_ids": ["org-extra-2", "org-extra-3"],
     }
 
-    res = client.post("/api/v1/users", json=payload, headers=auth(admin_token))
+    res = client.post("/api/v1/users", json=payload, headers=auth(superadmin_token))
     assert res.status_code == 200, res.text
     data = res.json()["data"]
 
@@ -62,6 +62,23 @@ def test_create_user_with_multiple_organizations_from_profile(client, admin_toke
 
     memberships = db.query(UserOrganizationMembership).filter(UserOrganizationMembership.user_id == created.id).all()
     assert {str(m.organization_id) for m in memberships} == {"org-extra-2", "org-extra-3"}
+
+
+def test_EL_HALLAZGO_un_admin_de_empresa_no_da_de_alta_ni_mueve_a_otra(client, admin_token, db):
+    """Revisión 2026-11: un admin de empresa podía asignar usuarios a cualquier otra."""
+    _ensure_org(db, "org-ajena", "org-ajena", "Org ajena")
+    r = client.post("/api/v1/users", headers=auth(admin_token), json={
+        "username": "colado", "email": "colado@example.com", "full_name": "Colado",
+        "password": "StrongPass123!", "organization_id": "org-ajena"})
+    assert r.status_code == 403, r.text
+    dev = db.query(User).filter(User.username == "dev_test").first()
+    r = client.patch(f"/api/v1/users/{dev.id}", headers=auth(admin_token),
+                     json={"organization_ids": ["1", "org-ajena"]})
+    assert r.status_code == 403, r.text
+    r = client.post("/api/v1/users", headers=auth(admin_token), json={
+        "username": "propio", "email": "propio@example.com", "full_name": "Propio", "password": "StrongPass123!"})
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["organization_id"] == "1"
 
 
 def test_remove_user_from_last_organization_is_blocked(client, superadmin_token, db):

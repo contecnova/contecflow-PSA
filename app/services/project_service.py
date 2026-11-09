@@ -225,10 +225,10 @@ class ProjectService(ServiceBase):
             "has_schedule": pct_time is not None,
             "total_tasks": tasks_total.cnt or 0,
             "done_tasks": tasks_done.cnt or 0,
-            "health": _evm_health(cpi, spi, self.db),
-            "cpi_status": estado_de_indice(cpi, self.db),
-            "spi_status": estado_de_indice(spi, self.db),
-            "tcpi_status": estado_de_indice(tcpi, self.db, menor_es_mejor=True),
+            "health": _evm_health(cpi, spi, self.db, proj.organization_id),
+            "cpi_status": estado_de_indice(cpi, self.db, org_id=proj.organization_id),
+            "spi_status": estado_de_indice(spi, self.db, org_id=proj.organization_id),
+            "tcpi_status": estado_de_indice(tcpi, self.db, menor_es_mejor=True, org_id=proj.organization_id),
             "start_date": proj.start_date.isoformat() if proj.start_date else None,
             "planned_end": proj.end_date_planned.isoformat() if proj.end_date_planned else None,
         }
@@ -264,7 +264,8 @@ def _empty_enrichment() -> dict:
     }
 
 
-def estado_de_indice(valor: Optional[float], db: Session, menor_es_mejor: bool = False) -> str:
+def estado_de_indice(valor: Optional[float], db: Session, menor_es_mejor: bool = False,
+                     org_id: Optional[str] = None) -> str:
     """Semáforo de un índice EVM con los umbrales de Admin (`EVM_INDEX_*`).
 
     CPI y SPI: mejor cuanto más alto. TCPI (el CPI que haría falta para acabar
@@ -277,17 +278,18 @@ def estado_de_indice(valor: Optional[float], db: Session, menor_es_mejor: bool =
             return "green"
         valor = 1 / valor
     from app.services.settings_service import get_runtime_float
-    verde = get_runtime_float(db, "EVM_INDEX_GREEN_MIN")
-    rojo = get_runtime_float(db, "EVM_INDEX_RED_BELOW")
+    org = org_id or db.info.get("organization_id")  # el ajuste es por empresa
+    verde = get_runtime_float(db, "EVM_INDEX_GREEN_MIN", org)
+    rojo = get_runtime_float(db, "EVM_INDEX_RED_BELOW", org)
     if valor >= verde:
         return "green"
     return "red" if valor < rojo else "yellow"
 
 
-def _evm_health(cpi: Optional[float], spi: Optional[float], db: Session) -> str:
+def _evm_health(cpi: Optional[float], spi: Optional[float], db: Session, org_id: Optional[str] = None) -> str:
     if cpi is None or spi is None:
         return "grey"
-    estados = {estado_de_indice(cpi, db), estado_de_indice(spi, db)}
+    estados = {estado_de_indice(cpi, db, org_id=org_id), estado_de_indice(spi, db, org_id=org_id)}
     return "red" if "red" in estados else "yellow" if "yellow" in estados else "green"
 
 

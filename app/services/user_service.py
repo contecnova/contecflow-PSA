@@ -238,14 +238,18 @@ def _resolver_organizaciones_del_alta(user_data: dict, requested_org_ids: list,
     """
     principal = user_data.get("organization_id")
 
-    if current_user.organization_id and current_user.role != UserRole.admin:
-        propia = current_user.organization_id
-        if principal and principal != propia:
+    # Revisión 2026-11: un admin de empresa podía dar de alta usuarios en
+    # cualquier otra (sólo se limitaba a quien no era admin). Fuera del
+    # superadmin, sólo las empresas a las que pertenece quien da el alta.
+    permitidas = _empresas_permitidas(current_user)
+    if permitidas is not None:
+        pedidas = {str(o) for o in requested_org_ids} | ({str(principal)} if principal else set())
+        if pedidas - permitidas:
             raise HTTPException(403, "No puedes crear usuarios en otra organización")
-        if any(org_id != propia for org_id in requested_org_ids):
-            raise HTTPException(403, "No puedes crear usuarios en otra organización")
-        user_data["organization_id"] = propia
-        return [str(propia)]
+        if not pedidas:
+            propia = current_user.organization_id
+            user_data["organization_id"] = propia
+            return [str(propia)] if propia else []
 
     pertenencias = _validate_org_ids(requested_org_ids, db)
     if principal:
@@ -257,6 +261,17 @@ def _resolver_organizaciones_del_alta(user_data: dict, requested_org_ids: list,
         principal = pertenencias[0]
     user_data["organization_id"] = principal
     return pertenencias
+
+
+def _empresas_permitidas(current_user):
+    """Empresas en las que puede dar de alta o mover usuarios; None = todas (superadmin)."""
+    if getattr(current_user, "is_superadmin", False):
+        return None
+    propias = {str(m.organization_id) for m in (getattr(current_user, "organization_memberships", None) or [])
+               if m.organization_id}
+    if current_user.organization_id:
+        propias.add(str(current_user.organization_id))
+    return propias
 
 
 def create_user_record(payload, current_user, db: Session):
@@ -410,14 +425,10 @@ def _autorizar_y_validar_organizaciones(payload, current_user, db: Session):
         if payload_org_ids_raw is not None else None
     )
 
-    if current_user.organization_id and current_user.role != UserRole.admin:
-        if payload_org_id not in (None, current_user.organization_id):
-            raise HTTPException(
-                status_code=403, detail="No puedes mover usuarios a otra organización"
-            )
-        if payload_org_ids is not None and any(
-            org_id != current_user.organization_id for org_id in payload_org_ids
-        ):
+    permitidas = _empresas_permitidas(current_user)
+    if permitidas is not None:
+        pedidas = set(map(str, payload_org_ids or [])) | ({str(payload_org_id)} if payload_org_id else set())
+        if pedidas - permitidas:
             raise HTTPException(
                 status_code=403, detail="No puedes mover usuarios a otra organización"
             )

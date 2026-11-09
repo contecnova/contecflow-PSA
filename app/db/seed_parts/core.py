@@ -70,8 +70,7 @@ def _sembrar_ajustes(db):
     for key, value in {
         "company_name":"Consultora Contecflow SL","currency":settings.DEFAULT_CURRENCY,
         "timezone":settings.DEFAULT_TIMEZONE,"language":settings.DEFAULT_LANGUAGE,
-        "work_hours_per_day":str(settings.DEFAULT_WORKING_HOURS_PER_DAY),"work_days_per_week":"5",
-        "budget_alert_threshold":"85","overload_threshold":"100"
+        "work_hours_per_day":str(settings.DEFAULT_WORKING_HOURS_PER_DAY),
     }.items():
         if not db.query(AppSetting).filter(AppSetting.key==key).first():
             db.add(AppSetting(key=key, value=value))
@@ -293,23 +292,10 @@ def _sembrar_tipos_de_tarea(db):
 
 def _sembrar_configuracion_de_alertas(db):
     """Umbrales de las alertas."""
-    from app.models.advanced_config import AlertConfig
-
-    # Auditoria 2026-08: la rama `settings.X if hasattr(...)` estaba MUERTA —
-    # ese ajuste no se declara en `Settings`, asi que `hasattr` era siempre
-    # falso—. Son datos de demostracion, no configuracion: declarar un ajuste
-    # para ellos seria peor que tenerlos aqui, asi que se quita la rama en vez
-    # de crear la perilla.
-    ALERT_CONFIGS = [
-        ("budget_alert","Alerta presupuesto >85%",85.0),
-        ("overload_alert","Sobrecarga equipo >100%",100.0),
-        ("deadline_alert","Proyecto vence en 7 dias",7.0)
-    ]
-    for alert_type, label, threshold in ALERT_CONFIGS:
-        if not db.query(AlertConfig).filter(AlertConfig.alert_type==alert_type).first():
-            db.add(AlertConfig(alert_type=alert_type, label=label, is_enabled=True,
-                               threshold_value=threshold, notify_admin=True, notify_pm=True))
-    db.commit()
+    # Revisión 2026-11: los umbrales los siembra `advanced_config_service.seed_alert_configs`
+    # con los tipos que lee el motor; aquí se sembraban otros nombres que nadie leía.
+    from app.services.advanced_config_service import seed_alert_configs
+    seed_alert_configs(db)
 
 def _sembrar_politica_de_vacaciones(db, users):
     """La politica de vacaciones y los saldos iniciales."""

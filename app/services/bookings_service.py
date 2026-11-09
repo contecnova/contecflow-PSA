@@ -742,9 +742,9 @@ def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, cu
             next_num = int(parts[1]) + 1
     code    = payload.get("code") or f"PRJ-{next_num:03d}"
     from app.services.settings_service import get_runtime_str
-    _proj_type = get_runtime_str(db, "DEFAULT_PROJECT_TYPE") or settings.DEFAULT_PROJECT_TYPE
-    _bill_type = get_runtime_str(db, "DEFAULT_BILLING_TYPE") or settings.DEFAULT_BILLING_TYPE
-    _curr      = get_runtime_str(db, "DEFAULT_CURRENCY") or settings.DEFAULT_CURRENCY
+    _proj_type = get_runtime_str(db, "DEFAULT_PROJECT_TYPE", db.info.get("organization_id")) or settings.DEFAULT_PROJECT_TYPE
+    _bill_type = get_runtime_str(db, "DEFAULT_BILLING_TYPE", db.info.get("organization_id")) or settings.DEFAULT_BILLING_TYPE
+    _curr      = get_runtime_str(db, "DEFAULT_CURRENCY", db.info.get("organization_id")) or settings.DEFAULT_CURRENCY
     project = Project(
         code=code,
         name=payload.get("name") or opp.name,
