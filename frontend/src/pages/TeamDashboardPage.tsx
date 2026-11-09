@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { usersApi, analyticsApi, okrsApi, performanceApi, trainingApi, absencesApi } from '../services/api'
 import { Spinner } from '../components/ui'
@@ -7,7 +6,7 @@ import {
 } from 'lucide-react'
 import {
   COLOR, DashPageShell, KpiCard, KpiIcon, GaugeCard, BarRow, SectionCard, DashEmpty,
-  dateRange, typePalette,
+  typePalette,
 } from '../components/dashboard/DashKit'
 import { useAppT } from '../i18n/AppLangContext'
 import type { ComponentType } from 'react'
@@ -20,7 +19,7 @@ interface TeamUser {
 }
 
 interface UtilData {
-  avg_utilization_pct?: number
+  summary?: { actual_utilization_pct?: number }
 }
 
 interface OkrItem {
@@ -65,9 +64,7 @@ export default function TeamDashboardPage() {
     finance: t('team_dashboard.role_finance'),
     client_user: t('team_dashboard.role_client_user'),
   }
-  const [days, setDays] = useState(30)
   const iconCompat = <T,>(icon: T) => icon as unknown as ComponentType<{ size?: number; strokeWidth?: number }>
-  const params = dateRange(days)
 
   const { data: resourcesRaw = [], isLoading: lr } = useQuery({
     queryKey: ['team-dash-resources'],
@@ -79,8 +76,10 @@ export default function TeamDashboardPage() {
   const resources = resourcesRaw as TeamUser[]
 
   const { data: utilDataRaw } = useQuery({
-    queryKey: ['team-dash-util', days],
-    queryFn: () => analyticsApi.utilization(params).then(r => r.data).catch(() => null),
+    // La utilización es de la semana en curso: el endpoint no admite periodo
+    // (revisión 2026-11: se leía un campo que no existe y nunca se veía).
+    queryKey: ['team-dash-util'],
+    queryFn: () => analyticsApi.utilization().then(r => r.data).catch(() => null),
     staleTime: 60_000,
   })
   const utilData = (utilDataRaw ?? null) as UtilData | null
@@ -128,7 +127,7 @@ export default function TeamDashboardPage() {
   )
 
   const teamSize   = resources.length
-  const utilPct    = utilData?.avg_utilization_pct != null ? Math.round(utilData.avg_utilization_pct) : null
+  const utilPct    = utilData?.summary?.actual_utilization_pct != null ? Math.round(utilData.summary.actual_utilization_pct) : null
   const utilColor  = utilPct == null ? COLOR.accent : utilPct >= 70 ? COLOR.success : utilPct >= 50 ? COLOR.warning : COLOR.danger
 
   const totalOkrs      = okrs.length
@@ -176,8 +175,6 @@ export default function TeamDashboardPage() {
       icon={<Users size={18} />}
       title={t('team_dashboard.title')}
       subtitle={t('team_dashboard.subtitle')}
-      days={days} setDays={setDays}
-      periods={[30, 90, 365]}
     >
       <div className="ds-page">
         {/* KPI row */}

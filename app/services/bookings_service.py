@@ -248,6 +248,43 @@ def get_bookings_heatmap(weeks: int, org_id, db) -> dict:
     }
 
 
+def _horas_en_semana(inicio, fin, horas_dia, lunes) -> float:
+    from datetime import timedelta
+    domingo = lunes + timedelta(days=6)
+    a, b = max(inicio, lunes), min(fin, domingo)
+    return sum(1 for i in range(max(0, (b - a).days + 1)) if (a + timedelta(days=i)).weekday() < 5) * horas_dia
+
+
+def comprobar_capacidad(db, user_id, inicio, fin, horas_dia, tipo, excluir=None) -> None:
+    """Una reserva firme no pasa de la capacidad de ninguna de sus semanas (400).
+
+    Revisión 2026-11: crear y mover no comprobaban nada. La capacidad de la
+    semana descuenta ausencias aprobadas y festivos; una reserva `soft` es
+    tentativa y no bloquea. `excluir`: la propia reserva al editarla.
+    """
+    from datetime import timedelta
+    from app.core.config import settings
+    from app.models.user import User
+    from app.services.resource_analytics import get_user_week_hours
+    if str(getattr(tipo, "value", tipo)) == "soft":
+        return
+    usuario = db.query(User).filter(User.id == user_id).first()
+    base = (getattr(usuario, "weekly_capacity_hours", None) or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
+    lunes = inicio - timedelta(days=inicio.weekday())
+    while lunes <= fin:
+        hw = get_user_week_hours(db, user_id, lunes)
+        ya = hw["committed_hours"]
+        if excluir is not None and str(getattr(excluir.booking_type, "value", excluir.booking_type)) != "soft":
+            ya -= _horas_en_semana(excluir.start_date, excluir.end_date, excluir.hours_per_day or 0, lunes)
+        capacidad = max(0.0, base - hw["absence_hours"] - hw["holiday_hours"])
+        nuevas = _horas_en_semana(inicio, fin, horas_dia, lunes)
+        if nuevas and ya + nuevas > capacidad + 1e-6:
+            raise HTTPException(400, (
+                f"Semana del {lunes}: ya tiene {ya:g} h comprometidas y esta reserva suma {nuevas:g} h; "
+                f"su capacidad es {capacidad:g} h. Resérvala como tentativa (soft) o ajusta las horas."))
+        lunes += timedelta(days=7)
+
+
 def create_booking_record(payload, created_by_id, db) -> dict:
     # Only block exact duplicate: same user + same project already booked in overlapping dates
     if payload.project_id:
@@ -262,6 +299,8 @@ def create_booking_record(payload, created_by_id, db) -> dict:
             raise HTTPException(400, "Este usuario ya tiene una reserva para este proyecto en las fechas indicadas.")
     if payload.end_date < payload.start_date:
         raise HTTPException(400, "La fecha fin no puede ser anterior al inicio")
+    comprobar_capacidad(db, payload.user_id, payload.start_date, payload.end_date,
+                        payload.hours_per_day, payload.booking_type)
     days = (payload.end_date - payload.start_date).days + 1
     booking = ResourceBooking(
         user_id=payload.user_id,
@@ -295,8 +334,12 @@ def update_booking_record(booking_id: str, payload, db) -> dict:
         raise HTTPException(400, "La fecha fin no puede ser anterior al inicio")
     if "start_date" in updates and "end_date" not in updates and updates["start_date"] > b.end_date:
         raise HTTPException(400, "La fecha inicio no puede ser posterior al fin")
+    comprobar_capacidad(db, updates.get("user_id", b.user_id), updates.get("start_date", b.start_date),
+                        updates.get("end_date", b.end_date), updates.get("hours_per_day", b.hours_per_day),
+                        updates.get("booking_type", b.booking_type), excluir=b)
     for k, v in updates.items():
         setattr(b, k, v)
+    b.total_hours = ((b.end_date - b.start_date).days + 1) * (b.hours_per_day or 0)
     db.commit()
     return serialize_booking(db.query(ResourceBooking).options(
         joinedload(ResourceBooking.user), joinedload(ResourceBooking.project)

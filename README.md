@@ -1004,7 +1004,7 @@ There are no actions on this page.
 - `GET /api/v1/absences`
 
 **Limitations (measured in code).**
-- **The utilisation gauge never shows.** The page reads `avg_utilization_pct`, but `analytics_service.get_advanced_utilization` returns `summary.actual_utilization_pct`/`booked_utilization_pct` and no `avg_utilization_pct`. The period selector is also sent as `date_from/date_to`, which that endpoint ignores (it only takes `weeks_ahead`).
+- **The utilisation gauge is for the current week** (`summary.actual_utilization_pct` of `/analytics/utilization/advanced`, which takes no period). The page has no period selector.
 - **The "pending reviews" KPI shows the viewer's own pending reviews** (`/performance/my-reviews`), not the team's. Its "completed" sub-count checks status `completed`, which doesn't exist (`ReviewStatus` is `pending | submitted | approved`), so it is always 0.
 - Truncation: users and absences load every page (`/absences` accepts `page`/`page_size` and returns the total, `limit` is kept as an alias). OKRs are only those of the current year (the endpoint defaults `year` to the current year).
 - The period selector affects none of the other cards either: none of their queries takes the dates.
@@ -1076,7 +1076,7 @@ Cell colour: >100 % red, >85 % amber, >60 % accent, otherwise green.
 - API-only endpoints with no UI caller (grep of `frontend/src`): `GET /capacity/overview`, `GET /capacity/plans`, `GET /capacity/availability`, `GET /capacity/leveling`.
 
 **Limitations.**
-- **Moving a plan by drag-and-drop skips both the over-capacity check and the absence check.** `capacity_service.update_capacity_plan` just sets the fields.
+- **Moving or editing a plan runs the same checks as creating one**: over capacity (400) and approved absence (409). The plan being edited is not counted twice.
 - The board and every plan action (create, move, delete) need a manager role (admin, PM, team lead or HR).
 - Capacity plans are not shown on the Resources heatmap or in the Visual Scheduler, which read bookings only.
 
@@ -1103,8 +1103,8 @@ Status per week: `overloaded` >100 %, `high` >85 %, `medium` >50 %, `low` >10 %,
 
 **Limitations (code reading, not reproduced at runtime).**
 - `GET /resource-forecast/users/{id}` is limited to admin, pm, team_lead, hr or the person themself.
-- **`soft` (tentative) bookings count the same as `hard` ones.**
-- Public holidays are not subtracted from capacity.
+- **`soft` (tentative) bookings don't take capacity.** Each cell returns them apart as `tentative_hours`.
+- **Company holidays on weekdays reduce capacity** (`holiday_hours`), without counting twice a day that is already an absence.
 - Backend tests: `tests/test_resource_forecast.py` exists. No frontend tests.
 
 ### Visual scheduler — `/resource-scheduler`
@@ -1128,8 +1128,8 @@ Cell shading comes from the forecast endpoint.
 
 **Limitations.**
 - **Mouse-only.** Drag handling uses `mousedown/mousemove/mouseup`; there are no touch handlers, so it won't work on a touchscreen.
-- No capacity or absence check when creating or moving a booking.
-- The shading inherits the forecast rules above (soft counted as hard; holidays not subtracted).
+- **A hard booking can't exceed capacity.** Creating or moving one checks every week it covers: committed hours plus the booking must fit in capacity minus absences and holidays (400 otherwise). A `soft` booking is not checked.
+- The shading follows the forecast rules above.
 - No frontend tests.
 
 ### Skills — `/skills`
@@ -1154,7 +1154,7 @@ Cell shading comes from the forecast endpoint.
 - Tables: `skills`, `user_skills`, `skill_history`.
 
 **Limitations.**
-- **For pm and employee the default tab (Matriz) and Staffing call admin/hr-only endpoints**, so the requests fail with 403. Only Perfiles works for them.
+- **Matriz, Staffing and Catálogo are for admin and hr**, as on the server. Other roles open the page on Perfiles.
 - An employee can add skills to their own profile but can't remove them.
 - Perfiles loads `GET /users` with the default `page_size` of 50, then fires one `GET /skills/users/{id}` per card (N+1 requests).
 - `subcontractor` gets 403 on `/users` (`require_internal_user`).
@@ -1179,7 +1179,7 @@ Cell shading comes from the forecast endpoint.
 - Chain walk: `user_service.approval_chain_for_user` follows `manager_id` and stops on cycles.
 
 **Limitations.**
-- **hr can open the page but gets 403 when selecting another person's approval chain**, because that endpoint is admin/pm only.
+- **Another person's approval chain** is for admin, pm, team_lead and hr. Other roles see only their own, without the person picker.
 - Saving a node makes two sequential calls (profile, then manager). If the second fails, the first is already saved.
 
 ### OKRs — `/okrs`
@@ -1208,8 +1208,8 @@ The KPI row shows active objectives, average progress and on-track objectives (�
 - E2E test: `tests_e2e/test_e2e_okrs.py`.
 
 **Limitations (code reading, not reproduced at runtime).**
-- **A deleted KR keeps showing and keeps counting.** `Objective.key_results` has no `is_active` filter: `serialize_objective` lists every KR and `propagate_to_objective` averages them all.
-- **Any internal user can check in on any KR.** The guard is `require_internal_user` with no ownership check, although the code comment says "avance del propio KR" (progress on one's own KR).
+- **A deleted KR is hidden and stops counting.** Deleting it recalculates the objective's progress.
+- **Check-in** is for the KR owner, the objective owner, or admin, pm and team_lead (403 otherwise).
 - `OKRStatus` has no `in_progress`. Objective status never changes automatically: reaching 100 % doesn't mark the objective `completed`.
 - Organisation scoping in `list_objectives` keeps an objective only if its owner or its project belongs to the organisation. On top of that, the automatic tenant filter on `okr_objectives.organization_id` also applies.
 
@@ -1271,7 +1271,7 @@ The KPI row shows active objectives, average progress and on-track objectives (�
 **Limitations.**
 - **There is no way to enrol anyone from the UI.** `trainingApi.enroll` exists but no component calls it, and there is no control to change an enrolment's status. Enrolments only exist if created through the API or seed data.
 - An employee can't create their own certificate (admin/hr only) but can edit and delete it once it exists.
-- The certificate list returns every certificate in the organisation to any logged-in user (no per-user filter unless `user_id` is passed).
+- **Certificates:** admin, hr, pm and team_lead see the whole company's (or one person's with `user_id`); everyone else sees only their own.
 
 ### Cost structure — `/user-costs`
 *Roles:* admin, hr (frontend and backend). Sidebar label: "Estructura de coste", under *Clients & Finance*.

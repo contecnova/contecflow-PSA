@@ -4695,7 +4695,7 @@ const es = {
     completed_lower: 'completados',
     completed_fem_plural: 'completadas',
     in_progress_lower: 'en curso',
-    gauge_avg_utilization: 'Utilización media equipo',
+    gauge_avg_utilization: 'Utilización del equipo esta semana',
     gauge_okrs_completed: 'OKRs completados',
     gauge_training_completed: 'Formación completada',
     good_use: 'Buen aprovechamiento',

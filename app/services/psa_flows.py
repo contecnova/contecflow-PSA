@@ -340,27 +340,20 @@ def close_sprint_flow(db: Session, project_id: str, sprint_id: str) -> dict:
     }
 
 
-def create_capacity_plan_flow(
-    db: Session,
-    current_user: User,
-    user_id: str,
-    week_start: date,
-    new_hours: float,
-    project_id: Optional[str],
-    notes: Optional[str],
-) -> CapacityPlan:
-    project_filter = (
-        CapacityPlan.project_id == project_id
-        if project_id is not None
-        else CapacityPlan.project_id.is_(None)
-    )
+def comprobar_plan_de_capacidad(db: Session, user_id: str, week_start: date, new_hours: float,
+                                excluir_id: Optional[str] = None) -> None:
+    """Sobrecapacidad (400) y ausencia aprobada (409) para un plan semanal.
 
+    Revisión 2026-11: la usan crear y mover/editar; antes mover un plan por
+    arrastre se saltaba las dos. `excluir_id`: el propio plan al editarlo.
+    """
     existing_hours = (
         db.query(func.sum(CapacityPlan.planned_hours))
         .filter(
             CapacityPlan.user_id == user_id,
             CapacityPlan.week_start == week_start,
             CapacityPlan.is_active == True,
+            CapacityPlan.id != (excluir_id or ""),
         )
         .scalar()
         or 0.0
@@ -391,6 +384,24 @@ def create_capacity_plan_flow(
                 f"{conflict.start_date} al {conflict.end_date}."
             ),
         )
+
+
+def create_capacity_plan_flow(
+    db: Session,
+    current_user: User,
+    user_id: str,
+    week_start: date,
+    new_hours: float,
+    project_id: Optional[str],
+    notes: Optional[str],
+) -> CapacityPlan:
+    project_filter = (
+        CapacityPlan.project_id == project_id
+        if project_id is not None
+        else CapacityPlan.project_id.is_(None)
+    )
+
+    comprobar_plan_de_capacidad(db, user_id, week_start, new_hours)
 
     inactive_same_slot = (
         db.query(CapacityPlan)

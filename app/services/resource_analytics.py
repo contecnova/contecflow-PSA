@@ -489,6 +489,7 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
     ).all()
 
     booking_hours = 0.0
+    tentative_hours = 0.0
     booking_projects: dict = {}
     for b in bookings:
         overlap_start = max(b.start_date, week_start)
@@ -499,6 +500,11 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
             if (overlap_start + timedelta(days=i)).weekday() < 5
         )
         h = work_days * (b.hours_per_day or settings.DEFAULT_WORKING_HOURS_PER_DAY)
+        # Revisión 2026-11: una reserva `soft` (tentativa) se enseña aparte y no
+        # ocupa capacidad; antes contaba igual que una firme.
+        if str(getattr(b.booking_type, "value", b.booking_type)) == "soft":
+            tentative_hours += h
+            continue
         booking_hours += h
         pid = str(b.project_id) if b.project_id else "unassigned"
         booking_projects[pid] = booking_projects.get(pid, 0) + h
@@ -521,19 +527,26 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
             AbsenceModel.start_date <= week_end,
             AbsenceModel.end_date >= week_start,
         ).all()
-        absence_hours = 0.0
+        dias_fuera: set = set()
         for a in absences:
             ov_start = max(a.start_date, week_start)
             ov_end = min(a.end_date, week_end)
-            days = max(0, (ov_end - ov_start).days + 1)
-            work_days = sum(
-                1 for i in range(days)
-                if (ov_start + timedelta(days=i)).weekday() < 5
-            )
-            absence_hours += work_days * settings.DEFAULT_WORKING_HOURS_PER_DAY
+            for i in range(max(0, (ov_end - ov_start).days + 1)):
+                d = ov_start + timedelta(days=i)
+                if d.weekday() < 5:
+                    dias_fuera.add(d)
+        absence_hours = len(dias_fuera) * settings.DEFAULT_WORKING_HOURS_PER_DAY
     except Exception:
         logger.warning("Error calculando absence_hours, se usa 0.0", exc_info=True)
         absence_hours = 0.0
+        dias_fuera = set()
+
+    # Revisión 2026-11: los festivos de la empresa en día laborable restan
+    # capacidad (sin contar dos veces un día que ya es ausencia).
+    from app.services.absence_service import get_holidays_for_period
+    festivos = {h.date for h in get_holidays_for_period(db, week_start, week_end)
+                if h.date.weekday() < 5 and h.date not in dias_fuera}
+    holiday_hours = len(festivos) * settings.DEFAULT_WORKING_HOURS_PER_DAY
 
     total = booking_hours + capacity_hours
     return {
@@ -541,6 +554,8 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
         "booking_hours": round(booking_hours, 1),
         "capacity_hours": round(capacity_hours, 1),
         "absence_hours": round(absence_hours, 1),
+        "holiday_hours": round(holiday_hours, 1),
+        "tentative_hours": round(tentative_hours, 1),
         "projects": {k: round(v, 1) for k, v in booking_projects.items()},
     }
 

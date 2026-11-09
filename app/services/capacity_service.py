@@ -119,6 +119,13 @@ def get_capacity_plan_by_id(db: Session, plan_id: str) -> Optional[CapacityPlan]
 
 def update_capacity_plan(db: Session, plan: CapacityPlan, payload: dict) -> CapacityPlan:
     allowed = ["user_id", "project_id", "week_start", "planned_hours", "notes"]
+    if any(k in payload for k in ("user_id", "week_start", "planned_hours")):
+        from app.services.psa_flows import comprobar_plan_de_capacidad
+        semana = payload.get("week_start", plan.week_start)
+        if isinstance(semana, str):
+            semana = date.fromisoformat(semana)
+        comprobar_plan_de_capacidad(db, payload.get("user_id", plan.user_id), semana,
+                                    float(payload.get("planned_hours", plan.planned_hours) or 0), excluir_id=plan.id)
     for k, v in payload.items():
         if k in allowed:
             if k == "week_start" and isinstance(v, str):

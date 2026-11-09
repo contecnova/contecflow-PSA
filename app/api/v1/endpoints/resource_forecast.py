@@ -58,7 +58,8 @@ def _capacidad(base: float, hw: dict) -> float:
     Auditoria 2026-11: las ausencias se calculaban y no se restaban; una semana
     de vacaciones salia libre.
     """
-    return max(0.0, base - hw.get("absence_hours", 0.0))
+    # Revisión 2026-11: también los festivos de la empresa.
+    return max(0.0, base - hw.get("absence_hours", 0.0) - hw.get("holiday_hours", 0.0))
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
@@ -114,6 +115,8 @@ def forecast_heatmap(
                 "committed_hours": committed,
                 "available_hours": available,
                 "absence_hours":   hw["absence_hours"],
+                "holiday_hours":   hw["holiday_hours"],
+                "tentative_hours": hw["tentative_hours"],
                 "status":          status,
                 "projects":        hw["projects"],
             })

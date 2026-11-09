@@ -502,6 +502,8 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
 // ── Pestaña 3: Cadenas de aprobación ─────────────────────────────────────────
 function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
   const t = useAppT()
+  // La cadena de otra persona es para gestores (como en el servidor); el resto ve la suya.
+  const puedeVerOtras = useAuth().hasRole('admin', 'pm', 'team_lead', 'hr')
   const [selectedUserId, setSelectedUserId] = useState('')
   const [search, setSearch] = useState('')
 
@@ -535,11 +537,11 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
           textTransform:'uppercase', letterSpacing:'0.06em' }}>
           {t('orgchart.ver_cadena_de_aprobacion')}
         </div>
-        <input value={search} onChange={e => setSearch(e.target.value)}
+        {puedeVerOtras && <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Buscar persona..."
           style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
             borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize: "var(--text-sm-h)",
-            outline:'none', fontFamily:'inherit', boxSizing:'border-box', marginBottom:8 }} />
+            outline:'none', fontFamily:'inherit', boxSizing:'border-box', marginBottom:8 }} />}
         <div style={{ display:'flex', flexDirection:'column', gap:3, maxHeight:300, overflowY:'auto' }}>
           <button
             type="button"
@@ -551,7 +553,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
               color: !selectedUserId ? 'var(--accent)' : 'var(--text-2)', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
             Mi propia cadena
           </button>
-          {filteredUsers.map(u => (
+          {puedeVerOtras && filteredUsers.map(u => (
             <button key={u.id}
               type="button"
               onClick={() => setSelectedUserId(u.id)}

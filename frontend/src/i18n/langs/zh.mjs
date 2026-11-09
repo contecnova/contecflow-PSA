@@ -5404,7 +5404,7 @@ const zh = {
     completed_lower: "已完成",
     completed_fem_plural: "已完成",
     in_progress_lower: "进行中",
-    gauge_avg_utilization: "团队平均利用率",
+    gauge_avg_utilization: "本周团队利用率",
     gauge_okrs_completed: "OKR 完成情况",
     gauge_training_completed: "培训完成情况",
     good_use: "利用率良好",

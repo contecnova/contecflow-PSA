@@ -5387,7 +5387,7 @@ const en = {
     completed_lower: 'completed',
     completed_fem_plural: 'completed',
     in_progress_lower: 'in progress',
-    gauge_avg_utilization: 'Average team utilisation',
+    gauge_avg_utilization: 'Team utilisation this week',
     gauge_okrs_completed: 'OKRs completed',
     gauge_training_completed: 'Training completed',
     good_use: 'Good utilisation',

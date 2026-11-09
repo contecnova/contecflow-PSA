@@ -464,6 +464,7 @@ def exigir_que_no_sea_suyo(db: Session, solicitante_id, usuario: User, modulo: s
                                  context_type=modulo, context_id=str(entidad_id))
             db.commit()
     except Exception:
+        db.rollback()
         logger.warning("No se pudo registrar la infracción SoD de %s %s", modulo, entidad_id, exc_info=True)
     raise HTTPException(403, "SoD: no puedes aprobar lo que has pedido tú (segregación de funciones)")
 

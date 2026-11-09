@@ -41,7 +41,8 @@ def serialize_kr(kr: KeyResult) -> dict:
 
 
 def serialize_objective(obj: Objective) -> dict:
-    krs = obj.key_results or []
+    # Revisión 2026-11: un KR borrado (lógico) ni se enseña ni cuenta.
+    krs = [k for k in (obj.key_results or []) if k.is_active is not False]
     avg_progress = round(sum(calc_progress(kr) for kr in krs) / len(krs), 1) if krs else 0
     return {
         "id": obj.id,
@@ -86,10 +87,9 @@ def propagate_to_objective(db: Session, kr: KeyResult) -> None:
         .filter(Objective.id == kr.objective_id)
         .first()
     )
-    if obj and obj.key_results:
-        obj.progress = round(
-            sum(calc_progress(k) for k in obj.key_results) / len(obj.key_results), 1
-        )
+    vivos = [k for k in (obj.key_results if obj else []) if k.is_active is not False]
+    if obj:
+        obj.progress = round(sum(calc_progress(k) for k in vivos) / len(vivos), 1) if vivos else 0
 
 
 def sync_kr_from_tasks(
@@ -261,6 +261,8 @@ def update_kr(db: Session, kr: KeyResult, data: dict) -> KeyResult:
 def delete_kr(db: Session, kr: KeyResult) -> dict:
     """Soft-delete a key result (soft delete)."""
     kr.is_active = False
+    db.flush()
+    propagate_to_objective(db, kr)  # el objetivo deja de contarlo
     db.commit()
     return {
         "ok": True,

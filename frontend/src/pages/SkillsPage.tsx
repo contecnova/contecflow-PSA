@@ -395,7 +395,10 @@ export default function SkillsPage() {
   const { hasRole } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
-  const [tab, setTab] = useState('matrix')
+  // Matriz, Staffing y Catálogo leen endpoints de admin y hr; el resto entra
+  // por Perfiles (revisión 2026-11: antes la pestaña inicial les daba 403).
+  const esGestor = hasRole('admin', 'hr')
+  const [tab, setTab] = useState(esGestor ? 'matrix' : 'profiles')
   const [editingUser, setEditingUser] = useState<DomainUser | null>(null)
 
   const { data: matrix, isLoading: loadingMatrix } = useQuery<SkillsMatrixData>({
@@ -431,10 +434,9 @@ export default function SkillsPage() {
   const inputStyle: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }
 
   const tabs = [
-    { id: 'matrix',   label: 'Matriz' },
+    ...(esGestor ? [{ id: 'matrix', label: 'Matriz' }] : []),
     { id: 'profiles', label: 'Perfiles' },
-    { id: 'search',   label: 'Staffing' },
-    ...(hasRole('admin', 'hr') ? [{ id: 'catalog', label: 'Catálogo' }] : []),
+    ...(esGestor ? [{ id: 'search', label: 'Staffing' }, { id: 'catalog', label: 'Catálogo' }] : []),
   ]
 
   // KPI stats

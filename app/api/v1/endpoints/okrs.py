@@ -7,7 +7,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.services import okr_service
 from app.services.okr_service import (
     serialize_kr as _ser_kr,
@@ -117,6 +117,10 @@ def checkin_kr(kr_id: str, payload: CheckinIn,
     kr = okr_service.get_key_result(db, kr_id)
     if not kr:
         raise HTTPException(404, "KR no encontrado")
+    # Revisión 2026-11: avanza el KR su responsable, el del objetivo o un gestor.
+    duenos = {kr.owner_id, getattr(kr.objective, "owner_id", None)}
+    if cu.id not in duenos and cu.role not in (UserRole.admin, UserRole.pm, UserRole.team_lead):
+        raise HTTPException(403, "Sólo el responsable del KR o de su objetivo registra su avance")
     kr = okr_service.checkin_kr(db, kr, payload.value, payload.note, cu.id)
     return APIResponse.ok(data={"progress": kr.progress, "current_value": kr.current_value})
 

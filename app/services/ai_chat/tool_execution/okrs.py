@@ -14,7 +14,7 @@ def _get_okrs(tool_input, db, user, now, is_financial_role):
     objectives = q.order_by(Objective.progress.desc()).limit(20).all()
     result = []
     for obj in objectives:
-        krs = db.query(KeyResult).filter(KeyResult.objective_id == obj.id).all()
+        krs = db.query(KeyResult).filter(KeyResult.objective_id == obj.id, KeyResult.is_active.isnot(False)).all()
         result.append({
             "id": obj.id, "title": obj.title, "status": str(obj.status),
             "period": str(obj.period), "year": obj.year, "progress": obj.progress,

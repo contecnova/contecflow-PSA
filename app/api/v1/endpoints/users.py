@@ -150,7 +150,7 @@ def update_my_profile(
 def user_approval_chain(
     user_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    _: User = Depends(require_any_manager),  # revisión 2026-11: hr y team_lead la ven en el organigrama
 ):
     user = get_user_by_id(db, user_id)
     if not user:

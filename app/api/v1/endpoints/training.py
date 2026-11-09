@@ -102,6 +102,9 @@ def list_certifications(user_id: Optional[str] = None, expiring_days: Optional[i
                         page: int = Query(1, ge=1),
                         page_size: int = Query(50, ge=1, le=200),
                         db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    # Revisión 2026-11: fuera de los gestores, cada uno ve sólo las suyas.
+    if getattr(cu.role, "value", cu.role) not in ("admin", "hr", "pm", "team_lead"):
+        user_id = cu.id
     certs = [_ser_cert(c) for c in training_service.list_certifications(db, user_id=user_id)]
     if expiring_days is not None:
         certs = [c for c in certs if c["days_until_expiry"] is not None
