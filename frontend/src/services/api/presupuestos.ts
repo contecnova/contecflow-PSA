@@ -68,7 +68,7 @@ export interface Traspaso {
   hacia_descripcion?: string | null; importe: number; motivo: string; estado: 'pendiente' | 'aprobado' | 'rechazado'
   solicitante_id: string; motivo_rechazo?: string | null; created_at?: string | null
 }
-export interface Apunte { origen: 'imputacion' | 'gasto' | 'pedido'; id: string; fecha: string; tipo: string; quien?: string | null
+export interface Apunte { origen: 'imputacion' | 'gasto' | 'pedido' | 'subcontrata'; id: string; fecha: string; tipo: string; quien?: string | null
   concepto: string; horas?: number; importe: number }
 export interface RenglonDelCuadro {
   id: string; name: string; ambito: Ambito; estado: string; version: number; escenario: string; currency: string

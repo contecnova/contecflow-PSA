@@ -7203,6 +7203,7 @@ const es = {
     origen_imputacion: "Imputación",
     origen_gasto: "Gasto",
     origen_pedido: "Pedido",
+    origen_subcontrata: "Subcontrata",
     total: "Total",
     pedidos: "Pedidos",
     pedidos_ayuda: "Un pedido compromete presupuesto hasta que se factura; entonces cuenta como real en el mes de la factura. BUDGET_CONTROL_POLICY decide si pasarse sólo avisa o bloquea.",

@@ -7886,6 +7886,7 @@ const zh = {
     origen_imputacion: "工时",
     origen_gasto: "费用",
     origen_pedido: "订单",
+    origen_subcontrata: "分包",
     total: "合计",
     pedidos: "订单",
     pedidos_ayuda: "订单在开票前占用预算;开票后计入发票当月的实际。BUDGET_CONTROL_POLICY 决定超支时仅提醒还是阻止。",

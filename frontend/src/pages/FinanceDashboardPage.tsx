@@ -33,6 +33,7 @@ interface ProjectProfitItem {
   // ingreso con coste 0).
   billing_revenue?: number
   internal_cost?: number
+  total_cost?: number
 }
 interface CurrencyRate {
   id: string | number
@@ -330,7 +331,7 @@ export default function FinanceDashboardPage(): JSX.Element {
               <tbody>
                 {topProjects.slice(0, 8).map((p, idx) => {
                   const rev  = p.billing_revenue ?? 0
-                  const cost = p.internal_cost ?? 0
+                  const cost = p.total_cost ?? p.internal_cost ?? 0   // personal + gastos + subcontrata
                   const mgn  = rev - cost
                   const pct  = rev > 0 ? Math.round((mgn / rev) * 100) : 0
                   const mColor = pct >= 30 ? COLOR.success : pct >= 15 ? COLOR.warning : COLOR.danger

@@ -313,20 +313,24 @@ def calc_project_profitability(
     billing_revenue = _ingreso_facturable(
         project, db, billable_hours, billed_milestones_total, desde, hasta
     )
+    # Revisión 2026-11: el coste es personal + gastos + subcontrata (antes, sólo personal).
+    from app.services.costes_de_proyecto import costes_externos
+    externos = costes_externos(db, project.id, org_currency, desde, hasta)
+    total_cost = internal_cost + externos["gastos"] + externos["subcontrata"]
 
-    gross_margin = billing_revenue - internal_cost
+    gross_margin = billing_revenue - total_cost
     margin_pct = (gross_margin / billing_revenue * 100) if billing_revenue > 0 else 0
 
     budget_used_pct = 0
     if project.budget_amount and project.budget_amount > 0:
-        budget_used_pct = (internal_cost / project.budget_amount) * 100
+        budget_used_pct = (total_cost / project.budget_amount) * 100
 
     progress = _progreso_por_tareas(project)
     forecast_cost = _coste_previsto(
-        internal_cost, progress, total_hours, project.budget_hours
+        total_cost, progress, total_hours, project.budget_hours
     )
     planned_pct = _porcentaje_planificado(project, timeutil.today())
-    evm = _indicadores_evm(project, internal_cost, progress, planned_pct, forecast_cost)
+    evm = _indicadores_evm(project, total_cost, progress, planned_pct, forecast_cost)
 
     margin_at_completion = 0
     if billing_revenue > 0 and evm.eac > 0:
@@ -347,7 +351,10 @@ def calc_project_profitability(
         "billable_hours": round(billable_hours, 1),
         "budget_hours": project.budget_hours,
         "hours_used_pct": round((total_hours / project.budget_hours * 100), 1) if project.budget_hours else None,
-        "internal_cost": round(internal_cost, 2),
+        "internal_cost": round(internal_cost, 2),          # personal (imputaciones)
+        "expenses_cost": externos["gastos"],
+        "subcontract_cost": externos["subcontrata"],
+        "total_cost": round(total_cost, 2),
         "billing_revenue": round(billing_revenue, 2),
         "gross_margin": round(gross_margin, 2),
         "margin_pct": round(margin_pct, 1),

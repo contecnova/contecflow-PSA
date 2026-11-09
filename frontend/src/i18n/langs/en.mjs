@@ -7875,6 +7875,7 @@ const en = {
     origen_imputacion: "Time entry",
     origen_gasto: "Expense",
     origen_pedido: "Order",
+    origen_subcontrata: "Subcontractor",
     total: "Total",
     pedidos: "Orders",
     pedidos_ayuda: "An order commits budget until it is invoiced; then it counts as actuals in the invoice month. BUDGET_CONTROL_POLICY decides whether going over only warns or blocks.",

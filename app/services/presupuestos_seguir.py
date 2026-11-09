@@ -372,6 +372,18 @@ def detalle_del_real(db: Session, b: Budget, mes: str, tipo: Optional[str] = Non
         if tipo in (None, t):
             salida.append({"origen": "gasto", "id": g.id, "fecha": g.expense_date.isoformat(), "tipo": t,
                            "quien": nombres.get(g.user_id), "concepto": g.description or "", "importe": round(importe, 2)})
+    if proyecto:
+        from app.models.enterprise import Subcontractor, SubcontractorTimeLog
+        tipo_sub = tipo_de_gasto(db, b.organization_id, "subcontract")
+        if tipo in (None, tipo_sub):
+            for log, nombre in db.query(SubcontractorTimeLog, Subcontractor.name).join(
+                    Subcontractor, Subcontractor.id == SubcontractorTimeLog.subcontractor_id).filter(
+                    SubcontractorTimeLog.project_id == proyecto, SubcontractorTimeLog.is_active.isnot(False),
+                    SubcontractorTimeLog.cost_amount.isnot(None),
+                    SubcontractorTimeLog.log_date >= desde, SubcontractorTimeLog.log_date < hasta).all():
+                salida.append({"origen": "subcontrata", "id": log.id, "fecha": log.log_date.isoformat(), "tipo": tipo_sub,
+                               "quien": nombre, "concepto": log.description or "", "horas": log.hours,
+                               "importe": round(float(log.cost_amount), 2)})
     for c in db.query(BudgetCommitment).filter(BudgetCommitment.origen_id == origen(b), BudgetCommitment.estado == "facturado",
                                                BudgetCommitment.fecha_factura >= desde, BudgetCommitment.fecha_factura < hasta).all():
         if tipo in (None, c.tipo):

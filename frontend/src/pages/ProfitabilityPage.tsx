@@ -35,6 +35,7 @@ interface ProfitabilityProjectItem {
   department?: string
   billing_revenue?: number
   internal_cost?: number
+  total_cost?: number
   gross_margin?: number
   margin_pct?: number
   total_hours?: number
@@ -59,6 +60,9 @@ interface ProjectDetailData {
   margin_pct: number
   billing_revenue: number
   internal_cost: number
+  expenses_cost?: number
+  subcontract_cost?: number
+  total_cost?: number
   gross_margin: number
   eac?: number
   etc?: number
@@ -202,10 +206,10 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
   return (
     <Modal open title={`${data.project_code} — ${data.project_name}`} onClose={onClose} width={720}>
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))', gap: 12, marginBottom: 8 }}>
         {[
           { label: 'Ingresos', value: fmtCurrency(data.billing_revenue), color: 'var(--success)' },
-          { label: 'Coste interno', value: fmtCurrency(data.internal_cost), color: 'var(--warning)' },
+          { label: 'Coste', value: fmtCurrency(data.total_cost ?? data.internal_cost), color: 'var(--warning)' },
           { label: 'Margen bruto', value: fmtCurrency(data.gross_margin), color: marginColor },
           { label: '% Margen', value: `${data.margin_pct.toFixed(1)}%`, color: marginColor },
         ].map(({ label, value, color }) => (
@@ -214,6 +218,12 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
             <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
           </div>
         ))}
+      </div>
+      {/* El coste: personal (imputaciones) + gastos del proyecto (su parte del reparto) + subcontrata. */}
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginBottom: 24 }}>
+        <span>Personal: <strong>{fmtCurrency(data.internal_cost)}</strong></span>
+        <span>Gastos: <strong>{fmtCurrency(data.expenses_cost ?? 0)}</strong></span>
+        <span>Subcontrata: <strong>{fmtCurrency(data.subcontract_cost ?? 0)}</strong></span>
       </div>
 
       {/* Panel EVM — Earned Value Management */}
@@ -444,7 +454,7 @@ export default function ProfitabilityPage() {
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{p.project_code} · {p.client_name || p.department || '—'}</div>
                 </div>
                 <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{fmtCurrency(p.billing_revenue)}</span>
-                <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{fmtCurrency(p.internal_cost)}</span>
+                <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{fmtCurrency(p.total_cost ?? p.internal_cost)}</span>
                 <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: colorDeSigno(p.gross_margin), fontWeight: 700 }}>{fmtCurrency(p.gross_margin)}</span>
                 <div>
                   <div style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: colorDeMargen(p.margin_pct, [0, 15, Infinity]), fontWeight: 700, marginBottom: 4 }}>{p.margin_pct == null ? '—' : `${p.margin_pct.toFixed(1)}%`}</div>

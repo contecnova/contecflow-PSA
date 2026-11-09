@@ -167,7 +167,11 @@ class ProjectService(ServiceBase):
                 Imputation.project_id == project_id
             ).all()
             ac_cost = sum((r.hours * r.hourly_rate_snapshot) for r in rows if r.hourly_rate_snapshot) or 0.0
-        ac = ac_cost
+        # Revisión 2026-11: AC es todo el coste real —personal, gastos y subcontrata—, como el BAC.
+        from app.core.config import settings as _settings
+        from app.services.costes_de_proyecto import costes_externos
+        externos = costes_externos(self.db, project_id, _settings.DEFAULT_CURRENCY)
+        ac = ac_cost + externos["gastos"] + externos["subcontrata"]
 
         tasks_total = self.db.query(
             func.count(Task.id).label("cnt"),

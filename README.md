@@ -1582,7 +1582,7 @@ General notes that apply to every module here:
 1. Filter the portfolio list by project status, then open a project.
 2. Read the figures:
    - **Revenue** = `billing_rate × billable hours`. For fixed-price projects without a rate, it is the sum of `billing_amount` of milestones with `is_billed`.
-   - **Cost** = the sum of `imputations.cost_amount`, converted to the organization's currency through `get_fx_rate`.
+   - **Cost** = staff (the sum of `imputations.cost_amount`) + the project's expenses (approved or reimbursed, its share of a split) + subcontractor hours (`subcontractor_timelogs.cost_amount`), each converted to the organization's currency through `get_fx_rate` at its date (`app/services/costes_de_proyecto.py`). The record shows the three parts. Supplier invoices pay those subcontractor hours, so they are not added again. Margin, budget use, forecast and the EVM figures use this total.
    - Also shown: CPI/SPI/EAC, `margin_at_completion`, and `risk_flag` (`critical`, `warning` or `ok`).
 3. Manage milestones from the project detail: add (amount or %), edit, delete, and **Facturar**.
 
@@ -1653,6 +1653,8 @@ General notes that apply to every module here:
    - Each line can carry a **justification**; lines of `BUDGET_JUSTIFICATION_MIN_AMOUNT` or more need one to submit. Lines are edited in place (pencil) while the budget is in draft or rejected.
 3. **Tracking** (tab *Seguimiento*): plan against actuals per month and per line type, variance, *plan to date*, **forecast at completion** (actuals of the past months, the current month at least its plan, and the rest by each type's re-forecast method — by default the plan), OPEX, CAPEX and depreciation, and with revenue lines the planned and actual revenue and margin. Actuals are computed, never typed:
    - staff: the cost of the scope's time entries in the month (what the entry stored; else hours × the rate at the time; else the person's rate) — project scope by project, department and area by the people in those departments (the area's departments, from *Settings*);
+   - subcontractors (project scope): the cost of their logged hours, in the line type of the `subcontract` category (`BUDGET_EXPENSE_TYPE_MAP`, by default `subcontratacion`); *Cierre y detalle* lists them as «Subcontrata»;
+   - every amount is converted to the budget's currency at the rate of its date (the person's currency for time entries, the expense's, the subcontractor's);
    - the rest: approved or reimbursed expenses of the scope, each in the line type of its category (`BUDGET_EXPENSE_TYPE_MAP`); in a project, the expense's share of the split between projects;
    - revenue: the project's issued invoices (sent, paid or overdue; subtotal, by issue date).
    - A planned project has no actuals until it is **linked** to the project once created (*Vincular*; all its versions follow).
@@ -1750,9 +1752,10 @@ General notes that apply to every module here:
 - **Endpoints:** `/api/v1/enterprise/subcontractors*`, `/enterprise/subcontractors-dashboard`, `/enterprise/subcontractors/workers/*`. `POST/DELETE /enterprise/subcontractors/{id}/rates` has no UI.
 - **Tables:** `subcontractors`, `subcontractor_rates`, `subcontractor_workers`, `subcontractor_worker_skills`, `subcontractor_assignments`, `subcontractor_timelogs`, `subcontractor_invoices`.
 
+- **Their cost reaches the project:** the cost of logged hours (hours × cost rate, in the subcontractor's currency) counts in Profitability, in EVM's AC and in the project budget's actuals (`tests/test_coste_real_del_proyecto_2026_11.py`).
+
 **Limitations.**
-- **Subcontractor cost does not reach profitability or budgets.** No reference to `SubcontractorTimeLog` or `SubcontractorInvoice` was found outside `enterprise_service`.
-- **Minimal backend tests.** Only one backend test file mentions subcontractors.
+- **Few backend tests** for the subcontractor screens themselves.
 
 ---
 
@@ -3191,13 +3194,13 @@ There are no filters.
 **Technical notes.**
 - `GET /api/v1/projects/evm/portfolio` → `ProjectService.evm_portfolio`.
 - `GET /api/v1/projects/{id}/evm` → `ProjectService.evm` (`app/services/project_service.py`).
-- Tables: `projects`, `tasks`, `imputations`.
+- Tables: `projects`, `tasks`, `imputations`, `expenses`, `subcontractor_timelogs`.
 - **Formulas (detail endpoint):**
 
   | Value | Calculation |
   |---|---|
   | BAC | `projects.budget_amount`; if 0, Σ`tasks.estimated_hours` × avg `imputations.hourly_rate_snapshot` |
-  | AC | Σ`imputations.cost_amount`; if 0, Σhours × rate snapshot |
+  | AC | Σ`imputations.cost_amount` (if 0, Σhours × rate snapshot) + the project's expenses and subcontractor hours, as in Profitability |
   | % complete | estimated hours of `done` tasks ÷ all estimated hours |
   | EV | BAC × % complete |
   | PV | BAC × elapsed fraction of start → planned end (straight line; no baseline) |

@@ -56,7 +56,7 @@ def get_profitability_summary(
     ]
 
     total_revenue = sum(r["billing_revenue"] for r in results)
-    total_cost = sum(r["internal_cost"] for r in results)
+    total_cost = sum(r["total_cost"] for r in results)
     total_margin = total_revenue - total_cost
     portfolio_margin_pct = (total_margin / total_revenue * 100) if total_revenue > 0 else 0
 

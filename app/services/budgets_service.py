@@ -161,6 +161,17 @@ def _real_mensual(db: Session, b: Budget) -> dict[str, dict[str, float]]:
     hasta = date(hasta_y + (hasta_m == 12), 1 if hasta_m == 12 else hasta_m + 1, 1)
     real: dict[str, dict[str, float]] = {}
 
+    # Revisión 2026-11: cada importe en la moneda del presupuesto, con el tipo de su fecha
+    # (la del usuario para las horas, la del gasto, la de la subcontrata), como la rentabilidad.
+    from app.services.profitability_service import get_fx_rate
+    from app.core.config import settings
+    moneda = (b.currency or settings.DEFAULT_CURRENCY).upper()
+    cache: dict = {}
+
+    def convertir(importe, de, fecha) -> float:
+        de = (de or moneda).upper()
+        return float(importe) * (get_fx_rate(db, de, moneda, fecha, _cache=cache) if de != moneda else 1.0)
+
     def sumar(fecha, tipo, importe):
         mes = f"{fecha.year}-{fecha.month:02d}"
         real.setdefault(mes, {})
@@ -170,13 +181,14 @@ def _real_mensual(db: Session, b: Budget) -> dict[str, dict[str, float]]:
     q = db.query(Imputation).filter(Imputation.date >= desde, Imputation.date < hasta)
     q = q.filter(Imputation.project_id == proyecto) if proyecto else q.filter(Imputation.user_id.in_(usuarios or [""]))
     tarifas = dict(db.query(User.id, User.hourly_rate).all())
+    moneda_de = {uid: c for uid, c in db.query(User.id, User.currency).all()} if hasattr(User, "currency") else {}
     tipos_validos = set(tipos(db, b.organization_id))
     tipo_personal = "personal" if "personal" in tipos_validos else None
     if tipo_personal:
         for i in q.all():
             coste = (float(i.cost_amount) if i.cost_amount is not None
                      else float(i.hours or 0) * float(i.hourly_rate_snapshot or tarifas.get(i.user_id) or 0))
-            sumar(i.date, tipo_personal, coste)
+            sumar(i.date, tipo_personal, convertir(coste, moneda_de.get(i.user_id), i.date))
     # El resto: gastos por su categoría.
     mapa = {}
     for par in _csv(db, "BUDGET_EXPENSE_TYPE_MAP", b.organization_id):
@@ -196,7 +208,18 @@ def _real_mensual(db: Session, b: Budget) -> dict[str, dict[str, float]]:
     for g, importe in gastos:
         cat = str(getattr(g.category, "value", g.category))
         tipo = mapa.get(cat) if mapa.get(cat) in tipos_validos else ("otros" if "otros" in tipos_validos else cat)
-        sumar(g.expense_date, tipo, importe)
+        sumar(g.expense_date, tipo, convertir(importe, g.currency, g.expense_date))
+    # Subcontrata: el coste de sus horas en el proyecto, en el tipo de la categoría «subcontract».
+    if proyecto:
+        from app.models.enterprise import Subcontractor, SubcontractorTimeLog
+        from app.services.presupuestos_seguir import tipo_de_gasto
+        tipo_sub = tipo_de_gasto(db, b.organization_id, "subcontract")
+        for log, cur in db.query(SubcontractorTimeLog, Subcontractor.currency).join(
+                Subcontractor, Subcontractor.id == SubcontractorTimeLog.subcontractor_id).filter(
+                SubcontractorTimeLog.project_id == proyecto, SubcontractorTimeLog.is_active.isnot(False),
+                SubcontractorTimeLog.cost_amount.isnot(None),
+                SubcontractorTimeLog.log_date >= desde, SubcontractorTimeLog.log_date < hasta).all():
+            sumar(log.log_date, tipo_sub, convertir(log.cost_amount, cur, log.log_date))
     # Pedidos facturados: real en el mes de su factura. Y un mes cerrado vale lo que se congeló.
     from app.services.presupuestos_seguir import cierres, real_de_pedidos
     for mes, por_tipo in real_de_pedidos(db, b).items():

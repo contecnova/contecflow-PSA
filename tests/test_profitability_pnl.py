@@ -336,7 +336,7 @@ CLAVES = {
     "project_id", "project_code", "project_name", "client_name", "department",
     "status", "billing_type", "is_billable", "project_currency",
     "reporting_currency", "total_hours", "billable_hours", "budget_hours",
-    "hours_used_pct", "internal_cost", "billing_revenue", "gross_margin",
+    "hours_used_pct", "internal_cost", "expenses_cost", "subcontract_cost", "total_cost", "billing_revenue", "gross_margin",
     "margin_pct", "budget_amount", "contract_amount", "budget_used_pct",
     "forecast_cost", "billing_rate", "avg_cost_rate", "progress_pct",
     "pv", "ev", "ac", "cpi", "spi", "cv", "sv", "evm_no_schedule",
@@ -344,14 +344,14 @@ CLAVES = {
 }
 
 
-def test_el_resultado_trae_las_38_claves_exactas(db, proyecto_tm):
+def test_el_resultado_trae_las_41_claves_exactas(db, proyecto_tm):
     """Lo consume la API y lo pinta el panel: una clave que desaparezca en un
     refactor no rompe nada aquí, deja un hueco en la pantalla del cliente."""
     r = calc_project_profitability(proyecto_tm, db)
     assert set(r) == CLAVES, (
         f"faltan: {CLAVES - set(r)}; sobran: {set(r) - CLAVES}"
     )
-    assert len(CLAVES) == 38
+    assert len(CLAVES) == 41   # +3 (2026-11): coste de gastos, de subcontrata y total
 
 
 def test_la_tabla_de_pesos_cubre_todos_los_estados():
