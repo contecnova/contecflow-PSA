@@ -647,20 +647,17 @@ def preview_report_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.services.report_pdf import generate_report_pdf
-    from app.services._pdf_marca import PALETA_POR_DEFECTO
+    # Revisión 2026-11: pintaba filas de ejemplo; ahora es el PDF que se envía.
     from fastapi.responses import Response
+    from app.services.report_pdf_service import build_report_pdf
 
     r = _svc.get_scheduled_report_by_id(report_id, db)
-    marca = _marca_del_documento(db, current_user, base=PALETA_POR_DEFECTO)
-
-    pdf_bytes = generate_report_pdf(
-        title=r.name,
-        metric_label=(r.metric or "").replace("_", " ").title(),
-        data=[{"Ejemplo": "Datos de previsualización", "Valor": "—"}],
-        summary={"Estado": "Previsualización", "Métrica": r.metric or "—"},
-        paleta=marca.paleta,
-    )
+    if r is None:
+        raise HTTPException(404, "Informe no encontrado")
+    try:
+        pdf_bytes = build_report_pdf(r, db, org_id=current_user.organization_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

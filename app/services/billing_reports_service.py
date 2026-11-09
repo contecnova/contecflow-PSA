@@ -42,7 +42,6 @@ from app.schemas.billing_reports import InvoiceOut, InvoiceLineOut
 from app.core.security import get_password_hash
 from app.models.billing_reports import InvoiceLine as _InvoiceLine
 from app.services.billing_reports.data_source_service import run_skills_report, run_pipeline_report
-from app.services.scheduled_reports import _get_next_run
 from app.db.session import is_postgres
 from app.core import timeutil
 
@@ -1046,6 +1045,7 @@ def create_template(payload, current_user: User, db: Session) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def create_scheduled_report(payload, current_user: User, db: Session) -> dict:
+    from app.services.scheduled_reports import proxima_ejecucion
     r = ScheduledReport(
         name=payload.name,
         metric=payload.metric,
@@ -1053,9 +1053,15 @@ def create_scheduled_report(payload, current_user: User, db: Session) -> dict:
         recipients=json.dumps(payload.recipients),
         include_pdf=payload.include_pdf,
         filters_json=payload.filters_json or "{}",
-        next_run_at=_get_next_run(payload.frequency),
+        report_type=payload.report_type or "custom",
+        include_narrative=payload.include_narrative,
+        day_of_week=payload.day_of_week,
+        day_of_month=payload.day_of_month,
+        send_hour=8 if payload.send_hour is None else payload.send_hour,
+        recipients_extra=json.dumps(payload.recipients_extra),
         created_by=current_user.id,
     )
+    r.next_run_at = proxima_ejecucion(r)
     db.add(r)
     db.commit()
     db.refresh(r)
@@ -1082,6 +1088,9 @@ def update_scheduled_report(report_id: str, payload: dict, db: Session) -> dict:
             setattr(r, k, json.dumps(v))
         else:
             setattr(r, k, v)
+    if {"frequency", "send_hour", "day_of_week", "day_of_month"} & set(payload):
+        from app.services.scheduled_reports import proxima_ejecucion
+        r.next_run_at = proxima_ejecucion(r)
     db.commit()
     return serialize_scheduled_report(r)
 

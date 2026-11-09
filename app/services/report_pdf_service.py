@@ -333,6 +333,36 @@ def _narrative_block(narrative_text: str, styles: dict) -> list:
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
+def datos_de_la_metrica(report, db, org_id) -> tuple:
+    """(filas, resumen, filtros) de la métrica del informe, como en /analytics/query.
+
+    El periodo sale de `filters_json` (`date_from`, `date_to`) o, sin él, el
+    mismo por defecto que la pantalla; `top_n`, el mismo también (20).
+    """
+    import json
+    from app.services.analytics_service import parse_date_range
+    from app.services.metrics import METRICS_REGISTRY
+    try:
+        filtros = json.loads(getattr(report, "filters_json", "{}") or "{}")
+    except ValueError:
+        filtros = {}
+    manejador = METRICS_REGISTRY.get(report.metric or "")
+    if manejador is None:
+        raise ValueError(f"Métrica desconocida: {report.metric}")
+    d_from, d_to = parse_date_range(filtros.get("date_from"), filtros.get("date_to"))
+    resultado = manejador(db=db, d_from=d_from, d_to=d_to, top_n=int(filtros.get("top_n") or 20),
+                          project_id=filtros.get("project_id"), department=filtros.get("department"),
+                          project_ids=None, user_id=None, client_id=filtros.get("client_id"),
+                          group_by=filtros.get("group_by"), organization_id=org_id)
+    filas = resultado[0] if isinstance(resultado, tuple) else resultado
+    filas = list(filas or [])
+    valores = [f.get("value") for f in filas if isinstance(f.get("value"), (int, float))]
+    resumen = {"Periodo": f"{d_from} — {d_to}", "Filas": len(filas)}
+    if valores:
+        resumen["Total"] = round(sum(valores), 2)
+    return filas, resumen, {**filtros, "date_from": str(d_from), "date_to": str(d_to)}
+
+
 def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
     """Generate a BI PDF for the given ScheduledReport row.
 
@@ -397,26 +427,19 @@ def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
         story += _portfolio_table(portfolio_data, styles)
 
     else:
-        # custom — fall back to legacy metric-based generation
-        try:
-            from app.services.report_pdf import generate_report_pdf as _legacy_pdf
-            import json
-            filters = {}
-            try:
-                filters = json.loads(getattr(report, "filters_json", "{}") or "{}")
-            except Exception:
-                logger.warning("Failed to parse filters_json for report %s", getattr(report, "id", None), exc_info=True)
-            return _legacy_pdf(
-                paleta=marca.paleta,
-                title=report.name,
-                metric_label=(report.metric or "custom").replace("_", " ").title(),
-                data=[],
-                summary={},
-                filters=filters,
-            )
-        except Exception as exc:
-            logger.error("Legacy PDF fallback failed: %s", exc)
-            story.append(Paragraph("Error generando informe personalizado.", styles["body"]))
+        # Una métrica de la pantalla de Informes. Revisión 2026-11: se llamaba
+        # al generador con `data=[]` y el PDF salía siempre vacío; ahora la
+        # métrica se calcula con el mismo registro que usa la pantalla.
+        from app.services.report_pdf import generate_report_pdf as _legacy_pdf
+        filas, resumen, filtros = datos_de_la_metrica(report, db, org_id)
+        return _legacy_pdf(
+            paleta=marca.paleta,
+            title=report.name,
+            metric_label=(report.metric or "custom").replace("_", " ").title(),
+            data=filas,
+            summary=resumen,
+            filters=filtros,
+        )
 
     # ── Footer ────────────────────────────────────────────────────────────────
     story.append(Spacer(1, 20))

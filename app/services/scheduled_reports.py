@@ -29,17 +29,39 @@ logger = logging.getLogger("contecflow.scheduled_reports")
 
 # ── Scheduling helpers ────────────────────────────────────────────────────────
 
-def _get_next_run(frequency: str, from_dt: Optional[datetime] = None) -> datetime:
+def _get_next_run(frequency: str, from_dt: Optional[datetime] = None, *, send_hour: Optional[int] = None,
+                  day_of_week: Optional[int] = None, day_of_month: Optional[int] = None) -> datetime:
+    """La próxima vez que toca, a la hora (UTC) y el día configurados.
+
+    Revisión 2026-11: ignoraba `send_hour`, `day_of_week` y `day_of_month` y
+    sumaba un día o una semana a la última ejecución.
+    """
+    import calendar
     base = from_dt or datetime.now(timezone.utc)
+    hora = 8 if send_hour is None else int(send_hour)
+    cand = base.replace(hour=hora, minute=0, second=0, microsecond=0)
     if frequency == "daily":
-        return base + timedelta(days=1)
-    if frequency == "weekly":
-        return base + timedelta(weeks=1)
+        return cand if cand > base else cand + timedelta(days=1)
     if frequency == "monthly":
-        if base.month == 12:
-            return base.replace(year=base.year + 1, month=1, day=1, hour=8, minute=0, second=0, microsecond=0)
-        return base.replace(month=base.month + 1, day=1, hour=8, minute=0, second=0, microsecond=0)
-    return base + timedelta(weeks=1)
+        dia = int(day_of_month or 1)
+        anio, mes = base.year, base.month
+        for _ in range(2):
+            ultimo = calendar.monthrange(anio, mes)[1]
+            c = cand.replace(year=anio, month=mes, day=min(dia, ultimo))
+            if c > base:
+                return c
+            anio, mes = (anio + 1, 1) if mes == 12 else (anio, mes + 1)
+        return c
+    # semanal (y por defecto): el día de la semana configurado, lunes si no hay
+    dow = 0 if day_of_week is None else int(day_of_week)
+    c = cand + timedelta(days=(dow - cand.weekday()) % 7)
+    return c if c > base else c + timedelta(weeks=1)
+
+
+def proxima_ejecucion(report, desde: Optional[datetime] = None) -> datetime:
+    return _get_next_run(report.frequency, desde, send_hour=getattr(report, "send_hour", None),
+                         day_of_week=getattr(report, "day_of_week", None),
+                         day_of_month=getattr(report, "day_of_month", None))
 
 
 # ── Email sender ──────────────────────────────────────────────────────────────
@@ -54,9 +76,9 @@ def _send_email(recipients: list[str], subject: str, html_body: str, pdf_bytes: 
     smtp_host = settings.SMTP_HOST
     smtp_user = settings.SMTP_USER
     if not smtp_host or not smtp_user:
-        logger.warning("[SMTP no configurado] Informe '%s' generado (%d bytes) para: %s",
-                       filename, len(pdf_bytes), recipients)
-        return
+        # Revisión 2026-11: antes sólo dejaba un aviso en el registro y el
+        # envío quedaba como correcto («Informe enviado a…») sin enviar nada.
+        raise RuntimeError("El correo no está configurado (SMTP_HOST/SMTP_USER): el informe no se ha enviado")
 
     msg = MIMEMultipart()
     msg["Subject"] = subject
@@ -64,11 +86,12 @@ def _send_email(recipients: list[str], subject: str, html_body: str, pdf_bytes: 
     msg["To"] = ", ".join(recipients)
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-    pdf_part = MIMEBase("application", "pdf")
-    pdf_part.set_payload(pdf_bytes)
-    encoders.encode_base64(pdf_part)
-    pdf_part.add_header("Content-Disposition", "attachment", filename=filename)
-    msg.attach(pdf_part)
+    if pdf_bytes:
+        pdf_part = MIMEBase("application", "pdf")
+        pdf_part.set_payload(pdf_bytes)
+        encoders.encode_base64(pdf_part)
+        pdf_part.add_header("Content-Disposition", "attachment", filename=filename)
+        msg.attach(pdf_part)
 
     with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
         server.ehlo()
@@ -197,29 +220,13 @@ def _organizacion_del_informe(report, db) -> Optional[str]:
 
 
 def _pdf_del_informe(report, db, org_id, report_type: str) -> bytes:
-    """El PDF del informe, con el generador nuevo y el antiguo como respaldo.
+    """El PDF del informe. Si no se puede generar, el envío falla con el motivo.
 
-    Si los dos fallan se devuelven cero bytes y **no se envía correo**: mandar
-    un adjunto vacío es peor que no mandar nada.
+    Revisión 2026-11: antes caía a un generador antiguo con `data=[]` y se
+    enviaba un PDF en blanco como si todo hubiera ido bien.
     """
-    try:
-        from app.services.report_pdf_service import build_report_pdf
-
-        return build_report_pdf(report, db, org_id=org_id)
-    except Exception as exc:
-        logger.error("PDF generation failed for '%s': %s", report.name, exc, exc_info=True)
-
-    try:
-        from app.services.report_pdf import generate_report_pdf as _antiguo
-
-        return _antiguo(
-            title=report.name,
-            metric_label=report_type.replace("_", " ").title(),
-            data=[], summary={}, filters={},
-        )
-    except Exception:
-        logger.exception("Legacy PDF fallback also failed for report '%s'", report.name)
-        return b""
+    from app.services.report_pdf_service import build_report_pdf
+    return build_report_pdf(report, db, org_id=org_id)
 
 
 def _execute_report(report: ScheduledReport, db) -> None:
@@ -238,9 +245,11 @@ def _execute_report(report: ScheduledReport, db) -> None:
     except Exception:
         logger.warning("Fallo obteniendo KPIs OLAP para el informe '%s'", report.name)
 
-    pdf = _pdf_del_informe(report, db, org_id, report_type)
+    from app.services.service_desk.ticket_events import como_organizacion
+    with como_organizacion(db, org_id):
+        pdf = _pdf_del_informe(report, db, org_id, report_type) if getattr(report, "include_pdf", True) else b""
 
-    if destinatarios and pdf:
+    if destinatarios and (pdf or not getattr(report, "include_pdf", True)):
         nombre = report.name.replace(" ", "_")[:40]
         try:
             _send_email(
@@ -248,7 +257,7 @@ def _execute_report(report: ScheduledReport, db) -> None:
                 f"[ContecFlow] {report.name} — {datetime.now().strftime('%d/%m/%Y')}",
                 _build_html_body(
                     report.name, report_type, report.frequency,
-                    _get_next_run(report.frequency),
+                    proxima_ejecucion(report),
                 ),
                 pdf,
                 f"ContecFlow_{nombre}_{datetime.now().strftime('%Y%m%d')}.pdf",
@@ -283,7 +292,7 @@ def run_due_reports() -> None:
                 try:
                     _execute_report(report, db)
                     report.last_run_at = now
-                    report.next_run_at = _get_next_run(report.frequency, now)
+                    report.next_run_at = proxima_ejecucion(report, now)
                     report.last_status = "success"
                     report.last_error = None
                     db.commit()

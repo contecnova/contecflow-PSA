@@ -2985,10 +2985,9 @@ If the chosen provider fails, every other active provider is tried once. If none
 - **`projects_by_client` is always empty.** It is in the catalogue with no handler, and handler exceptions are swallowed into empty rows.
 - **The CSV export breaks on commas.** Values are joined without quoting.
 - Scheduled reports:
-  - **The emailed PDF has no data.** It is built with `data=[]`, because `report_type` is never set and falls back to "custom". The chosen metric is never queried, and `include_pdf` is never read.
-  - **📄 PDF opens a wrong path** (`/api/v1/scheduled-reports/...` instead of `/api/v1/billing-reports/...`). The correct endpoint renders placeholder rows anyway.
-  - **Without SMTP, nothing is sent but the run reports success.** The run is marked `success`, and "Enviar ahora" shows "Informe enviado a: …".
-  - **The schedule ignores send hour and day.** `send_hour`, `day_of_week` and `day_of_month` are ignored; the next run is simply now + 1 day/week, or the 1st of the month at 08:00.
+  - The PDF holds the chosen metric, computed with the same registry as the screen (`/analytics/query`), for the period in its filters or the screen's default. 📄 opens that same PDF (`/billing-reports/scheduled-reports/{id}/preview-pdf`). If the PDF cannot be built, the run fails with the reason; *Incluir PDF* off sends the email without attachment.
+  - Without SMTP (`SMTP_HOST`, `SMTP_USER`) the run fails and says so; it is not marked as sent.
+  - The next run is at `send_hour` (UTC) on the configured `day_of_week` (weekly) or `day_of_month` (monthly, the last day if the month is shorter), set on create and recalculated on edit.
 - Worker `send_weekly_report` (Monday 09:00) is a stub that only collects admin emails.
 
 ### Report Builder — `/report-builder`

@@ -462,3 +462,10 @@ class ScheduledReportCreate(BaseModel):
     recipients: List[str] = []
     include_pdf: bool = True
     filters_json: Optional[str] = "{}"
+    # Revisión 2026-11: el alta los ignoraba; sólo los aceptaba la edición.
+    report_type: Optional[str] = "custom"
+    include_narrative: bool = False
+    day_of_week: Optional[int] = Field(None, ge=0, le=6)
+    day_of_month: Optional[int] = Field(None, ge=1, le=31)
+    send_hour: Optional[int] = Field(None, ge=0, le=23)
+    recipients_extra: List[str] = []

@@ -1011,7 +1011,7 @@ function ScheduledReportsTab() {
                     opacity: !rep.is_active ? 0.4 : 1 }}>
                   ▶ Enviar ahora
                 </button>
-                <a href={`/api/v1/scheduled-reports/${rep.id}/preview-pdf`} target="_blank"
+                <a href={`/api/v1/billing-reports/scheduled-reports/${rep.id}/preview-pdf`} target="_blank"
                   rel="noopener noreferrer"
                   style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border)',
                     borderRadius: 7, padding: '5px 10px', color: 'var(--purple)',
