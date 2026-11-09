@@ -2063,6 +2063,9 @@ const zh = {
     col_synced: '同步时间',
   },
   public_forms: {
+    copy_widget: "复制网站代码",
+    copy_widget_help: "将此代码粘贴到公司网站：表单会直接显示在那里，只能用于提交此表单。",
+    widget_copied: "已复制小组件代码",
     new_form: '新建表单',
     empty_title: '暂无公开表单',
     empty_subtitle: '创建公开表单，用于接收外部请求',
@@ -2102,7 +2105,7 @@ const zh = {
     active_form_label: '表单已启用',
     submissions: '次提交',
     submissions_title: '收到的提交',
-    submissions_received: '条提交记录',
+    submissions_received: "{n} 条提交记录",
     no_submissions: '暂无提交',
     no_submissions_subtitle: '通过公开链接填写的表单将显示在此处。',
     col_date: '日期',

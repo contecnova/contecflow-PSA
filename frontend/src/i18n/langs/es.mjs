@@ -4513,6 +4513,9 @@ const es = {
   },
 
   public_forms: {
+    copy_widget: "Copiar código para tu web",
+    copy_widget_help: "Pega este código en la web de tu empresa: muestra el formulario allí mismo. Sólo permite enviar este formulario.",
+    widget_copied: "Código del widget copiado",
     new_form: 'Nuevo formulario',
     empty_title: 'Sin formularios públicos',
     empty_subtitle: 'Crea formularios públicos para recibir solicitudes externas',
@@ -4552,7 +4555,7 @@ const es = {
     active_form_label: 'Formulario activo',
     submissions: 'envíos',
     submissions_title: 'Envíos recibidos',
-    submissions_received: 'envío(s) recibido(s)',
+    submissions_received: "{n} envío(s) recibido(s)",
     no_submissions: 'Sin envíos',
     no_submissions_subtitle: 'Aquí aparecerán los formularios que rellene alguien desde el enlace público.',
     col_date: 'Fecha',

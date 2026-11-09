@@ -351,6 +351,12 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 .page-content {
   padding: var(--page-pad-y) var(--page-pad-x);
   max-width: var(--page-max-w);
+  /* Revisión 2026-11: sin esto, una página centrada con `margin: 0 auto` toma
+     el ancho mínimo de su contenido (una URL larga daba 561 px en un móvil de
+     390) y `main` hacía scroll horizontal por dentro. */
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
   animation: fadeUp 0.25s ease;
 }
 

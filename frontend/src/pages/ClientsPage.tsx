@@ -63,6 +63,7 @@ import { extractErr} from '../utils/helpers'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { useAppT } from '../i18n/AppLangContext'
 import { Briefcase } from 'lucide-react'
+import useMediaQuery from '../hooks/useMediaQuery'
 import {
   ProjectsTab,
   ContactsTab,
@@ -147,6 +148,8 @@ export default function ClientsPage(): JSX.Element {
   const [showEdit, setShowEdit] = useState(false)
   const [editClientForm, setEditClientForm] = useState<Record<string, string>>({})
   const [clientView, setClientView] = useState('grid')
+  // En pantallas estrechas la lista y el detalle van uno debajo del otro (revisión 2026-11).
+  const estrecha = useMediaQuery('(max-width: 900px)')
 
   const { data: clients = [], isLoading } = useQuery<Client[]>({
     queryKey: ['clients', search, statusF],
@@ -227,9 +230,9 @@ export default function ClientsPage(): JSX.Element {
           </div>
         }
       />
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: estrecha ? 'minmax(0, 1fr)' : '320px minmax(0, 1fr)', gap: estrecha ? 20 : 0 }}>
       {/* Lista de clientes */}
-      <div style={{ paddingRight: 24 }}>
+      <div style={{ paddingRight: estrecha ? 0 : 24, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{_t('clients.title')}</div>
         </div>
@@ -251,16 +254,18 @@ export default function ClientsPage(): JSX.Element {
           ? <EmptyState icon="🏢" title={traducir('clients.no_clients')} description="Crea el primer cliente para empezar" />
           : clientView === 'grid' ? (sortedClients as Client[]).map(c => (
             <button key={c.id} type="button" onClick={() => { setSelected(c); setActiveTab('contacts') }}
-              style={{ ...panel, padding: '14px 16px', marginBottom: 8, cursor: 'pointer', borderColor: selected?.id === c.id ? 'var(--accent)' : 'var(--surface-4)', background: selected?.id === c.id ? 'var(--accent-muted)' : 'var(--surface-2)', transition: 'all 0.12s' }}
+              // Revisión 2026-11: un <button> mide lo que su contenido y centra el
+              // texto; las tarjetas salían de anchos distintos. Todas al ancho de la columna.
+              style={{ ...panel, display: 'block', width: '100%', textAlign: 'left', fontFamily: 'inherit', color: 'inherit', padding: '14px 16px', marginBottom: 8, cursor: 'pointer', borderColor: selected?.id === c.id ? 'var(--accent)' : 'var(--surface-4)', background: selected?.id === c.id ? 'var(--accent-muted)' : 'var(--surface-2)', transition: 'all 0.12s' }}
               onMouseEnter={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-5)' } }}
               onMouseLeave={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-4)' } }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{c.name}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                <div title={c.name} style={{ fontSize: "var(--text-md)", fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
                 <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: alpha((STATUS_COLOR[c.status || ""] || 'var(--text-2)'), '20'), color: STATUS_COLOR[c.status || ""] || 'var(--text-2)', fontWeight: 700, whiteSpace: 'nowrap' }}>
                   {STATUS_LABEL[c.status || ""] || c.status}
                 </span>
               </div>
-              {c.contact_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>👤 {c.contact_name}</div>}
+              {c.contact_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>👤 {c.contact_name}</div>}
               <div style={{ display: 'flex', gap: 12, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
                 <span>⬡ {c.projects_count}</span>
                 <span>🎫 {c.tickets_count}</span>
@@ -278,10 +283,10 @@ export default function ClientsPage(): JSX.Element {
               </div>
               {(sortedClients as Client[]).map(c => (
                 <button key={c.id} type="button" onClick={() => { setSelected(c); setActiveTab('contacts') }}
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '9px 12px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', cursor: 'pointer', background: selected?.id === c.id ? 'var(--accent-muted)' : 'transparent' }}
+                  style={{ display: 'grid', width: '100%', textAlign: 'left', fontFamily: 'inherit', color: 'inherit', border: 'none', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '9px 12px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', cursor: 'pointer', background: selected?.id === c.id ? 'var(--accent-muted)' : 'transparent' }}
                   onMouseEnter={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'var(--surface-3)' }}
                   onMouseLeave={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'transparent' }}>
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
                     <span style={{ fontSize: "var(--text-3xs)", padding: '1px 5px', borderRadius: 10, background: alpha((STATUS_COLOR[c.status || ""] || 'var(--text-2)'), '20'), color: STATUS_COLOR[c.status || ""] || 'var(--text-2)', fontWeight: 700 }}>
                       {STATUS_LABEL[c.status || ""] || c.status}
@@ -297,7 +302,7 @@ export default function ClientsPage(): JSX.Element {
       </div>
 
       {/* Detalle del cliente */}
-      <div style={{ borderLeft: '1px solid var(--surface-4)', paddingLeft: 24 }}>
+      <div style={estrecha ? { borderTop: '1px solid var(--surface-4)', paddingTop: 20, minWidth: 0 } : { borderLeft: '1px solid var(--surface-4)', paddingLeft: 24, minWidth: 0 }}>
         {!selected ? (
           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)' }}>
             <div style={{ textAlign: 'center' }}>

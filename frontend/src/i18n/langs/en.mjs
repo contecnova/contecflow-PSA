@@ -2066,6 +2066,9 @@ const en = {
     col_synced: 'Synced',
   },
   public_forms: {
+    copy_widget: "Copy code for your website",
+    copy_widget_help: "Paste this code into your company website: it shows the form right there. It only allows sending this form.",
+    widget_copied: "Widget code copied",
     new_form: 'New form',
     empty_title: 'No public forms',
     empty_subtitle: 'Create public forms to receive external requests',
@@ -2105,7 +2108,7 @@ const en = {
     active_form_label: 'Form active',
     submissions: 'submissions',
     submissions_title: 'Submissions received',
-    submissions_received: 'submission(s) received',
+    submissions_received: "{n} submission(s) received",
     no_submissions: 'No submissions',
     no_submissions_subtitle: 'Forms filled in from the public link will appear here.',
     col_date: 'Date',
