@@ -31,6 +31,7 @@ export default function AprobacionPorCorreoPage() {
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
+    if (!token) { setError('El enlace no es válido: le falta el token'); return }
     api.get('/approvals/email-decision', { params: { token } })
       .then(r => setResumen(r.data as Resumen))
       .catch(e => setError(mensajeDe(e)))

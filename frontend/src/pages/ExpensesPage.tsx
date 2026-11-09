@@ -315,11 +315,11 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
         <button onClick={() => mutate({ approved: false, rejection_reason: reason })} disabled={isPending || !reason}
-          style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '9px 18px', color: 'var(--danger)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }} {...({ loading: isPending } as object)}>
+          style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '9px 18px', color: 'var(--danger)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }}>
           ✗ Rechazar
         </button>
         <button onClick={() => mutate({ approved: true })} disabled={isPending}
-          style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '9px 18px', color: 'var(--success)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }} {...({ loading: isPending } as object)}>
+          style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '9px 18px', color: 'var(--success)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }}>
           ✓ Aprobar
         </button>
       </div>
@@ -431,7 +431,7 @@ function MyExpenses() {
                   <button onClick={() => setEditing(exp)} title="Editar gasto" aria-label="Editar gasto"
                     style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏</button>
                   <button onClick={() => submit(exp.id)} title="Enviar gasto" aria-label="Enviar gasto"
-                    style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-sm)" }} {...({ loading: saving } as object)}>↑ Enviar</button>
+                    style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-sm)" }} disabled={saving}>↑ Enviar</button>
                   <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este gasto?', onConfirm: () => del(exp.id), danger: true }) }} title="Eliminar gasto" aria-label="Eliminar gasto"
                     style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
                 </>}
