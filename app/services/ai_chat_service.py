@@ -23,12 +23,6 @@ from app.services.ai_chat.prompt_service import (
 
 # Rate limiting and governance
 from app.services.ai_chat.rate_limit_service import check_rate_limit
-from app.services.ai_chat.governance_service import (
-    get_governance_config,
-    update_governance_config,
-    get_governance_logs,
-    get_governance_stats,
-)
 
 # Knowledge base RAG
 from app.services.ai_chat.rag_service import kb_rag_context
@@ -72,10 +66,6 @@ __all__ = [
     "delete_prompt_template",
     # Governance & Rate Limit
     "check_rate_limit",
-    "get_governance_config",
-    "update_governance_config",
-    "get_governance_logs",
-    "get_governance_stats",
     # RAG
     "kb_rag_context",
     # Conversations

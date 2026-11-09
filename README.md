@@ -3818,10 +3818,10 @@ Header buttons: **Diagnóstico**, **Sync all models**.
 - Guardrail policies (PII redaction and blocking) are a separate API, `/api/v1/ai-governance/*`. It has no editing UI, and no policies are seeded.
 
 **Limitations (measured).**
-- **Only 2 of the 9 toggles do anything.** `nexusassist` and `nexusagent` are enforced through `check_rate_limit`. The Oracle, meetings, sprint, contracts, KB, portal and voice toggles have no effect.
-- **Daily caps and per-module usage never trigger.** They count action-log rows named `nexusassist`/`nexusagent`, but those rows are written as `contecflowassist`, `contecflowagent` and `contecfloworacle`. The per-module usage shown is empty for the same reason.
+- **Every toggle switches its module off** (403 with the reason): NexusAssist, NexusAgent, Oracle, meetings, contract analysis, knowledge base, client-portal chat, voice and MCP (`app/core/modulos_ia.py`). The sprint-planning toggle was removed: that generator does not use AI.
+- **Daily caps (`max_actions_per_day`) answer 429** when reached. Actions are logged with the same module name the governance screen uses; migration 149 renamed the older `contecflow*` rows, so per-module usage counts them.
 - **Token counts are mostly 0** in this screen's data source.
-- **A second tenant's config may collide.** `module` is unique globally while the rows are per organization, so a second tenant's config insert could fail. Not verified.
+- Each company has its own row per module (unique on company and module).
 
 ### Global "📊 Exportar Excel" button
 *Roles:* every role, on any page whose header shows it.

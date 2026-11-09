@@ -299,7 +299,7 @@ def release_legal_hold(hold_id: str, db: Session = Depends(get_db), current_user
 
 AI_MODULES = [
     "nexusassist", "nexusagent", "nexusoracle", "meeting_assistant",
-    "sprint_planning", "contract_intelligence", "knowledge_base", "portal_ai", "voice",
+    "contract_intelligence", "knowledge_base", "portal_ai", "voice",
     "mcp",
 ]
 #: Sin fila, apagados: abren una puerta hacia fuera (revisión 2026-11).

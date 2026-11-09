@@ -3,6 +3,7 @@ ai_modules — thin router delegating to app.services.ai_modules_service
 """
 import os
 from app.core.config import settings
+from app.core.modulos_ia import comprobar_modulo, exigir_modulo_ia
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Body
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -87,7 +88,7 @@ def list_predictions(
     return APIListResponse.ok(items=_svc.list_predictions(db, severity=severity, prediction_type=prediction_type, only_unacked=only_unacked))
 
 
-@router.post("/oracle/run", summary="Alertas Inteligentes — ejecutar análisis de alertas")
+@router.post("/oracle/run", summary="Alertas Inteligentes — ejecutar análisis de alertas", dependencies=[Depends(exigir_modulo_ia("nexusoracle"))])
 def run_oracle(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
@@ -124,7 +125,7 @@ def list_meetings(
 from app.schemas.ai_modules import MeetingProcessPayload
 
 
-@router.post("/meetings/process", summary="Procesar transcripción de reunión con IA")
+@router.post("/meetings/process", summary="Procesar transcripción de reunión con IA", dependencies=[Depends(exigir_modulo_ia("meeting_assistant"))])
 def process_meeting(
     payload: MeetingProcessPayload,
     db: Session = Depends(get_db),
@@ -139,7 +140,7 @@ def process_meeting(
         raise HTTPException(400, str(e))
 
 
-@router.post("/meetings/{meeting_id}/create-tasks", summary="Crear tareas en Contecflow desde acciones de reunión")
+@router.post("/meetings/{meeting_id}/create-tasks", summary="Crear tareas en Contecflow desde acciones de reunión", dependencies=[Depends(exigir_modulo_ia("meeting_assistant"))])
 def create_tasks_from_meeting(
     meeting_id: str,
     payload: dict = Body(...),
@@ -196,7 +197,7 @@ def get_ai_contract(
 from app.schemas.ai_modules import ContractAnalyzePayload
 
 
-@router.post("/contracts-ai/analyze", summary="Analizar contrato con IA (texto)")
+@router.post("/contracts-ai/analyze", summary="Analizar contrato con IA (texto)", dependencies=[Depends(exigir_modulo_ia("contract_intelligence"))])
 def analyze_contract(
     payload: ContractAnalyzePayload,
     db: Session = Depends(get_db),
@@ -205,7 +206,7 @@ def analyze_contract(
     return APIResponse.ok(data=_svc.analyze_contract(db, payload, current_user))
 
 
-@router.post("/contracts-ai/analyze-pdf", summary="Analizar contrato con IA desde PDF")
+@router.post("/contracts-ai/analyze-pdf", summary="Analizar contrato con IA desde PDF", dependencies=[Depends(exigir_modulo_ia("contract_intelligence"))])
 def analyze_contract_pdf(
     file: UploadFile = File(..., description="Archivo PDF del contrato"),
     project_id: Optional[str] = Body(None),
@@ -254,7 +255,7 @@ def list_kb(
     return APIListResponse.ok(items=_svc.list_kb(db, published_only=published_only, category=category))
 
 
-@router.post("/kb/generate/{ticket_id}", summary="Generar artículo KB desde ticket resuelto")
+@router.post("/kb/generate/{ticket_id}", summary="Generar artículo KB desde ticket resuelto", dependencies=[Depends(exigir_modulo_ia("knowledge_base"))])
 def generate_kb_from_ticket(
     ticket_id: str,
     db: Session = Depends(get_db),
@@ -267,7 +268,7 @@ def generate_kb_from_ticket(
         raise HTTPException(404)
 
 
-@router.post("/kb/search", summary="Búsqueda semántica en KB")
+@router.post("/kb/search", summary="Búsqueda semántica en KB", dependencies=[Depends(exigir_modulo_ia("knowledge_base"))])
 def search_kb(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
@@ -348,7 +349,7 @@ def _puente_de_clave_openai_heredada(db: Session) -> None:
         os.environ["OPENAI_API_KEY"] = clave
 
 
-@router.post("/voice/transcribe", summary="Transcribir audio (OpenAI / Azure / Google / whisper local) y procesar como comando")
+@router.post("/voice/transcribe", summary="Transcribir audio (OpenAI / Azure / Google / whisper local) y procesar como comando", dependencies=[Depends(exigir_modulo_ia("voice"))])
 def transcribe_voice_audio(
     audio: UploadFile = File(..., description="Archivo de audio (.mp3, .wav, .m4a, .webm, .ogg)"),
     db: Session = Depends(get_db),
@@ -400,7 +401,7 @@ def transcribe_voice_audio(
 from app.schemas.ai_modules import VoiceCommandPayload
 
 
-@router.post("/voice/command", summary="Procesar comando de voz")
+@router.post("/voice/command", summary="Procesar comando de voz", dependencies=[Depends(exigir_modulo_ia("voice"))])
 def process_voice_command(
     payload: VoiceCommandPayload,
     db: Session = Depends(get_db),

@@ -104,6 +104,9 @@ def client_portal_chat_authenticated(db: Session, client_user, message: str, ses
         raise ValueError("missing_fields")
     if not client_user:
         raise ValueError("invalid_token")
+    # Revisión 2026-11: el interruptor «portal_ai» de Gobierno de IA no se comprobaba.
+    from app.core.modulos_ia import comprobar_modulo
+    comprobar_modulo(db, getattr(client_user, "organization_id", None), "portal_ai")
     return _client_portal_chat_for_user(db, client_user, message, session_id)
 
 def _client_portal_chat_for_user(db: Session, client_user, message: str, session_id: str | None) -> dict:

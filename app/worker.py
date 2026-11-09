@@ -749,7 +749,7 @@ def run_agent_task(
                         db,
                         messages=[{"role": "user", "content": instruction}],
                         system=SYSTEM + "\n\nNota: ejecuta un análisis y plan de acción sin usar herramientas reales.",
-                        module="contecflowagent", user_id=user_id, max_tokens=800,
+                        module="nexusagent", user_id=user_id, max_tokens=800,
                     )
                 except Exception:
                     result_summary = (
@@ -759,7 +759,7 @@ def run_agent_task(
                 execution.status = "done"
                 execution.result = result_summary
                 execution.completed_at = datetime.now(timezone.utc)
-                _log_action(db, current_user.id, "contecflowagent", "execute",
+                _log_action(db, current_user.id, "nexusagent", "execute",
                             instruction[:200], result_summary[:200], status="success")
                 db.commit()
                 return {"ok": True}
@@ -823,7 +823,7 @@ def run_agent_task(
             execution.result = result_summary
             execution.steps_count = step_num
             execution.completed_at = datetime.now(timezone.utc)
-            _log_action(db, current_user.id, "contecflowagent", "execute",
+            _log_action(db, current_user.id, "nexusagent", "execute",
                         instruction[:200], result_summary[:200],
                         tokens=0, latency=latency, status="success")
             db.commit()

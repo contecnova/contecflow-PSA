@@ -163,7 +163,7 @@ def persist_chat_response(
         tool_results=serialize_tool_results(tool_results),
     )
     db.add(ai_msg)
-    log_action(db, user_id, "contecflowassist", "chat",
+    log_action(db, user_id, "nexusassist", "chat",
                original_message[:200], assistant_text[:200], latency=latency)
     db.commit()
     return ai_msg.id   # revisión 2026-11: el panel lo usa para valorar la respuesta

@@ -220,7 +220,7 @@ class GuardrailPolicy:
     id: str
     org_id: str
     name: str
-    applies_to_modules: List[str]     # ["contecflowassist", "*"] — * = all
+    applies_to_modules: List[str]     # ["nexusassist", "*"] — * = all
     applies_to_roles: List[str]       # ["employee", "*"]
     scope: str                        # "prompt" | "output" | "both"
     action: str                       # "block" | "redact" | "warn" | "log"

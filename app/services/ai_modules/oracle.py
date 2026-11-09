@@ -333,7 +333,7 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
     generated.extend(_oracle_burnout(db, active_users, now))
     generated.extend(_oracle_budget_overrun(db, projects))
 
-    log_action(db, current_user.id, "contecfloworacle", "run",
+    log_action(db, current_user.id, "nexusoracle", "run",
                "oracle_full_analysis", f"Generated {len(generated)} predictions")
     db.commit()
 
