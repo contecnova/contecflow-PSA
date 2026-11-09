@@ -52,6 +52,7 @@ def list_invoices(
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # revisión 2026-11: un empleado listaba todas las facturas
 ):
     q, total = billing_reports_service.query_invoices(db, project_id=project_id, status=status)
     invoices = q.offset(skip).limit(limit).all()
@@ -63,6 +64,7 @@ def list_invoices(
 def invoice_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # revisión 2026-11: un empleado veía los totales de la empresa
 ):
     return APIResponse.ok(data=billing_reports_service.get_invoice_summary(db))
 

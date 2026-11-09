@@ -1501,6 +1501,7 @@ const es = {
     title: 'Facturación',
     subtitle: 'Crea, gestiona y rastrea facturas',
     total_invoiced: 'Total facturado',
+    sin_tipo_de_cambio: "Sin tipo de cambio a {base} para {monedas}: no están sumadas en los totales. Añádelo en Tipos de cambio.",
     total_paid: 'Pagado',
     total_pending: 'Pendiente',
     overdue: 'Vencida',

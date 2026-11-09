@@ -1360,6 +1360,7 @@ const zh = {
     title: "开票",
     subtitle: "创建、管理和跟踪发票",
     total_invoiced: "开票总额",
+    sin_tipo_de_cambio: "{monedas} 没有到 {base} 的汇率:未计入合计。请在汇率中添加。",
     total_paid: "已付款",
     total_pending: "待处理",
     overdue: "已逾期",

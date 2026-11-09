@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from sqlalchemy.exc import OperationalError
 
+from typing import Optional
 from app.core.config import settings
 from app.models.user import User
 from app.models.project import Project, ProjectPhase
@@ -765,24 +766,54 @@ def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db
     return invoice_out(inv)
 
 
-def get_invoice_summary(db: Session) -> dict:
-    invoices = _scope_invoice_query(db).all()
-    by_status: dict = {}
-    for inv in invoices:
-        s = inv.status
-        if s not in by_status:
-            by_status[s] = {"count": 0, "total": 0}
-        by_status[s]["count"] += 1
-        by_status[s]["total"] += inv.total or 0
+def _a_moneda_base(db: Session, importe: float, moneda: str, base: str, fecha) -> Optional[float]:
+    """El importe en la moneda de la empresa con el tipo vigente en la fecha; None si no hay tipo."""
+    from app.services.currency_rates_service import get_rate, get_rate_inverse
+    if not importe or (moneda or base) == base:
+        return float(importe or 0)
+    r = get_rate(db, moneda, base, fecha)
+    if r and r.rate:
+        return float(importe) * r.rate
+    r = get_rate_inverse(db, moneda, base, fecha)
+    return float(importe) / r.rate if r and r.rate else None
 
-    overdue = [i for i in invoices if i.status == "sent" and i.due_date and i.due_date < timeutil.today()]
+
+def get_invoice_summary(db: Session) -> dict:
+    """Totales por estado en la moneda de la empresa (`DEFAULT_CURRENCY`).
+
+    Revisión 2026-11: antes se sumaban los importes tal cual, en la moneda de
+    cada factura. Ahora cada una se convierte con el tipo de su fecha de emisión;
+    la que no tiene tipo de cambio no se suma y se dice aparte, por moneda.
+    """
+    from app.services.settings_service import get_runtime_str
+    org_id = _tenant_org_id(db)
+    base = (get_runtime_str(db, "DEFAULT_CURRENCY", org_id) or settings.DEFAULT_CURRENCY).upper()
+    invoices = _scope_invoice_query(db).all()
+    hoy = timeutil.today()
+    by_status: dict = {}
+    sin_tipo: dict = {}
+    convertido: dict = {}
+    for inv in invoices:
+        v = _a_moneda_base(db, inv.total or 0, (inv.currency or base).upper(), base, inv.issue_date or hoy)
+        if v is None:
+            sin_tipo[inv.currency] = round(sin_tipo.get(inv.currency, 0) + float(inv.total or 0), 2)
+        convertido[inv.id] = v or 0.0
+        e = by_status.setdefault(inv.status, {"count": 0, "total": 0.0})
+        e["count"] += 1
+        e["total"] += convertido[inv.id]
+
+    def suma(lista):
+        return round(sum(convertido[i.id] for i in lista), 2)
+    overdue = [i for i in invoices if i.status == "sent" and i.due_date and i.due_date < hoy]
     return {
+        "currency": base,
         "by_status": {k: {"count": v["count"], "total": round(v["total"], 2)} for k, v in by_status.items()},
-        "total_invoiced": round(sum(i.total or 0 for i in invoices), 2),
-        "total_paid": round(sum(i.total or 0 for i in invoices if i.status == "paid"), 2),
-        "total_pending": round(sum(i.total or 0 for i in invoices if i.status in ["sent", "overdue"]), 2),
+        "total_invoiced": suma(invoices),
+        "total_paid": suma([i for i in invoices if i.status == "paid"]),
+        "total_pending": suma([i for i in invoices if i.status in ["sent", "overdue"]]),
         "overdue_count": len(overdue),
-        "overdue_amount": round(sum(i.total or 0 for i in overdue), 2),
+        "overdue_amount": suma(overdue),
+        "sin_tipo_de_cambio": sin_tipo,
     }
 
 

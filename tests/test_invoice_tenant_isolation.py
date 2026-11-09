@@ -68,8 +68,9 @@ def test_invoice_list_hides_other_tenant_invoices(client, pm_token, seed_multite
 
     outsider = _outsider_token(client)
     list_res = client.get("/api/v1/invoices", headers=auth(outsider))
-    assert list_res.status_code == 200, list_res.text
-    items = list_res.json().get("items") or []
+    # Revisión 2026-11: la lista es de gestión (el «outsider» es empleado): 403; y si entrara, sin las ajenas.
+    assert list_res.status_code in (200, 403), list_res.text
+    items = (list_res.json().get("items") or []) if list_res.status_code == 200 else []
     assert all(item.get("id") != invoice_id for item in items)
 
 

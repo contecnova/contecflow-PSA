@@ -1494,7 +1494,7 @@ General notes that apply to every module here:
 ---
 
 ### Invoicing — `/invoices`
-*Roles:* admin, pm. Component: `pages/InvoicesPage.tsx`.
+*Roles:* admin, pm. Component: `pages/InvoicesPage.tsx`. The list, the summary, the record, editing and PDFs are `require_any_manager` in the API (an employee used to list every invoice and the company totals).
 
 **Purpose.** Create invoices from approved billable timesheets, track their status, download PDFs and push them to Xero or QuickBooks.
 
@@ -1538,7 +1538,7 @@ General notes that apply to every module here:
 
 **Limitations.**
 - Lines from timesheets keep their source imputations; lines typed by hand have none.
-- The record and the list rows use the invoice's own currency. The summary cards and the line preview inside "Nueva factura" still show a fixed `€`, and the summary adds amounts without converting between currencies.
+- The record and the list rows use the invoice's own currency; the line preview inside "Nueva factura" uses the project's. The summary cards add every invoice converted to the company currency (`DEFAULT_CURRENCY`) at the rate of its issue date; an invoice whose currency has no rate is not added and a warning lists those amounts by currency.
 - **Nothing ever sets `overdue`.** No job does it. `/invoices/summary` computes "overdue" on the fly.
 - **Cancelling or deleting releases what the invoice had marked:** its hours go back to not invoiced and its milestones to `approved`, so they can be invoiced again.
 - **Accounting sync status is free text.** It is tracked as text markers in `invoices.internal_notes` (`[XERO sync …]`), and bulk sync picks every invoice in `sent`. It depends on an external service and has not been verified against live Xero or QuickBooks.

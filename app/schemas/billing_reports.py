@@ -64,11 +64,14 @@ class InvoiceStatusOut(BaseModel):
 
 class InvoiceSummaryOut(BaseModel):
     by_status: Dict[str, InvoiceStatusOut] = Field(..., description="Agregación de facturas por estado")
-    total_invoiced: float = Field(..., description="Importe total facturado en euros")
-    total_paid: float = Field(..., description="Importe total cobrado en euros")
-    total_pending: float = Field(..., description="Importe pendiente de cobro en euros")
+    currency: str = Field("EUR", description="Moneda de los totales: la de la empresa (DEFAULT_CURRENCY)")
+    total_invoiced: float = Field(..., description="Importe total facturado, en `currency`")
+    total_paid: float = Field(..., description="Importe total cobrado, en `currency`")
+    total_pending: float = Field(..., description="Importe pendiente de cobro, en `currency`")
     overdue_count: int = Field(..., description="Número de facturas vencidas")
-    overdue_amount: float = Field(..., description="Importe vencido total en euros")
+    overdue_amount: float = Field(..., description="Importe vencido total, en `currency`")
+    sin_tipo_de_cambio: Dict[str, float] = Field(default_factory=dict,
+                                                 description="Importes sin tipo de cambio a `currency`, por moneda: no se suman")
 
 
 class InvoiceStatusUpdateOut(BaseModel):

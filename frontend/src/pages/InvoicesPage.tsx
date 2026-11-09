@@ -59,10 +59,13 @@ interface InvoiceSummary {
   total_pending?: number
   overdue_amount?: number
   overdue_count?: number
+  currency?: string
+  sin_tipo_de_cambio?: Record<string, number>
 }
 
 interface PreviewData {
   client_name?: string
+  currency?: string
   lines: InvoiceLine[]
   imputation_count?: number
   subtotal?: number
@@ -189,16 +192,23 @@ function InvoicesTab() {
   const { sort: invSort, setSort: setInvSort, sortedData: sortedInvoicesRaw } = useSort(invoices as unknown as Record<string, unknown>[], 'number')
   const sortedInvoices = sortedInvoicesRaw as unknown as InvoiceItem[]
 
+  const compacto = (n?: number) => (n ?? 0).toLocaleString(localeActivo(), { style: 'currency', currency: summary?.currency || 'EUR', notation: 'compact', maximumFractionDigits: 1 })
+
   return (
     <div>
-      {/* Summary KPIs */}
+      {/* Summary KPIs: en la moneda de la empresa; lo que no tiene tipo de cambio no se suma y se dice. */}
+      {summary && Object.keys(summary.sin_tipo_de_cambio ?? {}).length > 0 && (
+        <div role="alert" style={{ marginBottom: 10, fontSize: 'var(--text-sm)', color: 'var(--warning)' }}>
+          ⚠ {t('invoices.sin_tipo_de_cambio', { monedas: Object.entries(summary.sin_tipo_de_cambio ?? {}).map(([m, v]) => `${v.toLocaleString(localeActivo())} ${m}`).join(', '), base: summary.currency ?? '' })}
+        </div>
+      )}
       {summary && (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(min(150px, 100%), 1fr))',gap:12,marginBottom:24}}>
           {[
-            {label: t('invoices.total_invoiced'), value: `${((summary.total_invoiced||0)/1000).toFixed(0)}K€`, color: 'var(--text-1)', icon: '📄'},
-            {label: t('invoices.total_paid'), value: `${((summary.total_paid||0)/1000).toFixed(0)}K€`, color: 'var(--success)', icon: '✓'},
-            {label: t('invoices.total_pending'), value: `${((summary.total_pending||0)/1000).toFixed(0)}K€`, color: 'var(--warning)', icon: '⏳'},
-            {label: t('invoices.overdue'), value: `${((summary.overdue_amount||0)/1000).toFixed(0)}K€`, color: 'var(--danger)', icon: '⚠️'},
+            {label: t('invoices.total_invoiced'), value: compacto(summary.total_invoiced), color: 'var(--text-1)', icon: '📄'},
+            {label: t('invoices.total_paid'), value: compacto(summary.total_paid), color: 'var(--success)', icon: '✓'},
+            {label: t('invoices.total_pending'), value: compacto(summary.total_pending), color: 'var(--warning)', icon: '⏳'},
+            {label: t('invoices.overdue'), value: compacto(summary.overdue_amount), color: 'var(--danger)', icon: '⚠️'},
             {label: t('invoices.overdue_count'), value: summary.overdue_count||0, color: 'var(--danger)', icon: '📋'},
           ].map(({label,value,color,icon}) => (
             <div key={label} style={{...card,padding:'14px 18px'}}>
@@ -358,8 +368,8 @@ function InvoicesTab() {
                   <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 80px 80px',gap:10,padding:'6px 0',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)',fontSize: "var(--text-sm)"}}>
                     <span>{l.description}</span>
                     <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.quantity} h</span>
-                    <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.unit_price}€/h</span>
-                    <span style={{textAlign:'right',fontWeight:700}}>{l.amount.toLocaleString(localeActivo(),{minimumFractionDigits:2})}€</span>
+                    <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.unit_price.toLocaleString(localeActivo(),{style:'currency',currency:previewData?.currency||summary?.currency||'EUR'})}/h</span>
+                    <span style={{textAlign:'right',fontWeight:700}}>{l.amount.toLocaleString(localeActivo(),{style:'currency',currency:previewData?.currency||summary?.currency||'EUR'})}</span>
                   </div>
                 ))}
               </div>

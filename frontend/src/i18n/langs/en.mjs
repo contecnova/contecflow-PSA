@@ -1325,6 +1325,7 @@ const en = {
     title: 'Invoicing',
     subtitle: 'Create, manage and track invoices',
     total_invoiced: 'Total invoiced',
+    sin_tipo_de_cambio: "No exchange rate to {base} for {monedas}: they are not added to the totals. Add it in Exchange rates.",
     total_paid: 'Paid',
     total_pending: 'Pending',
     overdue: 'Overdue',

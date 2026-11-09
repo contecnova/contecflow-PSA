@@ -98,11 +98,18 @@ def _make_invoice(status: str, total: float, due_date=None):
     inv = MagicMock()
     inv.status = status
     inv.total = total
+    inv.currency = "EUR"          # el resumen convierte a la moneda de la empresa (EUR por defecto)
+    inv.issue_date = date.today()
     inv.due_date = due_date or date.today() + timedelta(days=30)
     return inv
 
 
 class TestGetInvoiceSummary:
+    @pytest.fixture(autouse=True)
+    def _moneda_de_la_empresa(self, monkeypatch):
+        # Con un db falso, el ajuste DEFAULT_CURRENCY sería otro MagicMock.
+        monkeypatch.setattr("app.services.settings_service.get_runtime_str", lambda *a, **k: "EUR")
+
     def _db_with(self, invoices):
         db = MagicMock()
         db.query.return_value.all.return_value = invoices
