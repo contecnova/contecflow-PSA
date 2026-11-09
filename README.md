@@ -4561,12 +4561,12 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 - `viewer`: read only (GET/HEAD/OPTIONS);
 - `member`, `manager`, `owner`: whatever the base role already allows;
 - `can_see_financials = false`: EVM, profitability, revenue and budget routes of the project → 403;
-- `can_export = false`: export routes of the project → 403.
+- `can_export = false`: export routes of the project → 403;
+- `can_see_rates = false`: in the time-entry list, other people's entries on that project come without their cost (cost = hours × rate); their own keep it.
 A `viewer` (or higher) row also makes the project appear in the list of a PM or employee who would not see it by role. Admins are never restricted.
 
 **Limitations (measured).**
 - A level never grants more than the base role: an employee who is `manager` of a project still cannot do PM-only actions.
-- `can_see_rates` has no project route to apply to; it is still not enforced.
 - Routes that identify the project only through another record (for example a task id) are not checked against this table; the task's own rules apply.
 
 ---

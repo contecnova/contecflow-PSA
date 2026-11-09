@@ -48,6 +48,14 @@ def list_imputations(
     current_user: User = Depends(get_current_user),
 ):
     total, items = list_imputations_query(db, current_user, user_id, project_id, task_id, date_from, date_to, page, page_size)
+    # Permiso por proyecto `can_see_rates = false`: las imputaciones ajenas de ese proyecto, sin coste.
+    from app.core.permisos_de_proyecto import proyectos_sin_tarifas
+    ocultos = proyectos_sin_tarifas(db, current_user)
+    if ocultos:
+        items = [ImputationOut.model_validate(i, from_attributes=True) for i in items]
+        for i in items:
+            if i.project and i.project.id in ocultos and i.user.id != current_user.id:
+                i.cost_amount = None
     if response is not None:
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)

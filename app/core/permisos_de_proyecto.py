@@ -10,15 +10,18 @@ para ese proyecto:
 - `viewer`: solo lee (GET/HEAD/OPTIONS);
 - `member`, `manager`, `owner`: lo que ya le permita su rol;
 - `can_see_financials = false`: ni EVM, ni rentabilidad, ni ingresos;
-- `can_export = false`: ninguna ruta de exportacion.
+- `can_export = false`: ninguna ruta de exportacion;
+- `can_see_rates = false`: sin el coste de las imputaciones ajenas.
 
 Ademas, una fila `viewer` o superior hace que el proyecto aparezca en la lista
 de un PM o de un empleado que no lo veria por su rol.
 
 Lo que NO hace: un nivel alto no da permisos que el rol no tenga (un empleado
-`manager` de un proyecto sigue sin poder lo que solo puede un PM), y
-`can_see_rates` no tiene ruta por proyecto a la que aplicarse. Un admin no se
-restringe nunca.
+`manager` de un proyecto sigue sin poder lo que solo puede un PM). Un admin no
+se restringe nunca.
+
+`can_see_rates = false` (revisión 2026-11): en la lista de imputaciones, las de
+otras personas en ese proyecto salen sin coste (coste = horas × tarifa).
 """
 from __future__ import annotations
 
@@ -85,3 +88,12 @@ def vetados_y_concedidos(db: Session, user) -> tuple[set[str], set[str]]:
         nivel = getattr(fila.level, "value", fila.level)
         (vetados if nivel == "none" else concedidos).add(fila.project_id)
     return vetados, concedidos
+
+
+def proyectos_sin_tarifas(db: Session, user) -> set[str]:
+    """Proyectos donde la persona no ve las tarifas de los demás (`can_see_rates = false`)."""
+    if _exento(user):
+        return set()
+    from app.models.enterprise import ProjectPermission
+    return {pid for (pid,) in _activas(db, user.id).filter(ProjectPermission.can_see_rates.is_(False))
+            .with_entities(ProjectPermission.project_id).all()}
