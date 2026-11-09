@@ -61,14 +61,9 @@ def compute_scenario(scenario_id: str, db: Session) -> dict:
             week_key = _semana_iso(current)
             weekly_demand[week_key] = weekly_demand.get(week_key, 0) + hours_per_week
             current += timedelta(weeks=1)
-
-    # Lo que el equipo ya tiene reservado (reservas firmes) tambien ocupa
-    # capacidad. Las de un proyecto que el escenario ya incluye no se suman dos veces.
-    en_escenario = {sp.project_id for sp in scenario.projects if sp.project_id}
-    comprometido = _horas_reservadas_por_semana(db, base_date, horizon_end, en_escenario)
-    for week_key, horas in comprometido.items():
-        weekly_demand[week_key] = weekly_demand.get(week_key, 0) + horas
-
+        # Revisión 2026-11: estas líneas estaban sangradas dentro del bucle de
+        # reservas: sin reservas el reparto salía vacío y la demanda total a 0;
+        # con reservas, repetía el último proyecto una vez por semana reservada.
         total_demand_hours += sp.total_hours
         project_breakdown.append({
             "name": sp.name,
@@ -78,6 +73,14 @@ def compute_scenario(scenario_id: str, db: Session) -> dict:
             "end": str(sp.end_date),
             "is_existing": sp.is_existing,
         })
+
+    # Lo que el equipo ya tiene reservado (reservas firmes) tambien ocupa
+    # capacidad. Las de un proyecto que el escenario ya incluye no se suman dos veces.
+    en_escenario = {sp.project_id for sp in scenario.projects if sp.project_id}
+    comprometido = _horas_reservadas_por_semana(db, base_date, horizon_end, en_escenario)
+    for week_key, horas in comprometido.items():
+        weekly_demand[week_key] = weekly_demand.get(week_key, 0) + horas
+
 
     capacity_timeline = []
     for week_key, demand in sorted(weekly_demand.items()):
