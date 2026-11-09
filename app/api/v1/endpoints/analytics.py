@@ -2,7 +2,7 @@
 Analytics engine – flexible data extraction for the reports builder.
 Every query returns rows + metadata so the frontend can render any chart type.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from typing import Optional
 import logging
@@ -1018,12 +1018,15 @@ def get_narrative(
 @router.post("/ask", summary="Pregunta en lenguaje natural sobre los datos OLAP")
 def ask_the_data(
     payload: AskRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: consultas analiticas
 ):
     from app.services.ask_the_data import ask
+    from app.services.bi_governance_service import registrar_acceso
     org_id = getattr(current_user, "organization_id", None)
+    registrar_acceso(db, request, current_user, "ask", "olap", "view", {"question": payload.question[:500]})
     return APIResponse.ok(data=ask(
         question=payload.question,
         db=db,

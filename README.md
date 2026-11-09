@@ -3386,12 +3386,13 @@ There are no filters.
 - **Resumen de gobernanza:** press **Ejecutar checks**.
 - **Collaboration panel:** Comentarios / Vistas compartidas / Accesos / Versiones / Notificaciones.
 
-**Configuration.** None. These values are hardcoded: a 30-day DSR deadline, 3,000 audit events per day, and a 90-day audit window.
+**Configuration.** The DSR deadline is `COMPLIANCE_GDPR_MAX_DAYS` (Admin, group `audit`; 30 by default). The governance checks use three rules edited in **Gobernanza BI → Reglas**: maximum OLAP age in hours, scheduled reports in error allowed, and whether to warn when no schedule is active.
 
 **Technical notes.**
 - Services: `bi_gdpr_service`, `bi_collaboration_service`.
 - Storage:
-  - `app_settings` JSON (GDPR, sensitivity, lineage, audit, rules, views, bookmarks)
+  - `app_settings` JSON (GDPR, sensitivity, lineage, rules, views, bookmarks)
+  - BI access audit: `audit_logs` rows with `resource = bi:<type>` (with the tamper-evident chain)
   - tables `dashboard_comments`, `dashboard_versions`, `dashboard_shares`, `dashboard_notifications`
 - **Erasure** (`execute_erasure`) anonymises `users` PII fields and the requester fields on `sd_tickets`. The portability export is real: profile, tickets and consent.
 - **Governance checks are plain rules:**
@@ -3402,8 +3403,9 @@ There are no filters.
 
 **Limitations (measured).**
 - **Lists.** Some routes return the list already unwrapped by the interceptor and others return `{items}` inside `data`; the screen reads both with `unwrapList`. Checked in the browser on a database copy: the DSR, consent, mask and shared-view lists show their rows. The 5 collaboration tabs use the same reader; they were not checked with data.
-- **Some forms always fail with 422, silently:** "Registrar acceso", lineage "Añadir", "Clasificar" (field and enum mismatch), and mask type "partial".
-- **The policy editor saves nothing.** The backend accepts only 3 fields, yet the UI says "Política creada". "Anomalías detectadas" and "Checks ejecutados" are always 0.
+- **BI access audit is written by the system**: report preview and export, the Data Explorer queries (visual, saved and BI builder) and Ask-the-Data each record who read what, from which IP. There is no way to add audit events by hand.
+- **The forms save**: lineage without SQL, field classification, and masks `hash`, `redact`, `suppress`, `pseudonymize`. Errors are shown.
+- **Retention, legal holds, masks, classification and access control** live in their own sections; this panel edits only the check rules. The summary shows the findings and the date of the last check.
 - **Erasure covers** the user row, ticket requester fields, consents and consent history; the resolved request keeps the subject id pseudonymised. It does not touch other tables or DuckDB `dim_user`.
 - **Masks are applied** by the report engine (Report builder, Data Explorer and CSV export): `pseudonymize`/`hash` → a hash, `redact` → `***`, `suppress` → empty. Field classifications are stored but not enforced.
 - Consent is kept per user and purpose.
@@ -4318,7 +4320,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | ai | TEAMS_KB_ANSWERS_ENABLED | bool | true | Teams bot — a message that is not a command is answered from the knowledge base | rt |
 | ai | MCP_WRITE_MODE | str | `off` | MCP — tools that write: off (hidden), approval (a human approves each call) or direct | rt |
 | audit | AUDIT_EXPORT_MAX_ROWS | int | 100000 | Audit log — maximum rows in the signed export (the most recent) | rt |
-| audit | COMPLIANCE_GDPR_MAX_DAYS | int | 30 | Compliance report — maximum days for an open GDPR request | rt |
+| audit | COMPLIANCE_GDPR_MAX_DAYS | int | 30 | GDPR request deadline (DSR) and the compliance-report check | rt (`bi_gdpr_service`, `informe_de_cumplimiento`) |
 | audit | COMPLIANCE_MFA_MIN_COVERAGE_PCT | float | 100.0 | Compliance report — minimum % of active users with a second factor | rt |
 | audit | COMPLIANCE_MIN_PASSWORD_LENGTH | int | 12 | Compliance report — minimum password length the policy must require | rt |
 | audit | COMPLIANCE_STALE_ACCOUNT_DAYS | int | 90 | Compliance report — an active account without sign-in for more days is flagged | rt |
@@ -5653,7 +5655,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `TENANT_DELETION_QUARANTINE_DAYS` | `30` | Company deletion — quarantine before its data is erased (days) |
 | `AUDIT_EXPORT_MAX_ROWS` | `100000` | Audit log — maximum rows in the signed export (the most recent) |
 | `COMPLIANCE_STALE_ACCOUNT_DAYS` | `90` | Compliance report — an active account without sign-in for more days is flagged |
-| `COMPLIANCE_GDPR_MAX_DAYS` | `30` | Compliance report — maximum days for an open GDPR request |
+| `COMPLIANCE_GDPR_MAX_DAYS` | `30` | GDPR request deadline (DSR) and the compliance-report check |
 | `COMPLIANCE_MFA_MIN_COVERAGE_PCT` | `100.0` | Compliance report — minimum % of active users with a second factor |
 | `COMPLIANCE_MIN_PASSWORD_LENGTH` | `12` | Compliance report — minimum password length the policy must require |
 | `RETENTION_MIN_DAYS` | `30` | Retention — no policy may keep a record type for fewer days than this |

@@ -118,19 +118,11 @@ def get_audit_log(
     return APIResponse.ok(data={"items": items, "count": len(items)})
 
 
-class AuditAccessIn(BaseModel):
-    entity_type: str = Field(..., min_length=2, max_length=40)
-    entity_id: str = Field(..., min_length=1, max_length=120)
-    action: str = Field(..., min_length=2, max_length=40)
-    before_state: Optional[dict[str, Any]] = None
-    after_state: Optional[dict[str, Any]] = None
-    extra: Optional[dict[str, Any]] = None
-
-
 class LineageIn(BaseModel):
     source_table: str = Field(..., min_length=2, max_length=120)
     target_table: str = Field(..., min_length=2, max_length=120)
-    transformation_sql: str = Field(..., min_length=2, max_length=5000)
+    # Opcional: la pantalla registra el enlace origen → destino sin SQL (revisión 2026-11: daba 422).
+    transformation_sql: Optional[str] = Field(None, max_length=5000)
 
 
 class FieldSensitivityIn(BaseModel):
@@ -141,30 +133,9 @@ class FieldSensitivityIn(BaseModel):
     requires_approval: bool = False
 
 
-@router.post('/bi/governance/audit/access', summary='Registrar evento de acceso BI con before/after + metadata cliente')
-@limiter.limit("30/minute")
-def log_access(
-    payload: AuditAccessIn,
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: gobierno del dato
-):
-    org_id = getattr(current_user, 'organization_id', None)
-    row = svc.log_bi_access(
-        db,
-        organization_id=org_id,
-        current_user=current_user,
-        entity_type=payload.entity_type,
-        entity_id=payload.entity_id,
-        action=payload.action,
-        ip_address=request.client.host if request.client else None,
-        user_agent=request.headers.get('user-agent'),
-        before_state=payload.before_state,
-        after_state=payload.after_state,
-        extra=payload.extra,
-    )
-    return APIResponse.ok(data={'ok': True, 'audit': row})
+# Revisión 2026-11: fuera `POST /bi/governance/audit/access`. Dejaba escribir
+# eventos de auditoría a mano (la pantalla mandaba uno inventado); los accesos
+# los registra el sistema al ejecutar o exportar informes y en el Data Explorer.
 
 
 @router.get('/bi/governance/audit/access', summary='Consultar auditoria BI por ventana temporal')
@@ -175,6 +146,7 @@ def list_access_history(
     user_id: Optional[str] = Query(None),
     entity_type: Optional[str] = Query(None),
     action: Optional[str] = Query(None),
+    limit: int = Query(200, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -186,6 +158,7 @@ def list_access_history(
         user_id=user_id,
         entity_type=entity_type,
         action=action,
+        limit=limit,
     )
     return APIResponse.ok(data={'items': items, 'count': len(items)})
 

@@ -7,24 +7,15 @@
  *   GET  /bi/governance/audit/access?days=N      -> { items: [{action, resource|dataset_id, user_id, accessed_at, ...}], count }
  *   GET  /bi/governance/overview                 -> overview snapshot
  */
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biCollaborationApi, biGovernanceAuditApi, unwrapList } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Shield, Plus, RefreshCw, ToggleLeft, ToggleRight, Trash2, Database, MessageCircle, Calendar, Zap, Clock } from 'lucide-react'
+import { Shield, RefreshCw, Database, MessageCircle, Calendar, Zap, Clock } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { localeActivo } from '../../utils/helpers'
 
-const POLICY_TYPES = [
-  { id: 'data_retention',    label: 'Retención de datos' },
-  { id: 'access_control',    label: 'Control de acceso' },
-  { id: 'classification',    label: 'Clasificación' },
-  { id: 'export_restriction', label: 'Restricción de export' },
-  { id: 'masking',           label: 'Enmascaramiento' },
-]
-
-const POLICY_TYPE_LABEL: Record<string, string> = Object.fromEntries(POLICY_TYPES.map(p => [p.id, p.label]))
 
 const fieldLabel: React.CSSProperties = {
   fontSize: 'var(--text-2xs)',
@@ -227,14 +218,6 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
   )
 }
 
-interface Policy {
-  id: string
-  name: string
-  policy_type: string
-  enabled: boolean
-  extra?: Record<string, unknown>
-}
-
 interface AuditEvent {
   action?: string
   resource?: string
@@ -242,6 +225,12 @@ interface AuditEvent {
   entity_type?: string
   user_id?: string
   accessed_at?: string | number | Date
+}
+
+interface Reglas {
+  olap_max_staleness_hours?: number
+  max_error_reports?: number
+  require_active_schedules?: boolean
 }
 
 interface ApiError {
@@ -253,14 +242,12 @@ export default function BiGovernancePanel() {
   const toast = useToast()
   const qc = useQueryClient()
   const [tab, setTab] = useState<string>('policies')
-  const [showCreate, setShowCreate] = useState<boolean>(false)
-  const [form, setForm] = useState<{ name: string; policy_type: string }>({ name: '', policy_type: 'data_retention' })
   const [auditDays, setAuditDays] = useState<number>(30)
   const [auditUserFilter, setAuditUserFilter] = useState<string>('')
 
   const { data: policiesData, isLoading: policiesLoading } = useQuery({
     queryKey: ['bi-gov-policies'],
-    queryFn: () => biCollaborationApi.governanceRules().then(r => r.data).catch(() => ({})),
+    queryFn: () => biCollaborationApi.governanceRules().then(r => r.data),
   })
 
   const { data: auditData, isLoading: auditLoading, refetch: refetchAudit } = useQuery({
@@ -275,68 +262,12 @@ export default function BiGovernancePanel() {
     enabled: tab === 'overview',
   })
 
-  // Normalizamos las reglas: backend devuelve un dict { name: {...} } o array
-  const pd = policiesData as Record<string, unknown> | null | undefined
-  const rawPolicies = pd?.policies ?? pd?.items ?? pd?.rules ?? pd
-  const rulesObject: Record<string, unknown> = rawPolicies && typeof rawPolicies === 'object' && !Array.isArray(rawPolicies)
-    ? (rawPolicies as Record<string, unknown>)
-    : {}
-  const policies: Policy[] = Array.isArray(rawPolicies)
-    ? (rawPolicies as Policy[])
-    : Object.entries(rulesObject).map(([key, value]) => {
-        const r = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>
-        return {
-          id: (r.id as string) ?? key,
-          name: (r.name as string) ?? key,
-          policy_type: (r.policy_type as string) ?? 'data_retention',
-          enabled: (r.enabled ?? r.active ?? true) as boolean,
-          extra: r,
-        }
-      })
-
-  const createPolicyMutation = useMutation({
-    mutationFn: (data: { name: string; policy_type: string }) => {
-      const next = {
-        ...rulesObject,
-        [data.name]: {
-          ...((rulesObject[data.name] as Record<string, unknown>) || {}),
-          policy_type: data.policy_type,
-          enabled: true,
-        },
-      }
-      return biCollaborationApi.updateGovernanceRules(next).then(r => r.data)
-    },
-    onSuccess: () => {
-      toast.success('Política creada')
-      setShowCreate(false)
-      setForm({ name: '', policy_type: 'data_retention' })
-      qc.invalidateQueries({ queryKey: ['bi-gov-policies'] })
-    },
-    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al crear política'),
-  })
-
-  const togglePolicyMutation = useMutation({
-    mutationFn: ({ name, enabled }: { name: string; enabled: boolean }) => {
-      const next = {
-        ...rulesObject,
-        [name]: { ...((rulesObject[name] as Record<string, unknown>) || {}), enabled },
-      }
-      return biCollaborationApi.updateGovernanceRules(next).then(r => r.data)
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-gov-policies'] }),
-    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al cambiar estado'),
-  })
-
-  const deletePolicyMutation = useMutation({
-    mutationFn: (name: string) => {
-      const { [name]: _removed, ...rest } = rulesObject
-      return biCollaborationApi.updateGovernanceRules(rest).then(r => r.data)
-    },
-    onSuccess: () => {
-      toast.success('Política eliminada')
-      qc.invalidateQueries({ queryKey: ['bi-gov-policies'] })
-    },
-    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al eliminar'),
+  const [reglas, setReglas] = useState<Reglas>({})
+  useEffect(() => { if (policiesData && typeof policiesData === 'object') setReglas(policiesData as Reglas) }, [policiesData])
+  const guardarReglas = useMutation({
+    mutationFn: (r: Reglas) => biCollaborationApi.updateGovernanceRules(r).then(x => x.data),
+    onSuccess: () => { toast.success(t('bigovernance.reglas_guardadas')); qc.invalidateQueries({ queryKey: ['bi-gov-policies'] }) },
+    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al guardar'),
   })
 
   const ad = auditData as Record<string, unknown> | null | undefined
@@ -352,12 +283,11 @@ export default function BiGovernancePanel() {
             {t('bi.governance.title', 'Gobernanza BI')}
           </h2>
         </div>
-        <span style={chip('var(--accent)')}>{policies.length} {t('bigovernance.politicas')}</span>
       </div>
 
       <Tabs
         items={[
-          { id: 'policies',  label: 'Políticas' },
+          { id: 'policies',  label: t('bigovernance.reglas') },
           { id: 'audit',     label: 'Auditoría' },
           { id: 'overview',  label: 'Overview' },
         ]}
@@ -367,113 +297,40 @@ export default function BiGovernancePanel() {
       />
 
       {tab === 'policies' && (
+        // Revisión 2026-11: antes había un «editor de políticas» que escribía
+        // nombres libres en este mismo JSON; el servidor sólo guarda estas tres
+        // reglas (las que usan las comprobaciones) y lo demás se perdía.
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
-            <div style={fieldLabel}>{t('bigovernance.politicas_configuradas')}</div>
-            <Button size="sm" icon={<Plus size={13} />} onClick={() => setShowCreate(v => !v)}>
-              {showCreate ? 'Cerrar' : 'Nueva política'}
-            </Button>
-          </div>
-
-          {showCreate && (
-            <div style={{
-              background: 'var(--surface-3)',
-              border: '1px solid color-mix(in srgb, var(--warning) 30%, var(--surface-4))',
-              borderRadius: 12,
-              padding: '14px 16px',
-              marginBottom: 14,
-            }}>
-              <div style={fieldLabel}>{t('bigovernance.nueva_politica')}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                <input
-                  type="text"
-                  placeholder={t('bigovernance.nombre_unico')}
-                  value={form.name}
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  style={{ ...inputBase, gridColumn: '1 / -1' }}
-                />
-                <select
-                  value={form.policy_type}
-                  onChange={e => setForm(f => ({ ...f, policy_type: e.target.value }))}
-                  style={{ ...inputBase, gridColumn: '1 / -1' }}
-                >
-                  {POLICY_TYPES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-                </select>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Button
-                  onClick={() => createPolicyMutation.mutate(form)}
-                  disabled={!form.name.trim() || createPolicyMutation.isPending}
-                  loading={createPolicyMutation.isPending}
-                >Crear</Button>
-                <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
-              </div>
-            </div>
-          )}
-
+          <div style={{ ...fieldLabel, marginBottom: 10 }}>{t('bigovernance.reglas_de_las_comprobaciones')}</div>
           {policiesLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
-          ) : policies.length === 0 ? (
-            <EmptyState icon="🛡" title={t('bigovernance.sin_politicas')} description="Crea la primera política para empezar a gobernar tus datos BI." />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {policies.map(p => {
-                const typeLabel = POLICY_TYPE_LABEL[p.policy_type] || p.policy_type
-                const stateColor = p.enabled ? 'var(--success)' : 'var(--text-3)'
-                return (
-                  <div key={p.id} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '10px 14px',
-                    background: 'var(--surface-3)',
-                    border: '1px solid var(--surface-4)',
-                    borderRadius: 8,
-                    gap: 10, flexWrap: 'wrap',
-                  }}>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
-                        {p.name}
-                      </div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
-                        {typeLabel}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={chip(stateColor)}>{p.enabled ? 'Activa' : 'Inactiva'}</span>
-                      <button
-                        type="button"
-                        onClick={() => togglePolicyMutation.mutate({ name: p.name, enabled: !p.enabled })}
-                        title={p.enabled ? 'Desactivar' : 'Activar'}
-                        style={{
-                          background: 'transparent', border: 'none', cursor: 'pointer',
-                          color: p.enabled ? 'var(--success)' : 'var(--text-3)',
-                          padding: 4, display: 'inline-flex',
-                        }}
-                      >
-                        {p.enabled ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (window.confirm(`¿Eliminar política "${p.name}"?`)) {
-                            deletePolicyMutation.mutate(p.name)
-                          }
-                        }}
-                        title={t('bigovernance.eliminar_politica')}
-                        style={{
-                          background: 'transparent', border: 'none', cursor: 'pointer',
-                          color: 'var(--text-3)', padding: 4, display: 'inline-flex',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)' }}
-                        onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)' }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 10 }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--text-sm)' }}>
+                {t('bigovernance.horas_max_olap')}
+                <input type="number" min={1} max={240} value={reglas.olap_max_staleness_hours ?? ''}
+                  onChange={e => setReglas(r => ({ ...r, olap_max_staleness_hours: e.target.value === '' ? undefined : Number(e.target.value) }))}
+                  style={inputBase} />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--text-sm)' }}>
+                {t('bigovernance.informes_en_error_max')}
+                <input type="number" min={0} max={100} value={reglas.max_error_reports ?? ''}
+                  onChange={e => setReglas(r => ({ ...r, max_error_reports: e.target.value === '' ? undefined : Number(e.target.value) }))}
+                  style={inputBase} />
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--text-sm)' }}>
+                <input type="checkbox" checked={!!reglas.require_active_schedules}
+                  onChange={e => setReglas(r => ({ ...r, require_active_schedules: e.target.checked }))} />
+                {t('bigovernance.exigir_informes_activos')}
+              </label>
             </div>
           )}
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <Button onClick={() => guardarReglas.mutate(reglas)} loading={guardarReglas.isPending}>{t('common.save')}</Button>
+          </div>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 12 }}>
+            {t('bigovernance.otras_politicas')}
+          </p>
         </div>
       )}
 

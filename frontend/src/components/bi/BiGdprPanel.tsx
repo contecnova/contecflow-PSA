@@ -429,7 +429,7 @@ function MasksTab() {
         <input placeholder="entidad (ej: user)" value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={S.input} />
         <input placeholder="campo (ej: email)" value={form.field} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} style={S.input} />
         <select value={form.mask_type} onChange={e => setForm(f => ({ ...f, mask_type: e.target.value }))} style={S.select}>
-          {['hash', 'redact', 'partial', 'suppress', 'pseudonymize'].map(mt => <option key={mt} value={mt}>{mt}</option>)}
+          {['hash', 'redact', 'suppress', 'pseudonymize'].map(mt => <option key={mt} value={mt}>{mt}</option>)}
         </select>
         <button onClick={() => addMut.mutate(form)} disabled={addMut.isPending || !form.field}
           style={{ ...S.btn, opacity: (addMut.isPending || !form.field) ? 0.5 : 1 }}>

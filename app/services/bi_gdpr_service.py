@@ -35,8 +35,14 @@ _KEY_CONSENT_HISTORY = "bi.gdpr.consent_history"
 _KEY_DSR = "bi.gdpr.dsr"
 _KEY_MASKS = "bi.gdpr.field_masks"
 
-# GDPR SLA: 30 days (in seconds) per GDPR Art. 12.3
-_DSR_SLA_DAYS = 30
+def _plazo_dsr(db: Session, org_id: Optional[str]) -> int:
+    """Plazo de una solicitud RGPD (art. 12.3): `COMPLIANCE_GDPR_MAX_DAYS` de Admin.
+
+    Revisión 2026-11: era una constante de 30 días aquí y el ajuste sólo lo
+    usaba el informe de cumplimiento.
+    """
+    from app.services.settings_service import get_runtime_int
+    return int(get_runtime_int(db, "COMPLIANCE_GDPR_MAX_DAYS", org_id))
 
 
 def _iso_now() -> str:
@@ -150,11 +156,11 @@ def create_dsr(
 ) -> dict:
     """
     Create a new DSR (erasure, portability, rectification, restriction).
-    Adds SLA deadline (30 days) per GDPR Art. 12.3.
+    Adds SLA deadline (`COMPLIANCE_GDPR_MAX_DAYS`) per GDPR Art. 12.3.
     """
     from datetime import timedelta
     now = datetime.now(timezone.utc)
-    deadline = (now + timedelta(days=_DSR_SLA_DAYS)).isoformat()
+    deadline = (now + timedelta(days=_plazo_dsr(db, org_id))).isoformat()
     dsrs: dict = _get_setting(db, _KEY_DSR, org_id, {})
     dsr_id = str(uuid.uuid4())
     entry = {
@@ -223,7 +229,8 @@ def get_dsr_stats(db: Session, *, org_id: Optional[str]) -> dict:
     dsrs = list(_get_setting(db, _KEY_DSR, org_id, {}).values())
     pending = [d for d in dsrs if d["status"] == "pending"]
     completed = [d for d in dsrs if d["status"] == "completed"]
-    # SLA breach: pending DSRs past deadline (30 days)
+    # SLA breach: pending DSRs past deadline
+    plazo = _plazo_dsr(db, org_id)
     overdue = []
     for d in pending:
         deadline_str = d.get("deadline")
@@ -232,7 +239,7 @@ def get_dsr_stats(db: Session, *, org_id: Optional[str]) -> dict:
             if deadline_str:
                 dl = datetime.fromisoformat(deadline_str)
             else:
-                dl = datetime.fromisoformat(created_str) + timedelta(days=_DSR_SLA_DAYS)
+                dl = datetime.fromisoformat(created_str) + timedelta(days=plazo)
             if dl.tzinfo is None:
                 dl = dl.replace(tzinfo=timezone.utc)
             if now > dl:

@@ -11,7 +11,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -132,10 +132,13 @@ def phase2_visual_query_builder_schema(current_user: User = Depends(get_current_
 )
 def phase2_visual_query_builder_preview(
     payload: VisualQueryPreviewIn,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
+    from app.services.bi_governance_service import registrar_acceso
+    registrar_acceso(db, request, current_user, "entity", payload.entity, "view", {"columns": list(payload.columns or [])})
     try:
         return APIResponse.ok(data=svc.preview_visual_query(
             db,

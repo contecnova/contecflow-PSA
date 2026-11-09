@@ -440,7 +440,6 @@ export const biBookmarksApi = {
 
 export const biGovernanceAuditApi = {
   // BI Governance — audit trail, data lineage, field sensitivity
-  logAccessEvent: (payload: unknown)            => api.post('/bi/governance/audit/access', payload),
   getAccessHistory: (params?: any)           => api.get('/bi/governance/audit/access', { params }),
   listLineage: (target_table: any)          => api.get('/bi/governance/lineage', { params: target_table ? { target_table } : undefined }),
   trackLineage: (payload: unknown)              => api.post('/bi/governance/lineage', payload),

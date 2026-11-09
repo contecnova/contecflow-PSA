@@ -53,10 +53,6 @@ def _set_json(db: Session, key: str, organization_id: Optional[str], value: Any,
     db.commit()
 
 
-def _audit_key(date_yyyy_mm_dd: str) -> str:
-    return f"bi.audit.{date_yyyy_mm_dd}"
-
-
 def log_bi_access(
     db: Session,
     *,
@@ -71,27 +67,55 @@ def log_bi_access(
     after_state: Optional[dict[str, Any]] = None,
     extra: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
-    now = datetime.now(timezone.utc)
-    key = _audit_key(now.date().isoformat())
-    items = _get_json(db, key, organization_id, default=[])
+    """Un acceso a datos de BI, en el registro de auditoría de la plataforma.
 
-    row = {
-        "id": str(uuid.uuid4()),
-        "timestamp": now.isoformat(),
-        "user_id": current_user.id,
-        "user_name": current_user.full_name,
-        "entity_type": entity_type,
-        "entity_id": entity_id,
-        "action": action,
-        "ip_address": ip_address,
-        "user_agent": user_agent,
-        "before_state": before_state,
-        "after_state": after_state,
-        "extra": extra or {},
+    Revisión 2026-11: se guardaba en un JSON diario de `app_settings`, recortado
+    a 3.000 eventos, y sólo lo escribía un botón de consola con un evento
+    inventado: ningún acceso real quedaba registrado. Ahora va a `audit_logs`
+    (con su cadena a prueba de manipulación) desde los accesos reales: ejecutar
+    y exportar informes, y el Data Explorer.
+    """
+    from app.services.audit import audit_log
+    try:
+        fila = audit_log(db, current_user, action, f"bi:{entity_type}", resource_id=str(entity_id)[:36],
+                         resource_name=str(entity_id)[:255], old_values=before_state, new_values=after_state,
+                         metadata=extra, ip_address=ip_address, user_agent=(user_agent or "")[:500] or None)
+        if organization_id and not getattr(fila, "organization_id", None):
+            fila.organization_id = organization_id
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.warning("No se pudo registrar el acceso BI %s %s", entity_type, entity_id, exc_info=True)
+        return {}
+    return _fila_de_acceso(fila)
+
+
+def registrar_acceso(db: Session, request, usuario: User, entity_type: str, entity_id: str,
+                     action: str = "view", extra: Optional[dict[str, Any]] = None) -> None:
+    """Atajo para los endpoints que leen datos de BI: IP real y navegador de la petición."""
+    from app.core.network import extract_client_ip
+    log_bi_access(db, organization_id=getattr(usuario, "organization_id", None), current_user=usuario,
+                  entity_type=entity_type, entity_id=entity_id, action=action,
+                  ip_address=extract_client_ip(request) if request is not None else None,
+                  user_agent=request.headers.get("user-agent") if request is not None else None, extra=extra)
+
+
+def _fila_de_acceso(f) -> dict[str, Any]:
+    import json as _json
+
+    def _j(v):
+        try:
+            return _json.loads(v) if v else None
+        except ValueError:
+            return None
+    return {
+        "id": f.id,
+        "timestamp": f.created_at.isoformat() if f.created_at else datetime.now(timezone.utc).isoformat(),
+        "user_id": f.user_id, "user_name": f.user_name,
+        "entity_type": (f.resource or "").removeprefix("bi:"), "entity_id": f.resource_name or f.resource_id,
+        "action": (f.action or "").lower(), "ip_address": f.ip_address, "user_agent": f.user_agent,
+        "before_state": _j(f.old_values), "after_state": _j(f.new_values), "extra": _j(f.metadata_) or {},
     }
-    items.append(row)
-    _set_json(db, key, organization_id, items[-3000:], description="BI governance access audit log")
-    return row
 
 
 def get_access_history(
@@ -102,26 +126,22 @@ def get_access_history(
     user_id: Optional[str] = None,
     entity_type: Optional[str] = None,
     action: Optional[str] = None,
+    limit: Optional[int] = None,
 ) -> list[dict[str, Any]]:
-    out: list[dict[str, Any]] = []
-    today = datetime.now(timezone.utc).date()
-
-    for delta in range(max(1, min(days, 90))):
-        key = _audit_key((today - timedelta(days=delta)).isoformat())
-        out.extend(_get_json(db, key, organization_id, default=[]))
-
-    def keep(item: dict[str, Any]) -> bool:
-        if user_id and item.get("user_id") != user_id:
-            return False
-        if entity_type and item.get("entity_type") != entity_type:
-            return False
-        if action and item.get("action") != action:
-            return False
-        return True
-
-    out = [x for x in out if keep(x)]
-    out.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-    return out
+    """Accesos BI de los últimos `days` días (la sesión acota la empresa)."""
+    from app.models.enterprise import AuditLog
+    desde = datetime.now(timezone.utc) - timedelta(days=max(1, days))
+    q = db.query(AuditLog).filter(AuditLog.resource.like("bi:%"), AuditLog.created_at >= desde)
+    if user_id:
+        q = q.filter(AuditLog.user_id == user_id)
+    if entity_type:
+        q = q.filter(AuditLog.resource == f"bi:{entity_type}")
+    if action:
+        q = q.filter(AuditLog.action == action.upper())
+    q = q.order_by(AuditLog.created_at.desc())
+    if limit:
+        q = q.limit(limit)
+    return [_fila_de_acceso(f) for f in q.all()]
 
 
 def list_lineage(db: Session, *, organization_id: Optional[str], target_table: Optional[str] = None) -> list[dict[str, Any]]:

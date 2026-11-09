@@ -7,6 +7,8 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useToast } from '../context/ToastContext'
+import { extractErr } from '../utils/helpers'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { Shield } from 'lucide-react'
@@ -30,11 +32,14 @@ type ItemsResponse<T> = {
 
 type GovernanceOverview = {
   scheduled_reports?: number | { active?: number }
-  anomalies_detected?: number
-  checks_run?: number
 }
 
-type GovernanceRunResult = Record<string, unknown> | null
+type GovernanceRunResult = {
+  timestamp?: string
+  status?: string
+  finding_count?: number
+  findings?: Array<{ code?: string; severity?: string; message?: string }>
+} | null
 
 type AuditEvent = {
   user_id?: string
@@ -115,6 +120,7 @@ function SectionHeading({ title, description }: { title: string; description?: s
 
 export default function DataGovernancePage(): JSX.Element {
   const { t } = useAppLang()
+  const toast = useToast()
   const { lang } = useAppLang()
   const isMobile = useMediaQuery('(max-width: 900px)')
 
@@ -222,10 +228,10 @@ export default function DataGovernancePage(): JSX.Element {
       await biCollaborationApi.createComment({ dashboard_key: 'executive', widget_id: commentWidget, message: trimmed })
       setCommentText('')
       await refetchComments()
-    } catch (_) { /* ignore */ }
+    } catch (e) { toast.error(extractErr(e, 'No se pudo guardar')) }
   }
   async function handleResolveComment(id: string | number) {
-    try { await biCollaborationApi.resolveComment(id); await refetchComments() } catch (_) { /* ignore */ }
+    try { await biCollaborationApi.resolveComment(id); await refetchComments() } catch (e) { toast.error(extractErr(e, 'No se pudo guardar')) }
   }
   async function handleCreateSharedView() {
     const name = (sharedViewName || '').trim()
@@ -235,23 +241,13 @@ export default function DataGovernancePage(): JSX.Element {
       setSharedViewName('')
       setSharedViewsTick(x => x + 1)
       await refetchSharedViews()
-    } catch (_) { /* ignore */ }
+    } catch (e) { toast.error(extractErr(e, 'No se pudo guardar')) }
   }
   async function handleToggleSharedView(view: SharedView) {
-    try { await biCollaborationApi.patchSharedView(view.id, { active: !view.active }); setSharedViewsTick(x => x + 1); await refetchSharedViews() } catch (_) { /* ignore */ }
+    try { await biCollaborationApi.patchSharedView(view.id, { active: !view.active }); setSharedViewsTick(x => x + 1); await refetchSharedViews() } catch (e) { toast.error(extractErr(e, 'No se pudo guardar')) }
   }
   async function handleRunGovernance() {
-    try { await biCollaborationApi.runGovernanceChecks(); setGovRunTick(x => x + 1); await refetchGovRun(); await refetchRules() } catch (_) { /* ignore */ }
-  }
-  async function handleLogGovAuditEvent() {
-    try {
-      await biGovernanceAuditApi.logAccessEvent({
-        user_id: govAuditUserFilter.trim() || 'console',
-        resource: 'bi_dashboard',
-        action: 'view',
-      })
-      setGovAuditTick(x => x + 1)
-    } catch (_) { /* ignore */ }
+    try { await biCollaborationApi.runGovernanceChecks(); setGovRunTick(x => x + 1); await refetchGovRun(); await refetchRules() } catch (e) { toast.error(extractErr(e, 'No se pudo guardar')) }
   }
   async function handleAddLineageEdge() {
     const src = newLineageSource.trim()
@@ -261,17 +257,17 @@ export default function DataGovernancePage(): JSX.Element {
       await biGovernanceAuditApi.trackLineage({ source_table: src, target_table: tgt })
       setNewLineageSource(''); setNewLineageTarget('')
       setGovAuditTick(x => x + 1)
-    } catch (_) { /* ignore */ }
+    } catch (e) { toast.error(extractErr(e, 'No se pudo guardar')) }
   }
   async function handleUpsertFieldSensitivity() {
     const field = newFieldName.trim()
     const dataset = newFieldDataset.trim()
     if (!field || !dataset) return
     try {
-      await biGovernanceAuditApi.upsertFieldSensitivity({ dataset_id: dataset, field_name: field, sensitivity: newFieldSensitivity })
+      await biGovernanceAuditApi.upsertFieldSensitivity({ dataset_id: dataset, field_name: field, sensitivity_level: newFieldSensitivity })
       setNewFieldName(''); setNewFieldDataset('')
       setGovAuditTick(x => x + 1)
-    } catch (_) { /* ignore */ }
+    } catch (e) { toast.error(extractErr(e, 'No se pudo guardar')) }
   }
 
   return (
@@ -303,7 +299,6 @@ export default function DataGovernancePage(): JSX.Element {
                 </div>
               </div>
               <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
-                <button onClick={handleLogGovAuditEvent} style={S.btnAccentOutline()}>Registrar acceso</button>
                 {govAuditItems.length === 0
                   ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('datagovernance.sin_eventos_de_auditoria')}</div>
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
@@ -491,7 +486,7 @@ export default function DataGovernancePage(): JSX.Element {
                   await biBookmarksApi.create({ name: newBookmarkName, period_days: days, active_tab: 'executive', shared: false })
                   setNewBookmarkName('')
                   setBookmarksTick(x => x + 1)
-                } catch (_) { /* ignore */ }
+                } catch (e) { toast.error(extractErr(e, 'No se pudo guardar')) }
               }} style={S.btnPrimary}>Guardar vista actual</button>
             </div>
           </div>
@@ -504,7 +499,7 @@ export default function DataGovernancePage(): JSX.Element {
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-1)' }}>🔖 {bm.name}</span>
                         <button onClick={async () => {
-                          try { await biBookmarksApi.delete(bm.id); setBookmarksTick(x => x + 1) } catch (_) { /* ignore */ }
+                          try { await biBookmarksApi.delete(bm.id); setBookmarksTick(x => x + 1) } catch (e) { toast.error(extractErr(e, 'No se pudo guardar')) }
                         }}
                           style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>✕</button>
                       </div>
@@ -528,8 +523,9 @@ export default function DataGovernancePage(): JSX.Element {
             <div style={{ ...S.cardPad, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
               {[
                 { label: 'Reports programados activos', value: govScheduledActive },
-                { label: 'Anomalías detectadas',         value: governance?.anomalies_detected ?? 0 },
-                { label: 'Checks ejecutados',            value: governance?.checks_run ?? 0 },
+                // Revisión 2026-11: estas dos cifras leían campos que no existen y daban 0 siempre.
+                { label: 'Hallazgos de la última comprobación', value: governanceRun ? (governanceRun.finding_count ?? 0) : '—' },
+                { label: 'Última comprobación', value: governanceRun?.timestamp ? new Date(governanceRun.timestamp).toLocaleString() : '—' },
               ].map(k => (
                 <div key={k.label} style={{ padding: '12px 16px', background: 'var(--surface-3)', borderRadius: 10 }}>
                   <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--text-1)', marginBottom: 4 }}>{k.value ?? '—'}</div>
@@ -539,7 +535,11 @@ export default function DataGovernancePage(): JSX.Element {
             </div>
             {governanceRun && (
               <div style={{ ...S.cardPad, borderTop: '1px solid var(--surface-4)', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
-                {t('datagovernance.ultimo_run')} {JSON.stringify(governanceRun).slice(0, 200)}
+                {(governanceRun.findings ?? []).length === 0
+                  ? t('datagovernance.sin_hallazgos')
+                  : (governanceRun.findings ?? []).map((f, i) => (
+                    <div key={i} style={{ color: f.severity === 'critical' ? 'var(--danger)' : 'var(--warning)' }}>• {f.message}</div>
+                  ))}
               </div>
             )}
           </div>

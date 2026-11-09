@@ -5409,6 +5409,7 @@ const es = {
     ano: '/ año',
   },
   datagovernance: {
+    sin_hallazgos: 'Sin hallazgos en la última comprobación.',
     auditoria_y_linaje: 'Auditoría y linaje',
     auditoria_de_accesos: 'Auditoría de accesos',
     filtrar_por_user_id: 'Filtrar por user_id',
@@ -5458,6 +5459,13 @@ const es = {
     para_mejorar_la_precision_genera_perfiles_automaticos: '💡 Para mejorar la precisión: genera perfiles automáticos, procesa algunos tickets/tareas y corrige manualmente las asignaciones incorrectas. El sistema aprende de cada corrección.',
   },
   bigovernance: {
+    reglas: 'Reglas',
+    reglas_de_las_comprobaciones: 'Reglas que usan las comprobaciones de gobierno',
+    horas_max_olap: 'Antigüedad máxima del almacén OLAP (horas)',
+    informes_en_error_max: 'Informes programados en error tolerados',
+    exigir_informes_activos: 'Avisar si no hay informes programados activos',
+    otras_politicas: 'Retención, bloqueos legales, máscaras, clasificación de campos y control de acceso se configuran en sus propias secciones (Gobierno, RGPD → Máscaras, Clasificación de campos y Permisos).',
+    reglas_guardadas: 'Reglas guardadas',
     con_error: 'Con error',
     colaboracion: 'Colaboración',
     sin_resolver: 'sin resolver',

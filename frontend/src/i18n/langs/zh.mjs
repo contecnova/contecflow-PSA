@@ -6112,6 +6112,7 @@ const zh = {
     ano: '/ 年',
   },
   datagovernance: {
+    sin_hallazgos: '上次检查没有发现问题。',
     auditoria_y_linaje: '审计与血缘',
     auditoria_de_accesos: '访问审计',
     filtrar_por_user_id: '按 user_id 筛选',
@@ -6161,6 +6162,13 @@ const zh = {
     para_mejorar_la_precision_genera_perfiles_automaticos: '💡 提升准确率的做法：先自动生成画像，处理一批工单/任务，再手动纠正分派有误的条目。系统会从每次纠正中学习。',
   },
   bigovernance: {
+    reglas: '规则',
+    reglas_de_las_comprobaciones: '治理检查使用的规则',
+    horas_max_olap: 'OLAP 仓库最长时效（小时）',
+    informes_en_error_max: '允许出错的定时报告数',
+    exigir_informes_activos: '没有活动的定时报告时提醒',
+    otras_politicas: '保留、法律保留、掩码、字段分类和访问控制在各自的部分中配置（治理、GDPR → 掩码、字段分类和权限）。',
+    reglas_guardadas: '规则已保存',
     con_error: '有错误',
     colaboracion: '协作',
     sin_resolver: '未解决',

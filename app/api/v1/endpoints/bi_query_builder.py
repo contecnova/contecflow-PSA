@@ -136,6 +136,9 @@ def preview_query(
     current_user: User = Depends(require_admin_or_pm),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
+    from app.services.bi_governance_service import registrar_acceso
+    registrar_acceso(db, request, current_user, "dataset", body.dataset, "view",
+                     {"fields": list(body.fields or []), "group_by": list(body.group_by or [])})
     try:
         return APIResponse.ok(data=svc.preview_query(
             db,
@@ -187,6 +190,8 @@ def execute_query(
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
+    from app.services.bi_governance_service import registrar_acceso
+    registrar_acceso(db, request, current_user, "saved_query", query_id, "view")
     try:
         return APIResponse.ok(data=svc.execute_query(db, org_id=org_id, query_id=query_id, current_user=current_user))
     except ValueError as exc:

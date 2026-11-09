@@ -6101,6 +6101,7 @@ const en = {
     ano: '/ year',
   },
   datagovernance: {
+    sin_hallazgos: 'No findings in the last check.',
     auditoria_y_linaje: 'Audit and lineage',
     auditoria_de_accesos: 'Access audit',
     filtrar_por_user_id: 'Filter by user_id',
@@ -6150,6 +6151,13 @@ const en = {
     para_mejorar_la_precision_genera_perfiles_automaticos: '💡 To improve accuracy: generate automatic profiles, process a few tickets/tasks, and correct the wrong assignments by hand. The system learns from every correction.',
   },
   bigovernance: {
+    reglas: 'Rules',
+    reglas_de_las_comprobaciones: 'Rules used by the governance checks',
+    horas_max_olap: 'Maximum OLAP warehouse age (hours)',
+    informes_en_error_max: 'Scheduled reports in error allowed',
+    exigir_informes_activos: 'Warn when there are no active scheduled reports',
+    otras_politicas: 'Retention, legal holds, masks, field classification and access control are set in their own sections (Governance, GDPR → Masks, Field classification and Permissions).',
+    reglas_guardadas: 'Rules saved',
     con_error: 'With errors',
     colaboracion: 'Collaboration',
     sin_resolver: 'unresolved',

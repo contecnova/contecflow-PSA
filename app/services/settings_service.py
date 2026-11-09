@@ -248,7 +248,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
     "audit": [
         ("AUDIT_EXPORT_MAX_ROWS", "int", "Audit log — maximum rows in the signed export (the most recent)"),
         ("COMPLIANCE_STALE_ACCOUNT_DAYS", "int", "Compliance report — an active account without sign-in for more days is flagged"),
-        ("COMPLIANCE_GDPR_MAX_DAYS", "int", "Compliance report — maximum days for an open GDPR request"),
+        ("COMPLIANCE_GDPR_MAX_DAYS", "int", "GDPR request deadline (DSR) and the compliance-report check"),
         ("COMPLIANCE_MFA_MIN_COVERAGE_PCT", "float", "Compliance report — minimum % of active users with a second factor"),
         ("COMPLIANCE_MIN_PASSWORD_LENGTH", "int", "Compliance report — minimum password length the policy must require"),
         ("RETENTION_MIN_DAYS", "int", "Retention — no policy may keep a record type for fewer days than this"),

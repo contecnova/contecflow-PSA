@@ -6,7 +6,7 @@ Delegates all logic to app.services.report_builder_service.
 
 from typing import Any, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -61,9 +61,17 @@ def get_schema(_: User = Depends(require_admin_or_pm)):
     })
 
 
+def _registrar_acceso(request: Request, usuario: User, db: Session, accion: str, q, filas: int) -> None:
+    """Auditoría de acceso a datos BI (revisión 2026-11: nunca se registraba)."""
+    from app.services.bi_governance_service import registrar_acceso
+    registrar_acceso(db, request, usuario, "report", q.entity, accion,
+                     {"columns": list(q.columns or []), "filters": len(q.filters or []), "rows": filas})
+
+
 @router.post("/preview", summary="Previsualizar informe")
 def preview_report(
     q: ReportQuery,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
@@ -77,6 +85,7 @@ def preview_report(
         q.sort.direction if q.sort else "asc",
         limit, current_user, db,
     )
+    _registrar_acceso(request, current_user, db, "view", q, len(rows))
     return APIResponse.ok(data={"rows": rows, "count": len(rows), "truncated": len(rows) == limit})
 
 
@@ -86,6 +95,7 @@ from fastapi import Query
 @router.post("/export", summary="Exportar informe a CSV")
 def export_report(
     q: ReportQuery,
+    request: Request,
     page: Optional[int] = Query(None, ge=1, description="Página; sin ella se exporta todo (hasta REPORT_EXPORT_MAX_ROWS)"),
     page_size: int = Query(2000, ge=1, le=10000, description="Tamaño de página para exportación paginada"),
     db: Session = Depends(get_db),
@@ -97,10 +107,12 @@ def export_report(
     orden = (q.sort.column if q.sort else None, q.sort.direction if q.sort else "asc")
     if page is not None:
         result = _svc.execute_report_paginated(q.entity, q.columns, q.filters, *orden, page, page_size, current_user, db)
+        _registrar_acceso(request, current_user, db, "export", q, len(result["items"]))
         return _svc.build_csv_response(q.columns, result["items"], q.entity, pagination=result)
     # Revisión 2026-11: la pantalla no pide página y se exportaban las 2.000
     # primeras filas sin decirlo. Sin página se exporta todo, hasta el tope.
     filas, total = _svc.exportar_todo(q.entity, q.columns, q.filters, *orden, current_user, db)
+    _registrar_acceso(request, current_user, db, "export", q, len(filas))
     return _svc.build_csv_response(q.columns, filas, q.entity, pagination={"total": total, "page": 1,
                                                                            "page_size": len(filas), "pages": 1})
 
