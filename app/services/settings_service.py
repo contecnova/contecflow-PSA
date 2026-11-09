@@ -414,6 +414,10 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("BUDGET_EXPENSE_TYPE_MAP", "str", "Budgets — which line type each expense category counts in (category:type, CSV)"),
         ("BUDGET_APPROVER_ROLES", "str", "Budgets — roles that approve or reject when no approval workflow applies (CSV)"),
         ("BUDGET_MANAGER_ROLES", "str", "Budgets — roles that create and edit budgets (CSV)"),
+        ("BUDGET_REVENUE_TYPES", "str", "Budgets — revenue line types (CSV)"),
+        ("BUDGET_CEILING_POLICY", "str", "Budgets — when child budgets exceed the parent's ceiling: avisar or bloquear"),
+        ("BUDGET_JUSTIFICATION_MIN_AMOUNT", "float", "Budgets — lines of this amount or more need a justification to submit (0: none)"),
+        ("BUDGET_CAMPAIGN_REMINDER_DAYS", "int", "Budgets — days before a campaign deadline when owners of unsent budgets are reminded"),
     ],
     "feature_flags": [
         ("M365_CALENDAR_SYNC_ENABLED", "bool", "M365 calendar sync"),
@@ -853,6 +857,45 @@ def delete_task_status(item_id: str, db: Session) -> dict:
 
 
 # ── Departments ───────────────────────────────────────────────────────────────
+
+def get_areas(db: Session) -> list[dict]:
+    """Áreas activas con los nombres de sus departamentos (revisión 2026-11)."""
+    from app.models.settings import Area
+    salida = []
+    for a in db.query(Area).filter(Area.is_active.isnot(False)).order_by(Area.name).all():
+        deps = [n for (n,) in db.query(Department.name).filter(Department.area_id == a.id,
+                                                              Department.is_active == True).order_by(Department.name).all()]  # noqa: E712
+        salida.append({"id": a.id, "name": a.name, "description": a.description, "manager_id": a.manager_id,
+                       "is_active": True, "departamentos": deps})
+    return salida
+
+
+def guardar_area(db: Session, payload: dict, org_id, area_id: Optional[str] = None) -> dict:
+    from app.models.settings import Area
+    if area_id:
+        a = db.query(Area).filter(Area.id == area_id).first()
+        if a is None:
+            raise ValueError("not_found")
+    else:
+        a = Area(organization_id=org_id)
+        db.add(a)
+    for k in ("name", "description", "manager_id"):
+        if k in payload:
+            setattr(a, k, payload[k])
+    db.commit()
+    return next(x for x in get_areas(db) if x["id"] == a.id)
+
+
+def borrar_area(db: Session, area_id: str) -> dict:
+    from app.models.settings import Area
+    a = db.query(Area).filter(Area.id == area_id).first()
+    if a is None:
+        raise ValueError("not_found")
+    a.is_active = False
+    db.query(Department).filter(Department.area_id == area_id).update({"area_id": None})
+    db.commit()
+    return {"ok": True}
+
 
 def get_departments(db: Session) -> list:
     return db.query(Department).filter(Department.is_active == True).order_by(Department.name).all()

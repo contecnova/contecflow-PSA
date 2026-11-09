@@ -115,10 +115,23 @@ class CustomTaskStatus(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class Area(Base):
+    """Un área agrupa departamentos (revisión 2026-11): la base de su presupuesto."""
+    __tablename__ = "areas"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    name = Column(String(120), nullable=False)
+    description = Column(String(255), nullable=True)
+    manager_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Department(Base):
     __tablename__ = "departments"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    area_id = Column(String(36), ForeignKey("areas.id", ondelete="SET NULL"), nullable=True, index=True)
     name = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
     manager_id = Column(String(36), ForeignKey("users.id"), nullable=True)

@@ -46,6 +46,18 @@ class PresupuestoIn(BaseModel):
     periodo_hasta: Optional[date] = None
     currency: Optional[str] = Field(None, max_length=3)
     notes: Optional[str] = None
+    # Revisión 2026-11 (preparar a fondo)
+    area_id: Optional[str] = None
+    padre_id: Optional[str] = None
+    techo: Optional[float] = Field(None, ge=0)
+    responsable_id: Optional[str] = None
+    campana_id: Optional[str] = None
+    escenario: Optional[str] = Field(None, max_length=40)
+    supuestos: Optional[dict] = None
+    plantilla_id: Optional[str] = None
+    copiar_de: Optional[str] = None
+    base: Optional[str] = Field(None, pattern="^(plan|real)$")
+    ajuste_pct: Optional[float] = Field(None, ge=-100, le=1000)
 
 
 class PartidaIn(BaseModel):
@@ -57,6 +69,19 @@ class PartidaIn(BaseModel):
     coste_hora: Optional[float] = Field(None, ge=0)
     importe: Optional[float] = Field(None, ge=0)
     meses: Optional[dict[str, float]] = None
+    sentido: Optional[str] = Field(None, pattern="^(gasto|ingreso)$")
+    naturaleza: Optional[str] = Field(None, pattern="^(opex|capex)$")
+    vida_meses: Optional[int] = Field(None, ge=1, le=600)
+    unidades: Optional[float] = Field(None, ge=0)
+    precio_unitario: Optional[float] = Field(None, ge=0)
+    recurrencia: Optional[str] = Field(None, pattern="^(unica|mensual|trimestral|anual)$")
+    mes_desde: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}$")
+    mes_hasta: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}$")
+    dedicacion_pct: Optional[float] = Field(None, gt=0, le=100)
+    fecha_alta: Optional[date] = None
+    pais: Optional[str] = Field(None, min_length=2, max_length=2)
+    salario_anual: Optional[float] = Field(None, ge=0)
+    justificacion: Optional[str] = Field(None, max_length=4000)
 
 
 class DecisionIn(BaseModel):
@@ -136,3 +161,81 @@ def new_version(budget_id: str, db: Session = Depends(get_db), current_user: Use
 def link_project(budget_id: str, body: VinculoIn, db: Session = Depends(get_db),
                  current_user: User = Depends(require_any_manager)):
     return APIResponse.ok(data=_budgets.vincular_proyecto(db, current_user, budget_id, body.project_id))
+
+
+# ── Preparar a fondo (revisión 2026-11) ──────────────────────────────────────
+
+class EscenarioIn(BaseModel):
+    nombre: str = Field(..., min_length=1, max_length=40)
+    supuestos: Optional[dict] = None
+
+
+class CompararIn(BaseModel):
+    ids: list[str] = Field(..., min_length=2, max_length=6)
+
+
+class PlantillaIn(BaseModel):
+    nombre: Optional[str] = Field(None, max_length=200)
+    ambito: Optional[str] = Field(None, pattern="^(proyecto|proyecto_previsto|departamento|area)$")
+    tipo_proyecto: Optional[str] = Field(None, max_length=30)
+    partidas: Optional[list[dict]] = None
+    desde_presupuesto: Optional[str] = None
+
+
+class CampanaIn(BaseModel):
+    nombre: Optional[str] = Field(None, max_length=200)
+    year: Optional[int] = Field(None, ge=2000, le=2100)
+    fecha_limite: Optional[date] = None
+    abierta: Optional[bool] = None
+    instrucciones: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/budgets/{budget_id}/scenario", summary="Otro escenario (optimista, pesimista…) con sus supuestos")
+def new_scenario(budget_id: str, body: EscenarioIn, db: Session = Depends(get_db),
+                 current_user: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=_budgets.crear_escenario(db, current_user, budget_id, body.nombre, body.supuestos))
+
+
+@router.post("/budgets/compare", summary="Comparar versiones o escenarios: gasto, ingreso y margen por tipo y mes")
+def compare_budgets(body: CompararIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+    from app.services.presupuestos_preparar import comparar
+    return APIResponse.ok(data=comparar(db, body.ids))
+
+
+@router.get("/budget-templates", summary="Plantillas de presupuesto")
+def list_templates(db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+    items = _budgets.listar_plantillas(db, current_user)
+    return APIListResponse.ok(items=items, total=len(items))
+
+
+@router.post("/budget-templates", summary="Crear plantilla (o guardar un presupuesto como plantilla)")
+def create_template(body: PlantillaIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=_budgets.guardar_plantilla(db, current_user, body.model_dump(exclude_unset=True)))
+
+
+@router.patch("/budget-templates/{template_id}", summary="Editar plantilla")
+def update_template(template_id: str, body: PlantillaIn, db: Session = Depends(get_db),
+                    current_user: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=_budgets.guardar_plantilla(db, current_user, body.model_dump(exclude_unset=True), template_id))
+
+
+@router.delete("/budget-templates/{template_id}", summary="Borrar plantilla")
+def delete_template(template_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=_budgets.borrar_plantilla(db, current_user, template_id))
+
+
+@router.get("/budget-campaigns", summary="Campañas de presupuestos con su avance")
+def list_campaigns(db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+    items = _budgets.listar_campanas(db, current_user)
+    return APIListResponse.ok(items=items, total=len(items))
+
+
+@router.post("/budget-campaigns", summary="Abrir campaña (BUDGET_APPROVER_ROLES)")
+def create_campaign(body: CampanaIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=_budgets.guardar_campana(db, current_user, body.model_dump(exclude_unset=True)))
+
+
+@router.patch("/budget-campaigns/{campaign_id}", summary="Editar o cerrar campaña (BUDGET_APPROVER_ROLES)")
+def update_campaign(campaign_id: str, body: CampanaIn, db: Session = Depends(get_db),
+                    current_user: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=_budgets.guardar_campana(db, current_user, body.model_dump(exclude_unset=True), campaign_id))

@@ -14,7 +14,7 @@ This README is the complete functional and technical documentation of the soluti
 | Alembic migrations | 98, one linear chain, head `144_presupuestos` |
 | Backend tests | The whole suite was last run on 2026-11-04 (4,139 passed, 22 skipped, 1 xfailed; the 2 structural checks that failed that day pass). Since then every change runs the tests of what it touches |
 | Frontend tests | 40 files, 130 tests, all passing |
-| Celery beat entries | 40 (one task each, measured in `app/worker.py`); `setup.sh`, `setup.bat` and Docker run them with Celery beat (APScheduler off) |
+| Celery beat entries | 41 (one task each, measured in `app/worker.py`); `setup.sh`, `setup.bat` and Docker run them with Celery beat (APScheduler off) |
 | Runtime settings (editable in Admin) | 123 keys in 15 groups |
 | UI languages | Spanish, English, Chinese |
 
@@ -1638,35 +1638,46 @@ General notes that apply to every module here:
 ---
 
 ### Budgets — `/budgets`
-*Roles:* menu admin, pm (route `require_any_manager` for reading). Creating and editing: `BUDGET_MANAGER_ROLES` (default `admin,pm,hr`). Approving or rejecting without a workflow: `BUDGET_APPROVER_ROLES` (default `admin`). Components: `pages/BudgetsPage.tsx`, `components/presupuestos/FichaDePresupuesto.tsx`.
+*Roles:* menu admin, pm (route `require_any_manager` for reading). Creating and editing: `BUDGET_MANAGER_ROLES` (default `admin,pm,hr`). Approving or rejecting without a workflow, and opening or closing campaigns: `BUDGET_APPROVER_ROLES` (default `admin`). Components: `pages/BudgetsPage.tsx`, `components/presupuestos/FichaDePresupuesto.tsx`, `FormularioDePartida.tsx`, `CampanasYPlantillas.tsx`.
 
-**Purpose.** Budgets for a **project**, a **planned project** (one that does not exist yet), a **department** or an **area** (several departments), built from lines, tracked against computed actuals, revised by versions and approved through the approval engine.
+**Purpose.** The budget is the base of areas and projects. A budget belongs to a **project**, a **planned project** (one that does not exist yet), a **department** or an **area** (a group of departments, *Settings → Departments and areas*). Budgets form a hierarchy — area > department > project — where an area or a department can set a **ceiling** for the budgets under it. Each budget is built from lines (costs and revenue), tracked against computed actuals, revised by versions, compared across scenarios and approved through the approval engine.
 
 **How to use it.**
-1. **New budget**: name, scope and what it needs (project; department; the area's departments; for a planned project, its type), period (first and last month) and currency (the company's, `SUPPORTED_CURRENCIES`).
-2. **Lines** (tab *Partidas*), each of a type from `BUDGET_LINE_TYPES` (default `personal, licencias, subcontratacion, material, viajes, otros`):
-   - **staff** (`personal`): a person or a profile (for a project that has no team yet) × hours × cost per hour — the person's cost (`hourly_rate`) if none is typed; amount = hours × cost;
-   - the rest: an amount.
-   - Each line is split evenly over the months of the period (cents to the last month); the API also takes a month-by-month split, which must add up to the line and stay inside the period. Changing the period re-spreads lines whose months fall outside it.
-3. **Tracking** (tab *Seguimiento*): plan against actuals per month and per line type, the variance, *plan to date* and the **forecast at completion** (actuals up to the current month + plan for the remaining months). Actuals are computed, never typed:
-   - staff: the cost of the scope's time entries in the month (what the entry stored; else hours × the rate at the time; else the person's rate) — project scope by project, department and area by the people in those departments;
-   - the rest: approved or reimbursed expenses of the scope, each in the line type of its category (`BUDGET_EXPENSE_TYPE_MAP`); in a project, the expense's share of the split between projects.
+1. **New budget** (tabs *Presupuestos · Campañas · Plantillas*): name, scope and what it needs (project; department; area; for a planned project, its type), period (first and last month), currency (`SUPPORTED_CURRENCIES`), annual inflation, owner (default: whoever creates it), campaign, and for an area or a department the ceiling for its children. **Start from**: empty, a **template**, or **another budget** (e.g. last year's) taking its *plan* (its lines, recalculated for the new period) or its *actuals* (one line per type with what was really spent, month by month), with an adjustment %.
+   - **Parent**: a department budget hangs by default from its area's budget of the same year (scenario *base*); a project budget from its department's, else its area's. The API takes `padre_id` explicitly too; the parent must be of a higher level.
+2. **Lines** (tab *Partidas*), each a **cost** (type from `BUDGET_LINE_TYPES`) or **revenue** (type from `BUDGET_REVENUE_TYPES`), calculated in one of these ways:
+   - **Amount**, spread evenly over the line's months.
+   - **Units × price** with a recurrence: one-off (first month), monthly, quarterly (every three months from the first) or yearly. For revenue, billable hours × rate.
+   - **Person by loaded cost**: a person and an allocation %; each month uses the annual cost of their **cost profile valid that month** (*Cost structure*), so dated raises apply by themselves.
+   - **Hours × cost/hour**, for a person (their `hourly_rate` if no cost is typed) or a profile.
+   - **Vacancy**: a profile, gross annual salary, country and start date; from that month, salary × (1 + the country's employer costs in *Cost structure*) / 12 × allocation.
+   - Optionally limited to some months (*Desde* / *Hasta*). A cost can be **CAPEX** with a useful life in months: the plan holds the payment and *Seguimiento* shows the monthly depreciation.
+   - **Inflation** (budget assumptions) raises amount, units, hours and vacancy lines each year of the period after the first; person lines use their cost profile instead.
+   - Each line can carry a **justification**; lines of `BUDGET_JUSTIFICATION_MIN_AMOUNT` or more need one to submit. Lines are edited in place (pencil) while the budget is in draft or rejected.
+3. **Tracking** (tab *Seguimiento*): plan against actuals per month and per line type, variance, *plan to date*, **forecast at completion** (actuals up to the current month + plan for the rest), OPEX, CAPEX and depreciation, and with revenue lines the planned and actual revenue and margin. Actuals are computed, never typed:
+   - staff: the cost of the scope's time entries in the month (what the entry stored; else hours × the rate at the time; else the person's rate) — project scope by project, department and area by the people in those departments (the area's departments, from *Settings*);
+   - the rest: approved or reimbursed expenses of the scope, each in the line type of its category (`BUDGET_EXPENSE_TYPE_MAP`); in a project, the expense's share of the split between projects;
+   - revenue: the project's issued invoices (sent, paid or overdue; subtotal, by issue date).
    - A planned project has no actuals until it is **linked** to the project once created (*Vincular*; all its versions follow).
-4. **Approval**: *Enviar a aprobación* (a budget without lines cannot be sent). With an approval workflow for `budget`, a request opens in the Approval Inbox (context: total amount, scope as category, project) and its final decision is applied here; without one, `BUDGET_APPROVER_ROLES` approve or reject (with a reason) in the budget itself. A sent or approved budget is not edited.
-5. **Versions** (re-forecasts): *Nueva versión* copies the budget and its lines as version + 1 in draft (one version in progress at a time). When it is approved, the previously approved version becomes *sustituido*. Lists show the latest version of each budget.
-6. The page shows the year's totals (plan, plan to date, actuals, forecast; each budget counts by its approved version when it has one, otherwise its latest), plan against actuals by month, and the list with each budget's scope, version, status, plan, actuals, variance to date and forecast. The years offered come from the data.
+4. **Structure** (tab *Estructura*): the parent budget (link), and for an area or department its ceiling, what its children use, what is left (bar), the children and the **consolidated** plan (own + children, recursively). When children exceed the ceiling, the child's card warns; with `BUDGET_CEILING_POLICY = bloquear` the child cannot be submitted (409).
+5. **Approval**: *Enviar a aprobación* (a budget without lines cannot be sent; justifications and the parent's ceiling are checked). With an approval workflow for `budget`, a request opens in the Approval Inbox and its decision is applied here; without one, `BUDGET_APPROVER_ROLES` approve or reject (with a reason) in the budget itself. A sent or approved budget is not edited.
+6. **Scenarios and versions** (tab *Escenarios y versiones*): *Nueva versión* (re-forecast) copies the budget as version + 1 in draft; when it is approved, the previously approved version becomes *sustituido*. A **scenario** (e.g. optimistic, pessimistic) is a copy with its own name, its own versions and optionally other assumptions (its calculated lines are recalculated). **Compare** this budget with another version or scenario: cost per type, cost, revenue and margin side by side.
+7. **Assumptions** (tab *Supuestos*): annual inflation and notes; changing them recalculates the calculated lines.
+8. **Campaigns**: a campaign is the year being budgeted with a submission deadline and instructions; the list shows its budgets by status and the days left. Every day at 08:30 (`budget-campaign-reminder`), owners of budgets still in draft or rejected are notified when the deadline is `BUDGET_CAMPAIGN_REMINDER_DAYS` days away or less. Closing the campaign stops the reminders.
+9. **Templates**: save a budget's lines as a template and start new budgets from it (lines recalculated for the new period).
+10. The page shows the year's totals (plan, plan to date, actuals, forecast; each budget counts by its approved version when it has one), plan against actuals by month, and the list. On narrow screens the list and the tables are compact (nothing hidden behind a sideways scroll).
 
-**Configuration.** Group `presupuestos` in Admin → Dynamic config: `BUDGET_LINE_TYPES`, `BUDGET_EXPENSE_TYPE_MAP`, `BUDGET_APPROVER_ROLES`, `BUDGET_MANAGER_ROLES`.
+**Configuration.** Group `presupuestos` in Admin → Dynamic config: `BUDGET_LINE_TYPES`, `BUDGET_EXPENSE_TYPE_MAP`, `BUDGET_APPROVER_ROLES`, `BUDGET_MANAGER_ROLES`, `BUDGET_REVENUE_TYPES`, `BUDGET_CEILING_POLICY`, `BUDGET_JUSTIFICATION_MIN_AMOUNT`, `BUDGET_CAMPAIGN_REMINDER_DAYS`. Employer costs per country and people's cost profiles come from *Cost structure*.
 
 **Technical notes.**
-- **Endpoints** (`/api/v1/budgets`): `GET ""` (latest versions; `year`, `ambito`, `estado`), `GET /summary`, `POST ""`, `GET|PATCH /{id}`, `POST /{id}/lines`, `PATCH|DELETE /{id}/lines/{line_id}`, `POST /{id}/submit`, `POST /{id}/decision`, `POST /{id}/new-version`, `POST /{id}/link-project`.
-- **Tables:** `budgets` (with `ambito`, `area`, `cliente_id`, `tipo_proyecto`, `periodo_desde`, `periodo_hasta`, `version`, `origen_id`, `estado`, `motivo_rechazo`), `budget_lines` (migration `144_presupuestos`; the monthly plan that was in `budget_entries` became one *otros* line per budget, and that table was dropped — its hand-typed actuals were not carried over because actuals are now computed).
-- The project health score of the activity view uses the sum of the budget's lines and the project's `budget_hours`.
-- Code: `app/services/budgets_service.py`. Tests: `tests/test_presupuestos_2026_11.py` (7; five planted defects caught).
+- **Endpoints** (`/api/v1`): `GET /budgets` (latest versions; `year`, `ambito`, `estado`), `GET /budgets/summary`, `POST /budgets` (also `plantilla_id`, `copiar_de` + `base` + `ajuste_pct`), `GET|PATCH /budgets/{id}`, `POST /budgets/{id}/lines`, `PATCH|DELETE /budgets/{id}/lines/{line_id}`, `POST /budgets/{id}/submit`, `POST /budgets/{id}/decision`, `POST /budgets/{id}/new-version`, `POST /budgets/{id}/scenario`, `POST /budgets/compare`, `POST /budgets/{id}/link-project`, `GET|POST /budget-templates`, `PATCH|DELETE /budget-templates/{id}`, `GET|POST /budget-campaigns`, `PATCH /budget-campaigns/{id}`, `GET|POST /settings/areas`, `PATCH|DELETE /settings/areas/{id}` (departments take `area_id`).
+- **Tables:** `budgets` (scope, period, version chain, status, `area_id`, `padre_id`, `techo`, `responsable_id`, `campana_id`, `escenario`, `supuestos`), `budget_lines` (cost or revenue, OPEX/CAPEX and life, units, price, recurrence, months, allocation, vacancy fields, justification), `budget_campaigns`, `budget_templates`, `areas` (`departments.area_id`). Migration `151` turned the old comma-separated area text into areas and assigned their departments.
+- Code: `app/services/budgets_service.py`, `app/services/presupuestos_preparar.py`. Tests: `tests/test_presupuestos_2026_11.py`, `tests/test_presupuestos_preparar_2026_11.py`.
 
 **Limitations.**
-- Actuals come from time entries and expenses; supplier invoices and purchase commitments are not modelled, so there is no «committed» amount.
-- The month-by-month split of a line can be sent through the API; the screen spreads evenly.
+- Actuals come from time entries, expenses and invoices; purchase commitments are not modelled yet, so there is no «committed» amount (next block).
+- The month-by-month split of an amount line can be sent through the API; the screen spreads evenly.
+- Consolidated plans add each child's latest active version; a department's real counts its people's hours in every project, so its actuals include work planned in project budgets under it.
 
 ---
 
@@ -3974,7 +3985,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 | | Sesión | `session` | admin |
 | | Usuarios | `users` | admin, hr |
 | | Vacaciones | `vacations` | admin, hr |
-| | Departamentos | `depts` | admin, hr |
+| | Departamentos y áreas | `depts` | admin, hr |
 | | Sedes | `offices` | admin |
 | | Idiomas | `idiomas` | admin |
 | Workspace | Tipos tarea | `task-types` | admin, pm |
@@ -4019,7 +4030,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 2. **Sesión.** Turn on **idle logout** (`idle_timeout_enabled`) and set its minutes (`idle_timeout_minutes`, default 30). These are read by `frontend/src/context/AuthContext.tsx` (staff app) and by `client_portal_service` (portal).
 3. **Usuarios.** User CRUD (`/users`): role, department, organization.
 4. **Vacaciones.** Edit vacation policies and per-user yearly balances (`vacation_policies`, `user_vacation_balances`). `absence_service` reads the balances.
-5. **Departamentos.** CRUD on `departments`. Delete is blocked while dependencies exist (`_check_department_dependencies`).
+5. **Departamentos y áreas.** CRUD on `areas` (an area groups departments; its budget counts their people and can set a ceiling for their budgets) and on `departments`, each with its area. Deleting an area leaves its departments without one. Delete of a department is blocked while dependencies exist (`_check_department_dependencies`).
 6. **Sedes.** CRUD on `offices`.
 7. **Idiomas.** Three tabs:
    - **Idioma del operador.** Your own back-office language. It is saved on the server (`PATCH /users/me/preferences`), so it follows you to any browser. Changing it does not reload the whole app. A language chosen on the login screen wins over the stored one and is saved on entry.
@@ -4150,7 +4161,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 229 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 233 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4344,6 +4355,10 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | presupuestos | BUDGET_EXPENSE_TYPE_MAP | str | `travel:viajes,accommodation:viajes,meals:viajes,software:licencias,hardware:material,training:otros,subcontract:subcontratacion,other:otros` | Budgets — which line type each expense category counts in (category:type, CSV) | rt |
 | presupuestos | BUDGET_APPROVER_ROLES | str | `admin` | Budgets — roles that approve or reject when no approval workflow applies (CSV) | rt |
 | presupuestos | BUDGET_MANAGER_ROLES | str | `admin,pm,hr` | Budgets — roles that create and edit budgets (CSV) | rt |
+| presupuestos | BUDGET_REVENUE_TYPES | str | `horas,hitos,cuotas,otros_ingresos` | Budgets — revenue line types (CSV) | rt (`budgets_service`) |
+| presupuestos | BUDGET_CEILING_POLICY | str | `avisar` | Budgets — when child budgets exceed the parent's ceiling: avisar or bloquear | rt (`presupuestos_preparar`) |
+| presupuestos | BUDGET_JUSTIFICATION_MIN_AMOUNT | float | 5000.0 | Budgets — lines of this amount or more need a justification to submit (0: none) | rt (`presupuestos_preparar`) |
+| presupuestos | BUDGET_CAMPAIGN_REMINDER_DAYS | int | 7 | Budgets — days before a campaign deadline when owners of unsent budgets are reminded | rt (`presupuestos_preparar`) |
 | audit | RETENTION_MIN_DAYS | int | 30 | Retention — no policy may keep a record type for fewer days than this | rt |
 | automations | APPROVAL_EMAIL_LINK_HOURS | int | 72 | Approvals — hours the approve/reject link of the email is valid | rt |
 | automations | AUTOMATIONS_DEADLINE_DAYS | int | 2 | "Task due soon": days before the due date | rt |
@@ -5303,7 +5318,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 369)
+#### 4.2 Settings fields (`Settings`, 373)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5711,6 +5726,10 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `BUDGET_EXPENSE_TYPE_MAP` | `'travel:viajes,accommodation:viajes,meals:viajes,software:licencias,hardware:material,training:otros,subcontract:subcontratacion,other:otros'` | Budgets — which line type each expense category counts in (category:type, CSV) |
 | `BUDGET_APPROVER_ROLES` | `'admin'` | Budgets — roles that approve or reject when no approval workflow applies (CSV) |
 | `BUDGET_MANAGER_ROLES` | `'admin,pm,hr'` | Budgets — roles that create and edit budgets (CSV) |
+| `BUDGET_REVENUE_TYPES` | `'horas,hitos,cuotas,otros_ingresos'` | Budgets — revenue line types (CSV) |
+| `BUDGET_CEILING_POLICY` | `'avisar'` | Budgets — avisar or bloquear when child budgets exceed the parent's ceiling |
+| `BUDGET_JUSTIFICATION_MIN_AMOUNT` | `5000.0` | Budgets — lines of this amount or more need a justification to submit |
+| `BUDGET_CAMPAIGN_REMINDER_DAYS` | `7` | Budgets — days before a campaign deadline to remind owners of unsent budgets |
 
 #### 4.3 Variables read directly with `os.getenv` (not in `Settings`)
 

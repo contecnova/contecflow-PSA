@@ -1,32 +1,37 @@
 /**
- * Ficha de un presupuesto (revisión 2026-11).
+ * Ficha de un presupuesto (revisión 2026-11, preparar a fondo).
  *
- * Partidas (personal por persona o perfil × horas × coste/hora, y el resto por
- * importe, repartidas por meses), seguimiento (plan contra real calculado, por
- * mes y por tipo, con la previsión al cierre), versiones (reprevisiones) y
- * aprobación. Un presupuesto aprobado no se toca: se hace una versión nueva.
+ * Partidas (gasto e ingreso, con su forma de cálculo), seguimiento (plan contra
+ * real, ingresos y margen, amortización del CAPEX), estructura (presupuesto
+ * padre, techo y lo que consumen los hijos, consolidado), escenarios y
+ * versiones (crearlos y compararlos), y supuestos. Un presupuesto aprobado no
+ * se toca: se hace una versión nueva.
  */
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Plus, Trash2 } from 'lucide-react'
+import { Bar, CartesianGrid, Legend, Line, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Pencil, Trash2, MessageSquareText } from 'lucide-react'
 import { presupuestosApi, projectsApi } from '../../services/api'
-import type { FichaPresupuesto } from '../../services/api'
-import { Button, Modal, Spinner, Tabs, UserSelect } from '../ui'
+import type { ComparacionDePresupuestos, FichaPresupuesto, Partida } from '../../services/api'
+import { Button, Modal, Spinner, Tabs } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
+import FormularioDePartida, { campo, modoDe } from './FormularioDePartida'
 
-const campo: CSSProperties = { width: '100%', boxSizing: 'border-box', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
-const th: CSSProperties = { textAlign: 'left', padding: '6px 8px', fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontWeight: 600, borderBottom: '1px solid var(--surface-3)' }
+const th: CSSProperties = { textAlign: 'left', padding: '6px 8px', fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontWeight: 600, borderBottom: '1px solid var(--surface-3)', whiteSpace: 'nowrap' }
 const td: CSSProperties = { padding: '6px 8px', fontSize: 'var(--text-sm)', borderBottom: '1px solid var(--surface-2)' }
-const num: CSSProperties = { ...td, textAlign: 'right', fontFamily: 'var(--font-mono)' }
+const num: CSSProperties = { ...td, textAlign: 'right', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }
+const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 10, padding: 12 }
+const tablaConScroll: CSSProperties = { overflowX: 'auto', maxWidth: '100%' }
 
 export function colorDeEstado(e: string) {
   return e === 'aprobado' ? 'var(--success)' : e === 'enviado' ? 'var(--warning)' : e === 'rechazado' ? 'var(--danger)' : 'var(--text-3)'
 }
+
+type Dinero = (n?: number | null) => string
 
 export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: string; onClose: () => void; onAbrir: (id: string) => void }) {
   const t = useAppT()
@@ -39,7 +44,7 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
   const [vincular, setVincular] = useState('')
   const proyectos = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data as unknown as { id: string; code?: string; name?: string }[]) })
   const p = q.data
-  const dinero = (n: number | undefined) => (n ?? 0).toLocaleString(localeActivo(), { style: 'currency', currency: p?.currency || 'EUR', maximumFractionDigits: 0 })
+  const dinero: Dinero = n => (n ?? 0).toLocaleString(localeActivo(), { style: 'currency', currency: p?.currency || 'EUR', maximumFractionDigits: 0 })
   const accion = async (clave: string, f: () => Promise<FichaPresupuesto>) => {
     setOcupado(clave)
     try {
@@ -49,34 +54,40 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
       if (d.id !== id) onAbrir(d.id)
     } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setOcupado(null) }
   }
+  const ambitoTexto = p ? (p.project_name || p.department || p.area_name || p.area || '') : ''
 
   return (
-    <Modal open onClose={onClose} size="xl" title={p ? `${p.name} · v${p.version}` : '…'}
-      subtitle={p ? `${t(`pres.ambito_${p.ambito}`)}${p.project_name ? ` · ${p.project_name}` : p.department ? ` · ${p.department}` : p.area ? ` · ${p.area}` : ''} · ${p.periodo_desde.slice(0, 7)} → ${p.periodo_hasta.slice(0, 7)}` : undefined}>
+    <Modal open onClose={onClose} size="xl" title={p ? `${p.name} · v${p.version}${p.escenario !== 'base' ? ` · ${p.escenario}` : ''}` : '…'}
+      subtitle={p ? `${t(`pres.ambito_${p.ambito}`)}${ambitoTexto ? ` · ${ambitoTexto}` : ''} · ${p.periodo_desde.slice(0, 7)} → ${p.periodo_hasta.slice(0, 7)}${p.responsable_name ? ` · ${t('pres.responsable')}: ${p.responsable_name}` : ''}` : undefined}>
       {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" style={{ color: 'var(--danger)' }}>{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div> : p && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ color: colorDeEstado(p.estado), border: '1px solid currentColor', borderRadius: 99, padding: '1px 10px', fontSize: 'var(--text-xs)', fontWeight: 600 }}>{t(`pres.estado_${p.estado}`)}</span>
-            <span style={{ fontSize: 'var(--text-sm)' }}>{t('pres.plan')}: <strong>{dinero(p.total_plan)}</strong></span>
+            <span style={{ fontSize: 'var(--text-sm)' }}>{t('pres.gasto')}: <strong>{dinero(p.total_plan)}</strong></span>
+            {p.total_ingreso > 0 && <>
+              <span style={{ fontSize: 'var(--text-sm)' }}>{t('pres.ingreso')}: <strong>{dinero(p.total_ingreso)}</strong></span>
+              <span style={{ fontSize: 'var(--text-sm)', color: p.informe.margen_plan < 0 ? 'var(--danger)' : 'var(--success)' }}>{t('pres.margen')}: <strong>{dinero(p.informe.margen_plan)}</strong></span>
+            </>}
             <span style={{ fontSize: 'var(--text-sm)' }}>{t('pres.real')}: <strong>{dinero(p.informe.total_real)}</strong></span>
             <span style={{ fontSize: 'var(--text-sm)' }}>{t('pres.prevision')}: <strong>{dinero(p.informe.prevision_cierre)}</strong></span>
-            <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+            <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {p.puedo_editar && <Button size="sm" loading={ocupado === 'enviar'} onClick={() => accion('enviar', () => presupuestosApi.enviar(p.id))}>{t('pres.enviar')}</Button>}
               {p.estado !== 'borrador' && p.estado !== 'enviado' && <Button size="sm" variant="secondary" loading={ocupado === 'version'} onClick={() => accion('version', () => presupuestosApi.nuevaVersion(p.id))}>{t('pres.nueva_version')}</Button>}
             </span>
           </div>
+          {p.aviso_techo_del_padre && <div role="alert" style={{ fontSize: 'var(--text-sm)', color: 'var(--warning)' }}>⚠ {p.aviso_techo_del_padre}</div>}
           {p.motivo_rechazo && <div role="alert" style={{ fontSize: 'var(--text-sm)', color: 'var(--danger)' }}>{t('pres.rechazado_por')}: {p.motivo_rechazo}</div>}
           {p.puedo_aprobar && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 10 }}>
-              <input aria-label={t('pres.motivo')} placeholder={t('pres.motivo_ayuda')} value={motivo} onChange={e => setMotivo(e.target.value)} style={{ ...campo, flex: 1 }} />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', ...caja, padding: 10 }}>
+              <input aria-label={t('pres.motivo')} placeholder={t('pres.motivo_ayuda')} value={motivo} onChange={e => setMotivo(e.target.value)} style={{ ...campo, flex: '1 1 220px' }} />
               <Button size="sm" variant="danger" disabled={!motivo.trim()} loading={ocupado === 'rechazar'} onClick={() => accion('rechazar', () => presupuestosApi.decidir(p.id, false, motivo))}>{t('pres.rechazar')}</Button>
               <Button size="sm" loading={ocupado === 'aprobar'} onClick={() => accion('aprobar', () => presupuestosApi.decidir(p.id, true))}>{t('pres.aprobar')}</Button>
             </div>
           )}
           {p.ambito === 'proyecto_previsto' && !p.project_id && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'var(--text-sm)' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 'var(--text-sm)' }}>
               <span style={{ color: 'var(--text-2)' }}>{t('pres.previsto_sin_real')}</span>
-              <select aria-label={t('pres.vincular')} value={vincular} onChange={e => setVincular(e.target.value)} style={{ ...campo, width: 260 }}>
+              <select aria-label={t('pres.vincular')} value={vincular} onChange={e => setVincular(e.target.value)} style={{ ...campo, width: 'min(260px, 100%)' }}>
                 <option value="">{t('pres.elige_proyecto')}</option>
                 {(proyectos.data ?? []).map(pr => <option key={pr.id} value={pr.id}>{pr.code ? `${pr.code} — ` : ''}{pr.name}</option>)}
               </select>
@@ -84,111 +95,105 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
             </div>
           )}
           <Tabs active={tab} onChange={setTab} items={[
-            { id: 'partidas', label: t('pres.tab_partidas') }, { id: 'seguimiento', label: t('pres.tab_seguimiento') },
-            { id: 'versiones', label: `${t('pres.tab_versiones')} · ${p.versiones.length}` },
+            { id: 'partidas', label: `${t('pres.tab_partidas')} · ${p.lineas.length}` },
+            { id: 'seguimiento', label: t('pres.tab_seguimiento') },
+            { id: 'estructura', label: t('pres.tab_estructura') },
+            { id: 'escenarios', label: `${t('pres.tab_escenarios')} · ${p.versiones.length}` },
+            { id: 'supuestos', label: t('pres.tab_supuestos') },
           ]} />
           {tab === 'partidas' && <Partidas p={p} dinero={dinero} onCambio={d => qc.setQueryData(['presupuesto', d.id], d)} />}
           {tab === 'seguimiento' && <Seguimiento p={p} dinero={dinero} />}
-          {tab === 'versiones' && (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr><th style={th}>{t('pres.version')}</th><th style={th}>{t('pres.estado')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.plan')}</th></tr></thead>
-              <tbody>{p.versiones.map(v => (
-                <tr key={v.id} onClick={() => v.id !== p.id && onAbrir(v.id)} style={{ cursor: v.id !== p.id ? 'pointer' : 'default', background: v.id === p.id ? 'var(--accent-muted)' : undefined }}>
-                  <td style={td}>v{v.version}</td><td style={{ ...td, color: colorDeEstado(v.estado) }}>{t(`pres.estado_${v.estado}`)}</td><td style={num}>{dinero(v.total_plan)}</td>
-                </tr>))}</tbody>
-            </table>
-          )}
+          {tab === 'estructura' && <Estructura p={p} dinero={dinero} onAbrir={onAbrir} />}
+          {tab === 'escenarios' && <Escenarios p={p} dinero={dinero} onAbrir={onAbrir} accion={accion} ocupado={ocupado} />}
+          {tab === 'supuestos' && <SupuestosDelPresupuesto p={p} accion={accion} ocupado={ocupado} />}
         </div>
       )}
     </Modal>
   )
 }
 
-function Partidas({ p, dinero, onCambio }: { p: FichaPresupuesto; dinero: (n?: number) => string; onCambio: (d: FichaPresupuesto) => void }) {
+function resumenDelCalculo(l: Partida, t: (k: string, d?: string) => string, dinero: Dinero): string {
+  const m = modoDe(l)
+  if (m === 'conductor') return `${l.unidades} × ${dinero(l.precio_unitario)} · ${t(`pres.rec_${l.recurrencia || 'unica'}`)}`
+  if (m === 'persona') return `${l.user_name ?? ''} · ${l.dedicacion_pct} % · ${t('pres.modo_persona')}`
+  if (m === 'vacante') return `${l.perfil || t('pres.modo_vacante')} · ${dinero(l.salario_anual)}/${t('pres.anio')} · ${l.pais}${l.fecha_alta ? ` · ${t('pres.alta')} ${l.fecha_alta}` : ''}`
+  if (m === 'horas') return `${l.user_name || l.perfil || ''} · ${l.horas} h × ${dinero(l.coste_hora)}`
+  return t('pres.modo_importe')
+}
+
+function Partidas({ p, dinero, onCambio }: { p: FichaPresupuesto; dinero: Dinero; onCambio: (d: FichaPresupuesto) => void }) {
   const t = useAppT()
   const toast = useToast()
-  const vacia = { tipo: p.tipos[0] ?? '', descripcion: '', user_id: '', perfil: '', horas: '', coste_hora: '', importe: '' }
-  const [n, setN] = useState(vacia)
   const [guardando, setGuardando] = useState(false)
-  const esPersonal = n.tipo === 'personal'
-  const previsto = esPersonal && n.horas && n.coste_hora ? Number(n.horas) * Number(n.coste_hora) : null
-  const anadir = async () => {
+  const [editando, setEditando] = useState<Partida | null>(null)
+  const [nueva, setNueva] = useState(0)        // cambia la clave: vacía el formulario tras añadir
+  const guardar = async (cuerpo: Record<string, unknown>, lid?: string) => {
     setGuardando(true)
     try {
-      const cuerpo: Record<string, unknown> = { tipo: n.tipo, descripcion: n.descripcion }
-      if (esPersonal && n.horas) {
-        cuerpo.horas = Number(n.horas)
-        if (n.user_id) cuerpo.user_id = n.user_id
-        if (n.perfil) cuerpo.perfil = n.perfil
-        if (n.coste_hora) cuerpo.coste_hora = Number(n.coste_hora)
-      } else cuerpo.importe = Number(n.importe)
-      onCambio(await presupuestosApi.crearPartida(p.id, cuerpo)); setN(vacia)
+      onCambio(lid ? await presupuestosApi.editarPartida(p.id, lid, cuerpo) : await presupuestosApi.crearPartida(p.id, cuerpo))
+      if (lid) setEditando(null); else setNueva(n => n + 1)
     } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setGuardando(false) }
   }
   const quitar = async (lid: string) => { try { onCambio(await presupuestosApi.borrarPartida(p.id, lid)) } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } }
-  const set = (k: keyof typeof vacia) => (e: { target: { value: string } }) => setN(v => ({ ...v, [k]: e.target.value }))
+  const grupos: { titulo: string; lineas: Partida[] }[] = [
+    { titulo: t('pres.gastos'), lineas: p.lineas.filter(l => l.sentido !== 'ingreso') },
+    { titulo: t('pres.ingresos'), lineas: p.lineas.filter(l => l.sentido === 'ingreso') },
+  ].filter(g => g.lineas.length)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {p.lineas.length === 0 ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('pres.sin_partidas')}</div> : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr>
-            <th style={th}>{t('pres.tipo')}</th><th style={th}>{t('pres.descripcion')}</th><th style={th}>{t('pres.persona_o_perfil')}</th>
-            <th style={{ ...th, textAlign: 'right' }}>{t('pres.horas')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.coste_hora')}</th>
-            <th style={{ ...th, textAlign: 'right' }}>{t('pres.importe')}</th><th style={th}>{t('pres.meses')}</th><th style={th} aria-label={t('pres.quitar')} />
-          </tr></thead>
-          <tbody>{p.lineas.map(l => (
-            <tr key={l.id}>
-              <td style={td}>{t(`pres.tipo_${l.tipo}`, l.tipo)}</td><td style={td}>{l.descripcion}</td>
-              <td style={td}>{l.user_name || l.perfil || '—'}</td>
-              <td style={num}>{l.horas ?? '—'}</td><td style={num}>{l.coste_hora != null ? dinero(l.coste_hora) : '—'}</td>
-              <td style={num}>{dinero(l.importe)}</td>
-              <td style={{ ...td, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{Object.keys(l.meses).length}</td>
-              <td style={td}>{p.puedo_editar && <Button size="xs" variant="ghost" title={t('pres.quitar')} icon={<Trash2 size={12} />} onClick={() => quitar(l.id)}>{''}</Button>}</td>
-            </tr>))}</tbody>
-        </table>
-      )}
-      {p.puedo_editar && (
-        <section aria-label={t('pres.nueva_partida')} style={{ border: '1px solid var(--surface-4)', borderRadius: 10, padding: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, alignItems: 'end' }}>
-          <label><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.tipo')}</span>
-            <select aria-label={t('pres.tipo')} value={n.tipo} onChange={set('tipo')} style={campo}>{p.tipos.map(x => <option key={x} value={x}>{t(`pres.tipo_${x}`, x)}</option>)}</select></label>
-          <label style={{ gridColumn: 'span 2' }}><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.descripcion')}</span>
-            <input aria-label={t('pres.descripcion')} value={n.descripcion} onChange={set('descripcion')} style={campo} /></label>
-          {esPersonal ? (
-            <>
-              <div><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.persona')}</span>
-                <UserSelect value={n.user_id} onChange={(uid: string) => setN(v => ({ ...v, user_id: uid }))} placeholder={t('pres.persona_opcional')} /></div>
-              <label><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.perfil')}</span>
-                <input aria-label={t('pres.perfil')} value={n.perfil} onChange={set('perfil')} style={campo} placeholder={t('pres.perfil_ayuda')} /></label>
-              <label><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.horas')}</span>
-                <input aria-label={t('pres.horas')} type="number" min={0} value={n.horas} onChange={set('horas')} style={campo} /></label>
-              <label><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.coste_hora')}</span>
-                <input aria-label={t('pres.coste_hora')} type="number" min={0} step="0.01" value={n.coste_hora} onChange={set('coste_hora')} style={campo} placeholder={t('pres.coste_de_la_persona')} /></label>
-            </>
-          ) : (
-            <label><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.importe')}</span>
-              <input aria-label={t('pres.importe')} type="number" min={0} step="0.01" value={n.importe} onChange={set('importe')} style={campo} /></label>
-          )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {previsto != null && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>= {dinero(previsto)}</span>}
-            <Button icon={<Plus size={13} />} loading={guardando}
-              disabled={!n.descripcion.trim() || (esPersonal ? !n.horas || (!n.coste_hora && !n.user_id) : n.importe === '')} onClick={anadir}>{t('pres.anadir')}</Button>
-          </div>
-          <div style={{ gridColumn: '1 / -1', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.reparto_ayuda')}</div>
-        </section>
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+      {p.lineas.length === 0 && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('pres.sin_partidas')}</div>}
+      {grupos.map(g => (
+        // Tres columnas (concepto con su cálculo debajo, importe, acciones): caben
+        // a 390 px sin esconder el importe tras un desplazamiento lateral.
+        <div key={g.titulo}>
+          <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', margin: '4px 0' }}>{g.titulo}</div>
+          <table className="cabe" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup><col /><col style={{ width: 120 }} /><col style={{ width: p.puedo_editar ? 72 : 0 }} /></colgroup>
+            <thead><tr>
+              <th style={th}>{t('pres.descripcion')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.importe')}</th><th style={th} aria-label={t('pres.acciones')} />
+            </tr></thead>
+            <tbody>{g.lineas.map(l => (
+              <tr key={l.id}>
+                <td style={{ ...td, overflowWrap: 'anywhere' }}>
+                  <div>{l.descripcion}{l.justificacion && <span title={l.justificacion} aria-label={t('pres.justificacion')} style={{ marginLeft: 6, color: 'var(--text-3)' }}><MessageSquareText size={12} /></span>}
+                    {l.naturaleza === 'capex' && <span title={`${t('pres.vida_meses')}: ${l.vida_meses}`} style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--accent)', border: '1px solid currentColor', borderRadius: 4, padding: '0 4px' }}>CAPEX</span>}</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                    {t(`pres.tipo_${l.tipo}`, l.tipo)} · {resumenDelCalculo(l, t, dinero)} · {Object.keys(l.meses).length} {t('pres.meses').toLowerCase()}{l.mes_desde || l.mes_hasta ? ` (${l.mes_desde ?? ''}→${l.mes_hasta ?? ''})` : ''}
+                  </div>
+                </td>
+                <td style={num}>{dinero(l.importe)}</td>
+                <td style={{ ...td, whiteSpace: 'nowrap', textAlign: 'right' }}>{p.puedo_editar && <>
+                  <Button size="xs" variant="ghost" title={t('pres.editar_partida')} icon={<Pencil size={12} />} onClick={() => setEditando(l)}>{''}</Button>
+                  <Button size="xs" variant="ghost" title={t('pres.quitar')} icon={<Trash2 size={12} />} onClick={() => quitar(l.id)}>{''}</Button>
+                </>}</td>
+              </tr>))}</tbody>
+          </table>
+        </div>
+      ))}
+      {p.puedo_editar && !editando && <FormularioDePartida key={nueva} p={p} guardando={guardando} onGuardar={c => guardar(c)} />}
+      {editando && <FormularioDePartida key={editando.id} p={p} inicial={editando} guardando={guardando} onGuardar={c => guardar(c, editando.id)} onCancelar={() => setEditando(null)} />}
     </div>
   )
 }
 
-function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: (n?: number) => string }) {
+function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
   const t = useAppT()
   const inf = p.informe
+  const conIngresos = inf.ingreso_plan > 0 || inf.ingreso_real > 0
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
       {inf.sin_real && <div role="status" style={{ fontSize: 'var(--text-sm)', color: 'var(--warning)' }}>{t('pres.previsto_sin_real')}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(120px, 100%), 1fr))', gap: 10 }}>
+        {[
+          [t('pres.opex'), inf.opex_plan], [t('pres.capex'), inf.capex_plan], [t('pres.amortizacion'), inf.amortizacion_total],
+          ...(conIngresos ? [[t('pres.margen_plan'), inf.margen_plan], [t('pres.margen_real'), inf.margen_real]] : []),
+        ].map(([k, v]) => (
+          <div key={k as string} style={caja}><div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{k}</div><div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{dinero(v as number)}</div></div>
+        ))}
+      </div>
       <div style={{ height: 240 }} role="img" aria-label={t('pres.plan_contra_real')}>
         <ResponsiveContainer>
-          <BarChart data={inf.meses}>
+          <ComposedChart data={inf.meses}>
             <CartesianGrid stroke="var(--surface-3)" vertical={false} />
             <XAxis dataKey="mes" tick={{ fill: 'var(--text-3)', fontSize: 'var(--text-xs)' }} />
             <YAxis tick={{ fill: 'var(--text-3)', fontSize: 'var(--text-xs)' }} />
@@ -196,28 +201,157 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: (n?: number) 
             <Legend />
             <Bar dataKey="plan" name={t('pres.plan')} fill="var(--surface-4)" radius={[3, 3, 0, 0]} />
             <Bar dataKey="real" name={t('pres.real')} fill="var(--accent)" radius={[3, 3, 0, 0]} />
-          </BarChart>
+            {conIngresos && <Line dataKey="ingreso_plan" name={t('pres.ingreso_plan')} stroke="var(--success)" strokeDasharray="4 3" dot={false} />}
+            {conIngresos && <Line dataKey="ingreso_real" name={t('pres.ingreso_real')} stroke="var(--success)" dot={false} />}
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr><th style={th}>{t('pres.mes')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.plan')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.real')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.desviacion')}</th></tr></thead>
-          <tbody>{inf.meses.map(m => (
-            <tr key={m.mes}>
-              <td style={td}>{m.mes}{m.en_curso ? ` · ${t('pres.en_curso')}` : ''}</td><td style={num}>{dinero(m.plan)}</td><td style={num}>{dinero(m.real)}</td>
-              <td style={{ ...num, color: m.desviacion > 0 ? 'var(--danger)' : m.desviacion < 0 ? 'var(--success)' : undefined }}>{m.cerrado || m.en_curso ? dinero(m.desviacion) : '—'}</td>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
+        <div style={tablaConScroll}>
+          <table className="responsive-stack" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr><th style={th}>{t('pres.mes')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.plan')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.real')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.desviacion')}</th>
+              {inf.amortizacion_total > 0 && <th style={{ ...th, textAlign: 'right' }}>{t('pres.amortizacion')}</th>}
+              {conIngresos && <th style={{ ...th, textAlign: 'right' }}>{t('pres.ingreso')}</th>}</tr></thead>
+            <tbody>{inf.meses.map(m => (
+              <tr key={m.mes}>
+                <td data-label={t('pres.mes')} style={{ ...td, whiteSpace: 'nowrap' }}>{m.mes}{m.en_curso ? ` · ${t('pres.en_curso')}` : ''}</td>
+                <td data-label={t('pres.plan')} style={num}>{dinero(m.plan)}</td><td data-label={t('pres.real')} style={num}>{dinero(m.real)}</td>
+                <td data-label={t('pres.desviacion')} style={{ ...num, color: m.desviacion > 0 ? 'var(--danger)' : m.desviacion < 0 ? 'var(--success)' : undefined }}>{m.cerrado || m.en_curso ? dinero(m.desviacion) : '—'}</td>
+                {inf.amortizacion_total > 0 && <td data-label={t('pres.amortizacion')} style={num}>{dinero(m.amortizacion)}</td>}
+                {conIngresos && <td data-label={t('pres.ingreso')} style={num}>{dinero(m.ingreso_real || m.ingreso_plan)}</td>}
+              </tr>))}</tbody>
+          </table>
+        </div>
+        <div style={tablaConScroll}>
+          <table className="cabe" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr><th style={th}>{t('pres.tipo')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.plan')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.real')}</th><th style={{ ...th, textAlign: 'right' }}>%</th></tr></thead>
+            <tbody>{inf.por_tipo.map(x => (
+              <tr key={x.tipo}>
+                <td style={td}>{t(`pres.tipo_${x.tipo}`, x.tipo)}</td><td style={num}>{dinero(x.plan)}</td><td style={num}>{dinero(x.real)}</td>
+                <td style={{ ...num, color: (x.desviacion_pct ?? 0) > 0 ? 'var(--danger)' : undefined }}>{x.desviacion_pct == null ? '—' : `${x.desviacion_pct.toLocaleString(localeActivo())} %`}</td>
+              </tr>))}</tbody>
+          </table>
+        </div>
+      </div>
+      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.como_se_calcula')}</div>
+    </div>
+  )
+}
+
+function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Dinero; onAbrir: (id: string) => void }) {
+  const t = useAppT()
+  const te = p.techo_estado
+  const uso = te && te.techo > 0 ? Math.min(100, Math.round((te.consumido_por_hijos / te.techo) * 100)) : 0
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={caja}>
+        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.padre')}</div>
+        {p.padre_ficha_id
+          ? <button type="button" onClick={() => onAbrir(p.padre_ficha_id!)} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)' }}>{p.padre_name} · {t(`pres.ambito_${p.padre_ambito}`)}</button>
+          : <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('pres.sin_padre')}</div>}
+      </div>
+      {te && (
+        <div style={caja}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, fontSize: 'var(--text-sm)' }}>
+            <span>{t('pres.techo')}: <strong>{dinero(te.techo)}</strong></span>
+            <span>{t('pres.consumido_por_hijos')}: <strong>{dinero(te.consumido_por_hijos)}</strong></span>
+            <span style={{ color: te.excedido ? 'var(--danger)' : 'var(--success)' }}>{t('pres.disponible')}: <strong>{dinero(te.disponible)}</strong></span>
+          </div>
+          <div role="progressbar" aria-valuenow={uso} aria-valuemin={0} aria-valuemax={100} aria-label={t('pres.techo')} style={{ marginTop: 8, height: 8, borderRadius: 99, background: 'var(--surface-3)', overflow: 'hidden' }}>
+            <div style={{ width: `${uso}%`, height: '100%', background: te.excedido ? 'var(--danger)' : uso > 85 ? 'var(--warning)' : 'var(--success)' }} />
+          </div>
+        </div>
+      )}
+      {p.hijos.length > 0 ? (
+        // Dos columnas (nombre con ámbito y estado debajo; importe a la derecha):
+        // a 390 px una tabla de cuatro escondía el importe tras un desplazamiento.
+        <table className="cabe" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr><th style={th}>{t('pres.hijos')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.gasto')}</th></tr></thead>
+          <tbody>{p.hijos.map(h => (
+            <tr key={h.id} onClick={() => onAbrir(h.id)} style={{ cursor: 'pointer' }}>
+              <td style={td}>{h.name} · v{h.version}
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t(`pres.ambito_${h.ambito}`)} · <span style={{ color: colorDeEstado(h.estado) }}>{t(`pres.estado_${h.estado}`)}</span></div></td>
+              <td style={num}>{dinero(h.total_plan)}</td>
             </tr>))}</tbody>
+          {p.consolidado_plan != null && <tfoot><tr><td style={{ ...td, fontWeight: 700 }}>{t('pres.consolidado')}</td><td style={{ ...num, fontWeight: 700 }}>{dinero(p.consolidado_plan)}</td></tr></tfoot>}
         </table>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr><th style={th}>{t('pres.tipo')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.plan')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.real')}</th><th style={{ ...th, textAlign: 'right' }}>%</th></tr></thead>
-          <tbody>{inf.por_tipo.map(x => (
-            <tr key={x.tipo}>
-              <td style={td}>{t(`pres.tipo_${x.tipo}`, x.tipo)}</td><td style={num}>{dinero(x.plan)}</td><td style={num}>{dinero(x.real)}</td>
-              <td style={{ ...num, color: (x.desviacion_pct ?? 0) > 0 ? 'var(--danger)' : undefined }}>{x.desviacion_pct == null ? '—' : `${x.desviacion_pct.toLocaleString(localeActivo())} %`}</td>
+      ) : <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('pres.sin_hijos')}</div>}
+      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.estructura_ayuda')}</div>
+    </div>
+  )
+}
+
+function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
+  p: FichaPresupuesto; dinero: Dinero; onAbrir: (id: string) => void
+  accion: (clave: string, f: () => Promise<FichaPresupuesto>) => Promise<void>; ocupado: string | null
+}) {
+  const t = useAppT()
+  const toast = useToast()
+  const [nombre, setNombre] = useState('')
+  const [inflacion, setInflacion] = useState('')
+  const [otro, setOtro] = useState('')
+  const [cmp, setCmp] = useState<ComparacionDePresupuestos | null>(null)
+  const hermanos = useQuery({ queryKey: ['presupuestos', 'lista', p.year, p.ambito], queryFn: () => presupuestosApi.listar({ year: p.year, ambito: p.ambito }) })
+  const candidatos = [...p.versiones.filter(v => v.id !== p.id).map(v => ({ id: v.id, nombre: `v${v.version} · ${t(`pres.estado_${v.estado}`)}` })),
+    ...(hermanos.data ?? []).filter(b => b.name === p.name && b.escenario !== p.escenario).map(b => ({ id: b.id, nombre: `${b.escenario} · v${b.version}` }))]
+  const comparar = async () => {
+    try { setCmp(await presupuestosApi.comparar([p.id, otro])) } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
+  }
+  const tipos = cmp ? Array.from(new Set(cmp.presupuestos.flatMap(x => Object.keys(x.por_tipo)))) : []
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={tablaConScroll}>
+        <table className="cabe" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr><th style={th}>{t('pres.version')}</th><th style={th}>{t('pres.estado')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.gasto')}</th></tr></thead>
+          <tbody>{p.versiones.map(v => (
+            <tr key={v.id} onClick={() => v.id !== p.id && onAbrir(v.id)} style={{ cursor: v.id !== p.id ? 'pointer' : 'default', background: v.id === p.id ? 'var(--accent-muted)' : undefined }}>
+              <td style={td}>v{v.version}</td><td style={{ ...td, color: colorDeEstado(v.estado) }}>{t(`pres.estado_${v.estado}`)}</td><td style={num}>{dinero(v.total_plan)}</td>
             </tr>))}</tbody>
         </table>
       </div>
-      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.como_se_calcula')}</div>
+      <div style={{ ...caja, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
+        <label style={{ flex: '1 1 160px' }}><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.escenario_nuevo')}</span>
+          <input aria-label={t('pres.escenario_nuevo')} value={nombre} onChange={e => setNombre(e.target.value)} placeholder={t('pres.escenario_ejemplo')} style={campo} /></label>
+        <label style={{ flex: '0 1 140px' }}><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.inflacion')}</span>
+          <input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} onChange={e => setInflacion(e.target.value)} placeholder={String(p.supuestos.inflacion_pct ?? 0)} style={campo} /></label>
+        <Button size="sm" disabled={!nombre.trim()} loading={ocupado === 'escenario'}
+          onClick={() => accion('escenario', () => presupuestosApi.escenario(p.id, nombre.trim(), inflacion === '' ? undefined : { ...p.supuestos, inflacion_pct: Number(inflacion) }))}>{t('pres.crear_escenario')}</Button>
+      </div>
+      <div style={{ ...caja, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
+        <label style={{ flex: '1 1 220px' }}><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.comparar_con')}</span>
+          <select aria-label={t('pres.comparar_con')} value={otro} onChange={e => setOtro(e.target.value)} style={campo}>
+            <option value="">—</option>{candidatos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </select></label>
+        <Button size="sm" variant="secondary" disabled={!otro} onClick={comparar}>{t('pres.comparar')}</Button>
+      </div>
+      {cmp && (
+        <div style={tablaConScroll}>
+          <table className="cabe" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr><th style={th} />{cmp.presupuestos.map(x => <th key={x.id} style={{ ...th, textAlign: 'right' }}>{x.escenario} · v{x.version}</th>)}</tr></thead>
+            <tbody>
+              {tipos.map(tp => <tr key={tp}><td style={td}>{t(`pres.tipo_${tp}`, tp)}</td>{cmp.presupuestos.map(x => <td key={x.id} style={num}>{dinero(x.por_tipo[tp] ?? 0)}</td>)}</tr>)}
+              {(['gasto', 'ingreso', 'margen'] as const).map(k => <tr key={k}><td style={{ ...td, fontWeight: 700 }}>{t(`pres.${k}`)}</td>{cmp.presupuestos.map(x => <td key={x.id} style={{ ...num, fontWeight: 700 }}>{dinero(x[k])}</td>)}</tr>)}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SupuestosDelPresupuesto({ p, accion, ocupado }: { p: FichaPresupuesto; accion: (clave: string, f: () => Promise<FichaPresupuesto>) => Promise<void>; ocupado: string | null }) {
+  const t = useAppT()
+  const [inflacion, setInflacion] = useState(String(p.supuestos.inflacion_pct ?? ''))
+  const [notas, setNotas] = useState(String(p.supuestos.notas ?? ''))
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 560 }}>
+      <label><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.inflacion')}</span>
+        <input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} disabled={!p.puedo_editar} onChange={e => setInflacion(e.target.value)} style={campo} /></label>
+      <label><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.supuestos_notas')}</span>
+        <textarea aria-label={t('pres.supuestos_notas')} rows={4} value={notas} disabled={!p.puedo_editar} onChange={e => setNotas(e.target.value)} style={{ ...campo, resize: 'vertical' }} /></label>
+      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.supuestos_ayuda')}</div>
+      {p.puedo_editar && <div><Button size="sm" loading={ocupado === 'supuestos'}
+        onClick={() => accion('supuestos', () => presupuestosApi.editar(p.id, { supuestos: { ...p.supuestos, inflacion_pct: inflacion === '' ? 0 : Number(inflacion), notas } }))}>{t('pres.guardar')}</Button></div>}
     </div>
   )
 }

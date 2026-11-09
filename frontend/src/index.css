@@ -1557,6 +1557,9 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
     -webkit-overflow-scrolling: touch;
     white-space: nowrap;
   }
+  /* Una tabla pensada para caber (pocas columnas, texto que se parte) sigue siendo
+     tabla: con display: block dejaba de respetar el ancho y escondía columnas. */
+  table.cabe { display: table; white-space: normal; overflow-x: visible; }
   table.responsive-stack thead { display: none; }
   table.responsive-stack,
   table.responsive-stack tbody,

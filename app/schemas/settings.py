@@ -60,6 +60,20 @@ class DepartmentIn(BaseModel):
     name: str = Field(..., description="Nombre del departamento")
     description: Optional[str] = Field(None, description="Descripción del departamento")
     manager_id: Optional[str] = Field(None, description="ID del manager responsable")
+    area_id: Optional[str] = Field(None, description="Área a la que pertenece (revisión 2026-11)")
+
+
+class AreaIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120, description="Nombre del área")
+    description: Optional[str] = Field(None, max_length=255)
+    manager_id: Optional[str] = Field(None, description="Responsable del área")
+
+
+class AreaOut(AreaIn):
+    id: str
+    is_active: bool = True
+    departamentos: list[str] = Field(default_factory=list, description="Nombres de sus departamentos")
+    model_config = {"from_attributes": True}
 
 
 class DepartmentOut(DepartmentIn):

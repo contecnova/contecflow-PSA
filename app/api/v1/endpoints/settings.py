@@ -24,6 +24,8 @@ from app.schemas.settings import (
     TaskStatusOut,
     DepartmentIn,
     DepartmentOut,
+    AreaIn,
+    AreaOut,
     HolidayIn,
     HolidayOut,
     LogLevelPayload,
@@ -305,7 +307,8 @@ def create_department(payload: DepartmentIn, db: Session = Depends(get_db), _: U
 @router.patch("/departments/{item_id}", response_model=APIResponse[DepartmentOut])
 def update_department(item_id: str, payload: DepartmentIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     try:
-        return APIResponse.ok(data=_svc.update_department(item_id, payload.model_dump(), db))
+        # Sólo lo que llega: si no, un PATCH sin área la quitaba.
+        return APIResponse.ok(data=_svc.update_department(item_id, payload.model_dump(exclude_unset=True), db))
     except ValueError:
         raise HTTPException(404, "No encontrado")
 
@@ -316,6 +319,35 @@ def delete_department(item_id: str, db: Session = Depends(get_db), _: User = Dep
         return APIResponse.ok(data=_svc.delete_department(item_id, db))
     except ValueError:
         raise HTTPException(404, "No encontrado")
+
+# ── Áreas (revisión 2026-11): agrupan departamentos; base de su presupuesto ─────
+
+@router.get("/areas", response_model=APIListResponse[AreaOut])
+def get_areas(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    items = _svc.get_areas(db)
+    return APIListResponse.ok(items=items, total=len(items))
+
+
+@router.post("/areas", response_model=APIResponse[AreaOut])
+def create_area(payload: AreaIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+    return APIResponse.ok(data=_svc.guardar_area(db, payload.model_dump(), current_user.organization_id))
+
+
+@router.patch("/areas/{area_id}", response_model=APIResponse[AreaOut])
+def update_area(area_id: str, payload: AreaIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+    try:
+        return APIResponse.ok(data=_svc.guardar_area(db, payload.model_dump(exclude_unset=True), current_user.organization_id, area_id))
+    except ValueError:
+        raise HTTPException(404, "No encontrado")
+
+
+@router.delete("/areas/{area_id}")
+def delete_area(area_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
+    try:
+        return APIResponse.ok(data=_svc.borrar_area(db, area_id))
+    except ValueError:
+        raise HTTPException(404, "No encontrado")
+
 
 # ── Holidays ──────────────────────────────────────────────────────────────────
 

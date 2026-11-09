@@ -38,7 +38,7 @@ const TAB_GROUPS = [
       { id: 'session',      label: 'Sesión',         roles: ['admin'] },
       { id: 'users',        label: 'Usuarios',       roles: ['admin', 'hr'] },
       { id: 'vacations',    label: 'Vacaciones',     roles: ['admin', 'hr'] },
-      { id: 'depts',        label: 'Departamentos',  roles: ['admin', 'hr'] },
+      { id: 'depts',        label: 'Departamentos y áreas',  roles: ['admin', 'hr'] },
       { id: 'offices',      label: 'Sedes',          roles: ['admin'] },
       { id: 'idiomas',      label: 'Idiomas',        roles: ['admin'] },
     ],

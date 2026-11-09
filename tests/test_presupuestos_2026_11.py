@@ -102,7 +102,14 @@ def test_departamento_y_area_cuentan_a_su_gente(client, db, admin_token, proyect
                           organization_id="1", description="x"))
     db.commit()
     dep = _crear(client, admin_token, ambito="departamento", department="Consultoría", project_id=None)
-    area = _crear(client, admin_token, name="Área técnica", ambito="area", area="Consultoría, Desarrollo", project_id=None)
+    # Revisión 2026-11: el área es una entidad que agrupa departamentos.
+    from app.models.settings import Area, Department
+    zona = Area(id="area-tec", organization_id="1", name="Área técnica")
+    db.add(zona)
+    for n in ("Consultoría", "Desarrollo"):
+        db.add(Department(organization_id="1", name=n, area_id="area-tec"))
+    db.commit()
+    area = _crear(client, admin_token, name="Área técnica", ambito="area", area_id="area-tec", project_id=None)
     for b in (dep, area):
         _linea(client, admin_token, b["id"], tipo="personal", descripcion="x", importe=30)
     real = lambda b: client.get(f"{URL}/{b['id']}", headers=auth(admin_token)).json()["data"]["informe"]["total_real"]
@@ -165,7 +172,8 @@ def test_la_bandeja_aplica_la_decision(client, db, admin_token, proyecto):
 
 def test_la_prevision_al_cierre_suma_lo_real_hasta_hoy_y_el_plan_del_resto(db, monkeypatch):
     monkeypatch.setattr(budgets_service, "_mes_actual", lambda: "2026-02")
-    monkeypatch.setattr(budgets_service, "_plan_mensual", lambda b: {"2026-01": {"x": 100}, "2026-02": {"x": 100}, "2026-03": {"x": 100}})
+    monkeypatch.setattr(budgets_service, "_plan_mensual", lambda b, sentido="gasto": (
+        {"2026-01": {"x": 100}, "2026-02": {"x": 100}, "2026-03": {"x": 100}} if sentido == "gasto" else {}))
     monkeypatch.setattr(budgets_service, "_real_mensual", lambda db, b: {"2026-01": {"x": 150}, "2026-02": {"x": 20}})
     b = Budget(periodo_desde=date(2026, 1, 1), periodo_hasta=date(2026, 3, 1), ambito="departamento")
     inf = budgets_service.informe(db, b)

@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, advancedConfigApi } from '../services/settingsApi'
 import { useAuth } from '../context/AuthContext'
+import { presupuestosApi } from '../services/api'
 import { usersApi, organizationsApi, biSmartAlertsApi, esignApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import { Search, Layers, Sparkles, Building2 } from 'lucide-react'
@@ -1423,32 +1424,45 @@ function DepartmentsSection() {
   const toast = useToast()
   const qc = useQueryClient()
   const { data = [], isLoading } = useQuery<any>({ queryKey: ['departments'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
-  const { mutate: create } = useMutation<any, any, any>({ mutationFn: settingsApi.createDepartment, onSuccess: () => qc.invalidateQueries({ queryKey: ['departments'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: update } = useMutation<any, any, any>({ mutationFn: ({ id, data }: any) => settingsApi.updateDepartment(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['departments'] }); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: del } = useMutation<any, any, any>({ mutationFn: settingsApi.deleteDepartment, onSuccess: () => qc.invalidateQueries({ queryKey: ['departments'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  // Revisión 2026-11: un departamento pertenece a un área (base del presupuesto del área).
+  const { data: areas = [] } = useQuery({ queryKey: ['areas'], queryFn: () => presupuestosApi.areas() })
+  const nombreDeArea = (id?: string | null) => areas.find(a => a.id === id)?.name
+  const refrescar = () => { qc.invalidateQueries({ queryKey: ['departments'] }); qc.invalidateQueries({ queryKey: ['areas'] }) }
+  const { mutate: create } = useMutation<any, any, any>({ mutationFn: settingsApi.createDepartment, onSuccess: refrescar, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: update } = useMutation<any, any, any>({ mutationFn: ({ id, data }: any) => settingsApi.updateDepartment(id, data), onSuccess: () => { refrescar(); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: del } = useMutation<any, any, any>({ mutationFn: settingsApi.deleteDepartment, onSuccess: refrescar, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const [ui, setUi] = useState({
-    form: { name: '', description: '' },
+    form: { name: '', description: '', area_id: '' },
     editingId: null,
-    editForm: { name: '', description: '' },
+    editForm: { name: '', description: '', area_id: '' },
   })
   const { form, editingId, editForm } = ui
   const setForm = (v: any) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
   const setEditingId = (v: any) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
   const setEditForm = (v: any) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
+  const selectorDeArea = (valor: string, onChange: (v: string) => void) => (
+    <select value={valor} onChange={e => onChange(e.target.value)} aria-label={t('settings.area_del_departamento')} style={{ ...fs, flex: 2, minWidth: 0, padding: '5px 9px' }}>
+      <option value="">{t('settings.sin_area')}</option>
+      {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+    </select>
+  )
   return (
+    <>
+    <AreasSection />
     <Section icon="🏢" title="Departamentos" description="Estructura interna de la organizacion">
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
           {data.map((d: any) => (
             <div key={d.id}>
               {editingId === d.id ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', flexWrap: 'wrap',
                   background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10 }}>
                   <input value={editForm.name} onChange={e => setEditForm((f: any) => ({ ...f, name: e.target.value }))}
-                    style={{ ...fs, flex: 2, padding: '5px 9px' }} placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} autoFocus />
+                    style={{ ...fs, flex: 2, minWidth: 0, padding: '5px 9px' }} placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} autoFocus />
                   <input value={editForm.description} onChange={e => setEditForm((f: any) => ({ ...f, description: e.target.value }))}
-                    style={{ ...fs, flex: 3, padding: '5px 9px' }} placeholder="Descripcion" aria-label={t('settings.descripcion_del_departamento')} />
-                  <button onClick={() => update({ id: d.id, data: editForm })} disabled={!editForm.name}
+                    style={{ ...fs, flex: 3, minWidth: 0, padding: '5px 9px' }} placeholder="Descripcion" aria-label={t('settings.descripcion_del_departamento')} />
+                  {selectorDeArea(editForm.area_id, v => setEditForm((f: any) => ({ ...f, area_id: v })))}
+                  <button onClick={() => update({ id: d.id, data: { ...editForm, area_id: editForm.area_id || null } })} disabled={!editForm.name}
                     style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '5px 12px',
                       color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✓</button>
                   <button onClick={() => setEditingId(null)}
@@ -1456,11 +1470,12 @@ function DepartmentsSection() {
                       padding: '5px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✕</button>
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap',
                   background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
                   <span style={{ flex: 1, fontSize: "var(--text-base)", fontWeight: 600 }}>{d.name}</span>
+                  {nombreDeArea(d.area_id) && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', border: '1px solid currentColor', borderRadius: 99, padding: '0 8px' }}>{nombreDeArea(d.area_id)}</span>}
                   {d.description && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{d.description}</span>}
-                  <button onClick={() => { setEditingId(d.id); setEditForm({ name: d.name, description: d.description || '' }) }}
+                  <button onClick={() => { setEditingId(d.id); setEditForm({ name: d.name, description: d.description || '', area_id: d.area_id || '' }) }}
                     style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6,
                       padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
                   <button onClick={() => del(d.id)}
@@ -1473,10 +1488,57 @@ function DepartmentsSection() {
           {data.length === 0 && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>{t('settings.sin_departamentos')}</div>}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 10, padding: '10px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
-        <input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} style={{ ...fs, flex: 2 }} placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} />
-        <input value={form.description} onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))} style={{ ...fs, flex: 2 }} placeholder="Descripcion" aria-label={t('settings.descripcion_del_departamento')} />
-        <Button onClick={() => { create(form); setForm({ name: '', description: '' }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
+      <div style={{ display: 'flex', gap: 10, padding: '10px', flexWrap: 'wrap', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
+        <input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} style={{ ...fs, flex: 2, minWidth: 0 }} placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} />
+        <input value={form.description} onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))} style={{ ...fs, flex: 2, minWidth: 0 }} placeholder="Descripcion" aria-label={t('settings.descripcion_del_departamento')} />
+        {selectorDeArea(form.area_id, v => setForm((f: any) => ({ ...f, area_id: v })))}
+        <Button onClick={() => { create({ ...form, area_id: form.area_id || null }); setForm({ name: '', description: '', area_id: '' }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
+      </div>
+    </Section>
+    </>
+  )
+}
+
+function AreasSection() {
+  const { t } = useAppLang()
+  const toast = useToast()
+  const qc = useQueryClient()
+  const { data: areas = [], isLoading } = useQuery({ queryKey: ['areas'], queryFn: () => presupuestosApi.areas() })
+  const [nombre, setNombre] = useState('')
+  const [editando, setEditando] = useState<{ id: string; name: string } | null>(null)
+  const ejecutar = async (f: () => Promise<unknown>) => {
+    try { await f(); qc.invalidateQueries({ queryKey: ['areas'] }); qc.invalidateQueries({ queryKey: ['departments'] }) }
+    catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
+  }
+  return (
+    <Section icon="🧭" title={t('settings.areas')} description={t('settings.areas_ayuda')}>
+      {isLoading ? <Spinner /> : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+          {areas.map(a => (
+            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
+              {editando?.id === a.id ? (
+                <>
+                  <input value={editando.name} onChange={e => setEditando({ id: a.id, name: e.target.value })} aria-label={t('settings.nombre_del_area')} style={{ ...fs, flex: 2, minWidth: 0, padding: '5px 9px' }} autoFocus />
+                  <button onClick={() => ejecutar(() => presupuestosApi.guardarArea({ name: editando.name }, a.id)).then(() => setEditando(null))} disabled={!editando.name.trim()}
+                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '5px 12px', color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✓</button>
+                  <button onClick={() => setEditando(null)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✕</button>
+                </>
+              ) : (
+                <>
+                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{a.name}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{a.departamentos.length ? a.departamentos.join(', ') : t('settings.area_sin_departamentos')}</span>
+                  <button onClick={() => setEditando({ id: a.id, name: a.name })} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
+                  <button onClick={() => ejecutar(() => presupuestosApi.borrarArea(a.id))} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                </>
+              )}
+            </div>
+          ))}
+          {areas.length === 0 && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>{t('settings.sin_areas')}</div>}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 10, padding: '10px', flexWrap: 'wrap', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
+        <input value={nombre} onChange={e => setNombre(e.target.value)} style={{ ...fs, flex: 2, minWidth: 0 }} placeholder={t('settings.nombre_del_area')} aria-label={t('settings.nombre_del_area')} />
+        <Button onClick={() => ejecutar(() => presupuestosApi.guardarArea({ name: nombre })).then(() => setNombre(''))} disabled={!nombre.trim()}>{t('settings.anadir')}</Button>
       </div>
     </Section>
   )

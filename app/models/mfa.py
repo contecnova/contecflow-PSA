@@ -253,6 +253,14 @@ class Budget(Base):
     approved_at = Column(DateTime(timezone=True), nullable=True)
     created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
+    # Revisión 2026-11 (preparar en profundidad)
+    area_id     = Column(String(36), ForeignKey("areas.id", ondelete="SET NULL"), nullable=True, index=True)
+    padre_id    = Column(String(36), nullable=True, index=True)   # el presupuesto (origen) que consume: área > departamento > proyecto
+    techo       = Column(Float, nullable=True)                   # lo que pueden sumar los presupuestos hijos
+    responsable_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    campana_id  = Column(String(36), ForeignKey("budget_campaigns.id", ondelete="SET NULL"), nullable=True, index=True)
+    escenario   = Column(String(40), nullable=False, default="base", server_default="base")
+    supuestos   = Column(Text, nullable=False, default="{}", server_default="{}")  # {"inflacion_pct": 3, ...}
 
     lines      = relationship("BudgetLine", back_populates="budget", cascade="all, delete-orphan",
                               order_by="BudgetLine.created_at")
@@ -277,9 +285,51 @@ class BudgetLine(Base):
     importe     = Column(Float, nullable=False, default=0)
     meses       = Column(Text, nullable=False, default="{}")
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
+    # Revisión 2026-11 (preparar en profundidad)
+    sentido     = Column(String(10), nullable=False, default="gasto", server_default="gasto")   # gasto | ingreso
+    naturaleza  = Column(String(10), nullable=False, default="opex", server_default="opex")     # opex | capex
+    vida_meses  = Column(Integer, nullable=True)        # capex: meses de amortización
+    unidades    = Column(Float, nullable=True)          # conductor: unidades × precio
+    precio_unitario = Column(Float, nullable=True)
+    recurrencia = Column(String(12), nullable=True)     # unica | mensual | trimestral | anual
+    mes_desde   = Column(String(7), nullable=True)      # "YYYY-MM": desde cuándo aplica la partida
+    mes_hasta   = Column(String(7), nullable=True)
+    dedicacion_pct = Column(Float, nullable=True)       # personal por coste cargado: % de dedicación
+    fecha_alta  = Column(Date, nullable=True)           # vacante: cuándo se incorpora
+    pais        = Column(String(2), nullable=True)      # vacante: país (cargas sociales)
+    salario_anual = Column(Float, nullable=True)        # vacante: bruto anual
+    justificacion = Column(Text, nullable=True)
 
     budget = relationship("Budget", back_populates="lines")
     user   = relationship("User")
+
+
+class BudgetCampaign(Base):
+    """Campaña de presupuestos de un ejercicio, con su fecha límite de envío."""
+    __tablename__ = "budget_campaigns"
+
+    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    nombre      = Column(String(200), nullable=False)
+    year        = Column(Integer, nullable=False)
+    fecha_limite = Column(Date, nullable=False)
+    abierta     = Column(Boolean, nullable=False, default=True, server_default="1")
+    instrucciones = Column(Text, nullable=True)
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class BudgetTemplate(Base):
+    """Plantilla de partidas para empezar un presupuesto (por ámbito y tipo de proyecto)."""
+    __tablename__ = "budget_templates"
+
+    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    nombre      = Column(String(200), nullable=False)
+    ambito      = Column(String(20), nullable=True)
+    tipo_proyecto = Column(String(30), nullable=True)
+    partidas    = Column(Text, nullable=False, default="[]")   # [{tipo, descripcion, ...campos de partida}]
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
 
 # ── AI Task Estimation ────────────────────────────────────────────────────────

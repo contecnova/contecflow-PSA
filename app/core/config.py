@@ -502,6 +502,11 @@ class Settings(
                 "training:otros,subcontract:subcontratacion,other:otros", env="BUDGET_EXPENSE_TYPE_MAP")
     BUDGET_APPROVER_ROLES: str = Field(default="admin", env="BUDGET_APPROVER_ROLES")
     BUDGET_MANAGER_ROLES: str = Field(default="admin,pm,hr", env="BUDGET_MANAGER_ROLES")
+    # Revisión 2026-11 (preparar a fondo)
+    BUDGET_REVENUE_TYPES: str = Field(default="horas,hitos,cuotas,otros_ingresos", env="BUDGET_REVENUE_TYPES")
+    BUDGET_CEILING_POLICY: str = Field(default="avisar", env="BUDGET_CEILING_POLICY")  # avisar | bloquear
+    BUDGET_JUSTIFICATION_MIN_AMOUNT: float = Field(default=5000.0, env="BUDGET_JUSTIFICATION_MIN_AMOUNT")
+    BUDGET_CAMPAIGN_REMINDER_DAYS: int = Field(default=7, env="BUDGET_CAMPAIGN_REMINDER_DAYS")
 
     # Conectores ETL de BI (revisión 2026-11).
     BI_ETL_PAGE_SIZE: int = Field(default=100, env="BI_ETL_PAGE_SIZE")

@@ -23,6 +23,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.run_alert_engine",
         "schedule": crontab(hour=8, minute=0),
     },
+    # Recordatorio de la campaña de presupuestos (revisión 2026-11)
+    "budget-campaign-reminder": {
+        "task": "app.worker.recordar_campana_de_presupuestos",
+        "schedule": crontab(hour=8, minute=30),
+    },
     # Check missing imputations every weekday at 18:00
     "check-missing-imputations": {
         "task": "app.worker.check_missing_imputations",
@@ -1702,3 +1707,12 @@ def autonomous_agent_scan():
             _worker_logger.error("autonomous_agent_scan error: %s", exc)
             return {"error": str(exc)}
 
+
+
+@celery_app.task(name="app.worker.recordar_campana_de_presupuestos")
+def recordar_campana_de_presupuestos():
+    """Avisa a los responsables de presupuestos sin enviar cuando cierra su campaña."""
+    from app.db.session import worker_db_session
+    from app.services.presupuestos_preparar import recordar_campana
+    with worker_db_session() as db:
+        return {"avisos": recordar_campana(db)}

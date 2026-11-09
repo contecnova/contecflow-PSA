@@ -32,6 +32,7 @@ from app.core import timeutil
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.mfa import Budget, BudgetLine
+from app.services import presupuestos_preparar as prep
 from app.services.audit import audit_log
 
 AMBITOS = ("proyecto", "proyecto_previsto", "departamento", "area")
@@ -111,14 +112,15 @@ def _cargar(db: Session, budget_id: str) -> Budget:
 
 
 def _linea_dict(l: BudgetLine) -> dict:
-    return {"id": l.id, "tipo": l.tipo, "descripcion": l.descripcion, "user_id": l.user_id,
-            "user_name": l.user.full_name if l.user else None, "perfil": l.perfil, "horas": l.horas,
-            "coste_hora": l.coste_hora, "importe": l.importe, "meses": json.loads(l.meses or "{}")}
+    return {**prep.partida_como_dict(l), "id": l.id, "user_name": l.user.full_name if l.user else None,
+            "mes_desde": l.mes_desde, "mes_hasta": l.mes_hasta, "meses": json.loads(l.meses or "{}")}
 
 
-def _plan_mensual(b: Budget) -> dict[str, dict[str, float]]:
+def _plan_mensual(b: Budget, sentido: str = "gasto") -> dict[str, dict[str, float]]:
     plan: dict[str, dict[str, float]] = {}
     for l in b.lines:
+        if (l.sentido or "gasto") != sentido:
+            continue
         for mes, imp in json.loads(l.meses or "{}").items():
             plan.setdefault(mes, {})
             plan[mes][l.tipo] = round(plan[mes].get(l.tipo, 0.0) + float(imp), 2)
@@ -130,7 +132,11 @@ def _usuarios_del_ambito(db: Session, b: Budget) -> Optional[list[str]]:
     if b.ambito == "departamento":
         departamentos = [b.department] if b.department else []
     elif b.ambito == "area":
-        departamentos = [d.strip() for d in (b.area or "").split(",") if d.strip()]
+        from app.models.settings import Department
+        if b.area_id:
+            departamentos = [n for (n,) in db.query(Department.name).filter(Department.area_id == b.area_id).all()]
+        else:   # presupuestos de área anteriores a las áreas de verdad
+            departamentos = [d.strip() for d in (b.area or "").split(",") if d.strip()]
     else:
         return None
     if not departamentos:
@@ -194,9 +200,28 @@ def _real_mensual(db: Session, b: Budget) -> dict[str, dict[str, float]]:
     return real
 
 
+def _real_ingresos(db: Session, b: Budget) -> dict[str, float]:
+    """{mes: ingreso} de las facturas emitidas del proyecto (base imponible, sin anuladas ni borradores)."""
+    from app.models.billing_reports import Invoice, InvoiceStatus
+    if b.ambito not in ("proyecto", "proyecto_previsto") or not b.project_id or not b.periodo_desde:
+        return {}
+    hasta_y, hasta_m = b.periodo_hasta.year, b.periodo_hasta.month
+    hasta = date(hasta_y + (hasta_m == 12), 1 if hasta_m == 12 else hasta_m + 1, 1)
+    salida: dict[str, float] = {}
+    for f in db.query(Invoice).filter(Invoice.project_id == b.project_id,
+                                      Invoice.status.in_([InvoiceStatus.sent, InvoiceStatus.paid, InvoiceStatus.overdue]),
+                                      Invoice.issue_date >= b.periodo_desde, Invoice.issue_date < hasta).all():
+        mes = f"{f.issue_date.year}-{f.issue_date.month:02d}"
+        salida[mes] = round(salida.get(mes, 0.0) + float(f.subtotal or 0), 2)
+    return salida
+
+
 def informe(db: Session, b: Budget) -> dict:
-    """Plan contra real por mes y por tipo, desviación y previsión al cierre."""
+    """Plan contra real por mes y por tipo, desviación y previsión al cierre; ingresos y margen."""
     plan, real = _plan_mensual(b), _real_mensual(db, b)
+    plan_ing = {m: round(sum(t.values()), 2) for m, t in _plan_mensual(b, "ingreso").items()}
+    real_ing = _real_ingresos(db, b)
+    amort = prep.amortizacion(b)
     meses = meses_del_periodo(b.periodo_desde, b.periodo_hasta) if b.periodo_desde and b.periodo_hasta else []
     actual = _mes_actual()
     filas, prevision = [], 0.0
@@ -205,7 +230,8 @@ def informe(db: Session, b: Budget) -> dict:
         cerrado = m < actual
         prevision += r if m <= actual else p
         filas.append({"mes": m, "plan": p, "real": r, "desviacion": round(r - p, 2), "cerrado": cerrado,
-                      "en_curso": m == actual})
+                      "en_curso": m == actual, "ingreso_plan": plan_ing.get(m, 0.0),
+                      "ingreso_real": real_ing.get(m, 0.0), "amortizacion": amort.get(m, 0.0)})
     todos_tipos = sorted({t for d in list(plan.values()) + list(real.values()) for t in d})
     por_tipo = []
     for t in todos_tipos:
@@ -219,7 +245,33 @@ def informe(db: Session, b: Budget) -> dict:
     return {"meses": filas, "por_tipo": por_tipo, "total_plan": total_plan, "total_real": total_real,
             "plan_hasta_hoy": plan_a_hoy, "desviacion_hasta_hoy": round(total_real - plan_a_hoy, 2),
             "prevision_cierre": round(prevision, 2),
+            "ingreso_plan": round(sum(plan_ing.values()), 2), "ingreso_real": round(sum(real_ing.values()), 2),
+            "margen_plan": round(sum(plan_ing.values()) - total_plan, 2),
+            "margen_real": round(sum(real_ing.values()) - total_real, 2),
+            "opex_plan": round(sum(l.importe for l in b.lines if l.sentido != "ingreso" and l.naturaleza != "capex"), 2),
+            "capex_plan": round(sum(l.importe for l in b.lines if l.sentido != "ingreso" and l.naturaleza == "capex"), 2),
+            "amortizacion_total": round(sum(amort.values()), 2),
             "sin_real": b.ambito == "proyecto_previsto" and not b.project_id}
+
+
+def _nombres(b: Budget) -> dict:
+    """Los nombres que enseña la pantalla: área, presupuesto padre, responsable y campaña."""
+    from sqlalchemy.orm import object_session
+
+    from app.models.mfa import BudgetCampaign
+    from app.models.settings import Area
+    from app.models.user import User
+    db = object_session(b)
+    if db is None:
+        return {}
+    padre = prep._ultima(db, b.padre_id) if b.padre_id else None
+    return {
+        "area_name": db.query(Area.name).filter(Area.id == b.area_id).scalar() if b.area_id else None,
+        "padre_name": padre.name if padre else None, "padre_ambito": padre.ambito if padre else None,
+        "padre_ficha_id": padre.id if padre else None,
+        "responsable_name": db.query(User.full_name).filter(User.id == b.responsable_id).scalar() if b.responsable_id else None,
+        "campana_name": db.query(BudgetCampaign.nombre).filter(BudgetCampaign.id == b.campana_id).scalar() if b.campana_id else None,
+    }
 
 
 def _cabecera(b: Budget) -> dict:
@@ -231,7 +283,9 @@ def _cabecera(b: Budget) -> dict:
             "currency": b.currency, "notes": b.notes, "version": b.version, "origen_id": b.origen_id or b.id,
             "estado": b.estado, "motivo_rechazo": b.motivo_rechazo,
             "approved_at": b.approved_at.isoformat() if b.approved_at else None,
-            "total_plan": round(sum(l.importe for l in b.lines), 2)}
+            "area_id": b.area_id, "padre_id": b.padre_id, "techo": b.techo, "responsable_id": b.responsable_id,
+            "campana_id": b.campana_id, "escenario": b.escenario, "supuestos": prep.supuestos(b),
+            "total_plan": prep.total_de_gasto(b), "total_ingreso": prep.total_de_ingreso(b), **_nombres(b)}
 
 
 def detalle(db: Session, u, budget_id: str) -> dict:
@@ -239,9 +293,16 @@ def detalle(db: Session, u, budget_id: str) -> dict:
     b = _cargar(db, budget_id)
     versiones = (db.query(Budget).filter(Budget.origen_id == (b.origen_id or b.id))
                  .order_by(Budget.version).all())
+    hijos = prep.hijos(db, b)
     return {**_cabecera(b), "lineas": [_linea_dict(l) for l in b.lines], "informe": informe(db, b),
             "versiones": [{"id": v.id, "version": v.version, "estado": v.estado,
-                           "total_plan": round(sum(l.importe for l in v.lines), 2)} for v in versiones],
+                           "total_plan": prep.total_de_gasto(v)} for v in versiones],
+            "hijos": [{"id": h.id, "name": h.name, "ambito": h.ambito, "estado": h.estado, "version": h.version,
+                       "total_plan": prep.total_de_gasto(h)} for h in hijos],
+            "techo_estado": prep.estado_del_techo(db, b),
+            "consolidado_plan": prep.consolidado(db, b) if hijos else None,
+            "aviso_techo_del_padre": _aviso_del_padre(db, b),
+            "tipos_ingreso": prep.tipos_de_ingreso(db, b.organization_id),
             "aprobacion_en_bandeja": fuentes.estado(db, "budget", b.id),
             "puedo_editar": puede_gestionar(db, u) and b.estado in EDITABLE,
             "puedo_aprobar": puede_aprobar(db, u) and b.estado == "enviado",
@@ -307,7 +368,15 @@ def resumen(db: Session, u, year: Optional[int] = None) -> dict:
 # ── Alta y cabecera ───────────────────────────────────────────────────────────
 
 _CABECERA = ("name", "ambito", "department", "area", "project_id", "cliente_id", "tipo_proyecto",
-             "periodo_desde", "periodo_hasta", "currency", "notes")
+             "periodo_desde", "periodo_hasta", "currency", "notes", "area_id", "padre_id", "techo",
+             "responsable_id", "campana_id", "escenario", "supuestos")
+
+
+def _aviso_del_padre(db: Session, b: Budget) -> Optional[str]:
+    try:
+        return prep.comprobar_techo_del_padre(db, b)
+    except HTTPException as e:      # con «bloquear» también se avisa en la ficha
+        return str(e.detail)
 
 
 def _validar_cabecera(db: Session, u, d: dict) -> None:
@@ -320,8 +389,13 @@ def _validar_cabecera(db: Session, u, d: dict) -> None:
         get_project_scoped_or_404(db, d["project_id"], u)
     if d["ambito"] == "departamento" and not d.get("department"):
         raise HTTPException(400, "Elige el departamento")
-    if d["ambito"] == "area" and not (d.get("area") or "").strip():
-        raise HTTPException(400, "Indica los departamentos del área")
+    if d["ambito"] == "area" and not d.get("area_id"):
+        raise HTTPException(400, "Elige el área")
+    if d.get("techo") is not None and d["ambito"] not in ("area", "departamento"):
+        raise HTTPException(400, "Sólo un área o un departamento tiene techo para sus presupuestos hijos")
+    if d.get("techo") is not None and float(d["techo"]) < 0:
+        raise HTTPException(400, "El techo no puede ser negativo")
+    prep.validar_padre(db, d["ambito"], d.get("padre_id"))
     if not (d.get("periodo_desde") and d.get("periodo_hasta")):
         raise HTTPException(400, "Indica el periodo")
     if _primero(d["periodo_hasta"]) < _primero(d["periodo_desde"]):
@@ -329,18 +403,35 @@ def _validar_cabecera(db: Session, u, d: dict) -> None:
 
 
 def crear(db: Session, u, datos: dict) -> dict:
+    """Alta de un presupuesto. Puede empezar vacío, de una plantilla (`plantilla_id`)
+    o de otro presupuesto (`copiar_de`, con `base` plan|real y `ajuste_pct`)."""
+    from app.models.mfa import BudgetTemplate
     _exigir_gestor(db, u)
     d = {k: datos.get(k) for k in _CABECERA if datos.get(k) not in (None, "")}
+    if isinstance(d.get("supuestos"), dict):
+        d["supuestos"] = json.dumps(d["supuestos"])
     _validar_cabecera(db, u, d)
     d["periodo_desde"], d["periodo_hasta"] = _primero(d["periodo_desde"]), _primero(d["periodo_hasta"])
     if not d.get("name"):
         raise HTTPException(400, "Ponle un nombre")
+    if "padre_id" not in d:
+        d["padre_id"] = prep.padre_por_defecto(db, d)
+    d.setdefault("responsable_id", u.id)
     b = Budget(organization_id=u.organization_id, created_by=u.id, year=d["periodo_desde"].year, total_amount=0,
                estado="borrador", version=1, **d)
     db.add(b)
     db.flush()
     b.origen_id = b.id
-    audit_log(db, u, "CREATE", "budgets", b.id, b.name, new_values={"ambito": b.ambito})
+    if datos.get("plantilla_id"):
+        plantilla = db.query(BudgetTemplate).filter(BudgetTemplate.id == datos["plantilla_id"]).first()
+        if plantilla is None:
+            raise HTTPException(404, "Plantilla no encontrada")
+        prep.aplicar_plantilla(db, b, plantilla)
+    if datos.get("copiar_de"):
+        prep.copiar_de_otro(db, b, _cargar(db, datos["copiar_de"]), datos.get("base") or "plan",
+                            float(datos.get("ajuste_pct") or 0))
+    audit_log(db, u, "CREATE", "budgets", b.id, b.name,
+              new_values={"ambito": b.ambito, "plantilla": datos.get("plantilla_id"), "copia_de": datos.get("copiar_de")})
     db.commit()
     return detalle(db, u, b.id)
 
@@ -360,13 +451,19 @@ def editar(db: Session, u, budget_id: str, datos: dict) -> dict:
     for k in _CABECERA:
         if k in datos:
             v = datos[k]
+            if k == "supuestos":
+                v = json.dumps(v or {})
             setattr(b, k, _primero(v) if k.startswith("periodo_") and v else (v if v != "" else None))
     b.year = b.periodo_desde.year
+    # Cambiar periodo o supuestos recalcula las partidas calculadas; las
+    # tecleadas mes a mes se reparten de nuevo si algún mes queda fuera.
     validos = set(meses_del_periodo(b.periodo_desde, b.periodo_hasta))
-    for l in b.lines:      # un mes que queda fuera del periodo no puede seguir planificado
+    for l in b.lines:
         meses = json.loads(l.meses or "{}")
-        if set(meses) - validos:
-            l.meses = json.dumps(repartir_por_igual(l.importe, sorted(validos)))
+        calculada = (l.unidades is not None or l.salario_anual is not None or l.horas is not None
+                     or (l.user_id and l.dedicacion_pct is not None))
+        if calculada or set(meses) - validos:
+            prep.calcular(db, b, l)
     audit_log(db, u, "UPDATE", "budgets", b.id, b.name, old_values=antes,
               new_values={k: str(getattr(b, k)) for k in _CABECERA})
     db.commit()
@@ -375,35 +472,40 @@ def editar(db: Session, u, budget_id: str, datos: dict) -> dict:
 
 # ── Partidas ──────────────────────────────────────────────────────────────────
 
+_CAMPOS_DE_LINEA = ("tipo", "descripcion", "user_id", "perfil", "horas", "coste_hora", "importe", "sentido",
+                    "naturaleza", "vida_meses", "unidades", "precio_unitario", "recurrencia", "mes_desde", "mes_hasta",
+                    "dedicacion_pct", "pais", "salario_anual", "justificacion")
+
+
 def _preparar_linea(db: Session, b: Budget, l: BudgetLine, datos: dict) -> None:
     from app.models.user import User
-    for k in ("tipo", "descripcion", "user_id", "perfil", "horas", "coste_hora", "importe"):
+    for k in _CAMPOS_DE_LINEA:
         if k in datos:
             setattr(l, k, datos[k] if datos[k] != "" else None)
-    if l.tipo not in tipos(db, b.organization_id):
-        raise HTTPException(400, f"Tipo de partida no válido: {l.tipo} (los de BUDGET_LINE_TYPES)")
+    if "fecha_alta" in datos:
+        l.fecha_alta = date.fromisoformat(str(datos["fecha_alta"])[:10]) if datos["fecha_alta"] else None
+    l.sentido = l.sentido or "gasto"
+    l.naturaleza = l.naturaleza or "opex"
+    if l.sentido not in ("gasto", "ingreso"):
+        raise HTTPException(400, "Una partida es de gasto o de ingreso")
+    validos = prep.tipos_de_ingreso(db, b.organization_id) if l.sentido == "ingreso" else tipos(db, b.organization_id)
+    if l.tipo not in validos:
+        clave = "BUDGET_REVENUE_TYPES" if l.sentido == "ingreso" else "BUDGET_LINE_TYPES"
+        raise HTTPException(400, f"Tipo de partida no válido: {l.tipo} (los de {clave})")
+    if l.naturaleza not in ("opex", "capex"):
+        raise HTTPException(400, "La naturaleza es OPEX o CAPEX")
+    if l.naturaleza == "capex" and not (l.vida_meses and int(l.vida_meses) > 0):
+        raise HTTPException(400, "Una partida CAPEX necesita su vida en meses para amortizarla")
     if not (l.descripcion or "").strip():
         raise HTTPException(400, "Describe la partida")
-    if l.horas is not None:
-        if l.coste_hora is None and l.user_id:
-            l.coste_hora = db.query(User.hourly_rate).filter(User.id == l.user_id).scalar()
-        if l.coste_hora is None:
-            raise HTTPException(400, "Con horas hace falta el coste por hora (o una persona con su coste)")
-        l.importe = round(float(l.horas) * float(l.coste_hora), 2)
-    if l.importe is None or float(l.importe) < 0:
-        raise HTTPException(400, "El importe tiene que ser cero o positivo")
-    validos = meses_del_periodo(b.periodo_desde, b.periodo_hasta)
+    if l.horas is not None and l.coste_hora is None and l.user_id:
+        l.coste_hora = db.query(User.hourly_rate).filter(User.id == l.user_id).scalar()
     meses = datos.get("meses")
     if meses:
-        fuera = set(meses) - set(validos)
-        if fuera:
-            raise HTTPException(400, f"Meses fuera del periodo: {', '.join(sorted(fuera))}")
         suma = round(sum(float(v) for v in meses.values()), 2)
-        if abs(suma - float(l.importe)) > 0.01:
+        if l.importe is not None and abs(suma - float(l.importe)) > 0.01 and "importe" in datos:
             raise HTTPException(400, f"El reparto por meses suma {suma} y la partida es {l.importe}")
-        l.meses = json.dumps({k: round(float(v), 2) for k, v in meses.items() if float(v)})
-    else:
-        l.meses = json.dumps(repartir_por_igual(float(l.importe), validos))
+    prep.calcular(db, b, l, meses or None)
 
 
 def crear_linea(db: Session, u, budget_id: str, datos: dict) -> dict:
@@ -447,6 +549,8 @@ def enviar(db: Session, u, budget_id: str) -> dict:
     _editable(db, u, b)
     if not b.lines:
         raise HTTPException(400, "Un presupuesto sin partidas no se envía")
+    prep.exigir_justificaciones(db, b)
+    prep.comprobar_techo_del_padre(db, b)     # con BUDGET_CEILING_POLICY = bloquear, 409
     b.estado, b.motivo_rechazo = "enviado", None
     audit_log(db, u, "SUBMIT", "budgets", b.id, b.name)
     db.commit()
@@ -493,14 +597,46 @@ def nueva_version(db: Session, u, budget_id: str) -> dict:
                version=ultima + 1, origen_id=origen, year=b.year, name=b.name, ambito=b.ambito,
                department=b.department, area=b.area, project_id=b.project_id, cliente_id=b.cliente_id,
                tipo_proyecto=b.tipo_proyecto, periodo_desde=b.periodo_desde, periodo_hasta=b.periodo_hasta,
-               currency=b.currency, notes=b.notes)
+               currency=b.currency, notes=b.notes, area_id=b.area_id, padre_id=b.padre_id, techo=b.techo,
+               responsable_id=b.responsable_id, campana_id=b.campana_id, escenario=b.escenario, supuestos=b.supuestos)
     db.add(n)
     db.flush()
-    for l in b.lines:
-        db.add(BudgetLine(organization_id=l.organization_id, budget_id=n.id, tipo=l.tipo, descripcion=l.descripcion,
-                          user_id=l.user_id, perfil=l.perfil, horas=l.horas, coste_hora=l.coste_hora,
-                          importe=l.importe, meses=l.meses))
+    _copiar_partidas(b, n)
     audit_log(db, u, "CREATE", "budgets", n.id, n.name, new_values={"version": n.version, "desde": b.id})
+    db.commit()
+    return detalle(db, u, n.id)
+
+
+def _copiar_partidas(desde: Budget, hacia: Budget) -> None:
+    columnas = [c.name for c in BudgetLine.__table__.columns if c.name not in ("id", "budget_id", "created_at")]
+    for l in desde.lines:
+        hacia.lines.append(BudgetLine(**{c: getattr(l, c) for c in columnas}))
+
+
+def crear_escenario(db: Session, u, budget_id: str, nombre: str, supuestos: Optional[dict] = None) -> dict:
+    """Otro escenario (p. ej. optimista) del mismo presupuesto: cadena de versiones propia."""
+    _exigir_gestor(db, u)
+    b = _cargar(db, budget_id)
+    nombre = (nombre or "").strip()
+    if not nombre or nombre == b.escenario:
+        raise HTTPException(400, "Ponle un nombre distinto al escenario")
+    n = Budget(organization_id=b.organization_id, created_by=u.id, total_amount=0, estado="borrador", version=1,
+               year=b.year, name=b.name, ambito=b.ambito, department=b.department, area=b.area,
+               project_id=b.project_id, cliente_id=b.cliente_id, tipo_proyecto=b.tipo_proyecto,
+               periodo_desde=b.periodo_desde, periodo_hasta=b.periodo_hasta, currency=b.currency, notes=b.notes,
+               area_id=b.area_id, padre_id=b.padre_id, techo=b.techo, responsable_id=b.responsable_id,
+               campana_id=b.campana_id, escenario=nombre,
+               supuestos=json.dumps(supuestos) if supuestos is not None else b.supuestos)
+    db.add(n)
+    db.flush()
+    n.origen_id = n.id
+    _copiar_partidas(b, n)
+    db.flush()
+    if supuestos is not None:       # supuestos distintos: se recalculan las partidas calculadas
+        for l in n.lines:
+            prep.calcular(db, n, l, json.loads(l.meses or "{}") if l.unidades is None and l.salario_anual is None
+                          and l.horas is None and not (l.user_id and l.dedicacion_pct is not None) else None)
+    audit_log(db, u, "CREATE", "budgets", n.id, n.name, new_values={"escenario": nombre, "desde": b.id})
     db.commit()
     return detalle(db, u, n.id)
 
@@ -522,3 +658,97 @@ def vincular_proyecto(db: Session, u, budget_id: str, project_id: str) -> dict:
 
 def aplicar_desde_bandeja(db: Session, actor, budget_id: str, aprobado: bool, nota: Optional[str]) -> None:
     decidir(db, actor, budget_id, aprobado, nota or "Rechazado en la bandeja de aprobaciones", desde_bandeja=True)
+
+
+# ── Plantillas y campañas (revisión 2026-11) ──────────────────────────────────
+
+def _plantilla_dict(t) -> dict:
+    return {"id": t.id, "nombre": t.nombre, "ambito": t.ambito, "tipo_proyecto": t.tipo_proyecto,
+            "partidas": json.loads(t.partidas or "[]")}
+
+
+def listar_plantillas(db: Session, u) -> list[dict]:
+    from app.models.mfa import BudgetTemplate
+    return [_plantilla_dict(t) for t in db.query(BudgetTemplate).order_by(BudgetTemplate.nombre).all()]
+
+
+def guardar_plantilla(db: Session, u, datos: dict, plantilla_id: Optional[str] = None) -> dict:
+    """Plantilla nueva o editada; con `desde_presupuesto` copia sus partidas."""
+    from app.models.mfa import BudgetTemplate
+    _exigir_gestor(db, u)
+    if plantilla_id:
+        t = db.query(BudgetTemplate).filter(BudgetTemplate.id == plantilla_id).first()
+        if t is None:
+            raise HTTPException(404, "Plantilla no encontrada")
+    else:
+        t = BudgetTemplate(organization_id=u.organization_id, created_by=u.id, nombre="")
+        db.add(t)
+    for k in ("nombre", "ambito", "tipo_proyecto"):
+        if k in datos:
+            setattr(t, k, datos[k] or None)
+    if datos.get("desde_presupuesto"):
+        b = _cargar(db, datos["desde_presupuesto"])
+        t.partidas = json.dumps([prep.partida_como_dict(l) for l in b.lines])
+    elif "partidas" in datos:
+        validos = set(tipos(db, u.organization_id)) | set(prep.tipos_de_ingreso(db, u.organization_id))
+        for p in datos["partidas"] or []:
+            if p.get("tipo") not in validos or not (p.get("descripcion") or "").strip():
+                raise HTTPException(400, "Cada partida de la plantilla necesita un tipo válido y una descripción")
+        t.partidas = json.dumps(datos["partidas"] or [])
+    if not (t.nombre or "").strip():
+        raise HTTPException(400, "Ponle un nombre a la plantilla")
+    db.commit()
+    return _plantilla_dict(t)
+
+
+def borrar_plantilla(db: Session, u, plantilla_id: str) -> dict:
+    from app.models.mfa import BudgetTemplate
+    _exigir_gestor(db, u)
+    t = db.query(BudgetTemplate).filter(BudgetTemplate.id == plantilla_id).first()
+    if t is None:
+        raise HTTPException(404, "Plantilla no encontrada")
+    db.delete(t)
+    db.commit()
+    return {"ok": True}
+
+
+def _campana_dict(db: Session, c) -> dict:
+    ultimas: dict[str, Budget] = {}
+    for b in db.query(Budget).filter(Budget.campana_id == c.id).all():
+        clave = b.origen_id or b.id
+        if clave not in ultimas or b.version > ultimas[clave].version:
+            ultimas[clave] = b
+    por_estado: dict[str, int] = {}
+    for b in ultimas.values():
+        por_estado[b.estado] = por_estado.get(b.estado, 0) + 1
+    return {"id": c.id, "nombre": c.nombre, "year": c.year, "fecha_limite": c.fecha_limite.isoformat(),
+            "abierta": c.abierta, "instrucciones": c.instrucciones,
+            "dias_restantes": (c.fecha_limite - timeutil.today()).days,
+            "presupuestos": len(ultimas), "por_estado": por_estado}
+
+
+def listar_campanas(db: Session, u) -> list[dict]:
+    from app.models.mfa import BudgetCampaign
+    return [_campana_dict(db, c) for c in db.query(BudgetCampaign).order_by(BudgetCampaign.year.desc()).all()]
+
+
+def guardar_campana(db: Session, u, datos: dict, campana_id: Optional[str] = None) -> dict:
+    from app.models.mfa import BudgetCampaign
+    if not puede_aprobar(db, u):
+        raise HTTPException(403, "Abrir y cerrar campañas es de los roles de BUDGET_APPROVER_ROLES")
+    if campana_id:
+        c = db.query(BudgetCampaign).filter(BudgetCampaign.id == campana_id).first()
+        if c is None:
+            raise HTTPException(404, "Campaña no encontrada")
+    else:
+        c = BudgetCampaign(organization_id=u.organization_id, abierta=True)
+        db.add(c)
+    for k in ("nombre", "year", "instrucciones", "abierta"):
+        if k in datos:
+            setattr(c, k, datos[k])
+    if "fecha_limite" in datos and datos["fecha_limite"]:
+        c.fecha_limite = date.fromisoformat(str(datos["fecha_limite"])[:10])
+    if not (c.nombre and c.year and c.fecha_limite):
+        raise HTTPException(400, "La campaña necesita nombre, ejercicio y fecha límite")
+    db.commit()
+    return _campana_dict(db, c)
