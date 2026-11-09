@@ -6851,6 +6851,13 @@ const zh = {
     quitar_x: "移除 {x}？",
     quitar_ayuda: "其配置和状态将被删除。",
   },
+  perfilpanel: {
+    tab_perfil: "个人资料",
+    tab_apariencia: "外观",
+    tab_idioma: "语言",
+    tab_seguridad: "安全",
+    tab_avisos: "通知",
+  },
   dataplatform: {
     titulo: "数据平台",
     subtitulo: "连接器、Microsoft 365、实时数据与数据版本",

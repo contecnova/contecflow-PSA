@@ -6168,6 +6168,13 @@ const es = {
     quitar_x: "¿Quitar {x}?",
     quitar_ayuda: "Se borran su configuración y su estado.",
   },
+  perfilpanel: {
+    tab_perfil: "Perfil",
+    tab_apariencia: "Apariencia",
+    tab_idioma: "Idioma",
+    tab_seguridad: "Seguridad",
+    tab_avisos: "Avisos",
+  },
   dataplatform: {
     titulo: "Plataforma de datos",
     subtitulo: "Conectores, Microsoft 365, tiempo real y versiones de datos",

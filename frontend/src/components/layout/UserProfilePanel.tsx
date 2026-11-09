@@ -15,6 +15,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { Bell, Languages, Palette, ShieldCheck, UserRound } from 'lucide-react'
 import { Avatar } from '../ui'
 import PasskeysSection from '../security/PasskeysSection'
 import { AVAILABLE_LANGUAGES } from '../../i18n/appTranslations'
@@ -146,12 +147,14 @@ export default function UserProfilePanel({ onClose }: Props) {
     onError: (e: { response?: { data?: { detail?: string } } }) => toast.error(e?.response?.data?.detail || 'Error al cambiar contraseña'),
   })
 
+  // Cinco pestañas en 380 px: columnas iguales con el icono encima, para que
+  // ninguna se salga del panel (antes «Avisos» quedaba fuera del borde).
   const TABS = [
-    { id: 'profile',    label: '👤 Perfil' },
-    { id: 'appearance', label: '🎨 Apariencia' },
-    { id: 'language',   label: '🌐 Idioma' },
-    { id: 'security',   label: '🔐 Seguridad' },
-    { id: 'notifications', label: '🔔 Avisos' },
+    { id: 'profile',       label: traducir('perfilpanel.tab_perfil'),     Icono: UserRound },
+    { id: 'appearance',    label: traducir('perfilpanel.tab_apariencia'), Icono: Palette },
+    { id: 'language',      label: traducir('perfilpanel.tab_idioma'),     Icono: Languages },
+    { id: 'security',      label: traducir('perfilpanel.tab_seguridad'),  Icono: ShieldCheck },
+    { id: 'notifications', label: traducir('perfilpanel.tab_avisos'),     Icono: Bell },
   ]
 
   return (
@@ -162,7 +165,7 @@ export default function UserProfilePanel({ onClose }: Props) {
           zIndex: 299, backdropFilter: 'blur(2px)' }} />
 
       {/* Panel */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, width: 380, zIndex: 300,
+      <div style={{ position: 'fixed', bottom: 0, left: 0, width: 'min(380px, 100vw)', zIndex: 300,
         background: 'var(--surface-1)', borderRight: '1px solid var(--surface-4)',
         borderTop: '1px solid var(--surface-4)', borderRadius: '0 16px 0 0',
         display: 'flex', flexDirection: 'column',
@@ -188,16 +191,18 @@ export default function UserProfilePanel({ onClose }: Props) {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 2, padding: '8px 12px',
-          borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              style={{ padding: '6px 10px', borderRadius: 7, fontSize: "var(--text-xs)", fontWeight: 600,
-                border: `1px solid ${tab === t.id ? 'rgba(79,142,247,0.4)' : 'transparent'}`,
-                background: tab === t.id ? 'var(--accent-muted)' : 'transparent',
-                color: tab === t.id ? 'var(--accent)' : 'var(--text-2)',
-                cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-              {t.label}
+        <div role="tablist" style={{ display: 'grid', gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))`, gap: 4,
+          padding: '8px 12px', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
+          {TABS.map(({ id, label, Icono }) => (
+            <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} title={label}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 0,
+                padding: '6px 4px', borderRadius: 8, fontSize: "var(--text-2xs)", fontWeight: 600,
+                border: `1px solid ${tab === id ? 'var(--accent)' : 'transparent'}`,
+                background: tab === id ? 'var(--accent-muted)' : 'transparent',
+                color: tab === id ? 'var(--accent)' : 'var(--text-2)',
+                cursor: 'pointer', fontFamily: 'inherit' }}>
+              <Icono size={16} aria-hidden />
+              <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
             </button>
           ))}
         </div>

@@ -6840,6 +6840,13 @@ const en = {
     quitar_x: "Remove {x}?",
     quitar_ayuda: "Its settings and status are deleted.",
   },
+  perfilpanel: {
+    tab_perfil: "Profile",
+    tab_apariencia: "Appearance",
+    tab_idioma: "Language",
+    tab_seguridad: "Security",
+    tab_avisos: "Alerts",
+  },
   dataplatform: {
     titulo: "Data platform",
     subtitulo: "Connectors, Microsoft 365, real time and data versions",
