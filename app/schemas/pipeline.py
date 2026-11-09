@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -20,6 +20,11 @@ class OpportunityIn(BaseModel):
     contact_email: Optional[str] = Field(None, description="Email del contacto principal")
     owner_id: Optional[str] = Field(None, description="ID del usuario propietario de la oportunidad")
     notes: Optional[str] = Field(None, description="Notas internas sobre la oportunidad")
+    # Revisión 2026-11: lo que la conversión lleva al proyecto y al contrato de ingresos.
+    client_id: Optional[str] = Field(None, description="Cliente existente (el proyecto convertido queda vinculado)")
+    hourly_rate: Optional[float] = Field(None, ge=0, description="Tarifa de facturación por hora")
+    contract_type: Optional[Literal["fixed_price", "time_material", "retainer", "hourly_bag"]] = Field(
+        None, description="Tipo de contrato (decide el método de reconocimiento de ingresos al convertir)")
 
 
 class OpportunityUpdate(OpportunityIn):

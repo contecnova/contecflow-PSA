@@ -1452,10 +1452,9 @@ General notes that apply to every module here:
   - `POST /pipeline/{id}/generate-proposal|mark-proposal-sent|convert`, `GET /pipeline/{id}/proposal`
   - With no UI: `GET/POST /pipeline/{id}/activities`, `/pipeline/proposals/templates*`, `/pipeline/stages*`, `/pipeline/stage-configs*`, `GET /pipeline/forecast`
 - **Tables:** `opportunities`, `opportunity_activities`, `proposal_templates`, `pipeline_stage_configs`.
+- **Opportunity fields** (create form and *Editar* in the record, until it is converted): name, existing client (`client_id`, from the client list; its name wins) or a new client's name, value, probability, contract type (`time_material`, `fixed_price`, `retainer`, `hourly_bag`), hourly rate, expected start, duration in weeks and expected close. Conversion carries client, rate and dates to the project; a `client_id` that the company does not have answers 400.
 
 **Limitations.**
-- **The create form is thin, and conversion inherits the gaps.** There is no `client_id` selector, `contract_type`, `hourly_rate`, start date or duration. A converted project therefore has no client link, no billing rate, and an ASC 606 contract defaulting to `over_time`.
-- **Only the stage can be edited.** The page sends only `{stage}` in PATCH. No other field can be changed after creation from this screen.
 - **"Generate proposal" is template substitution, not AI.** `proposal_service.render_proposal`.
 - **"Mark sent" sends nothing.** It only records a timestamp.
 - **Conversion marks the opportunity `won`.** It is offered in any open stage; a lost or cancelled opportunity can't be converted (400).

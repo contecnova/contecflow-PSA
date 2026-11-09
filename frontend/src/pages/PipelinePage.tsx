@@ -6,6 +6,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Badge, Button, Card, EmptyState, Input, Modal, Select, Spinner } from '../components/ui'
+import { ClientSelect } from '../components/ui/EntitySelect'
 import {
   useCreateOpportunity, useDeleteOpportunity, usePipeline, useUpdateOpportunity,
   useGenerateProposal, useMarkProposalSent, useConvertToProject,
@@ -31,6 +32,10 @@ type Opp = {
   proposal_sent_at?: string
   project_id?: string
   contract_type?: string
+  client_id?: string | null
+  hourly_rate?: number | null
+  expected_start_date?: string | null
+  expected_duration_weeks?: number | null
   description?: string
   probability?: number
   expected_revenue?: number
@@ -106,7 +111,11 @@ const fieldStyle: CSSProperties = {
 type OppForm = {
   name: string; client_name: string; stage: string; probability: number | string;
   expected_revenue: number | string; expected_close_date: string; description: string
+  // Revisión 2026-11: lo que la conversión lleva al proyecto (cliente, tarifa) y al contrato de ingresos (tipo).
+  client_id: string; contract_type: string; hourly_rate: number | string
+  expected_start_date: string; expected_duration_weeks: number | string
 }
+const TIPOS_DE_CONTRATO = ['time_material', 'fixed_price', 'retainer', 'hourly_bag'] as const
 function emptyForm(): OppForm {
   return {
     name: '',
@@ -116,7 +125,51 @@ function emptyForm(): OppForm {
     expected_revenue: '',
     expected_close_date: '',
     description: '',
+    client_id: '', contract_type: '', hourly_rate: '', expected_start_date: '', expected_duration_weeks: '',
   }
+}
+function formDe(o: Opp): OppForm {
+  return {
+    name: o.name || '', client_name: o.client_name || '', stage: o.stage || 'lead', probability: o.probability ?? 50,
+    expected_revenue: o.expected_revenue ?? '', expected_close_date: o.expected_close_date || '', description: o.description || '',
+    client_id: o.client_id || '', contract_type: o.contract_type || '', hourly_rate: o.hourly_rate ?? '',
+    expected_start_date: o.expected_start_date || '', expected_duration_weeks: o.expected_duration_weeks ?? '',
+  }
+}
+const numOrNull = (v: number | string) => (v === '' || v === null ? null : Number(v))
+function cuerpoDe(f: OppForm) {
+  return {
+    name: f.name.trim(), client_name: f.client_name.trim(), probability: Number(f.probability) || 0,
+    expected_revenue: numOrNull(f.expected_revenue), expected_close_date: f.expected_close_date || null,
+    description: f.description.trim() || null, client_id: f.client_id || null, contract_type: f.contract_type || null,
+    hourly_rate: numOrNull(f.hourly_rate), expected_start_date: f.expected_start_date || null,
+    expected_duration_weeks: numOrNull(f.expected_duration_weeks),
+  }
+}
+
+/** Los campos de una oportunidad: en el alta y al editarla. */
+function CamposDeOportunidad({ form, setForm }: { form: OppForm; setForm: (f: (c: OppForm) => OppForm) => void }) {
+  const t = useAppT()
+  const campo = (k: keyof OppForm) => (event: { target: { value: string } }) => setForm(c => ({ ...c, [k]: event.target.value }))
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 12 }}>
+      <Input label={t('pipeline.opportunity_name')} value={form.name} onChange={campo('name')} required placeholder={undefined} hint={undefined} />
+      <div>
+        <label style={fieldLabelStyle}>{t('pipeline.cliente_existente')}</label>
+        <ClientSelect value={form.client_id} placeholder={t('pipeline.cliente_nuevo')} style={fieldStyle}
+          onChange={(id, cliente) => setForm(c => ({ ...c, client_id: id, client_name: cliente ? cliente.name : c.client_name }))} />
+      </div>
+      {!form.client_id && <Input label={t('pipeline.client_name')} value={form.client_name} onChange={campo('client_name')} required placeholder={undefined} hint={undefined} />}
+      <Input label={t('pipeline.value')} type="number" value={form.expected_revenue} onChange={campo('expected_revenue')} placeholder={undefined} required={undefined} hint={undefined} />
+      <Input label={t('pipeline.probability')} type="number" value={form.probability} onChange={campo('probability')} placeholder={undefined} required={undefined} hint={undefined} />
+      <Select label={t('pipeline.tipo_de_contrato')} value={form.contract_type} onChange={campo('contract_type')}
+        options={[{ value: '', label: '—' }, ...TIPOS_DE_CONTRATO.map(c => ({ value: c, label: t(`pipeline.contrato_${c}`) }))]} />
+      <Input label={t('pipeline.tarifa_hora')} type="number" value={form.hourly_rate} onChange={campo('hourly_rate')} placeholder={undefined} required={undefined} hint={undefined} />
+      <Input label={t('pipeline.inicio_previsto')} type="date" value={form.expected_start_date} onChange={campo('expected_start_date')} placeholder={undefined} required={undefined} hint={undefined} />
+      <Input label={t('pipeline.duracion_semanas')} type="number" value={form.expected_duration_weeks} onChange={campo('expected_duration_weeks')} placeholder={undefined} required={undefined} hint={undefined} />
+      <Input label={t('pipeline.expected_close')} type="date" value={form.expected_close_date} onChange={campo('expected_close_date')} placeholder={undefined} required={undefined} hint={undefined} />
+    </div>
+  )
 }
 
 function ProposalStatusBadge({ status }: { status: string }) {
@@ -149,6 +202,21 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
   const toast = useToast()
   const [convertResult, setConvertResult] = useState<ConvertResult | null>(null)
   const [showProposal, setShowProposal] = useState(false)
+  const [edicion, setEdicion] = useState<OppForm | null>(null)
+  const updateOpportunity = useUpdateOpportunity()
+
+  async function guardarEdicion() {
+    if (!edicion) return
+    if (!edicion.name.trim() || !edicion.client_name.trim()) { toast.error('Nombre y cliente son obligatorios'); return }
+    try {
+      await updateOpportunity.mutateAsync({ id: opp.id, data: cuerpoDe(edicion) })
+      toast.success('Oportunidad guardada')
+      setEdicion(null)
+      onUpdate()
+    } catch (e) {
+      toast.error(extractErr(e, 'No se pudo guardar la oportunidad'))
+    }
+  }
 
   const generateProposal = useGenerateProposal()
   const markProposalSent = useMarkProposalSent()
@@ -215,8 +283,27 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
       <Modal open onClose={onClose} title={opp.name} width={680}>
         <div style={{ display: 'grid', gap: 20 }}>
 
+          {edicion ? (
+            <div style={{ display: 'grid', gap: 12 }}>
+              <CamposDeOportunidad form={edicion} setForm={f => setEdicion(c => (c ? f(c) : c))} />
+              <div>
+                <label style={fieldLabelStyle}>{t('pipeline.descripcion')}</label>
+                <textarea value={edicion.description} onChange={e => setEdicion(c => (c ? { ...c, description: e.target.value } : c))}
+                  rows={3} style={{ ...fieldStyle, resize: 'vertical' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <Button variant="secondary" onClick={() => setEdicion(null)}>Cancelar</Button>
+                <Button onClick={guardarEdicion} loading={updateOpportunity.isPending}>Guardar</Button>
+              </div>
+            </div>
+          ) : !alreadyConverted && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button size="sm" variant="secondary" onClick={() => setEdicion(formDe(opp))}>{t('pipeline.editar')}</Button>
+            </div>
+          )}
+
           {/* Info */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, background: 'var(--surface-2)', borderRadius: 10, padding: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 12, background: 'var(--surface-2)', borderRadius: 10, padding: 16 }}>
             {[
               { label: 'Cliente', value: opp.client_name || '—' },
               { label: 'Código', value: opp.code || '—' },
@@ -226,7 +313,9 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
               { label: 'Ponderado', value: fmtCurrency(opp.weighted_revenue) },
               { label: 'Etapa', value: stageLabels[opp.stage || ''] || opp.stage },
               { label: 'Cierre estimado', value: fmtDate(opp.expected_close_date) },
-              { label: 'Tipo contrato', value: opp.contract_type || '—' },
+              { label: 'Tipo contrato', value: opp.contract_type ? t(`pipeline.contrato_${opp.contract_type}`) : '—' },
+              { label: 'Tarifa/h', value: opp.hourly_rate != null ? fmtCurrency(opp.hourly_rate) : '—' },
+              { label: 'Inicio previsto', value: fmtDate(opp.expected_start_date || undefined) },
             ].map(({ label, value }) => (
               <div key={label}>
                 <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>{label}</div>
@@ -443,15 +532,7 @@ export default function PipelinePage() {
     }
 
     try {
-      await createOpportunity.mutateAsync({
-        name: form.name.trim(),
-        client_name: form.client_name.trim(),
-        stage: form.stage,
-        probability: Number(form.probability) || 0,
-        expected_revenue: form.expected_revenue === '' ? null : Number(form.expected_revenue),
-        expected_close_date: form.expected_close_date || null,
-        description: form.description.trim() || null,
-      })
+      await createOpportunity.mutateAsync({ ...cuerpoDe(form), stage: form.stage })
       toast.success('Oportunidad creada')
       setForm(emptyForm())
       setShowCreate(false)
@@ -677,57 +758,13 @@ export default function PipelinePage() {
       {/* Create modal */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t('pipeline.new_opportunity')} width={620}>
         <form onSubmit={handleCreate} style={{ display: 'grid', gap: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Input
-              label={t('pipeline.opportunity_name')}
-              value={form.name}
-              onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, name: event.target.value }))}
-              required
-              placeholder={undefined}
-              hint={undefined}
-            />
-            <Input
-              label={t('pipeline.client_name')}
-              value={form.client_name}
-              onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, client_name: event.target.value }))}
-              required
-              placeholder={undefined}
-              hint={undefined}
-            />
-            <Input
-              label={t('pipeline.value')}
-              type="number"
-              value={form.expected_revenue}
-              onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, expected_revenue: event.target.value }))}
-              placeholder={undefined}
-              required={undefined}
-              hint={undefined}
-            />
-            <Input
-              label={t('pipeline.probability')}
-              type="number"
-              value={form.probability}
-              onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, probability: event.target.value }))}
-              placeholder={undefined}
-              required={undefined}
-              hint={undefined}
-            />
-            <Select
-              label={t('pipeline.stage')}
-              value={form.stage}
-              onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, stage: event.target.value }))}
-              options={STAGES.map((stage) => ({ value: stage, label: stageLabels[stage] || stage }))}
-            />
-            <Input
-              label={t('pipeline.expected_close')}
-              type="date"
-              value={form.expected_close_date}
-              onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, expected_close_date: event.target.value }))}
-              placeholder={undefined}
-              required={undefined}
-              hint={undefined}
-            />
-          </div>
+          <CamposDeOportunidad form={form} setForm={setForm} />
+          <Select
+            label={t('pipeline.stage')}
+            value={form.stage}
+            onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, stage: event.target.value }))}
+            options={STAGES.map((stage) => ({ value: stage, label: stageLabels[stage] || stage }))}
+          />
 
           <div>
             <label style={fieldLabelStyle}>{t('pipeline.descripcion')}</label>

@@ -57,7 +57,19 @@ def get_pipeline_opps(db: Session, current_user: User):
     return q.all()
 
 
+def _con_cliente(db: Session, datos: dict) -> dict:
+    """Un `client_id` tiene que ser un cliente que se ve (de la empresa); su nombre manda."""
+    if datos.get("client_id"):
+        from app.models.clients import Client
+        cliente = db.query(Client).filter(Client.id == datos["client_id"]).first()
+        if cliente is None:
+            raise HTTPException(400, "Cliente no encontrado")
+        datos["client_name"] = cliente.name
+    return datos
+
+
 def create_opportunity(db: Session, current_user: User, payload_dict: dict) -> Opportunity:
+    payload_dict = _con_cliente(db, payload_dict)
     code = next_numbered_code(db, "opportunity", prefix="OPP", padding=4)
     opp = Opportunity(code=code, **payload_dict)
     if not opp.owner_id:
@@ -124,7 +136,7 @@ def update_opportunity(
                 ),
             )
 
-    for k, v in data.items():
+    for k, v in _con_cliente(db, data).items():
         setattr(opp, k, v)
 
     if new_stage and new_stage != old_stage:
