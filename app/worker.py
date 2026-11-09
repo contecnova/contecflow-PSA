@@ -700,9 +700,6 @@ def run_agent_task(
         build_agent_system_prompt as _build_agent_system_prompt,
         log_action as _log_action,
     )
-    from app.services.ai_client import (
-        get_api_key as _api_key,
-    )
 
     with worker_db_session() as db:
         execution = None
@@ -755,10 +752,8 @@ def run_agent_task(
             # `decrypt_value` deja intacto lo que no lo este. Antes se pasaba
             # TAL CUAL: con un proveedor guardado desde la interfaz, eso mandaba
             # el cifrado `v2:...` como API key.
-            agent_clave = (
-                decrypt_value(active_prov.api_key) if (active_prov and active_prov.api_key)
-                else _api_key()
-            )
+            # Sin proveedor, None: el resolver ya mira base, `.env` y credencial.
+            agent_clave = decrypt_value(active_prov.api_key) if (active_prov and active_prov.api_key) else None
             agent_base_url = (getattr(active_prov, "api_base_url", "") or "") if active_prov else ""
             if not agent_base_url and agent_proveedor in _herr.FAMILIA_OPENAI:
                 agent_base_url = _herr.base_url_por_defecto(agent_proveedor)

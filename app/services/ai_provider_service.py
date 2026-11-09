@@ -185,13 +185,50 @@ def _validate_model(provider: str, model: str) -> None:
         )
 
 
+# ── Adjuntos (imágenes y PDF) ────────────────────────────────────────────────
+#
+# Revisión 2026-11. Un mensaje puede llevar `adjuntos=[{"media": "image/png",
+# "datos": "<base64>"}]` y cada familia lo traduce a su formato. Antes la única
+# llamada con imagen (el OCR de recibos) iba directa a Anthropic y con otro
+# proveedor no había OCR.
+
+def _con_adjuntos(messages: list, familia: str) -> list:
+    salida = []
+    for m in messages:
+        adjuntos = m.get("adjuntos") or []
+        if not adjuntos:
+            salida.append({k: v for k, v in m.items() if k != "adjuntos"})
+            continue
+        texto = m.get("content") or ""
+        if familia == "anthropic":
+            bloques = [{"type": "document" if a["media"] == "application/pdf" else "image",
+                        "source": {"type": "base64", "media_type": a["media"], "data": a["datos"]}} for a in adjuntos]
+            salida.append({"role": m["role"], "content": bloques + [{"type": "text", "text": texto}]})
+        elif familia == "openai":
+            bloques = [{"type": "file", "file": {"filename": "documento.pdf", "file_data": f"data:application/pdf;base64,{a['datos']}"}}
+                       if a["media"] == "application/pdf" else
+                       {"type": "image_url", "image_url": {"url": f"data:{a['media']};base64,{a['datos']}"}} for a in adjuntos]
+            salida.append({"role": m["role"], "content": [{"type": "text", "text": texto}] + bloques})
+        elif familia == "gemini":
+            salida.append({"role": m["role"], "content": texto,
+                           "_partes": [{"inline_data": {"mime_type": a["media"], "data": a["datos"]}} for a in adjuntos]})
+        elif familia == "ollama":
+            if any(a["media"] == "application/pdf" for a in adjuntos):
+                raise ValueError("Ollama no lee PDF: sube una imagen o usa otro proveedor")
+            salida.append({"role": m["role"], "content": texto, "images": [a["datos"] for a in adjuntos]})
+        else:
+            raise ValueError(f"El proveedor {familia} no admite adjuntos")
+    return salida
+
+
 def _call_anthropic(api_key, model, messages, system, max_tokens, temperature) -> dict:
     headers = {
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
     }
-    body = {"model": model, "max_tokens": max_tokens, "temperature": temperature, "messages": messages}
+    body = {"model": model, "max_tokens": max_tokens, "temperature": temperature,
+            "messages": _con_adjuntos(messages, "anthropic")}
     if system:
         body["system"] = system
     resp = httpx.post(f"{settings.ANTHROPIC_API_URL.rstrip('/')}/messages",
@@ -215,7 +252,7 @@ def _call_openai_compat(base_url, api_key, model, messages, system, max_tokens, 
     all_messages = []
     if system:
         all_messages.append({"role": "system", "content": system})
-    all_messages.extend(messages)
+    all_messages.extend(_con_adjuntos(messages, "openai"))
     body = {"model": model, "messages": all_messages, "max_tokens": max_tokens, "temperature": temperature}
     resp = httpx.post(endpoint, json=body, headers=headers, timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
@@ -234,9 +271,9 @@ def _call_gemini(api_key, model, messages, system, max_tokens, temperature) -> d
     if system:
         contents.append({"role": "user",  "parts": [{"text": system}]})
         contents.append({"role": "model", "parts": [{"text": "Entendido."}]})
-    for m in messages:
+    for m in _con_adjuntos(messages, "gemini"):
         role = "user" if m["role"] == "user" else "model"
-        contents.append({"role": role, "parts": [{"text": m["content"]}]})
+        contents.append({"role": role, "parts": (m.get("_partes") or []) + [{"text": m["content"]}]})
     body = {
         "contents": contents,
         "generationConfig": {"maxOutputTokens": max_tokens, "temperature": temperature},
@@ -285,7 +322,7 @@ def _call_ollama(base_url, model, messages, system, max_tokens, temperature) -> 
     all_messages = []
     if system:
         all_messages.append({"role": "system", "content": system})
-    all_messages.extend(messages)
+    all_messages.extend(_con_adjuntos(messages, "ollama"))
     body = {"model": model, "messages": all_messages, "stream": False,
             "options": {"num_predict": max_tokens, "temperature": temperature}}
     resp = httpx.post(url, json=body, timeout=espera_de_ia("AI_LOCAL_HTTP_TIMEOUT_SECONDS"))
@@ -676,6 +713,25 @@ def proveedor_desde_entorno():
     )
 
 
+def proveedor_de_credencial(db: Session, organization_id=None):
+    """La clave de Anthropic guardada en Credenciales → AI provider keys, como último escalón.
+
+    Revisión 2026-11: esa credencial sólo la leían los caminos que llamaban a
+    Anthropic directamente, sin gobernanza ni tope de gasto. Al quitarlos, quien
+    la tuviera configurada no puede quedarse sin IA: aquí entra en la puerta común.
+    """
+    try:
+        from app.services.integration_credentials_service import get_credential
+        clave = (get_credential(db, "ai_providers", "anthropic_api_key", org_id=organization_id) or "").strip()
+    except Exception:
+        _logger.debug("proveedor_de_credencial: sin credencial legible", exc_info=True)
+        return None
+    if not clave:
+        return None
+    return ProveedorDeEntorno(proveedor="anthropic", api_key=clave,
+                              modelo=(settings.CONTECFLOW_AI_MODEL or "").strip(), base_url="")
+
+
 def _disponible(db: Session = None):
     """Proveedor elegible: no en error, o con el error ya enfriado.
 
@@ -735,7 +791,7 @@ def get_default_provider(
         return p
 
     if is_superadmin:
-        return _pick(base_q) or proveedor_desde_entorno()
+        return _pick(base_q) or proveedor_desde_entorno() or proveedor_de_credencial(db, organization_id)
 
     if organization_id:
         org_q = base_q.filter(AIProvider.organization_id == organization_id)
@@ -744,7 +800,7 @@ def get_default_provider(
             return p
 
     shared_q = base_q.filter(AIProvider.organization_id.is_(None))
-    return _pick(shared_q) or proveedor_desde_entorno()
+    return _pick(shared_q) or proveedor_desde_entorno() or proveedor_de_credencial(db, organization_id)
 
 
 def _try_fallback_providers(

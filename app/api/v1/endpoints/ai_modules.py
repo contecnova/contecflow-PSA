@@ -26,11 +26,7 @@ def _call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_
     return _svc.call_ai_unified(db, messages, system=system, module=module,
                                 user_id=user_id, max_tokens=max_tokens)
 
-def _call_claude(messages, system=None, model=None, tools=None, max_tokens=1000):
-    return _svc.call_claude(messages, system=system, model=model, tools=tools, max_tokens=max_tokens)
 
-def _extract_text(response):
-    return _svc.extract_text(response)
 
 def _compute_kb_embedding(db, article_id: str, text: str):
     return _svc.compute_kb_embedding(db, article_id, text)

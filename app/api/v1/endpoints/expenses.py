@@ -224,6 +224,7 @@ def export_expenses(
 @router.post("/ocr", summary="Escaner OCR de recibo con IA — extrae importe, comercio y fecha")
 async def ocr_receipt(
     file: UploadFile = File(...),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: escanear el recibo del gasto propio
 ):
@@ -233,7 +234,7 @@ async def ocr_receipt(
     # bytes mágicos y que el tipo real coincida con el declarado, y acota el
     # tamaño ANTES de bufferizar el fichero completo.
     image_bytes = await read_and_validate_upload(file, UploadProfile.RECEIPT)
-    extracted = await svc_ocr_receipt(image_bytes, file.content_type)
+    extracted = await svc_ocr_receipt(db, current_user, image_bytes, file.content_type)
     return APIResponse.ok(data={"ok": True, "extracted": extracted})
 
 

@@ -85,7 +85,7 @@ Everything here was checked against the code (`frontend/src/App.tsx`, `frontend/
 - **Hidden buttons don't match backend permissions.** Most delivery pages (Sprints, RACI, UAT, Changelog, Epics, Risks, Dependencies, Wiki, Meeting Assistant, Documents) contain no `hasRole` check. Users who can open the page see create/edit buttons that the backend answers with 403.
 - **UI text is not fully translated.** Many labels, toasts and prompts are hard-coded in Spanish rather than going through `useAppT()`. Examples: month names in Calendar, the Expenses form, the Kanban "reopen" prompt, the CAB buttons and the Projects table columns.
 - **Few frontend tests.** The frontend has 32 `*.test.ts(x)` files. Only one touches these screens (`GanttChart.test.tsx`). Backend tests exist for most endpoint families. No test file references `/cmdb/sprint-plans`, `/ai-modules/meetings` or `/ai-modules/smart-schedule`.
-- **AI features need a provider.** Every "AI" button calls the configured AI provider (`ANTHROPIC_API_KEY` / `CONTECFLOW_AI_MODEL`, or the provider routing in `call_ai_unified`). Without one, these calls fail. Exceptions (no AI involved) are flagged per module.
+- **AI features need a provider.** Every "AI" button goes through `call_ai`: the provider configured in AI Hub, the `.env` one (`AI_PROVIDER`…) or the Anthropic key saved in Credenciales. Without one, these calls fail. Exceptions (no AI involved) are flagged per module.
 
 ---
 
@@ -425,7 +425,7 @@ Rules enforced in `imputation_service.py`:
    The owner edits or deletes drafts, and edits rejected ones. The owner is notified on approve and reject. With a default approval workflow for expenses, submitting opens a request in the Approval Inbox.
 5. Billable expenses are refused on projects that are not `active` or `planning`.
 
-**Configuration.** `DEFAULT_CURRENCY`, `SUPPORTED_CURRENCIES` (group `locale`); `EXPENSE_MILEAGE_RATE`, `EXPENSE_ATTACHMENT_MAX_MB`, `EXPENSE_MANAGER_ROLES` (group `gastos`). OCR uses `CONTECFLOW_AI_MODEL` and needs `ANTHROPIC_API_KEY` (otherwise 503); its timeout is `OUTBOUND_AI_TIMEOUT_SECONDS`.
+**Configuration.** `DEFAULT_CURRENCY`, `SUPPORTED_CURRENCIES` (group `locale`); `EXPENSE_MILEAGE_RATE`, `EXPENSE_ATTACHMENT_MAX_MB`, `EXPENSE_MANAGER_ROLES` (group `gastos`). OCR goes through `call_ai` (module `expenses_ocr`) with the receipt as an attachment, so any provider that reads images works (PDF: Anthropic, OpenAI, Gemini; Ollama only images); without a provider, 503. Measured with Gemini 2.5 Flash: a generated receipt came back with amount, merchant, date, category and description. The categories come from the expense model.
 
 **Technical notes.**
 - `/api/v1/expenses/my`, `/my/{id}`, `/my/{id}/submit`, `/my/{id}/recall`, `/pending`, `/team`, `/{id}/review`, `/{id}/reimburse`, `/ocr`, `/export` (Excel), `/summary/{project_id}`.
@@ -2811,6 +2811,9 @@ Measured against a copy of the database with a local Ollama model. Tests: `tests
 2. Otherwise the organization's default row in `ai_providers`, which you configure in **AI Hub**.
 3. Otherwise a global row.
 4. Otherwise the `.env` provider: `AI_PROVIDER` + `AI_API_KEY` + `AI_MODEL` + `AI_BASE_URL` (`app/core/config_groups/ai_config.py`). `ANTHROPIC_API_KEY` is accepted as a legacy alias.
+5. Otherwise the Anthropic key saved in Credenciales → AI provider keys (`proveedor_de_credencial`).
+
+A message can carry attachments (`adjuntos=[{media, datos}]`, images or PDF); each provider family receives them in its own format.
 
 If the chosen provider fails, every other active provider is tried once. If none answers, the call returns HTTP 200 with the text "⚠️ No hay ningún proveedor de IA configurado…", or "⚠️ AI provider error: …" if a provider failed. **This text is returned as if it were the answer.** Several features display it, store it, or cache it (see each module).
 
@@ -2850,7 +2853,7 @@ If the chosen provider fails, every other active provider is tried once. If none
 - **PII redaction is regex-based** (`app/services/ai_governance.py`). It applies only if the organization has active `AIGuardrailPolicy` rows. None are seeded and there is no UI to create them, so by default nothing is redacted. It checks only the last user message, not the system prompt, which carries the tenant data context.
 - **Azure is probably broken.** It is called with a `Bearer` header on the generic path, with no deployment or `api-version`. Not verified.
 - **o1/o3/o4-mini may be rejected.** They are offered, but `max_tokens`/`temperature` are always sent. Not verified.
-- **A legacy path skips provider selection and logging.** `ai_client.call_claude`, `ai_modules/_base.call_claude`, `POST /ai/chat/stream` and `ai_planning_service` POST to `ANTHROPIC_API_URL` directly. `/ai/chat/stream` sends the stored key without decrypting it. The streaming endpoint has no frontend caller. Not runtime-verified.
+- **One door.** Every AI call goes through `call_ai` (or `turno_de_agente` for the agent's tool turns): governance, the daily spending cap and the usage log apply to all. `tests/test_ia_una_puerta_2026_11.py` fails if any other file talks to Anthropic's API.
 - **Some callers can use another tenant's provider.** `call_ai` defaults `is_superadmin=True`, so a caller that does not pass it can pick another organization's provider and key. Affected callers: `POST /ai-providers/chat`, the AI Assignment tie-break, and the NexusAgent worker path.
 
 **Data layer for BI.** Several BI widgets read a DuckDB OLAP file, not Postgres:
@@ -4167,7 +4170,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 | `stripe` | publishable_key, secret_key\*, webhook_secret\* | `payments_service.py` (secret_key, webhook_secret) | `GET /v1/balance` |
 | `docusign` | integration_key\*, secret_key\*, account_id, base_url | **nothing but the probe.** E-sign reads `app_settings` `esign.*` keys and then env | passive: only checks `account_id` is set |
 | `adobe_sign` | client_id, client_secret\*, base_url | **nothing but the probe** (same as DocuSign) | GET `{base}/baseUris` |
-| `ai_providers` | anthropic_api_key\*, openai_api_key\*, azure_speech_key\*, google_stt_api_key\* | `ai_client.py`, `ai_modules/_base.py`, `stt/*` | Anthropic `count_tokens`, else OpenAI `/v1/models` |
+| `ai_providers` | anthropic_api_key\*, openai_api_key\*, azure_speech_key\*, google_stt_api_key\* | `ai_provider_service.proveedor_de_credencial`, `stt/*` | Anthropic `count_tokens`, else OpenAI `/v1/models` |
 | `webhooks` | webhook_secret\*, inbound_email_secret\*, github_secret\*, gitlab_secret\*, scim_bearer_token\* | **only** `inbound_email_secret` (`inbound_email_service`). The others are read from env by their consumers | passive: lists which secrets are set |
 | `open_exchange_rates` | app_id\* | `currency_sync.py` | `latest.json` |
 
@@ -5197,7 +5200,7 @@ There is no dedicated search engine for the core domain. Measured:
 
 #### 1.6 AI providers
 
-`app/services/ai_provider_service.py::PROVIDER_CATALOG` lists 8 providers: `anthropic`, `openai`, `gemini`, `deepseek`, `groq`, `mistral`, `ollama`, `azure`. Resolution order is organisation provider (DB) → global provider (DB) → `.env` (`AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL`), with `ANTHROPIC_API_KEY` as a legacy alias. **Caveat (measured):** some code paths are Anthropic-only and skip that chain. `ai_client.py` and `ai_modules/_base.py` read a UI credential `ai_providers/anthropic_api_key`, then `settings.ANTHROPIC_API_KEY`. `ai_planning_service.py` (lines 136, 322) and the receipt-OCR path in `expense_service.py` (lines 207/242) read `settings.ANTHROPIC_API_KEY` directly. A deployment configured only with `AI_PROVIDER=gemini` will not get those features. Speech-to-text has its own chain (`STT_PROVIDER`, default `openai`; Azure, Google, local Whisper via `WHISPER_LOCAL=1`).
+`app/services/ai_provider_service.py::PROVIDER_CATALOG` lists 8 providers: `anthropic`, `openai`, `gemini`, `deepseek`, `groq`, `mistral`, `ollama`, `azure`. Resolution order is organisation provider (DB) → global provider (DB) → `.env` (`AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL`), with `ANTHROPIC_API_KEY` as a legacy alias. The Anthropic key in Credenciales → AI provider keys is the last step of the same chain. Speech-to-text has its own chain (`STT_PROVIDER`, default `openai`; Azure, Google, local Whisper via `WHISPER_LOCAL=1`).
 
 ---
 
@@ -5504,7 +5507,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `AI_API_KEY` | `''` | Key for AI_PROVIDER. |
 | `AI_MODEL` | `''` | Model for AI_PROVIDER. |
 | `AI_BASE_URL` | `''` | Base URL (Ollama/Azure). |
-| `ANTHROPIC_API_KEY` | `''` | Legacy alias; also read **directly** by several Anthropic-only code paths. |
+| `ANTHROPIC_API_KEY` | `''` | Legacy alias of `AI_PROVIDER=anthropic` + `AI_API_KEY`. |
 | `ANTHROPIC_API_URL` | `'https://api.anthropic.com/v1'` | Provider API base URL. |
 | `ANTHROPIC_DOCS_URL` | `'https://www.anthropic.com/docs'` | Provider docs link shown in UI. |
 | `OPENAI_API_URL` | `'https://api.openai.com/v1'` | Provider API base URL. |
@@ -6053,12 +6056,11 @@ DOCS.md §16 lists generic steps (activate the venv, check `DATABASE_URL`, `alem
 
 #### 13.1 Measured limitations
 
-1. **Several AI features are Anthropic-only** despite the 8-provider catalogue (§1.5).
-2. **Unit tests run only on SQLite.** PostgreSQL-specific behaviour (pg_trgm, pgvector, collation, PostgreSQL parity) is skipped without a server.
-3. **TypeScript is not strict** (`strictNullChecks` and `noImplicitAny` off, with 226/387 known errors).
-4. **The response envelope is not universal** (1,860 `.ok(` for 2,051 routes, no guard test).
-5. **`/api/v2` is a 3-route stub** while every `/api/v1` response is flagged deprecated.
-6. **6 non-reversible downgrades** (§5).
+1. **Unit tests run only on SQLite.** PostgreSQL-specific behaviour (pg_trgm, pgvector, collation, PostgreSQL parity) is skipped without a server.
+2. **TypeScript is not strict** (`strictNullChecks` and `noImplicitAny` off, with 226/387 known errors).
+3. **The response envelope is not universal** (1,860 `.ok(` for 2,051 routes, no guard test).
+4. **`/api/v2` is a 3-route stub** while every `/api/v1` response is flagged deprecated.
+5. **6 non-reversible downgrades** (§5).
 
 #### 13.2 Not verified
 

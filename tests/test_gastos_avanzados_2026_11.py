@@ -1,7 +1,9 @@
 """Gastos: kilometraje, políticas que bloquean o avisan, justificantes, reparto y flujo (revisión 2026-11)."""
 from __future__ import annotations
 
+import asyncio
 import json
+
 import uuid
 from datetime import date
 
@@ -159,29 +161,18 @@ def test_crear_un_borrador_no_dispara_el_evento_de_enviado(client, monkeypatch, 
     assert vistos.count(ev.EventType.EXPENSE_SUBMITTED) == 1
 
 
-def test_un_pdf_va_al_lector_como_documento(monkeypatch):
-    import asyncio
-    import io
-    from app.core.config import settings
-    from app.services import expense_service
-    monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "k", raising=False)
-    enviado = {}
+def test_el_ocr_manda_el_pdf_como_adjunto_por_la_puerta_comun(db, monkeypatch):
+    """Revisión 2026-11: el OCR pasa por `call_ai`; el PDF viaja como adjunto."""
+    from app.services import ai_provider_service, expense_service
+    visto = {}
 
-    class _R(io.BytesIO):
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            return False
-
-    def falso(req, timeout=None):
-        enviado.update(json.loads(req.data), timeout=timeout)
-        return _R(json.dumps({"content": [{"text": json.dumps({"amount": 12.5, "currency": "EUR"})}]}).encode())
-    monkeypatch.setattr("urllib.request.urlopen", falso)
-    r = asyncio.run(expense_service.ocr_receipt(b"%PDF-1.4", "application/pdf"))
-    bloque = enviado["messages"][0]["content"][0]
-    assert bloque["type"] == "document" and bloque["source"]["media_type"] == "application/pdf"
-    assert r["amount"] == 12.5 and enviado["timeout"] > 0
+    def falso(db_, mensajes, **k):
+        visto.update(mensajes=mensajes, **k)
+        return json.dumps({"amount": 12.5, "currency": "EUR", "category": "inventada"})
+    monkeypatch.setattr(ai_provider_service, "call_ai", falso)
+    r = asyncio.run(expense_service.ocr_receipt(db, None, b"%PDF-1.4", "application/pdf"))
+    assert visto["mensajes"][0]["adjuntos"][0]["media"] == "application/pdf" and visto["module"] == "expenses_ocr"
+    assert r["amount"] == 12.5 and r["category"] == "other"
 
 
 def test_sin_proyecto_el_selector_vacio_no_rompe(client, dev_token):

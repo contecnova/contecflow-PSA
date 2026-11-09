@@ -6,10 +6,8 @@ kb/client_portal). This module re-exports every public symbol so existing
 ``from app.services.ai_modules_service import X`` imports keep working.
 """
 from app.services.ai_modules import (  # noqa: F401
-    api_key,
     _default_model,
     call_ai_unified,
-    call_claude,
     extract_text,
     _parse_llm_json,
     compute_kb_embedding,

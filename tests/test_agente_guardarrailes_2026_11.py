@@ -68,8 +68,9 @@ def test_EL_HALLAZGO_streaming_bloquea_redacta_la_entrada_y_la_salida(db, monkey
 
 def test_en_segundo_plano_tambien(db, monkeypatch, politicas):
     pm = _pm(db)
-    monkeypatch.setattr("app.services.ai_provider_service.get_default_provider", lambda db_, **k: None)
-    monkeypatch.setattr("app.services.ai_client.get_api_key", lambda: "k")
+    from app.services.ai_provider_service import ProveedorDeEntorno
+    prov = ProveedorDeEntorno(proveedor="anthropic", api_key="k", modelo="m", base_url="")
+    monkeypatch.setattr("app.services.ai_provider_service.get_default_provider", lambda db_, **k: prov)
 
     @contextmanager
     def sesion():

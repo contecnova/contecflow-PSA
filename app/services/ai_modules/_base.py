@@ -26,16 +26,6 @@ def _a_lista(vector) -> list:
     """
     return vector.tolist() if hasattr(vector, "tolist") else list(vector)
 
-def api_key(db=None, org_id: Optional[str] = None) -> Optional[str]:
-    if db is not None:
-        try:
-            from app.services.integration_credentials_service import get_credential
-            ui_key = get_credential(db, "ai_providers", "anthropic_api_key", org_id=org_id)
-            if ui_key:
-                return ui_key
-        except Exception:
-            _log.debug("api_key: fallo best-effort ignorado", exc_info=True)
-    return settings.ANTHROPIC_API_KEY or None
 
 
 def _default_model(db=None, org_id: Optional[str] = None) -> str:
@@ -50,51 +40,21 @@ def _default_model(db=None, org_id: Optional[str] = None) -> str:
     return settings.CONTECFLOW_AI_MODEL
 
 
-def call_claude(messages, system=None, model=None, tools=None, max_tokens=1000, db=None, org_id: Optional[str] = None):
-    """Llamada síncrona a Anthropic API usando httpx.
-
-    Migrado de urllib.request → httpx (#66): httpx aporta retries
-    configurables, timeouts más granulares (connect/read/write/pool),
-    soporte nativo HTTP/2 y mejor manejo de errores.
-    """
-    import httpx
-    body = {"model": model or _default_model(db=db, org_id=org_id), "max_tokens": max_tokens, "messages": messages}
-    if system: body["system"] = system
-    if tools:  body["tools"] = tools
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": api_key(db=db, org_id=org_id),
-        "anthropic-version": "2023-06-01",
-    }
-    from app.services.settings_service import outbound_ai_timeout
-    timeout = outbound_ai_timeout(db)
-    with httpx.Client(timeout=httpx.Timeout(timeout, connect=10.0)) as client:
-        response = client.post(settings.ANTHROPIC_API_URL, json=body, headers=headers)
-        response.raise_for_status()
-        return response.json()
 
 
 def call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_tokens=1000):
-    """Wrapper that uses the configured provider or falls back to direct Claude."""
+    """La puerta común de la IA (`call_ai`): proveedor, gobernanza y tope de gasto.
+
+    Revisión 2026-11: si `call_ai` no tenía proveedor o fallaba, esto llamaba a
+    Anthropic directamente, sin gobernanza ni tope y sólo con su clave. Ahora
+    `call_ai` ya mira la base, el `.env` y la credencial de interfaz; si aun así
+    devuelve un aviso, el aviso sube como error y cada módulo lo trata.
+    """
     from app.services.ai_provider_service import es_aviso_de_ia
-    try:
-        texto = call_ai(db, messages, system=system, module=module,
-                        user_id=user_id, max_tokens=max_tokens)
-        if not es_aviso_de_ia(texto):
-            return texto
-        aviso = texto
-    except Exception:
-        _log.warning("Unified AI call failed for module=%s user=%s; falling back to direct Claude", module, user_id, exc_info=True)
-        aviso = None
-    # Auditoria 2026-11: sin proveedor, `call_ai` devuelve un aviso y antes se
-    # usaba como si fuera la respuesta (reuniones y contratos «hechos» con todo
-    # vacio, articulos de KB sin contenido). Se prueba Claude directo, como al
-    # fallar, y si tampoco hay, se lanza el aviso: cada modulo lo trata como error.
-    try:
-        resp = call_claude(messages, system=system, max_tokens=max_tokens, db=db)
-        return extract_text(resp)
-    except Exception as exc:
-        raise RuntimeError(aviso or f"No se pudo llamar a la IA: {exc}") from exc
+    texto = call_ai(db, messages, system=system, module=module, user_id=user_id, max_tokens=max_tokens)
+    if es_aviso_de_ia(texto):
+        raise RuntimeError(texto)
+    return texto
 
 
 def extract_text(response) -> str:

@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from app.core.config import settings
-from app.core.outbound_url import validate_outbound_url
 from app.models.user import User
 from app.models.expenses import Expense, ExpenseStatus
 from app.models.project import Project
@@ -197,98 +196,57 @@ def export_expenses_excel(
 
 # ── OCR receipt ────────────────────────────────────────────────────────────────
 
-async def ocr_receipt(image_bytes: bytes, content_type: str) -> dict:
-    """
-    Send a receipt image to Claude Vision and extract structured expense fields.
-    Returns: { amount, currency, merchant, date, category, description }
-    Raises HTTPException on error.
+async def ocr_receipt(db: Session, usuario, image_bytes: bytes, content_type: str) -> dict:
+    """Lee un recibo (imagen o PDF) con el proveedor de IA de la empresa.
+
+    Revisión 2026-11: iba directo a Anthropic con `ANTHROPIC_API_KEY`; con otro
+    proveedor no había OCR, y se saltaba la gobernanza y el tope de gasto.
+    Ahora pasa por `call_ai` con el recibo como adjunto, y las categorías salen
+    del modelo (`ExpenseCategory`), no de una lista escrita en el texto.
     """
     import base64
     import json as _json
-    import urllib.request
+    from app.models.expenses import ExpenseCategory
+    from app.services.ai_provider_service import call_ai, es_aviso_de_ia
 
-    if not settings.ANTHROPIC_API_KEY:
-        raise HTTPException(503, "API de IA no configurada (ANTHROPIC_API_KEY ausente).")
-
-    b64 = base64.b64encode(image_bytes).decode()
-    # Un PDF va como documento (`application/pdf`); antes se mandaba como imagen
-    # PNG y el proveedor lo rechazaba.
-    if content_type == "application/pdf":
-        bloque = {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": b64}}
-    else:
-        bloque = {"type": "image", "source": {"type": "base64", "media_type": content_type, "data": b64}}
-
-    _SYSTEM = (
+    categorias = "|".join(c.value for c in ExpenseCategory)
+    sistema = (
         "Eres un asistente experto en contabilidad. Analiza la imagen de un recibo o factura y extrae "
         "los datos estructurados. Responde SOLO con un JSON válido sin markdown, con las claves: "
         "amount (número), currency (ISO 4217 de 3 letras), merchant (nombre del comercio o emisor), "
-        "date (YYYY-MM-DD), category (una de: travel|accommodation|meals|software|hardware|training|subcontract|other), "
+        f"date (YYYY-MM-DD), category (una de: {categorias}), "
         "description (descripción breve en español de máximo 80 caracteres). "
         "Si no puedes leer un campo devuelve null para ese campo."
     )
-
-    payload = {
-        # Use the org-configured AI model (vision-capable) instead of a pinned
-        # legacy model, consistent with the rest of the platform.
-        "model": settings.CONTECFLOW_AI_MODEL,
-        "max_tokens": 500,
-        "system": _SYSTEM,
-        "messages": [{
-            "role": "user",
-            "content": [
-                bloque,
-                {"type": "text", "text": "Por favor extrae los datos de este recibo."},
-            ],
-        }],
-    }
-    data = _json.dumps(payload).encode()
-    req = urllib.request.Request(  # noqa: S310
-        validate_outbound_url(f"{settings.ANTHROPIC_API_URL}/messages", field="ANTHROPIC_API_URL"),
-        data=data,
-        headers={
-            "Content-Type": "application/json",
-            "x-api-key": settings.ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-        },
-    )
+    mensaje = {"role": "user", "content": "Por favor extrae los datos de este recibo.",
+               "adjuntos": [{"media": content_type, "datos": base64.b64encode(image_bytes).decode()}]}
+    texto = await run_in_threadpool(
+        call_ai, db, [mensaje], system=sistema, module="expenses_ocr", user_id=getattr(usuario, "id", None),
+        max_tokens=500, is_superadmin=bool(getattr(usuario, "is_superadmin", False)),
+        organization_id=getattr(usuario, "organization_id", None))
+    if es_aviso_de_ia(texto):
+        raise HTTPException(503, texto)
+    crudo = texto.strip()
+    if crudo.startswith("```"):
+        crudo = crudo.split("```")[1].removeprefix("json").strip()
     try:
-        # Llamada HTTP en un hilo aparte (auditoría 2026-08, P2-15). Era un
-        # urlopen bloqueante dentro de una corrutina: hasta 30 s de event loop
-        # congelado para toda la aplicación por cada OCR de recibo.
-        def _fetch() -> dict:
-            from app.services.ai_provider_service import espera_de_ia
-            with urllib.request.urlopen(req, timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS")) as resp:  # noqa: S310
-                return _json.loads(resp.read().decode())
-
-        response_body = await run_in_threadpool(_fetch)
-
-        raw_text = response_body["content"][0]["text"].strip()
-        if raw_text.startswith("```"):
-            raw_text = raw_text.split("```")[1].lstrip("json").strip()
-
-        extracted = _json.loads(raw_text)
-
-        if extracted.get("date"):
-            try:
-                _dt.strptime(extracted["date"], "%Y-%m-%d")
-            except ValueError:
-                extracted["date"] = None
-
-        return {
-            "amount": extracted.get("amount"),
-            "currency": extracted.get("currency", settings.DEFAULT_CURRENCY),
-            "merchant": extracted.get("merchant"),
-            "date": extracted.get("date"),
-            "category": extracted.get("category", "other"),
-            "description": extracted.get("description", ""),
-        }
-    except HTTPException:
-        raise
+        extraido = _json.loads(crudo)
     except _json.JSONDecodeError:
         raise HTTPException(422, "La IA devolvió un formato inesperado. Intenta con otra imagen.")
-    except Exception as exc:
-        logger.error("OCR receipt error: %s", exc, exc_info=True)
-        raise HTTPException(500, "Error al procesar el recibo. Por favor, inténtalo de nuevo.")
+    if extraido.get("date"):
+        try:
+            _dt.strptime(extraido["date"], "%Y-%m-%d")
+        except ValueError:
+            extraido["date"] = None
+    categoria = extraido.get("category")
+    return {
+        "amount": extraido.get("amount"),
+        "currency": extraido.get("currency") or settings.DEFAULT_CURRENCY,
+        "merchant": extraido.get("merchant"),
+        "date": extraido.get("date"),
+        "category": categoria if categoria in {c.value for c in ExpenseCategory} else ExpenseCategory.other.value,
+        "description": extraido.get("description") or "",
+    }
 
 
 # ── List / query helpers ───────────────────────────────────────────────────────

@@ -95,7 +95,6 @@ def test_EL_HALLAZGO_sin_proveedor_es_un_aviso_y_no_una_respuesta(db, monkeypatc
     assert s.es_aviso_de_ia(s.AVISO_SIN_PROVEEDOR)
     assert not s.es_aviso_de_ia("Una respuesta normal")
     from app.services.ai_modules import _base
-    monkeypatch.setattr(_base, "call_claude", None, raising=False)
     monkeypatch.setattr(s, "call_ai", lambda *a, **k: s.AVISO_SIN_PROVEEDOR)
     with pytest.raises(RuntimeError):
         _base.call_ai_unified(db, [{"role": "user", "content": "hola"}])
@@ -176,7 +175,8 @@ def test_EL_HALLAZGO_APScheduler_programa_todo_lo_de_celery_beat(monkeypatch):
     # Revision 2026-11: APScheduler replica TODO el calendario de beat.
     from app.worker import celery_app
     replicadas = {k for k in celery_app.conf.beat_schedule} - m._BEAT_YA_EN_APSCHEDULER
-    assert len(replicadas) > 40, "el guardian no esta mirando"
+    # 34 desde 2026-11: las 21 entradas fijas del ETL de BI son ahora una.
+    assert len(replicadas) > 30, "el guardian no esta mirando"
     faltan = {k for k in replicadas if f"beat_{k}" not in vistos}
     assert not faltan, f"entradas de beat que APScheduler no programa: {sorted(faltan)}"
     for clave in m._BEAT_YA_EN_APSCHEDULER:
