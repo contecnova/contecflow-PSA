@@ -687,6 +687,8 @@ def fast_track_emergency_cab(
     if not change:
         raise ValueError(f"Cambio {change_id} no encontrado")
 
+    from app.services.approval_engine._base import exigir_que_no_sea_suyo
+    exigir_que_no_sea_suyo(db, change.requester_id, current_user, "itsm_change", change.id)
     change.change_type = ChangeType.emergency
     change.status = ChangeStatus.approved
     change.approved_at = datetime.now(timezone.utc)

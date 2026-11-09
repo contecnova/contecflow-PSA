@@ -413,6 +413,8 @@ def approve_change_record(db: Session, current_user: User, change_id: str, paylo
             raise HTTPException(422, str(exc)) from exc
         if getattr(current_user.role, "value", current_user.role) != "admin" and not current_user.is_superadmin:
             raise HTTPException(403, "Solo vota un miembro del CAB")
+    from app.services.approval_engine._base import exigir_que_no_sea_suyo
+    exigir_que_no_sea_suyo(db, change.requester_id, current_user, "itsm_change", change.id)
     approve_change_request(change, approved=aprobar, approver_id=current_user.id, reason=payload.get("reason"))
     return change
 

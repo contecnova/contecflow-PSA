@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 def _assert_can_review_imputation(db: Session, imp: Imputation, current_user: User) -> None:
+    from app.services.approval_engine._base import exigir_que_no_sea_suyo
+    exigir_que_no_sea_suyo(db, imp.user_id, current_user, "imputation", imp.id)
     if current_user.role in [UserRole.admin, UserRole.hr]:
         return
     if not imp.project_id:

@@ -196,6 +196,8 @@ def review_absence(
         raise HTTPException(404, "Ausencia no encontrada")
     if a.status != AbsenceStatus.pending:
         raise HTTPException(400, "Solo se pueden revisar ausencias pendientes")
+    from app.services.approval_engine._base import exigir_que_no_sea_suyo
+    exigir_que_no_sea_suyo(db, a.user_id, current_user, "absence", a.id)
 
     a = absence_service.review_absence(
         db, a,

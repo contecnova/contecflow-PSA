@@ -199,6 +199,8 @@ def review_cr(
         raise HTTPException(404, "CR no encontrada")
     if cr.status not in ["submitted", "under_review"]:
         raise HTTPException(400, "Solo se pueden revisar CRs enviadas")
+    from app.services.approval_engine._base import exigir_que_no_sea_suyo
+    exigir_que_no_sea_suyo(db, cr.requested_by, current_user, "change_request", cr.id)
     cr = change_service.review_change_request(
         db, cr,
         approved=payload.approved,

@@ -840,6 +840,8 @@ def approve_document(db, doc, payload, current_user):
         return serialize_document(db, doc, current_user)
 
     # Legacy path: no workflow linked — direct approval
+    from app.services.approval_engine._base import exigir_que_no_sea_suyo
+    exigir_que_no_sea_suyo(db, doc.created_by, current_user, "document", doc.id)
     doc.approval_status = payload.status
     if payload.status == ApprovalStatus.approved:
         doc.approved_by = current_user.id

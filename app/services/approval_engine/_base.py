@@ -6,6 +6,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
+from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 from app.models.user import User
 from app.models.billing_reports import FinancialApprovalAuditLog
@@ -440,6 +441,32 @@ def _load_workflows_by_ids(db: Session, workflow_ids: list) -> dict:
             ApprovalWorkflow.id.in_(workflow_ids)
         ).all()
     }
+
+def exigir_que_no_sea_suyo(db: Session, solicitante_id, usuario: User, modulo: str, entidad_id) -> None:
+    """Quien pide no aprueba (segregación de funciones), también fuera de la bandeja.
+
+    Revisión 2026-11. La bandeja de aprobaciones ya lo impedía, pero varias
+    rutas aprueban directamente —ausencias, imputaciones, documentos sin flujo,
+    peticiones de cambio de proyecto, cambios ITSM de emergencia y la decisión
+    de un administrador fuera del CAB— y ninguna comparaba al que aprueba con
+    el que pidió: un responsable podía aprobarse su propia ausencia. Lanza 403
+    y deja la infracción registrada si hay una regla SoD para ese módulo.
+    """
+    if not solicitante_id or solicitante_id != usuario.id:
+        return
+    try:
+        from app.services.grc_sod import record_sod_violation
+        from app.models.billing_reports import SodRule
+        regla = db.query(SodRule).filter(SodRule.module_a == modulo, SodRule.module_b == modulo,
+                                         SodRule.action_b == "aprobar", SodRule.is_active == True).first()  # noqa: E712
+        if regla:
+            record_sod_violation(db=db, rule_id=regla.id, user_id=usuario.id, role=str(usuario.role),
+                                 context_type=modulo, context_id=str(entidad_id))
+            db.commit()
+    except Exception:
+        logger.warning("No se pudo registrar la infracción SoD de %s %s", modulo, entidad_id, exc_info=True)
+    raise HTTPException(403, "SoD: no puedes aprobar lo que has pedido tú (segregación de funciones)")
+
 
 def _record_sod_violation(req, current_user: User, db: Session) -> None:
     try:

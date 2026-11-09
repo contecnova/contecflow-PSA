@@ -162,8 +162,17 @@ def test_document_approval(db: Session, doc_client):
     create_response = client.post("/api/v1/documents", json=payload, headers=headers)
     doc_id = create_response.json()["data"]["id"]
 
-    # Approve document
+    # Quien lo crea no lo aprueba (segregación de funciones, revisión 2026-11).
     approve_payload = {"status": "approved"}
+    response = client.post(f"/api/v1/documents/{doc_id}/approve", json=approve_payload, headers=headers)
+    assert response.status_code == 403
+    # Lo aprueba otra persona.
+    from app.models.documents import Document
+    from app.models.user import User
+    otro = db.query(User).filter(User.username == "dev_test").first()
+    doc = db.get(Document, doc_id)
+    doc.created_by = otro.id
+    db.commit()
     response = client.post(
         f"/api/v1/documents/{doc_id}/approve",
         json=approve_payload,
