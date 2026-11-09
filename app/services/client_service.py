@@ -4,7 +4,6 @@ client_service.py — Lógica de negocio para clientes.
 Funciones exportadas:
   get_client_summary(client, db) -> dict
   get_client_detail(client, db) -> dict
-  create_portal_user(client_id, data, current_user, db) -> dict
   get_client_360(client_id, db) -> dict
   scoped_client_query(db, current_user) -> Query
   get_scoped_client_or_404(db, current_user, client_id) -> Client
@@ -31,7 +30,6 @@ from app.models.pipeline import Contract
 from app.models.project import Project
 from app.models.service_desk import Ticket
 from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError
 
 
 # ── Scoped query helpers ───────────────────────────────────────────────────────
@@ -259,70 +257,6 @@ def _portal_config_out(cfg) -> dict:
 
 # ── Portal user creation ───────────────────────────────────────────────────────
 
-def create_portal_user(
-    client_id: str,
-    data: dict,
-    current_user: User,
-    db: Session,
-) -> dict:
-    """
-    Create a portal user for a client, enforcing max_portal_users limit and email uniqueness.
-    Returns {"id", "full_name", "email", "temp_password"} dict.
-    """
-    import secrets
-    import bcrypt
-
-    cfg = db.query(ClientPortalConfig).filter(ClientPortalConfig.client_id == client_id).first()
-
-    if cfg and cfg.max_portal_users:
-        current_count = db.query(func.count(ClientUser.id)).filter(
-            ClientUser.client_org_id == client_id, ClientUser.is_active == True
-        ).scalar() or 0
-        if current_count >= cfg.max_portal_users:
-            raise HTTPException(400, f"Límite de usuarios de portal alcanzado ({cfg.max_portal_users})")
-
-    if db.query(ClientUser).filter(ClientUser.email == data.get("email"), ClientUser.is_active == True).first():
-        raise HTTPException(409, "Email ya registrado en el portal")
-
-    provided_pwd = data.pop("password", None)
-    pwd = provided_pwd or secrets.token_urlsafe(12)
-    hashed = bcrypt.hashpw(pwd.encode(), bcrypt.gensalt()).decode()
-
-    # Look up client name for company field
-    client = db.query(Client).filter(Client.id == client_id).first()
-
-    # Auditoria 2026-11: nacia sin organizacion, y el filtro de organizacion de
-    # la sesion del portal dejaba fuera sus proyectos («El proyecto asignado no
-    # existe»). Es la del cliente.
-    u = ClientUser(
-        organization_id=client.organization_id if client else None,
-        client_org_id=client_id,
-        project_id=data.get("project_id"),
-        full_name=data.get("full_name", ""),
-        email=data.get("email", ""),
-        job_title=data.get("job_title"),
-        phone=data.get("phone"),
-        company=client.name if client else "",
-        hashed_password=hashed,
-        can_approve_deliverables=data.get("can_approve_deliverables", True),
-        can_request_changes=data.get("can_request_changes", True),
-        can_view_budget=data.get("can_view_budget", False),
-        can_view_team=data.get("can_view_team", False),
-        language=data.get("language", settings.DEFAULT_LANGUAGE),
-    )
-    try:
-        db.add(u)
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(409, "Email ya registrado en el portal")
-    db.refresh(u)
-    return {
-        "id": u.id,
-        "full_name": u.full_name,
-        "email": u.email,
-        "temp_password": pwd if not provided_pwd else None,
-    }
 
 
 # ── 360 view ───────────────────────────────────────────────────────────────────
@@ -796,32 +730,8 @@ def list_client_tickets(cid: str, status: "Optional[str]", db: Session) -> list:
 
 # ── Portal users ──────────────────────────────────────────────────────────────
 
-def list_portal_users(cid: str, db: Session) -> list:
-    users = db.query(ClientUser).filter(ClientUser.client_org_id == cid, ClientUser.is_active == True).all()
-    return [
-        {"id": u.id, "full_name": u.full_name, "email": u.email,
-         "job_title": u.job_title, "is_active": u.is_active,
-         "project_id": u.project_id,
-         "can_approve_deliverables": u.can_approve_deliverables,
-         "can_view_budget": u.can_view_budget,
-         "last_login": str(u.last_login) if u.last_login else None}
-        for u in users
-    ]
 
 
-def update_portal_user(cid: str, uid: str, data: dict, db: Session) -> dict:
-    u = db.query(ClientUser).filter(
-        ClientUser.id == uid,
-        ClientUser.client_org_id == cid,
-        ClientUser.is_active == True,
-    ).first()
-    if not u:
-        raise HTTPException(404)
-    for k, v in data.items():
-        if hasattr(u, k) and k not in ('id', 'hashed_password', 'client_org_id'):
-            setattr(u, k, v)
-    db.commit()
-    return {"id": u.id, "full_name": u.full_name, "email": u.email, "is_active": u.is_active}
 
 
 # ── Client-project linking ────────────────────────────────────────────────────

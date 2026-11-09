@@ -383,6 +383,16 @@ def create_client(payload, db: Session) -> dict:
         raise ValueError("Debe especificar al menos un proyecto o una empresa cliente")
     if db.query(ClientUser).filter(ClientUser.email == payload.email).first():
         raise ValueError("Ya existe un usuario de portal con ese email")
+    # Revisión 2026-11: el tope de usuarios por cliente sólo lo aplicaba un
+    # segundo camino de alta sin pantalla (/clients/{id}/portal-users, retirado).
+    if payload.client_org_id:
+        from app.models.clients import ClientPortalConfig
+        cfg = db.query(ClientPortalConfig).filter(ClientPortalConfig.client_id == payload.client_org_id).first()
+        if cfg and cfg.max_portal_users:
+            activos = db.query(ClientUser).filter(ClientUser.client_org_id == payload.client_org_id,
+                                                  ClientUser.is_active == True).count()  # noqa: E712
+            if activos >= cfg.max_portal_users:
+                raise ValueError(f"Límite de usuarios de portal alcanzado ({cfg.max_portal_users})")
     company = payload.company
     empresa = db.query(ClientOrg).filter(ClientOrg.id == payload.client_org_id).first() if payload.client_org_id else None
     if empresa and not company:
@@ -390,8 +400,7 @@ def create_client(payload, db: Session) -> dict:
     # Auditoria 2026-11: la organizacion la ponia el sellado de la sesion (la
     # del empleado que lo crea), no la del cliente; el filtro de organizacion
     # del portal le ocultaba entonces sus proyectos. Es la de la empresa
-    # cliente o, sin ella, la de su primer proyecto. Mismo arreglo que
-    # `client_service.create_portal_user` (la otra via de alta).
+    # cliente o, sin ella, la de su primer proyecto.
     organizacion = empresa.organization_id if empresa else None
     if organizacion is None and all_project_ids:
         primero = db.query(ProjectModel).filter(ProjectModel.id == all_project_ids[0]).first()

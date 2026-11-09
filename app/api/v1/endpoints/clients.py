@@ -14,7 +14,6 @@ from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.client_service import (
     get_client_detail as _out_detail,
-    create_portal_user as svc_create_portal_user,
     get_scoped_client_or_404 as _get_scoped_client_or_404,
     create_client_record as svc_create_client,
     get_client_360 as svc_client_360,
@@ -222,22 +221,10 @@ def list_client_tickets(
 
 # ── Usuarios de portal del cliente ────────────────────────────────────────────
 
-@router.get("/{cid}/portal-users")
-def list_portal_users(cid: str, db: Session = Depends(get_db), _: User = Depends(get_current_user), response: Response = None):
-    _get_scoped_client_or_404(db, _, cid)
-    return APIListResponse.ok(items=_svc.list_portal_users(cid, db))
 
 
-@router.post("/{cid}/portal-users")
-def create_portal_user(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    _get_scoped_client_or_404(db, cu, cid)
-    return APIResponse.ok(data=svc_create_portal_user(cid, data, cu, db))
 
 
-@router.patch("/{cid}/portal-users/{uid}")
-def update_portal_user(cid: str, uid: str, data: dict = Body(...),
-                       db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return APIResponse.ok(data=_svc.update_portal_user(cid, uid, data, db))
 
 
 # ── Vinculación de proyectos ───────────────────────────────────────────────────
