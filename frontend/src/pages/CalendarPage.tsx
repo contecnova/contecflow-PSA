@@ -28,7 +28,7 @@ interface CalendarEvent {
 interface TaskItem { id: string | number; due_date?: string; title?: string; status?: string }
 interface MilestoneItem { id: string | number; due_date?: string; title?: string }
 interface SprintItem { id: string | number; start_date?: string; end_date?: string; name?: string }
-interface AbsenceItem { id: string | number; start_date?: string; user_name?: string; type?: string }
+interface AbsenceItem { id: string | number; start_date?: string; end_date?: string; user_name?: string; type?: string }
 
 const EVENT_TYPES = {
   task:      { color: 'var(--success)', icon: '▦', label: 'Tarea' },
@@ -91,10 +91,20 @@ export default function CalendarPage(): JSX.Element {
   // Ausencias
   const { data: absences = [] } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-absences', year, month],
-    queryFn: () => absencesApi.list({ date_from: dateFrom, date_to: dateTo, limit: 50 })
-      .then(r => (unwrapList(r) as AbsenceItem[]).map((a): CalendarEvent => ({
-        date: a.start_date ?? '', type: 'absence', title: `${a.user_name || 'Equipo'}: ${a.type || 'Ausencia'}`, id: a.id,
-      }))).catch(() => []),
+    queryFn: () => absencesApi.list({ date_from: dateFrom, date_to: dateTo, limit: 200 })
+      // Una ausencia ocupa todos sus días del mes, no sólo el primero (revisión 2026-11).
+      .then(r => (unwrapList(r) as AbsenceItem[]).flatMap((a): CalendarEvent[] => {
+        if (!a.start_date) return []
+        const desde = a.start_date > dateFrom ? a.start_date : dateFrom
+        const fin = a.end_date || a.start_date
+        const hasta = fin < dateTo ? fin : dateTo
+        const dias: CalendarEvent[] = []
+        for (let d = Number(desde.slice(8, 10)); d <= Number(hasta.slice(8, 10)) && desde <= hasta; d++) {
+          dias.push({ date: `${dateFrom.slice(0, 8)}${String(d).padStart(2, '0')}`, type: 'absence',
+            title: `${a.user_name || 'Equipo'}: ${a.type || 'Ausencia'}`, id: `${a.id}_${d}` })
+        }
+        return dias
+      })).catch(() => []),
   })
 
   // Todos los eventos del mes

@@ -94,6 +94,7 @@ def request_absence(
 
     holidays = absence_service.get_holidays(db)
     days = _working_days(payload.start_date, payload.end_date, holidays)
+    absence_service.exigir_saldo(db, current_user.id, payload.type, payload.start_date, days)
 
     absence = absence_service.create_absence(
         db,
@@ -147,6 +148,10 @@ def edit_absence(
 
     holidays = absence_service.get_holidays(db)
     days = _working_days(payload.start_date, payload.end_date, holidays)
+    # La propia solicitud ya cuenta como pendiente en el saldo de su año.
+    propia = float(a.working_days or 0) if (
+        str(getattr(a.type, "value", a.type)) == "vacation" and a.start_date.year == payload.start_date.year) else 0
+    absence_service.exigir_saldo(db, current_user.id, payload.type, payload.start_date, days, liberados=propia)
 
     a = absence_service.update_absence(
         db, a,

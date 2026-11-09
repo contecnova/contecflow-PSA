@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import UserRole
-from app.services.tasks.core import apply_status_side_effects
+from app.services.tasks.core import apply_status_side_effects, validate_task_transition
 from app.core.abac_enforce import enforce_abac
 
 
@@ -92,6 +92,13 @@ def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) 
             continue
 
         if new_status and new_status != task.status:
+            # Revisión 2026-11: las mismas reglas que la edición de una tarea;
+            # antes la masiva permitía saltos como `cancelled → todo`.
+            try:
+                validate_task_transition(task.status, new_status)
+            except HTTPException:
+                skipped.append({"id": task.id, "reason": "invalid_transition"})
+                continue
             apply_status_side_effects(task, new_status)
             task.status = new_status
 

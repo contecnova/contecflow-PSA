@@ -66,7 +66,6 @@ class Organization(Base):
     timezone     = Column(String(50), default=settings.DEFAULT_TIMEZONE)
     locale       = Column(String(10), default=settings.DEFAULT_LANGUAGE)
     admin_email  = Column(String(255), nullable=True)
-    imputation_lockout_days = Column(Integer, default=settings.DEFAULT_IMPUTATION_LOCKOUT_DAYS)  # Days before imputations are locked
     # Política de seguridad: si está activa, todos los usuarios de esta
     # organización deben tener MFA habilitada para poder completar el login.
     # Aplicado en auth_core.py durante el flujo de password+MFA.

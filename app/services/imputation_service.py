@@ -75,17 +75,19 @@ def sync_imputation_week_timesheet(db: Session, user_id: str, work_date: date) -
 
 # ── Lockout ────────────────────────────────────────────────────────────────────
 
+def _dias_de_bloqueo(db: Session, org_id) -> int:
+    """El ajuste de Admin (revisión 2026-11): antes se leía el del fichero."""
+    from app.services.settings_service import get_runtime_int
+    return int(get_runtime_int(db, "DEFAULT_IMPUTATION_LOCKOUT_DAYS", org_id))
+
+
 def get_lockout_cutoff(current_user: User, db: Session) -> date:
     org = None
     if current_user.organization_id:
         org = db.query(Organization).filter(
             Organization.id == current_user.organization_id
         ).first()
-    lockout_days = (
-        org.imputation_lockout_days
-        if org and org.imputation_lockout_days is not None
-        else settings.DEFAULT_IMPUTATION_LOCKOUT_DAYS
-    )
+    lockout_days = _dias_de_bloqueo(db, current_user.organization_id)
     # El día de corte se calcula en la zona del usuario (auditoría 2026-08,
     # hallazgo 14). Con `timeutil.today()` lo decidía la zona del servidor: un
     # empleado en México a las 23:30 del día 28 veía el corte del día 29 del

@@ -421,13 +421,13 @@ export default function AbsencesPage(): JSX.Element {
   const { data: pending = [] } = useQuery<Absence[]>({
     queryKey: ['absences-pending'],
     queryFn: () => absencesApi.pending().then(unwrapAbsences),
-    enabled: hasRole('admin', 'hr', 'pm'),
+    enabled: hasRole('admin', 'hr', 'pm', 'team_lead'),
   })
 
   const { data: teamAbsences = [] } = useQuery<Absence[]>({
     queryKey: ['team-absences'],
     queryFn: () => absencesApi.team({}).then(r => r.data as Absence[]),
-    enabled: tab === 'team' && hasRole('admin', 'hr', 'pm'),
+    enabled: tab === 'team' && hasRole('admin', 'hr', 'pm', 'team_lead'),
   })
   const [teamSearch, setTeamSearch] = useState('')
   const [teamFilterType, setTeamFilterType] = useState('')
@@ -479,7 +479,7 @@ export default function AbsencesPage(): JSX.Element {
   const tabs = [
     { id: 'mine', label: t('absences.tab_mine') },
     { id: 'calendar', label: t('absences.tab_calendar') },
-    ...(hasRole('admin', 'hr', 'pm') ? [
+    ...(hasRole('admin', 'hr', 'pm', 'team_lead') ? [
       { id: 'pending', label: `${t('absences.tab_pending')} (${pending.length})` },
       { id: 'team', label: t('absences.tab_team') },
     ] : []),

@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.resources import Absence, AbsenceStatus, AbsenceType
 from app.models.settings import Holiday
 from app.models.user import User
-from app.core.config import settings as app_settings
 from app.models.user import UserRole
 from datetime import timedelta
 import logging
@@ -72,6 +71,28 @@ def get_my_absences(db: Session, user_id: str) -> list[Absence]:
     )
 
 
+def _dias_por_defecto(db: Session, user_id: str) -> float:
+    """Días de vacaciones de quien no tiene saldo propio: el ajuste de Admin de su
+    empresa (revisión 2026-11; antes se leía el del fichero y Admin no hacía nada)."""
+    from app.models.user import User
+    from app.services.settings_service import get_runtime_int
+    org_id = db.query(User.organization_id).filter(User.id == user_id).scalar()
+    return float(get_runtime_int(db, "DEFAULT_VACATION_DAYS_PER_YEAR", org_id))
+
+
+def exigir_saldo(db: Session, user_id: str, tipo, start_date: date, dias: float, liberados: float = 0) -> None:
+    """Unas vacaciones no pueden pasar del saldo que queda (revisión 2026-11).
+
+    `liberados`: los días que ya cuenta como pendientes la misma solicitud al editarla.
+    """
+    if str(getattr(tipo, "value", tipo)) != AbsenceType.vacation.value:
+        return
+    quedan = get_vacation_balance(db, user_id, start_date.year)["days_remaining"] + liberados
+    if dias > quedan:
+        from fastapi import HTTPException
+        raise HTTPException(400, f"Pides {dias:g} días de vacaciones y te quedan {quedan:g} en {start_date.year}")
+
+
 def get_vacation_balance(db: Session, user_id: str, year: int) -> dict:
 
     try:
@@ -80,10 +101,10 @@ def get_vacation_balance(db: Session, user_id: str, year: int) -> dict:
             UserVacationBalance.user_id == user_id,
             UserVacationBalance.year == year,
         ).first()
-        entitled = bal.days_entitled if bal else app_settings.DEFAULT_VACATION_DAYS_PER_YEAR
+        entitled = bal.days_entitled if bal else _dias_por_defecto(db, user_id)
         carried = bal.days_carried_over if bal else 0
     except Exception:
-        entitled = app_settings.DEFAULT_VACATION_DAYS_PER_YEAR
+        entitled = _dias_por_defecto(db, user_id)
         carried = 0
 
     year_start = date(year, 1, 1)

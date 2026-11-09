@@ -229,6 +229,7 @@ function useWorkflowStatusOptions(projectId: any, t: any) {
 }
 
 function TaskDetailModal({ task, open, onClose }: { task: any; open: boolean; onClose: () => void }) {
+  const puedeBorrar = useAuth().hasRole('admin', 'pm')
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -521,10 +522,13 @@ function TaskDetailModal({ task, open, onClose }: { task: any; open: boolean; on
 
           {/* Footer actions */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 14, borderTop: '1px solid var(--surface-4)' }}>
+            {/* Borrar exige admin o pm en el servidor (revisión 2026-11) */}
+            {puedeBorrar ? (
             <button onClick={() => { openConfirmGlobal({ message: `${t('common.are_you_sure')} ${t('common.delete')}?`, onConfirm: () => deleteTask(), danger: true }) }} disabled={deleting}
               style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
               {deleting ? t('tasks.deleting') : `🗑 ${t('common.delete')}`}
             </button>
+            ) : <span />}
             <Button onClick={() => setIsEditing(true)}>✏️ {t('common.edit')}</Button>
           </div>
         </div>
@@ -687,10 +691,13 @@ function TaskDetailModal({ task, open, onClose }: { task: any; open: boolean; on
 
           {/* Acciones edición */}
           <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+            {/* Borrar exige admin o pm en el servidor (revisión 2026-11) */}
+            {puedeBorrar ? (
             <button onClick={() => { openConfirmGlobal({ message: `${t('common.are_you_sure')} ${t('common.delete')}?`, onConfirm: () => deleteTask(), danger: true }) }} disabled={deleting}
               style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
               {deleting ? t('tasks.deleting') : `🗑 ${t('common.delete')}`}
             </button>
+            ) : <span />}
             <div style={{ display: 'flex', gap: 8 }}>
               <Button variant="secondary" onClick={cancelEdit}>{t('common.cancel')}</Button>
               <Button onClick={() => saveTask({ taskData: { ...form, issue_type: form.issue_type || null }, cfValues: customValues, cfFields: customFields, taskId: task.id, projectId: task.project_id })} disabled={saving || !form.title}>
@@ -1084,8 +1091,8 @@ export default function TasksPage() {
                 <Plus size={13} /> {t('tasks.new_task')}
               </Button>
             )}
-            {/* I27: Auto-planificar tareas sin fecha (botón en Tasks) */}
-            {hasRole('admin', 'pm', 'team_lead') && (
+            {/* I27: Auto-planificar. Aplicar las fechas (bulk-dates) exige admin o pm. */}
+            {hasRole('admin', 'pm') && (
               <Button
                 variant="subtle"
                 onClick={() => setSmartScheduleOpen(true)}

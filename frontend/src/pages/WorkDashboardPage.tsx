@@ -181,7 +181,7 @@ export default function WorkDashboardPage(): JSX.Element {
     enabled: !!userId, staleTime: 60_000, retry: 1,
   })
 
-  const { data: myWeekHours = 0 } = useQuery<number>({
+  const { data: myWeekHours = 0, isError: e1 } = useQuery<number>({
     queryKey: ['work-dash-my-week', userId],
     queryFn: async (): Promise<number> => {
       const r = await analyticsApi.query('hours_by_week', { user_id: userId, date_from: startOfWeekIso(), date_to: new Date().toISOString().slice(0, 10) })
@@ -190,59 +190,53 @@ export default function WorkDashboardPage(): JSX.Element {
     enabled: !!userId, staleTime: 60_000,
   })
 
-  const { data: myMonthHours = null } = useQuery<number | null>({
+  const { data: myMonthHours = null, isError: e2 } = useQuery<number | null>({
     queryKey: ['work-dash-my-month', userId],
     queryFn: async (): Promise<number | null> => {
-      try {
-        const r = await analyticsApi.query('hours_by_week', { user_id: userId, date_from: startOfMonthIso(), date_to: new Date().toISOString().slice(0, 10) })
-        return ((r.data?.rows as Array<{ value?: number }> | undefined) || []).reduce((s: number, x) => s + (x.value || 0), 0)
-      } catch {
-        return null
-      }
+      const r = await analyticsApi.query('hours_by_week', { user_id: userId, date_from: startOfMonthIso(), date_to: new Date().toISOString().slice(0, 10) })
+      return ((r.data?.rows as Array<{ value?: number }> | undefined) || []).reduce((s: number, x) => s + (x.value || 0), 0)
     },
     enabled: !!userId, staleTime: 60_000,
   })
 
-  const { data: approvals = [], isLoading: la } = useQuery<ApprovalItem[]>({
+  const { data: approvals = [], isLoading: la, isError: e3 } = useQuery<ApprovalItem[]>({
     queryKey: ['work-dash-approvals'],
     queryFn: () => approvalsApi.pendingMyAction().then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }).catch(() => []),
+    }),
     staleTime: 60_000,
   })
 
-  const { data: expenses = [], isLoading: le } = useQuery<ExpenseItem[]>({
+  const { data: expenses = [], isLoading: le, isError: e4 } = useQuery<ExpenseItem[]>({
     queryKey: ['work-dash-expenses'],
     queryFn: () => expensesApi.my({ status: 'pending' }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }).catch(() => []),
+    }),
     staleTime: 60_000,
   })
 
-  const { data: hoursData = [] } = useQuery<HourRow[]>({
+  const { data: hoursData = [], isError: e5 } = useQuery<HourRow[]>({
     queryKey: ['work-dash-hours-trend', userId],
     queryFn: async (): Promise<HourRow[]> => {
-      try {
-        const r = await analyticsApi.query('hours_by_month', { ...dateRange(180), ...(userId ? { user_id: userId } : {}) })
-        return (r.data?.rows as HourRow[] | undefined) || []
-      } catch {
-        return []
-      }
+      const r = await analyticsApi.query('hours_by_month', { ...dateRange(180), ...(userId ? { user_id: userId } : {}) })
+      return (r.data?.rows as HourRow[] | undefined) || []
     },
     enabled: !!userId, staleTime: 60_000,
   })
 
-  const { data: absences = [], isLoading: lab } = useQuery<AbsenceItem[]>({
+  const { data: absences = [], isLoading: lab, isError: e6 } = useQuery<AbsenceItem[]>({
     queryKey: ['work-dash-absences'],
     queryFn: () => absencesApi.my({}).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }).catch(() => []),
+    }),
     staleTime: 60_000,
   })
 
+  // Revisión 2026-11: cualquier consulta que falle avisa; antes su KPI enseñaba 0 en silencio.
+  const algunFallo = taskStatsError || e1 || e2 || e3 || e4 || e5 || e6
   useEffect(() => {
-    if (taskStatsError) toast.error(t('work_dashboard.metrics_load_error'))
-  }, [taskStatsError]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (algunFallo) toast.error(t('work_dashboard.metrics_load_error'))
+  }, [algunFallo]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const tasksOpen    = taskStats?.open ?? 0
   const tasksOverdue = taskStats?.overdue ?? 0

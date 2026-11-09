@@ -124,7 +124,7 @@ Everything here was checked against the code (`frontend/src/App.tsx`, `frontend/
 
 **Limitations.**
 - The *Timer* shortcut opens `/time` on the **Log hours** tab, not the Timer tab. The `TimePage` tab lives in component state, not in the URL.
-- If a query fails, its KPI quietly shows 0 (each query has `.catch(() => [])`). The only error toast is for the task metrics.
+- If any of its queries fails, an error toast says the metrics could not be loaded.
 
 ### Inbox (Bandeja de entrada) — `/inbox`
 *Roles:* Menu: all five roles. Route: any authenticated user.
@@ -243,9 +243,9 @@ Task status values must still be one of the `TaskStatus` enum values; the Pydant
 - Tables: `tasks`, `task_comments`, `task_movement_logs`, `workflow_states`.
 
 **Limitations.**
-- **Bulk edit skips the transition rules.** `POST /tasks/bulk-update` does not call `validate_task_transition` (`services/tasks/bulk.py`), so it can make jumps that the single edit rejects (e.g. `cancelled → todo`).
+- **Bulk edit follows the transition rules** of the single edit. A task whose jump is not allowed (e.g. `cancelled → todo`) is skipped with `invalid_transition`, and the toast counts it as skipped.
 - **Kanban without a project hides two statuses.** It groups the flat list into the 5 columns above; `backlog` and `cancelled` tasks are not shown.
-- **team_lead gets 403 on two actions.** Auto-planificar's apply step (`bulk-dates`) and task deletion require admin or pm, but the UI shows them to team_lead.
+- **Delete and Auto-planificar are for admin and pm**, as on the server (`DELETE /tasks/{id}` and `bulk-dates`). Other roles don't see them.
 
 ### Kanban — merged into Tasks
 `/kanban-advanced` redirects to `/tasks?view=kanban`; there is no separate menu entry. The board lives in **Tasks → Kanban** (see Tasks):
@@ -289,7 +289,7 @@ Rules enforced in `imputation_service.py`:
 - Timesheet review is `require_any_manager`.
 
 **Limitations.**
-- **The Admin setting for lockout has no effect.** The runtime setting `DEFAULT_IMPUTATION_LOCKOUT_DAYS` (Admin → runtime group `locale`) is **not read** by the lockout code, which uses the static `settings` object. Changing it in Admin does not change the lockout fallback.
+- **Lockout days come from Admin.** The runtime setting `DEFAULT_IMPUTATION_LOCKOUT_DAYS` (group `locale`, per company) sets the lockout. Migration 147 removed the unused `organizations.imputation_lockout_days` column and moved any non-default value into that setting.
 - **The tab is not in the URL.** You cannot deep-link to the Timer or Week tab.
 
 ### Calendar — `/calendar`
@@ -309,7 +309,7 @@ Rules enforced in `imputation_service.py`:
 
 **Limitations.**
 - **Sprints are not filtered by month either.** It shows at most 20 sprints org-wide.
-- **Absences appear only on their start date.**
+- **Absences fill every day they cover** within the month shown.
 - **Two event types are never loaded.** The legend has `contract` and `license` event types, but no query loads them.
 - **Hard-coded Spanish.** Month and day names are hard-coded in Spanish.
 
@@ -344,12 +344,12 @@ Rules enforced in `imputation_service.py`:
 - Tables: `absences`, `holidays`, `user_vacation_balances`.
 
 **Limitations.**
-- **Balance is not enforced.** A request is accepted even if it exceeds the remaining days.
-- **Self-approval is not blocked.** No check prevents a manager from approving their own request.
-- **No notifications.** None are sent on request or review: there are no `notify`/`emit` calls in the absence endpoints or service.
-- **The Admin setting for vacation days has no effect.** The balance code reads the static env `DEFAULT_VACATION_DAYS_PER_YEAR`, not the runtime setting of the same name in Admin → `locale`.
-- **Absences skip the approval engine.** They don't use Approval workflows (`entity_type` `leave` exists in the workflow designer but nothing opens a request for it).
-- **team_lead can't see the review tabs.** The backend lets team_lead review absences (`require_any_manager`), but the UI hides the Pending and Team tabs from them.
+- **Vacation balance is enforced.** A vacation request (or an edit) that exceeds the remaining days of its year is rejected with 400. Other absence types don't use the balance.
+- **Nobody approves their own absence** (separation of duties on review).
+- **Notifications only through an approval workflow.** With a default workflow for `leave`, the approver is notified; without one, nothing is sent.
+- **Default vacation days come from Admin.** Without a per-user balance row, the balance uses the runtime setting `DEFAULT_VACATION_DAYS_PER_YEAR` of the user's company.
+- **Approval workflows.** If a default workflow exists for `leave`, a request opens one; deciding in either place closes the other.
+- **Pending and Team tabs** are shown to admin, hr, pm and team_lead, the same roles the backend allows to review.
 
 ### Documents — `/documents`
 *Roles:* Menu: admin, pm, hr, team_lead, employee. Route: any authenticated user.
