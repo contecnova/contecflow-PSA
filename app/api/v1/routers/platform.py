@@ -19,6 +19,7 @@ from app.api.v1.endpoints import (
 # Auditoría 2026-08 (hallazgo 22): antes venía de `endpoints/v239/`.
 from app.api.v1.endpoints import branding
 from app.api.v1.endpoints import conectores
+from app.api.v1.endpoints import lecciones
 
 router = APIRouter()
 
@@ -53,3 +54,4 @@ router.include_router(translations.router,         prefix="/translations",      
 router.include_router(ui.router,                   prefix="/ui",                    tags=["UI"])
 router.include_router(resource_demand.router,      prefix="/resource-demand",       tags=["Resource Demand"])
 router.include_router(conectores.router,           prefix="/conectores",            tags=["Conectores contecmind y contecintelligence"])
+router.include_router(lecciones.router,            prefix="/lessons",               tags=["Lecciones aprendidas"])

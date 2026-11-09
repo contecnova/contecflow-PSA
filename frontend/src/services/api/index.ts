@@ -37,6 +37,8 @@ export type {
 } from './auth'
 
 export { conectoresApi, mensajeDeConector, codigoDeConector } from './conectores'
+export { leccionesApi } from './lecciones'
+export type { Leccion, Accion as AccionDeMejora, Borrador as BorradorDeLeccion, Recomendacion, Pendiente as PendienteDeLeccion, Hecho, OrigenLeccion } from './lecciones'
 export type { Ficha as FichaDocumental, DocHit, Enlace, DocDetalle, Aprobacion, EstadoProducto, Fuente, Metrica, RespuestaCI } from './conectores'
 export { usersApi } from './users'
 export type {

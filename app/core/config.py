@@ -464,6 +464,23 @@ class Settings(
     CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS: float = Field(default=120.0, env="CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS")
     CONTECINTELLIGENCE_HANDOFF_ENABLED: bool = Field(default=True, env="CONTECINTELLIGENCE_HANDOFF_ENABLED")
 
+    # ── Lecciones aprendidas (revisión 2026-11) ───────────────────────────────
+    LESSONS_CATEGORIES: str = Field(default='alcance,planificacion,estimacion,tecnica,calidad,comunicacion,cliente,proveedor,equipo,seguridad,operacion,coste', env="LESSONS_CATEGORIES")
+    LESSONS_VALIDATOR_ROLES: str = Field(default='admin,pm,team_lead', env="LESSONS_VALIDATOR_ROLES")
+    LESSONS_ONLY_VALIDATED: bool = Field(default=True, env="LESSONS_ONLY_VALIDATED")
+    LESSONS_AI_DRAFT_ENABLED: bool = Field(default=True, env="LESSONS_AI_DRAFT_ENABLED")
+    # Medido el 09-11-2026 con gemini-2.5-flash: con 900 el razonamiento se comía el
+    # tope y el JSON llegaba cortado a los 109 caracteres.
+    LESSONS_AI_MAX_TOKENS: int = Field(default=4000, env="LESSONS_AI_MAX_TOKENS")
+    LESSONS_RECOMMENDATIONS_MAX: int = Field(default=5, env="LESSONS_RECOMMENDATIONS_MAX")
+    LESSONS_RECOMMENDATIONS_MIN_SCORE: float = Field(default=0.2, env="LESSONS_RECOMMENDATIONS_MIN_SCORE")
+    LESSONS_WEIGHT_CLIENT: float = Field(default=0.30, env="LESSONS_WEIGHT_CLIENT")
+    LESSONS_WEIGHT_PROJECT_TYPE: float = Field(default=0.15, env="LESSONS_WEIGHT_PROJECT_TYPE")
+    LESSONS_WEIGHT_TAGS: float = Field(default=0.20, env="LESSONS_WEIGHT_TAGS")
+    LESSONS_WEIGHT_CATEGORY: float = Field(default=0.15, env="LESSONS_WEIGHT_CATEGORY")
+    LESSONS_WEIGHT_TEXT: float = Field(default=0.20, env="LESSONS_WEIGHT_TEXT")
+    LESSONS_PENDING_LOOKBACK_DAYS: int = Field(default=180, env="LESSONS_PENDING_LOOKBACK_DAYS")
+
     # NOTE: AI cost alerting lives in AISettingsMixin.
 
     # ── Stripe payment gateway (v23.8) ────────────────────────────────────────

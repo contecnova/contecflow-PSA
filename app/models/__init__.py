@@ -109,6 +109,7 @@ from app.models.raci import (  # noqa: F401
 from app.models.sessions import UserSession  # noqa: F401
 from app.models.governance import TenantPolicyPack, ComplianceEvidence, RetentionPolicy, LegalHold  # noqa: F401
 from app.models.conectores import ConectorLlamada, EnlaceDocumental, CarpetaDocumental  # noqa: F401
+from app.models.lecciones import Leccion, LeccionUso, LeccionAccion  # noqa: F401
 from app.models.abac import (  # noqa: F401
     AttributeDefinition, UserAttribute, ABACPolicy, PolicyAudit,
 )

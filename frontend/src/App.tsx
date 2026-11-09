@@ -121,6 +121,7 @@ const BIPage                 = lazy(() => import('./pages/BIPage'))
 const BIProjectDetailPage    = lazy(() => import('./pages/BIProjectDetailPage'))
 const DataExplorerPage       = lazy(() => import('./pages/DataExplorerPage'))
 const PreguntarALaEmpresaPage = lazy(() => import('./pages/PreguntarALaEmpresaPage'))
+const LeccionesPage = lazy(() => import('./pages/LeccionesPage'))
 const PredictionsPage        = lazy(() => import('./pages/PredictionsPage'))
 const DataPlatformPage       = lazy(() => import('./pages/DataPlatformPage'))
 const DataGovernancePage     = lazy(() => import('./pages/DataGovernancePage'))
@@ -600,6 +601,7 @@ function AppRoutes() {
       {/* Nuevas rutas top-level (sustituyen al antiguo /bi) */}
       <Route path="/data-explorer"   element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeDataExplorer   /></Layout></ProtectedRoute>} />
       <Route path="/ask-company"     element={<ProtectedRoute roles={['admin','pm','team_lead','hr','employee']}><Layout><SafePreguntarALaEmpresa /></Layout></ProtectedRoute>} />
+      <Route path="/lessons"         element={<ProtectedRoute roles={['admin','pm','team_lead','hr','employee']}><Layout><LeccionesPage /></Layout></ProtectedRoute>} />
       <Route path="/predictions"     element={<ProtectedRoute roles={['admin','pm']}><Layout><SafePredictions    /></Layout></ProtectedRoute>} />
       <Route path="/data-platform"   element={<ProtectedRoute roles={['admin']}>     <Layout><SafeDataPlatform   /></Layout></ProtectedRoute>} />
       <Route path="/data-governance" element={<ProtectedRoute roles={['admin']}>     <Layout><SafeDataGovernance /></Layout></ProtectedRoute>} />

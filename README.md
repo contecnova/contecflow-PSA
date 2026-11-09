@@ -558,7 +558,7 @@ Rules enforced in `imputation_service.py`:
    - *Requests*: client-portal feature requests; reply with `POST /portal/feature-requests/{id}/respond`.
 4. **Templates tab:** list templates and instantiate a project from one (`/billing-reports/templates/*`).
 5. **Detail page** `/projects/:id`:
-   - tabs Overview, Tasks, Team, Risks
+   - tabs Overview, Tasks, Team, Risks, **Documents** (contecmind) and **Lessons** (lessons that apply and the project's own; see «Lessons learned»)
    - inline edit of the overview
    - links to `/tasks?project_id=`, `/gantt?project=`, `/contracts-ai?project_id=`
    - *Smart schedule* (AI)
@@ -574,6 +574,35 @@ Rules enforced in `imputation_service.py`:
 **Limitations.**
 - **50-project cap** (see cross-cutting).
 - **The Gantt link opens the wrong view.** "View in Gantt" goes to `/gantt?project=…`, but `GanttPage` ignores the query string and opens with all projects.
+
+### Lessons learned — `/lessons` (revisión 2026-11)
+*Roles:* menu admin, pm, team_lead (Projects); route and panels, any internal user. Validating or archiving: `LESSONS_VALIDATOR_ROLES`. Deleting: admin (the normal path is archiving).
+
+**Purpose.** The continuous-improvement base: what happened, why, and what to do (or avoid) next time — recommended **when acting**, with the reason, and measured by whether it helped.
+
+**How to use it.**
+1. **Capture from the facts.** Tab **Waiting to be captured** lists what closed in the last `LESSONS_PENDING_LOOKBACK_DAYS` days without a lesson: projects (`completed`/`closed`), problems (`resolved`/`closed`), major incidents, sprints with a retrospective and — for admins — security incidents with root cause or notes. **Capture lesson** opens the form with the **measured facts** on the side and a proposal:
+   - project: planned vs real end (days late), budgeted vs logged hours and cost (%), change requests (count, cost, days), risks identified and **materialised**, retrospective notes;
+   - ticket: type, priority, hours to resolve, SLA breached, resolution; problem: root cause, workaround, fix, linked tickets; major incident: severity, hours to resolve, impact, resolution, tickets; sprint: planned vs completed points, velocity, retrospective; security incident: minutes to detect/resolve, root cause, remedy, notes.
+   - With `LESSONS_AI_DRAFT_ENABLED`, the AI (module `lessons_learned`, governed like any `call_ai`: budget, guardrails, routing) proposes title, type, category (only those of `LESSONS_CATEGORIES`), severity, what happened, cause, impact, recommendation and tags **from those facts only**. Without AI, or if it fails, the draft keeps the facts and leaves the judgement fields empty, and says why.
+   - The same button (**Record a lesson**) is in the project's **Lessons** tab and in the ticket; a closed project without a lesson says so.
+2. **Review and validate.** A lesson starts as *draft* or *in review*; a validator **validates** it (only validated lessons are recommended while `LESSONS_ONLY_VALIDATED` is on) or **archives** it. The author can edit until it is validated; validators always.
+3. **Recommendations, where you act.** «Lessons that apply» shows, with the reason: «Avoid: … — because in PRJ-0007 this happened: …», plus why it matched (same client, same project type, shared tags, same catalogue service or CI, similar text with the shared words):
+   - **creating a project** (as soon as client or type is chosen);
+   - the project's **Lessons** tab and the **ticket** (a record's own lessons are not recommended back to it).
+   Score = sum of the weights `LESSONS_WEIGHT_*` that match (tags and text proportionally); shown if ≥ `LESSONS_RECOMMENDATIONS_MIN_SCORE`, at most `LESSONS_RECOMMENDATIONS_MAX`. Text similarity uses the embeddings model when installed, otherwise word overlap — the same as the knowledge base.
+4. **Did it help?** Each recommendation has **Useful / Applied / Not applicable**; one answer per person and context (the last one counts). This is what the **Indicators** tab measures (share of useful + applied), not a counter of times shown.
+5. **Improvement actions.** Each lesson can have actions with owner and due date; overdue ones are flagged; the **Improvement actions** tab lists the open ones (or only mine).
+
+**Technical notes.**
+- **Endpoints** (`/api/v1/lessons`): `GET ""` (filters `q`, `estado`, `tipo`, `categoria`, `origen_tipo`, `proyecto_id`, `cliente_id`, `etiqueta`), `POST ""`, `GET|PATCH|DELETE /{id}`, `POST /{id}/estado`, `GET /borrador/{origen}/{id}`, `GET /de/{origen}/{id}`, `GET /pendientes`, `GET /recomendaciones/{project|ticket}/{id}`, `POST /recomendaciones/nuevo-proyecto`, `POST /{id}/valoracion`, `POST /{id}/acciones`, `GET /acciones`, `PATCH /acciones/{id}`, `GET /indicadores`, `GET /config`.
+- **Access:** every origin is loaded with its own screen's loader (`get_project_scoped_or_404`, `get_scoped_ticket_or_404`, `scope_problem_query`; security incidents admin only), also when it is only a recommendation context.
+- **Tables:** `lecciones` (with the facts as JSON and the scope: client, project type, tags, catalogue service, CI, optional vector), `leccion_usos`, `leccion_acciones` (migration `142_lecciones_aprendidas`). Codes `LEC-0001` from the numbering service (entity `lesson`). Every create/edit/state change/delete is audited.
+- **Code:** `app/services/lecciones.py`, `app/api/v1/endpoints/lecciones.py`; screens `pages/LeccionesPage.tsx`, `components/lecciones/*`.
+- **Tests:** `tests/test_lecciones_aprendidas_2026_11.py` (9); four planted defects caught.
+- **Measured with the real AI provider (09-11-2026, gemini-2.5-flash):** with 900 tokens the reasoning consumed the limit and the JSON arrived cut at 109 characters; with `LESSONS_AI_MAX_TOKENS` = 4000 the draft arrives complete in ~14 s.
+
+**Limitations.** Recommendations appear in project creation, project and ticket; not in changes or other records. A lesson's scope is taken from its origin (or typed); lessons written by hand without client, type or tags only match by text.
 
 ### Sprints — `/sprints`
 *Roles:* Menu: admin, pm, team_lead. Route: any authenticated user. Writes are `require_any_manager`.
@@ -4107,7 +4136,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 
 **How to use it.**
 1. Open **Settings → Sistema → Config. dinámica**.
-2. Pick one of the **20** group pills, one per group of `RUNTIME_FLAG_GROUPS` (SLA, Service Desk, Automatizaciones, Empresas, Riesgo del proyecto, Health scoring, Semantic, Política contraseñas, Locale y jornada, Tokens, Rotación de claves, IA, Feature flags, Almacenamiento, Red / Proxy, Branding / UI, Observabilidad, Timeouts, Auditoría y cumplimiento, Conectores). Until 2026-11-08 the screen listed its groups by hand and two were missing — **Auditoría y cumplimiento** (6 keys) and the new **Conectores** (11) —: they were read live and nobody could change them from Admin. `tests/test_ajustes_en_vivo_tienen_pantalla_2026_11.py` now fails if a server group has no pill.
+2. Pick one of the **21** group pills, one per group of `RUNTIME_FLAG_GROUPS` (SLA, Service Desk, Automatizaciones, Empresas, Riesgo del proyecto, Health scoring, Semantic, Política contraseñas, Locale y jornada, Tokens, Rotación de claves, IA, Feature flags, Almacenamiento, Red / Proxy, Branding / UI, Observabilidad, Timeouts, Auditoría y cumplimiento, Lecciones aprendidas, Conectores). Until 2026-11-08 the screen listed its groups by hand and two were missing — **Auditoría y cumplimiento** (6 keys) and the new **Conectores** (11) —: they were read live and nobody could change them from Admin. `tests/test_ajustes_en_vivo_tienen_pantalla_2026_11.py` now fails if a server group has no pill.
 3. Change a value. The row becomes "dirty".
 4. Save that row. Each save is one `PUT`.
 
@@ -4199,7 +4228,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **20 groups, 199 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **21 groups, 212 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4363,6 +4392,19 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **20 
 | conectores | CONTECINTELLIGENCE_ANALYST_ROLES | str | `admin,pm` | contecintelligence — roles that enter as analyst (CSV); the rest as viewer | rt |
 | conectores | CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS | float | 120.0 | contecintelligence — timeout of a question (s) | rt |
 | conectores | CONTECINTELLIGENCE_HANDOFF_ENABLED | bool | true | contecintelligence — Ask the Data offers to pass a question it cannot answer | rt |
+| lecciones | LESSONS_CATEGORIES | str | `alcance,planificacion,estimacion,tecnica,calidad,comunicacion,cliente,proveedor,equipo,seguridad,operacion,coste` | Lessons — categories (CSV) | rt |
+| lecciones | LESSONS_VALIDATOR_ROLES | str | `admin,pm,team_lead` | Lessons — roles that validate or archive a lesson (CSV) | rt |
+| lecciones | LESSONS_ONLY_VALIDATED | bool | true | Lessons — only validated lessons are recommended | rt |
+| lecciones | LESSONS_AI_DRAFT_ENABLED | bool | true | Lessons — the AI drafts the lesson from the measured facts of its origin | rt |
+| lecciones | LESSONS_AI_MAX_TOKENS | int | 4000 | Lessons — token limit of the AI draft (reasoning models spend part of it thinking) | rt |
+| lecciones | LESSONS_RECOMMENDATIONS_MAX | int | 5 | Lessons — recommendations shown at most | rt |
+| lecciones | LESSONS_RECOMMENDATIONS_MIN_SCORE | float | 0.2 | Lessons — minimum similarity (0-1) to recommend a lesson | rt |
+| lecciones | LESSONS_WEIGHT_CLIENT | float | 0.3 | Lessons — weight of «same client» | rt |
+| lecciones | LESSONS_WEIGHT_PROJECT_TYPE | float | 0.15 | Lessons — weight of «same project type» | rt |
+| lecciones | LESSONS_WEIGHT_TAGS | float | 0.2 | Lessons — weight of shared tags (by overlap) | rt |
+| lecciones | LESSONS_WEIGHT_CATEGORY | float | 0.15 | Lessons — weight of «same catalogue service or CI» (tickets) | rt |
+| lecciones | LESSONS_WEIGHT_TEXT | float | 0.2 | Lessons — weight of text similarity | rt |
+| lecciones | LESSONS_PENDING_LOOKBACK_DAYS | int | 180 | Lessons — closed projects, problems, incidents and sprints of the last N days count as pending | rt |
 | audit | RETENTION_MIN_DAYS | int | 30 | Retention — no policy may keep a record type for fewer days than this | rt |
 | automations | APPROVAL_EMAIL_LINK_HOURS | int | 72 | Approvals — hours the approve/reject link of the email is valid | rt |
 | automations | AUTOMATIONS_DEADLINE_DAYS | int | 2 | "Task due soon": days before the due date | rt |
@@ -5324,7 +5366,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 339)
+#### 4.2 Settings fields (`Settings`, 352)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5702,6 +5744,19 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `CONTECINTELLIGENCE_ANALYST_ROLES` | `'admin,pm'` | contecintelligence — roles that enter as analyst (CSV) |
 | `CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS` | `120.0` | contecintelligence — timeout of a question (s) |
 | `CONTECINTELLIGENCE_HANDOFF_ENABLED` | `True` | contecintelligence — Ask the Data offers to pass a question |
+| `LESSONS_CATEGORIES` | `'alcance,planificacion,estimacion,tecnica,calidad,comunicacion,cliente,proveedor,equipo,seguridad,operacion,coste'` | Lessons — categories (CSV) |
+| `LESSONS_VALIDATOR_ROLES` | `'admin,pm,team_lead'` | Lessons — roles that validate or archive a lesson (CSV) |
+| `LESSONS_ONLY_VALIDATED` | `True` | Lessons — only validated lessons are recommended |
+| `LESSONS_AI_DRAFT_ENABLED` | `True` | Lessons — the AI drafts the lesson from the measured facts of its origin |
+| `LESSONS_AI_MAX_TOKENS` | `4000` | Lessons — token limit of the AI draft (reasoning models spend part of it thinking) |
+| `LESSONS_RECOMMENDATIONS_MAX` | `5` | Lessons — recommendations shown at most |
+| `LESSONS_RECOMMENDATIONS_MIN_SCORE` | `0.2` | Lessons — minimum similarity (0-1) to recommend a lesson |
+| `LESSONS_WEIGHT_CLIENT` | `0.3` | Lessons — weight of «same client» |
+| `LESSONS_WEIGHT_PROJECT_TYPE` | `0.15` | Lessons — weight of «same project type» |
+| `LESSONS_WEIGHT_TAGS` | `0.2` | Lessons — weight of shared tags (by overlap) |
+| `LESSONS_WEIGHT_CATEGORY` | `0.15` | Lessons — weight of «same catalogue service or CI» (tickets) |
+| `LESSONS_WEIGHT_TEXT` | `0.2` | Lessons — weight of text similarity |
+| `LESSONS_PENDING_LOOKBACK_DAYS` | `180` | Lessons — closed projects, problems, incidents and sprints of the last N days count as pending |
 
 #### 4.3 Variables read directly with `os.getenv` (not in `Settings`)
 

@@ -959,6 +959,7 @@ MODULOS_DE_IA = {
     "client_portal": "Chat del portal de cliente",
     "voice": "Comandos de voz",
     "v16": "Módulos de IA (RCA, KB, previsiones)",
+    "lessons_learned": "Lecciones aprendidas: borrador desde los hechos",
 }
 _CLAVE_RUTAS = "ai_routing"
 

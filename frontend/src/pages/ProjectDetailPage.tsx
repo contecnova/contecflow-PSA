@@ -6,8 +6,9 @@ import { projectsApi, tasksApi, risksApi } from '../services/api'
 import { Spinner, LoadBar as LoadBarRaw } from '../components/ui'
 import { fmtDate, fmtCurrency, TYPE_LABELS } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
-import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check, Sparkles, FileText } from 'lucide-react'
+import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check, Sparkles, FileText, Lightbulb } from 'lucide-react'
 import DocumentosDeFicha from '../components/conectores/DocumentosDeFicha'
+import LeccionesDelProyecto from '../components/lecciones/LeccionesDeOrigen'
 import SmartScheduleModal from '../components/SmartScheduleModal'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
@@ -404,6 +405,7 @@ export default function ProjectDetailPage() {
     { id: 'team',      label: t('project_detail.tab_team'),     icon: Users },
     { id: 'risks',     label: t('project_detail.tab_risks'),    icon: AlertTriangle },
     { id: 'documents', label: t('project_detail.tab_documents'), icon: FileText },
+    { id: 'lessons',   label: t('project_detail.tab_lessons'), icon: Lightbulb },
   ]
   const STATUS_CFG: Record<string, { color: string; label: string }> = {
     planning:  { color: STATUS_COLOR_MAP.planning,  label: t('project_detail.status_planning') },
@@ -606,6 +608,7 @@ export default function ProjectDetailPage() {
           : tab === 'team'      ? <TeamTab projectId={id} />
           : tab === 'risks'     ? <RisksTab projectId={id} />
           : tab === 'documents' && id ? <DocumentosDeFicha ficha="project" id={id} preguntar />
+          : tab === 'lessons' && id ? <LeccionesDelProyecto id={id} cerrado={['completed', 'closed'].includes(String(project?.status))} />
           : null
         }
       </div>

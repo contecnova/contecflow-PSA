@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import LeccionesQueAplican from '../components/lecciones/LeccionesQueAplican'
 import type { CSSProperties } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -414,6 +415,12 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
           <textarea value={form.description} onChange={set('description')} rows={3}
             style={{ ...fs, resize: 'vertical' }} placeholder={traducir('projects.descripcion_del_proyecto')} aria-label={traducir('projects.descripcion_del_proyecto')} />
         </div>
+        {/* Revisión 2026-11: antes de crear, lo que aprendimos en proyectos parecidos. */}
+        {!isEdit && (form.client_id || form.project_type) && (
+          <div style={{ gridColumn: '1 / -1' }}>
+            <LeccionesQueAplican contexto="nuevo_proyecto" campos={{ cliente_id: form.client_id || null, tipo_proyecto: form.project_type || null, nombre: form.name, descripcion: form.description }} />
+          </div>
+        )}
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => { if (validateForm()) mutate(form) }} disabled={isPending || !form.name || !form.project_type} loading={isPending}>

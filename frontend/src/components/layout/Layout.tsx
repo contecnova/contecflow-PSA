@@ -31,7 +31,7 @@ import {
   Search, LogOut, ChevronRight, ChevronLeft, Menu, X, Activity,
   Timer, Flag, Layers, Shield, Keyboard, BarChart, LayoutGrid,
   Wrench, GitMerge, FolderOpen, ScrollText, ClipboardCheck,
-  CalendarRange, Plus, Inbox, Database, Wallet, MessageSquareText,
+  CalendarRange, Plus, Inbox, Database, Wallet, MessageSquareText, Lightbulb,
 } from 'lucide-react'
 
 const ROUTE_LABELS: Record<string, string> = {
@@ -58,7 +58,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/sla-calendars': 'SLA Calendars', '/agent-dashboard': 'Agent Dashboard',
   '/reports': 'Reports', '/report-builder': 'Report Builder',
   '/executive': 'Executive Dashboard',
-  '/data-explorer': 'Data Explorer', '/ask-company': 'Ask the company', '/predictions': 'Predictions',
+  '/data-explorer': 'Data Explorer', '/ask-company': 'Ask the company', '/lessons': 'Lessons learned', '/predictions': 'Predictions',
   '/data-platform': 'Data Platform', '/data-governance': 'Data Governance',
   '/evm': 'EVM — Earned Value', '/portfolio': 'Project Portfolio', '/sprint-charts': 'Burnup & Velocity',
   '/cumulative-flow': 'Cumulative Flow', '/risk-scores': 'Project Risk',
@@ -109,7 +109,7 @@ const ROUTE_SECTION: Record<string, string> = {
   '/sla-calendars': 'Support', '/agent-dashboard': 'Support',
   '/reports': 'Analytics', '/report-builder': 'Analytics',
   '/executive': 'Analytics',
-  '/data-explorer': 'Analytics', '/ask-company': 'Analytics', '/predictions': 'Analytics',
+  '/data-explorer': 'Analytics', '/ask-company': 'Analytics', '/lessons': 'Projects', '/predictions': 'Analytics',
   '/data-platform': 'Analytics', '/data-governance': 'Analytics',
   '/evm': 'Analytics', '/portfolio': 'Analytics', '/sprint-charts': 'Analytics',
   '/cumulative-flow': 'Analytics', '/risk-scores': 'Analytics',
@@ -139,7 +139,7 @@ const PATH_NAV_KEY: Record<string, string> = {
   '/org-chart': 'org_chart', '/milestone-billing': 'milestone_billing',
   '/rate-cards': 'rate_cards', '/service-desk': 'service_desk',
   '/agent-dashboard': 'agent_dashboard', '/report-builder': 'report_builder',
-  '/data-explorer': 'data_explorer', '/ask-company': 'ask_company', '/predictions': 'predictions',
+  '/data-explorer': 'data_explorer', '/ask-company': 'ask_company', '/lessons': 'lessons', '/predictions': 'predictions',
   '/data-platform': 'data_platform', '/data-governance': 'data_governance',
   '/sprint-charts': 'sprint_charts', '/cumulative-flow': 'cumulative_flow',
   '/risk-scores': 'risk_scores', '/ai-hub': 'ai_hub', '/nexus-agent': 'nexus_agent',
@@ -281,6 +281,7 @@ const NAV_GROUPS: NavGroupConfig[] = [
   { id: 'proyectos', label: 'Projects', groupKey: 'group_projects', icon: <Folder size={12} />, roles: ['admin','pm','team_lead'], items: [
     { to: '/projects-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Salud del portfolio', roles: ['admin','pm','team_lead'] },
     { to: '/projects',        icon: <FolderOpen size={SZ} />,     label: 'Projects',            roles: ['admin','pm','team_lead'] },
+    { to: '/lessons',         icon: <Lightbulb size={SZ} />,      label: 'Lessons learned',     roles: ['admin','pm','team_lead'] },
     { to: '/sprints',         icon: <RefreshCw size={SZ} />,      label: 'Sprints',             roles: ['admin','pm','team_lead'] },
     { to: '/sprint-planning', icon: <Sparkles size={SZ} />,       label: 'Sprint Planning AI',  roles: ['admin','pm'] },
     { to: '/raci',            icon: <Shield size={SZ} />,          label: 'RACI Matrix',         roles: ['admin','pm','team_lead'] },
