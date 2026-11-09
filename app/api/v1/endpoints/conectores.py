@@ -139,9 +139,10 @@ async def cm_subir(entidad: str, entidad_id: str, file: UploadFile = File(...),
                    titulo: Optional[str] = Form(None, max_length=500), nota: Optional[str] = Form(None, max_length=500),
                    db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
     contenido = await file.read()
+    from app.core.async_db import run_db
     with _traducir():
-        return APIResponse.ok(data=cm.subir(db, current_user, entidad, entidad_id, contenido,
-                                            file.filename or "documento", file.content_type, titulo, nota))
+        return APIResponse.ok(data=await run_db(cm.subir, db, current_user, entidad, entidad_id, contenido,
+                                                file.filename or "documento", file.content_type, titulo, nota))
 
 
 @router.delete("/contecmind/fichas/{entidad}/{entidad_id}/documentos/{enlace_id}",

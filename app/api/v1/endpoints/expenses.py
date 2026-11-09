@@ -234,7 +234,8 @@ async def ocr_receipt(
     # bytes mágicos y que el tipo real coincida con el declarado, y acota el
     # tamaño ANTES de bufferizar el fichero completo.
     image_bytes = await read_and_validate_upload(file, UploadProfile.RECEIPT)
-    extracted = await svc_ocr_receipt(db, current_user, image_bytes, file.content_type)
+    from app.core.async_db import run_db
+    extracted = await run_db(svc_ocr_receipt, db, current_user, image_bytes, file.content_type)
     return APIResponse.ok(data={"ok": True, "extracted": extracted})
 
 
@@ -298,8 +299,9 @@ def list_attachments(expense_id: str, db: Session = Depends(get_db), current_use
 async def add_attachment(expense_id: str, file: UploadFile = File(...), db: Session = Depends(get_db),
                          current_user: User = Depends(require_internal_user)):
     contenido = await read_and_validate_upload(file, UploadProfile.RECEIPT)
-    return APIResponse.ok(data=gav.subir_adjunto(db, current_user, expense_id, contenido, file.filename or "justificante",
-                                                 file.content_type))
+    from app.core.async_db import run_db
+    return APIResponse.ok(data=await run_db(gav.subir_adjunto, db, current_user, expense_id, contenido,
+                                            file.filename or "justificante", file.content_type))
 
 
 @router.get("/attachments/{attachment_id}/url", summary="URL firmada y de corta vida para ver el justificante")

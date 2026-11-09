@@ -1,7 +1,6 @@
 """Gastos: kilometraje, políticas que bloquean o avisan, justificantes, reparto y flujo (revisión 2026-11)."""
 from __future__ import annotations
 
-import asyncio
 import json
 
 import uuid
@@ -170,7 +169,7 @@ def test_el_ocr_manda_el_pdf_como_adjunto_por_la_puerta_comun(db, monkeypatch):
         visto.update(mensajes=mensajes, **k)
         return json.dumps({"amount": 12.5, "currency": "EUR", "category": "inventada"})
     monkeypatch.setattr(ai_provider_service, "call_ai", falso)
-    r = asyncio.run(expense_service.ocr_receipt(db, None, b"%PDF-1.4", "application/pdf"))
+    r = (expense_service.ocr_receipt(db, None, b"%PDF-1.4", "application/pdf"))
     assert visto["mensajes"][0]["adjuntos"][0]["media"] == "application/pdf" and visto["module"] == "expenses_ocr"
     assert r["amount"] == 12.5 and r["category"] == "other"
 

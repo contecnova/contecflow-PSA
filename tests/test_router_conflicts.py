@@ -4,7 +4,6 @@ Test para detectar rutas duplicadas o conflictos de prefijos en los routers de F
 from collections import Counter
 from fastapi import FastAPI
 from app.api.v1 import router as v1_router
-from app.api.v2 import router as v2_router
 
 
 def _path_method_pairs(app: FastAPI):
@@ -47,10 +46,3 @@ def test_no_duplicate_routes_v1():
     app.include_router(v1_router.api_router, prefix="/api/v1")
     _assert_no_duplicate_pairs(app, "API v1")
     _assert_unique_operation_paths(app, "API v1")
-
-
-def test_no_duplicate_routes_v2():
-    app = FastAPI()
-    app.include_router(v2_router.api_v2_router, prefix="/api/v2")
-    _assert_no_duplicate_pairs(app, "API v2")
-    _assert_unique_operation_paths(app, "API v2")

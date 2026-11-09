@@ -7,7 +7,6 @@ configurado como Gemini, esas funciones no iban.
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import re
 from pathlib import Path
@@ -50,7 +49,7 @@ def test_EL_HALLAZGO_el_ocr_funciona_con_gemini(db, monkeypatch):
         def json(self):
             return {"candidates": [{"content": {"parts": [{"text": json.dumps({"amount": 9, "category": "meals"})}]}}]}
     monkeypatch.setattr(s.httpx, "post", lambda url, json=None, **k: enviado.update(url=url, cuerpo=json) or R())
-    r = asyncio.run(expense_service.ocr_receipt(db, None, b"\x89PNG", "image/png"))
+    r = (expense_service.ocr_receipt(db, None, b"\x89PNG", "image/png"))
     assert "generativelanguage" in enviado["url"] or ":generateContent" in enviado["url"]
     assert enviado["cuerpo"]["contents"][-1]["parts"][0]["inline_data"]["mime_type"] == "image/png"
     assert (r["amount"], r["category"]) == (9, "meals")

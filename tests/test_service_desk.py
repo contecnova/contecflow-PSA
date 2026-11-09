@@ -392,12 +392,16 @@ def test_ticket_restore_pending_and_time_unit_dropdown_backend(client, admin_tok
 def test_public_status_and_embed_routes(client, db):
     res_status = client.get("/status")
     assert res_status.status_code == 200
-    assert "Service Status" in res_status.text
+    # Revisión 2026-11: la página va en el idioma de la empresa y se pinta con
+    # su script, servido aparte por la CSP.
+    assert "Estado del servicio" in res_status.text and "/status/page.js" in res_status.text
+    assert client.get("/status/page.js").status_code == 200
 
     res_embed = client.get("/status/embed.js")
     assert res_embed.status_code == 200
-    assert "Service Status" in res_embed.text
+    assert "Estado del servicio" in res_embed.text
 
     res_widget = client.get("/widget/ticket.js")
     assert res_widget.status_code == 200
-    assert "data-client-token" in res_widget.text
+    # Revisión 2026-11: el widget usa el token del formulario público (`data-form`).
+    assert "data-form" in res_widget.text

@@ -4,7 +4,7 @@ expense_service.py — Lógica de negocio para gastos.
 Funciones exportadas:
   review_expense(expense_id, approved, rejection_reason, current_user, db)
   export_expenses_excel(date_from, date_to, status, category, db) -> StreamingResponse
-  ocr_receipt(image_bytes, content_type) -> dict  (async)
+  ocr_receipt(db, usuario, image_bytes, content_type) -> dict  (síncrona: el endpoint la pasa por run_db)
 """
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
-from starlette.concurrency import run_in_threadpool
 
 from app.core.config import settings
 from app.models.user import User
@@ -196,7 +195,7 @@ def export_expenses_excel(
 
 # ── OCR receipt ────────────────────────────────────────────────────────────────
 
-async def ocr_receipt(db: Session, usuario, image_bytes: bytes, content_type: str) -> dict:
+def ocr_receipt(db: Session, usuario, image_bytes: bytes, content_type: str) -> dict:
     """Lee un recibo (imagen o PDF) con el proveedor de IA de la empresa.
 
     Revisión 2026-11: iba directo a Anthropic con `ANTHROPIC_API_KEY`; con otro
@@ -220,8 +219,8 @@ async def ocr_receipt(db: Session, usuario, image_bytes: bytes, content_type: st
     )
     mensaje = {"role": "user", "content": "Por favor extrae los datos de este recibo.",
                "adjuntos": [{"media": content_type, "datos": base64.b64encode(image_bytes).decode()}]}
-    texto = await run_in_threadpool(
-        call_ai, db, [mensaje], system=sistema, module="expenses_ocr", user_id=getattr(usuario, "id", None),
+    texto = call_ai(
+        db, [mensaje], system=sistema, module="expenses_ocr", user_id=getattr(usuario, "id", None),
         max_tokens=500, is_superadmin=bool(getattr(usuario, "is_superadmin", False)),
         organization_id=getattr(usuario, "organization_id", None))
     if es_aviso_de_ia(texto):

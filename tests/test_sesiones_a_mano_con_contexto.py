@@ -62,6 +62,11 @@ EXENTAS = {
     # busca la llamada al ayudante y este sitio no la usa.
     ("app/api/v1/endpoints/service_desk/ai_auto_resolution.py",
      "_run_job_in_background"),
+    # Revisión 2026-11. Sólo identifica la conexión del flujo de BI (ticket de
+    # un uso o JWT): todavía no hay sujeto cuyo contexto publicar, y no lee
+    # datos de negocio. Los datos los lee `_organizacion_del_usuario`, que abre
+    # su propia sesión y sí publica el contexto.
+    ("app/api/v1/endpoints/bi_intelligence.py", "_autorizar_flujo_de_bi"),
 }
 
 
