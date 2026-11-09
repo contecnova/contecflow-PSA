@@ -733,6 +733,12 @@ def _serializar(filas, columns: List[str]) -> List[Dict]:
 _MAX_FILAS_SIN_PAGINAR = 2000
 
 
+def _con_mascaras(db: Session, current_user: User, entity: str, filas: list) -> list:
+    """Las máscaras RGPD de la empresa para esta entidad (Gobierno del dato → Máscaras)."""
+    from app.services.bi_gdpr_service import aplicar_mascaras
+    return aplicar_mascaras(db, getattr(current_user, "organization_id", None), entity, filas)
+
+
 def execute_report(
     entity: str, columns: List[str], filters: list, sort_column: Optional[str],
     sort_direction: str, limit: int, current_user: User, db: Session,
@@ -742,7 +748,7 @@ def execute_report(
         entity, columns, filters, sort_column, sort_direction, current_user, db
     )
     filas = db_query.limit(min(limit, _MAX_FILAS_SIN_PAGINAR)).all()
-    return _serializar(filas, columns)
+    return _con_mascaras(db, current_user, entity, _serializar(filas, columns))
 
 
 def execute_report_paginated(
@@ -755,7 +761,7 @@ def execute_report_paginated(
     )
     items, total, pages = paginate_query(db_query, page, page_size)
     return {
-        "items": _serializar(items, columns),
+        "items": _con_mascaras(db, current_user, entity, _serializar(items, columns)),
         "total": total,
         "page": page,
         "page_size": page_size,

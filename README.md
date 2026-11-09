@@ -3412,8 +3412,9 @@ There are no filters.
 - **Lists.** Some routes return the list already unwrapped by the interceptor and others return `{items}` inside `data`; the screen reads both with `unwrapList`. Checked in the browser on a database copy: the DSR, consent, mask and shared-view lists show their rows. The 5 collaboration tabs use the same reader; they were not checked with data.
 - **Some forms always fail with 422, silently:** "Registrar acceso", lineage "Añadir", "Clasificar" (field and enum mismatch), and mask type "partial".
 - **The policy editor saves nothing.** The backend accepts only 3 fields, yet the UI says "Política creada". "Anomalías detectadas" and "Checks ejecutados" are always 0.
-- **Erasure is narrow.** It does not touch other tables, consent history or DuckDB `dim_user`. Resolving the DSR afterwards re-records the subject id.
-- **Masks and classifications are stored but never enforced.** Consent is keyed by user only, so a new purpose overwrites the previous one.
+- **Erasure covers** the user row, ticket requester fields, consents and consent history; the resolved request keeps the subject id pseudonymised. It does not touch other tables or DuckDB `dim_user`.
+- **Masks are applied** by the report engine (Report builder, Data Explorer and CSV export): `pseudonymize`/`hash` → a hash, `redact` → `***`, `suppress` → empty. Field classifications are stored but not enforced.
+- Consent is kept per user and purpose.
 
 ### NexusAgent — `/nexus-agent`
 *Roles:* admin, pm (route). Backend: `require_any_manager`.

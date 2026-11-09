@@ -90,8 +90,8 @@ def record_consent(
         "channel": channel,
         "updated_at": now,
     }
-    consents: dict = _get_setting(db, _KEY_CONSENT, org_id, {})
-    consents[user_id] = entry
+    consents: dict = _consentimientos(db, org_id)
+    consents.setdefault(user_id, {})[purpose] = entry
     _set_setting(db, _KEY_CONSENT, org_id, consents)
 
     # Append to per-user audit history
@@ -111,13 +111,24 @@ def record_consent(
     return entry
 
 
-def get_consent(db: Session, *, user_id: str, org_id: Optional[str]) -> Optional[dict]:
-    consents = _get_setting(db, _KEY_CONSENT, org_id, {})
-    return consents.get(user_id)
+def _consentimientos(db: Session, org_id: Optional[str]) -> dict:
+    """{usuario: {propósito: registro}}.
+
+    Revisión 2026-11: se guardaba uno por usuario y un consentimiento para otro
+    propósito pisaba el anterior. Lo guardado con la forma antigua (un registro
+    por usuario) se lee convertido.
+    """
+    crudo: dict = _get_setting(db, _KEY_CONSENT, org_id, {}) or {}
+    return {u: ({v.get("purpose") or "analytics": v} if isinstance(v, dict) and "user_id" in v else dict(v or {}))
+            for u, v in crudo.items()}
+
+
+def get_consent(db: Session, *, user_id: str, org_id: Optional[str], purpose: str = "analytics") -> Optional[dict]:
+    return _consentimientos(db, org_id).get(user_id, {}).get(purpose)
 
 
 def list_consents(db: Session, *, org_id: Optional[str]) -> list[dict]:
-    return list(_get_setting(db, _KEY_CONSENT, org_id, {}).values())
+    return [e for por_proposito in _consentimientos(db, org_id).values() for e in por_proposito.values()]
 
 
 def get_consent_history(db: Session, *, user_id: str, org_id: Optional[str]) -> list[dict]:
@@ -180,13 +191,20 @@ def resolve_dsr(
     dsrs[dsr_id]["resolution_notes"] = resolution_notes
     _set_setting(db, _KEY_DSR, org_id, dsrs)
 
-    # If erasure: revoke consent automatically and optionally execute anonymization.
+    # Borrado. Revisión 2026-11: antes se registraba primero la revocación, que
+    # volvía a escribir el identificador del interesado en consentimientos e
+    # historial justo antes de borrar. Con el borrado, se borra todo y la
+    # solicitud guarda el identificador seudonimizado; sin él, sólo se revoca.
     if dsrs[dsr_id]["request_type"] == "erasure":
-        record_consent(db, user_id=dsrs[dsr_id]["subject_id"], consented=False, org_id=org_id)
+        sujeto = dsrs[dsr_id]["subject_id"]
         if execute_erasure_pipeline:
-            report = execute_erasure(db, subject_id=dsrs[dsr_id]["subject_id"], org_id=org_id)
+            report = execute_erasure(db, subject_id=sujeto, org_id=org_id)
+            report["subject_id"] = _anon_hash(sujeto)
             dsrs[dsr_id]["erasure_report"] = report
+            dsrs[dsr_id]["subject_id"] = _anon_hash(sujeto)
             _set_setting(db, _KEY_DSR, org_id, dsrs)
+        else:
+            record_consent(db, user_id=sujeto, consented=False, org_id=org_id)
 
     return dsrs[dsr_id]
 
@@ -222,7 +240,7 @@ def get_dsr_stats(db: Session, *, org_id: Optional[str]) -> dict:
         # intentional: best-effort fallback, log noise outweighs diagnostic value
         except Exception:
             logger.debug("get_dsr_stats: fallo best-effort ignorado", exc_info=True)
-    consents = list(_get_setting(db, _KEY_CONSENT, org_id, {}).values())
+    consents = list_consents(db, org_id=org_id)
     consented_count = sum(1 for c in consents if c.get("consented"))
     by_type: dict[str, int] = {}
     for d in dsrs:
@@ -331,6 +349,24 @@ def set_field_mask(
     return masks[key]
 
 
+def aplicar_mascaras(db: Session, org_id: Optional[str], dataset: str, filas: list) -> list:
+    """Aplica las máscaras de campo de `dataset` a las filas (revisión 2026-11).
+
+    Se guardaban y nada las aplicaba. Ahora el motor de informes —constructor,
+    Explorador de datos y exportación CSV— pasa por aquí.
+    """
+    mascaras = {m["field"]: m["mask_type"] for m in (_get_setting(db, _KEY_MASKS, org_id, {}) or {}).values()
+                if m.get("dataset") == dataset}
+    if not mascaras:
+        return filas
+    for fila in filas:
+        for campo, tipo in mascaras.items():
+            if campo in fila and fila[campo] not in (None, ""):
+                fila[campo] = (None if tipo == "suppress" else "***" if tipo == "redact"
+                               else _anon_hash(str(fila[campo])))
+    return filas
+
+
 def list_field_masks(db: Session, *, org_id: Optional[str]) -> list[dict]:
     return list(_get_setting(db, _KEY_MASKS, org_id, {}).values())
 
@@ -410,11 +446,15 @@ def execute_erasure(db: Session, *, subject_id: str, org_id: Optional[str]) -> d
         })
 
     # ── Purge analytics consent & DSR snapshot (no historical PII) ───────────
-    consents: dict = _get_setting(db, _KEY_CONSENT, org_id, {})
-    if subject_id in consents:
-        del consents[subject_id]
-        _set_setting(db, _KEY_CONSENT, org_id, consents)
-        report["operations"].append({"table": "appsetting[bi.gdpr.consent]", "action": "deleted", "key": subject_id})
+    claves = {subject_id} | ({user.id} if user else set())
+    for clave_ajuste, nombre in ((_KEY_CONSENT, "consent"), (_KEY_CONSENT_HISTORY, "consent_history")):
+        datos: dict = _get_setting(db, clave_ajuste, org_id, {}) or {}
+        quitadas = [k for k in claves if k in datos]
+        for k in quitadas:
+            del datos[k]
+        if quitadas:
+            _set_setting(db, clave_ajuste, org_id, datos)
+            report["operations"].append({"table": f"appsetting[bi.gdpr.{nombre}]", "action": "deleted"})
 
     db.commit()
     return report
