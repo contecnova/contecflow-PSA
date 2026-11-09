@@ -1991,6 +1991,8 @@ const es = {
     subtitle: 'Crea y exporta informes',
   },
   ai_inline: {
+    aplicado: "Texto cambiado por la IA.",
+    deshacer: "Deshacer",
     field_empty: 'Campo vacío',
     empty_response: 'Respuesta vacía',
     contact_error: 'Error de contacto',

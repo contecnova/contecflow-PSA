@@ -3399,6 +3399,8 @@ const en = {
     subtitle: 'Create and export reports',
   },
   ai_inline: {
+    aplicado: "Text changed by AI.",
+    deshacer: "Undo",
     esc_cancel: 'ESC to cancel',
     commands_title: 'Commands',
     field_empty: 'Empty field',

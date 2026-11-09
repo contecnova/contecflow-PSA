@@ -204,7 +204,7 @@ These are `Settings` fields: `COLLAB_CALL_START_PER_MIN`, `COLLAB_CALL_JOIN_PER_
    - **Board and list show the same tasks.** Both use `GET /tasks` with the same filters, up to 500 tasks; if there are more, a notice says how many are shown («Se muestran N de M»).
    - **Kanban board:** swimlanes (none / by person / by priority; saved per project when an admin or PM changes them), WIP limit per column (button «WIP» in the column header, admin or PM, saved per project; the counter shows `n / limit` and turns red over it), quick add per column (project selected), sprint filter (project selected), `/` to search, and the **Historial** tab in the task detail. Column headers follow the interface language. Tests: `frontend/src/__tests__/TasksPageKanban.test.tsx`, `tests/test_tablero_filtros_sprint_2026_11.py`.
    - **Kanban view.** The board always shows: without a project it groups by status the same tasks the list would show, with the same filters (cancelled ones excluded, as in the project board), including the `backlog` column, and cards can be dragged between columns. Test: `frontend/src/__tests__/TasksPageKanban.test.tsx`.
-2. **Create:** title, project, assignee, priority (`critical | high | medium | low`), start and due dates, estimated hours, tags, description. The description has an inline AI editor that calls `/ai/chat`. A blocked reason is also editable.
+2. **Create:** title, project, assignee, priority (`critical | high | medium | low`), start and due dates, estimated hours, tags, description. The description has an inline AI editor that calls `/ai/texto`. A blocked reason is also editable.
 3. **Detail modal** tabs: detail, comments, docs.
    - Edit any field. Status options come from the project workflow (`GET /project-workflows/{project_id}`, table `workflow_states`). If the project has none, the default list is used.
    - Custom field values: `/custom-fields/{project_id}/values/{task_id}`.
@@ -2806,7 +2806,8 @@ If the chosen provider fails, every other active provider is tried once. If none
 
 | Capability | Mechanism | Needs an LLM provider? | Behaviour without one |
 |---|---|---|---|
-| NexusAssist chat (floating panel, Cmd+I) and `AIInlineEditor` | LLM (`call_ai`, module `nexusassist`) | Yes | The warning text is stored as the assistant's reply. In the inline editor it **overwrites or appends to the field**. |
+| NexusAssist chat (floating panel, Cmd+I) | LLM (`call_ai`, module `nexusassist`) | Yes | The warning text is stored as the assistant's reply. |
+| `AIInlineEditor` | LLM (`POST /ai/texto`, module `inline_editor`) | Yes | Without a provider it shows an error and leaves the field as it was. |
 | NexusAgent (`/nexus-agent`) | LLM with real tool/function calling (37 tools, 7 of them write) | Yes, and the provider must support tools (Ollama does not) | Text-only "degraded mode" through `call_ai`, which also needs a provider |
 | BI narrative (`NarrativeCard`) | LLM (module `bi_storytelling`) | Optional | Template text built from KPIs |
 | Ask the Data (`AskDataWidget`) | LLM writes SQL, which then runs on DuckDB | Yes, in practice | 3 keyword-matched SQL fallbacks. All 3 fail on DuckDB (see Data Explorer). |
@@ -3495,7 +3496,8 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
   6. An action log row is written.
 
 **Limitations (measured).**
-- **Without a provider the warning becomes a reply.** It is stored as the assistant's answer. In the inline editor, the warning or error text **replaces or is appended to the user's field**, and every inline call creates a new conversation.
+- **Without a provider the warning becomes a reply** in the chat, stored as the assistant's answer.
+- **The inline editor** (`/mejorar`, `/resumir`…) calls `POST /ai/texto`: it saves no conversation, a missing provider is an error that leaves the field as it was, and after a change it offers **Deshacer**.
 - **The original text is stored even when a policy redacts it.** The message is persisted before redaction.
 - **Knowledge-base retrieval is keyword-only under TF-IDF.** With the default TF-IDF backend no KB vector is stored, so retrieval works by words (accent-insensitive, by stem). It searches the Service Desk base, cites the articles it uses and applies expert corrections. See *Knowledge base → Quality loop*.
 - **Token counts are not recorded.** `tokens_used` is stored as 0 on messages; real token counts are only in `ai_usage_logs`.

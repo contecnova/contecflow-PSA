@@ -3393,6 +3393,8 @@ const zh = {
     subtitle: "创建并导出报表",
   },
   ai_inline: {
+    aplicado: "文本已由 AI 修改。",
+    deshacer: "撤销",
     esc_cancel: '按 ESC 取消',
     commands_title: '命令',
     field_empty: "字段为空",

@@ -55,6 +55,8 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
   const [filter, setFilter]   = useState('');       // text after "/"
   const [loading, setLoading] = useState(false);    // AI in progress
   const [error, setError]     = useState('');
+  // Revisión 2026-11: el texto de antes de aplicar la IA, para poder deshacer.
+  const [anterior, setAnterior] = useState<string | null>(null);
   const [slashPos, setSlashPos] = useState(-1);     // caret position of "/"
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -142,11 +144,10 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
 
     setLoading(true);
     try {
-      const res = await nexusAgentApi.chat({
-        message: PROMPT_MAP[cmd](contextText || ''),
-        context_type: 'inline_editor',
-      });
-      const aiText = res.data?.response || res.data?.message || '';
+      // /ai/texto no guarda conversación y, si no hay proveedor, responde un
+      // error en vez de un aviso: el texto del usuario no se sustituye nunca por él.
+      const res = await nexusAgentApi.texto(PROMPT_MAP[cmd](contextText || ''));
+      const aiText = (res.data as { texto?: string })?.texto || '';
       if (!aiText) throw new Error(t('ai_inline.empty_response'));
 
       let newVal;
@@ -157,6 +158,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
         // Replace full content
         newVal = aiText;
       }
+      setAnterior(value);
       onChange(newVal);
     } catch (err) {
       const e = err as { response?: { data?: { detail?: unknown } }; message?: string }
@@ -237,6 +239,16 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
           color: 'var(--info)', fontSize: "var(--text-base)", pointerEvents: 'none',
         }}>
           {t('ai_inline.processing')}
+        </div>
+      )}
+
+      {anterior !== null && !loading && (
+        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span>{t('ai_inline.aplicado')}</span>
+          <button type="button" onClick={() => { onChange(anterior); setAnterior(null) }}
+            style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", padding: 0, fontFamily: 'inherit' }}>
+            {t('ai_inline.deshacer')}
+          </button>
         </div>
       )}
 

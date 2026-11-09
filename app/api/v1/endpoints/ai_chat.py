@@ -147,6 +147,34 @@ def get_conversation(
 
 
 
+class TextoIn(BaseModel):
+    mensaje: str = Field(..., min_length=1, max_length=20000)
+
+
+@router.post("/ai/texto", summary="Transformar un texto con la IA, sin guardar conversación")
+def transformar_texto(
+    payload: TextoIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_internal_user),
+):
+    """Para el editor en línea (/mejorar, /resumir…). Revisión 2026-11.
+
+    Medido antes: el editor usaba /ai/chat, así que cada uso abría una
+    conversación en el historial del asistente, y si la respuesta era el aviso
+    de «no hay proveedor» la ponía en lugar del texto del usuario. Aquí pasa
+    por la misma puerta (gobernanza, tope de gasto, registro), no guarda nada
+    y un aviso es un 503: el texto del usuario no se toca.
+    """
+    if _check_prompt_injection(payload.mensaje):
+        raise HTTPException(400, "Petición rechazada: el contenido parece intentar manipular el sistema de IA.")
+    texto = call_ai(db, [{"role": "user", "content": payload.mensaje}], module="inline_editor",
+                    user_id=current_user.id, is_superadmin=bool(current_user.is_superadmin),
+                    organization_id=current_user.organization_id)
+    if _gobernado.es_aviso_de_ia(texto):
+        raise HTTPException(503, texto)
+    return APIResponse.ok(data={"texto": texto})
+
+
 @router.post("/ai/chat", summary="NexusAssist — enviar mensaje (respuesta completa)")
 def chat(
     payload: ChatPayload,
