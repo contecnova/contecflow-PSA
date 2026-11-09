@@ -13,10 +13,11 @@ Endpoints:
     GET    /forms/public/{token}   — get form metadata for rendering
     POST   /forms/public/{token}/submit — submit form (creates ticket)
 """
+import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
@@ -25,6 +26,7 @@ from app.core.abac_enforce import enforce_abac
 from app.core.ratelimit import limiter
 from app.models.user import User, UserRole
 from app.services import public_forms_service
+from app.services.widget_de_formulario import TEXTOS
 from app.services.public_forms_service import serialize_form as _form_out
 from app.core.responses import APIListResponse, APIResponse
 
@@ -90,6 +92,10 @@ def create_form(
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: excepcion revisada: un formulario publico abre una puerta sin autenticar, pero la audiencia prevista es PM segun test_public_forms
 ):
+    try:
+        public_forms_service.validar_destino(payload.form_type, payload.target_project_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
     form = public_forms_service.create_form(
         db,
         name=payload.name,
@@ -128,7 +134,12 @@ def update_form(
         raise HTTPException(404, "Formulario no encontrado")
     if form.created_by != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(403, "Acceso denegado")
-    form = public_forms_service.update_form(db, form, payload.model_dump(exclude_none=True))
+    cambios = payload.model_dump(exclude_none=True)
+    try:
+        public_forms_service.validar_destino(form.form_type, cambios.get("target_project_id", form.target_project_id))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    form = public_forms_service.update_form(db, form, cambios)
     return APIResponse.ok(data=_form_out(form))
 
 
@@ -174,19 +185,35 @@ def list_submissions(form_id: str, db: Session = Depends(get_db), current_user: 
 
 # ── Public (unauthenticated) endpoints ────────────────────────────────────────
 
+def _abierto(response: Response) -> None:
+    """Público y sin credenciales: lo usa el widget desde la web del cliente (revisión 2026-11)."""
+    response.headers["Access-Control-Allow-Origin"] = "*"
+
+
+def _idioma(db: Session, form) -> str:
+    from app.services.service_desk.pagina_de_estado_publica import idioma_de
+    idioma = idioma_de(db, getattr(form, "organization_id", None))
+    return idioma if idioma in TEXTOS else "es"
+
+
+
+
 @router.get("/public/{token}", summary="Obtener metadatos de formulario público")
-def get_public_form(token: str, db: Session = Depends(get_db)):
+def get_public_form(token: str, response: Response, db: Session = Depends(get_db)):
+    _abierto(response)
     form = public_forms_service.get_active_form_by_token(db, token)
     if not form:
         raise HTTPException(404, "Formulario no encontrado o inactivo")
+    idioma = _idioma(db, form)
     return {
+        "idioma": idioma,
         "id": form.id,
         "name": form.name,
         "description": form.description,
         "form_type": form.form_type,
         "default_priority": form.default_priority,
         "default_category": form.default_category,
-        "success_message": form.success_message or "¡Gracias! Tu solicitud ha sido enviada.",
+        "success_message": form.success_message or TEXTOS[idioma]["gracias"],
     }
 
 
@@ -196,15 +223,20 @@ def submit_public_form(
     token: str,
     payload: SubmitFormIn,
     request: Request,
+    response: Response,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
+    _abierto(response)
     form = public_forms_service.get_active_form_by_token(db, token)
     if not form:
         raise HTTPException(404, "Formulario no encontrado o inactivo")
 
     priority = payload.priority or form.default_priority
     category = payload.category or form.default_category
-    ip = request.client.host if request.client else None
+    # La IP real tras un proxy de confianza, no la del proxy (revisión 2026-11).
+    from app.core.network import extract_client_ip
+    ip = extract_client_ip(request)
 
     sub, created_entity_id = public_forms_service.submit_form(
         db,
@@ -219,9 +251,13 @@ def submit_public_form(
         ip_address=ip,
     )
 
+    destinatarios = json.loads(form.notify_emails or "[]") if isinstance(form.notify_emails, str) else (form.notify_emails or [])
+    if destinatarios:
+        tareas.add_task(public_forms_service.avisar_por_correo, form.name, destinatarios, payload.subject,
+                        payload.description, payload.submitter_email or payload.submitter_name, created_entity_id)
     return {
         "ok": True,
-        "message": form.success_message or "¡Gracias! Tu solicitud ha sido enviada.",
+        "message": form.success_message or TEXTOS[_idioma(db, form)]["gracias"],
         "submission_id": sub.id,
         "ticket_id": created_entity_id,
     }

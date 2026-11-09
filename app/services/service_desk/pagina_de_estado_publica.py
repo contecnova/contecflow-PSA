@@ -146,4 +146,4 @@ def guion_del_widget(api_v1: str) -> str:
     })
     .catch(function () { target.innerHTML = '<div style="color:#b91c1c;font-size:12px">' + esc((TEXTOS.es).no_disponible) + '</div>'; });
 })();
-""" % (json.dumps(TEXTOS, ensure_ascii=False), json.dumps(api_v1))
+""" % (json.dumps(TEXTOS), json.dumps(api_v1))

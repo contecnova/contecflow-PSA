@@ -118,6 +118,14 @@ def _next_ticket_number(ticket_type: str, db: Session, org_id: Optional[str] = N
     return next_ticket_number(ticket_type, db, org_id)
 
 
+def validar_destino(form_type: str, target_project_id: Optional[str]) -> None:
+    """Un formulario de tareas necesita proyecto: una tarea no existe sin él."""
+    if form_type not in ("ticket", "task"):
+        raise ValueError("form_type: ticket o task")
+    if form_type == "task" and not target_project_id:
+        raise ValueError("Un formulario de tareas necesita un proyecto destino")
+
+
 def submit_form(
     db: Session,
     *,
@@ -131,62 +139,92 @@ def submit_form(
     extra_fields: dict,
     ip_address: Optional[str],
 ) -> tuple[PublicFormSubmission, Optional[str]]:
+    """Guarda el envío y crea el ticket o la tarea, en la empresa del formulario.
+
+    Revisión 2026-11. Medido antes: la petición es anónima, la sesión no tenía
+    empresa y el ticket se creaba con `organization_id` vacío, así que ninguna
+    empresa lo veía en su Service Desk. Además, `form_type="task"` no creaba
+    nada. Ahora todo se hace como la empresa del formulario.
     """
-    Creates a submission record and (if form_type=='ticket') a Ticket.
-    Returns (submission, created_entity_id).
-    """
+    from app.services.service_desk.ticket_events import como_organizacion
+
     created_entity_id = None
     created_entity_type = None
-
-    if form.form_type == "ticket":
+    with como_organizacion(db, form.organization_id):
         sp = db.begin_nested()
         try:
-            ticket = Ticket(
-                number=_next_ticket_number("incident", db, form.organization_id),
-                ticket_type=TicketType.incident,
-                title=subject[:255],
-                description=description or "",
-                priority=map_priority(priority),
-                support_level="l1",
-                project_id=form.target_project_id,
-                assigned_group_id=form.target_group_id,
-                requester_name=submitter_name,
-                requester_email=submitter_email,
-                source="public_form",
-                status=TicketStatus.new,
-            )
-            db.add(ticket)
+            if form.form_type == "ticket":
+                entidad = Ticket(
+                    number=_next_ticket_number("incident", db, form.organization_id),
+                    ticket_type=TicketType.incident,
+                    title=subject[:255],
+                    description=description or "",
+                    priority=map_priority(priority),
+                    support_level="l1",
+                    project_id=form.target_project_id,
+                    assigned_group_id=form.target_group_id,
+                    requester_name=submitter_name,
+                    requester_email=submitter_email,
+                    source="public_form",
+                    status=TicketStatus.new,
+                    organization_id=form.organization_id,
+                )
+            else:
+                from app.models.task import Task, TaskPriority, TaskStatus
+                from app.services.numbering import next_numbered_code
+                quien = " · ".join(x for x in (submitter_name, submitter_email) if x)
+                entidad = Task(
+                    code=next_numbered_code(db, "task", prefix="TSK", padding=5),
+                    project_id=form.target_project_id,
+                    title=subject[:500],
+                    description=(description or "") + (f"\n\n— {quien}" if quien else ""),
+                    priority=TaskPriority(priority) if priority in TaskPriority.__members__ else TaskPriority.medium,
+                    status=TaskStatus.todo,
+                    organization_id=form.organization_id,
+                )
+            db.add(entidad)
             db.flush()
             sp.commit()
-            created_entity_id = ticket.id
-            created_entity_type = "ticket"
+            created_entity_id, created_entity_type = entidad.id, form.form_type
         except Exception as exc:
             sp.rollback()
-            log.warning(
-                "Ticket creation failed during form submit (form=%s): %s",
-                form.id,
-                exc,
-            )
+            log.warning("No se pudo crear %s desde el formulario %s: %s", form.form_type, form.id, exc)
 
-    sub = PublicFormSubmission(
-        id=str(uuid.uuid4()),
-        form_id=form.id,
-        submitter_name=submitter_name,
-        submitter_email=submitter_email,
-        subject=subject,
-        description=description,
-        priority=priority,
-        category=category,
-        extra_fields=json.dumps(extra_fields),
-        created_entity_id=created_entity_id,
-        created_entity_type=created_entity_type,
-        ip_address=ip_address,
-    )
-    db.add(sub)
-    form.submission_count = (form.submission_count or 0) + 1
-    db.commit()
+        sub = PublicFormSubmission(
+            id=str(uuid.uuid4()),
+            form_id=form.id,
+            submitter_name=submitter_name,
+            submitter_email=submitter_email,
+            subject=subject,
+            description=description,
+            priority=priority,
+            category=category,
+            extra_fields=json.dumps(extra_fields),
+            created_entity_id=created_entity_id,
+            created_entity_type=created_entity_type,
+            ip_address=ip_address,
+            organization_id=form.organization_id,
+        )
+        db.add(sub)
+        form.submission_count = (form.submission_count or 0) + 1
+        db.commit()
 
     return sub, created_entity_id
+
+
+def avisar_por_correo(form_nombre: str, destinatarios: list, asunto: str, descripcion: Optional[str],
+                      remitente: Optional[str], referencia: Optional[str]) -> None:
+    """Avisa a `notify_emails` de un envío (revisión 2026-11: se guardaban y no se usaban)."""
+    from html import escape
+    from app.services.notification_service import send_email_notification
+    cuerpo = (f"<p><strong>{escape(form_nombre)}</strong></p><p>{escape(asunto)}</p>"
+              f"<p>{escape(descripcion or '')}</p><p>{escape(remitente or '')}</p>"
+              + (f"<p>{escape(referencia)}</p>" if referencia else ""))
+    for destino in destinatarios or []:
+        try:
+            send_email_notification(destino, f"[{form_nombre}] {asunto}", cuerpo)
+        except Exception:
+            log.warning("No se pudo avisar a %s del formulario %s", destino, form_nombre, exc_info=True)
 
 
 # ── Serialization helper ───────────────────────────────────────────────────

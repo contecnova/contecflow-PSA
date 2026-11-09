@@ -707,6 +707,10 @@ app.add_middleware(
 # (HMAC-verified) and Authorization-header-only requests.
 from app.core.csrf import CSRFMiddleware
 app.add_middleware(CSRFMiddleware)
+# Revisión 2026-11: la petición previa de las rutas públicas de los widgets,
+# por fuera de CORS (ver app/core/cors_publico.py).
+from app.core.cors_publico import CorsPublico  # noqa: E402
+app.add_middleware(CorsPublico)
 
 # ABACMiddleware retirado en la auditoría 2026-08 (hallazgo P1-5).
 #
@@ -773,7 +777,7 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     # El widget de estado lo carga la web de un cliente: otro origen.
     response.headers["Cross-Origin-Resource-Policy"] = (
-        "cross-origin" if path == "/status/embed.js" else "same-origin")
+        "cross-origin" if path in ("/status/embed.js", "/widget/ticket.js") else "same-origin")
     # Legacy Flash/PDF cross-domain policy: ningún dominio puede leerlo.
     response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
     if is_docs_route:
@@ -871,64 +875,21 @@ def public_status_page(org: Optional[str] = Query(None, max_length=100), db: Ses
 def public_status_page_js():
     """El código de la página: aparte, porque la CSP no admite código en línea."""
     from app.services.service_desk.pagina_de_estado_publica import guion_de_pagina
-    return Response(content=guion_de_pagina(settings.API_V1_STR), media_type="application/javascript")
+    return Response(content=guion_de_pagina(settings.API_V1_STR), media_type="application/javascript; charset=utf-8")
 
 
 @app.get("/status/embed.js")
 def status_embed_js():
     """Widget de estado para la web de un cliente (se carga desde otro origen)."""
     from app.services.service_desk.pagina_de_estado_publica import guion_del_widget
-    return Response(content=guion_del_widget(settings.API_V1_STR), media_type="application/javascript")
+    return Response(content=guion_del_widget(settings.API_V1_STR), media_type="application/javascript; charset=utf-8")
 
 
 @app.get("/widget/ticket.js")
 def ticket_widget_js():
-        """Embeddable ticket creation widget for client portal tokens."""
-        js = f"""
-(function() {{
-    var s = document.currentScript;
-    var token = s && s.getAttribute('data-client-token');
-    var apiBase = (s && s.getAttribute('data-api-base')) || window.location.origin + '{settings.API_V1_STR}';
-    if (!token) {{ console.error('Contecflow widget: data-client-token is required'); return; }}
-
-    var btn = document.createElement('button');
-    btn.textContent = 'Abrir soporte';
-    btn.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:99999;background:#0ea5e9;color:#fff;border:0;border-radius:999px;padding:11px 16px;font:600 13px ui-sans-serif,system-ui;cursor:pointer;box-shadow:0 10px 25px rgba(2,132,199,.35)';
-    var panel = document.createElement('div');
-    panel.style.cssText = 'position:fixed;right:18px;bottom:68px;width:340px;max-width:calc(100vw - 24px);background:#fff;border:1px solid #d1d5db;border-radius:12px;z-index:99999;padding:12px;display:none;font:13px ui-sans-serif,system-ui;box-shadow:0 18px 40px rgba(0,0,0,.2)';
-    panel.innerHTML = "<div style='font-weight:700;margin-bottom:8px'>Nuevo ticket</div>" +
-        "<input id='cw-title' placeholder='Asunto' style='width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;margin-bottom:8px'/>" +
-        "<textarea id='cw-body' rows='4' placeholder='Describe el problema' style='width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;margin-bottom:8px'></textarea>" +
-        "<div style='display:flex;gap:8px'><button id='cw-send' style='flex:1;padding:8px;border:0;border-radius:8px;background:#0ea5e9;color:#fff;cursor:pointer'>Enviar</button><button id='cw-close' style='padding:8px 10px;border:1px solid #d1d5db;background:#fff;border-radius:8px;cursor:pointer'>Cerrar</button></div>" +
-        "<div id='cw-msg' style='font-size:12px;color:#6b7280;margin-top:8px'></div>";
-
-    document.body.appendChild(btn);
-    document.body.appendChild(panel);
-    btn.onclick = function() {{ panel.style.display = panel.style.display === 'none' ? 'block' : 'none'; }};
-    panel.querySelector('#cw-close').onclick = function() {{ panel.style.display = 'none'; }};
-    panel.querySelector('#cw-send').onclick = function() {{
-        var title = panel.querySelector('#cw-title').value.trim();
-        var body = panel.querySelector('#cw-body').value.trim();
-        var msg = panel.querySelector('#cw-msg');
-        if (!title || !body) {{ msg.textContent = 'Completa asunto y descripción.'; return; }}
-        msg.textContent = 'Enviando...';
-        fetch(apiBase + '/sd/tickets/client', {{
-            method: 'POST',
-            headers: {{ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }},
-            body: JSON.stringify({{ title: title, description: body, ticket_type: 'incident' }})
-        }})
-        .then(function(r) {{ return r.json().then(function(d) {{ return {{ ok:r.ok, data:d }}; }}); }})
-        .then(function(res) {{
-            if (!res.ok) throw new Error(res.data && (res.data.detail || res.data.message) || 'Error');
-            msg.textContent = 'Ticket creado: ' + (res.data.number || res.data.id);
-            panel.querySelector('#cw-title').value = '';
-            panel.querySelector('#cw-body').value = '';
-        }})
-        .catch(function(e) {{ msg.textContent = 'No se pudo crear el ticket: ' + e.message; }});
-    }};
-}})();
-"""
-        return Response(content=js, media_type="application/javascript")
+    """Widget de solicitudes para la web de un cliente (va con el token de un formulario público)."""
+    from app.services.widget_de_formulario import guion
+    return Response(content=guion(settings.API_V1_STR), media_type="application/javascript; charset=utf-8")
 
 
 

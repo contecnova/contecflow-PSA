@@ -202,10 +202,15 @@ export default function PublicFormsPage() {
 
   const getPublicUrl = (token?: string) => `${window.location.origin}/intake/${token ?? ''}`
 
-  const copyLink = (token?: string) => {
-    const url = getPublicUrl(token)
+  // El widget para la web del cliente: lleva el token del FORMULARIO, que sólo
+  // sirve para enviarlo (revisión 2026-11; antes pedía el token del portal).
+  const getWidgetCode = (token?: string) => `<script src="${window.location.origin}/widget/ticket.js" data-form="${token ?? ''}"></script>`
+
+  const copyLink = (token?: string, texto?: string, aviso?: string) => {
+    const url = texto ?? getPublicUrl(token)
+    const ok = aviso ?? t('public_forms.link_copied')
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).then(() => toast.success(t('public_forms.link_copied')))
+      navigator.clipboard.writeText(url).then(() => toast.success(ok))
     } else {
       // Fallback for non-HTTPS contexts
       const ta = document.createElement('textarea')
@@ -216,7 +221,7 @@ export default function PublicFormsPage() {
       ta.select()
       document.execCommand('copy')
       document.body.removeChild(ta)
-      toast.success(t('public_forms.link_copied'))
+      toast.success(ok)
     }
   }
 
@@ -243,9 +248,9 @@ export default function PublicFormsPage() {
             <div key={form.id} style={{
               background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
               borderRadius: 12, padding: '16px 20px',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
             }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ flex: '1 1 280px', minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                   <span style={{ fontWeight: 700, fontSize: "var(--text-md-em)" }}>{form.name}</span>
                   <span style={{
@@ -263,7 +268,7 @@ export default function PublicFormsPage() {
                 <div style={{
                   fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)',
                   background: 'var(--surface-3)', padding: '4px 10px', borderRadius: 6,
-                  display: 'inline-block', maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {getPublicUrl(form.token)}
                 </div>
@@ -271,8 +276,11 @@ export default function PublicFormsPage() {
                   {t('public_forms.submissions_received').replace('{n}', String(form.submission_count || 0))}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <Button variant="secondary" onClick={() => copyLink(form.token)} style={{ fontSize: "var(--text-sm)" }}>{t('public_forms.copy_link')}</Button>
+                <Button variant="secondary" title={t('public_forms.copy_widget_help')}
+                  onClick={() => copyLink(form.token, getWidgetCode(form.token), t('public_forms.widget_copied'))}
+                  style={{ fontSize: "var(--text-sm)" }}>{t('public_forms.copy_widget')}</Button>
                 <Button variant="secondary" onClick={() => setViewSubs(form)} style={{ fontSize: "var(--text-sm)" }}>{t('public_forms.submissions')}</Button>
                 <Button variant="secondary" onClick={() => setEditing(form)} style={{ fontSize: "var(--text-sm)" }}>{t('public_forms.edit_form')}</Button>
                 <Button variant="danger" style={{ fontSize: "var(--text-sm)" }} onClick={() =>

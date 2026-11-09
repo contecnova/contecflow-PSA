@@ -4934,21 +4934,19 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 ### Public forms — `/public-forms`
 *Roles:* route `admin`, `pm`. Create, update and delete need `require_admin_or_pm`. The public endpoints are anonymous.
 
-**Purpose.** Anonymous intake forms that create Service Desk tickets.
+**Purpose.** Anonymous intake forms that create Service Desk tickets or project tasks, on their own page or inside the company's website.
 
 **How to use it.**
-1. Create a form: name, description, type, active, target project, target group, default priority and category, success message, notify emails.
-2. Copy its public link. The front end renders it at `/intake/:token` (`IntakeFormPage`, no login).
-3. Review submissions per form.
+1. Create a form: name, description, type (ticket or task), active, target project (required for a task form), target group, default priority and category, success message, emails to notify.
+2. **Copiar enlace**: its own page at `/intake/:token` (`IntakeFormPage`, no login).
+3. **Copiar código para tu web**: `<script src="…/widget/ticket.js" data-form="<token>"></script>`. Pasted into any website, it draws the form there (name, email, subject, description) in the company's language and sends it. The token only allows sending this form.
+4. Review submissions per form.
 
-**Technical notes.** `GET|POST /api/v1/forms`, `GET|PATCH|DELETE /forms/{id}`, `GET /forms/{id}/submissions`. The public endpoints are `GET /forms/public/{token}` and `POST /forms/public/{token}/submit` (rate limit 10/min per client). Tables `public_forms`, `public_form_submissions`. A submission creates a `Ticket` of type `incident` with `source="public_form"`, numbered within the form's organization.
+**What a submission does.** It is saved, and creates a ticket (`incident`, `source="public_form"`) or a task in the target project (the sender's name and email at the end of the description), **in the form's company**, numbered within it. The notify emails get a message in the background, so the sender does not wait. If creating the ticket or task fails, the submission is still saved with `ticket_id: null` and the failure goes to the log.
 
-**Limitations (measured).**
-- **`form_type="task"` creates no entity.** Only `"ticket"` is handled; any other type saves just the submission.
-- **`notify_emails` is stored but never used to send email** (no reader).
-- If ticket creation fails, the submission is still saved and returns `ticket_id: null`; the failure only goes to a log warning.
+**Technical notes.** `GET|POST /api/v1/forms`, `GET|PATCH|DELETE /forms/{id}`, `GET /forms/{id}/submissions`. Public: `GET /forms/public/{token}` (includes `idioma`) and `POST /forms/public/{token}/submit` (10/min). Both answer `Access-Control-Allow-Origin: *`, and `app/core/cors_publico.py` answers their preflight, because the global CORS only admits `ALLOWED_ORIGINS`. The sender's IP is the real one behind a trusted proxy. Tables `public_forms`, `public_form_submissions`. Migration `145_formularios_publicos_en_su_empresa` moved the tickets created earlier without a company to the form's company (renumbering the ones that collided).
 
----
+**Measured** in a browser from another origin: the widget drew the form, sent it and created the ticket in the form's company; a task form created the task in its project and notified its email.
 
 ### Developer portal — `/developer`
 *Roles:* route `admin`, `pm`. Writes need `require_admin_or_pm`. Each user sees their own apps.
@@ -5862,7 +5860,7 @@ slowapi `Limiter` with Redis storage when `REDIS_URL` is reachable (in-memory ot
 3. Without Redis and with more than 1 uvicorn worker, tickets issued by one worker are unknown to the others.
 4. WebSockets go through the same router guards (`tests/test_websockets_pasan_las_guardas.py`).
 5. The compose nginx forwards the `Upgrade` headers for every WebSocket of the API (one `location` by regular expression). `tests/test_nginx_websockets_2026_11.py` checks against the route table that each WebSocket matches it.
-6. `/ready`, `/status`, `/status/page.js` and `/status/embed.js` also go through nginx to the API, with the API's own headers.
+6. `/ready`, `/status`, `/status/page.js`, `/status/embed.js` and `/widget/ticket.js` also go through nginx to the API, with the API's own headers.
 
 #### 6.7 Webhooks
 
