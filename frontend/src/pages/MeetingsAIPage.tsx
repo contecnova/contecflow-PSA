@@ -10,6 +10,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Video } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 interface MeetingAction {
   id: string | number
@@ -112,7 +113,7 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal open title={t('meetings_ai.process_title')} onClose={onClose} width={700}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>{t('meetings_ai.title_label')}</label>
           <input value={form.title} onChange={s('title')} style={fs} placeholder={t('meetings_ai.title_placeholder')} />
@@ -160,6 +161,7 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function MeetingsAIPage() {
+  const isNarrow = useMediaQuery('(max-width: 900px)')
   const _t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -196,7 +198,7 @@ export default function MeetingsAIPage() {
       />
 
       {meetings.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 12, marginBottom: 24 }}>
             {[
               { icon: '🎙', label: _t('meetings_ai.stats_meetings'), value: meetings.length, color: 'var(--accent)' },
               { icon: '📋', label: _t('meetings_ai.stats_actions'), value: meetings.reduce((a, m) => a + (m.actions_count || 0), 0), color: 'var(--warning)' },
@@ -213,9 +215,9 @@ export default function MeetingsAIPage() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '300px minmax(0, 1fr)', gap: 20 }}>
         {/* List */}
-        <div>
+        <div style={{ minWidth: 0 }}>
           {isLoading ? <Spinner /> : meetings.length === 0 ? (
             <div style={{ ...card, padding: 32, textAlign: 'center' }}>
               <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>🎙</div>
@@ -250,7 +252,7 @@ export default function MeetingsAIPage() {
         </div>
 
         {/* Detail */}
-        <div>
+        <div style={{ minWidth: 0 }}>
           {!selected ? (
             <div style={{ ...card, padding: 48, textAlign: 'center' }}>
               <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🎙</div>
@@ -262,7 +264,7 @@ export default function MeetingsAIPage() {
               {/* Header */}
               <div style={{ ...card, padding: '18px 22px', marginBottom: 14 }}>
                 <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, marginBottom: 6 }}>{detail.title}</div>
-                <div style={{ display: 'flex', gap: 14, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                   {detail.platform && <span>{platCfg(detail.platform).icon} {platCfg(detail.platform).label}</span>}
                   {detail.duration_minutes && <span>⏱ {detail.duration_minutes} min</span>}
                   <span>📅 {detail.meeting_date?.slice(0, 10) || detail.created_at?.slice(0, 10)}</span>
@@ -295,7 +297,7 @@ export default function MeetingsAIPage() {
               {/* Actions */}
               {(detail.actions ?? []).length > 0 && (
                 <div style={{ ...card, padding: '16px 20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                       📋 {_t('meetings_ai.actions_label_detail', { count: (detail.actions ?? []).length })}
                     </div>
@@ -307,7 +309,7 @@ export default function MeetingsAIPage() {
                   </div>
                   {(detail.actions ?? []).map(a => (
                     <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'flex-start', gap: 12 }}>
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 4 }}>{a.description}</div>
                         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                           {a.assignee_name && `👤 ${a.assignee_name}`}

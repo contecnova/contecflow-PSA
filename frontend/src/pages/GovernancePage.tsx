@@ -105,7 +105,7 @@ export default function GovernancePage(): JSX.Element {
       <PageHeader icon={<Shield size={18} />} title={t('governance.title')} subtitle={t('governance.subtitle')} showListExport={false} />
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 14, marginBottom: 24 }}>
         {[
           { icon: '🤖', label: t('governance.kpi_active_modules'),   value: `${activeCount}/${configs.length || 9}`, color: 'var(--success)' },
           { icon: '💬', label: t('governance.kpi_total_calls'),  value: (stats?.total_calls || 0).toLocaleString(localeActivo()), color: 'var(--accent)' },
@@ -121,7 +121,7 @@ export default function GovernancePage(): JSX.Element {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {[
           ['modules', `⚙️ ${t('governance.tab_modules')}`],
           ['usage', `📊 ${t('governance.tab_usage')}`],
@@ -136,7 +136,7 @@ export default function GovernancePage(): JSX.Element {
 
       {/* MODULES TAB */}
       {tab === 'modules' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 12 }}>
           {Object.entries(MODULE_CFG).map(([key, meta]) => {
             const cfg = configs.find(c => c.module === key)
             const isEnabled = cfg ? cfg.is_enabled : true
@@ -144,9 +144,9 @@ export default function GovernancePage(): JSX.Element {
             return (
               <div key={key} style={{ ...card, padding: '16px 18px', opacity: isEnabled ? 1 : 0.6 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
                     <span style={{ fontSize: "var(--text-xl)" }}>{meta.icon}</span>
-                    <div>
+                    <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{t(meta.labelKey)}</div>
                       <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2, lineHeight: 1.4 }}>{t(meta.descKey)}</div>
                     </div>
@@ -208,6 +208,8 @@ export default function GovernancePage(): JSX.Element {
       {/* AUDIT TAB */}
       {tab === 'audit' && (
         <div style={{ ...card, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+          <div style={{ minWidth: 560 }}>
           <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
             <span>{t('governance.col_date')}</span><span>{t('governance.col_module')}</span><span>{t('governance.col_prompt')}</span><span>{t('governance.col_tokens')}</span>
           </div>
@@ -221,6 +223,8 @@ export default function GovernancePage(): JSX.Element {
               <span style={{ color: 'var(--warning)' }}>{(l.tokens_used || 0).toLocaleString(localeActivo())}</span>
             </div>
           ))}
+          </div>
+          </div>
         </div>
       )}
     </PageShell>

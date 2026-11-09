@@ -11,6 +11,7 @@ import { Brain } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 
 
@@ -75,6 +76,7 @@ interface AnalisisDelOraculo {
 }
 
 export default function OraclePage() {
+  const isNarrow = useMediaQuery('(max-width: 900px)')
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -128,8 +130,8 @@ export default function OraclePage() {
       {/* Analysis result banner */}
       {analysis && (
         <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: 'rgba(52,211,153,0.25)', background: 'var(--success-bg)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--success)', marginBottom: 4 }}>{t('oracle.analisis_completado')}</div>
               <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                 {/* Backend devuelve {alerts_generated, methodology, run_at} no {predictions_generated, projects_analyzed} */}
@@ -151,7 +153,7 @@ export default function OraclePage() {
       )}
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(120px, 100%), 1fr))', gap: 12, marginBottom: 24 }}>
         {[
           { label: 'Total', value: preds.length, color: 'var(--accent)' },
           { label: 'Crítico', value: preds.filter(p=>p.severity==='critical').length, color: 'var(--danger)' },
@@ -168,8 +170,8 @@ export default function OraclePage() {
 
       {/* Charts row */}
       {preds.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16, marginBottom: 24 }}>
-          <div style={{ ...card, padding: '16px 20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 280px', gap: 16, marginBottom: 24 }}>
+          <div style={{ ...card, padding: '16px 20px', minWidth: 0 }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>{t('oracle.predicciones_por_tipo')}</div>
             <ResponsiveContainer width="100%" height={160}>
               <BarChart data={typeData} layout="vertical" margin={{ left: 10 }}>
@@ -196,7 +198,7 @@ export default function OraclePage() {
       )}
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {['all', 'critical', 'high', 'medium', 'low'].map(s => (
           <button key={s} onClick={() => setFilter(s)}
             style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${filter===s ? alpha(SEV[s]?.color, '60') || 'var(--accent)' : 'var(--surface-4)'}`, background: filter===s ? (SEV[s]?.bg || 'var(--accent-muted)') : 'transparent', color: filter===s ? (SEV[s]?.color || 'var(--accent)') : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: filter===s ? 700 : 400, textTransform: 'capitalize' }}>
@@ -215,8 +217,8 @@ export default function OraclePage() {
             const ti = (p.type && TYPE_ICONS[p.type]) || { icon: '⚡', label: p.type }
             return (
               <div key={p.id} style={{ ...card, padding: '16px 20px', borderLeft: `3px solid ${sv.color}`, opacity: p.is_acknowledged ? 0.6 : 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
                     <span style={{ fontSize: "var(--text-xl-em)" }}>{ti.icon}</span>
                     <div>
                       <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{p.title}</div>

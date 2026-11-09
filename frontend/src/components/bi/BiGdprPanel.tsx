@@ -19,6 +19,7 @@ import {
   Clock, Users, ToggleLeft, ToggleRight,
 } from 'lucide-react'
 import { localeActivo } from '../../utils/helpers'
+import useMediaQuery from '../../hooks/useMediaQuery'
 
 // TODO type: biGdprApi payloads — needs shared types
 interface DsrItem {
@@ -146,6 +147,7 @@ interface DsrForm {
 
 function DsrTab() {
   const t  = useAppT()
+  const isNarrow = useMediaQuery('(max-width: 900px)')
   const qc = useQueryClient()
   const [form, setForm]         = useState<DsrForm>({ user_id: '', request_type: 'erasure', notes: '' })
   const [statusFilter, setFilter] = useState<string>('')
@@ -189,7 +191,7 @@ function DsrTab() {
   return (
     <div>
       {/* Create form */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 1fr auto', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 160px 1fr auto', gap: 8, marginBottom: 16 }}>
         <input placeholder="subject-id o email" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
         <select value={form.request_type} onChange={e => setForm(f => ({ ...f, request_type: e.target.value }))} style={S.select}>
           {['erasure', 'portability', 'rectification', 'restriction'].map(rt => <option key={rt} value={rt}>{rt}</option>)}
@@ -203,7 +205,7 @@ function DsrTab() {
       </div>
 
       {/* Status filter */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
         {['', 'pending', 'completed'].map(s => (
           <button key={s} onClick={() => setFilter(s)} style={{
             ...S.btnGhost,
@@ -225,7 +227,7 @@ function DsrTab() {
             const expanded = expandedId === dsr.id
             return (
               <div key={dsr.id} style={{ ...S.innerCard }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: isNarrow ? 'wrap' : undefined, gap: 10 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{dsr.subject_id ?? dsr.user_id}</span>
@@ -233,7 +235,7 @@ function DsrTab() {
                       <span style={S.badge(STATUS_COLOR[dsr.status] ?? 'var(--text-3)')}>{dsr.status}</span>
                       {overdue && <span style={S.badge('var(--danger)')}><AlertTriangle size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} />SLA vencido</span>}
                     </div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 3, display: 'flex', gap: 12 }}>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 3, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                       <span>Creado: {fmt(dsr.created_at)}</span>
                       {dsr.deadline && <span>{t('bigdpr.limite')} {fmt(dsr.deadline)}</span>}
                       {dsr.resolved_at && <span>Resuelto: {fmt(dsr.resolved_at)}</span>}
@@ -290,6 +292,7 @@ function DsrTab() {
 // ── Tab Consent ───────────────────────────────────────────────────────────────
 function ConsentTab() {
   const t  = useAppT()
+  const isNarrow = useMediaQuery('(max-width: 900px)')
   const qc = useQueryClient()
   const [form, setForm]         = useState<{ user_id: string; purpose: string; channel: string }>({ user_id: '', purpose: 'analytics', channel: 'web' })
   const [histUserId, setHistUser] = useState<string | null>(null)
@@ -322,7 +325,7 @@ function ConsentTab() {
       {/* Add form */}
       <div style={{ ...S.innerCard, marginBottom: 16 }}>
         <div style={{ ...S.sectionTitle }}>Registrar consentimiento</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px 130px auto', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 130px 130px auto', gap: 8 }}>
           <input placeholder="user-id o email" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
           <select value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} style={S.select}>
             {['analytics', 'marketing', 'profiling', 'research'].map(p => <option key={p} value={p}>{p}</option>)}
@@ -404,6 +407,7 @@ function ConsentTab() {
 // ── Tab Masks ─────────────────────────────────────────────────────────────────
 function MasksTab() {
   const t  = useAppT()
+  const isNarrow = useMediaQuery('(max-width: 900px)')
   const qc = useQueryClient()
   const [form, setForm] = useState<{ entity: string; field: string; mask_type: string }>({ entity: 'user', field: 'email', mask_type: 'hash' })
 
@@ -421,7 +425,7 @@ function MasksTab() {
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 160px auto', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr 160px auto', gap: 8, marginBottom: 16 }}>
         <input placeholder="entidad (ej: user)" value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={S.input} />
         <input placeholder="campo (ej: email)" value={form.field} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} style={S.input} />
         <select value={form.mask_type} onChange={e => setForm(f => ({ ...f, mask_type: e.target.value }))} style={S.select}>
@@ -434,7 +438,7 @@ function MasksTab() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {(unwrapList(masksData) as NonNullable<MaskListResponse['items']>).map((m, i) => (
-          <div key={i} style={{ ...S.row, justifyContent: 'space-between' }}>
+          <div key={i} style={{ ...S.row, justifyContent: 'space-between', flexWrap: 'wrap' }}>
             <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>{m.dataset ?? m.entity}.{m.field}</span>
             <span style={S.badge(MASK_COLOR[m.mask_type ?? ''] ?? 'var(--text-3)')}>{m.mask_type}</span>
             <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 'auto' }}>{fmt(m.updated_at)}</span>
@@ -531,7 +535,7 @@ export default function BiGdprPanel() {
         </h3>
       </div>
 
-      <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--surface-4)', marginBottom: 20 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, borderBottom: '1px solid var(--surface-4)', marginBottom: 20 }}>
         {TAB_NAV.map(({ id, label }) => (
           <button key={id} onClick={() => setTab(id)} style={{
             padding: '8px 16px', fontSize: "var(--text-sm)", fontWeight: tab === id ? 700 : 400,

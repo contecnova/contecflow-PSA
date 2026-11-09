@@ -106,7 +106,7 @@ export default function WebhookLogPage() {
       />
 
       {/* KPI cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap:12, marginBottom:24 }}>
         {[
           { label:'Webhooks configurados', value: webhooks.length, color:'var(--accent)' },
           { label:'Llamadas totales', value: allLogs.length, color:'var(--text-1)' },
@@ -129,7 +129,7 @@ export default function WebhookLogPage() {
             : "Los webhooks configurados aún no han disparado llamadas"} />
       ) : (
         <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-          borderRadius:12, overflow:'hidden' }}>
+          borderRadius:12, overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead>
               <tr style={{ borderBottom:'1px solid var(--surface-4)' }}>
@@ -200,7 +200,7 @@ export default function WebhookLogPage() {
               ['HTTP Status', selectedLog.http_status || 'Error'],
               ['Duración', selectedLog.duration_ms ? `${selectedLog.duration_ms}ms` : '—'],
             ].map(([label, value]) => (
-              <div key={label} style={{ display:'grid', gridTemplateColumns:'130px 1fr', gap:10 }}>
+              <div key={label} style={{ display:'grid', gridTemplateColumns:'minmax(0, 130px) minmax(0, 1fr)', gap:10 }}>
                 <span style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)',
                   textTransform:'uppercase', letterSpacing:'0.06em' }}>{label}</span>
                 <span style={{ fontSize: "var(--text-base)", color:'var(--text-1)', wordBreak:'break-all' }}>{String(value)}</span>

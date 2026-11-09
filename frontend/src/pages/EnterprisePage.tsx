@@ -16,6 +16,7 @@ import PageShell from '../components/layout/PageShell'
 import { useAppT } from '../i18n/AppLangContext'
 import { INTEGRATION_CATALOG } from '../constants/api'
 import { Building2 } from 'lucide-react'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
@@ -56,8 +57,8 @@ function WebhooksTab() {
         <EmptyState icon="🔗" title={traducir('enterprise.sin_webhooks')} description="Crea el primer webhook entrante para automatizaciones" />
       ) : triggers.map((t: any) => (
         <div key={t.id} style={{ ...card, padding:'14px 18px', marginBottom:10 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
+            <div style={{ minWidth:0 }}>
               <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:4 }}>{t.name}</div>
               <code style={{ fontSize: "var(--text-xs)", background:'var(--surface-2)', padding:'2px 8px', borderRadius:4, color:'var(--text-2)' }}>POST /api/v1{t.endpoint}</code>
               <span style={{ marginLeft:12, fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{t.fire_count} disparos</span>
@@ -145,9 +146,9 @@ function GDPRTab() {
       {isLoading ? <Spinner /> : requests.length === 0 ? (
         <EmptyState icon="🔒" title={traducir('enterprise.sin_solicitudes_rgpd')} description="No hay solicitudes de privacidad registradas" />
       ) : (
-        <div style={{ ...card, overflow:'hidden' }}>
+        <div style={{ ...card, overflowX:'auto' }}>
           {requests.map((r: any) => (
-            <div key={r.id} style={{ display:'grid', gridTemplateColumns:'150px 120px 1fr 100px auto', gap:12, padding:'12px 18px', borderBottom:'.5px solid var(--surface-4)', alignItems:'center' }}>
+            <div key={r.id} style={{ display:'grid', gridTemplateColumns:'150px 120px 1fr 100px auto', gap:12, minWidth:640, padding:'12px 18px', borderBottom:'.5px solid var(--surface-4)', alignItems:'center' }}>
               <span style={{ fontSize: "var(--text-sm)", fontWeight:500 }}>{TYPE_LABELS[r.request_type] || r.request_type}</span>
               <span style={{ fontSize: "var(--text-sm)", fontWeight:500, color:STATUS_COLORS[r.status] || 'var(--text-2)' }}>{r.status}</span>
               <div>
@@ -221,14 +222,14 @@ function EmailTab() {
 
   return (
     <div>
-      <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginBottom:20 }}>
+      <div style={{ display:'flex', flexWrap:'wrap', gap:10, justifyContent:'flex-end', marginBottom:20 }}>
         <button onClick={() => setShowCreate(true)} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'8px 14px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
           + Plantilla
         </button>
         <Button onClick={() => setShowSend(true)}>✉ Enviar email</Button>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
-        <div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap:20 }}>
+        <div style={{ minWidth:0 }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>Plantillas ({allTpl.length})</div>
           {allTpl.map((t: any) => (
             <div key={t.id} style={{ ...card, padding:'12px 14px', marginBottom:8 }}>
@@ -381,8 +382,8 @@ function IntegrationsTab() {
           {integrations.map((integ: any) => {
             const cat = CATALOG.find((c) => c.type === integ.integration_type) || { icon: '🔗', label: integ.integration_type }
             return (
-              <div key={integ.id} style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div key={integ.id} style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
                   <span style={{ fontSize: "var(--text-xl-em)" }}>{cat.icon}</span>
                   <div>
                     <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{integ.name || cat.label}</div>
@@ -422,7 +423,7 @@ function IntegrationsTab() {
       <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
         {integrations.length === 0 ? 'Disponibles' : 'Añadir otra'}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px, 100%), 1fr))', gap: 10 }}>
         {CATALOG.map((cat) => (
           <button key={cat.type} onClick={() => { setConfiguring(cat); setForm({ name: cat.label, integration_type: cat.type, config: {} } as any) }}
             type="button"
@@ -578,7 +579,7 @@ function AuditTab() {
     <div style={{ display: 'grid', gap: 14 }}>
       <CadenaDeAuditoria />
       <div style={{ ...card, padding: '12px 14px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 12 }}>
           <div style={{ background: 'var(--surface-2)', border: '.5px solid var(--surface-4)', borderRadius: 8, padding: 10 }}>
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Total eventos</div>
             <div style={{ fontSize: "var(--text-xl)", fontWeight: 700, marginTop: 4 }}>{logs.length}</div>
@@ -594,13 +595,13 @@ function AuditTab() {
         </div>
       </div>
 
-      <div style={{ ...card, overflow:'hidden' }}>
+      <div style={{ ...card, overflowX:'auto' }}>
         <div style={{ padding: '10px 16px', fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', borderBottom: '.5px solid var(--surface-4)' }}>
           {traducir('enterprise.eventos_de_recuperacion_de_contrasena')}
         </div>
         {passwordResetLogs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-sm)" }}>{traducir('enterprise.sin_eventos_de_recuperacion')}</div> :
           passwordResetLogs.map((l: any, i: number) => (
-            <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
+            <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, minWidth:700, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
               <span style={{ color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{(l.created_at||'').slice(0,16)}</span>
               <span style={{ fontWeight:600, color: l.action === 'PASSWORD_RESET_COMPLETE' ? 'var(--success)' : 'var(--accent)' }}>{l.action}</span>
               <span style={{ color:'var(--text-2)' }}>{l.resource_name || l.resource || '-'}</span>
@@ -610,13 +611,13 @@ function AuditTab() {
         }
       </div>
 
-      <div style={{ ...card, overflow:'hidden' }}>
+      <div style={{ ...card, overflowX:'auto' }}>
         <div style={{ padding: '10px 16px', fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', borderBottom: '.5px solid var(--surface-4)' }}>
           Audit log general (ultimos 30)
         </div>
       {logs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-sm)" }}>{traducir('enterprise.sin_entradas_en_el_audit_log')}</div> :
         logs.slice(0,30).map((l: any, i: number) => (
-          <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
+          <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, minWidth:700, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
             <span style={{ color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{(l.created_at||'').slice(0,16)}</span>
             <span style={{ fontWeight:500 }}>{l.action}</span>
             <span style={{ color:'var(--text-2)' }}>{l.resource} {l.resource_name||''}</span>
@@ -662,9 +663,9 @@ function APIKeysTab() {
         </div>
       )}
       {keys.length === 0 ? <EmptyState icon="🗝" title={traducir('enterprise.sin_api_keys')} description="Genera una clave para integraciones externas" /> : (
-        <div style={{ ...card, overflow:'hidden' }}>
+        <div style={{ ...card, overflowX:'auto' }}>
           {keys.map((k: any) => (
-            <div key={k.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 130px 110px auto', gap:12, padding:'12px 18px', borderBottom:'.5px solid var(--surface-4)', alignItems:'center', fontSize: "var(--text-sm)" }}>
+            <div key={k.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 130px 110px auto', gap:12, minWidth:620, padding:'12px 18px', borderBottom:'.5px solid var(--surface-4)', alignItems:'center', fontSize: "var(--text-sm)" }}>
               <div>
                 <div style={{ fontWeight:500 }}>{k.name}</div>
                 <code style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{k.key_prefix}...</code>
@@ -695,6 +696,7 @@ function APIKeysTab() {
 
 function SSOTab() {
   const traducir = useAppT()
+  const isNarrow = useMediaQuery('(max-width: 900px)')
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
@@ -782,8 +784,8 @@ function SSOTab() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+        <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>Single Sign-On (SSO)</div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>Configura Azure AD / Entra ID, Okta, Google o cualquier proveedor OpenID Connect</div>
         </div>
@@ -807,7 +809,7 @@ function SSOTab() {
       {showCreate && (
         <div style={{ ...cardStyle, borderColor: 'var(--accent-glow)' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', marginBottom: 14 }}>{editId ? traducir('enterprise.sso_editar') : traducir('enterprise.nuevo_proveedor_sso')}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr', gap: 10, marginBottom: 12 }}>
             <div>
               <label style={labelStyle}>Proveedor</label>
               <select value={form.provider} disabled={!!editId} onChange={e => {
@@ -885,10 +887,10 @@ function SSOTab() {
           const info = PROVIDER_INFO[c.provider] || { icon: '🔑', label: c.provider }
           return (
             <div key={c.id} style={cardStyle}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
                   <span style={{ fontSize: "var(--text-2xl)" }}>{info.icon}</span>
-                  <div>
+                  <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                     <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{c.name || info.label}</div>
                     <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                       Client ID: {c.oidc_client_id?.slice(0,8)}...
@@ -901,7 +903,7 @@ function SSOTab() {
                     )}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   <button onClick={() => toggle(c)} aria-pressed={!!c.is_active} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: c.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                     {c.is_active ? traducir('enterprise.sso_desactivar') : traducir('enterprise.sso_activar')}
                   </button>
@@ -962,7 +964,7 @@ export default function EnterprisePage(): JSX.Element {
       />
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 0 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 0 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '7px 16px', border: 'none', cursor: 'pointer',

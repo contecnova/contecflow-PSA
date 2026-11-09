@@ -10,6 +10,7 @@ import { Button, Spinner, Modal, Tabs, Page } from '../components/ui'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
 import { Cpu, X, Search, Plus, Activity } from 'lucide-react'
 import { alpha } from '../constants/theme'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 const PMETA = PROVIDER_META as Record<string, { name: string; icon: string; color: string }>
 const PDOCS = PROVIDER_DOCS as Record<string, string>
@@ -389,7 +390,7 @@ function GovernanceTab() {
     <div id="aihub-panel-governance" role="tabpanel" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Stats summary */}
       {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))', gap: 12 }}>
           {[
             { label: 'Evaluaciones', value: stats.total_evaluations || 0, color: 'var(--accent)' },
             // Auditoría 2026-11: leía blocked/redacted/pii_total, que la API no
@@ -408,7 +409,7 @@ function GovernanceTab() {
 
       {/* Policies list */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontWeight: 700 }}>{traducir('aihub.politicas_configuradas')}{policies.length})</div>
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
             CRUD via <code>POST /api/v1/ai-governance/policies</code> · UI completa pendiente
@@ -428,7 +429,7 @@ function GovernanceTab() {
                     {p.is_active ? 'Activa' : 'Inactiva'}
                   </span>
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2, overflowWrap: 'anywhere' }}>
                   scope={p.scope} · action={p.action} · roles=[{(p.applies_to_roles || []).join(',')}]
                 </div>
               </div>
@@ -447,7 +448,7 @@ function GovernanceTab() {
         ) : (
           <div style={{ maxHeight: 360, overflowY: 'auto' }}>
             {auditLog.map((l: any) => (
-              <div key={l.id} style={{ padding: '8px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-xs)', display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div key={l.id} style={{ padding: '8px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-xs)', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
                 <span style={{ minWidth: 100, color: 'var(--text-3)' }}>{(l.evaluated_at || '').slice(0, 16)}</span>
                 <span style={{ minWidth: 80, fontWeight: 600 }}>{l.module || '—'}</span>
                 <span style={{ minWidth: 60 }}>{l.scope}</span>
@@ -467,6 +468,7 @@ function GovernanceTab() {
 }
 
 export default function AIHubPage(): JSX.Element {
+  const isNarrow = useMediaQuery('(max-width: 900px)')
   const traducir = useAppT()
   const { lang } = useAppLang()
   const t = useAppT()
@@ -562,7 +564,7 @@ export default function AIHubPage(): JSX.Element {
       title={t('ai.hub_title')}
       subtitle={t('ai.hub_subtitle')}
       rightActions={(
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
           <Button
             variant="secondary"
             onClick={() => diagnoseAll()}
@@ -612,7 +614,7 @@ export default function AIHubPage(): JSX.Element {
           {/* Panel de diagnóstico */}
           {diagResults && (
             <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: diagResults.error > 0 ? 'var(--danger)' : diagResults.warning > 0 ? 'var(--warning)' : 'var(--success)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: "var(--text-md)" }}>
                   {traducir('aihub.diagnostico')} {diagResults.healthy}/{diagResults.total} operativos
                 </div>
@@ -624,7 +626,7 @@ export default function AIHubPage(): JSX.Element {
                   return (
                     <div key={pr.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: "var(--text-base)" }}>
                       <span className={`ds-status-dot ds-status-dot--${dotKind}`} style={{ marginTop: 7, flexShrink: 0 }} />
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <span style={{ fontWeight: 600 }}>{pr.name}</span>
                         <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: "var(--text-sm)" }}>{pr.provider_type}</span>
                         {pr.latency_ms != null && (
@@ -649,7 +651,7 @@ export default function AIHubPage(): JSX.Element {
             <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: alpha(PMETA[defaultProvider.provider]?.color, '50') || 'var(--surface-4)', background: alpha(PMETA[defaultProvider.provider]?.color, '08') || 'var(--surface-2)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ fontSize: "var(--text-3xl)" }}>{PMETA[defaultProvider.provider]?.icon}</span>
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('ai.provider_active_default')}</div>
                   <div style={{ fontSize: "var(--text-lg)", fontWeight: 800 }}>{defaultProvider.name}</div>
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('ai.model_label')}: {defaultProvider.default_model} · {intFmt.format(defaultProvider.total_requests || 0)} {t('ai.requests').toLowerCase()} · {moneyFmt.format(defaultProvider.total_cost_usd || 0)} {t('ai.spent')}</div>
@@ -668,14 +670,14 @@ export default function AIHubPage(): JSX.Element {
               <Button onClick={() => setModal({})}><Plus size={13} /> {t('ai.add_first_provider')}</Button>
             </div>
           ) : (
-            <div data-export-table="ai-providers-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+            <div data-export-table="ai-providers-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
               {providers.map((p: any) => {
                 const meta: { name?: string; icon: string; color: string } = PMETA[p.provider] || { icon: '🤖', color: 'var(--text-2)' }
                 const st   = statusCfg[p.status] || statusCfg.inactive
                 return (
                   <div key={p.id} style={{ ...card, padding: '18px 20px', borderColor: p.is_default ? alpha(meta.color, '50') : 'var(--surface-4)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                         <div style={{ width: 40, height: 40, borderRadius: 10, background: alpha(meta.color, '20'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xl)" }}>
                           {meta.icon}
                         </div>
@@ -741,7 +743,7 @@ export default function AIHubPage(): JSX.Element {
       {/* STATS TAB */}
       {tab === 'stats' && (
         <div id="aihub-panel-stats" role="tabpanel" aria-labelledby="aihub-tab-stats">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))', gap: 14, marginBottom: 24 }}>
             {[
               { icon: '🤖', label: t('ai.providers_count'), value: (stats.providers || []).length, color: 'var(--accent)' },
               { icon: '💬', label: t('ai.total_requests'), value: stats.total_requests || 0, color: 'var(--success)' },
@@ -759,9 +761,9 @@ export default function AIHubPage(): JSX.Element {
             <div style={card}>
               <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 700, fontSize: "var(--text-md)" }}>{t('ai.module_usage')}</div>
               {byModule.map((r: any) => (
-                <div key={r.module} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)" }}>
+                <div key={r.module} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, fontSize: "var(--text-base)" }}>
                   <span style={{ fontWeight: 600 }}>{r.module}</span>
-                  <div style={{ display: 'flex', gap: 20, color: 'var(--text-2)' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, color: 'var(--text-2)' }}>
                     <span>{r.calls} {t('ai.calls')}</span>
                     <span>{intFmt.format(r.tokens || 0)} {t('ai.tokens_label')}</span>
                     <span style={{ color: 'var(--warning)' }}>{moneyFmt.format(r.cost || 0)}</span>
@@ -776,7 +778,7 @@ export default function AIHubPage(): JSX.Element {
       {/* OBSERVABILITY TAB */}
       {tab === 'observability' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{traducir('aihub.estado_de_salud_de_los_modelos_predictivos')}</div>
             <Button onClick={() => triggerRetrain()} disabled={retraining}>
               {retraining ? '⏳ Reentrenando...' : '▶ Forzar reentrenamiento'}
@@ -788,7 +790,7 @@ export default function AIHubPage(): JSX.Element {
               {traducir('aihub.sin_datos_de_observabilidad_requiere_permisos_de')}
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr', gap: 16 }}>
               {[
                 { key: 'itsm', label: 'Modelo ITSM', data: obsHealth.itsm },
                 { key: 'bi',   label: 'Modelo BI',   data: obsHealth.bi },
@@ -879,7 +881,7 @@ export default function AIHubPage(): JSX.Element {
 
       {/* GUIDE TAB */}
       {tab === 'guide' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr', gap: 16 }}>
           {[
             { icon: '🟠', title: t('ai.guide_anthropic'), desc: t('ai.guide_anthropic_desc'), link: PDOCS.anthropic, hint: 'sk-ant-...' },
             { icon: '🟢', title: t('ai.guide_openai'), desc: t('ai.guide_openai_desc'), link: PDOCS.openai, hint: 'sk-...' },
@@ -898,7 +900,7 @@ export default function AIHubPage(): JSX.Element {
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4, lineHeight: 1.5 }}>{p.desc}</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
                 <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{p.hint}</span>
                 <a href={p.link} target="_blank" rel="noreferrer" style={{ fontSize: "var(--text-sm)", color: 'var(--accent)' }}>{t('ai.get_key')} →</a>
               </div>
@@ -922,6 +924,7 @@ export default function AIHubPage(): JSX.Element {
 
 /** Proveedor y modelo por función (revisión 2026-11, de contecmind). Vacío = el proveedor por defecto. */
 function RoutingTab({ providers }: { providers: any[] }) {
+  const isNarrow = useMediaQuery('(max-width: 900px)')
   const qc = useQueryClient()
   const toast = useToast()
   const { data } = useQuery({ queryKey: ['ai-routing'], queryFn: () => aiProvidersApi.getRouting().then(r => r.data) })
@@ -940,14 +943,14 @@ function RoutingTab({ providers }: { providers: any[] }) {
         Qué proveedor y modelo usa cada función. Sin elegir, la función usa el proveedor por defecto; si el elegido
         falla o está apartado por errores, se cae al por defecto y luego al orden de respaldo.
       </p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) 1fr 1fr', gap: 8, alignItems: 'center' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr) minmax(0, 1fr)' : 'minmax(220px, 1.4fr) 1fr 1fr', gap: 8, alignItems: 'center' }}>
         {(data?.modules || []).map((m: { key: string; label: string }) => {
           const ruta = actuales[m.key] || {}
           const prov = providers.find((p: any) => p.id === ruta.provider_id)
           const lista = `modelos-${m.key}`
           return (
             <Fragment key={m.key}>
-              <label htmlFor={`ruta-${m.key}`} style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{m.label}</label>
+              <label htmlFor={`ruta-${m.key}`} style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', ...(isNarrow ? { gridColumn: '1 / -1', marginTop: 6 } : {}) }}>{m.label}</label>
               <select id={`ruta-${m.key}`} value={ruta.provider_id || ''} onChange={e => cambiar(m.key, 'provider_id', e.target.value)} style={fs}>
                 <option value="">Por defecto</option>
                 {providers.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}

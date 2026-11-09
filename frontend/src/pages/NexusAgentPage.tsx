@@ -10,6 +10,7 @@ import PageShell from '../components/layout/PageShell'
 import { Bot } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
@@ -167,6 +168,7 @@ function FilaDeHistorial({ ejecucion: e, seleccionada, onAbrir }: { ejecucion: E
 export default function ContecflowAgentPage() {
   const traducir = useAppT()
   const t = useAppT()
+  const isNarrow = useMediaQuery('(max-width: 900px)')
   const _qc = useQueryClient()
   const toast = useToast()
   const [instruction, setInstruction] = useState('')
@@ -291,15 +293,15 @@ export default function ContecflowAgentPage() {
 
       {/* Provider indicator */}
       {defaultProvider && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 20, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />
           {traducir('nexusagent.usando')} <strong style={{ color: 'var(--text-1)' }}>{defaultProvider.name}</strong> — {defaultProvider.default_model}
           <span style={{ marginLeft: 8, color: 'var(--text-3)' }}>· {traducir('nexusagent.configura_proveedores')}</span>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: 20 }}>
-        <div>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 260px', gap: 20 }}>
+        <div style={{ minWidth: 0 }}>
           {/* Input */}
           <div style={{ ...card, padding: 24, marginBottom: 20 }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{traducir('nexusagent.instruccion')}</div>
@@ -312,12 +314,12 @@ export default function ContecflowAgentPage() {
               rows={4}
               style={{ width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 14px', fontSize: "var(--text-md)", fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: 'var(--text-1)', boxSizing: 'border-box', lineHeight: 1.6 }}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                 <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{traducir('nexusagent.enter_para_ejecutar')}</span>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                   <button type="button" onClick={() => setStreaming(s => !s)}
-                    style={{ width: 28, height: 16, borderRadius: 8, background: streaming ? 'var(--accent)' : 'var(--surface-4)', position: 'relative', transition: 'background 0.2s', cursor: 'pointer', border: 'none', padding: 0 }}>
+                    style={{ width: 28, height: 16, minHeight: 16, flexShrink: 0, borderRadius: 8, background: streaming ? 'var(--accent)' : 'var(--surface-4)', position: 'relative', transition: 'background 0.2s', cursor: 'pointer', border: 'none', padding: 0 }}>
                     <div style={{ position: 'absolute', top: 2, left: streaming ? 14 : 2, width: 12, height: 12, borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
                   </button>
                   {traducir('nexusagent.streaming')}

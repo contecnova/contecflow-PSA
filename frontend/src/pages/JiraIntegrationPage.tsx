@@ -12,6 +12,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { extractErr, localeActivo } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 interface JiraConfig {
   jira_url?: string
@@ -92,6 +93,7 @@ function SectionTitle({ children }: { children?: React.ReactNode }) {
 
 // ── main page ─────────────────────────────────────────────────────────────────
 export default function JiraIntegrationPage(): JSX.Element {
+  const isNarrow = useMediaQuery('(max-width: 900px)')
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -197,10 +199,10 @@ export default function JiraIntegrationPage(): JSX.Element {
       showListExport={false}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 2fr)', gap: 20 }}>
 
         {/* ── left: configuration + sync actions ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
 
           {/* Configuration */}
           <Card>
@@ -260,7 +262,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                     style={{ ..._fs, textTransform: 'uppercase' }}
                   />
                 </div>
-                <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 4 }}>
                   <Button type="submit" loading={saveConfig.isPending} icon={<Settings2 size={13} />} style={{ flex: 1 }}>
                     {t('jira_integration.save_button')}
                   </Button>
@@ -336,7 +338,7 @@ export default function JiraIntegrationPage(): JSX.Element {
         </div>
 
         {/* ── right: issues + linked tasks ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
 
           {/* Jira issues */}
           <Card>

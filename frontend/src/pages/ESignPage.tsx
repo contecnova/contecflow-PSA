@@ -194,8 +194,8 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
           <label style={ls}>{t('esign.message')}</label>
           <textarea value={form.message} onChange={setField('message')} style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t('esign.message_ph')} />
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 160 }}>
             <label style={ls}>{t('esign.provider')}</label>
             <select value={form.provider} onChange={setField('provider')} style={fs}>
               <option value="manual">{t('esign.provider_manual')}</option>
@@ -203,7 +203,7 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
               <option value="adobe_sign">Adobe Sign</option>
             </select>
           </div>
-          <div style={{ width: 120 }}>
+          <div style={{ width: 120, maxWidth: '100%' }}>
             <label style={ls}>{t('esign.valid_days')}</label>
             <input type="number" value={form.expires_days} onChange={setField('expires_days')} style={fs} min={1} max={30} />
           </div>
@@ -287,7 +287,7 @@ export default function ESignPage(): JSX.Element {
       />
 
       {/* Provider status */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
         <ProviderBadge label="DocuSign" ok={!!docusignOk} />
         <ProviderBadge label="Adobe Sign" ok={!!adobeOk} />
         {!docusignOk && !adobeOk && (
@@ -303,7 +303,7 @@ export default function ESignPage(): JSX.Element {
 
       {/* KPI row */}
       {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))', gap: 12, marginBottom: 24 }}>
           {[
             { label: 'Total',       value: stats.total,     color: 'var(--text-2)' },
             { label: 'Completadas', value: stats.completed, color: 'var(--success)' },
@@ -322,7 +322,7 @@ export default function ESignPage(): JSX.Element {
         <EmptyState icon="✍" title={t('esign.empty_title')}
           description={t('esign.empty_desc')} />
       ) : (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>

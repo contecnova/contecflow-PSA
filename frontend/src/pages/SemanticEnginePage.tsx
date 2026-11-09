@@ -10,6 +10,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Brain } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const fs: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%' }
@@ -104,7 +105,7 @@ function TestPanel() {
   return (
     <div style={{ ...card, padding: '20px 24px' }}>
       <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>{traducir('semanticengine.probar_asignacion')}</div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {['ticket', 'task'].map(t => (
           <button key={t} onClick={() => setType(t)}
             style={{ padding: '6px 16px', borderRadius: 8, border: `1px solid ${type === t ? 'var(--accent)' : 'var(--surface-4)'}`, background: type === t ? 'var(--accent-muted)' : 'transparent', color: type === t ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -134,7 +135,7 @@ function TestPanel() {
             <div style={{ color: 'var(--danger)' }}>❌ {result.error}</div>
           ) : (
             <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
                 <div>
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 4 }}>{traducir('semanticengine.asignacion_sugerida')}</div>
                   <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: result.needs_review ? 'var(--warning)' : 'var(--success)' }}>
@@ -177,6 +178,7 @@ function TestPanel() {
 }
 
 export default function SemanticEnginePage() {
+  const isNarrow = useMediaQuery('(max-width: 900px)')
   const traducir = useAppT()
   const _t = useAppT()
   const toast = useToast()
@@ -278,7 +280,7 @@ export default function SemanticEnginePage() {
         title={_t('semantic_engine.title')}
         subtitle={_t('semantic_engine.subtitle')}
         actions={
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
             {(generating || rebuilding || opStatus.type === 'failed' || opStatus.type === 'done') && (
               <div style={{
                 fontSize: "var(--text-sm)",
@@ -299,7 +301,7 @@ export default function SemanticEnginePage() {
       />
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(120px, 100%), 1fr))', gap: 12, marginBottom: 24 }}>
         {[
           { icon: '🎯', label: 'Sugerencias', value: stats.total_suggestions || 0, color: 'var(--accent)' },
           { icon: '✅', label: 'Aceptadas', value: stats.accepted || 0, color: 'var(--success)' },
@@ -316,7 +318,7 @@ export default function SemanticEnginePage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {[['overview','⚙️ Configuración'],['profiles','👥 Perfiles'],['test','🧪 Probar'],['stats','📊 Estadísticas']].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -327,7 +329,7 @@ export default function SemanticEnginePage() {
 
       {/* CONFIG TAB */}
       {tab === 'overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr', gap: 20 }}>
           <div style={{ ...card, padding: '20px 24px' }}>
             <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>{traducir('semanticengine.modo_del_motor')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -383,7 +385,7 @@ export default function SemanticEnginePage() {
                     value={hfModelDraft}
                     onChange={e => setHfModelDraft(e.target.value)}
                     placeholder="all-MiniLM-L6-v2 o sentence-transformers/all-MiniLM-L6-v2"
-                    style={fs}
+                    style={{ ...fs, minWidth: 0 }}
                     disabled={(config.embeddings_backend || 'tfidf') !== 'transformer' || savingConfig}
                   />
                   <Button
@@ -449,6 +451,8 @@ export default function SemanticEnginePage() {
       {tab === 'profiles' && (
         <div>
           <div style={{ ...card, overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+            <div style={{ minWidth: 900 }}>
             <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
               <span>Usuario</span><span>Perfil</span><span>Tickets</span><span>Tareas</span><span>Estado</span><span>{traducir('semanticengine.accion')}</span>
             </div>
@@ -458,7 +462,7 @@ export default function SemanticEnginePage() {
               </div>
             ) : profilesWithUsers.map(u => (
               <div key={u.user_id} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, alignItems: 'center', fontSize: "var(--text-base)" }}>
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600 }}>{u.user_name}</div>
                   {u.profile_text && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.profile_text}</div>}
                 </div>
@@ -479,6 +483,8 @@ export default function SemanticEnginePage() {
                 </button>
               </div>
             ))}
+            </div>
+            </div>
           </div>
         </div>
       )}
@@ -491,7 +497,7 @@ export default function SemanticEnginePage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Top row: acceptance gauge + pipeline bar */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 2fr', gap: 16 }}>
             {/* Acceptance gauge */}
             <div style={{ ...card, padding: '20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16, alignSelf: 'flex-start' }}>{traducir('semanticengine.tasa_de_aceptacion')}</div>
@@ -521,7 +527,7 @@ export default function SemanticEnginePage() {
                   </div>
                 )
               })()}
-              <div style={{ display: 'flex', gap: 12, marginTop: 12, fontSize: "var(--text-xs)" }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 12, fontSize: "var(--text-xs)" }}>
                 {[['✅', stats.accepted || 0, 'var(--success)', 'Aceptadas'],
                   ['❌', stats.rejected || 0, 'var(--danger)', 'Rechazadas'],
                   ['⏳', stats.pending || 0, 'var(--text-3)', 'Pendientes']].map(([_ic, v, c, l]) => (
@@ -589,7 +595,7 @@ export default function SemanticEnginePage() {
           {/* Bottom row: system status */}
           <div style={{ ...card, padding: '20px 24px' }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>{traducir('semanticengine.estado_del_sistema')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: 12 }}>
               {[
                 { label: 'Expert cache', value: stats.cache_size || 0, icon: '⚡', hint: 'Items en caché exacta', color: 'var(--accent)' },
                 { label: 'Feedback experto', value: stats.expert_feedback || 0, icon: '🧓', hint: 'Correcciones manuales', color: 'var(--success)' },
