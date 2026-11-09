@@ -16,8 +16,7 @@ from app.models.project import Project
 from app.models.task import Task
 from app.models.epics import WikiSpace, WikiPage
 from app.models.cmdb import (
-    WikiTag, WikiPageTag, TicketInternalComment,
-    WikiExportJob,
+    WikiTag, WikiPageTag, WikiExportJob,
     KanbanConfig, KanbanColumn,
     SprintPlan, SprintPlanTask,
     SLACalendar, V21SLAHoliday,
@@ -116,42 +115,12 @@ def get_pages_by_tag(space_id: str, tag_id: str, db: Session) -> list:
 # INTERNAL TICKET COMMENTS
 # ──────────────────────────────────────────────────────────────────────────────
 
-def list_internal_comments(ticket_id: str, db: Session) -> list:
-    cs = db.query(TicketInternalComment).filter(
-        TicketInternalComment.ticket_id == ticket_id
-    ).order_by(TicketInternalComment.created_at).all()
-    return [{"id": c.id, "content": c.content, "is_internal": c.is_internal,
-             "created_by": c.created_by,
-             "created_at": c.created_at.isoformat() if c.created_at else None,
-             "updated_at": c.updated_at.isoformat() if c.updated_at else None}
-            for c in cs]
 
 
-def add_internal_comment(ticket_id: str, content: str, user_id: str, db: Session) -> dict:
-    c = TicketInternalComment(ticket_id=ticket_id, content=content,
-                              is_internal=True, created_by=user_id)
-    db.add(c); db.commit(); db.refresh(c)
-    return {"id": c.id, "content": c.content, "is_internal": True}
 
 
-def update_internal_comment(ticket_id: str, comment_id: str, content: str, user_id: str, db: Session) -> dict:
-    c = db.query(TicketInternalComment).filter(
-        TicketInternalComment.id == comment_id,
-        TicketInternalComment.ticket_id == ticket_id,
-        TicketInternalComment.created_by == user_id).first()
-    if not c: _404("Comentario")
-    c.content = content; db.commit(); db.refresh(c)
-    return {"id": c.id, "content": c.content}
 
 
-def delete_internal_comment(ticket_id: str, comment_id: str, user_id: str, db: Session) -> dict:
-    c = db.query(TicketInternalComment).filter(
-        TicketInternalComment.id == comment_id,
-        TicketInternalComment.ticket_id == ticket_id,
-        TicketInternalComment.created_by == user_id).first()
-    if not c: _404("Comentario")
-    db.delete(c); db.commit()
-    return {"deleted": True}
 
 
 # ──────────────────────────────────────────────────────────────────────────────

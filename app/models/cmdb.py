@@ -1,9 +1,9 @@
 """
 Contecflow v21 — Modelos:
   1. Etiquetas wiki (WikiTag, WikiPageTag)
-  2. Comentarios internos en tickets (campo is_internal en TicketInternalComment)
+  2. (Los comentarios internos de ticket viven en sd_ticket_comments con is_public=False.)
   3. CMDB: historial, descubrimiento y agentes (los CIs, en service_desk)
-  4. Dashboard de agente (AgentMetricSnapshot)
+  4. (El panel de agente se calcula desde los tickets: no guarda instantáneas.)
   5. Wiki PDF export job (WikiExportJob)
   6. Kanban avanzado: WIP limits, swimlanes (KanbanConfig, KanbanColumn)
   7. Sprint planning IA (SprintPlan, SprintPlanTask)
@@ -11,7 +11,7 @@ Contecflow v21 — Modelos:
 """
 import uuid
 from sqlalchemy import (Column, String, Boolean, Integer, Text,
-                        DateTime, ForeignKey, Float)
+                        DateTime, ForeignKey)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
@@ -48,19 +48,6 @@ class WikiPageTag(Base):
 
 # ─── 2. COMENTARIOS INTERNOS EN TICKETS ──────────────────────────────────────
 
-class TicketInternalComment(Base):
-    """Comentario interno solo visible para agentes (no para el cliente)."""
-    __tablename__ = "ticket_internal_comments"
-    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    ticket_id   = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"),
-                         nullable=False, index=True)
-    content     = Column(Text, nullable=False)
-    is_internal = Column(Boolean, default=True)   # siempre True; campo para diferenciarlo
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
-    updated_at  = Column(DateTime(timezone=True), server_default=func.now(),
-                         onupdate=func.now())
-    created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
 
 # ─── 3. CMDB ─────────────────────────────────────────────────────────────────
@@ -72,21 +59,6 @@ class TicketInternalComment(Base):
 
 # ─── 4. DASHBOARD DE AGENTE ───────────────────────────────────────────────────
 
-class AgentMetricSnapshot(Base):
-    """Snapshot diario de métricas por agente de soporte."""
-    __tablename__ = "agent_metric_snapshots"
-    id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    agent_id         = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
-                               nullable=False, index=True)
-    snap_date        = Column(String(10),  nullable=False, index=True)   # YYYY-MM-DD
-    open_tickets     = Column(Integer, default=0)
-    resolved_today   = Column(Integer, default=0)
-    avg_resolution_h = Column(Float,   default=0.0)    # horas promedio resolución
-    sla_compliant    = Column(Integer, default=0)      # tickets dentro de SLA
-    sla_breached     = Column(Integer, default=0)      # tickets fuera de SLA
-    csat_score       = Column(Float,   nullable=True)  # promedio CSAT del día
-    created_at       = Column(DateTime(timezone=True), server_default=func.now())
 
 
 # ─── 5. WIKI PDF EXPORT ───────────────────────────────────────────────────────

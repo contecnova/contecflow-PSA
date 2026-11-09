@@ -87,23 +87,6 @@ export function useEscalateTicket(): UseMutationResult<unknown, unknown, Escalat
   })
 }
 
-export function useTicketInternalComments(ticketId: string | undefined): UseQueryResult<unknown> {
-  return useQuery({
-    queryKey: ['sd-ticket-internal-comments', ticketId],
-    queryFn: () => ticketsApi.internalComments(ticketId).then((r: { data: unknown }) => r.data),
-    enabled: !!ticketId,
-    staleTime: STALE,
-  })
-}
-
-export function useAddTicketInternalComment(): UseMutationResult<unknown, unknown, CommentArgs> {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: CommentArgs) => ticketsApi.createInternalComment(id, data),
-    onSuccess: (_: unknown, { id }: CommentArgs) => qc.invalidateQueries({ queryKey: ['sd-ticket-internal-comments', id] }),
-  })
-}
-
 export function useTicketTimelog(): UseMutationResult<unknown, unknown, TimelogArgs> {
   const qc = useQueryClient()
   return useMutation({

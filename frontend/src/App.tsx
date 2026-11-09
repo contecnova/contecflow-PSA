@@ -87,7 +87,6 @@ const DependenciesPage       = lazy(() => import('./pages/DependenciesPage'))
 const FullTextSearchPage     = lazy(() => import('./pages/FullTextSearchPage'))
 const EpicGanttPage          = lazy(() => import('./pages/EpicGanttPage'))
 const WikiTagsPage           = lazy(() => import('./pages/WikiTagsPage'))
-const InternalCommentsPage   = lazy(() => import('./pages/InternalCommentsPage'))
 const CMDBPage               = lazy(() => import('./pages/CMDBPage'))
 const AgentDashboardPage     = lazy(() => import('./pages/AgentDashboardPage'))
 const SprintPlanningPage     = lazy(() => import('./pages/SprintPlanningPage'))
@@ -573,7 +572,6 @@ function AppRoutes() {
       <Route path="/dependencies"   element={<ProtectedRoute><Layout><DependenciesPage/></Layout></ProtectedRoute>}/>
       <Route path="/fts-search"     element={<ProtectedRoute><Layout><FullTextSearchPage/></Layout></ProtectedRoute>}/>
       <Route path="/wiki-tags"          element={<ProtectedRoute><Layout><WikiTagsPage/></Layout></ProtectedRoute>}/>
-      <Route path="/internal-comments" element={<ProtectedRoute><Layout><InternalCommentsPage/></Layout></ProtectedRoute>}/>
       <Route path="/cmdb"              element={<ProtectedRoute roles={['admin','pm']}><Layout><CMDBPage/></Layout></ProtectedRoute>}/>
       <Route path="/agent-dashboard"   element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeAgentDashboard/></Layout></ProtectedRoute>}/>
       {/* Revisión 2026-11: «Kanban» era la misma pregunta que Tareas → vista Kanban; ahora es una sola pantalla. */}

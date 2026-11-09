@@ -61,8 +61,8 @@ export {
 } from './useTasks'
 export {
 	useTickets, useTicket, useCreateTicket, useUpdateTicket, useCommentTicket,
-	useTicketMyQueue, useEscalateTicket, useTicketInternalComments,
-	useAddTicketInternalComment, useTicketTimelog, useAiSuggestTicket,
+	useTicketMyQueue, useEscalateTicket, 
+	 useTicketTimelog, useAiSuggestTicket,
 } from './useTickets'
 export {
 	useTrainingCourses, useTrainingCerts, useTrainingEnrollments, useCreateCourse,

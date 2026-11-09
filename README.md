@@ -1968,7 +1968,7 @@ Opening `/service-desk?ticket=<id>` (the link in every notification) switches to
 
 **Limitations (code reading).**
 
-- The separate `/internal-comments` page writes to a different table (`ticket_internal_comments`, legacy `cmdb_service`); it is not in the sidebar and does not generate ticket events. Internal notes belong in the ticket panel.
+- Internal notes are ticket comments with `is_public = False` (ticket panel); they generate ticket events.
 - The Service Desk kanban loads at most 200 tickets and says so when there are more.
 - A code comment in `ServiceDeskPage.tsx` says the queue "only shows unassigned tickets". It is the opposite: it shows the tickets assigned to the current user.
 
@@ -2480,7 +2480,6 @@ What each tool actually does, from the code and the Spanish manual:
 **Technical notes.** `GET /cmdb/agent-dashboard/{agent_id}?days=` (legacy `cmdb` router), admin or PM. Computed on request from `sd_tickets`: tickets assigned to the user with `resolved_at` in the period (days in the viewer's time zone), `resolution_minutes`, `sla_resolution_breached` and `csat_score`; open = assigned and not resolved, closed or cancelled. Test: `tests/test_panel_de_agente_desde_tickets.py`.
 
 **Limitations.**
-- The table `agent_metric_snapshots` remains in the schema, unused.
 - Credit goes to the **current** assignee: if a ticket was reassigned after being resolved, it counts for the new one.
 ---
 

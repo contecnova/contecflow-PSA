@@ -11,7 +11,6 @@ from app.core.config import settings
 from app.core.deps import (
     get_current_user,
     require_admin_or_pm,
-    require_any_manager,
     require_internal_user,
 )
 from app.core.abac_enforce import enforce_abac
@@ -102,34 +101,14 @@ def pages_by_tag(space_id: str, tag_id: str,
 # 2. INTERNAL TICKET COMMENTS
 # ══════════════════════════════════════════════════════════════════════════════
 
-class InternalCommentIn(BaseModel):
-    content: str
 
 
-@sd_router.get("/tickets/{ticket_id}/internal-comments")
-def list_internal_comments_route(ticket_id: str, db: Session = Depends(get_db),
-                                 cu: User = Depends(require_any_manager)):
-    return APIListResponse.ok(items=svc.list_internal_comments(ticket_id, db))
 
 
-@sd_router.post("/tickets/{ticket_id}/internal-comments")
-def add_internal_comment_route(ticket_id: str, p: InternalCommentIn,
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: nota interna del agente
-                                db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return APIResponse.ok(data=svc.add_internal_comment(ticket_id, p.content, cu.id, db))
 
 
-@sd_router.patch("/tickets/{ticket_id}/internal-comments/{comment_id}")
-def update_internal_comment_route(ticket_id: str, comment_id: str, p: InternalCommentIn,
-                                   db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return APIResponse.ok(data=svc.update_internal_comment(ticket_id, comment_id, p.content, cu.id, db))
 
 
-@sd_router.delete("/tickets/{ticket_id}/internal-comments/{comment_id}")
-def delete_internal_comment_route(ticket_id: str, comment_id: str,
-                                   db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    enforce_abac(db, cu, "ticket_internal_comment", comment_id, action="delete")
-    return APIResponse.ok(data=svc.delete_internal_comment(ticket_id, comment_id, cu.id, db))
 
 
 # ══════════════════════════════════════════════════════════════════════════════

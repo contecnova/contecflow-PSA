@@ -73,8 +73,7 @@ from app.models.issue_types import (  # noqa: F401
     IssueType, IssueTypeField, TaskDependencyMeta, EpicDependencyMeta, FTSEntry,
 )
 from app.models.cmdb import (  # noqa: F401
-    WikiTag, WikiPageTag, TicketInternalComment,
-    AgentMetricSnapshot, WikiExportJob,
+    WikiTag, WikiPageTag, WikiExportJob,
     KanbanConfig, KanbanColumn, SprintPlan, SprintPlanTask,
     SLACalendar, V21SLAHoliday, CMDBChangelog,
     CMDBDiscoveryProvider, CMDBDiscoveryJob,

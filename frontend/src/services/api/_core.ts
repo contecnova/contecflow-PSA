@@ -674,10 +674,6 @@ export const ticketsApi = {
   escalate:   (id: any, level: string = 'l2') => api.post(`/sd/tickets/${id}/escalate?to_level=${level}`, {}),
   slaPause:   (id: any, data: unknown) => api.post(`/sd/tickets/${id}/sla/pause`, data),
   slaResume:  (id: any)       => api.post(`/sd/tickets/${id}/sla/resume`),
-  internalComments:      (id: any)         => api.get(`/sd/tickets/${id}/internal-comments`),
-  createInternalComment: (id: any, data: unknown)   => api.post(`/sd/tickets/${id}/internal-comments`, data),
-  updateInternalComment: (id: any, cid: any, data: unknown) => api.patch(`/sd/tickets/${id}/internal-comments/${cid}`, data),
-  deleteInternalComment: (id: any, cid: any)    => api.delete(`/sd/tickets/${id}/internal-comments/${cid}`),
   recommendAssignment:   (id: any, data: unknown)   => api.post(`/sd/tickets/${id}/recommend-assignment`, data),
   autoResolutionFeedback:(id: any, data: unknown)   => api.post(`/sd/tickets/${id}/auto-resolution/feedback`, data),
 }
