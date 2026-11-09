@@ -1418,7 +1418,6 @@ General notes that apply to every module here:
 **Limitations.**
 - **One way to create portal users:** the screen's `POST /portal/clients` (`client_portal_service.create_client`, admin, PM, team lead or HR). It applies the client's `max_portal_users`, and the user is born in the client company's organization (or, without one, its first project's).
 - **Most portal settings are stored but never used.** `enabled_modules`, `sd_without_project`, `sla_tier` and `default_language` are saved but read by nothing in the portal backend or frontend. Only `allow_profile_edit` and `allow_pwd_change` take effect (in `client_portal_service`, portal profile update).
-- **`PATCH /clients/{cid}/portal-users/{uid}` is loosely guarded.** It does not call `_get_scoped_client_or_404` and only requires a logged-in user. It writes any attribute except `id`, `hashed_password` and `client_org_id`. It is not reachable from the UI, but it is reachable from the API.
 - **`GET /clients/{cid}/projects/available` lists projects from all clients.** It queries `Project` with no explicit organization filter in the service. Whether the session's tenant filter scopes it at runtime is not verified.
 
 ---
