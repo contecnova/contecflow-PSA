@@ -142,7 +142,7 @@ export default function GitPage(): JSX.Element {
       />
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 14, marginBottom: 24 }}>
         {[
           { label: t('git_integration.kpi_prs_open'),  value: openPRs,   color: 'var(--success)' },
           { label: t('git_integration.kpi_prs_merged'), value: mergedPRs,  color: 'var(--purple)' },
@@ -159,7 +159,7 @@ export default function GitPage(): JSX.Element {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
         <button style={tabStyle(tab === 'prs')}   onClick={() => setTab('prs')}>
           🔀 {t('git_integration.tab_prs', { count: prs.length })}
         </button>
@@ -176,7 +176,7 @@ export default function GitPage(): JSX.Element {
         loadPR ? <Spinner /> : prs.length === 0 ? (
           <EmptyState icon="🔀" title={t('git_integration.empty_prs_title')} description={t('git_integration.empty_prs_desc')} />
         ) : (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
@@ -230,7 +230,7 @@ export default function GitPage(): JSX.Element {
         loadDep ? <Spinner /> : deploys.length === 0 ? (
           <EmptyState icon="🚀" title={t('git_integration.empty_deploys_title')} description={t('git_integration.empty_deploys_desc')} />
         ) : (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
@@ -338,7 +338,7 @@ function ConfigSection({ title, icon, webhookPath, envVar, events, steps }: { ti
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{t('git_integration.webhook_url_label')}</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <code style={{
-            flex: 1, background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 6,
+            flex: 1, minWidth: 0, background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 6,
             padding: '8px 12px', fontSize: "var(--text-sm)", color: 'var(--info)', overflowX: 'auto',
           }}>{url}</code>
           <button onClick={copy} style={{
@@ -353,7 +353,7 @@ function ConfigSection({ title, icon, webhookPath, envVar, events, steps }: { ti
       </div>
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{t('git_integration.env_var_label')}</div>
-        <code style={{ fontSize: "var(--text-sm)", color: 'var(--warning)' }}>{envVar}=tu-secreto-largo</code>
+        <code style={{ fontSize: "var(--text-sm)", color: 'var(--warning)', overflowWrap: 'anywhere' }}>{envVar}=tu-secreto-largo</code>
       </div>
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>{t('git_integration.events_label')}</div>

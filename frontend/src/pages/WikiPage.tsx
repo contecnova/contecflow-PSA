@@ -13,6 +13,7 @@ import PageShell from '../components/layout/PageShell'
 import { BookOpen } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import type { CSSProperties } from 'react'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 type Block = { type: string; content?: string }
 type WikiPageT = { [k: string]: unknown; id: string; title?: string; slug?: string; content?: Block[]; visibility?: string; updated_at?: string; children?: WikiPageT[] }
@@ -390,9 +391,9 @@ function WikiTagsInline() {
 
   return (
     <div>
-      <div style={{display:'flex',gap:12,marginBottom:20,alignItems:'center'}}>
+      <div style={{display:'flex',gap:12,marginBottom:20,alignItems:'center',flexWrap:'wrap'}}>
         <select value={space} onChange={e=>setSpace(e.target.value)}
-          style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:8,padding: '9px 13px',color:'var(--text-1)',fontSize: "var(--text-base)",outline:'none',fontFamily:'inherit',minWidth:220}}>
+          style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:8,padding: '9px 13px',color:'var(--text-1)',fontSize: "var(--text-base)",outline:'none',fontFamily:'inherit',minWidth:220,maxWidth:'100%'}}>
           <option value="">Seleccionar espacio wiki...</option>
           {spaces.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
@@ -402,8 +403,8 @@ function WikiTagsInline() {
       {showForm && (
         <div style={{background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:12,padding:'20px 24px',marginBottom:20}}>
           <div style={{fontSize: "var(--text-base)",fontWeight:700,marginBottom:14}}>{editing?'Editar':'Nueva'} etiqueta</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:12,marginBottom:14}}>
-            <div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:12,marginBottom:14}}>
+            <div style={{flex:'1 1 200px',minWidth:0}}>
               <label style={{fontSize: "var(--text-xs)",fontWeight:600,color:'var(--text-2)',textTransform:'uppercase',display:'block',marginBottom:5}}>Nombre</label>
               <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
                 style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:8,padding: '9px 13px',color:'var(--text-1)',fontSize: "var(--text-base)",outline:'none',fontFamily:'inherit',width:'100%',boxSizing:'border-box'}}
@@ -411,7 +412,7 @@ function WikiTagsInline() {
             </div>
             <div>
               <label style={{fontSize: "var(--text-xs)",fontWeight:600,color:'var(--text-2)',textTransform:'uppercase',display:'block',marginBottom:5}}>Color</label>
-              <div style={{display:'flex',gap:6}}>
+              <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                 {COLORS.map(c=>(
                   <button key={c} onClick={()=>setForm(f=>({...f,color:c}))}
                     style={{width:28,height:28,borderRadius:6,background:c,border:form.color===c?'2px solid #fff':'2px solid transparent',cursor:'pointer'}} />
@@ -464,6 +465,7 @@ export default function WikiPage() {
   const t = useAppT()
   const toast = useToast()
   const [wikiMode, setWikiMode] = useState('wiki') // 'wiki' | 'tags'
+  const narrow = useMediaQuery('(max-width: 900px)')
 
   const qc = useQueryClient()
   const [space,      setSpace]     = useState<Space | null>(null)
@@ -529,7 +531,7 @@ export default function WikiPage() {
     <PageShell>
        <PageHeader icon={<BookOpen size={18} />} title={t('wiki.title')} subtitle={t('wiki.subtitle')}
         actions={
-          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
             <div style={{display:'flex',gap:4,background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:10,padding:4}}>
               {[['wiki','📚 Wiki'],['tags','🏷 Etiquetas']].map(([id,label])=>(
                 <button key={id} onClick={()=>setWikiMode(id)}
@@ -549,7 +551,7 @@ export default function WikiPage() {
       {wikiMode === 'wiki' && <div style={{display:'flex',gap:8,marginBottom:20}}>
         <input value={searchQ} onChange={e=>{setSearchQ(e.target.value);if(!e.target.value)setSearchRes(null)}}
           onKeyDown={e=>e.key==='Enter'&&doSearch()}
-          placeholder="Buscar paginas o contenido" aria-label="Buscar paginas o contenido" style={{...is,flex:1}}/>
+          placeholder="Buscar paginas o contenido" aria-label="Buscar paginas o contenido" style={{...is,flex:1,minWidth:0}}/>
         <Button onClick={doSearch}>Buscar</Button>
         {searchRes&&<Button variant="secondary" onClick={()=>{setSearchRes(null);setSearchQ('')}}>✕</Button>}
       </div>}
@@ -573,7 +575,7 @@ export default function WikiPage() {
         </div>
       )}
 
-      <div style={{display:'grid',gridTemplateColumns:'240px 1fr',gap:20}}>
+      <div style={{display:'grid',gridTemplateColumns:narrow?'minmax(0, 1fr)':'240px 1fr',gap:20}}>
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           <div style={{...ps,padding:14}}>
             <div style={{fontSize: "var(--text-xs)",fontWeight:700,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:10}}>Espacios</div>
@@ -617,9 +619,9 @@ export default function WikiPage() {
                   <Button onClick={()=>{setParentId(null);setEditPage(null);setPageModal(true)}}>{traducir('wiki.primera_pagina')}</Button>
                 </div>
               : <div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:24}}>
-                    <h1 style={{fontSize: "var(--text-2xl-em)",fontWeight:800}}>{page.title}</h1>
-                    <div style={{display:'flex',gap:8,flexShrink:0}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:24,flexWrap:'wrap',gap:12}}>
+                    <h1 style={{fontSize: "var(--text-2xl-em)",fontWeight:800,minWidth:0,overflowWrap:'anywhere'}}>{page.title}</h1>
+                    <div style={{display:'flex',gap:8,flexShrink:0,flexWrap:'wrap'}}>
                       <Button variant="secondary" onClick={()=>{setEditPage(page);setPageModal(true)}}>✏ Editar</Button>
                       <Button variant="secondary" onClick={()=>setPresentMode(true)}>▶ Presentar</Button>
                       <Button variant="secondary" onClick={()=>setShowHistory(true)}>🕐 Historial</Button>

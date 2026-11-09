@@ -8,6 +8,7 @@ import { EmptyState } from '../components/ui'
 import { BarChart } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 const STATUS_COLOR: Record<string, string> = {
   overloaded: 'var(--danger)',
@@ -164,9 +165,11 @@ interface UserRowProps {
   selectedUser: string | number | null
   /** Recibe `null` al deseleccionar: pulsar la fila activa la quita. */
   onSelect: (userId: string | number | null) => void
+  /** Ancho de la columna del nombre (más estrecha en móvil). */
+  nameWidth?: number
 }
 
-function UserRow({ user, selectedUser, onSelect }: UserRowProps) {
+function UserRow({ user, selectedUser, onSelect, nameWidth = 160 }: UserRowProps) {
   const isSelected = selectedUser === user.user_id
   const avgColor = STATUS_COLOR[estadoDeCarga(user.avg_load_pct)]
 
@@ -177,7 +180,7 @@ function UserRow({ user, selectedUser, onSelect }: UserRowProps) {
         type="button"
         onClick={() => onSelect(isSelected ? null : user.user_id)}
         style={{
-          width: 160, flexShrink: 0, fontSize: "var(--text-sm)", fontWeight: 600,
+          width: nameWidth, flexShrink: 0, fontSize: "var(--text-sm)", fontWeight: 600,
           color: isSelected ? 'var(--accent)' : 'var(--text-1)',
           cursor: 'pointer', padding: '4px 6px', borderRadius: 6,
           background: isSelected ? 'var(--accent-muted)' : 'transparent',
@@ -281,6 +284,7 @@ export default function ResourceForecastPage() {
   const [department, setDepartment]   = useState('')
   const [selectedUser, setSelectedUser] = useState<string | number | null>(null)
   const [view, setView]               = useState('heatmap')   // heatmap | summary | availability
+  const nameWidth = useMediaQuery('(max-width: 900px)') ? 96 : 160
 
   const { data: heatmapData, isLoading: loadingHeatmap } = useQuery<RespuestaDeHeatmap>({
     queryKey: ['forecast-heatmap', weeks, department],
@@ -323,7 +327,7 @@ export default function ResourceForecastPage() {
 
       {/* KPIs de resumen */}
       {summaryData && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))', gap: 12, marginBottom: 24 }}>
           {[
             { label: 'Carga media equipo',  value: `${summary.avg_team_load_pct}%`, color: summary.avg_team_load_pct > 85 ? 'var(--danger)' : 'var(--accent)' },
             { label: 'Horas disponibles',   value: `${summary.total_available_hrs}h`, color: 'var(--success)' },
@@ -375,6 +379,7 @@ export default function ResourceForecastPage() {
           style={{
             background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8,
             padding: '6px 12px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit',
+            minWidth: 0, maxWidth: '100%',
           }}
         />
       </div>
@@ -382,9 +387,11 @@ export default function ResourceForecastPage() {
       {/* Vista heatmap */}
       {view === 'heatmap' && (
         <div style={panel}>
+          <div style={{ overflowX: 'auto' }}>
+          <div style={{ minWidth: !loadingHeatmap && users.length > 0 ? 'max-content' : undefined }}>
           {/* Cabecera de semanas */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-            <div style={{ width: 160, flexShrink: 0 }} />
+            <div style={{ width: nameWidth, flexShrink: 0 }} />
             <div style={{ width: 44, flexShrink: 0 }} />
             <div style={{ display: 'flex', gap: 3, flex: 1, overflowX: 'hidden' }}>
               {weekLabels.slice(0, VISIBLE_WEEKS).map(w => (
@@ -415,10 +422,13 @@ export default function ResourceForecastPage() {
                   user={{ ...u, weeks: (u.weeks ?? []).slice(0, VISIBLE_WEEKS) }}
                   selectedUser={selectedUser}
                   onSelect={setSelectedUser}
+                  nameWidth={nameWidth}
                 />
               ))}
             </div>
           )}
+          </div>
+          </div>
 
           {/* Leyenda */}
           <div style={{ display: 'flex', gap: 14, marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--surface-4)', flexWrap: 'wrap' }}>

@@ -127,7 +127,7 @@ export default function CalendarPage(): JSX.Element {
       <PageHeader icon={<Calendar size={18} />} title={t('calendar.title')} subtitle={t('calendar.subtitle')} showListExport={false} />
 
       {/* Controles */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button onClick={prevMonth} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-lg)" }}>‹</button>
           <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, minWidth: 200, textAlign: 'center' }}>{MONTHS[month]} {year}</div>
@@ -139,7 +139,7 @@ export default function CalendarPage(): JSX.Element {
         </div>
 
         {/* Filtros */}
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[['all', 'Todo'], ...Object.entries(EVENT_TYPES).map(([k, v]) => [k, v.label])].map(([k, label]) => (
             <button key={k} onClick={() => setFilter(k)}
               style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${filter === k ? EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.color || 'var(--accent)' : 'var(--surface-4)'}`,
@@ -166,7 +166,7 @@ export default function CalendarPage(): JSX.Element {
       </div>
 
       {/* Cabecera días */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4, marginBottom: 4 }}>
         {DAYS.map(d => (
           <div key={d} style={{ textAlign: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
             padding: '8px 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -176,14 +176,14 @@ export default function CalendarPage(): JSX.Element {
       </div>
 
       {/* Grid del calendario */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4 }}>
         {cells.map((day, i) => {
           if (day === null) return <div key={`empty-${i}`} style={{ minHeight: 100 }} />
           const isToday = isCurrentMonth && day === today
           const dayEvents = eventsByDay[day] || []
           return (
             <div key={day} style={{
-              minHeight: 100,
+              minHeight: 100, minWidth: 0,
               border: `1px solid ${isToday ? 'var(--accent)' : 'var(--surface-4)'}`,
               borderRadius: 8, padding: '8px 6px',
               background: isToday ? 'var(--accent-muted)' : 'var(--surface-2)',

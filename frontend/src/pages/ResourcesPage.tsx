@@ -116,8 +116,8 @@ function BurnoutMonitorTab() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[
             { id: 'all', label: 'Todos' },
             { id: 'yellow', label: 'Atención' },
@@ -142,7 +142,7 @@ function BurnoutMonitorTab() {
       </div>
 
       {/* Summary pills */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
         {Object.entries(RISK_META).map(([k, m]) => (
           <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
             borderRadius: 20, background: m.bg, border: `1px solid ${m.border}` }}>
@@ -159,7 +159,7 @@ function BurnoutMonitorTab() {
       ) : members.length === 0 ? (
         <EmptyState icon="🎉" title={t('resources.empty_title')} description={t('resources.empty_desc')} />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(380px, 100%), 1fr))', gap: 14 }}>
           {members.map(m => <BurnoutRiskCard key={m.user_id} member={m} />)}
         </div>
       )}
@@ -201,8 +201,8 @@ function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Reso
       boxShadow: load > 100 ? '0 0 20px rgba(248,113,113,0.08)' : '0 2px 8px rgba(0,0,0,0.15)',
       transition: 'border-color .15s, box-shadow .15s',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 8 }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
           <Avatar name={resource.user?.full_name || resource.full_name} size={40} url={undefined} />
           <div>
             <div style={{ fontWeight: 700, fontSize: "var(--text-md)", color: 'var(--text-1)' }}>{resource.user?.full_name || resource.full_name}</div>
@@ -369,7 +369,7 @@ function SmartMatchTab() {
   const panelStyle: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14 }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 24 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: 24 }}>
       <div>
         <div style={{ ...panelStyle, padding: '20px 24px' }}>
           <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 4 }}>🧠 SmartMatch</div>
@@ -448,7 +448,7 @@ function SmartMatchTab() {
                     <div style={{ fontSize: "var(--text-sm)", color: scoreColor(c.scores.overall) }}>{c.recommendation}</div>
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(110px, 100%), 1fr))', gap: 10, marginBottom: 12 }}>
                   {[['Skills', c.scores.skills + '%', 'var(--purple)'], ['Disponibilidad', c.scores.availability + '%', 'var(--accent)'], ['Carga', c.scores.workload + '%', 'var(--success)'], ['Coste', c.scores.cost + '%', 'var(--warning)']].map(([l, v, col]) => (
                     <div key={l} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
                       <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: col }}>{v}</div>
@@ -511,7 +511,7 @@ export default function ResourcesPage() {
       <PageHeader icon={<Users size={18} />} title={t('resources.title')} subtitle={t('resources.subtitle')} />
 
       {/* KPI bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 12, marginBottom: 24 }}>
         {[
           { label: 'Total personas',     value: loadData.length,  color: 'var(--accent)' },
           { label: 'Disponibles (<60%)', value: available,        color: 'var(--success)' },
@@ -529,9 +529,9 @@ export default function ResourcesPage() {
 
       {resTab === 'heatmap' ? <ResourceHeatmap /> : resTab === 'smartmatch' ? <SmartMatchTab /> : resTab === 'burnout' ? <BurnoutMonitorTab /> : (
         <>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('resources.buscar_por_nombre_cargo_o_departamento')}
-              style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }} />
+              style={{ flex: '1 1 220px', minWidth: 0, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }} />
             <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">{t('resources.todos_los_departamentos')}</option>
@@ -551,11 +551,12 @@ export default function ResourcesPage() {
           ) : filtered.length === 0 ? (
             <EmptyState icon="👥" title={t('resources.sin_recursos')} description="No hay personas que coincidan con el filtro actual" />
           ) : view === 'grid' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 16 }}>
               {sortedResources.map(r => <ResourceCard key={r.user?.id} resource={r} onEdit={setEditTarget} showRates={hasRole('admin', 'hr')} canEdit={hasRole('admin')} />)}
             </div>
           ) : (
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflowX: 'auto' }}>
+              <div style={{ minWidth: 760 }}>
               <div style={{ display: 'grid', gridTemplateColumns: hasRole('admin', 'hr') ? '2fr 1fr 1fr 1fr 1fr 1fr 80px' : '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
                 <SortableTH col="user.full_name" sort={resSort} onSort={setResSort}>Recurso</SortableTH>
                 <SortableTH col="user.department" sort={resSort} onSort={setResSort}>Departamento</SortableTH>
@@ -591,6 +592,7 @@ export default function ResourcesPage() {
                   {hasRole('admin', 'hr') && <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{r.user?.hourly_rate ? `${r.user.hourly_rate}€` : '—'}</span>}
                 </div>
               ))}
+              </div>
             </div>
           )}
           {editTarget && <EditUserModal user={editTarget} open={!!editTarget} onClose={() => setEditTarget(null)} />}

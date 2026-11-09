@@ -103,7 +103,7 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
   const t = useAppT()
   const [detalle, setDetalle] = useState(false)
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', alignItems: 'center' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', minWidth: 820, gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', alignItems: 'center' }}>
       <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{expense.code}</span>
       <CatBadge cat={expense.category || ''} />
       <div>
@@ -181,9 +181,9 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
     <Modal open title={isEdit ? 'Editar gasto' : 'Nuevo gasto'} onClose={onClose} width={580}>
       {/* OCR receipt scan button */}
       {!isEdit && (
-        <div style={{ marginBottom: 16, padding: '12px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-glow)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ marginBottom: 16, padding: '12px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-glow)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: "var(--text-xl)" }}>📷</span>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: '1 1 180px', minWidth: 0 }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 2 }}>{traducir('expenses.escanear_recibo_con_ia')}</div>
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{traducir('expenses.sube_una_foto_o_pdf_y_el')}</div>
           </div>
@@ -291,7 +291,7 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
     <Modal open title={`Revisar gasto — ${expense.code}`} onClose={onClose} width={480}>
       <div style={{ marginBottom: 16, background: 'var(--surface-3)', borderRadius: 10, padding: '14px 16px' }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{expense.description}</div>
-        <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
           <span>👤 {expense.user_name}</span>
           <span><CatBadge cat={expense.category || ''} /></span>
           <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{fmt(expense.amount, expense.currency)}</span>
@@ -377,8 +377,8 @@ function MyExpenses() {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 14, marginBottom: 20, alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 14, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           {[
             { label: 'Total', value: fmt(total), color: 'var(--text-1)' },
             { label: 'Pendientes', value: pending, color: pending > 0 ? 'var(--warning)' : 'var(--text-2)' },
@@ -410,8 +410,8 @@ function MyExpenses() {
       ) : sortedExpenses.length === 0 ? (
         <EmptyState icon="🔍" title={traducir('expenses.sin_resultados')} description="Ningún gasto coincide con los filtros aplicados." />
       ) : (
-        <div style={{ ...card, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+        <div style={{ ...card, overflowX: 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', minWidth: 820, gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="code" sort={expSort} onSort={setExpSort}>#</SortableTH>
             <SortableTH col="category" sort={expSort} onSort={setExpSort}>Tipo</SortableTH>
             <SortableTH col="description" sort={expSort} onSort={setExpSort}>{traducir('expenses.descripcion_2')}</SortableTH>
@@ -510,8 +510,8 @@ function PendingApproval() {
       ) : sortedPending.length === 0 ? (
         <EmptyState icon="🔍" title={traducir('expenses.sin_resultados')} description="Ningún gasto pendiente coincide con los filtros aplicados." />
       ) : (
-        <div style={{ ...card, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+        <div style={{ ...card, overflowX: 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', minWidth: 820, gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="code" sort={pendSort} onSort={setPendSort}>#</SortableTH>
             <SortableTH col="category" sort={pendSort} onSort={setPendSort}>Tipo</SortableTH>
             <SortableTH col="description" sort={pendSort} onSort={setPendSort}>{traducir('expenses.descripcion_2')}</SortableTH>
@@ -576,7 +576,7 @@ function TeamExpenses() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-        <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} style={{ ...fs, width: 'auto' }}>
+        <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} style={{ ...fs, width: 'auto', maxWidth: '100%' }}>
           <option value="">{traducir('expenses.todos_los_proyectos')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
@@ -587,7 +587,7 @@ function TeamExpenses() {
       </div>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 14, marginBottom: 24 }}>
         {[
           { label: 'Total gastos', value: fmt(total), color: 'var(--text-1)', icon: '💸' },
           { label: 'Facturable', value: fmt(billable), color: 'var(--success)', icon: '📄' },
@@ -604,7 +604,7 @@ function TeamExpenses() {
 
       {/* Chart by category */}
       {catChartData.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 20, marginBottom: 24 }}>
           <div style={{ ...card, padding: '16px 20px' }}>
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>{traducir('expenses.por_categoria')}</div>
             <ResponsiveContainer width="100%" height={180}>
@@ -643,8 +643,8 @@ function TeamExpenses() {
       {isLoading ? <Spinner /> : expenses.length === 0 ? (
         <EmptyState icon="💸" title={traducir('expenses.sin_gastos_del_equipo')} description="No hay gastos para los filtros seleccionados." />
       ) : (
-        <div style={{ ...card, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+        <div style={{ ...card, overflowX: 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', minWidth: 820, gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="code" sort={teamSort} onSort={setTeamSort}>#</SortableTH>
             <SortableTH col="category" sort={teamSort} onSort={setTeamSort}>Tipo</SortableTH>
             <SortableTH col="description" sort={teamSort} onSort={setTeamSort}>{traducir('expenses.descripcion_2')}</SortableTH>
@@ -708,7 +708,7 @@ export default function ExpensesPage(): JSX.Element {
           </button>
         }
       />
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>

@@ -81,8 +81,8 @@ export default function CumulativeFlowPage(): JSX.Element {
 
       {/* Controles */}
       <div style={{...ps,marginBottom:20}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr auto auto',gap:12,alignItems:'flex-end'}}>
-          <div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'flex-end'}}>
+          <div style={{flex:'1 1 220px',minWidth:0}}>
             <label style={ls}>{t('cumulative_flow.project')}</label>
             <select value={project} onChange={e=>setProject(e.target.value)} style={is}>
               <option value="">{t('cumulative_flow.select_project')}</option>
@@ -104,7 +104,7 @@ export default function CumulativeFlowPage(): JSX.Element {
           </Button>
         </div>
         <div style={{marginTop:10,fontSize: "var(--text-sm)",color:'var(--text-3)',lineHeight:1.6}}>
-          {t('cumulative_flow.snapshot_help')} (<code style={{color:'var(--text-2)'}}>POST /epics/cfd/snapshot?project_id=...</code>)
+          {t('cumulative_flow.snapshot_help')} (<code style={{color:'var(--text-2)',overflowWrap:'anywhere'}}>POST /epics/cfd/snapshot?project_id=...</code>)
         </div>
       </div>
 
@@ -123,7 +123,7 @@ export default function CumulativeFlowPage(): JSX.Element {
       {project&&data.length>0&&(
         <div>
           {/* KPIs */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(min(150px, 100%), 1fr))',gap:12,marginBottom:20}}>
             <div style={ps}>
               <div style={{fontSize: "var(--text-xl-em)",fontWeight:700,color:'var(--success)'}}>{doneLast}</div>
               <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_completed_today')}</div>

@@ -109,10 +109,10 @@ function KRRow({ kr, _onCheckin, onDelete }: { kr: KeyResult; _onCheckin?: () =>
 
   return (
     <div style={{ marginLeft:24, marginBottom:6 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px',
+      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', flexWrap:'wrap',
         background:'var(--surface-3)', borderRadius:8, border:'1px solid var(--surface-4)' }}>
         <ProgressRing pct={pct} size={36} stroke={3} color={color} />
-        <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ flex:'1 1 160px', minWidth:0 }}>
           <div style={{ fontSize: "var(--text-base)", color:'var(--text-1)', fontWeight:500 }}>{kr.title}</div>
           <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:2 }}>
             {typeCfg.icon} {kr.current_value ?? 0} / {kr.target_value} {kr.unit || typeCfg.unit}
@@ -130,10 +130,10 @@ function KRRow({ kr, _onCheckin, onDelete }: { kr: KeyResult; _onCheckin?: () =>
             cursor:'pointer', fontSize: "var(--text-md)", padding:'0 4px' }}>×</button>
       </div>
       {showCheckin && (
-        <div style={{ display:'flex', gap:8, padding:'8px 12px', marginTop:4,
+        <div style={{ display:'flex', gap:8, padding:'8px 12px', marginTop:4, flexWrap:'wrap',
           background:'var(--accent-muted)', border:'1px dashed var(--accent-border)',
           borderRadius:8, alignItems:'center' }}>
-          <div style={{ flex:1 }}>
+          <div style={{ flex:'1 1 120px', minWidth:0 }}>
             <input type="number" value={checkinVal}
               onChange={e => setCheckinVal(e.target.value)}
               style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
@@ -141,7 +141,7 @@ function KRRow({ kr, _onCheckin, onDelete }: { kr: KeyResult; _onCheckin?: () =>
                 fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit' }}
               placeholder={`Nuevo valor (actual: ${kr.current_value})`} />
           </div>
-          <div style={{ flex:2 }}>
+          <div style={{ flex:'2 1 160px', minWidth:0 }}>
             <input value={checkinNote} onChange={e => setCheckinNote(e.target.value)}
               style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
                 borderRadius:6, padding:'6px 10px', color:'var(--text-1)',
@@ -174,14 +174,14 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
   return (
     <div style={{ background:'var(--surface-2)', border:`1px solid ${alpha(color, '25')}`,
       borderRadius:12, padding:'14px 16px', marginBottom:12 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
         <button onClick={() => setExpanded(s => !s)}
           style={{ background:'none', border:'none', color:'var(--text-3)',
             cursor:'pointer', fontSize: "var(--text-lg)", padding:0, width:20, flexShrink:0 }}>
           {expanded ? '▾' : '▸'}
         </button>
         <ProgressRing pct={pct} size={48} stroke={4} color={color} />
-        <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ flex:'1 1 160px', minWidth:0 }}>
           <div style={{ fontSize: "var(--text-md-em)", fontWeight:700, color:'var(--text-1)' }}>{obj.title}</div>
           <div style={{ display:'flex', gap:8, marginTop:3, flexWrap:'wrap' }}>
             <span style={{ fontSize: "var(--text-xs)", color: statusCfg.color, fontWeight:700 }}>
@@ -491,7 +491,7 @@ export default function OKRsPage() {
       title={t('okrs.title')}
       subtitle={t('okrs.subtitle')}
       actions={
-        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
           <select value={period} onChange={e => setPeriod(e.target.value as PeriodOpt)}
             className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
             <option value="">{t('okrs.todos_los_periodos')}</option>

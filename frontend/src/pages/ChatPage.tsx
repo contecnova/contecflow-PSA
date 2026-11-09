@@ -15,7 +15,7 @@ import {
   ChevronDown, ChevronRight, Bell, Sparkles, Megaphone, Zap,
   Bot, FileText, AlertCircle, MoreVertical, Trash2, Pencil, X,
   Headphones, ListChecks, FileSignature, BellOff, Link as LinkIcon,
-  UserPlus, LogOut,
+  UserPlus, LogOut, ChevronLeft,
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
@@ -25,6 +25,7 @@ import { registerCollabPush } from '../utils/collabPush'
 import { useAppLang } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { localeActivo } from '../utils/helpers'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 // ── Loose row/entity types ──────────────────────────────────────────────────
 // The collaboration API client returns `any`/`unknown[]`, so we describe the
@@ -100,6 +101,9 @@ export default function ChatPage(): JSX.Element {
   const [showSlashMenu, setShowSlashMenu] = useState(false)
   const [draft, setDraft] = useState('')
   const [searchModalOpen, setSearchModalOpen] = useState(false)
+  // En pantalla estrecha se ve una sola columna: la lista o la conversación.
+  const narrow = useMediaQuery('(max-width: 900px)')
+  const [mobileShowConv, setMobileShowConv] = useState(false)
 
   // ── Data ───────────────────────────────────────────────────────────────────
   useQuery({
@@ -165,6 +169,7 @@ export default function ChatPage(): JSX.Element {
   const setActiveConv = (c: Conv | null) => {
     if (!c?.id) return
     setSearchParams({ conv: c.id }, { replace: false })
+    setMobileShowConv(true)
   }
 
   // Register Web Push subscription (best-effort, only if VAPID configured)
@@ -244,9 +249,11 @@ export default function ChatPage(): JSX.Element {
       display: 'flex', height: 'calc(100vh - 56px)',
       background: 'var(--surface-0)', color: 'var(--text-1)',
     }}>
+      {(!narrow || !mobileShowConv) && (<>
       <NavRail activeTab={activeTab} onTab={setActiveTab} unreadNotifs={notifications.filter(n => !n.is_read).length} />
 
       <ConversationsList
+        narrow={narrow}
         activeTab={activeTab}
         conversations={conversations}
         teams={teams}
@@ -256,8 +263,11 @@ export default function ChatPage(): JSX.Element {
         activeConv={activeConv}
         onSelect={setActiveConv}
       />
+      </>)}
 
+      {(!narrow || mobileShowConv) && (
       <ConversationPane
+        onBack={narrow ? () => setMobileShowConv(false) : undefined}
         conv={activeConv}
         currentUser={user}
         _bots={bots}
@@ -266,8 +276,9 @@ export default function ChatPage(): JSX.Element {
         showSlashMenu={showSlashMenu}
         setShowSlashMenu={setShowSlashMenu}
       />
+      )}
 
-      {activeConv ? <ContextPanel conv={activeConv} /> : null}
+      {activeConv && !narrow ? <ContextPanel conv={activeConv} /> : null}
 
       {searchModalOpen && (
         <SearchModal
@@ -331,8 +342,8 @@ function NavRail({ activeTab, onTab, unreadNotifs }: { activeTab: string; onTab:
 }
 
 // ── Conversations sidebar (middle column) ────────────────────────────────────
-function ConversationsList({ activeTab, conversations, teams, channels, presence, loading, activeConv, onSelect }: {
-  activeTab: string; conversations: Conv[]; teams: AnyRec[]; channels: AnyRec[];
+function ConversationsList({ narrow = false, activeTab, conversations, teams, channels, presence, loading, activeConv, onSelect }: {
+  narrow?: boolean; activeTab: string; conversations: Conv[]; teams: AnyRec[]; channels: AnyRec[];
   presence: AnyRec[]; loading: boolean; activeConv: Conv | null; onSelect: (c: Conv) => void
 }) {
   const [filter, setFilter] = useState('')
@@ -353,7 +364,7 @@ function ConversationsList({ activeTab, conversations, teams, channels, presence
     return map
   })()
 
-  if (activeTab === 'activity') return <ActivityList />
+  if (activeTab === 'activity') return <ActivityList narrow={narrow} />
 
   const directs = conversations.filter(c => c.kind === 'direct')
   const groups = conversations.filter(c => c.kind === 'group')
@@ -362,7 +373,7 @@ function ConversationsList({ activeTab, conversations, teams, channels, presence
 
   return (
     <div style={{
-      width: 300, flexShrink: 0,
+      ...(narrow ? { flex: 1, minWidth: 0 } : { width: 300, flexShrink: 0 }),
       background: 'var(--surface-1)',
       borderRight: '1px solid var(--surface-4)',
       display: 'flex', flexDirection: 'column',
@@ -963,8 +974,8 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }: {
 }
 
 // ── Conversation pane ────────────────────────────────────────────────────────
-function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlashMenu, setShowSlashMenu }: {
-  conv: Conv | null; currentUser: UserLike | null; _bots: AnyRec[]; draft: string;
+function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, showSlashMenu, setShowSlashMenu }: {
+  onBack?: () => void; conv: Conv | null; currentUser: UserLike | null; _bots: AnyRec[]; draft: string;
   setDraft: Dispatch<SetStateAction<string>>; showSlashMenu: boolean;
   setShowSlashMenu: (v: boolean) => void
 }) {
@@ -1282,11 +1293,12 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
       )}
       {/* Header */}
       <div style={{
-        height: 56, padding: '0 18px', flexShrink: 0,
+        height: 56, padding: onBack ? '0 10px 0 56px' : '0 18px', flexShrink: 0, gap: 8,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-1)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          {onBack && <IconBtn onClick={onBack} title={traducir('portalkb.volver')}><ChevronLeft size={16} /></IconBtn>}
           {conv.kind === 'channel' && <Hash size={18} />}
           {conv.kind === 'direct' && <MessageSquare size={18} />}
           {conv.kind === 'group' && <Users size={18} />}
@@ -1295,7 +1307,7 @@ function ConversationPane({ conv, currentUser, _bots, draft, setDraft, showSlash
             {conv.channel_type && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Canal {conv.channel_type}</div>}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, position: 'relative' }}>
+        <div style={{ display: 'flex', gap: 8, position: 'relative', flexShrink: 0 }}>
           <IconBtn onClick={() => onCallStart('audio')} title={traducir('chat.llamada_de_voz')}><Phone size={15} /></IconBtn>
           <IconBtn onClick={() => onCallStart('video')} title="Videollamada"><Video size={15} /></IconBtn>
           <IconBtn onClick={() => setPanelUi({ headerMenuOpen: !headerMenuOpen })} title={traducir('chat.mas_acciones')}><MoreVertical size={15} /></IconBtn>
@@ -2159,13 +2171,13 @@ function Loader() {
 }
 
 // ── Activity tab ────────────────────────────────────────────────────────────
-function ActivityList() {
+function ActivityList({ narrow = false }: { narrow?: boolean }) {
   const { t: traducir } = useAppLang()
   const { data: notifs = [] } = useQuery({ queryKey: ['collab-notifications'], queryFn: () => collabApi.listNotifications(false) as Promise<AnyRec[]> })
   const { data: mentions = [] } = useQuery({ queryKey: ['collab-mentions'], queryFn: () => collabApi.listMyMentions() as Promise<AnyRec[]> })
   const { data: saved = [] } = useQuery({ queryKey: ['collab-saved'], queryFn: () => collabApi.listSaved() as Promise<AnyRec[]> })
   return (
-    <div style={{ width: 360, background: 'var(--surface-1)', borderRight: '1px solid var(--surface-4)', overflowY: 'auto', padding: 16 }}>
+    <div style={{ ...(narrow ? { flex: 1, minWidth: 0 } : { width: 360 }), background: 'var(--surface-1)', borderRight: '1px solid var(--surface-4)', overflowY: 'auto', padding: 16 }}>
       <Section title={`Notificaciones (${notifs.length})`}>
         {notifs.length === 0 ? <Empty>{traducir('chat.sin_notificaciones')}</Empty> : notifs.slice(0, 30).map(n => (
           <div key={n.id} style={{ padding: '8px 10px', borderRadius: 6, background: n.is_read ? 'transparent' : 'var(--accent-muted)', marginBottom: 4 }}>

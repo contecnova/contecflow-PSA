@@ -362,7 +362,7 @@ export default function CapacityPage(): JSX.Element {
       />
 
       {/* KPI bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 12, marginBottom: 24 }}>
         {[
           { label: 'Personas planificables', value: users.length,        color: 'var(--accent)' },
           { label: 'Departamentos',          value: departments.length,  color: 'var(--purple)' },

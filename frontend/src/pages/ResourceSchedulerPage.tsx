@@ -18,6 +18,7 @@ import { CalendarDays } from 'lucide-react'
 import { Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -222,6 +223,7 @@ export default function ResourceSchedulerPage() {
   const [weeks, setWeeks]             = useState(12)
   const [department, setDepartment]   = useState('')
   const [viewMode, setViewMode]       = useState('scheduler')  // 'scheduler' | 'assign'
+  const narrow = useMediaQuery('(max-width: 900px)')
   const [selectedBooking, setSelected] = useState<any>(null)
   const [panel, setPanel]             = useState<{ booking: any; position: { x: number; y: number }; isNew: boolean } | null>(null)  // { booking, position, userId, startDate, endDate }
   const [dragState, setDragState]     = useState<{ userId: string; startCol: number; endCol: number } | null>(null)  // { userId, startCol }
@@ -469,7 +471,7 @@ export default function ResourceSchedulerPage() {
           title={t('resource_scheduler.title')}
           subtitle={viewMode === 'assign' ? t('resource_scheduler.subtitle_assign') : t('resource_scheduler.subtitle_scheduler')}
           actions={
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {/* View mode toggle */}
               {['scheduler', 'assign'].map(mode => (
                 <button key={mode} onClick={() => setViewMode(mode)} style={{
@@ -486,7 +488,7 @@ export default function ResourceSchedulerPage() {
                 <select value={department} onChange={e => setDepartment(e.target.value)} style={{
                   background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
                   borderRadius: 8, padding: '5px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)",
-                  outline: 'none', fontFamily: 'var(--font-sans)',
+                  outline: 'none', fontFamily: 'var(--font-sans)', maxWidth: '100%',
                 }}>
                   <option value="">{t('resource_scheduler.all_departments')}</option>
                   {departments.map(d => <option key={d} value={d}>{d}</option>)}
@@ -528,9 +530,9 @@ export default function ResourceSchedulerPage() {
         </div>
       ) : viewMode === 'assign' ? (
         /* ── Assign view: drag person chip → project row ───────────────────── */
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: '0 24px 24px', gap: 16 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: narrow ? 'column' : 'row', overflow: 'hidden', padding: '0 24px 24px', gap: 16 }}>
           {/* People panel */}
-          <div style={{ width: 160, flexShrink: 0, overflowY: 'auto', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 12 }}>
+          <div style={{ ...(narrow ? { maxHeight: 180 } : { width: 160 }), flexShrink: 0, overflowY: 'auto', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 12 }}>
             <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>
               {t('resource_scheduler.people')}
             </div>
