@@ -1917,6 +1917,8 @@ type BackendProcess = {
   category: string
   name: string
   description?: string
+  owner?: string | null
+  sla?: string | null
   latest_version?: number
 }
 type Process = {
@@ -1996,7 +1998,7 @@ export default function BPMPage(): JSX.Element {
         category: b.category,
         name: b.name,
         description: b.description || '',
-        owner: '', sla: '', steps: [],
+        owner: b.owner || '', sla: b.sla || '', steps: [],
         bpmn: versionXmlByKey[b.key] || BLANK_BPMN,
         isCustom: true,
         _backendId: b.id,
@@ -2090,6 +2092,8 @@ export default function BPMPage(): JSX.Element {
         key,
         category: newProcess.category,
         description: newProcess.description,
+        owner: newProcess.owner.trim() || null,
+        sla: newProcess.sla.trim() || null,
         bpmn_xml: xml,
       })
       const created = r.data

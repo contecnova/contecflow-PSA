@@ -293,17 +293,20 @@ def run_expenses_report(db: Session, filters: dict, group_by, date_from, date_to
         q = q.filter(Expense.project_id.in_(org_proj_ids))
     if date_from: q = q.filter(Expense.expense_date >= date_from)
     if date_to:   q = q.filter(Expense.expense_date <= date_to)
-    if project_id: q = q.filter(Expense.project_id == project_id)
+    from app.services.gastos_avanzados import del_proyecto, importe_por_proyecto
+    if project_id: q = q.filter(del_proyecto(project_id))
 
     expenses = q.all()
+    # Con proyecto, cada gasto cuenta por la parte que le toca (reparto entre proyectos).
+    pares = importe_por_proyecto(db, expenses, project_id) if project_id else [(e, e.amount) for e in expenses]
     rows = [{
         "code": e.code, "user_name": e.user.full_name if e.user else "—",
         "project_name": e.project.name if e.project else "Sin proyecto",
         "category": e.category, "description": e.description[:60],
-        "amount": e.amount, "currency": e.currency,
+        "amount": importe, "currency": e.currency,
         "expense_date": str(e.expense_date), "is_billable": e.is_billable,
         "status": e.status,
-    } for e in expenses]
+    } for e, importe in pares]
 
     by_cat: dict = {}
     for r in rows:

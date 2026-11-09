@@ -433,12 +433,11 @@ Rules enforced in `imputation_service.py`:
 - Review and reimburse are `require_any_manager` and pass the ABAC check (`action="approve"`).
 - Creating an expense emits no event; submitting emits `EXPENSE_SUBMITTED`.
 - Tables: `expenses` (with `km`, `policy_flags`), `expense_attachments`, `expense_allocations`, `expense_policies` (migration `143_gastos_avanzados`).
+- **Split between projects everywhere.** Anything filtered by project counts an expense when it is the project's or when the project has a share of its split: the project's expense lists, pending and team lists, the expense report (each row at the project's share), the assistant's expense tool, and the category, billable and trend metrics (at the share, and only approved or reimbursed expenses).
 - Code: `app/services/gastos_avanzados.py`; screens `components/gastos/DetalleDeGasto.tsx`, `components/gastos/PoliticasDeGasto.tsx`. Tests: `tests/test_gastos_avanzados_2026_11.py` (9; five planted defects caught).
 
 **Limitations.**
-- **OCR calls Anthropic directly**, outside the AI provider layer: it does not count towards the daily AI spend cap, does not pass the guardrails and is not in `ai_usage_logs`.
 - The legacy `receipt_url` text of older expenses is still shown as a link; new receipts are files.
-- Other aggregations that filter expenses by project (the category, billable and trend metrics with a project filter, the expense lists of a project) look at the expense's own project, not at its split.
 
 ### Approval Inbox — `/approvals`
 *Roles:* Menu and route: admin, pm, team_lead, hr, employee (any internal user can be an approver). The same component is embedded in `/inbox` for every role. Workflow design lives at `/settings/approval-workflows` (config mode, documented in the Settings section).
@@ -1611,7 +1610,7 @@ General notes that apply to every module here:
   - **Compute** a period for a rule. It writes `revenue_recognition_entries`.
 - **ASC 606 engine (tabs Contratos and Entradas).**
   - Create a `RevenueContract`. Methods: `over_time`, `milestone`, `consumption`, `straight_line`. Add performance obligations to it.
-  - **Run monthly** recognizes revenue for a year and month.
+  - **Run monthly** recognizes revenue for the last finished month of the chosen year (the button names it; a year with no finished month disables it). The legacy compute and the period close also start on the last finished month.
   - Close or reopen periods. A closed period is skipped.
   - Reverse an entry. This needs confirmation and cannot be undone.
 
@@ -1632,7 +1631,6 @@ General notes that apply to every module here:
 - **The two engines write to different tables.** They do not reconcile with each other.
 - **Legacy methods per month.** `milestone` recognizes the milestones completed that month; `milestone_billing`, those approved or invoiced that month; `completed_contract`, the remaining contract value in the month the project closes (`end_date_real`, status completed or closed). `time_and_material` uses the project rate; without a rate it recognizes 0.
 - **Legacy auto-compute only handles `milestone_billing`.** The UI does not offer that method, and the auto-compute mutation (`_autoCompute`) has no button.
-- **"Run monthly" defaults to the current, unfinished month.** It is called with `currentMonth`.
 - **Very few tests.** No backend test was found for the legacy engine or for the `/revenue-recognition` endpoints. Only `tests/test_revenue_idempotency.py` covers the ASC 606 service.
 
 ---
@@ -3761,7 +3759,7 @@ Anything else (sub-processes, call activities, boundary events, inclusive/event-
 **Technical notes.**
 - The diagram uses the `bpmn-js` 18 library: Modeler in edit mode, Viewer otherwise.
 - **The 61 catalogue processes are hardcoded in the frontend** (`PROCESS_CATALOG`), and their XML is generated client-side.
-- Saved designs go to `bpmn_processes` and `bpmn_process_versions` (full XML per version; status draft/published/archived).
+- Saved designs go to `bpmn_processes` and `bpmn_process_versions` (full XML per version; status draft/published/archived). The process keeps its owner and SLA as text (`owner`, `sla`, migration `154`); create and `PATCH` accept them.
 - Endpoints:
   - `GET /api/v1/bpmn-processes?include_inactive=false`
   - `GET /api/v1/bpmn-processes/{id}`
@@ -3774,7 +3772,6 @@ Anything else (sub-processes, call activities, boundary events, inclusive/event-
 - **Service and script tasks do nothing**: there is nothing to bind them to yet. Use the Automations module for actions.
 - No process mining, no SLA per step, no reassignment of a human step, and no variables form defined by the diagram (variables are typed free-form).
 - The catalogue processes cannot be started until they are saved once. The Service Desk workflow engine is separate and not connected to `/bpm`.
-- **Owner and SLA from "Nuevo proceso" are lost on reload.** They are never sent to the backend.
 - **Some operations exist in the API with no UI:** version history, publish, delete, duplicate and seed. The backend has a second, different catalogue (55 linear processes) behind `POST /seed`.
 - The page loads each process with a separate GET (N+1).
 

@@ -106,29 +106,17 @@ def metric_expenses_by_category(
     project_ids: Optional[list[str]] = None,
     **kwargs
 ) -> tuple[list[dict], dict]:
-    """Gastos totales agrupados por categoría."""
+    """Gastos (aprobados o reembolsados) por categoría; con proyectos, su parte del reparto."""
     try:
-        from app.models.expenses import Expense
-
-        q_base = db.query(
-            Expense.category,
-            func.sum(Expense.amount).label("total"),
-            func.count(Expense.id).label("count"),
-        ).filter(
-            Expense.expense_date >= d_from,
-            Expense.expense_date <= d_to,
-        )
-        if project_id:
-            q_base = q_base.filter(Expense.project_id == project_id)
-        elif project_ids:
-            q_base = q_base.filter(Expense.project_id.in_(project_ids))
-
-        q_base = q_base.group_by(Expense.category).order_by(func.sum(Expense.amount).desc()).limit(top_n)
-
-        rows = [
-            {"label": r.category or "Sin categoría", "value": round(float(r.total or 0), 2), "count": r.count}
-            for r in q_base.all()
-        ]
+        from app.services.gastos_avanzados import coste_en_proyectos
+        ids = [project_id] if project_id else project_ids
+        grupos: dict = {}
+        for g, importe in coste_en_proyectos(db, d_from, d_to, ids):
+            cat = str(getattr(g.category, "value", g.category) or "Sin categoría")
+            total, n = grupos.get(cat, (0.0, 0))
+            grupos[cat] = (total + importe, n + 1)
+        rows = [{"label": k, "value": round(v, 2), "count": n}
+                for k, (v, n) in sorted(grupos.items(), key=lambda x: -x[1][0])[:top_n]]
     except Exception:
         rows = []
 
@@ -184,29 +172,15 @@ def metric_expenses_billable_vs_internal(
     project_ids: Optional[list[str]] = None,
     **kwargs
 ) -> tuple[list[dict], dict]:
-    """Comparativa de gastos facturables vs internos."""
+    """Gastos facturables frente a internos (aprobados o reembolsados); con proyectos, su parte del reparto."""
     try:
-        from app.models.expenses import Expense
-
-        q_base = db.query(
-            Expense.is_billable,
-            func.sum(Expense.amount).label("total"),
-            func.count(Expense.id).label("count"),
-        ).filter(
-            Expense.expense_date >= d_from,
-            Expense.expense_date <= d_to,
-        )
-        if project_ids:
-            q_base = q_base.filter(Expense.project_id.in_(project_ids))
-        q_base = q_base.group_by(Expense.is_billable)
-
-        rows = []
-        for r in q_base.all():
-            rows.append({
-                "label": "Facturable" if r.is_billable else "Interno",
-                "value": round(float(r.total or 0), 2),
-                "count": r.count,
-            })
+        from app.services.gastos_avanzados import coste_en_proyectos
+        ids = [project_id] if project_id else project_ids
+        grupos: dict = {}
+        for g, importe in coste_en_proyectos(db, d_from, d_to, ids):
+            total, n = grupos.get(bool(g.is_billable), (0.0, 0))
+            grupos[bool(g.is_billable)] = (total + importe, n + 1)
+        rows = [{"label": "Facturable" if k else "Interno", "value": round(v, 2), "count": n} for k, (v, n) in grupos.items()]
     except Exception:
         rows = []
 
@@ -224,30 +198,15 @@ def metric_expenses_trend(
     project_ids: Optional[list[str]] = None,
     **kwargs
 ) -> tuple[list[dict], dict]:
-    """Evolución mensual del total de gastos aprobados."""
+    """Evolución mensual de los gastos aprobados o reembolsados; con proyectos, su parte del reparto."""
     try:
-        from app.models.expenses import Expense
-        from sqlalchemy import extract
-
-        q = db.query(
-            extract("year", Expense.expense_date).label("year"),
-            extract("month", Expense.expense_date).label("month"),
-            func.sum(Expense.amount).label("total"),
-        ).filter(
-            Expense.expense_date >= d_from,
-            Expense.expense_date <= d_to,
-            Expense.status == "approved",
-        )
-        if project_ids:
-            q = q.filter(Expense.project_id.in_(project_ids))
-        q = q.group_by("year", "month").order_by("year", "month")
-
-        rows = []
-        for r in q.all():
-            rows.append({
-                "label": f"{int(r.year)}-{int(r.month):02d}",
-                "value": round(float(r.total or 0), 2),
-            })
+        from app.services.gastos_avanzados import coste_en_proyectos
+        ids = [project_id] if project_id else project_ids
+        meses: dict = {}
+        for g, importe in coste_en_proyectos(db, d_from, d_to, ids):
+            m = f"{g.expense_date.year}-{g.expense_date.month:02d}"
+            meses[m] = meses.get(m, 0.0) + importe
+        rows = [{"label": m, "value": round(v, 2)} for m, v in sorted(meses.items())]
     except Exception:
         rows = []
 

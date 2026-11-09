@@ -152,17 +152,22 @@ export default function RevenuePage() {
   const [showCreate, setShowCreate] = useState(false)
   const [showCompute, setShowCompute] = useState<any>(null)
   const [form, setForm] = useState({ project_id:'', method:'percentage_complete', contract_value:'', start_date:'', end_date:'', notes:'' })
-  const [computePeriod, setComputePeriod] = useState(new Date().toISOString().slice(0,7) + '-01')
+  // El último mes terminado: reconocer o cerrar el mes en curso lo hace con datos a medias.
+  const hoy = new Date()
+  const cerradoY = hoy.getMonth() === 0 ? hoy.getFullYear() - 1 : hoy.getFullYear()
+  const cerradoM = hoy.getMonth() === 0 ? 12 : hoy.getMonth()
+  const [computePeriod, setComputePeriod] = useState(`${cerradoY}-${String(cerradoM).padStart(2, '0')}-01`)
 
   // ── New ASC 606 state ──────────────────────────────────────────────────────
   const currentYear = new Date().getFullYear()
-  const currentMonth = new Date().getMonth() + 1
   const [dashYear, setDashYear] = useState(currentYear)
+  // El mes que «Ejecutar reconocimiento» procesa en el ejercicio elegido: el último terminado.
+  const mesAEjecutar = dashYear < cerradoY ? 12 : dashYear === cerradoY ? cerradoM : null
   const [showCreateContract, setShowCreateContract] = useState(false)
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [obligationsFor, setObligationsFor] = useState<string | null>(null)
   const [entryFilter, setEntryFilter] = useState({ contract_id: '', year: '', month: '' })
-  const [closePeriod, setClosePeriod] = useState({ year: currentYear, month: currentMonth, notes: '' })
+  const [closePeriod, setClosePeriod] = useState({ year: cerradoY, month: cerradoM, notes: '' })
   const [contractForm, setContractForm] = useState({ project_id:'', name:'', method:'over_time', contract_value:'', currency, start_date:'', end_date:'', duration_months:'', notes:'' })
 
   // ── Existing queries ───────────────────────────────────────────────────────
@@ -395,8 +400,9 @@ export default function RevenuePage() {
               <select value={dashYear} onChange={e => setDashYear(Number(e.target.value))} style={{ ...fs, width:'auto' }}>
                 {[currentYear-1, currentYear, currentYear+1].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
-              <Button variant="secondary" onClick={() => runMonthly({ year: dashYear, month: currentMonth })} disabled={runningMonthly}>
-                <RefreshCw size={13} style={{ marginRight:4 }} />{runningMonthly ? 'Procesando...' : 'Ejecutar reconocimiento'}
+              <Button variant="secondary" onClick={() => mesAEjecutar && runMonthly({ year: dashYear, month: mesAEjecutar })} disabled={runningMonthly || !mesAEjecutar}
+                title={mesAEjecutar ? undefined : 'Ese ejercicio aún no tiene ningún mes terminado'}>
+                <RefreshCw size={13} style={{ marginRight:4 }} />{runningMonthly ? 'Procesando...' : `Ejecutar reconocimiento${mesAEjecutar ? ` · ${dashYear}-${String(mesAEjecutar).padStart(2, '0')}` : ''}`}
               </Button>
             </div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>

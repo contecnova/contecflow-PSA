@@ -15,6 +15,8 @@
 """
 from __future__ import annotations
 
+from sqlalchemy import select
+
 import json
 import logging
 from typing import Optional
@@ -186,6 +188,44 @@ def gastos_de_proyecto(db: Session, project_id: str) -> list[tuple[Expense, floa
 
 
 COSTE = (ExpenseStatus.approved, ExpenseStatus.reimbursed)   # un gasto reembolsado sigue siendo coste
+
+
+def del_proyecto(project_id: str):
+    """Condición «el gasto toca al proyecto»: es suyo o le llega una parte por reparto."""
+    from sqlalchemy import or_
+    return or_(Expense.project_id == project_id,
+               Expense.id.in_(select(ExpenseAllocation.expense_id).where(ExpenseAllocation.project_id == project_id)))
+
+
+def coste_en_proyectos(db: Session, desde, hasta, project_ids: Optional[list] = None) -> list[tuple[Expense, float]]:
+    """(gasto, importe) de los gastos que son coste entre dos fechas.
+
+    Sin `project_ids`, cada gasto entero. Con ellos, la parte que toca a esos
+    proyectos: la suma de sus porcentajes de reparto, o el gasto entero si no
+    tiene reparto y su proyecto está en la lista. Revisión 2026-11: las
+    métricas filtradas por proyecto miraban sólo el proyecto propio del gasto.
+    """
+    from sqlalchemy import or_
+    q = db.query(Expense).filter(Expense.status.in_(COSTE), Expense.expense_date >= desde, Expense.expense_date <= hasta)
+    if not project_ids:
+        return [(g, float(g.amount or 0)) for g in q.all()]
+    ids = list(project_ids)
+    por_reparto = db.query(ExpenseAllocation.expense_id).filter(ExpenseAllocation.project_id.in_(ids))
+    gastos = q.filter(or_(Expense.project_id.in_(ids), Expense.id.in_(por_reparto))).all()
+    partes: dict[str, float] = {}
+    con_reparto: set[str] = set()
+    for r in db.query(ExpenseAllocation).filter(ExpenseAllocation.expense_id.in_([g.id for g in gastos] or [""])).all():
+        con_reparto.add(r.expense_id)
+        if r.project_id in ids:
+            partes[r.expense_id] = partes.get(r.expense_id, 0.0) + float(r.percentage or 0)
+    salida = []
+    for g in gastos:
+        if g.id in con_reparto:
+            if partes.get(g.id):
+                salida.append((g, round(float(g.amount or 0) * partes[g.id] / 100, 2)))
+        elif g.project_id in ids:
+            salida.append((g, float(g.amount or 0)))
+    return salida
 
 
 def totales_por_proyecto(db: Session, project_ids, *, desde=None, hasta=None) -> dict[str, float]:

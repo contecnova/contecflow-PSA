@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.user import User
 from app.models.expenses import Expense, ExpenseStatus
+from app.services.gastos_avanzados import del_proyecto
 from app.models.project import Project
 from app.models.project import ProjectStatus
 from app.models.user import User as UserModel
@@ -271,10 +272,11 @@ def list_my_expenses(
         Expense.is_active == True,  # audit #36 soft-delete
     )
     if status:      q = q.filter(Expense.status == _normalize_status(status))
-    if project_id:  q = q.filter(Expense.project_id == project_id)
+    if project_id:  q = q.filter(del_proyecto(project_id))
     if date_from:   q = q.filter(Expense.expense_date >= date_from)
     if date_to:     q = q.filter(Expense.expense_date <= date_to)
     return q.order_by(Expense.expense_date.desc()).all()
+
 
 
 def list_pending_expenses(db: Session, project_id: Optional[str] = None):
@@ -286,7 +288,7 @@ def list_pending_expenses(db: Session, project_id: Optional[str] = None):
         Expense.is_active == True,  # audit #36 soft-delete
     )
     if project_id:
-        q = q.filter(Expense.project_id == project_id)
+        q = q.filter(del_proyecto(project_id))
     return q.order_by(Expense.submitted_at).all()
 
 
@@ -341,7 +343,7 @@ def list_team_expenses(
             Expense.project_id.in_(org_project_ids),
         ))
     if status:      q = q.filter(Expense.status == _normalize_status(status))
-    if project_id:  q = q.filter(Expense.project_id == project_id)
+    if project_id:  q = q.filter(del_proyecto(project_id))
     if user_id:     q = q.filter(Expense.user_id == user_id)
     if date_from:   q = q.filter(Expense.expense_date >= date_from)
     if date_to:     q = q.filter(Expense.expense_date <= date_to)
@@ -351,7 +353,7 @@ def list_team_expenses(
 def list_project_expenses(db: Session, project_id: str):
 
     return db.query(Expense).options(joinedload(Expense.user)).filter(
-        Expense.project_id == project_id,
+        del_proyecto(project_id),   # suyo o con una parte del reparto
         Expense.status.in_(["approved", "reimbursed"]),
     ).all()
 

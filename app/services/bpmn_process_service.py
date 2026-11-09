@@ -425,6 +425,8 @@ def serialize_process(p: BPMNProcess, include_versions: bool = False) -> dict:
         "description": p.description,
         "category": p.category,
         "icon": p.icon,
+        "owner": p.owner,
+        "sla": p.sla,
         "source_kind": p.source_kind,
         "source_ref": p.source_ref,
         "latest_version": p.latest_version,
@@ -495,6 +497,7 @@ def get_version(db: Session, process_id: str, version: int) -> Optional[BPMNProc
 
 def create_process(db: Session, *, name: str, category: str, key: str,
                    description: Optional[str] = None, icon: Optional[str] = None,
+                   owner: Optional[str] = None, sla: Optional[str] = None,
                    bpmn_xml: Optional[str] = None,
                    organization_id: Optional[str] = None,
                    created_by_user_id: Optional[str] = None,
@@ -502,7 +505,7 @@ def create_process(db: Session, *, name: str, category: str, key: str,
                    source_ref: Optional[str] = None) -> BPMNProcess:
     proc = BPMNProcess(
         organization_id=organization_id, key=key, name=name,
-        description=description, category=category, icon=icon,
+        description=description, category=category, icon=icon, owner=owner, sla=sla,
         is_seeded=is_seeded, source_kind=source_kind, source_ref=source_ref,
         created_by_user_id=created_by_user_id, latest_version=1,
         status=BPMNProcessStatus.draft,

@@ -16,7 +16,9 @@ def _get_expenses(tool_input, db, user, now, is_financial_role):
         p = db.query(Project).filter(
             or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
         ).first()
-        if p: q = q.filter(Expense.project_id == p.id)
+        if p:
+            from app.services.gastos_avanzados import del_proyecto
+            q = q.filter(del_proyecto(p.id))
     status = tool_input.get("status", "")
     if status and status != "all": q = q.filter(Expense.status == status)
     expenses = q.order_by(Expense.expense_date.desc()).limit(tool_input.get("limit", 30)).all()
@@ -29,7 +31,7 @@ def _get_expenses(tool_input, db, user, now, is_financial_role):
             "id": e.id, "description": e.description,
             "amount": e.amount, "category": str(e.category) if e.category else None,
             "status": str(e.status) if e.status else None,
-            "date": str(e.date) if e.date else None,
+            "date": str(e.expense_date) if e.expense_date else None,
             "project_name": proj_map[e.project_id].name if e.project_id and e.project_id in proj_map else None,
         } for e in expenses]
     }

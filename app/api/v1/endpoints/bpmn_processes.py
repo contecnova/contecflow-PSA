@@ -38,6 +38,8 @@ class ProcessIn(BaseModel):
     category: str
     description: Optional[str] = None
     icon: Optional[str] = None
+    owner: Optional[str] = None
+    sla: Optional[str] = None
     bpmn_xml: Optional[str] = None
 
 
@@ -46,6 +48,8 @@ class ProcessUpdate(BaseModel):
     description: Optional[str] = None
     category: Optional[str] = None
     icon: Optional[str] = None
+    owner: Optional[str] = None
+    sla: Optional[str] = None
     status: Optional[str] = None
     is_active: Optional[bool] = None
 
@@ -124,7 +128,7 @@ def create_process(
     key = _ensure_unique_key(db, key, org_id)
     proc = svc.create_process(
         db, name=payload.name, category=payload.category, key=key,
-        description=payload.description, icon=payload.icon,
+        description=payload.description, icon=payload.icon, owner=payload.owner, sla=payload.sla,
         bpmn_xml=payload.bpmn_xml, organization_id=org_id,
         created_by_user_id=current_user.id, is_seeded=False, source_kind="custom",
     )

@@ -37,6 +37,8 @@ class BPMNProcess(Base):
     description = Column(Text, nullable=True)
     category = Column(String(80), nullable=False, index=True)    # incident, change, project, finance, ai-ml…
     icon = Column(String(40), nullable=True)                     # optional emoji/icon hint
+    owner = Column(String(200), nullable=True)                   # responsable (texto: rol o persona)
+    sla = Column(String(120), nullable=True)                     # plazo objetivo, en texto (p. ej. «3 días hábiles»)
 
     # Source linkage — when the process is derived from an existing module
     source_kind = Column(String(40), nullable=True)              # "seeded" | "custom"
