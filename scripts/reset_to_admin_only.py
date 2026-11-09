@@ -134,6 +134,8 @@ def _ensure_admin_user(db):
 
 
 def main() -> int:
+    from app.core.entorno import exigir_entorno_no_productivo
+    exigir_entorno_no_productivo("Dejar la base sólo con el administrador")
     db = SessionLocal()
     try:
         _wipe_all_data(db)

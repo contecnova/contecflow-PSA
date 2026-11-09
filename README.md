@@ -60,7 +60,6 @@ Each item was measured in the code. Details are in the section named in brackets
 
 **Operation**
 - `setup.bat` starts the Celery worker with `--pool=solo`; **not verified on Windows**. [7.3, 7.8]
-- There is no working backup procedure in the repository. [7.7, 7.13]
 
 **Partial features**
 - BPM runs a documented subset of BPMN (human tasks, exclusive and parallel gateways, timers); a diagram outside it is refused at start. [5]
@@ -2367,9 +2366,12 @@ Not reviewed screen by screen (**Not verified** beyond the endpoints and jobs).
 
 - Components have a status (`operational`, `degraded_performance`, `partial_outage`, `major_outage`, `maintenance`), a group, an order and a public flag.
 - Incidents are declared per component, and updates are added to them.
-- `GET /sd/status-page/link` returns the public address. `GET /sd/status-page/embed.js` (and `/status/embed.js`) returns an embeddable snippet.
+- `GET /sd/status-page/link` returns the public address and the snippet for a customer's website: `<script src="…/status/embed.js" data-org="<slug>"></script>`.
 
-**Public page.** `GET /status?org=<slug>` is HTML; its data comes from `GET /sd/status-page?org=<slug>`.
+**Public page.** `GET /status?org=<slug>` is HTML in the company's language (`DEFAULT_LANGUAGE`; es, en or zh); its code is `/status/page.js` and its data comes from `GET /sd/status-page?org=<slug>`.
+
+- The widget (`/status/embed.js`) can be loaded from any website: it is served with `Cross-Origin-Resource-Policy: cross-origin`, finds the API from its own `src` (or `data-api-base`), escapes what it draws, and takes the language from the data. `data-target` places it in an existing element.
+- `GET /sd/status-page` answers `Access-Control-Allow-Origin: *`: the data is public and the request carries no credentials.
 
 - Without `org`, the page is served only if there is a single organisation; otherwise the answer is 422.
 - An unknown slug returns 404.
@@ -5220,7 +5222,7 @@ There is no dedicated search engine for the core domain. Measured:
 | `deploy/` | `Dockerfile.backend`, `Dockerfile.frontend` | 2 |
 | `docker-compose.yml` | Single compose with profiles `s3`, `app`, `observability` | 11 services |
 | `ops/prometheus/` | `prometheus.yml` (jobs: api, postgres, redis, prometheus) | 1 |
-| `scripts/` | Audits, `ci_local.sh`, `reset_to_admin_only.py`, `seed_full_data.py`, `rotate_keys.sh`, `deploy.sh`, smoke scripts | 32 entries |
+| `scripts/` | Audits, `ci_local.sh`, `reset_to_admin_only.py`, `seed_full_data.py`, `rotate_keys.sh`, `deploy.sh`, `backup.sh`, `restore.sh`, smoke scripts | 36 entries |
 | `docs/` | Design guide, audits, observability, config maps, service desk | 19 `.md` |
 | `setup.sh` / `setup.bat` | macOS/Linux and Windows installers | 1,309 / 861 lines |
 
@@ -5244,9 +5246,9 @@ Ports: backend **8000**, frontend **3000** (hard-coded in the script), Postgres 
 | Mode | Steps (in order) |
 |---|---|
 | `demo` | `setup_backend` → `setup_frontend` → `python -m app.db.seed` → `start_services` |
-| `clean` | `setup_backend` → `setup_frontend` → `scripts/reset_to_admin_only.py` (**wipes every table**, recreates the default org and the `admin` superadmin from `SUPERADMIN_EMAIL`/`SUPERADMIN_PASSWORD`) → `start_services`. **There is no ENVIRONMENT gate on this path.** |
+| `clean` | `setup_backend` → `setup_frontend` → `scripts/reset_to_admin_only.py` (**wipes every table**, recreates the default org and the `admin` superadmin from `SUPERADMIN_EMAIL`/`SUPERADMIN_PASSWORD`) → `start_services`. Refused (exit 2) unless `ENVIRONMENT` is development, dev, local, test, testing or demo. |
 | `start` | `start_services` only. Does **not** run migrations. |
-| `stop` | Kills the PIDs and anything on 8000/3000; Docker keeps running. |
+| `stop` | Kills the PIDs and anything on `BACKEND_PORT`/`FRONTEND_PORT` (8000/3000 unless set in the environment); Docker keeps running. |
 | `update` | `setup_backend` + `setup_frontend`, no start. |
 | `docker-stop` | `docker compose down` (data kept). |
 | `docker-clean` | `docker compose down -v`. The message says "borra todos los datos", but `postgres_data` and `s3_data` are `external: true`, so only `redis_data`/`prometheus_data` are removed. |
@@ -5310,7 +5312,7 @@ cd frontend && npm install --legacy-peer-deps && npm run dev -- --port 3000
 | `postgres-exporter` | v0.15.0 | `observability` | — | |
 | `redis-exporter` | v1.61.0 | `observability` | — | |
 
-The `x-app` anchor overrides `DATABASE_URL`, `REDIS_URL`, the `AWS_*` S3 variables and `ENVIRONMENT` (default `production`) for api/worker/beat. It also sets `CELERY_BROKER_URL` (db 1) and `CELERY_RESULT_BACKEND` (db 2), but **no code reads them**: `app/worker.py` uses `REDIS_URL` (db 0) for broker and backend. The compose header mentions an `alertmanager` that is not defined. `deploy/Dockerfile.backend` says it "has not been docker-build verified"; `DOCS.md` adds that `tests/test_docker_stack.py` checks only the definition. A full `docker compose --profile app up` is **not verified** here.
+The `x-app` anchor overrides `DATABASE_URL`, `REDIS_URL`, the `AWS_*` S3 variables and `ENVIRONMENT` (default `production`) for api/worker/beat. `deploy/Dockerfile.backend` says it "has not been docker-build verified"; `DOCS.md` adds that `tests/test_docker_stack.py` checks only the definition. A full `docker compose --profile app up` is **not verified** here.
 
 Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up -d` · `docker compose --profile app up -d` (production) · `docker compose --profile observability up -d` · `docker compose down` (keeps data) · `docker compose down -v` (removes only redis/prometheus volumes).
 
@@ -5332,7 +5334,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 365)
+#### 4.2 Settings fields (`Settings`, 366)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5355,7 +5357,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `JWT_KEY_ROTATION_DAYS` | `30` | Rotate JWT signing key every N days. |
 | `JWT_KEY_RETENTION_COUNT` | `3` | Old JWT keys kept for verification. |
 | `INTEGRATION_SECRET_ROTATION_DAYS` | `60` | Re-encrypt integration secrets every N days. |
-| `KEY_ROTATION_RUN_HOUR_UTC` | `2` | Hour of the rotation job. **Interpreted in `DEFAULT_TIMEZONE`, not UTC** (both schedulers use that zone). |
+| `KEY_ROTATION_RUN_HOUR` | `2` | Hour of the rotation job, in `DEFAULT_TIMEZONE` (both schedulers use that zone). The old name `KEY_ROTATION_RUN_HOUR_UTC` is still read from `.env`. |
 | `KMS_PROVIDER` | `''` | `aws` enables AWS KMS envelope encryption. |
 | `AWS_KMS_KEY_ID` | `''` | KMS key id. |
 | `AWS_KMS_REGION` | `''` | KMS region. |
@@ -5458,7 +5460,8 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `TWILIO_FROM_NUMBER` | `None` | Twilio sender. |
 | `CLIENT_TOKEN_EXPIRE_HOURS` | `72` | Client-portal token TTL. |
 | `PORTAL_SHARE_LINK_EXPIRE_HOURS` | `72` | Portal share-link TTL. |
-| `JWT_ALGORITHM` | `'HS256'` | Algorithm for **client-portal** tokens only (staff JWTs hard-code HS256 in app/core/security.py). |
+| `JWT_ALGORITHM` | `'HS256'` | Signature of staff and client-portal tokens. Keys are symmetric, so only HS256, HS384 or HS512 are accepted. |
+| `WS_TICKET_TTL_SECONDS` | `60` | Lifetime of the one-use ticket that opens a WebSocket (s). |
 | `PBKDF2_ITERATIONS` | `260000` | Iterations for legacy v1 key derivation. |
 | `MAX_APPS_PER_USER` | `10` | Developer-portal OAuth apps per user. |
 | `WEBHOOK_CB_THRESHOLD` | `5` | Consecutive failures before an outbound webhook is suspended. |
@@ -5487,7 +5490,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `STRIPE_WEBHOOK_SECRET` | `None` | Stripe webhook signature. |
 | `OPEN_EXCHANGE_RATES_APP_ID` | `None` | FX rates provider. |
 | `EXCHANGE_RATES_AUTO_UPDATE` | `False` | Auto-refresh FX rates. |
-| `RATE_LIMIT_DEFAULT` | `'200/minute'` | Passed as slowapi `default_limits` (see API → rate limits: likely inert). |
+| `RATE_LIMIT_DEFAULT` | `'200/minute'` | Limit of every route without its own `@limiter.limit`, per route and per user (or IP). |
 | `CELERY_AGENT_TASK_TIME_LIMIT` | `300` | Hard limit for agent tasks (s). |
 | `CELERY_AGENT_TASK_SOFT_TIME_LIMIT` | `280` | Soft limit (s). |
 | `OUTBOUND_HTTP_TIMEOUT_SECONDS` | `10.0` | Default outbound HTTP timeout (runtime-overridable). |
@@ -5772,7 +5775,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 
 Compose-only variables (consumed by `docker-compose.yml`, not by Python): `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT`, `REDIS_PORT`, `REDIS_MAXMEMORY`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_BUCKET`, `MINIO_PORT`, `API_WORKERS`, `WORKER_CONCURRENCY`, `WEB_PORT`, `PROMETHEUS_PORT`, `CONTECFLOW_APP_IMAGE`, `CONTECFLOW_WEB_IMAGE`. Frontend (Vite): `VITE_API_URL`, `VITE_WS_URL`, `VITE_PORT`, `API_URL` (proxy target fallback).
 
-`.env.example` (101 keys) contains keys that **no code reads**: `ALLOW_LOCAL_LOGIN`, `HTTP_PORT`, `HTTPS_PORT`, `DEBUG`, `ALGORITHM` (staff JWTs hard-code HS256; `JWT_ALGORITHM` only affects portal tokens). It also sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`, which is clamped to `ACCESS_TOKEN_MAX_MINUTES` (30) for the token while the cookie `max_age` uses the unclamped 60 min.
+It also sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`, which is clamped to `ACCESS_TOKEN_MAX_MINUTES` (30) for the token while the cookie `max_age` uses the unclamped 60 min.
 
 ---
 
@@ -5791,10 +5794,14 @@ Compose-only variables (consumed by `docker-compose.yml`, not by Python): `POSTG
 - **Rollback caveat (measured):** 6 of the 70 `downgrade()` functions are no-ops or raise: `082_multitenancy_fix_unregistered_models`, `092_performance_backfill_organization`, `093_tickets_backfill_organization`, `097_paridad_postgres_con_los_modelos`, `100_numeracion_por_organizacion`, `112_acento_del_tema`. Downgrading through them does not restore the previous state, so back up first.
 - **Parity guard:** `tests/test_alembic_schema_parity.py` builds an empty SQLite with `upgrade head` and compares it with the models. Its PostgreSQL variant **skips** unless `PARITY_POSTGRES_URL` or a `postgresql` `DATABASE_URL` is available.
 - **Seeding:**
-  - `python -m app.db.seed` (used by `setup.sh demo`) runs `seed()` → `seed_service_desk` → `seed_v10` → `seed_itsm_v2` → `seed_alm` → `seed_enterprise` → `seed_v12` → `seed_v13` → `seed_v14/15/16`. The core part creates the organisation **"Consultora Contecflow SL"** (slug `contecflow-demo`, plan enterprise), app settings, 8 departments, Spanish national holidays for 2025–2026, the 9 users of `seed_users_data.json`, and the clients of `seed_clients_data.json` (2 entries), followed by projects, service-desk, ITSM, ALM, enterprise and configuration data. The seed is idempotent per record (lookups before insert). It has **no ENVIRONMENT gate**.
+  - `python -m app.db.seed` (used by `setup.sh demo`) runs `seed()` → `seed_service_desk` → `seed_v10` → `seed_itsm_v2` → `seed_alm` → `seed_enterprise` → `seed_v12` → `seed_v13` → `seed_v14/15/16`. The core part creates the organisation **"Consultora Contecflow SL"** (slug `contecflow-demo`, plan enterprise), app settings, 8 departments, Spanish national holidays for 2025–2026, the 9 users of `seed_users_data.json`, and the clients of `seed_clients_data.json` (2 entries), followed by projects, service-desk, ITSM, ALM, enterprise and configuration data. The seed is idempotent per record (lookups before insert).
   - `python scripts/seed_full_data.py` (what `make seed` and `DOCS.md` call) is a different, heavier generator: 15 extra users, 8 clients, 15 projects, ~2,500 time entries Jan 2025–Mar 2027, ~150 tickets, ~35 invoices, sprints, UAT, and so on.
-  - `python scripts/reset_to_admin_only.py` (`setup.sh clean`) truncates all data and keeps or creates only `admin` and the default organisation. **No ENVIRONMENT gate.**
-- **Backups:** there is no backup tooling for the current stack. `scripts/deploy.sh` has a `pg_dump` step, but it targets compose services named `db`/`backend`/`nginx` and `/api/v1/health`, none of which exist in today's `docker-compose.yml` (`postgres`/`api`/`web`, `/health`). It also calls `app.main._read_alembic_revision`; the function is `_read_alembic_revisions`. **The script cannot work as written.** Use it manually, for example `docker compose exec -T postgres pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > backup.sql`, and copy the `contecflow_s3_data` volume or `uploads/`.
+  - `python scripts/reset_to_admin_only.py` (`setup.sh clean`) truncates all data and keeps or creates only `admin` and the default organisation.
+  - Both refuse to run (exit 2) unless `ENVIRONMENT` is development, dev, local, test, testing or demo (`app/core/entorno.py`). Every path goes through them: `setup.sh`, `setup.bat`, `scripts/start.sh`. `setup.sh docker-clean` has the same gate.
+- **Backups:** `scripts/backup.sh` copies the database (`pg_dump -Fc` from the `postgres` container, checked with `pg_restore --list`) and the files (the `contecflow_s3_data` volume, as tar.gz) into `backups/contecflow-<date>/`, with a `MANIFIESTO` holding the SHA-256 of each piece and the Alembic revision. It keeps the last `BACKUP_KEEP` copies (14). Schedule it with the host's cron.
+  - `scripts/restore.sh <folder> --borra-lo-que-hay` checks the manifest (a tampered copy is refused), stops api/worker/beat, restores the database and the files, and starts them again.
+  - Measured on a separate compose project: data and a file deleted after the copy came back, a copy with one altered byte was refused, and retention kept 2 of 3 with `BACKUP_KEEP=2`.
+- **Deploying:** `scripts/deploy.sh` pulls (images on a registry) or builds the images, makes a backup and stops if it fails, runs `docker compose --profile app up -d`, checks that `migrate` exits 0 and waits for `GET /health` through nginx.
 
 ---
 
@@ -5842,15 +5849,21 @@ The remaining 92 segments have ≤ 12 routes each. `/api/v1` responses carry `x-
 
 #### 6.5 Rate limits
 
-slowapi `Limiter` with Redis storage when `REDIS_URL` is reachable (in-memory otherwise; boot fails in production without Redis unless `RATE_LIMIT_REQUIRE_REDIS_IN_PRODUCTION=0`). There are **117 explicit `@limiter.limit` decorators** (login 5/min, etc.). `RATE_LIMIT_DEFAULT` (`200/minute`) is passed as `default_limits`, but **`SlowAPIMiddleware` is not registered** (0 occurrences). In slowapi, default limits apply through that middleware, so undecorated routes are most likely **unlimited**. **Not verified at runtime.** The key is `get_remote_address` (the socket peer). Behind the compose nginx that peer is the nginx container, and uvicorn is started without `--forwarded-allow-ips`, so per-IP limits are probably shared by all clients. **Not verified.**
+slowapi `Limiter` with Redis storage when `REDIS_URL` is reachable (in-memory otherwise; boot fails in production without Redis unless `RATE_LIMIT_REQUIRE_REDIS_IN_PRODUCTION=0`).
+
+- **117 explicit `@limiter.limit` decorators** (login 5/min, and so on).
+- Every other route: `RATE_LIMIT_DEFAULT` (`200/minute`) through `SlowAPIMiddleware`, counted **per route and per caller**.
+- **Who the caller is:** the user of the session (cookie `access_token` or `Authorization: Bearer`). Without a session, the client IP from `extract_client_ip`, which reads `X-Forwarded-For`/`X-Real-IP` only when the hop is a trusted proxy (`TRUST_PROXY_HEADERS`, `TRUSTED_PROXY_CIDRS`). Behind the compose nginx, set both, or every anonymous caller shares the proxy's quota.
+- **Measured** on a copy: request 201 of one user to one route got 429 and another caller kept its quota. A real 40-second browse of nine pages made 285 requests and none reached the limit.
 
 #### 6.6 WebSockets
 
-1. `GET /api/v1/ws/ticket` (authenticated) returns a **one-time ticket**: `secrets.token_urlsafe(24)`, TTL **60 s** (hard-coded in `app/services/ws_service.py`), stored in Redis under `contecflow:ws:ticket:user:` or in process memory without Redis. Portal equivalent: `/api/v1/ws/portal-ticket`.
+1. `GET /api/v1/ws/ticket` (authenticated) returns a **one-time ticket**: `secrets.token_urlsafe(24)`, TTL `WS_TICKET_TTL_SECONDS` (60 s), stored in Redis under `contecflow:ws:ticket:user:` or in process memory without Redis. Portal equivalent: `/api/v1/ws/portal-ticket`.
 2. Connect with `?ticket=…`; the ticket is consumed on use. `/api/v1/ws/token` also issues a 5-minute JWT with `ws: true`.
 3. Without Redis and with more than 1 uvicorn worker, tickets issued by one worker are unknown to the others.
 4. WebSockets go through the same router guards (`tests/test_websockets_pasan_las_guardas.py`).
-5. The compose nginx adds `Upgrade` headers **only** for `/api/v1/ws/`. `/api/v1/collaboration/ws` and the two `/api/v1/bi/…` sockets go through `location /api/` without them, so they will probably fail behind that proxy. **Not verified at runtime.**
+5. The compose nginx forwards the `Upgrade` headers for every WebSocket of the API (one `location` by regular expression). `tests/test_nginx_websockets_2026_11.py` checks against the route table that each WebSocket matches it.
+6. `/ready`, `/status`, `/status/page.js` and `/status/embed.js` also go through nginx to the API, with the API's own headers.
 
 #### 6.7 Webhooks
 
@@ -5907,9 +5920,9 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 
 #### 8.1 Scheduler modes
 
-- **APScheduler** (in the API process, `ENABLE_APSCHEDULER=1` default, `SQLAlchemyJobStore` on the main DB) runs 4 jobs: `scheduled_reports` (every hour at :00), `scheduled_key_rotation` (`KEY_ROTATION_RUN_HOUR_UTC`:17), `scheduled_alert_engine` (08:00), `scheduled_perf_reminders` (09:00).
+- **APScheduler** (in the API process, `ENABLE_APSCHEDULER=1` default, `SQLAlchemyJobStore` on the main DB) runs 4 jobs: `scheduled_reports` (every hour at :00), `scheduled_key_rotation` (`KEY_ROTATION_RUN_HOUR`:17), `scheduled_alert_engine` (08:00), `scheduled_perf_reminders` (09:00).
 - **Celery beat** (`ENABLE_CELERY_BEAT=1`, separate `beat` container) runs the 52 entries below. The app refuses to boot when both are enabled (`FAIL_ON_DUAL_SCHEDULER=1`), but that check only sees the API process's own env. The compose stack sets `ENABLE_APSCHEDULER=0` and `ENABLE_CELERY_BEAT=1` for every app container. With APScheduler enabled and 4 API workers, APScheduler itself starts 4 times; the code says the shared job store reduces but does not guarantee single execution. **Set `ENABLE_APSCHEDULER=0` and `ENABLE_CELERY_BEAT=1` in `.env` for the Docker stack.** The effect is **not verified at runtime.**
-- **Timezone:** `celery_app.conf.timezone = DEFAULT_TIMEZONE` (Europe/Madrid by default) and `BackgroundScheduler(timezone=DEFAULT_TIMEZONE)`. All hours below are **in `DEFAULT_TIMEZONE`**, despite comments and names saying UTC (`revenue-monthly-recognition` "02:00 UTC", `KEY_ROTATION_RUN_HOUR_UTC`).
+- **Timezone:** `celery_app.conf.timezone = DEFAULT_TIMEZONE` (Europe/Madrid by default) and `BackgroundScheduler(timezone=DEFAULT_TIMEZONE)`. All hours below are in `DEFAULT_TIMEZONE`. Monthly revenue recognition runs daily and acts on each organisation on its own day 1, in its own zone.
 - Broker and result backend: `REDIS_URL`. Without it Celery cannot enqueue. `run_agent_task` uses `CELERY_AGENT_TASK_TIME_LIMIT`/`SOFT`.
 
 #### 8.2 Celery beat schedule (`app/worker.py`, 52 entries, 34 tasks; `deliver_webhook` and `run_agent_task` are on-demand only)
@@ -5921,7 +5934,7 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 | check-missing-imputations | check_missing_imputations | Mon–Fri 18:00 | Remind users who did not log today's time |
 | generate-retainer-invoices | generate_retainer_invoices | daily 07:00 | Recurring retainer invoices (by `retainer_day`) |
 | run-scheduled-reports | run_scheduled_reports | hourly :00 | Due scheduled reports |
-| run-key-rotation | run_scheduled_rotation | daily `KEY_ROTATION_RUN_HOUR_UTC`:17 | JWT keyring and integration-secret rotation |
+| run-key-rotation | run_scheduled_rotation | daily `KEY_ROTATION_RUN_HOUR`:17 | JWT keyring and integration-secret rotation |
 | jira-periodic-sync | jira_periodic_sync | every 30 min | Pull updated Jira issues |
 | process-approval-timeouts | process_approval_timeouts | hourly :00 | Escalate approval steps past timeout |
 | revenue-monthly-recognition | revenue_monthly_recognition | daily 02:00 | ASC 606 close for orgs on their day 1 (idempotent) |
@@ -6040,26 +6053,19 @@ DOCS.md §16 lists generic steps (activate the venv, check `DATABASE_URL`, `alem
 
 #### 13.1 Measured limitations
 
-1. **Schedules are in `DEFAULT_TIMEZONE`**, not UTC, contrary to names and comments (§8.1).
-2. **`RATE_LIMIT_DEFAULT` is probably inert** (no `SlowAPIMiddleware`); only 117 decorated routes are limited, and behind nginx the key is the proxy IP (§6.5).
-3. **nginx forwards WebSocket upgrades only for `/api/v1/ws/`**; 3 other WS endpoints and `/status`, `/ready` and the widgets are not routed (§6.6, §9).
-4. **`setup.sh clean`, `setup.bat start clean` and the seed have no ENVIRONMENT gate.** Only `sync_demo_passwords` is gated (§3.2, §5).
-5. **`scripts/deploy.sh` targets a compose layout that does not exist**, and there is no working backup procedure in the repo (§5).
-6. **Several AI features are Anthropic-only** despite the 8-provider catalogue (§1.5).
-7. **Unit tests run only on SQLite.** PostgreSQL-specific behaviour (pg_trgm, pgvector, collation, PostgreSQL parity) is skipped without a server.
-8. **TypeScript is not strict** (`strictNullChecks` and `noImplicitAny` off, with 226/387 known errors).
-9. **The response envelope is not universal** (1,860 `.ok(` for 2,051 routes, no guard test).
-10. **`/api/v2` is a 3-route stub** while every `/api/v1` response is flagged deprecated.
-11. **6 non-reversible downgrades** (§5).
-12. **Hard-coded values that contradict the "everything in Settings" rule:** WS ticket TTL 60 s, staff JWT algorithm HS256, `setup.sh` ports 8000/3000.
-13. **Compose sets unused `CELERY_BROKER_URL`/`CELERY_RESULT_BACKEND`**, and `.env.example` documents 5 keys nothing reads (§4.3).
-14. **`DOCS.md` states 116 rate-limited endpoints and "390 of 391 models"; measured today: 117 decorators and 394 of 395 mapped classes scoped (+1 exempt).**
+1. **Several AI features are Anthropic-only** despite the 8-provider catalogue (§1.5).
+2. **Unit tests run only on SQLite.** PostgreSQL-specific behaviour (pg_trgm, pgvector, collation, PostgreSQL parity) is skipped without a server.
+3. **TypeScript is not strict** (`strictNullChecks` and `noImplicitAny` off, with 226/387 known errors).
+4. **The response envelope is not universal** (1,860 `.ok(` for 2,051 routes, no guard test).
+5. **`/api/v2` is a 3-route stub** while every `/api/v1` response is flagged deprecated.
+6. **6 non-reversible downgrades** (§5).
+7. **`DOCS.md` states 116 rate-limited endpoints and "390 of 391 models"; measured today: 117 decorators and 394 of 395 mapped classes scoped (+1 exempt).**
 
 #### 13.2 Not verified
 
 - A full `docker compose --profile app up` (images were not built or started; the user's running stack was not touched).
 - Full backend suite run time and pass rate; frontend `npm test`/`build` results.
-- Runtime behaviour of: slowapi default limits without middleware, nginx WS routing, rate-limit IP behind nginx, the frontend `.env.example` breakage, the admin password conflict after `sync_demo_passwords`, and whether Google's chart API still answers.
+- Runtime behaviour of: nginx WS routing and the client IP behind nginx (the configuration was validated with `nginx -t` and against the route table, not with a running proxy), the frontend `.env.example` breakage, the admin password conflict after `sync_demo_passwords`, and whether Google's chart API still answers.
 - SSO/SAML flow internals, the OAuth developer-portal token flow, and the GRC "109 non-exempt domains" figure.
 - The exact Node version Vite 7 requires (upstream fact, not measured).
 

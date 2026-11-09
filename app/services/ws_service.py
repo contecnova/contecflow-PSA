@@ -15,7 +15,10 @@ from sqlalchemy import select
 # ── WS Ticket Store ────────────────────────────────────────────────────────────
 _ws_tickets: Dict[str, tuple] = {}       # ticket → (user_id, expires_at)
 _portal_ws_tickets: Dict[str, tuple] = {}  # ticket → (client_id, expires_at)
-_WS_TICKET_TTL = 60  # seconds
+from app.core.config import settings as _settings
+
+#: Vida del ticket (s). Revisión 2026-11: era un 60 fijo; ahora `WS_TICKET_TTL_SECONDS`.
+_WS_TICKET_TTL = int(_settings.WS_TICKET_TTL_SECONDS)
 
 
 def issue_ws_ticket_local(user_id: str) -> str:

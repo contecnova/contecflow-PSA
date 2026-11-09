@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import Field, ValidationInfo, field_validator
+from pydantic import AliasChoices, Field, ValidationInfo, field_validator
 from typing import ClassVar, List, Optional
 
 from app.core.config_groups import (
@@ -55,7 +55,11 @@ class Settings(
     JWT_KEY_ROTATION_DAYS: int = Field(default=30, env="JWT_KEY_ROTATION_DAYS")
     JWT_KEY_RETENTION_COUNT: int = Field(default=3, env="JWT_KEY_RETENTION_COUNT")
     INTEGRATION_SECRET_ROTATION_DAYS: int = Field(default=60, env="INTEGRATION_SECRET_ROTATION_DAYS")
-    KEY_ROTATION_RUN_HOUR_UTC: int = Field(default=2, env="KEY_ROTATION_RUN_HOUR_UTC")
+    # Hora (en DEFAULT_TIMEZONE, la de los dos planificadores) de la rotación de
+    # claves. Revisión 2026-11: se llamaba `KEY_ROTATION_RUN_HOUR_UTC` y nunca
+    # fue UTC; el nombre viejo se sigue aceptando en el .env.
+    KEY_ROTATION_RUN_HOUR: int = Field(
+        default=2, validation_alias=AliasChoices("KEY_ROTATION_RUN_HOUR", "KEY_ROTATION_RUN_HOUR_UTC"))
 
     # Optional KMS/HSM envelope mode (AWS KMS).
     KMS_PROVIDER: str = Field(default="", env="KMS_PROVIDER")  # "aws" to enable
@@ -359,10 +363,13 @@ class Settings(
     # valores de seguridad y estaban fijos en 72 h sin forma de bajarlos.
     CLIENT_TOKEN_EXPIRE_HOURS: int = Field(default=72, env="CLIENT_TOKEN_EXPIRE_HOURS")
     PORTAL_SHARE_LINK_EXPIRE_HOURS: int = Field(default=72, env="PORTAL_SHARE_LINK_EXPIRE_HOURS")
-    # Algoritmo de firma de los tokens del portal. Se declara para que quede en
-    # un solo sitio, no porque haya que cambiarlo: HS256 es la eleccion correcta
-    # con clave simetrica.
+    # Algoritmo de firma de los tokens de la plantilla y del portal. Las claves
+    # son simétricas (rotación con `kid`), así que sólo vale la familia HMAC.
+    # Revisión 2026-11: antes `core/security.py` fijaba "HS256" a mano y este
+    # campo sólo lo leía el portal.
     JWT_ALGORITHM: str = Field(default="HS256", env="JWT_ALGORITHM")
+    # Vida del ticket de un solo uso con el que se abre un WebSocket (s).
+    WS_TICKET_TTL_SECONDS: int = Field(default=60, env="WS_TICKET_TTL_SECONDS")
 
     # Portal de desarrollador: coste de derivacion de claves y cuota de apps.
     # El primero es un parametro de seguridad que hay que poder subir con el
@@ -542,6 +549,13 @@ class Settings(
     class Config:
         env_file = ".env"
         extra = "ignore"
+
+    @field_validator("JWT_ALGORITHM")
+    @classmethod
+    def _algoritmo_hmac(cls, v: str) -> str:
+        if v not in {"HS256", "HS384", "HS512"}:
+            raise ValueError("JWT_ALGORITHM: las claves son simétricas; usa HS256, HS384 o HS512")
+        return v
 
     @field_validator("SECRET_KEY")
     @classmethod

@@ -1,7 +1,6 @@
 """Service Desk — Miscellaneous subdomain router (catalog, groups, problems, announcements, routing, changes, major incidents, assets, status page)."""
 from fastapi import APIRouter, Depends, Query, Body, Response, HTTPException, Request
 from app.services.service_desk.portal_auth_service import Lector, get_portal_client_or_user
-from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 import json
@@ -58,7 +57,7 @@ from app.services.service_desk.major_incident_service import (
     update_major_incident_record, serialize_major_incident,
 )
 from app.services.service_desk.status_page_service import (
-    build_public_status_page_payload, build_status_page_embed_script,
+    build_public_status_page_payload,
     list_status_components_payload, create_status_component_record,
     update_status_component_record, delete_status_component as delete_status_component_svc,
     create_status_incident_record, add_status_incident_update_record,
@@ -471,13 +470,11 @@ def update_major_incident(mi_id: str, payload: dict = Body(...), db: Session = D
 # ── Status Page ───────────────────────────────────────────────────────────────
 
 @router.get("/status-page", summary="Estado público del servicio de una organización (?org=<slug>)")
-def get_status_page(org: Optional[str] = Query(None, max_length=100), db: Session = Depends(get_db)):
+def get_status_page(response: Response, org: Optional[str] = Query(None, max_length=100), db: Session = Depends(get_db)):
     from app.services.service_desk.status_page_service import organizacion_de_la_pagina
+    # Pública y sin credenciales: la lee el widget desde la web del cliente.
+    response.headers["Access-Control-Allow-Origin"] = "*"
     return APIResponse.ok(data=build_public_status_page_payload(db, organizacion_de_la_pagina(db, org)))
-
-@router.get("/status-page/embed.js", summary="Snippet JS embebible de status page", response_class=PlainTextResponse)
-def status_page_embed_js():
-    return build_status_page_embed_script()
 
 @router.get("/status-page/link", summary="Dirección pública de la página de estado de la organización")
 def status_page_link(db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):

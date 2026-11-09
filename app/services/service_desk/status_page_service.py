@@ -37,6 +37,9 @@ def organizacion_de_la_pagina(db: Session, slug: Optional[str]) -> Optional[str]
     raise HTTPException(422, "Indica la organización: ?org=<slug>")
 
 
+from app.services.service_desk.pagina_de_estado_publica import idioma_de  # noqa: E402
+
+
 def build_public_status_page_payload(db: Session, org_id: Optional[str] = None) -> dict:
     q = db.query(StatusPageComponent).filter(StatusPageComponent.is_public == True)  # noqa: E712
     if org_id is not None:
@@ -100,41 +103,8 @@ def build_public_status_page_payload(db: Session, org_id: Optional[str] = None) 
         "overall_status": worst,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "groups": groups,
+        "idioma": idioma_de(db, org_id),
     }
-
-
-def build_status_page_embed_script() -> str:
-    return """
-(function(){
-    var scriptTag = document.currentScript;
-    var api = (scriptTag && scriptTag.getAttribute('data-api')) || window.location.origin;
-    var targetId = (scriptTag && scriptTag.getAttribute('data-target')) || 'contecflow-status-page';
-    var mount = document.getElementById(targetId);
-    if(!mount){
-        mount = document.createElement('div');
-        mount.id = targetId;
-        document.body.appendChild(mount);
-    }
-    var org = (scriptTag && scriptTag.getAttribute('data-org')) || '';
-    fetch(api + '/api/v1/sd/status-page' + (org ? '?org=' + encodeURIComponent(org) : ''))
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-            var html = '<div style="font-family:system-ui,sans-serif;border:1px solid #d0d7de;border-radius:8px;padding:12px;max-width:760px">'
-                + '<div style="font-weight:700;margin-bottom:8px">Service Status: ' + (data.overall_status || 'operational') + '</div>';
-            Object.keys(data.groups || {}).forEach(function(g){
-                html += '<div style="margin-top:8px"><div style="font-weight:600">' + g + '</div>';
-                (data.groups[g] || []).forEach(function(c){
-                    html += '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">'
-                        + '<span>' + c.name + '</span><span>' + c.status + '</span></div>';
-                });
-                html += '</div>';
-            });
-            html += '</div>';
-            mount.innerHTML = html;
-        })
-        .catch(function(){ mount.innerHTML = '<div>Unable to load status page</div>'; });
-})();
-""".strip()
 
 
 def list_status_components(db: Session):

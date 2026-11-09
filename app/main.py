@@ -1,4 +1,7 @@
-from fastapi import Depends, FastAPI, Request, HTTPException
+from typing import Optional
+
+from fastapi import Depends, FastAPI, Request, HTTPException, Query
+from sqlalchemy.orm import Session
 from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, Response
@@ -360,7 +363,7 @@ def _arrancar_planificador(_enable_apscheduler, _celery_beat_enabled):
             )
             _scheduler.add_job(
                 run_scheduled_rotation,
-                CronTrigger(hour=settings.KEY_ROTATION_RUN_HOUR_UTC, minute=17),
+                CronTrigger(hour=settings.KEY_ROTATION_RUN_HOUR, minute=17),
                 id="scheduled_key_rotation",
                 replace_existing=True,
                 misfire_grace_time=900,
@@ -655,6 +658,10 @@ app.add_middleware(ExceptionHandlerMiddleware)
 # Rate limiter state + 429 handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# Revisión 2026-11: sin este middleware `RATE_LIMIT_DEFAULT` no se aplicaba a
+# nada; sólo limitaban las rutas con su propio `@limiter.limit` (117 de ~2.000).
+from slowapi.middleware import SlowAPIMiddleware  # noqa: E402
+app.add_middleware(SlowAPIMiddleware)
 
 
 # Revisión 2026-11: tope diario de gasto en IA de la empresa (AI_DAILY_BUDGET_USD).
@@ -767,7 +774,9 @@ async def security_headers_middleware(request: Request, call_next):
     # browsing context con el origen actual. CORP same-origin restringe los
     # subresources a same-origin (los docs preview son same-origin igual).
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
-    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+    # El widget de estado lo carga la web de un cliente: otro origen.
+    response.headers["Cross-Origin-Resource-Policy"] = (
+        "cross-origin" if path == "/status/embed.js" else "same-origin")
     # Legacy Flash/PDF cross-domain policy: ningún dominio puede leerlo.
     response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
     if is_docs_route:
@@ -855,130 +864,29 @@ from app.core.metrics import setup_metrics
 setup_metrics(app)
 
 
+from app.db.session import get_db as _get_db  # noqa: E402
+
+
 @app.get("/status", response_class=HTMLResponse)
-def public_status_page():
-        """Public status page without authentication."""
-        api_path = f"{settings.API_V1_STR}/sd/status-page"
-        return f"""
-<!doctype html>
-<html lang=\"en\">
-<head>
-    <meta charset=\"utf-8\" />
-    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
-    <title>Status</title>
-    <style>
-        :root {{ --bg:#0f172a; --card:#111827; --line:#24324a; --txt:#e5e7eb; --muted:#93a3b8; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --maint:#6366f1; }}
-        body {{ margin:0; background:radial-gradient(circle at top,#13213d 0%,#0b1220 55%,#060b14 100%); color:var(--txt); font:14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu; }}
-        .wrap {{ max-width:980px; margin:0 auto; padding:32px 20px 40px; }}
-        .head {{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:20px; }}
-        .title {{ font-size:30px; font-weight:800; letter-spacing:.3px; }}
-        .badge {{ padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:#0b1324; font-size:12px; }}
-        .group {{ margin-top:20px; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:rgba(17,24,39,.75); backdrop-filter: blur(4px); }}
-        .group h2 {{ margin:0; padding:12px 16px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); border-bottom:1px solid var(--line); }}
-        .row {{ display:flex; justify-content:space-between; gap:10px; padding:12px 16px; border-bottom:1px solid #1b2940; }}
-        .row:last-child {{ border-bottom:0; }}
-        .name {{ font-weight:700; }}
-        .desc {{ color:var(--muted); font-size:12px; margin-top:2px; }}
-        .status {{ font-weight:700; font-size:12px; text-transform:uppercase; }}
-        .operational {{ color:var(--ok); }} .degraded_performance {{ color:var(--warn); }} .partial_outage,.major_outage {{ color:var(--bad); }} .maintenance {{ color:var(--maint); }}
-        .foot {{ margin-top:14px; color:var(--muted); font-size:12px; }}
-        .err {{ border:1px solid #7f1d1d; color:#fecaca; background:rgba(127,29,29,.25); border-radius:10px; padding:10px 12px; }}
-    </style>
-</head>
-<body>
-    <div class=\"wrap\">
-        <div class=\"head\">
-            <div class=\"title\">Service Status</div>
-            <div id=\"overall\" class=\"badge\">Loading...</div>
-        </div>
-        <div id=\"content\"></div>
-        <div id=\"foot\" class=\"foot\"></div>
-    </div>
-    <script>
-        // La pagina es de una organizacion: ?org=<slug> (auditoria 2026-11).
-        const org = new URLSearchParams(window.location.search).get('org');
-        const api = {api_path!r} + (org ? '?org=' + encodeURIComponent(org) : '');
-        const $content = document.getElementById('content');
-        const $overall = document.getElementById('overall');
-        const $foot = document.getElementById('foot');
+def public_status_page(org: Optional[str] = Query(None, max_length=100), db: Session = Depends(_get_db)):
+    """Página de estado pública de una empresa (?org=<slug>), en su idioma."""
+    from app.services.service_desk import pagina_de_estado_publica as pagina
+    from app.services.service_desk.status_page_service import organizacion_de_la_pagina
+    return HTMLResponse(pagina.pagina(pagina.idioma_de(db, organizacion_de_la_pagina(db, org))))
 
-        function label(s) {{ return String(s || '').replaceAll('_',' '); }}
-        function esc(v) {{ return String(v ?? '').replace(/[&<>\"']/g, m => ({{'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}})[m]); }}
 
-        fetch(api)
-            .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
-            .then(data => {{
-                $overall.className = 'badge ' + data.overall_status;
-                $overall.textContent = 'Overall: ' + label(data.overall_status);
-                const groups = data.groups || {{}};
-                const html = Object.keys(groups).map(g => `
-                    <section class=\"group\">
-                        <h2>${{esc(g)}}</h2>
-                        ${{groups[g].map(c => `
-                            <div class=\"row\">
-                                <div>
-                                    <div class=\"name\">${{esc(c.name)}}</div>
-                                    <div class=\"desc\">${{esc(c.description || '')}}</div>
-                                </div>
-                                <div class=\"status ${{esc(c.status)}}\">${{esc(label(c.status))}}</div>
-                            </div>`).join('')}}
-                    </section>`).join('');
-                $content.innerHTML = html || '<div class=\"err\">No public components configured.</div>';
-                $foot.textContent = data.generated_at ? 'Updated: ' + new Date(data.generated_at).toLocaleString() : '';
-            }})
-            .catch(err => {{
-                $content.innerHTML = '<div class=\"err\">Could not load status page: ' + esc(err.message) + '</div>';
-                $overall.textContent = 'Unavailable';
-            }});
-    </script>
-</body>
-</html>
-"""
+@app.get("/status/page.js")
+def public_status_page_js():
+    """El código de la página: aparte, porque la CSP no admite código en línea."""
+    from app.services.service_desk.pagina_de_estado_publica import guion_de_pagina
+    return Response(content=guion_de_pagina(settings.API_V1_STR), media_type="application/javascript")
 
 
 @app.get("/status/embed.js")
 def status_embed_js():
-        """Embeddable status widget script for customer websites."""
-        js = f"""
-(function() {{
-    var script = document.currentScript;
-    var apiBase = (script && script.getAttribute('data-api-base')) || window.location.origin + '{settings.API_V1_STR}';
-    var targetSel = (script && script.getAttribute('data-target')) || null;
-    var target = targetSel ? document.querySelector(targetSel) : null;
-    if (!target) {{
-        target = document.createElement('div');
-        script.parentNode.insertBefore(target, script.nextSibling);
-    }}
-    target.style.fontFamily = "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto";
-    target.style.border = "1px solid #d1d5db";
-    target.style.borderRadius = "10px";
-    target.style.padding = "12px";
-    target.style.maxWidth = "420px";
-    target.innerHTML = "<div style='font-weight:700;margin-bottom:6px'>Service Status</div><div style='font-size:12px;color:#6b7280'>Loading...</div>";
-
-    var org = (script && script.getAttribute('data-org')) || '';
-    fetch(apiBase + '/sd/status-page' + (org ? '?org=' + encodeURIComponent(org) : ''))
-        .then(function(r) {{ return r.json(); }})
-        .then(function(data) {{
-            var groups = data.groups || {{}};
-            var rows = [];
-            Object.keys(groups).forEach(function(g) {{
-                groups[g].forEach(function(c) {{
-                    rows.push("<div style='display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid #eef2f7'><span>" +
-                                        c.name + "</span><strong style='text-transform:uppercase;font-size:11px'>" +
-                                        String(c.status || '').replaceAll('_',' ') + "</strong></div>");
-                }});
-            }});
-            target.innerHTML = "<div style='font-weight:700;margin-bottom:8px'>Service Status</div>" +
-                "<div style='font-size:12px;color:#4b5563;margin-bottom:8px'>Overall: <strong style='text-transform:uppercase'>" +
-                String(data.overall_status || 'unknown').replaceAll('_',' ') + "</strong></div>" + rows.join('');
-        }})
-        .catch(function() {{
-            target.innerHTML = "<div style='color:#b91c1c;font-size:12px'>Status unavailable</div>";
-        }});
-}})();
-"""
-        return Response(content=js, media_type="application/javascript")
+    """Widget de estado para la web de un cliente (se carga desde otro origen)."""
+    from app.services.service_desk.pagina_de_estado_publica import guion_del_widget
+    return Response(content=guion_del_widget(settings.API_V1_STR), media_type="application/javascript")
 
 
 @app.get("/widget/ticket.js")

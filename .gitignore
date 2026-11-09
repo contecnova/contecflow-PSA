@@ -77,3 +77,6 @@ htmlcov/
 
 remaining_failures.txt
 frontend/reports/
+
+# Copias de scripts/backup.sh (revisión 2026-11)
+/backups/

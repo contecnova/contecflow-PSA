@@ -4,7 +4,7 @@
 # Infra:  postgres · redis
 # Opt-in: s3 (versitygw)   (--profile s3; también con --profile app)
 # App:    api · worker · beat · web (nginx + frontend construido)
-# Opt-in: prometheus · alertmanager · exporters   (--profile observability)
+# Opt-in: prometheus · exporters   (--profile observability)
 #
 # Misma estrategia que contecmind y contecweb:
 #   · Todos los puertos se publican en 127.0.0.1, nunca en 0.0.0.0.
@@ -64,8 +64,6 @@ x-app: &app
     DATABASE_URL: postgresql+psycopg2://${APP_DB_USER:-${POSTGRES_USER}}:${APP_DB_PASSWORD:-${POSTGRES_PASSWORD}}@postgres:5432/${POSTGRES_DB:?define POSTGRES_DB}
     DATABASE_MIGRATIONS_URL: postgresql+psycopg2://${POSTGRES_USER:?define POSTGRES_USER}:${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?define POSTGRES_DB}
     REDIS_URL: redis://redis:6379/0
-    CELERY_BROKER_URL: redis://redis:6379/1
-    CELERY_RESULT_BACKEND: redis://redis:6379/2
     AWS_S3_ENDPOINT_URL: http://s3:9000
     AWS_ACCESS_KEY: ${MINIO_ROOT_USER:?define MINIO_ROOT_USER}
     AWS_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?define MINIO_ROOT_PASSWORD}

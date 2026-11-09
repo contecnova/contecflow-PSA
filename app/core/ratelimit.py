@@ -10,23 +10,46 @@ Import `limiter` into any router file that needs per-endpoint limits:
     def login(request: Request, ...):
         ...
 
-The middleware is registered in app/main.py.
+The middleware is registered in app/main.py: `SlowAPIMiddleware` applies
+`RATE_LIMIT_DEFAULT` to every route without its own `@limiter.limit`.
 """
 import logging
 import os
 import uuid
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 _logger = logging.getLogger(__name__)
 
 
 def _rate_limit_key(request):
-    """In test environments return a unique key per request so rate limits
-    are never shared between tests. In production use the remote IP."""
+    """Quién gasta la cuota: el usuario de la sesión o, sin sesión, la IP real.
+
+    Revisión 2026-11. Antes era `get_remote_address`, la IP de la conexión: tras
+    nginx, la del proxy, así que toda la empresa compartía una sola cuota; y
+    por IP, una oficina detrás de una NAT también. Ahora cuenta por usuario
+    autenticado (cookie o Bearer) y, si no lo hay, por la IP que dan
+    `X-Forwarded-For`/`X-Real-IP` sólo cuando el salto es un proxy de confianza
+    (`TRUST_PROXY_HEADERS`, `TRUSTED_PROXY_CIDRS`).
+
+    En pruebas devuelve una clave por petición para que los límites no se
+    compartan entre tests.
+    """
     if os.getenv("TESTING") == "1":
         return str(uuid.uuid4())
-    return get_remote_address(request)
+    token = request.cookies.get("access_token") if hasattr(request, "cookies") else None
+    if not token:
+        cabecera = request.headers.get("authorization", "")
+        token = cabecera[7:] if cabecera.lower().startswith("bearer ") else None
+    if token:
+        from app.core.security import decode_token
+        try:
+            datos = decode_token(token)
+        except Exception:  # un token malo no da identidad: cuenta por IP
+            datos = None
+        if datos and datos.get("sub"):
+            return f"u:{datos['sub']}"
+    from app.core.network import extract_client_ip
+    return f"ip:{extract_client_ip(request)}"
 
 
 def _build_limiter() -> Limiter:

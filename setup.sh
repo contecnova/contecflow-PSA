@@ -21,8 +21,10 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BACKEND_PORT=8000
-FRONTEND_PORT=3000
+# Puertos: los del entorno si vienen (BACKEND_PORT=8010 ./setup.sh start), si no
+# los de siempre. Revisión 2026-11: estaban fijos.
+BACKEND_PORT="${BACKEND_PORT:-8000}"
+FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 PYTHON_MIN="3.10"
 VENV_DIR=""
 PY_BIN=""
@@ -738,7 +740,7 @@ SECRET_KEY=${GEN_SECRET_KEY}
 CLIENT_PORTAL_SECRET=${PORTAL_SECRET}
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 REFRESH_TOKEN_EXPIRE_DAYS=30
-ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:5173","http://localhost:8000"]
+ALLOWED_ORIGINS=["http://localhost:${FRONTEND_PORT}","http://localhost:5173","http://localhost:${BACKEND_PORT}"]
 SUPERADMIN_EMAIL=admin@company.com
 SUPERADMIN_PASSWORD=contecflow2024!
 DEFAULT_USER_PASSWORD=contecflow2024!
@@ -1241,7 +1243,7 @@ start_services() {
 
     log "Arrancando frontend en puerto $FRONTEND_PORT..."
   cd frontend
-  npm run dev -- --port $FRONTEND_PORT > /tmp/contecflow-frontend.log 2>&1 &
+  API_URL="http://localhost:$BACKEND_PORT" npm run dev -- --port $FRONTEND_PORT > /tmp/contecflow-frontend.log 2>&1 &
   FRONTEND_PID=$!
   cd "$SCRIPT_DIR"
 
@@ -1385,6 +1387,10 @@ case "${1:-}" in
     fi
     ;;
   docker-clean)
+    if ! is_safe_for_destructive_ops; then
+      error "docker-clean borra los volúmenes y ENVIRONMENT=$(get_environment). Sólo en desarrollo o pruebas."
+      exit 2
+    fi
     log "Parando infraestructura Docker y borrando volúmenes..."
     if detect_docker && [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
       docker_compose_cmd down -v

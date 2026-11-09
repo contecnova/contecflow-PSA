@@ -32,6 +32,8 @@ from app.db.seed_parts.itsm import seed_itsm_v2
 from app.db.seed_parts.alm import seed_alm
 
 if __name__ == "__main__":
+    from app.core.entorno import exigir_entorno_no_productivo
+    exigir_entorno_no_productivo("Sembrar los datos de demostración")
     # ── La consola de Windows no habla UTF-8, y el sembrado sí ───────────────
     #
     # Auditoría 2026-09. `python -m app.db.seed` reventaba en Windows con

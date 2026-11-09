@@ -1,109 +1,87 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════════════════════
-# Contecflow PSA — Script de despliegue para servidor propio
-# Uso: ./scripts/deploy.sh [staging|production]
+# Contecflow PSA — desplegar o actualizar en un servidor propio
 #
-# Orden garantizado: pull → backup → migrate → smoke → run → health
+#   ./scripts/deploy.sh
 #
-# Variables de entorno requeridas (o en .env del directorio de despliegue):
-#   GHCR_TOKEN       — GitHub personal access token (read:packages)
-#   GHCR_USER        — GitHub username / org
-#   BACKEND_IMAGE    — ghcr.io/<org>/contecflow-backend:latest
-#   FRONTEND_IMAGE   — ghcr.io/<org>/contecflow-frontend:latest
+# Orden: imágenes → copia de seguridad → migraciones → aplicación → salud.
+#
+#   1. Imágenes: si CONTECFLOW_APP_IMAGE / CONTECFLOW_WEB_IMAGE apuntan a un
+#      registro (llevan «/»), se descargan; si no, se construyen aquí.
+#   2. Copia: `scripts/backup.sh` (base + ficheros). Si la base ya está en
+#      marcha y la copia falla, NO se sigue.
+#   3. Migraciones: el servicio `migrate` del compose (Alembic + RLS). La API,
+#      el worker y beat dependen de que termine bien: con una migración rota
+#      la aplicación no arranca a medias.
+#   4. `docker compose --profile app up -d`, comprobando que `migrate` sale con 0.
+#   5. Salud: `GET /health` a través de nginx (`WEB_PORT`).
+#
+# Variables (del entorno o del .env de la carpeta): las del compose, más
+#   GHCR_USER / GHCR_TOKEN   para entrar en ghcr.io si las imágenes están allí
+#   DEPLOY_DIR               carpeta del despliegue (por defecto, la del repo)
+#
+# Revisión 2026-11: el anterior apuntaba a servicios `db`, `backend` y `nginx`
+# que no existen en este compose, y si la copia fallaba seguía igualmente.
 # ══════════════════════════════════════════════════════════════════════════════
 set -euo pipefail
 
-ENVIRONMENT=${1:-staging}
-DEPLOY_DIR="/opt/contecflow"
-LOG_FILE="/var/log/contecflow-deploy.log"
-
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
-log()  { echo -e "${GREEN}[$(date '+%H:%M:%S')] ✅ $1${NC}" | tee -a "$LOG_FILE" 2>/dev/null || echo "✅ $1"; }
-warn() { echo -e "${YELLOW}[$(date '+%H:%M:%S')] ⚠  $1${NC}" | tee -a "$LOG_FILE" 2>/dev/null || echo "⚠  $1"; }
-err()  { echo -e "${RED}[$(date '+%H:%M:%S')] ✗  $1${NC}"; exit 1; }
-
-log "Iniciando despliegue Contecflow PSA → ${ENVIRONMENT}"
-
-command -v docker  >/dev/null || err "Docker no instalado"
-docker compose version >/dev/null 2>&1 || err "Docker Compose no instalado"
-[[ -d "$DEPLOY_DIR" ]]      || err "Directorio $DEPLOY_DIR no existe. Crea /opt/contecflow y configura .env"
-[[ -f "$DEPLOY_DIR/.env" ]] || err "Archivo .env no encontrado en $DEPLOY_DIR"
+DEPLOY_DIR="${DEPLOY_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$DEPLOY_DIR"
+[ -f .env ] || { echo "✗ Falta .env en $DEPLOY_DIR" >&2; exit 1; }
+set -a; . ./.env; set +a
 
-# ── Login to GitHub Container Registry ────────────────────────────────────────
-if [[ -n "${GHCR_TOKEN:-}" && -n "${GHCR_USER:-}" ]]; then
-  log "Autenticando en ghcr.io..."
-  echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+paso() { echo "[$(date '+%H:%M:%S')] → $1"; }
+fallo() { echo "[$(date '+%H:%M:%S')] ✗ $1" >&2; exit 1; }
+
+command -v docker > /dev/null || fallo "Docker no está instalado"
+docker compose version > /dev/null 2>&1 || fallo "Falta Docker Compose v2"
+
+# Los volúmenes de datos son externos (no los borra un `down -v`): se crean si faltan.
+docker volume create contecflow_postgres_data > /dev/null
+docker volume create contecflow_s3_data > /dev/null
+
+# ── 1. Imágenes ───────────────────────────────────────────────────────────────
+if [[ "${CONTECFLOW_APP_IMAGE:-}" == */* || "${CONTECFLOW_WEB_IMAGE:-}" == */* ]]; then
+  if [ -n "${GHCR_TOKEN:-}" ] && [ -n "${GHCR_USER:-}" ]; then
+    echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin > /dev/null
+  fi
+  paso "Descargando imágenes"
+  docker compose --profile app pull api web
 else
-  warn "GHCR_TOKEN / GHCR_USER no definidos — se omite login al registry (se usará build local)"
+  paso "Construyendo imágenes"
+  docker compose --profile app build api web
 fi
 
-# ── Pull nuevas imágenes ───────────────────────────────────────────────────────
-log "Descargando nueva imagen..."
-docker compose pull
-
-# ── Backup (solo production) ───────────────────────────────────────────────────
-if [[ "$ENVIRONMENT" == "production" ]]; then
-  warn "Haciendo backup de base de datos..."
-  mkdir -p backups
-  BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
-  docker compose exec -T db pg_dump \
-    -U "${POSTGRES_USER:-contecflow}" "${POSTGRES_DB:-contecflow}" \
-    > "backups/$BACKUP_FILE" 2>/dev/null \
-    && log "Backup: backups/$BACKUP_FILE" \
-    || warn "Backup omitido (BD puede no estar corriendo)"
+# ── 2. Copia de seguridad ─────────────────────────────────────────────────────
+if docker compose ps --status running --services 2>/dev/null | grep -qx postgres; then
+  paso "Copia de seguridad"
+  ./scripts/backup.sh || fallo "La copia falló: no se despliega sin copia"
+else
+  paso "La base no está en marcha: primera instalación, sin copia previa"
 fi
 
-# ── PASO 1: Arrancar solo infraestructura (DB, Redis, Nginx) sin el backend ───
-# El backend se levanta después de que las migraciones hayan terminado.
-log "Arrancando infraestructura (db, redis, nginx)..."
-docker compose up -d --no-build db redis nginx 2>/dev/null \
-  || docker compose up -d --no-build db redis 2>/dev/null \
-  || docker compose up -d --no-build db 2>/dev/null \
-  || warn "No se pudo arrancar infraestructura selectivamente; se continúa de todas formas"
-
-# Esperar a que la BD esté lista antes de migrar
-DB_RETRIES=10; DB_ATTEMPT=0
-until docker compose exec -T db pg_isready -U "${POSTGRES_USER:-contecflow}" >/dev/null 2>&1; do
-  DB_ATTEMPT=$((DB_ATTEMPT+1))
-  [[ $DB_ATTEMPT -ge $DB_RETRIES ]] && err "Base de datos no disponible tras $DB_RETRIES intentos"
-  warn "Esperando BD... $DB_ATTEMPT/$DB_RETRIES"
-  sleep 3
+# ── 3 y 4. Migraciones y aplicación ───────────────────────────────────────────
+paso "Migraciones y arranque"
+docker compose --profile app up -d --remove-orphans \
+  || fallo "No arrancó. Mira: docker compose logs migrate api"
+# `migrate` es de una sola pasada: se espera a que termine y se mira cómo.
+for intento in $(seq 1 120); do
+  ESTADO="$(docker compose ps -a migrate --format '{{.State}} {{.ExitCode}}' 2>/dev/null)"
+  [[ "$ESTADO" == exited* ]] && break
+  sleep 2
 done
-log "Base de datos lista"
+[[ "$ESTADO" == "exited 0" ]] || fallo "Las migraciones no terminaron bien ($ESTADO). Mira: docker compose logs migrate"
 
-# ── PASO 2: Migraciones ────────────────────────────────────────────────────────
-log "Aplicando migraciones..."
-MIGRATE_REVISION_BEFORE=$(docker compose run --rm --no-deps backend \
-  python -m alembic current 2>/dev/null | grep -oE '[a-f0-9]{12}' | head -1 || echo "unknown")
-
-if docker compose run --rm --no-deps backend python -m alembic upgrade head; then
-  log "Migraciones aplicadas correctamente"
-else
-  err "Fallo en migraciones — abortando despliegue. Revisión anterior: ${MIGRATE_REVISION_BEFORE}. Ejecuta manualmente: alembic downgrade <rev>"
-fi
-
-# ── PASO 3: Smoke check de schema antes de arrancar la app ────────────────────
-log "Smoke check de schema..."
-if ! docker compose run --rm --no-deps backend \
-    python -c "from app.main import _read_alembic_revision; from app.core.config import settings; rev=_read_alembic_revision(settings.DATABASE_URL); print('schema OK, rev='+str(rev)); assert rev is not None" 2>/dev/null; then
-  warn "Smoke check de schema no concluyente — continuando igualmente"
-fi
-
-# ── PASO 4: Arrancar la aplicación completa ────────────────────────────────────
-log "Arrancando aplicación..."
-docker compose up -d --no-build --remove-orphans
-
-# ── PASO 5: Health check ──────────────────────────────────────────────────────
-log "Verificando salud..."
-sleep 8
-MAX_RETRIES=6; RETRY=0
-until curl -sf http://localhost/api/v1/health >/dev/null 2>&1; do
-  RETRY=$((RETRY+1))
-  [[ $RETRY -ge $MAX_RETRIES ]] && err "Health check falló tras $MAX_RETRIES intentos. Revisa: docker compose logs backend"
-  warn "Esperando... $RETRY/$MAX_RETRIES"
+# ── 5. Salud ──────────────────────────────────────────────────────────────────
+WEB="${WEB_PORT:-127.0.0.1:8080}"
+[[ "$WEB" == *:* ]] || WEB="127.0.0.1:$WEB"
+paso "Comprobando http://$WEB/health"
+for intento in 1 2 3 4 5 6; do
+  if curl -sf "http://$WEB/health" > /dev/null; then
+    docker image prune -f > /dev/null 2>&1 || true
+    echo "[$(date '+%H:%M:%S')] ✓ Desplegado ($(docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc 'select version_num from alembic_version' 2>/dev/null | tr -d ' \r'))"
+    exit 0
+  fi
   sleep 5
 done
-
-docker image prune -f >/dev/null 2>&1 || true
-log "Despliegue completado — ${ENVIRONMENT} — $(date)"
+fallo "La aplicación no contesta en /health. Mira: docker compose logs api web"

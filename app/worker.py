@@ -46,7 +46,7 @@ celery_app.conf.beat_schedule = {
     # Key material rotation
     "run-key-rotation": {
         "task": "app.worker.run_scheduled_rotation",
-        "schedule": crontab(hour=settings.KEY_ROTATION_RUN_HOUR_UTC, minute=17),
+        "schedule": crontab(hour=settings.KEY_ROTATION_RUN_HOUR, minute=17),
     },
     # Jira bidirectional sync — pull updated issues every 30 minutes
     "jira-periodic-sync": {
@@ -62,7 +62,7 @@ celery_app.conf.beat_schedule = {
     #
     # Auditoría 2026-08. Antes era `crontab(day_of_month=1, hour=2)`, un único
     # disparo para todo el mundo, y eso desplazaba el periodo de las
-    # organizaciones al oeste de UTC: a las 02:00 UTC del día 1, en UTC−6 es
+    # organizaciones al oeste de UTC: a las 02:00 del día 1 en Madrid, en UTC−6 es
     # todavía el día 31 del mes anterior, así que su «mes anterior» salía un mes
     # antes de lo debido y el mes que de verdad acababa de cerrar no se reconocía
     # nunca. La tarea recorre ahora las organizaciones y sólo actúa sobre las que
@@ -73,7 +73,7 @@ celery_app.conf.beat_schedule = {
     # Antes de ese arreglo, repetirlo duplicaba ingresos.
     "revenue-monthly-recognition": {
         "task": "app.worker.revenue_monthly_recognition",
-        "schedule": crontab(hour=2, minute=0),  # a diario a las 02:00 UTC
+        "schedule": crontab(hour=2, minute=0),  # a diario a las 02:00 de DEFAULT_TIMEZONE
     },
     # ML model retraining — 1st of every month at 03:00 (after revenue recognition)
     "ml-model-retrain": {
@@ -1005,7 +1005,8 @@ def process_approval_timeouts():
 def revenue_monthly_recognition():
     """
     ASC 606 / IFRS 15 monthly recognition batch.
-    Runs on the 1st of each month at 02:00 UTC.
+    Runs daily at 02:00 (DEFAULT_TIMEZONE) and acts only on the organizations
+    whose own local date is the 1st.
     Processes over_time, consumption, and straight_line contracts for the
     previous calendar month across all organizations.
     Milestone-method contracts are skipped (recognized on milestone completion).
@@ -1025,7 +1026,7 @@ def revenue_monthly_recognition():
         for org in organizaciones:
             hoy = today_in(resolve_zone(getattr(org, "timezone", None)))
             # Sólo se reconoce cuando es día 1 EN SU zona. La tarea corre a diario
-            # a propósito: con la ejecución mensual a las 02:00 UTC del día 1, una
+            # a propósito: con la ejecución mensual a las 02:00 del día 1, una
             # organización en UTC−6 estaba todavía en el día 31 del mes anterior,
             # así que su «mes anterior» salía desplazado un mes y ese periodo no
             # se reconocía nunca. Repartir el disparo por zonas es lo que da
@@ -1056,7 +1057,7 @@ def revenue_monthly_recognition():
 def olap_nightly_etl():
     """
     Nightly incremental ETL: PostgreSQL → DuckDB OLAP star schema.
-    Runs at 01:00 UTC. Loads last 2 days of imputations + full dim/fact refresh.
+    Runs at 01:00 (DEFAULT_TIMEZONE). Loads last 2 days of imputations + full dim/fact refresh.
     Pass since=date(2023,1,1) in a manual call for a full historical load.
     """
     from app.db.session import worker_db_session
@@ -1072,7 +1073,7 @@ def olap_nightly_etl():
 def ml_model_retrain():
     """
     Retrain overrun prediction ML models for all active organizations.
-    Runs on the 1st of each month at 03:00 UTC, after revenue recognition.
+    Runs on the 1st of each month at 03:00 (DEFAULT_TIMEZONE), after revenue recognition.
     Skips orgs with fewer than MIN_TRAINING_SAMPLES completed projects.
     Requires scikit-learn; skips gracefully if not available.
     """

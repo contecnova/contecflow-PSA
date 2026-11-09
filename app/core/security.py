@@ -10,7 +10,7 @@ from app.services.key_management import get_jwt_signing_key, get_jwt_verificatio
 
 logger = logging.getLogger(__name__)
 
-ALGORITHM = "HS256"
+ALGORITHM = settings.JWT_ALGORITHM
 
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -162,7 +162,7 @@ def verify_client_token(token: str, db):
     from app.models.client_portal import ClientUser
     try:
         from jose import jwt as jose_jwt
-        payload = jose_jwt.decode(token, settings.CLIENT_PORTAL_SECRET, algorithms=["HS256"])
+        payload = jose_jwt.decode(token, settings.CLIENT_PORTAL_SECRET, algorithms=[ALGORITHM])
         if payload.get("type") != "client":
             return None
         uid = payload.get("sub")
