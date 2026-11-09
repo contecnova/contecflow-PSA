@@ -74,6 +74,8 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     # ── Webhooks entrantes: firmados con HMAC dentro del handler ─────────────
     ("POST", "/api/v1/git/webhooks/github"): "HMAC de GitHub",
     ("POST", "/api/v1/git/webhooks/gitlab"): "token de GitLab",
+    ("POST", "/api/v1/git/webhooks/github/{slug}"): "HMAC de GitHub con el secreto de esa empresa",
+    ("POST", "/api/v1/git/webhooks/gitlab/{slug}"): "token de GitLab con el secreto de esa empresa",
     ("POST", "/api/v1/jira/webhook"): "HMAC de Jira",
     ("POST", "/api/v1/integrations/jira/webhook"): "HMAC de Jira",
     ("POST", "/api/v1/esign/webhooks/docusign"): "HMAC de DocuSign",

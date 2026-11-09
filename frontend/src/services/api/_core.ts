@@ -1897,6 +1897,7 @@ export const burnoutRiskApi = {
 export const gitApi = {
   pullRequests: () => api.get('/git/pull-requests'),
   deployments:  () => api.get('/git/deployments'),
+  webhooks:     () => api.get('/git/webhooks'),
 }
 
 // ── Settings Admin ────────────────────────────────────────────────────────────

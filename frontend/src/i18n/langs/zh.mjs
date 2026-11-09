@@ -653,6 +653,9 @@ const zh = {
     voice_desc: "语音指令处理",
   },
   git_integration: {
+    secreto_label: "签名密钥",
+    secreto_puesto: "已为你的公司保存（凭据 → Inbound webhooks → {clave}）。在 webhook 中使用相同的密钥。",
+    secreto_falta: "缺少：请在 凭据 → Inbound webhooks → {clave} 中保存。没有它，事件会被拒绝。",
     title: "Git 集成",
     subtitle: "跨仓库的 PR 与部署",
     webhook_url: "Webhook URL",

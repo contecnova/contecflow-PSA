@@ -852,26 +852,22 @@ Rules enforced in `imputation_service.py`:
 ### Git Integration — `/git`
 *Roles:* Menu: admin, pm. Route: admin, pm.
 
-**Purpose.** Read-only lists of pull/merge requests and deployments received from GitHub and GitLab webhooks, with automatic linking to tasks.
+**Purpose.** Lists of pull/merge requests and deployments received from GitHub and GitLab webhooks, linked to tasks.
 
 **How to use it.**
-1. Tabs: *PRs*, *Deployments*, *Config*. The Config tab shows the webhook URL.
-2. In GitHub or GitLab, point a webhook to:
-   - `/api/v1/git/webhooks/github` (signed with `X-Hub-Signature-256`)
-   - `/api/v1/git/webhooks/gitlab` (token header)
-3. A PR is linked to a task when its branch name or title contains the task code, e.g. `PROJ-123` (regex `[A-Z]{2,10}-\d+`).
+1. Tabs: *PRs*, *Deployments*, *Config*. Config shows **your company's** webhook addresses and whether its secret is saved.
+2. Save the secret in Credenciales → Inbound webhooks (`github_secret`, `gitlab_secret`) for your company, and point the webhook to:
+   - `/api/v1/git/webhooks/github/{company}` (signed with `X-Hub-Signature-256`)
+   - `/api/v1/git/webhooks/gitlab/{company}` (token header)
+3. A PR is linked to a task of your company when its branch name or title contains the task code, e.g. `PROJ-123`.
 4. When a linked PR is merged, the task is set to `done`.
 
-**Configuration.** `GITHUB_WEBHOOK_SECRET`, `GITLAB_WEBHOOK_SECRET` (env, global). If either is empty, all webhooks for that provider are rejected.
+**How a webhook is handled.** The event is processed as the company in the address: the task is looked up only in that company and the rows are saved in it. The address needs that company's own secret — the global one is not accepted there, so nobody can write into another company by changing the address. `/git/webhooks/github` and `/gitlab` without a company work only when the installation has a single company (they use `GITHUB_WEBHOOK_SECRET` / `GITLAB_WEBHOOK_SECRET`); with several they answer 409 and name the address to use.
 
-**Technical notes.** `GET /api/v1/git/pull-requests`, `GET /api/v1/git/deployments`, plus the two webhook endpoints, `GET /git/pull-requests/{id}`, `POST /git/tasks/{task_id}/branch` and `GET /git/tasks/{task_id}/pr-status`. The last two have no frontend caller. Tables: `git_pull_requests`, `git_deployments`.
+**Technical notes.** `GET /api/v1/git/webhooks` (addresses and secret status), `GET /api/v1/git/pull-requests`, `GET /api/v1/git/deployments`, the four webhook endpoints, `GET /git/pull-requests/{id}`, `POST /git/tasks/{task_id}/branch` and `GET /git/tasks/{task_id}/pr-status`. Tables: `git_pull_requests`, `git_deployments`.
 
 **Limitations.**
-- **Nothing shows without webhooks.** The page has no data until a webhook is configured. There are no outbound calls to the GitHub or GitLab APIs.
-- **One secret per provider for the whole install.** The webhook secret is not per organisation.
-- **Task lookup is not filtered by organisation.** `find_task_by_ref` searches `Task.code` across all organisations.
-- **`#123` references never link.** They are compared with the UUID `tasks.id`.
-- **Rows have no organisation.** `git_service.py` never sets `organization_id` on the rows it writes. Whether tenant scoping hides other tenants' PRs: Not verified.
+- **Nothing shows without webhooks.** There are no outbound calls to the GitHub or GitLab APIs from this page (the GitHub pull sync lives in Integrations).
 - **Auto-close skips the transition rules.** It sets `done` directly.
 
 ### Wiki — `/wiki`

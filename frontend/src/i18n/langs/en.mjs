@@ -517,6 +517,9 @@ const en = {
                     voice_desc: 'Voice command processing',
                   },
                 git_integration: {
+    secreto_label: "Signing secret",
+    secreto_puesto: "Saved for your company (Credentials → Inbound webhooks → {clave}). Use the same one in the webhook.",
+    secreto_falta: "Missing: save it in Credentials → Inbound webhooks → {clave}. Without it, events are rejected.",
                   title: 'Git Integration',
                   subtitle: 'PRs and deployments across repositories',
                   webhook_url: 'Webhook URL',

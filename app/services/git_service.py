@@ -31,46 +31,52 @@ from app.models.task import Task
 
 _logger = logging.getLogger(__name__)
 
-_TASK_REF_RE = re.compile(r'\b([A-Z]{2,10})-(\d+)\b|#(\d+)')
+_TASK_REF_RE = re.compile(r'\b([A-Z]{2,10})-(\d+)\b')
 
 
 def find_task_by_ref(db: Session, ref_text: str) -> Optional[str]:
-    """Attempt to find a task_id from a branch name / PR title."""
+    """La tarea cuyo código aparece en la rama o el título, en la empresa de la sesión.
+
+    Revisión 2026-11: buscaba `Task.code` en todas las empresas, así que un PR
+    fusionado en una podía cerrar la tarea homónima de otra. Ahora la sesión
+    trabaja como la empresa del webhook (ver `procesar_como`) y la consulta lo
+    exige además de forma explícita. Fuera `#123`: se comparaba con un UUID y
+    no enlazaba nunca.
+    """
+    org = db.info.get("organization_id")
     for m in _TASK_REF_RE.finditer(ref_text or ''):
-        code = f"{m.group(1)}-{m.group(2)}" if m.group(1) else None
-        num  = int(m.group(3)) if m.group(3) else None
-        if code:
-            t = db.query(Task).filter(Task.code == code).first()
-            if t:
-                return t.id
-        if num:
-            t = db.query(Task).filter(Task.id == num).first()
-            if t:
-                return t.id
+        q = db.query(Task).filter(Task.code == f"{m.group(1)}-{m.group(2)}")
+        if org:
+            q = q.filter(Task.organization_id == org)
+        t = q.first()
+        if t:
+            return t.id
     return None
 
 
-def verify_github_signature(body: bytes, sig_header: str) -> bool:
-    """HMAC-SHA256 verification for GitHub webhooks."""
-    if not settings.GITHUB_WEBHOOK_SECRET:
+def verify_github_signature(body: bytes, sig_header: str, secret: Optional[str] = None) -> bool:
+    """HMAC-SHA256 verification for GitHub webhooks (el secreto de la empresa, o el global)."""
+    secret = secret if secret is not None else settings.GITHUB_WEBHOOK_SECRET
+    if not secret:
         # Reject all requests when no secret is configured — do not allow unauthenticated access
         return False
     if not sig_header or not sig_header.startswith("sha256="):
         return False
     expected = "sha256=" + hmac.new(
-        settings.GITHUB_WEBHOOK_SECRET.encode(), body, hashlib.sha256
+        secret.encode(), body, hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(expected, sig_header)
 
 
-def verify_gitlab_token(token_header: str) -> bool:
-    """Token-based verification for GitLab webhooks."""
-    if not settings.GITLAB_WEBHOOK_SECRET:
+def verify_gitlab_token(token_header: str, secret: Optional[str] = None) -> bool:
+    """Token-based verification for GitLab webhooks (el secreto de la empresa, o el global)."""
+    secret = secret if secret is not None else settings.GITLAB_WEBHOOK_SECRET
+    if not secret:
         # Reject all requests when no secret is configured — do not allow unauthenticated access
         return False
     if not token_header:
         return False
-    return hmac.compare_digest(settings.GITLAB_WEBHOOK_SECRET, token_header)
+    return hmac.compare_digest(secret, token_header)
 
 
 def handle_github_pr(db: Session, payload: dict) -> None:
@@ -249,23 +255,67 @@ def handle_gitlab_deployment(db: Session, payload: dict) -> None:
     ))
 
 
-def process_github_webhook(db: Session, event: str, payload: dict) -> None:
-    """Dispatch a GitHub webhook event and commit."""
-    if event == "pull_request":
-        handle_github_pr(db, payload)
-    elif event == "deployment_status":
-        handle_github_deployment(db, payload)
-    db.commit()
+def process_github_webhook(db: Session, event: str, payload: dict, org_id: Optional[str] = None) -> None:
+    """Procesa un evento de GitHub como la empresa del webhook y confirma."""
+    from app.services.service_desk.ticket_events import como_organizacion
+    with como_organizacion(db, org_id):
+        if event == "pull_request":
+            handle_github_pr(db, payload)
+        elif event == "deployment_status":
+            handle_github_deployment(db, payload)
+        db.commit()
 
 
-def process_gitlab_webhook(db: Session, event: str, payload: dict) -> None:
-    """Dispatch a GitLab webhook event and commit."""
-    event_type = payload.get("object_kind", "")
-    if event_type == "merge_request":
-        handle_gitlab_mr(db, payload)
-    elif event_type == "deployment":
-        handle_gitlab_deployment(db, payload)
-    db.commit()
+def process_gitlab_webhook(db: Session, event: str, payload: dict, org_id: Optional[str] = None) -> None:
+    """Procesa un evento de GitLab como la empresa del webhook y confirma."""
+    from app.services.service_desk.ticket_events import como_organizacion
+    with como_organizacion(db, org_id):
+        event_type = payload.get("object_kind", "")
+        if event_type == "merge_request":
+            handle_gitlab_mr(db, payload)
+        elif event_type == "deployment":
+            handle_gitlab_deployment(db, payload)
+        db.commit()
+
+
+def empresa_por_slug(db: Session, slug: str) -> Optional[str]:
+    from app.models.mfa import Organization
+    org = db.query(Organization).filter(Organization.slug == slug, Organization.is_active == True).first()  # noqa: E712
+    return org.id if org else None
+
+
+def unica_empresa(db: Session) -> Optional[str]:
+    """La empresa, si la instalación sólo tiene una (las rutas antiguas sin empresa)."""
+    from app.models.mfa import Organization
+    ids = [r[0] for r in db.query(Organization.id).filter(Organization.is_active == True).limit(2).all()]  # noqa: E712
+    return ids[0] if len(ids) == 1 else None
+
+
+def direcciones_de_la_empresa(db: Session, org_id: Optional[str]) -> dict:
+    """Las direcciones de webhook de la empresa y si ya tiene su secreto."""
+    from app.core.config import settings as _s
+    from app.models.mfa import Organization
+    org = db.get(Organization, org_id) if org_id else None
+    if not org:
+        return {"slug": None}
+    base = f"{_s.API_V1_STR}/git/webhooks"
+    return {"slug": org.slug, **{p: {"ruta": f"{base}/{p}/{org.slug}",
+                                      "secreto": bool(secreto_de_la_empresa(db, p, org.id))}
+                                  for p in ("github", "gitlab")}}
+
+
+def secreto_de_la_empresa(db: Session, proveedor: str, org_id: str) -> Optional[str]:
+    """El secreto del webhook guardado PARA esa empresa (sin caer al global).
+
+    Con el global, quien lo tuviera podría escribir en cualquier empresa
+    cambiando la URL; por eso la ruta por empresa exige el suyo.
+    """
+    from app.core.encryption import decrypt_value
+    from app.models.settings import IntegrationCredential
+    fila = db.query(IntegrationCredential).filter(
+        IntegrationCredential.provider == "webhooks", IntegrationCredential.key == f"{proveedor}_secret",
+        IntegrationCredential.organization_id == org_id).first()
+    return decrypt_value(fila.value_encrypted) if fila and fila.value_encrypted else None
 
 
 def list_pull_requests(

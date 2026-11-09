@@ -797,6 +797,9 @@ const es = {
     voice_desc: 'Procesamiento de comandos por voz',
   },
   git_integration: {
+    secreto_label: "Secreto de la firma",
+    secreto_puesto: "Guardado para tu empresa (Credenciales → Inbound webhooks → {clave}). Pon el mismo en el webhook.",
+    secreto_falta: "Falta: guárdalo en Credenciales → Inbound webhooks → {clave}. Sin él, los eventos se rechazan.",
     title: 'Integración Git',
     subtitle: 'PRs y despliegues en todos los repositorios',
     webhook_url: 'URL del webhook',

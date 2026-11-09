@@ -88,6 +88,10 @@ export default function GitPage(): JSX.Element {
   const t = useAppT()
   const [tab, setTab] = useState<'prs' | 'deps' | 'config'>('prs')
 
+  const { data: webhooks } = useQuery({
+    queryKey: ['git-webhooks'],
+    queryFn: () => gitApi.webhooks().then(r => r.data as { github?: { ruta: string; secreto: boolean }; gitlab?: { ruta: string; secreto: boolean } }),
+  })
   const { data: prsRaw = [], isLoading: loadPR } = useQuery({
     queryKey: ['git-prs'],
     queryFn: () => gitApi.pullRequests().then(r => r.data?.items ?? r.data ?? []),
@@ -279,8 +283,8 @@ export default function GitPage(): JSX.Element {
           <ConfigSection
             title={t('git_integration.config_github_title')}
             icon="🐙"
-            webhookPath="/api/v1/git/webhooks/github"
-            envVar="GITHUB_WEBHOOK_SECRET"
+            webhook={webhooks?.github}
+            clave="github_secret"
             events={['pull_request', 'deployment_status', 'push']}
             steps={[
               t('git_integration.config_github_step1'),
@@ -293,8 +297,8 @@ export default function GitPage(): JSX.Element {
           <ConfigSection
             title={t('git_integration.config_gitlab_title')}
             icon="🦊"
-            webhookPath="/api/v1/git/webhooks/gitlab"
-            envVar="GITLAB_WEBHOOK_SECRET"
+            webhook={webhooks?.gitlab}
+            clave="gitlab_secret"
             events={['merge_requests', 'deployment']}
             steps={[
               t('git_integration.config_gitlab_step1'),
@@ -324,10 +328,12 @@ export default function GitPage(): JSX.Element {
   )
 }
 
-function ConfigSection({ title, icon, webhookPath, envVar, events, steps }: { title: string; icon: string; webhookPath: string; envVar: string; events: string[]; steps: string[] }) {
+// Revisión 2026-11: cada empresa tiene su dirección y su propio secreto
+// (Credenciales → Inbound webhooks); antes había uno para toda la instalación.
+function ConfigSection({ title, icon, webhook, clave, events, steps }: { title: string; icon: string; webhook?: { ruta: string; secreto: boolean }; clave: string; events: string[]; steps: string[] }) {
   const t = useAppT()
   const [copied, setCopied] = useState(false)
-  const url = `${window.location.origin}${webhookPath}`
+  const url = webhook ? `${window.location.origin}${webhook.ruta}` : '…'
   const copy = () => {
     navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
   }
@@ -352,8 +358,10 @@ function ConfigSection({ title, icon, webhookPath, envVar, events, steps }: { ti
         </div>
       </div>
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{t('git_integration.env_var_label')}</div>
-        <code style={{ fontSize: "var(--text-sm)", color: 'var(--warning)', overflowWrap: 'anywhere' }}>{envVar}=tu-secreto-largo</code>
+        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{t('git_integration.secreto_label')}</div>
+        <div style={{ fontSize: "var(--text-sm)", color: webhook?.secreto ? 'var(--success)' : 'var(--warning)', overflowWrap: 'anywhere' }}>
+          {t(webhook?.secreto ? 'git_integration.secreto_puesto' : 'git_integration.secreto_falta', { clave })}
+        </div>
       </div>
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>{t('git_integration.events_label')}</div>
