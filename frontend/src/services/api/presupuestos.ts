@@ -2,6 +2,8 @@
  * services/api/presupuestos.ts — presupuestos con partidas, real calculado, versiones y aprobación (revisión 2026-11).
  * Preparar a fondo: áreas, jerarquía con techo, partidas con conductores, persona por coste cargado,
  * vacantes, ingresos, CAPEX, supuestos y escenarios, plantillas y campañas.
+ * Seguir a fondo: comprometido (ALM y pedidos), cierre mensual, desviaciones explicadas, reprevisión,
+ * traspasos con aprobación, detalle del real y cuadro de control.
  * El interceptor de `_core` ya desenvuelve `{ data, meta }` (y deja la lista en `r.data` para `{ items, meta }`).
  */
 import api from './_core'
@@ -44,6 +46,34 @@ export interface FichaPresupuesto extends Presupuesto {
   hijos: { id: string; name: string; ambito: Ambito; estado: string; version: number; total_plan: number }[]
   techo_estado: EstadoDelTecho | null; consolidado_plan: number | null; aviso_techo_del_padre: string | null
   aprobacion_en_bandeja?: string | null; puedo_editar: boolean; puedo_aprobar: boolean; tipos: string[]; tipos_ingreso: string[]
+  seguir: Seguir | null; pedidos: Pedido[]; traspasos: Traspaso[]; mes_actual?: string
+  puedo_gestionar?: boolean; puedo_decidir_traspasos?: boolean
+}
+export type MetodoPrevision = 'plan' | 'ritmo' | 'manual'
+export interface Desviacion { mes: string; tipo: string; plan: number; real: number; desviacion: number; desviacion_pct: number | null; explicacion: string | null }
+export interface Seguir {
+  por_tipo: { tipo: string; plan: number; real: number; comprometido: number; disponible: number; prevision: number
+    metodo: MetodoPrevision; consumo_pct: number | null }[]
+  plan: number; real: number; comprometido: number; disponible: number; prevision: number
+  meses_cerrados: string[]; meses_por_cerrar: string[]
+  comprometido_por_mes: Record<string, number>; prevision_por_mes: Record<string, number>
+  desviaciones_sin_explicar: Desviacion[]; traspasos_pendientes: number
+}
+export interface Pedido {
+  id: string; tipo: string; descripcion: string; proveedor?: string | null; referencia?: string | null; importe: number; mes: string
+  estado: 'comprometido' | 'facturado' | 'anulado'; fecha_factura?: string | null; importe_facturado?: number | null
+}
+export interface Traspaso {
+  id: string; budget_id: string; desde_linea_id?: string | null; hacia_linea_id?: string | null; hacia_tipo?: string | null
+  hacia_descripcion?: string | null; importe: number; motivo: string; estado: 'pendiente' | 'aprobado' | 'rechazado'
+  solicitante_id: string; motivo_rechazo?: string | null; created_at?: string | null
+}
+export interface Apunte { origen: 'imputacion' | 'gasto' | 'pedido'; id: string; fecha: string; tipo: string; quien?: string | null
+  concepto: string; horas?: number; importe: number }
+export interface RenglonDelCuadro {
+  id: string; name: string; ambito: Ambito; estado: string; version: number; escenario: string; currency: string
+  plan: number; real: number; comprometido: number; disponible: number; prevision: number; consumo_pct: number | null
+  meses_por_cerrar: number; desviaciones_sin_explicar: number; traspasos_pendientes: number; semaforo: 'verde' | 'ambar' | 'rojo'
 }
 export interface Plantilla { id: string; nombre: string; ambito?: Ambito | null; tipo_proyecto?: string | null; partidas: Partial<Partida>[] }
 export interface Campana {
@@ -81,6 +111,20 @@ export const presupuestosApi = {
   campanas: () => D<Campana[]>(api.get('/budget-campaigns')),
   guardarCampana: (body: Record<string, unknown>, id?: string) =>
     D<Campana>(id ? api.patch(`/budget-campaigns/${id}`, body) : api.post('/budget-campaigns', body)),
+  cuadro: (year?: number) => D<RenglonDelCuadro[]>(api.get('/budgets/control-board', { params: { year } })),
+  cerrarMes: (id: string, mes: string) => D<FichaPresupuesto>(api.post(`/budgets/${id}/close`, { mes })),
+  reabrirMes: (id: string, mes: string) => D<FichaPresupuesto>(api.delete(`/budgets/${id}/close/${mes}`)),
+  explicar: (id: string, mes: string, tipo: string, explicacion: string) =>
+    D<FichaPresupuesto>(api.post(`/budgets/${id}/variance-notes`, { mes, tipo, explicacion })),
+  prevision: (id: string, tipo: string, metodo: MetodoPrevision, meses?: Record<string, number>) =>
+    D<FichaPresupuesto>(api.put(`/budgets/${id}/forecast`, { tipo, metodo, meses })),
+  detalleDelReal: (id: string, mes: string, tipo?: string) => D<Apunte[]>(api.get(`/budgets/${id}/drilldown`, { params: { mes, tipo } })),
+  exportarCsv: (id: string) => api.get(`/budgets/${id}/export.csv`, { responseType: 'blob' }).then(r => r.data as Blob),
+  crearPedido: (id: string, body: Record<string, unknown>) => D<{ id: string; avisos: string[] }>(api.post(`/budgets/${id}/commitments`, body)),
+  estadoDePedido: (pid: string, body: Record<string, unknown>) => D<Pedido>(api.patch(`/budget-commitments/${pid}`, body)),
+  pedirTraspaso: (id: string, body: Record<string, unknown>) => D<Traspaso>(api.post(`/budgets/${id}/transfers`, body)),
+  decidirTraspaso: (tid: string, aprobado: boolean, motivo?: string) =>
+    D<Traspaso>(api.post(`/budget-transfers/${tid}/decision`, { aprobado, motivo })),
   areas: () => D<Area[]>(api.get('/settings/areas')),
   guardarArea: (body: Record<string, unknown>, id?: string) => D<Area>(id ? api.patch(`/settings/areas/${id}`, body) : api.post('/settings/areas', body)),
   borrarArea: (id: string) => D<{ ok: boolean }>(api.delete(`/settings/areas/${id}`)),

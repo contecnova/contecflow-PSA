@@ -170,12 +170,12 @@ def test_la_bandeja_aplica_la_decision(client, db, admin_token, proyecto):
     assert db.get(Budget, b["id"]).estado == "aprobado"
 
 
-def test_la_prevision_al_cierre_suma_lo_real_hasta_hoy_y_el_plan_del_resto(db, monkeypatch):
+def test_la_prevision_al_cierre_suma_lo_real_pasado_y_lo_previsto_del_resto(db, monkeypatch):
     monkeypatch.setattr(budgets_service, "_mes_actual", lambda: "2026-02")
     monkeypatch.setattr(budgets_service, "_plan_mensual", lambda b, sentido="gasto": (
         {"2026-01": {"x": 100}, "2026-02": {"x": 100}, "2026-03": {"x": 100}} if sentido == "gasto" else {}))
     monkeypatch.setattr(budgets_service, "_real_mensual", lambda db, b: {"2026-01": {"x": 150}, "2026-02": {"x": 20}})
     b = Budget(periodo_desde=date(2026, 1, 1), periodo_hasta=date(2026, 3, 1), ambito="departamento")
     inf = budgets_service.informe(db, b)
-    assert inf["prevision_cierre"] == 150 + 20 + 100
+    assert inf["prevision_cierre"] == 150 + 100 + 100     # el mes en curso (20 de real) cuenta por lo menos su plan
     assert (inf["plan_hasta_hoy"], inf["desviacion_hasta_hoy"]) == (200, -30)

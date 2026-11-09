@@ -2,7 +2,8 @@
  * Presupuestos (revisión 2026-11): de proyecto (existente o previsto), de
  * departamento o de área, con partidas, real calculado, versiones y aprobación.
  * El detalle está en `components/presupuestos/FichaDePresupuesto.tsx`; campañas
- * y plantillas, en `components/presupuestos/CampanasYPlantillas.tsx`.
+ * y plantillas, en `components/presupuestos/CampanasYPlantillas.tsx`; el cuadro
+ * de control (semáforo de cada presupuesto), en `SeguirPresupuesto.tsx`.
  */
 import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
@@ -24,6 +25,7 @@ import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import FichaDePresupuesto, { colorDeEstado } from '../components/presupuestos/FichaDePresupuesto'
 import { CampanasDePresupuesto, PlantillasDePresupuesto } from '../components/presupuestos/CampanasYPlantillas'
+import { CuadroDeControl } from '../components/presupuestos/SeguirPresupuesto'
 
 const campo: CSSProperties = { width: '100%', boxSizing: 'border-box', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
 const fila: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(220px, 2fr) 150px 70px 110px repeat(4, 120px)', gap: 10, alignItems: 'center', padding: '10px 12px', fontSize: 'var(--text-sm)' }
@@ -53,9 +55,18 @@ export default function BudgetsPage() {
       <PageHeader icon={<PieChart size={18} />} title={t('pres.titulo')} subtitle={t('pres.subtitulo')}
         actions={<Button icon={<Plus size={14} />} onClick={() => setNuevo(true)}>{t('pres.nuevo')}</Button>} />
       <Tabs active={vista} onChange={setVista} items={[
-        { id: 'presupuestos', label: t('pres.tab_presupuestos') }, { id: 'campanas', label: t('pres.tab_campanas') },
+        { id: 'presupuestos', label: t('pres.tab_presupuestos') }, { id: 'cuadro', label: t('pres.tab_cuadro') },
+        { id: 'campanas', label: t('pres.tab_campanas') },
         { id: 'plantillas', label: t('pres.tab_plantillas') },
       ]} />
+      {vista === 'cuadro' && <>
+        <div style={{ margin: '14px 0' }}>
+          <select aria-label={t('pres.ejercicio')} value={year} onChange={e => setYear(Number(e.target.value))} style={{ ...campo, width: 120 }}>
+            {anios.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+        <CuadroDeControl year={year} onAbrir={setAbierto} />
+      </>}
       {vista === 'campanas' && <CampanasDePresupuesto />}
       {vista === 'plantillas' && <PlantillasDePresupuesto />}
       {vista === 'presupuestos' && <>

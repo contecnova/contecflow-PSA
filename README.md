@@ -1640,7 +1640,7 @@ General notes that apply to every module here:
 ### Budgets — `/budgets`
 *Roles:* menu admin, pm (route `require_any_manager` for reading). Creating and editing: `BUDGET_MANAGER_ROLES` (default `admin,pm,hr`). Approving or rejecting without a workflow, and opening or closing campaigns: `BUDGET_APPROVER_ROLES` (default `admin`). Components: `pages/BudgetsPage.tsx`, `components/presupuestos/FichaDePresupuesto.tsx`, `FormularioDePartida.tsx`, `CampanasYPlantillas.tsx`.
 
-**Purpose.** The budget is the base of areas and projects. A budget belongs to a **project**, a **planned project** (one that does not exist yet), a **department** or an **area** (a group of departments, *Settings → Departments and areas*). Budgets form a hierarchy — area > department > project — where an area or a department can set a **ceiling** for the budgets under it. Each budget is built from lines (costs and revenue), tracked against computed actuals, revised by versions, compared across scenarios and approved through the approval engine.
+**Purpose.** The budget is the base of areas and projects. A budget belongs to a **project**, a **planned project** (one that does not exist yet), a **department** or an **area** (a group of departments, *Settings → Departments and areas*). Budgets form a hierarchy — area > department > project — where an area or a department can set a **ceiling** for the budgets under it. Each budget is built from lines (costs and revenue), tracked against computed actuals, revised by versions, compared across scenarios and approved through the approval engine. Once approved it is followed month by month: committed spend, expense control, monthly close with explained variances, re-forecast, transfers and a control board.
 
 **How to use it.**
 1. **New budget** (tabs *Presupuestos · Campañas · Plantillas*): name, scope and what it needs (project; department; area; for a planned project, its type), period (first and last month), currency (`SUPPORTED_CURRENCIES`), annual inflation, owner (default: whoever creates it), campaign, and for an area or a department the ceiling for its children. **Start from**: empty, a **template**, or **another budget** (e.g. last year's) taking its *plan* (its lines, recalculated for the new period) or its *actuals* (one line per type with what was really spent, month by month), with an adjustment %.
@@ -1654,7 +1654,7 @@ General notes that apply to every module here:
    - Optionally limited to some months (*Desde* / *Hasta*). A cost can be **CAPEX** with a useful life in months: the plan holds the payment and *Seguimiento* shows the monthly depreciation.
    - **Inflation** (budget assumptions) raises amount, units, hours and vacancy lines each year of the period after the first; person lines use their cost profile instead.
    - Each line can carry a **justification**; lines of `BUDGET_JUSTIFICATION_MIN_AMOUNT` or more need one to submit. Lines are edited in place (pencil) while the budget is in draft or rejected.
-3. **Tracking** (tab *Seguimiento*): plan against actuals per month and per line type, variance, *plan to date*, **forecast at completion** (actuals up to the current month + plan for the rest), OPEX, CAPEX and depreciation, and with revenue lines the planned and actual revenue and margin. Actuals are computed, never typed:
+3. **Tracking** (tab *Seguimiento*): plan against actuals per month and per line type, variance, *plan to date*, **forecast at completion** (actuals of the past months, the current month at least its plan, and the rest by each type's re-forecast method — by default the plan), OPEX, CAPEX and depreciation, and with revenue lines the planned and actual revenue and margin. Actuals are computed, never typed:
    - staff: the cost of the scope's time entries in the month (what the entry stored; else hours × the rate at the time; else the person's rate) — project scope by project, department and area by the people in those departments (the area's departments, from *Settings*);
    - the rest: approved or reimbursed expenses of the scope, each in the line type of its category (`BUDGET_EXPENSE_TYPE_MAP`); in a project, the expense's share of the split between projects;
    - revenue: the project's issued invoices (sent, paid or overdue; subtotal, by issue date).
@@ -1667,15 +1667,48 @@ General notes that apply to every module here:
 9. **Templates**: save a budget's lines as a template and start new budgets from it (lines recalculated for the new period).
 10. The page shows the year's totals (plan, plan to date, actuals, forecast; each budget counts by its approved version when it has one), plan against actuals by month, and the list. On narrow screens the list and the tables are compact (nothing hidden behind a sideways scroll).
 
-**Configuration.** Group `presupuestos` in Admin → Dynamic config: `BUDGET_LINE_TYPES`, `BUDGET_EXPENSE_TYPE_MAP`, `BUDGET_APPROVER_ROLES`, `BUDGET_MANAGER_ROLES`, `BUDGET_REVENUE_TYPES`, `BUDGET_CEILING_POLICY`, `BUDGET_JUSTIFICATION_MIN_AMOUNT`, `BUDGET_CAMPAIGN_REMINDER_DAYS`. Employer costs per country and people's cost profiles come from *Cost structure*.
+**Following an approved budget.** An approved budget gets three more tabs: *Control*, *Cierre y detalle* and *Pedidos y traspasos*.
+
+11. **Committed** is what is ordered and not yet actual. It has two sources:
+    - **orders** entered in *Pedidos y traspasos* (type, description, supplier, reference, amount, month);
+    - the **ALM contracts and licences** of the scope, counted in the `BUDGET_ALM_LINE_TYPE` line type. A project budget takes those linked to the project; a department or area budget takes those of the cost centres of its departments. Each counts its annual value / 12 for every month from the current one to its end or expiry. Contracts that are cancelled, expired or in draft do not count, and neither do licences that belong to a contract with an annual value (the contract already counts them).
+    - When an order is marked **invoiced** (invoice date and amount), it leaves committed and counts as actuals in the invoice month. A **cancelled** order counts nowhere.
+12. **Control** tab, per line type: plan, actuals, committed, **available** (plan − actuals − committed), forecast at completion and a consumption bar (actuals plus committed).
+13. **Control when spending**: when an expense is approved (on its screen or in the Approval Inbox) and when an order is entered, the available amount of its type is checked. The check covers every approved base-scenario budget that includes it: the project's, the department of the person who spent it, and that department's area. `BUDGET_CONTROL_POLICY` decides what happens:
+    - `avisar` (default): the expense is approved and a warning names the budget;
+    - `bloquear`: answers 409 and nothing is approved. In the Inbox, the check runs before the approval is recorded;
+    - `no`: no check.
+14. **Re-forecast** per line type, in *Control*: *per plan* (the rest of the plan), *at actual pace* (the average of the months already past), or *manual* month by month. The forecast at completion is the actuals of the past or closed months plus the forecast for the rest. Re-forecasting does not change the approved plan; to change the plan, use a transfer or a new version.
+15. **Monthly close**, in *Cierre y detalle*: every finished month can be closed. Closing freezes that month's actuals per type, so later expenses or time entries dated in it do not change the report.
+    - Before closing, every variance of a type that is at least `BUDGET_VARIANCE_EXPLAIN_PCT` % **and** at least `BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT` (over or under) needs a written explanation. Otherwise the close answers 409 and lists them.
+    - Only `BUDGET_APPROVER_ROLES` reopen a closed month.
+16. **What makes up the actuals**, in *Cierre y detalle*: pick a month (and optionally a type) to see each time entry, expense and invoiced order with date, person or supplier, concept and amount. **CSV** exports plan, actuals, committed and forecast per month and type, and whether the month is closed.
+17. **Transfers and increases**, in *Pedidos y traspasos*:
+    - a **transfer** moves an amount from one cost line to another (or to a new line of a chosen type);
+    - an **increase** adds budget without a source line.
+    - The amount is taken from the remaining months of the source line in proportion and spread evenly over the remaining months of the destination. Past months are not touched. The lines involved keep their months as typed (they are no longer recalculated from units or hours).
+    - A request opens in the Approval Inbox when there is a workflow for `budget_transfer`; otherwise `BUDGET_APPROVER_ROLES` decide it in the budget. Whoever asked cannot approve it (403), and a rejection needs a reason.
+18. **The approved budget is the project's base**: when a project budget is approved (or a planned project with an approved version is linked), the project's `budget_amount` becomes the budget's total cost, and its `budget_hours` the hours of its staff lines. That figure is what EVM, profitability and project health use. Approved transfers update it.
+19. **Alerts** (every alert run, thresholds in *Settings → Alerts*):
+    - `budget_exceeded` and `budget_critical`: consumption (actuals plus committed) as a % of plan;
+    - `budget_forecast_overrun`: forecast at completion as a % of plan (default 100).
+    - There is one open alert per budget and type. A project with an approved budget is no longer checked by the older project-cost alert, which only counted time entries.
+20. **Control board** (tab on the Budgets page): one row per budget of the year (its approved version when it has one), with plan, actuals, committed, available, forecast, consumption and a traffic light, sorted red first:
+    - **red**: consumption of 100 % or more, or forecast above plan;
+    - **amber**: consumption of 85 % or more, finished months not closed, or unexplained variances;
+    - **green**: everything else.
+    - The row also shows months to close, unexplained variances and pending transfers. Clicking a row opens the budget.
+
+**Configuration.** Group `presupuestos` in Admin → Dynamic config: `BUDGET_LINE_TYPES`, `BUDGET_EXPENSE_TYPE_MAP`, `BUDGET_APPROVER_ROLES`, `BUDGET_MANAGER_ROLES`, `BUDGET_REVENUE_TYPES`, `BUDGET_CEILING_POLICY`, `BUDGET_JUSTIFICATION_MIN_AMOUNT`, `BUDGET_CAMPAIGN_REMINDER_DAYS`, `BUDGET_CONTROL_POLICY`, `BUDGET_VARIANCE_EXPLAIN_PCT`, `BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT`, `BUDGET_ALM_LINE_TYPE`. Employer costs per country and people's cost profiles come from *Cost structure*. Alert thresholds (`budget_exceeded`, `budget_critical`, `budget_forecast_overrun`) are in *Settings → Alerts*; the approval workflow for transfers is entity `budget_transfer` in the Approval Inbox.
 
 **Technical notes.**
-- **Endpoints** (`/api/v1`): `GET /budgets` (latest versions; `year`, `ambito`, `estado`), `GET /budgets/summary`, `POST /budgets` (also `plantilla_id`, `copiar_de` + `base` + `ajuste_pct`), `GET|PATCH /budgets/{id}`, `POST /budgets/{id}/lines`, `PATCH|DELETE /budgets/{id}/lines/{line_id}`, `POST /budgets/{id}/submit`, `POST /budgets/{id}/decision`, `POST /budgets/{id}/new-version`, `POST /budgets/{id}/scenario`, `POST /budgets/compare`, `POST /budgets/{id}/link-project`, `GET|POST /budget-templates`, `PATCH|DELETE /budget-templates/{id}`, `GET|POST /budget-campaigns`, `PATCH /budget-campaigns/{id}`, `GET|POST /settings/areas`, `PATCH|DELETE /settings/areas/{id}` (departments take `area_id`).
-- **Tables:** `budgets` (scope, period, version chain, status, `area_id`, `padre_id`, `techo`, `responsable_id`, `campana_id`, `escenario`, `supuestos`), `budget_lines` (cost or revenue, OPEX/CAPEX and life, units, price, recurrence, months, allocation, vacancy fields, justification), `budget_campaigns`, `budget_templates`, `areas` (`departments.area_id`). Migration `151` turned the old comma-separated area text into areas and assigned their departments.
-- Code: `app/services/budgets_service.py`, `app/services/presupuestos_preparar.py`. Tests: `tests/test_presupuestos_2026_11.py`, `tests/test_presupuestos_preparar_2026_11.py`.
+- **Endpoints** (`/api/v1`): `GET /budgets` (latest versions; `year`, `ambito`, `estado`), `GET /budgets/summary`, `POST /budgets` (also `plantilla_id`, `copiar_de` + `base` + `ajuste_pct`), `GET|PATCH /budgets/{id}`, `POST /budgets/{id}/lines`, `PATCH|DELETE /budgets/{id}/lines/{line_id}`, `POST /budgets/{id}/submit`, `POST /budgets/{id}/decision`, `POST /budgets/{id}/new-version`, `POST /budgets/{id}/scenario`, `POST /budgets/compare`, `POST /budgets/{id}/link-project`, `GET|POST /budget-templates`, `PATCH|DELETE /budget-templates/{id}`, `GET|POST /budget-campaigns`, `PATCH /budget-campaigns/{id}`, `GET|POST /settings/areas`, `PATCH|DELETE /settings/areas/{id}` (departments take `area_id`). Following: `GET /budgets/control-board` (`year`), `POST /budgets/{id}/close` and `DELETE /budgets/{id}/close/{mes}`, `POST /budgets/{id}/variance-notes`, `PUT /budgets/{id}/forecast`, `GET /budgets/{id}/drilldown` (`mes`, `tipo`), `GET /budgets/{id}/export.csv`, `POST /budgets/{id}/commitments`, `PATCH /budget-commitments/{id}`, `POST /budgets/{id}/transfers`, `POST /budget-transfers/{id}/decision`. `GET /budgets/{id}` of an approved budget also returns `seguir`, `pedidos` and `traspasos`; `POST /expenses/{id}/review` returns `avisos_de_presupuesto`.
+- **Tables:** `budgets` (scope, period, version chain, status, `area_id`, `padre_id`, `techo`, `responsable_id`, `campana_id`, `escenario`, `supuestos`), `budget_lines` (cost or revenue, OPEX/CAPEX and life, units, price, recurrence, months, allocation, vacancy fields, justification), `budget_campaigns`, `budget_templates`, `areas` (`departments.area_id`), `budget_commitments` (orders), `budget_closes` (frozen actuals per month and type), `budget_variance_notes`, `budget_transfers`, and `budgets.prevision` (re-forecast method per type). Commitments, closes and notes hang from the version chain (`origen_id`), so they survive a new version. Migration `151` turned the old comma-separated area text into areas and assigned their departments; `152` added the following tables and the `budget_forecast_overrun` alert type.
+- Code: `app/services/budgets_service.py`, `app/services/presupuestos_preparar.py`, `app/services/presupuestos_seguir.py`; screens `components/presupuestos/SeguirPresupuesto.tsx`. Tests: `tests/test_presupuestos_2026_11.py`, `tests/test_presupuestos_preparar_2026_11.py`, `tests/test_presupuestos_seguir_2026_11.py`.
 
 **Limitations.**
-- Actuals come from time entries, expenses and invoices; purchase commitments are not modelled yet, so there is no «committed» amount (next block).
+- Orders are entered in the budget; there is no purchasing module behind them, and an ALM contract's committed amount is its annual value / 12 per month, whatever its billing cycle.
+- An expense charged to a project counts both in the project's budget and in its spender's department and area budgets (the department's actuals are its people's expenses), so expense control checks all three.
 - The month-by-month split of an amount line can be sent through the API; the screen spreads evenly.
 - Consolidated plans add each child's latest active version; a department's real counts its people's hours in every project, so its actuals include work planned in project budgets under it.
 
@@ -4161,7 +4194,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 233 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 237 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4359,6 +4392,10 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | presupuestos | BUDGET_CEILING_POLICY | str | `avisar` | Budgets — when child budgets exceed the parent's ceiling: avisar or bloquear | rt (`presupuestos_preparar`) |
 | presupuestos | BUDGET_JUSTIFICATION_MIN_AMOUNT | float | 5000.0 | Budgets — lines of this amount or more need a justification to submit (0: none) | rt (`presupuestos_preparar`) |
 | presupuestos | BUDGET_CAMPAIGN_REMINDER_DAYS | int | 7 | Budgets — days before a campaign deadline when owners of unsent budgets are reminded | rt (`presupuestos_preparar`) |
+| presupuestos | BUDGET_CONTROL_POLICY | str | avisar | Budgets — approving an expense or entering an order beyond the available amount: no, avisar or bloquear | rt (`presupuestos_seguir`) |
+| presupuestos | BUDGET_VARIANCE_EXPLAIN_PCT | float | 15.0 | Budgets — a monthly variance per type of this % or more needs an explanation before the month is closed | rt (`presupuestos_seguir`) |
+| presupuestos | BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT | float | 1000.0 | Budgets — …and of this amount or more (both must be met) | rt (`presupuestos_seguir`) |
+| presupuestos | BUDGET_ALM_LINE_TYPE | str | licencias | Budgets — line type where ALM contracts and licences count as committed | rt (`presupuestos_seguir`) |
 | audit | RETENTION_MIN_DAYS | int | 30 | Retention — no policy may keep a record type for fewer days than this | rt |
 | automations | APPROVAL_EMAIL_LINK_HOURS | int | 72 | Approvals — hours the approve/reject link of the email is valid | rt |
 | automations | AUTOMATIONS_DEADLINE_DAYS | int | 2 | "Task due soon": days before the due date | rt |
@@ -5318,7 +5355,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 373)
+#### 4.2 Settings fields (`Settings`, 377)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5730,6 +5767,10 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `BUDGET_CEILING_POLICY` | `'avisar'` | Budgets — avisar or bloquear when child budgets exceed the parent's ceiling |
 | `BUDGET_JUSTIFICATION_MIN_AMOUNT` | `5000.0` | Budgets — lines of this amount or more need a justification to submit |
 | `BUDGET_CAMPAIGN_REMINDER_DAYS` | `7` | Budgets — days before a campaign deadline to remind owners of unsent budgets |
+| `BUDGET_CONTROL_POLICY` | `'avisar'` | Budgets — approving an expense or entering an order beyond the available amount: no, avisar or bloquear |
+| `BUDGET_VARIANCE_EXPLAIN_PCT` | `15.0` | Budgets — a monthly variance per type of this % or more needs an explanation before the month is closed |
+| `BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT` | `1000.0` | Budgets — …and of this amount or more (both must be met) |
+| `BUDGET_ALM_LINE_TYPE` | `'licencias'` | Budgets — line type where ALM contracts and licences count as committed |
 
 #### 4.3 Variables read directly with `os.getenv` (not in `Settings`)
 

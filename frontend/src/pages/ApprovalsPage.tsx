@@ -35,6 +35,7 @@ const entityLabels = (t: (k: string) => string): Record<string, EntityConfig> =>
   invoice:       { label: 'Factura',        icon: '🧾', color: 'var(--warning)' },
   contract:      { label: 'Contrato',       icon: '📝', color: 'var(--purple)' },
   budget:        { label: 'Presupuesto',    icon: '💰', color: 'var(--success)' },
+  budget_transfer: { label: t('approvals.entity_budget_transfer'), icon: '⇄', color: 'var(--success)' },
   leave:         { label: 'Ausencia',       icon: '🏖️', color: 'var(--accent)' },
   deliverable:   { label: 'Entregable',     icon: '📦', color: 'var(--text-2)' },
   proposal:      { label: 'Propuesta',      icon: '📋', color: 'var(--purple)' },

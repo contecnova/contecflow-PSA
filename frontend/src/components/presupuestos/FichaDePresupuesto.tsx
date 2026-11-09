@@ -5,7 +5,9 @@
  * real, ingresos y margen, amortización del CAPEX), estructura (presupuesto
  * padre, techo y lo que consumen los hijos, consolidado), escenarios y
  * versiones (crearlos y compararlos), y supuestos. Un presupuesto aprobado no
- * se toca: se hace una versión nueva.
+ * se toca: se hace una versión nueva. Aprobado, se sigue a fondo (P2): control
+ * por tipo con comprometido y reprevisión, cierre mensual con desviaciones
+ * explicadas y detalle del real, pedidos y traspasos (`SeguirPresupuesto.tsx`).
  */
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
@@ -20,6 +22,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import FormularioDePartida, { campo, modoDe } from './FormularioDePartida'
+import { CierreDelPresupuesto, ControlDelPresupuesto, PedidosYTraspasos } from './SeguirPresupuesto'
 
 const th: CSSProperties = { textAlign: 'left', padding: '6px 8px', fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontWeight: 600, borderBottom: '1px solid var(--surface-3)', whiteSpace: 'nowrap' }
 const td: CSSProperties = { padding: '6px 8px', fontSize: 'var(--text-sm)', borderBottom: '1px solid var(--surface-2)' }
@@ -75,6 +78,14 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
               {p.estado !== 'borrador' && p.estado !== 'enviado' && <Button size="sm" variant="secondary" loading={ocupado === 'version'} onClick={() => accion('version', () => presupuestosApi.nuevaVersion(p.id))}>{t('pres.nueva_version')}</Button>}
             </span>
           </div>
+          {!p.seguir && (() => {
+            // El seguimiento vive en la versión aprobada: desde un borrador, a un clic.
+            const aprobada = p.versiones.find(v => v.estado === 'aprobado' && v.id !== p.id)
+            return aprobada && <div role="status" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+              {t('pres.se_sigue_la_aprobada', { v: aprobada.version })}
+              <Button size="xs" variant="secondary" onClick={() => onAbrir(aprobada.id)}>{t('pres.abrir_aprobada')}</Button>
+            </div>
+          })()}
           {p.aviso_techo_del_padre && <div role="alert" style={{ fontSize: 'var(--text-sm)', color: 'var(--warning)' }}>⚠ {p.aviso_techo_del_padre}</div>}
           {p.motivo_rechazo && <div role="alert" style={{ fontSize: 'var(--text-sm)', color: 'var(--danger)' }}>{t('pres.rechazado_por')}: {p.motivo_rechazo}</div>}
           {p.puedo_aprobar && (
@@ -97,12 +108,20 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
           <Tabs active={tab} onChange={setTab} items={[
             { id: 'partidas', label: `${t('pres.tab_partidas')} · ${p.lineas.length}` },
             { id: 'seguimiento', label: t('pres.tab_seguimiento') },
+            ...(p.seguir ? [
+              { id: 'control', label: t('pres.tab_control') },
+              { id: 'cierre', label: `${t('pres.tab_cierre')}${p.seguir.desviaciones_sin_explicar.length ? ` · ${p.seguir.desviaciones_sin_explicar.length}` : ''}` },
+              { id: 'pedidos', label: `${t('pres.tab_pedidos')}${p.seguir.traspasos_pendientes ? ` · ${p.seguir.traspasos_pendientes}` : ''}` },
+            ] : []),
             { id: 'estructura', label: t('pres.tab_estructura') },
             { id: 'escenarios', label: `${t('pres.tab_escenarios')} · ${p.versiones.length}` },
             { id: 'supuestos', label: t('pres.tab_supuestos') },
           ]} />
           {tab === 'partidas' && <Partidas p={p} dinero={dinero} onCambio={d => qc.setQueryData(['presupuesto', d.id], d)} />}
           {tab === 'seguimiento' && <Seguimiento p={p} dinero={dinero} />}
+          {tab === 'control' && p.seguir && <ControlDelPresupuesto p={p} dinero={dinero} accion={accion} ocupado={ocupado} />}
+          {tab === 'cierre' && p.seguir && <CierreDelPresupuesto p={p} dinero={dinero} accion={accion} ocupado={ocupado} />}
+          {tab === 'pedidos' && p.seguir && <PedidosYTraspasos p={p} dinero={dinero} onCambio={() => qc.invalidateQueries({ queryKey: ['presupuesto', p.id] })} />}
           {tab === 'estructura' && <Estructura p={p} dinero={dinero} onAbrir={onAbrir} />}
           {tab === 'escenarios' && <Escenarios p={p} dinero={dinero} onAbrir={onAbrir} accion={accion} ocupado={ocupado} />}
           {tab === 'supuestos' && <SupuestosDelPresupuesto p={p} accion={accion} ocupado={ocupado} />}

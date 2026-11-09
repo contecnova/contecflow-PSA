@@ -91,6 +91,8 @@ class AlertEngine:
         generated = 0
         generated += self._check_overload()
         generated += self._check_budget()
+        from app.services.presupuestos_seguir import revisar_alertas
+        generated += revisar_alertas(self)
         generated += self._check_blocked_tasks()
         generated += self._check_no_imputation()
         generated += self._check_deadline()
@@ -194,7 +196,13 @@ class AlertEngine:
         ).filter(Imputation.project_id.in_(project_ids)).group_by(Imputation.project_id).all()
         cost_by_pid = {r.project_id: float(r.total_cost or 0) for r in cost_rows}
 
+        # Un proyecto con presupuesto aprobado lo vigila su presupuesto (real + comprometido), no esto.
+        from app.models.mfa import Budget
+        con_presupuesto = {pid for (pid,) in self.db.query(Budget.project_id).filter(
+            Budget.estado == "aprobado", Budget.escenario == "base", Budget.project_id.in_(project_ids)).all()}
         for p in projects:
+            if p.id in con_presupuesto:
+                continue
             total_cost = cost_by_pid.get(p.id, 0.0)
             pct = (total_cost / p.budget_amount) * 100
 

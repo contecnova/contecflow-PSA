@@ -17,10 +17,12 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 import app.services.budgets_service as _budgets
+import app.services.presupuestos_seguir as _seguir
 from app.core.deps import require_any_manager
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
@@ -104,6 +106,13 @@ def list_budgets(year: Optional[int] = None, ambito: Optional[str] = None, estad
 def budget_summary(year: Optional[int] = Query(default=None), db: Session = Depends(get_db),
                    current_user: User = Depends(require_any_manager)):
     return APIResponse.ok(data=_budgets.resumen(db, current_user, year))
+
+
+@router.get("/budgets/control-board", summary="Cuadro de control: un renglón por presupuesto con su semáforo")
+def control_board(year: Optional[int] = Query(default=None), db: Session = Depends(get_db),
+                  current_user: User = Depends(require_any_manager)):
+    items = _seguir.cuadro(db, current_user, year)
+    return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/budgets", summary="Crear presupuesto (proyecto, proyecto previsto, departamento o área)")
@@ -239,3 +248,108 @@ def create_campaign(body: CampanaIn, db: Session = Depends(get_db), current_user
 def update_campaign(campaign_id: str, body: CampanaIn, db: Session = Depends(get_db),
                     current_user: User = Depends(require_any_manager)):
     return APIResponse.ok(data=_budgets.guardar_campana(db, current_user, body.model_dump(exclude_unset=True), campaign_id))
+
+
+# ── Seguir a fondo (revisión 2026-11) ─────────────────────────────────────────
+
+class MesIn(BaseModel):
+    mes: str = Field(..., pattern=r"^\d{4}-\d{2}$")
+
+
+class ExplicacionIn(MesIn):
+    tipo: str = Field(..., max_length=40)
+    explicacion: str = Field(..., max_length=4000)
+
+
+class PrevisionIn(BaseModel):
+    tipo: str = Field(..., max_length=40)
+    metodo: str = Field(..., max_length=10)
+    meses: Optional[dict[str, float]] = None
+
+
+class PedidoIn(BaseModel):
+    tipo: str = Field(..., max_length=40)
+    descripcion: str = Field(..., max_length=500)
+    proveedor: Optional[str] = Field(None, max_length=200)
+    referencia: Optional[str] = Field(None, max_length=100)
+    importe: float = Field(..., gt=0)
+    mes: str = Field(..., pattern=r"^\d{4}-\d{2}$")
+
+
+class PedidoEstadoIn(BaseModel):
+    estado: str = Field(..., max_length=20)
+    fecha_factura: Optional[date] = None
+    importe_facturado: Optional[float] = Field(None, ge=0)
+
+
+class TraspasoIn(BaseModel):
+    desde_linea_id: Optional[str] = None
+    hacia_linea_id: Optional[str] = None
+    hacia_tipo: Optional[str] = Field(None, max_length=40)
+    hacia_descripcion: Optional[str] = Field(None, max_length=500)
+    importe: float = Field(..., gt=0)
+    motivo: str = Field(..., max_length=2000)
+
+
+@router.post("/budgets/{budget_id}/close", summary="Cerrar un mes: congela su real (exige explicar las desviaciones)")
+def close_month(budget_id: str, body: MesIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+    _seguir.cerrar_mes(db, current_user, budget_id, body.mes)
+    return APIResponse.ok(data=_budgets.detalle(db, current_user, budget_id))
+
+
+@router.delete("/budgets/{budget_id}/close/{mes}", summary="Reabrir un mes cerrado (BUDGET_APPROVER_ROLES)")
+def reopen_month(budget_id: str, mes: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+    _seguir.reabrir_mes(db, current_user, budget_id, mes)
+    return APIResponse.ok(data=_budgets.detalle(db, current_user, budget_id))
+
+
+@router.post("/budgets/{budget_id}/variance-notes", summary="Explicar la desviación de un tipo en un mes")
+def explain_variance(budget_id: str, body: ExplicacionIn, db: Session = Depends(get_db),
+                     current_user: User = Depends(require_any_manager)):
+    _seguir.explicar(db, current_user, budget_id, body.mes, body.tipo, body.explicacion)
+    return APIResponse.ok(data=_budgets.detalle(db, current_user, budget_id))
+
+
+@router.put("/budgets/{budget_id}/forecast", summary="Reprevisión de un tipo: plan, ritmo real o a mano")
+def set_forecast(budget_id: str, body: PrevisionIn, db: Session = Depends(get_db),
+                 current_user: User = Depends(require_any_manager)):
+    _seguir.guardar_prevision(db, current_user, budget_id, body.tipo, body.metodo, body.meses)
+    return APIResponse.ok(data=_budgets.detalle(db, current_user, budget_id))
+
+
+@router.get("/budgets/{budget_id}/drilldown", summary="Lo que compone el real de un mes: imputaciones, gastos y pedidos")
+def drilldown(budget_id: str, mes: str = Query(..., pattern=r"^\d{4}-\d{2}$"), tipo: Optional[str] = None,
+              db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+    items = _seguir.detalle_del_real(db, _budgets._cargar(db, budget_id), mes, tipo)
+    return APIListResponse.ok(items=items, total=len(items))
+
+
+@router.get("/budgets/{budget_id}/export.csv", summary="Seguimiento por mes y tipo en CSV")
+def export_csv(budget_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+    b = _budgets._cargar(db, budget_id)
+    return Response(_seguir.exportar_csv(db, b), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="presupuesto-{b.id[:8]}.csv"'})
+
+
+@router.post("/budgets/{budget_id}/commitments", summary="Dar de alta un pedido (comprometido) contra el presupuesto")
+def create_commitment(budget_id: str, body: PedidoIn, db: Session = Depends(get_db),
+                      current_user: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=_seguir.crear_pedido(db, current_user, budget_id, body.model_dump()))
+
+
+@router.patch("/budget-commitments/{commitment_id}", summary="Pedido facturado (pasa a real) o anulado")
+def update_commitment(commitment_id: str, body: PedidoEstadoIn, db: Session = Depends(get_db),
+                      current_user: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=_seguir.actualizar_pedido(db, current_user, commitment_id, body.model_dump(exclude_unset=True)))
+
+
+@router.post("/budgets/{budget_id}/transfers", summary="Pedir un traspaso entre partidas o una ampliación")
+def request_transfer(budget_id: str, body: TraspasoIn, db: Session = Depends(get_db),
+                     current_user: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=_seguir.solicitar_traspaso(db, current_user, budget_id, body.model_dump()))
+
+
+@router.post("/budget-transfers/{transfer_id}/decision", summary="Aprobar o rechazar un traspaso (BUDGET_APPROVER_ROLES)")
+def decide_transfer(transfer_id: str, body: DecisionIn, db: Session = Depends(get_db),
+                    current_user: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=_seguir.decidir_traspaso(db, current_user, transfer_id, body.aprobado, body.motivo))

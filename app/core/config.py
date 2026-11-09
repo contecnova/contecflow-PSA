@@ -507,6 +507,10 @@ class Settings(
     BUDGET_CEILING_POLICY: str = Field(default="avisar", env="BUDGET_CEILING_POLICY")  # avisar | bloquear
     BUDGET_JUSTIFICATION_MIN_AMOUNT: float = Field(default=5000.0, env="BUDGET_JUSTIFICATION_MIN_AMOUNT")
     BUDGET_CAMPAIGN_REMINDER_DAYS: int = Field(default=7, env="BUDGET_CAMPAIGN_REMINDER_DAYS")
+    BUDGET_CONTROL_POLICY: str = Field(default="avisar", env="BUDGET_CONTROL_POLICY")
+    BUDGET_VARIANCE_EXPLAIN_PCT: float = Field(default=15.0, env="BUDGET_VARIANCE_EXPLAIN_PCT")
+    BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT: float = Field(default=1000.0, env="BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT")
+    BUDGET_ALM_LINE_TYPE: str = Field(default="licencias", env="BUDGET_ALM_LINE_TYPE")
 
     # Conectores ETL de BI (revisión 2026-11).
     BI_ETL_PAGE_SIZE: int = Field(default=100, env="BI_ETL_PAGE_SIZE")

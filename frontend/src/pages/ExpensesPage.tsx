@@ -284,7 +284,11 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
   const [reason, setReason] = useState('')
   const { mutate, isPending } = useMutation({
     mutationFn: (d: Record<string, unknown>) => expensesApi.review(expense.id, d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses-pending'] }); qc.invalidateQueries({ queryKey: ['expenses-team'] }); onClose() },
+    onSuccess: (r: { data?: { avisos_de_presupuesto?: string[] } }) => {
+      // Control presupuestario (BUDGET_CONTROL_POLICY = avisar): se aprueba, y se dice de qué presupuesto se pasa.
+      for (const aviso of r?.data?.avisos_de_presupuesto ?? []) toast.warning(aviso, 8000)
+      qc.invalidateQueries({ queryKey: ['expenses-pending'] }); qc.invalidateQueries({ queryKey: ['expenses-team'] }); onClose()
+    },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   return (

@@ -299,6 +299,8 @@ def decide_approval_request(
     """
     req, wf, steps, step = _load_request_and_workflow_for_decision(request_id, db, current_user)
     _validate_decision_authorization(req, step, decision, attachment_url, current_user, db)
+    from app.services.approval_engine import fuentes
+    fuentes.comprobar_antes(req, decision, db)
     _record_decision_row(req, decision, note, delegate_to, attachment_url, current_user, db)
 
     if decision == "rejected":

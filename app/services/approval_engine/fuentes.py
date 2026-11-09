@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
-TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice", "budget")
+TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice", "budget", "budget_transfer")
 
 
 def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id: str,
@@ -85,6 +85,12 @@ def aplicar(req, decision: str, actor, db: Session) -> None:
             b = db.query(Budget).filter(Budget.id == req.entity_id).first()
             if b and b.estado == "enviado":
                 aplicar_desde_bandeja(db, actor, b.id, aprobado, nota)
+        elif req.entity_type == "budget_transfer":
+            from app.models.mfa import BudgetTransfer
+            from app.services.presupuestos_seguir import aplicar_desde_bandeja as aplicar_traspaso
+            t = db.query(BudgetTransfer).filter(BudgetTransfer.id == req.entity_id).first()
+            if t and t.estado == "pendiente":
+                aplicar_traspaso(db, actor, t.id, aprobado, nota)
         elif req.entity_type == "invoice":
             from app.models.billing_reports import Invoice, InvoiceStatus
             inv = db.query(Invoice).filter(Invoice.id == req.entity_id).first()
@@ -94,6 +100,21 @@ def aplicar(req, decision: str, actor, db: Session) -> None:
     except HTTPException as exc:
         # Ya no estaba pendiente (revisada, retirada o cancelada en su pantalla).
         logger.info("aprobacion %s: %s %s no aplicada: %s", req.id, req.entity_type, req.entity_id, exc.detail)
+
+
+def comprobar_antes(req, decision: str, db: Session) -> None:
+    """Antes de anotar una aprobación en la bandeja: lo que la impediría en su pantalla.
+
+    El control presupuestario de un gasto con `BUDGET_CONTROL_POLICY = bloquear`
+    responde 409 aquí, y no después de dar la solicitud por aprobada.
+    """
+    if decision != "approved" or req.entity_type != "expense":
+        return
+    from app.models.expenses import Expense, ExpenseStatus
+    from app.services.presupuestos_seguir import control_de_gasto
+    gasto = db.query(Expense).filter(Expense.id == req.entity_id).first()
+    if gasto is not None and gasto.status == ExpenseStatus.submitted:
+        control_de_gasto(db, gasto)
 
 
 def cerrar(db: Session, tipo: str, entidad_id: str, estado: str, nota: str) -> None:

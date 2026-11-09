@@ -197,6 +197,13 @@ def _real_mensual(db: Session, b: Budget) -> dict[str, dict[str, float]]:
         cat = str(getattr(g.category, "value", g.category))
         tipo = mapa.get(cat) if mapa.get(cat) in tipos_validos else ("otros" if "otros" in tipos_validos else cat)
         sumar(g.expense_date, tipo, importe)
+    # Pedidos facturados: real en el mes de su factura. Y un mes cerrado vale lo que se congeló.
+    from app.services.presupuestos_seguir import cierres, real_de_pedidos
+    for mes, por_tipo in real_de_pedidos(db, b).items():
+        for tipo, importe in por_tipo.items():
+            real.setdefault(mes, {})
+            real[mes][tipo] = round(real[mes].get(tipo, 0.0) + importe, 2)
+    real.update(cierres(db, b))
     return real
 
 
@@ -224,11 +231,16 @@ def informe(db: Session, b: Budget) -> dict:
     amort = prep.amortizacion(b)
     meses = meses_del_periodo(b.periodo_desde, b.periodo_hasta) if b.periodo_desde and b.periodo_hasta else []
     actual = _mes_actual()
-    filas, prevision = [], 0.0
+    # Una sola previsión al cierre, la del seguimiento: real de lo pasado o cerrado, el mes en
+    # curso por lo menos lo previsto, y el resto según el método de reprevisión de cada tipo.
+    from app.models.mfa import BudgetClose
+    from app.services.presupuestos_seguir import origen, prevision_por_mes
+    cerrados = {c for (c,) in db.query(BudgetClose.mes).filter(BudgetClose.origen_id == origen(b)).all()} if b.id else set()
+    prevision = sum(sum(v.values()) for v in prevision_por_mes(b, meses, plan, real, cerrados).values())
+    filas = []
     for m in meses:
         p, r = round(sum(plan.get(m, {}).values()), 2), round(sum(real.get(m, {}).values()), 2)
         cerrado = m < actual
-        prevision += r if m <= actual else p
         filas.append({"mes": m, "plan": p, "real": r, "desviacion": round(r - p, 2), "cerrado": cerrado,
                       "en_curso": m == actual, "ingreso_plan": plan_ing.get(m, 0.0),
                       "ingreso_real": real_ing.get(m, 0.0), "amortizacion": amort.get(m, 0.0)})
@@ -306,7 +318,18 @@ def detalle(db: Session, u, budget_id: str) -> dict:
             "aprobacion_en_bandeja": fuentes.estado(db, "budget", b.id),
             "puedo_editar": puede_gestionar(db, u) and b.estado in EDITABLE,
             "puedo_aprobar": puede_aprobar(db, u) and b.estado == "enviado",
-            "tipos": tipos(db, b.organization_id)}
+            "tipos": tipos(db, b.organization_id),
+            **_seguir(db, u, b)}
+
+
+def _seguir(db: Session, u, b: Budget) -> dict:
+    """Lo del seguimiento a fondo, sólo en un presupuesto aprobado."""
+    from app.services import presupuestos_seguir as seg
+    if b.estado != "aprobado":
+        return {"seguir": None, "pedidos": [], "traspasos": []}
+    return {"seguir": seg.seguimiento(db, b), "pedidos": seg.listar_pedidos(db, b),
+            "traspasos": seg.listar_traspasos(db, b), "mes_actual": seg.mes_actual(),
+            "puedo_gestionar": puede_gestionar(db, u), "puedo_decidir_traspasos": puede_aprobar(db, u)}
 
 
 def _vigentes(db: Session, year=None, ambito=None, *, aprobada_primero: bool = False) -> list[Budget]:
@@ -583,6 +606,9 @@ def decidir(db: Session, u, budget_id: str, aprobado: bool, motivo: Optional[str
     audit_log(db, u, "APPROVE" if aprobado else "REJECT", "budgets", b.id, b.name,
               new_values={"estado": b.estado, "motivo": motivo})
     db.commit()
+    if aprobado:   # el presupuesto aprobado es la base del proyecto
+        from app.services.presupuestos_seguir import sincronizar_proyecto
+        sincronizar_proyecto(db, b)
     return detalle(db, u, b.id)
 
 
@@ -653,6 +679,9 @@ def vincular_proyecto(db: Session, u, budget_id: str, project_id: str) -> dict:
         v.project_id = project_id
     audit_log(db, u, "UPDATE", "budgets", b.id, b.name, new_values={"vinculado_a": project_id})
     db.commit()
+    from app.services.presupuestos_seguir import sincronizar_proyecto
+    for v in db.query(Budget).filter(Budget.origen_id == (b.origen_id or b.id), Budget.estado == "aprobado").all():
+        sincronizar_proyecto(db, v)
     return detalle(db, u, b.id)
 
 

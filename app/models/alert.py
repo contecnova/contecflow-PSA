@@ -16,6 +16,7 @@ class AlertType(str, enum.Enum):
     hours_deviation = "hours_deviation"  # Task >50% over estimate
     no_imputation = "no_imputation"    # Person hasn't logged for 2+ days
     automation = "automation"          # Creada por una regla de automatizacion
+    budget_forecast_overrun = "budget_forecast_overrun"  # La previsión al cierre de un presupuesto pasa de su plan
 
 
 class AlertSeverity(str, enum.Enum):

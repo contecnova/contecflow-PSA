@@ -46,6 +46,7 @@ DEFAULT_ALERT_CONFIGS = [
     ("burnout_risk", "Riesgo de burnout", "Recurso con alta carga durante N semanas consecutivas", 85, "%", True, True, True, False, "warning"),
     ("budget_exceeded", "Presupuesto superado", "Proyecto supera el % de presupuesto configurado", 90, "%", True, True, False, False, "warning"),
     ("budget_critical", "Presupuesto crítico", "Proyecto supera el 100% del presupuesto", 100, "%", True, True, False, False, "critical"),
+    ("budget_forecast_overrun", "Previsión por encima del plan", "La previsión al cierre de un presupuesto aprobado pasa del % de su plan", 100, "%", True, True, False, False, "warning"),
     ("deadline_risk", "Riesgo de plazo", "Proyecto activo que vence en N días o menos", 7, "days", True, True, False, False, "warning"),
     ("no_imputation", "Sin imputaciones", "Recurso sin imputar durante N días laborables", 2, "days", False, False, True, True, "info"),
     ("task_blocked", "Tarea bloqueada", "Tarea bloqueada durante más de N días", 2, "days", False, True, False, False, "warning"),

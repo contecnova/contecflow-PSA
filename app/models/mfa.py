@@ -16,7 +16,7 @@ v15 models — all remaining pending features:
 """
 from sqlalchemy import (
     Column, String, Float, DateTime, ForeignKey, Text,
-    Boolean, Integer, Date
+    Boolean, Integer, Date, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -261,6 +261,8 @@ class Budget(Base):
     campana_id  = Column(String(36), ForeignKey("budget_campaigns.id", ondelete="SET NULL"), nullable=True, index=True)
     escenario   = Column(String(40), nullable=False, default="base", server_default="base")
     supuestos   = Column(Text, nullable=False, default="{}", server_default="{}")  # {"inflacion_pct": 3, ...}
+    # Revisión 2026-11 (seguir a fondo): reprevisión por tipo {"licencias": {"metodo": "plan|ritmo|manual", "meses": {...}}}
+    prevision   = Column(Text, nullable=False, default="{}", server_default="{}")
 
     lines      = relationship("BudgetLine", back_populates="budget", cascade="all, delete-orphan",
                               order_by="BudgetLine.created_at")
@@ -315,6 +317,80 @@ class BudgetCampaign(Base):
     fecha_limite = Column(Date, nullable=False)
     abierta     = Column(Boolean, nullable=False, default=True, server_default="1")
     instrucciones = Column(Text, nullable=True)
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class BudgetCommitment(Base):
+    """Pedido comprometido contra un presupuesto (revisión 2026-11).
+
+    Mientras está `comprometido`, cuenta como comprometido (resta del disponible);
+    `facturado`, pasa a real en el mes de su factura; `anulado`, no cuenta.
+    """
+    __tablename__ = "budget_commitments"
+
+    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    origen_id   = Column(String(36), nullable=False, index=True)    # la cadena de versiones del presupuesto
+    tipo        = Column(String(30), nullable=False)
+    descripcion = Column(String(500), nullable=False)
+    proveedor   = Column(String(200), nullable=True)
+    referencia  = Column(String(100), nullable=True)               # nº de pedido
+    importe     = Column(Float, nullable=False)
+    mes         = Column(String(7), nullable=False)                # mes previsto del gasto "YYYY-MM"
+    estado      = Column(String(12), nullable=False, default="comprometido", server_default="comprometido")
+    fecha_factura = Column(Date, nullable=True)
+    importe_facturado = Column(Float, nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class BudgetClose(Base):
+    """Cierre mensual: congela el real del mes (por tipo) de una cadena de presupuestos."""
+    __tablename__ = "budget_closes"
+    __table_args__ = (UniqueConstraint("origen_id", "mes", name="uq_budget_closes_origen_mes"),)
+
+    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    origen_id   = Column(String(36), nullable=False, index=True)
+    mes         = Column(String(7), nullable=False)
+    real        = Column(Text, nullable=False, default="{}")       # {tipo: importe}
+    cerrado_por = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    cerrado_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class BudgetVarianceNote(Base):
+    """Explicación de una desviación de un tipo en un mes."""
+    __tablename__ = "budget_variance_notes"
+    __table_args__ = (UniqueConstraint("origen_id", "mes", "tipo", name="uq_budget_variance_origen_mes_tipo"),)
+
+    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    origen_id   = Column(String(36), nullable=False, index=True)
+    mes         = Column(String(7), nullable=False)
+    tipo        = Column(String(30), nullable=False)
+    explicacion = Column(Text, nullable=False)
+    autor_id    = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class BudgetTransfer(Base):
+    """Traspaso entre partidas (o ampliación, sin origen) de un presupuesto aprobado."""
+    __tablename__ = "budget_transfers"
+
+    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    budget_id   = Column(String(36), ForeignKey("budgets.id", ondelete="CASCADE"), nullable=False, index=True)
+    desde_linea_id = Column(String(36), nullable=True)             # vacío: ampliación
+    hacia_linea_id = Column(String(36), nullable=True)             # vacío: partida nueva de `hacia_tipo`
+    hacia_tipo  = Column(String(30), nullable=True)
+    hacia_descripcion = Column(String(500), nullable=True)
+    importe     = Column(Float, nullable=False)
+    motivo      = Column(Text, nullable=False)
+    estado      = Column(String(12), nullable=False, default="pendiente", server_default="pendiente")
+    solicitante_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    decisor_id  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    decidido_at = Column(DateTime(timezone=True), nullable=True)
+    motivo_rechazo = Column(Text, nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
 

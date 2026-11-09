@@ -418,6 +418,10 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("BUDGET_CEILING_POLICY", "str", "Budgets — when child budgets exceed the parent's ceiling: avisar or bloquear"),
         ("BUDGET_JUSTIFICATION_MIN_AMOUNT", "float", "Budgets — lines of this amount or more need a justification to submit (0: none)"),
         ("BUDGET_CAMPAIGN_REMINDER_DAYS", "int", "Budgets — days before a campaign deadline when owners of unsent budgets are reminded"),
+        ("BUDGET_CONTROL_POLICY", "str", "Budgets — approving an expense or entering an order beyond the available amount: no, avisar or bloquear"),
+        ("BUDGET_VARIANCE_EXPLAIN_PCT", "float", "Budgets — a monthly variance per type of this % or more needs an explanation before the month is closed"),
+        ("BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT", "float", "Budgets — …and of this amount or more (both must be met)"),
+        ("BUDGET_ALM_LINE_TYPE", "str", "Budgets — line type where ALM contracts and licences count as committed"),
     ],
     "feature_flags": [
         ("M365_CALENDAR_SYNC_ENABLED", "bool", "M365 calendar sync"),

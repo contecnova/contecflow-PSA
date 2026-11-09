@@ -84,6 +84,11 @@ def review_expense(
     if expense.status != ExpenseStatus.submitted:
         raise HTTPException(400, "El gasto no está pendiente de revisión")
 
+    avisos: list[str] = []
+    if approved:   # control presupuestario: avisa, o 409 si BUDGET_CONTROL_POLICY = bloquear
+        from app.services.presupuestos_seguir import control_de_gasto
+        avisos = control_de_gasto(db, expense)
+
     expense.reviewed_by = current_user.id
     expense.reviewed_at = datetime.now(timezone.utc)
 
@@ -116,7 +121,7 @@ def review_expense(
         new_values={"status": expense.status, "amount": expense.amount},
     )
     db.commit()
-    return {"ok": True, "status": expense.status}
+    return {"ok": True, "status": expense.status, "avisos_de_presupuesto": avisos}
 
 
 # ── Excel export ───────────────────────────────────────────────────────────────
