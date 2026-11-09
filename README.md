@@ -81,7 +81,7 @@ Everything here was checked against the code (`frontend/src/App.tsx`, `frontend/
 
 **Cross-cutting limitations (measured)**
 
-- ProjectsPage loads every visible project (200 per request) and has no pagination controls; with thousands of projects it loads them all.
+- Every project list (the portfolio and the project pickers of the whole app, through `projectsApi.list`) loads all visible projects in pages of 200; with thousands of projects it loads them all.
 - **Hidden buttons don't match backend permissions.** Most delivery pages (Sprints, RACI, UAT, Changelog, Epics, Risks, Dependencies, Wiki, Meeting Assistant, Documents) contain no `hasRole` check. Users who can open the page see create/edit buttons that the backend answers with 403.
 - **UI text is not fully translated.** Many labels, toasts and prompts are hard-coded in Spanish rather than going through `useAppT()`. Examples: month names in Calendar, the Expenses form, the Kanban "reopen" prompt, the CAB buttons and the Projects table columns.
 - **Few frontend tests.** The frontend has 32 `*.test.ts(x)` files. Only one touches these screens (`GanttChart.test.tsx`). Backend tests exist for most endpoint families. No test file references `/cmdb/sprint-plans`, `/ai-modules/meetings` or `/ai-modules/smart-schedule`.
@@ -519,7 +519,6 @@ Rules enforced in `imputation_service.py`:
   - Gauge colours: 80/60 and 90/70.
 - **The "high severity" risk count is always 0.** It filters on `r.severity`, but the risk payload has no `severity` field (it has `risk_level`).
 - **"Open risks" is capped at 50.** `get_portfolio_risks` uses `.limit(50)`.
-- **"Total projects" is capped at 50.** It counts `GET /projects` without `page_size`.
 - **The health endpoint ignores the period.** `/dashboard/projects-health` takes no date parameters.
 
 ### Projects — `/projects` and `/projects/:id`
@@ -555,7 +554,6 @@ Rules enforced in `imputation_service.py`:
 - Tables: `projects`, `project_phases`, `project_members`.
 
 **Limitations.**
-- **50-project cap** (see cross-cutting).
 - **The Gantt link opens the wrong view.** "View in Gantt" goes to `/gantt?project=…`, but `GanttPage` ignores the query string and opens with all projects.
 
 ### Lessons learned — `/lessons`

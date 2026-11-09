@@ -270,8 +270,26 @@ export const usersApi = {
   myApprovalChain: ()        => api.get('/users/me/approval-chain'),
 }
 
+// Revisión 2026-11: la API devuelve 50 proyectos por página y 43 llamadas
+// (selectores de gastos, presupuestos, imputar, Gantt, facturas, la propia
+// cartera…) pedían sin página: a partir del proyecto 50 no salían en ningún
+// sitio. Sin `page`, `page_size` ni `limit`, se traen todas las páginas (del
+// máximo que admite la API) y se devuelve la misma forma de respuesta.
+async function listarTodosLosProyectos(params?: any): Promise<any> {
+  const pide = params || {}
+  if (pide.page != null || pide.page_size != null || pide.limit != null) return api.get('/projects', { params: pide })
+  const todos: any[] = []
+  for (let page = 1; ; page++) {
+    const r: any = await api.get('/projects', { params: { ...pide, page, page_size: 200 } })
+    const lote: any[] = Array.isArray(r.data) ? r.data : (r.data?.items ?? [])
+    todos.push(...lote)
+    const total = Number(r.headers?.['x-total-count'] ?? todos.length)
+    if (lote.length === 0 || todos.length >= total) return { ...r, data: todos }
+  }
+}
+
 export const projectsApi = {
-  list:              (params?: any)    => api.get('/projects', { params }),
+  list:              (params?: any)    => listarTodosLosProyectos(params),
   get:               (id: any)       => api.get(`/projects/${id}`),
   create:            (data: unknown)     => api.post('/projects', data),
   update:            (id: any, data: unknown) => api.patch(`/projects/${id}`, data),
