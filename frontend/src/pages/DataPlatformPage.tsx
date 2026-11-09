@@ -1,5 +1,5 @@
 /**
- * DataPlatformPage — Plataforma de datos: ETL, conectores, embed SDK,
+ * DataPlatformPage — Plataforma de datos: ETL, conectores,
  * streaming en tiempo real, snapshots versionados y linaje de plataforma.
  * Antes vivía en /bi tab "data".
  */
@@ -30,11 +30,6 @@ interface ReportPresetItem {
   name: string
 }
 
-interface PlatformManifest {
-  name?: string
-  version?: string
-  features?: string[]
-}
 
 interface CatalogConnectorCfg {
   enabled?: boolean
@@ -98,7 +93,6 @@ export default function DataPlatformPage(): JSX.Element {
   const [streamSnapshot, setStreamSnapshot] = useState<StreamFrame | null>(null)
 
   const [phase3Tick, setPhase3Tick] = useState(0)
-  const [embedToken, setEmbedToken] = useState('')
   const [customConnectorName, setCustomConnectorName] = useState('')
   const [customConnectorEndpoint, setCustomConnectorEndpoint] = useState('')
   const [datasetKey, setDatasetKey] = useState('olap.fact_projects')
@@ -127,12 +121,6 @@ export default function DataPlatformPage(): JSX.Element {
     queryFn: () => biIntelligenceApi.deliveryOverview().then(r => r.data).catch(() => null),
     staleTime: 20_000,
   })
-  const { data: phase3ManifestRaw } = useQuery({
-    queryKey: ['data-platform-manifest'],
-    queryFn: () => biPlatformApi.sdkManifest().then(r => r.data).catch(() => null),
-    staleTime: 60_000,
-  })
-  const phase3Manifest = (phase3ManifestRaw ?? null) as PlatformManifest | null
   const { data: phase3CatalogRaw, refetch: refetchPhase3Catalog } = useQuery({
     queryKey: ['data-platform-catalog', phase3Tick],
     queryFn: () => biPlatformApi.connectorCatalog().then(r => r.data).catch(() => ({ count: 0, items: {} })),
@@ -193,9 +181,6 @@ export default function DataPlatformPage(): JSX.Element {
   async function handleSyncConnector(name: string) {
     try { await biIntelligenceApi.syncConnector(name); setPhase2Tick(x => x + 1); await refetchConnectors() } catch (_) { /* ignore */ }
   }
-  async function handleIssueEmbedToken() {
-    try { const res = await biPlatformApi.embedToken({ dashboard_key: 'executive', expires_minutes: 60 }); setEmbedToken(res?.data?.token || '') } catch (_) { /* ignore */ }
-  }
   async function handleToggleCatalogConnector(name: string, enabled: boolean) {
     try { await biPlatformApi.patchCatalogConnector(name, { enabled }); setPhase3Tick(x => x + 1); await refetchPhase3Catalog() } catch (_) { /* ignore */ }
   }
@@ -234,7 +219,7 @@ export default function DataPlatformPage(): JSX.Element {
       <PageHeader
         icon={<Database size={18} />}
         title="Data Platform"
-        subtitle="ETL, conectores, embed SDK, streaming y snapshots versionados"
+        subtitle="ETL, conectores, streaming y snapshots versionados"
       showListExport={false}
       />
 
@@ -291,18 +276,8 @@ export default function DataPlatformPage(): JSX.Element {
         </div>
 
         <div>
-          <SectionHeading title="Plataforma BI" description="Embed SDK, catálogo de conectores y conectores personalizados" />
+          <SectionHeading title="Plataforma BI" description="Catálogo de conectores y conectores personalizados" />
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
-
-            <div style={S.card}>
-              <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}><div style={S.sectionTitle}>Embed SDK</div></div>
-              <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{phase3Manifest?.name || 'Contecflow BI Embed SDK'} v{phase3Manifest?.version || '1.0.0'}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Features: {(phase3Manifest?.features || []).join(', ') || 'n/a'}</div>
-                <button onClick={handleIssueEmbedToken} style={S.btnAccentOutline()}>Emitir token embed</button>
-                {embedToken && <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', wordBreak: 'break-all' }}>JWT: {embedToken.slice(0, 70)}...</div>}
-              </div>
-            </div>
 
             <div style={S.card}>
               <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}><div style={S.sectionTitle}>{t('dataplatform.catalogo_de_conectores')}{phase3CatalogEntries.filter(([, cfg]) => !!cfg?.enabled).length} activos)</div></div>

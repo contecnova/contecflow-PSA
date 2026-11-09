@@ -1,11 +1,10 @@
 """BI Platform endpoints.
 
-Platform-scale APIs: embedded SDK, connector marketplace, custom connector
+Platform-scale APIs: connector marketplace, custom connector
 framework, governance lineage, and dataset versioning.
 """
 from __future__ import annotations
 
-from datetime import timedelta
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -14,27 +13,12 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin
 from app.core.responses import APIListResponse, APIResponse
-from app.core.security import create_access_token
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import bi_platform_service as svc
 
 router = APIRouter()
-
-
-class EmbedSettingsPatchIn(BaseModel):
-    allowed_origins: Optional[list[str]] = None
-    default_theme: Optional[str] = Field(None, max_length=30)
-    allow_export: Optional[bool] = None
-    allow_drilldown: Optional[bool] = None
-    token_ttl_minutes: Optional[int] = Field(None, ge=5, le=1440)
-
-
-class EmbedTokenIn(BaseModel):
-    dashboard_key: str = Field(..., min_length=2, max_length=120)
-    external_user_id: Optional[str] = Field(None, max_length=120)
-    expires_minutes: int = Field(60, ge=5, le=1440)
 
 
 class ConnectorPatchIn(BaseModel):
@@ -73,63 +57,6 @@ class FieldSensitivityIn(BaseModel):
     sensitivity_level: str = Field(..., pattern="^(public|internal|confidential|restricted)$")
     pii_types: Optional[list[str]] = Field(default_factory=list)
     requires_approval: bool = False
-
-
-@router.get("/bi/platform/embed/sdk", summary="Manifest del SDK embebido BI Platform")
-def phase3_embed_sdk(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    org_id = getattr(current_user, "organization_id", None)
-    return APIResponse.ok(data=svc.get_sdk_manifest(db, organization_id=org_id))
-
-
-@router.get("/bi/platform/embed/settings", summary="Configuración embed BI Platform")
-def phase3_embed_settings(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    org_id = getattr(current_user, "organization_id", None)
-    return APIResponse.ok(data=svc.get_embed_settings(db, organization_id=org_id))
-
-
-@router.patch("/bi/platform/embed/settings", summary="Actualizar configuración embed BI Platform")
-def phase3_patch_embed_settings(
-    payload: EmbedSettingsPatchIn,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
-):
-    org_id = getattr(current_user, "organization_id", None)
-    data = {k: v for k, v in payload.model_dump().items() if v is not None}
-    return APIResponse.ok(data=svc.update_embed_settings(db, organization_id=org_id, payload=data))
-
-
-@router.post("/bi/platform/embed/token", summary="Emitir token SSO para embed BI")
-def phase3_embed_token(
-    payload: EmbedTokenIn,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
-):
-    org_id = getattr(current_user, "organization_id", None)
-    settings = svc.get_embed_settings(db, organization_id=org_id)
-    token = create_access_token(
-        subject=current_user.id,
-        extra={
-            "bi_embed": True,
-            "dashboard_key": payload.dashboard_key,
-            "external_user_id": payload.external_user_id,
-            "organization_id": org_id,
-        },
-        expires_delta=timedelta(minutes=payload.expires_minutes),
-    )
-    return APIResponse.ok(data={
-        "token": token,
-        "expires_minutes": payload.expires_minutes,
-        "dashboard_key": payload.dashboard_key,
-        "settings": settings,
-    })
 
 
 @router.get("/bi/platform/connectors/catalog", summary="Catálogo de conectores BI Platform (20+)")

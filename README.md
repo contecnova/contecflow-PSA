@@ -3351,7 +3351,7 @@ There are no filters.
 ### Data Platform — `/data-platform`
 *Roles:* admin (route). Backend: most GETs use any authenticated user; writes use internal user or admin.
 
-**Purpose.** Manage ETL connectors, Microsoft 365 usage reports, report presets, realtime streaming, the embed SDK and custom connectors.
+**Purpose.** Manage ETL connectors, Microsoft 365 usage reports, report presets, realtime streaming and custom connectors.
 
 **How to use it.**
 - **Conectores ETL:** press **Refrescar** to reload, **Sincronizar** per connector, and toggle the log. The list polls every 30 s.
@@ -3360,7 +3360,7 @@ There are no filters.
   - Enter Tenant ID, Client ID and Client secret, then press **Guardar**.
   - Press **Sincronizar** to pull reports.
 - **Conectores de datos activos:** activate, deactivate or sync each connector.
-- Also on the page: a report presets preview, a realtime stream, and Plataforma BI (Embed SDK, connector catalogue, custom connectors, lineage and versions).
+- Also on the page: a report presets preview, a realtime stream, and Plataforma BI (connector catalogue, custom connectors, lineage and versions). Embedding indicators in other sites: see *Microsoft 365 → BI in Teams and SharePoint*; for third-party apps with questions and certified metrics, contecintelligence's components.
 
 **Configuration.**
 - Connector credentials have **no UI**.
@@ -3391,7 +3391,6 @@ There are no filters.
 - **Streaming:**
   - In production and staging the socket is closed with code 4003 (token in the URL), and the client reconnects every 2 s indefinitely.
   - With Redis, the frame type sent (`bi_kpi_snapshot`) differs from the one the UI accepts (`bi_intelligence_snapshot`).
-- Nothing consumes the `bi_embed` token yet (it opens nothing), the `window.ContecflowBIEmbed` SDK is not implemented, and `allowed_origins` defaults to `["*"]`.
 
 ### Data Governance — `/data-governance`
 *Roles:* admin (route). Backend: GDPR and governance writes and reads use `require_admin`.
@@ -4185,7 +4184,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 221 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 222 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4320,6 +4319,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | security_network | TRUSTED_PROXY_CIDRS | str | `127.0.0.1/32,::1/128` | Proxies whose `X-Forwarded-*` are trusted | rt (global only) |
 | ui_branding | WEBAUTHN_RP_NAME | str | `Contecflow PSA` | WebAuthn relying-party display name | rt (`auth_mfa`) |
 | ui_branding | FRONTEND_EMBED_BASE_URL | str | `''` | Base URL for M365/BI embeds | rt (`m365_bi_embed_service`) |
+| ui_branding | BI_EMBED_FRAME_ANCESTORS | str | `'self' https://teams.microsoft.com https://*.teams.microsoft.com https://*.cloud.microsoft https://*.sharepoint.com` | BI embed page — who may show it in an iframe (CSP frame-ancestors, space separated) | rt (`/bi/embed/view`) |
 | ui_branding | PROJECT_NAME | str | `Contecflow` | Product display name (TOTP issuer, PDFs) | rt |
 | observability | METRICS_AUTH_TOKEN | str | None | Bearer token for `/metrics`; empty disables auth | rt (global only). **Stored and audited in plaintext** |
 | timeouts | OUTBOUND_HTTP_TIMEOUT_SECONDS | float | 10.0 | Default timeout for outbound HTTP | rt via `outbound_http_timeout()` (24 call sites) |
@@ -4606,6 +4606,14 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 - The feature flags `M365_CALENDAR_SYNC_ENABLED` and `M365_TEAMS_NOTIFICATIONS_ENABLED` are **only echoed by `/m365/status`**; nothing checks them.
 - The page uses status, calendar sync, milestone sync and Teams notify. Presence, Planner and event create/delete are **API-only**.
 - Graph calls need tenant consent for the required application permissions. **Not verified.**
+
+#### BI in Teams and SharePoint (indicators page for an iframe)
+- **Endpoints** (admin): `POST /api/v1/m365/bi/teams/tab` (tab configuration; with `register_via_graph`, it is registered in the channel), `POST /m365/bi/teams/card` (adaptive card with the snapshot), `GET /m365/bi/sharepoint/webpart` (the `<iframe>` to paste into an Embed web part), `POST /m365/bi/sharepoint/page`, `GET /m365/bi/export/excel|word`, `GET /m365/bi/status`.
+- The tab and the web part point to **`GET /api/v1/bi/embed/view?dashboard_id=&token=&org=`**: a page served by the API itself (no app, no session) with the indicators snapshot used by the Teams card and the Excel/Word exports — last month's revenue, cost and hours, anomalies, 3-month revenue forecast and projects at risk of overrun — in the company's language (`DEFAULT_LANGUAGE`).
+- **The token is the credential**: an embed token from `POST /api/v1/bi/embed/token` (admin; revocable with `DELETE /bi/embed/token/{jti}`), checked on the server — signature, type, revocation, company and dashboard. Another dashboard, another company or a revoked token gets 401.
+- **Who may show it in an iframe**: the page carries its own `frame-ancestors` = `BI_EMBED_FRAME_ANCESTORS` (Admin → Branding / UI; default the site itself, Teams and SharePoint) plus the company's `csp_frame_ancestors` (`PUT /bi/embed/config`). Every other page keeps `X-Frame-Options: DENY`; nginx has a location of its own for this path so the server-wide `DENY` is not added.
+- Base address of the links: `FRONTEND_EMBED_BASE_URL` (the API is reached through the same domain's `/api/`).
+- Tests: `tests/test_bi_embed_pagina_2026_11.py`.
 
 ---
 
@@ -5325,7 +5333,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 361)
+#### 4.2 Settings fields (`Settings`, 362)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5440,6 +5448,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `TEAMS_WEBHOOK_URL` | `None` | Teams incoming webhook. |
 | `SHAREPOINT_SITE_ID` | `None` | SharePoint site for documents. |
 | `FRONTEND_EMBED_BASE_URL` | `''` | Base URL for BI embeds in Teams/SharePoint. |
+| `BI_EMBED_FRAME_ANCESTORS` | `"'self' https://teams.microsoft.com https://*.teams.microsoft.com https://*.cloud.microsoft https://*.sharepoint.com"` | BI embed page — who may show it in an iframe (CSP frame-ancestors, space separated) |
 | `SMTP_HOST` | `''` | Outbound SMTP host. |
 | `SMTP_USER` | `''` | SMTP user. |
 | `SMTP_PORT` | `587` | SMTP port. |

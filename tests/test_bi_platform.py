@@ -2,30 +2,6 @@
 from tests.conftest import auth
 
 
-def test_phase3_embed_manifest_settings_and_token(client, admin_token):
-    manifest = client.get("/api/v1/bi/platform/embed/sdk", headers=auth(admin_token))
-    assert manifest.status_code == 200
-    data = manifest.json()["data"]
-    assert data["name"] == "Contecflow BI Embed SDK"
-    assert "features" in data
-
-    patch = client.patch(
-        "/api/v1/bi/platform/embed/settings",
-        json={"default_theme": "dark", "token_ttl_minutes": 90},
-        headers=auth(admin_token),
-    )
-    assert patch.status_code == 200
-    assert patch.json()["data"]["default_theme"] == "dark"
-
-    token = client.post(
-        "/api/v1/bi/platform/embed/token",
-        json={"dashboard_key": "executive", "expires_minutes": 45},
-        headers=auth(admin_token),
-    )
-    assert token.status_code == 200
-    assert "token" in token.json()["data"]
-
-
 def test_phase3_connector_catalog_and_custom_framework(client, admin_token):
     catalog = client.get("/api/v1/bi/platform/connectors/catalog", headers=auth(admin_token))
     assert catalog.status_code == 200

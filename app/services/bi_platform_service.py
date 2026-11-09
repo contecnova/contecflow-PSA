@@ -20,7 +20,6 @@ from sqlalchemy.orm import Session
 from app.models.settings import AppSetting
 from app.models.user import User
 
-EMBED_SETTINGS_KEY = "bi.phase3.embed.settings"
 CONNECTORS_CATALOG_KEY = "bi.phase3.connectors.catalog"
 CUSTOM_CONNECTORS_KEY = "bi.phase3.connectors.custom"
 LINEAGE_KEY = "bi.phase3.governance.lineage"
@@ -68,49 +67,6 @@ def _set_json(db: Session, key: str, organization_id: Optional[str], value: Any,
         if not row.description:
             row.description = description
     db.commit()
-
-
-def default_embed_settings() -> dict[str, Any]:
-    return {
-        "allowed_origins": ["*"],
-        "default_theme": "system",
-        "allow_export": True,
-        "allow_drilldown": True,
-        "token_ttl_minutes": 60,
-    }
-
-
-def get_embed_settings(db: Session, *, organization_id: Optional[str]) -> dict[str, Any]:
-    saved = _get_json(db, EMBED_SETTINGS_KEY, organization_id, default={})
-    return {**default_embed_settings(), **(saved or {})}
-
-
-def update_embed_settings(db: Session, *, organization_id: Optional[str], payload: dict[str, Any]) -> dict[str, Any]:
-    merged = {**get_embed_settings(db, organization_id=organization_id), **(payload or {})}
-    _set_json(
-        db,
-        EMBED_SETTINGS_KEY,
-        organization_id,
-        merged,
-        description="BI Platform embedded SDK settings (JSON)",
-    )
-    return merged
-
-
-def get_sdk_manifest(db: Session, *, organization_id: Optional[str]) -> dict[str, Any]:
-    settings = get_embed_settings(db, organization_id=organization_id)
-    return {
-        "name": "Contecflow BI Embed SDK",
-        "version": "1.0.0",
-        "loader": "window.ContecflowBIEmbed.mount({ container, token, dashboardKey })",
-        "features": [
-            "iframe_embed",
-            "sso_token_auth",
-            "permission_aware_widgets",
-            "theme_sync",
-        ],
-        "settings": settings,
-    }
 
 
 def default_connector_catalog() -> dict[str, dict[str, Any]]:

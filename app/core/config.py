@@ -497,6 +497,11 @@ class Settings(
     BUDGET_APPROVER_ROLES: str = Field(default="admin", env="BUDGET_APPROVER_ROLES")
     BUDGET_MANAGER_ROLES: str = Field(default="admin,pm,hr", env="BUDGET_MANAGER_ROLES")
 
+    # Quién puede incrustar la página de indicadores de BI (revisión 2026-11).
+    BI_EMBED_FRAME_ANCESTORS: str = Field(
+        default="'self' https://teams.microsoft.com https://*.teams.microsoft.com https://*.cloud.microsoft https://*.sharepoint.com",
+        env="BI_EMBED_FRAME_ANCESTORS")
+
     # NOTE: AI cost alerting lives in AISettingsMixin.
 
     # ── Stripe payment gateway (v23.8) ────────────────────────────────────────

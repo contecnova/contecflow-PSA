@@ -12,6 +12,7 @@ de BI para PowerBI en app/api/v1/endpoints/mfa.py. No lo migres.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -100,6 +101,24 @@ def get_sdk_config(
     No requiere autenticación Contecflow — el token embed actúa como credencial.
     """
     return svc.get_sdk_config(db, org_id, dashboard_id, token)
+
+
+# ── Página para un iframe (revisión 2026-11) ──────────────────────────────────
+
+@router.get("/view", summary="Página de indicadores para un iframe (Teams, SharePoint…); el token es la credencial",
+            response_class=HTMLResponse)
+def embed_view(
+    dashboard_id: str = Query("executive", max_length=120),
+    token: str = Query(...),
+    org: str = Query(..., max_length=64),
+    db: Session = Depends(get_db),
+):
+    contenido = svc.pagina(db, org, dashboard_id, token)
+    return HTMLResponse(contenido, headers={
+        "Content-Security-Policy": (f"default-src 'none'; style-src 'unsafe-inline'; img-src data:; "
+                                    f"frame-ancestors {svc.frame_ancestors(db, org)}; base-uri 'none'; form-action 'none'"),
+        "Cache-Control": "no-store",
+    })
 
 
 # ── Embed configuration (admin) ───────────────────────────────────────────────

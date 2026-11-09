@@ -50,7 +50,10 @@ def _set_json(db: Session, key: str, data: dict) -> None:
     else:
         row = AppSetting(key=key, value=serialized)
         db.add(row)
-    db.flush()
+    # Revisión 2026-11: antes sólo hacía `flush` y ningún endpoint confirmaba:
+    # la lista de tokens, las revocaciones y la configuración no se guardaban
+    # nunca (revocar un token no servía de nada).
+    db.commit()
 
 
 def _embed_secret(org_id: str) -> str:
@@ -233,3 +236,85 @@ def get_sdk_config(db: Session, org_id: str, dashboard_id: str, token: str) -> d
         "locale": "es",
         "sdk_version": "1.0.0",
     }
+
+
+# ── Página de incrustación (revisión 2026-11) ─────────────────────────────────
+#
+# La pestaña de Teams y la parte web de SharePoint (`m365_bi_embed_service`)
+# enlazaban a `/embed/bi`, una página que no existía; y la web se sirve con
+# `X-Frame-Options: DENY`, así que ningún iframe ajeno la habría mostrado. La
+# sirve la API: valida el token en el servidor (firma, tipo, revocación, empresa
+# y panel) y pinta la foto de indicadores de `get_dashboard_snapshot` —la misma
+# de las tarjetas de Teams y de los Word/Excel—, sin la aplicación ni sesión.
+# Quién puede incrustarla lo dice su `frame-ancestors`: `BI_EMBED_FRAME_ANCESTORS`
+# (Admin) más los `csp_frame_ancestors` de la configuración de la empresa.
+
+_TEXTOS = {
+    "es": {"titulo": "Indicadores", "ingresos": "Ingresos", "coste": "Coste", "horas": "Horas", "mes": "Último mes",
+           "prevision": "Previsión de ingresos (3 meses)", "anomalias": "Anomalías detectadas",
+           "desvios": "Proyectos con riesgo de sobrecoste", "sin_datos": "Sin datos", "generado": "Generado"},
+    "en": {"titulo": "Indicators", "ingresos": "Revenue", "coste": "Cost", "horas": "Hours", "mes": "Last month",
+           "prevision": "Revenue forecast (3 months)", "anomalias": "Anomalies detected",
+           "desvios": "Projects at risk of overrun", "sin_datos": "No data", "generado": "Generated"},
+    "zh": {"titulo": "指标", "ingresos": "收入", "coste": "成本", "horas": "工时", "mes": "上月",
+           "prevision": "收入预测(3个月)", "anomalias": "检测到的异常",
+           "desvios": "有超支风险的项目", "sin_datos": "无数据", "generado": "生成时间"},
+}
+
+
+def frame_ancestors(db: Session, org_id: str) -> str:
+    """Quién puede incrustar la página: el ajuste de Admin más la lista de la empresa."""
+    from app.services.settings_service import get_runtime_str
+    base = (get_runtime_str(db, "BI_EMBED_FRAME_ANCESTORS", org_id) or "").split()
+    extra = [("'self'" if a == "self" else a) for a in get_embed_config(db, org_id).get("csp_frame_ancestors", [])]
+    vistos: list[str] = []
+    for a in base + extra:
+        if a and a not in vistos:
+            vistos.append(a)
+    return " ".join(vistos) or "'none'"
+
+
+def pagina(db: Session, org_id: str, dashboard_id: str, token: str) -> str:
+    """HTML de la foto de indicadores para un iframe. Lanza 401 si el token no vale para ese panel."""
+    import html
+    from app.services.m365_bi_embed_service import get_dashboard_snapshot
+    from app.services.settings_service import get_runtime_str
+    claims = validate_embed_token(db, org_id, token)
+    if claims.get("org") != org_id or claims.get("dash") != dashboard_id:
+        raise HTTPException(401, "El token no es de este panel")
+    # Petición sin usuario: la sesión se acota a la empresa del token.
+    db.info.update(organization_id=org_id, is_superadmin=False)
+    foto = get_dashboard_snapshot(db, organization_id=org_id, dashboard_id=dashboard_id)
+    idioma = (get_runtime_str(db, "DEFAULT_LANGUAGE", org_id) or "es")[:2]
+    tx = _TEXTOS.get(idioma, _TEXTOS["es"])
+    e = html.escape
+
+    def numero(v) -> str:
+        return e(f"{v:,.0f}") if isinstance(v, (int, float)) else "—"
+
+    def filas(items, celdas) -> str:
+        if not items:
+            return f'<tr><td colspan="2" class="vacio">{e(tx["sin_datos"])}</td></tr>'
+        return "".join("<tr>" + "".join(f"<td>{c}</td>" for c in celdas(i)) + "</tr>" for i in items)
+
+    prevision = filas(foto.get("forecast_3m") or [], lambda f: (e(str(f.get("month"))), numero(f.get("predicted"))))
+    desvios = filas(foto.get("overrun_predictions") or [],
+                    lambda p: (e(str(p.get("project_name") or p.get("project_code") or p.get("project_id") or "—")),
+                               e(str(p.get("risk_level") or p.get("overrun_probability") or ""))))
+    return f"""<!doctype html><html lang="{e(idioma)}"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>{e(tx["titulo"])} · {e(dashboard_id)}</title>
+<style>body{{font-family:system-ui,sans-serif;margin:16px;color:#1f2933;background:#fff}}
+.kpis{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:12px 0}}
+.kpi{{border:1px solid #e4e7eb;border-radius:8px;padding:10px}}.kpi b{{display:block;font-size:20px}}
+table{{width:100%;border-collapse:collapse;margin-top:6px}}td{{padding:5px 6px;border-bottom:1px solid #eef0f2;font-size:14px}}
+h2{{font-size:15px;margin:18px 0 4px}}.vacio,small{{color:#7b8794}}
+@media (prefers-color-scheme:dark){{body{{background:#14171c;color:#e4e7eb}}.kpi{{border-color:#2d333b}}td{{border-color:#232830}}}}</style>
+</head><body><h1 style="font-size:18px;margin:0">{e(tx["titulo"])}</h1>
+<small>{e(tx["mes"])}: {e(str(foto.get("latest_month") or "—"))}</small>
+<div class="kpis"><div class="kpi">{e(tx["ingresos"])}<b>{numero(foto.get("latest_revenue"))}</b></div>
+<div class="kpi">{e(tx["coste"])}<b>{numero(foto.get("latest_cost"))}</b></div>
+<div class="kpi">{e(tx["horas"])}<b>{numero(foto.get("latest_hours"))}</b></div>
+<div class="kpi">{e(tx["anomalias"])}<b>{numero(foto.get("anomaly_count"))}</b></div></div>
+<h2>{e(tx["prevision"])}</h2><table>{prevision}</table>
+<h2>{e(tx["desvios"])}</h2><table>{desvios}</table>
+<p><small>{e(tx["generado"])}: {e(str(foto.get("generated_at") or ""))}</small></p></body></html>"""

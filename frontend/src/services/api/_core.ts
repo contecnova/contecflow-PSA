@@ -393,10 +393,6 @@ export const biIntelligenceApi = {
 }
 
 export const biPlatformApi = {
-  sdkManifest: ()                      => api.get('/bi/platform/embed/sdk'),
-  embedSettings: ()                    => api.get('/bi/platform/embed/settings'),
-  patchEmbedSettings: (payload: unknown)        => api.patch('/bi/platform/embed/settings', payload),
-  embedToken: (payload: unknown)                => api.post('/bi/platform/embed/token', payload),
   connectorCatalog: ()                 => api.get('/bi/platform/connectors/catalog'),
   patchCatalogConnector: (name: any, p: any)     => api.patch(`/bi/platform/connectors/catalog/${name}`, p),
   listCustomConnectors: ()             => api.get('/bi/platform/connectors/custom'),

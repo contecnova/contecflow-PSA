@@ -751,7 +751,11 @@ async def security_headers_middleware(request: Request, call_next):
         path.startswith(f"{docs_base}/documents/file/")
         or (path.startswith(f"{docs_base}/documents/") and path.endswith("/preview"))
     )
-    response.headers["X-Frame-Options"] = "SAMEORIGIN" if is_doc_file_route else "DENY"
+    # La página de incrustación de BI trae su propio `frame-ancestors` (los
+    # dominios de la empresa, Teams, SharePoint…): aquí no se pisa.
+    es_pagina_de_incrustacion = path == f"{settings.API_V1_STR}/bi/embed/view"
+    if not es_pagina_de_incrustacion:
+        response.headers["X-Frame-Options"] = "SAMEORIGIN" if is_doc_file_route else "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     if settings.ENVIRONMENT == "production":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
@@ -780,6 +784,8 @@ async def security_headers_middleware(request: Request, call_next):
             "object-src 'none'; "
             "base-uri 'self';"
         )
+    elif es_pagina_de_incrustacion:
+        pass
     else:
         # Content-Security-Policy: the Vite production build emits a single
         # bundled script — no unsafe-inline or unsafe-eval needed for scripts.

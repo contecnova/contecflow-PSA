@@ -426,6 +426,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("WEBAUTHN_RP_NAME", "str", "WebAuthn relying-party name (display)"),
         ("FRONTEND_EMBED_BASE_URL", "str", "BI embed base URL"),
         ("PROJECT_NAME", "str", "Product display name"),
+        ("BI_EMBED_FRAME_ANCESTORS", "str", "BI embed page — who may show it in an iframe (CSP frame-ancestors, space separated)"),
     ],
     "observability": [
         ("METRICS_AUTH_TOKEN", "str", "/metrics Bearer token (clear to disable auth)"),

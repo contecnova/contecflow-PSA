@@ -113,7 +113,7 @@ def generate_teams_tab_config(
     embed_token = token_data["token"]
     _base = _frontend_base(db, org_id)
     content_url = (
-        f"{_base}/embed/bi?dashboard_id={dashboard_id}"
+        f"{_base}/api/v1/bi/embed/view?dashboard_id={dashboard_id}"
         f"&token={embed_token}&org={org_id}"
     )
     website_url = f"{_base}/bi/dashboards/{dashboard_id}"
@@ -341,7 +341,7 @@ def get_sharepoint_webpart_config(
     """
     token_data = create_embed_token(db, org_id, user_id, dashboard_id, ["read"], ttl_minutes)
     embed_url = (
-        f"{_frontend_base(db, org_id)}/embed/bi?dashboard_id={dashboard_id}"
+        f"{_frontend_base(db, org_id)}/api/v1/bi/embed/view?dashboard_id={dashboard_id}"
         f"&token={token_data['token']}&org={org_id}"
     )
     iframe_html = (
