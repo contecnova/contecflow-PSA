@@ -1,5 +1,4 @@
 """Tests for Office 365 BI integration endpoints."""
-from unittest.mock import patch, MagicMock
 from tests.conftest import auth
 
 
@@ -28,33 +27,8 @@ def test_save_o365_config(client, admin_token):
     assert "client_secret" not in data or data.get("client_secret") in (None, "", "***")
 
 
-def test_trigger_o365_sync_without_config(client, admin_token):
-    """Sync without tenant_id configured should fail gracefully."""
-    # Reset config first to empty
-    client.put("/api/v1/bi/o365/config", json={"enabled": False, "tenant_id": "", "client_id": ""}, headers=auth(admin_token))
-    r = client.post("/api/v1/bi/o365/sync", headers=auth(admin_token))
-    # Expect 202 with queued/error or 400/422 with clear message
-    assert r.status_code in (202, 400, 422)
 
 
-def test_trigger_o365_sync_with_mock(client, admin_token):
-    """Trigger sync with mocked Graph API response."""
-    client.put(
-        "/api/v1/bi/o365/config",
-        json={"enabled": True, "tenant_id": "t1", "client_id": "c1", "client_secret": "s1"},
-        headers=auth(admin_token),
-    )
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"value": [{"userId": "u1", "reportRefreshDate": "2024-01-01"}]}
-    with patch("requests.post") as mock_post, patch("requests.get") as mock_get:
-        # Mock token endpoint
-        mock_post.return_value = MagicMock(status_code=200, json=lambda: {"access_token": "fake-token", "expires_in": 3600})
-        mock_get.return_value = mock_response
-        r = client.post("/api/v1/bi/o365/sync", headers=auth(admin_token))
-    assert r.status_code in (200, 202)
-    data = r.json()["data"]
-    assert "status" in data or "queued" in data
 
 
 def test_get_o365_report_teams(client, admin_token):
@@ -86,3 +60,74 @@ def test_get_o365_sync_log(client, admin_token):
 def test_o365_auth_required(client):
     r = client.get("/api/v1/bi/o365/config")
     assert r.status_code == 401
+
+
+# ── Revisión 2026-11 ──────────────────────────────────────────────────────────
+# El test anterior de sincronización parcheaba `requests`, pero el servicio usa
+# `httpx`: llamaba a Microsoft de verdad y aceptaba cualquier respuesta.
+
+class _Resp:
+    def __init__(self, status, json_=None, text=""):
+        self.status_code, self._json, self.text = status, json_, text
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f"{self.status_code} de Graph")
+
+    def json(self):
+        return self._json
+
+
+class _Graph:
+    """Microsoft de mentira: token bueno y un informe que falla."""
+    falla = "getEmailActivityUserDetail"
+    secretos: list = []
+
+    def __init__(self, **kw):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        pass
+
+    def post(self, url, data=None, **kw):
+        _Graph.secretos.append(data["client_secret"])
+        return _Resp(200, {"access_token": "tok"})
+
+    def get(self, url, **kw):
+        if self.falla in url:
+            return _Resp(403)
+        return _Resp(200, text="User Principal Name,Has Any Product,Is Licensed For Teams,Is Licensed For Viva\nu1,True,True,False\nu2,False,False,True\n")
+
+
+def test_EL_HALLAZGO_el_secreto_se_guarda_y_un_informe_que_falla_no_es_ok(client, db, admin_token, monkeypatch):
+    import httpx
+    from app.models.settings import AppSetting
+    monkeypatch.setattr(httpx, "Client", _Graph)
+    _Graph.secretos = []
+    r = client.put("/api/v1/bi/o365/config", headers=auth(admin_token),
+                   json={"enabled": True, "tenant_id": "t1", "client_id": "c1", "client_secret": "secreto-claro"})
+    assert r.json()["data"]["secret_puesto"] is True and "client_secret" not in r.json()["data"]
+    assert "secreto-claro" not in db.query(AppSetting).filter(AppSetting.key == "bi.o365.config").one().value
+    d = client.post("/api/v1/bi/o365/sync", headers=auth(admin_token)).json()["data"]
+    assert _Graph.secretos == ["secreto-claro"]                 # descifrado al usarlo, sin teclearlo otra vez
+    assert d["ok"] is False and "email_activity" in d["error"] and "403" in d["error"]
+    por = {x["report"]: x for x in d["synced"]}
+    assert por["teams_activity"]["ok"] and por["teams_activity"]["records"] == 2
+    a = client.get("/api/v1/bi/o365/adoption", headers=auth(admin_token)).json()["data"]
+    assert a["by_product"] == {"Teams": 1, "Viva": 1}            # de las columnas, no de una lista fija
+    log = client.get("/api/v1/bi/o365/sync-log", headers=auth(admin_token)).json()["data"]["entries"]
+    assert log[-1]["ok"] is False
+
+
+def test_sin_secreto_lo_dice(client, admin_token):
+    client.put("/api/v1/bi/o365/config", headers=auth(admin_token), json={"enabled": True, "tenant_id": "t1", "client_id": "c1"})
+    d = client.post("/api/v1/bi/o365/sync", headers=auth(admin_token)).json()["data"]
+    assert d["ok"] is False and "secret" in d["error"]
+
+
+def test_informe_desconocido_en_la_config_se_rechaza(client, admin_token):
+    r = client.put("/api/v1/bi/o365/config", headers=auth(admin_token), json={"enabled_reports": ["inventado"]})
+    assert r.status_code == 400

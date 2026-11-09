@@ -230,113 +230,12 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.alert_correlation_scan",
         "schedule": crontab(minute="*/30"),
     },
-    # ── BI ETL Connector sync ──────────────────────────────────────────────────
-    # Each connector fires once per hour at a staggered minute offset
-    # to distribute load and avoid thundering herd.
-    "bi-connector-sync-salesforce": {
-        "task": "app.worker.sync_connector_data",
+    # ── Conectores ETL de BI (revisión 2026-11) ───────────────────────────────
+    # Una entrada que recorre lo activo de cada organización. Antes eran 21
+    # fijas, una por proveedor, que no incluían las fuentes REST de nadie.
+    "bi-connector-sync": {
+        "task": "app.worker.sincronizar_conectores_etl",
         "schedule": crontab(minute=1),
-        "kwargs": {"connector_id": "salesforce"},
-    },
-    "bi-connector-sync-hubspot": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=2),
-        "kwargs": {"connector_id": "hubspot"},
-    },
-    "bi-connector-sync-jira": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=3),
-        "kwargs": {"connector_id": "jira"},
-    },
-    "bi-connector-sync-stripe": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=4),
-        "kwargs": {"connector_id": "stripe"},
-    },
-    "bi-connector-sync-xero": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=5),
-        "kwargs": {"connector_id": "xero"},
-    },
-    "bi-connector-sync-zendesk": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=6),
-        "kwargs": {"connector_id": "zendesk"},
-    },
-    "bi-connector-sync-freshdesk": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=7),
-        "kwargs": {"connector_id": "freshdesk"},
-    },
-    "bi-connector-sync-servicenow": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=8),
-        "kwargs": {"connector_id": "servicenow"},
-    },
-    "bi-connector-sync-pipedrive": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=9),
-        "kwargs": {"connector_id": "pipedrive"},
-    },
-    "bi-connector-sync-zoho-crm": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=10),
-        "kwargs": {"connector_id": "zoho_crm"},
-    },
-    "bi-connector-sync-quickbooks": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=11),
-        "kwargs": {"connector_id": "quickbooks"},
-    },
-    "bi-connector-sync-github": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=12),
-        "kwargs": {"connector_id": "github"},
-    },
-    "bi-connector-sync-gitlab": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=13),
-        "kwargs": {"connector_id": "gitlab"},
-    },
-    "bi-connector-sync-datadog": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=14),
-        "kwargs": {"connector_id": "datadog"},
-    },
-    "bi-connector-sync-monday": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=15),
-        "kwargs": {"connector_id": "monday"},
-    },
-    "bi-connector-sync-asana": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=16),
-        "kwargs": {"connector_id": "asana"},
-    },
-    "bi-connector-sync-trello": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=17),
-        "kwargs": {"connector_id": "trello"},
-    },
-    "bi-connector-sync-shopify": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=18),
-        "kwargs": {"connector_id": "shopify"},
-    },
-    "bi-connector-sync-intercom": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=19),
-        "kwargs": {"connector_id": "intercom"},
-    },
-    "bi-connector-sync-clickup": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=20),
-        "kwargs": {"connector_id": "clickup"},
-    },
-    "bi-connector-sync-google-analytics": {
-        "task": "app.worker.sync_connector_data",
-        "schedule": crontab(minute=21),
-        "kwargs": {"connector_id": "google_analytics"},
     },
 }
 
@@ -1539,95 +1438,36 @@ def predictive_model_eval_retrain():
             return {"error": str(exc)}
 
 
-@celery_app.task(
-    bind=True,
-    name="app.worker.sync_connector_data",
-    max_retries=3,
-    default_retry_delay=120,
-)
-def sync_connector_data(self, connector_id: str, org_id: str | None = None):
-    """Celery task: sync external data for a BI ETL connector.
+@celery_app.task(name="app.worker.sync_connector_data")
+def sync_connector_data(connector_id: str, org_id: str | None = None):
+    """Sincroniza un conector ETL de BI de una organización.
 
-    Implements the roadmap pattern:
-        get_connector_config → get_connector_class → authenticate →
-        extract → transform → load → log_sync
-
-    If *org_id* is None, iterates all organizations that have the connector
-    enabled (same pattern as jira_periodic_sync). Per-connector beat schedule
-    entries call this with only connector_id; manual invocations may pass
-    a specific org_id.
+    El resultado (registros o el error) queda en su estado y en su registro;
+    la pantalla lo enseña tal cual.
     """
-    import logging
-
     from app.db.session import worker_db_session
-    from app.services.bi_intelligence_service import (
-        CONNECTORS_KEY,
-        get_connectors,
-        CONNECTOR_CONFIGS_KEY,
-        _get_json,
-    )
-    from app.integrations import bi_etl_connectors
+    from app.services import bi_etl_service
+    from app.services.service_desk.ticket_events import como_organizacion
 
-    log = logging.getLogger(__name__)
-    results = []
-
-    with worker_db_session() as db:
+    with worker_db_session() as db, como_organizacion(db, org_id):
         try:
-            # Determine which org_ids to process
-            if org_id:
-                org_ids = [org_id]
-            else:
-                # Collect all orgs that have this connector enabled in their state blob
-                from app.models.settings import AppSetting
-                rows = db.query(AppSetting).filter(
-                    AppSetting.key == CONNECTORS_KEY,
-                ).all()
-                org_ids = [str(row.organization_id) if row.organization_id else None for row in rows]
-                if not org_ids:
-                    org_ids = [None]  # global / single-tenant
+            r = bi_etl_service.sincronizar(db, org_id, connector_id)
+        except (LookupError, ValueError) as exc:     # quitado o desactivado desde la última pasada
+            return {"connector_id": connector_id, "org_id": org_id, "ok": False, "error": str(exc)}
+        return {"org_id": org_id, **r}
 
-            for oid in org_ids:
-                try:
-                    state = get_connectors(db, organization_id=oid)
-                    if connector_id not in state:
-                        log.debug("sync_connector_data: %s not in state for org=%s, skipping", connector_id, oid)
-                        continue
-                    if not state[connector_id].get("enabled"):
-                        log.debug("sync_connector_data: %s disabled for org=%s, skipping", connector_id, oid)
-                        continue
 
-                    configs = _get_json(db, CONNECTOR_CONFIGS_KEY, oid, default={})
-                    cfg = configs.get(connector_id, {})
+@celery_app.task(name="app.worker.sincronizar_conectores_etl")
+def sincronizar_conectores_etl():
+    """Lanza una sincronización por cada conector activo de cada organización."""
+    from app.db.session import sin_filtro_de_tenant, worker_db_session
+    from app.services import bi_etl_service
 
-                    connector = bi_etl_connectors.get_connector(connector_id)
-                    result = connector.run_sync(config=cfg, organization_id=oid, db=db)
-
-                    # Mirror state back to bi_intelligence connectors blob
-                    row = state[connector_id]
-                    row["last_sync_at"] = result.get("finished_at")
-                    row["last_records"] = result.get("records_ingested", 0)
-                    row["status"] = "connected" if result.get("ok") else "error"
-                    state[connector_id] = row
-                    from app.services.bi_intelligence_service import _set_json as _bi_set_json, CONNECTORS_KEY
-                    _bi_set_json(db, CONNECTORS_KEY, oid, state, "BI Intelligence connectors state (JSON)")
-
-                    results.append({"org_id": oid, **result})
-                    log.info(
-                        "sync_connector_data: connector=%s org=%s ok=%s records=%d",
-                        connector_id, oid, result.get("ok"), result.get("records_ingested", 0),
-                    )
-                except Exception as exc:
-                    log.warning("sync_connector_data: error for connector=%s org=%s: %s", connector_id, oid, exc)
-                    results.append({"org_id": oid, "ok": False, "error": str(exc)})
-
-            return {"connector_id": connector_id, "orgs_processed": len(org_ids), "results": results}
-
-        except Exception as exc:
-            log.error("sync_connector_data fatal error connector=%s: %s", connector_id, exc)
-            try:
-                raise self.retry(exc=exc)
-            except self.MaxRetriesExceededError:
-                return {"error": str(exc), "connector_id": connector_id}
+    with worker_db_session() as db, sin_filtro_de_tenant(db):
+        pares = bi_etl_service.activos(db)
+    for org_id, connector_id in pares:
+        sync_connector_data.delay(connector_id, org_id)
+    return {"lanzadas": len(pares)}
 
 
 @celery_app.task(name="app.worker.asset_expiry_scan")
@@ -1757,41 +1597,23 @@ def bi_kpi_push():
     Runs every 5 minutes.
     """
     from app.db.session import worker_db_session
-    from app.models.settings import AppSetting
-    from app.services.bi_intelligence_service import (
-        CONNECTORS_KEY,
-        ml_forecast_revenue,
-        ml_detect_revenue_anomalies,
-        publish_kpi_snapshot,
-    )
+    from app.models.mfa import Organization
+    from app.services.bi_intelligence_service import instantanea_kpi, publish_kpi_snapshot
+    from app.services.service_desk.ticket_events import como_organizacion
 
     pushed = 0
     with worker_db_session() as db:
         try:
-            # Collect distinct org IDs that have BI connector state
-            org_ids = [
-                row.organization_id
-                for row in db.query(AppSetting.organization_id)
-                .filter(AppSetting.key == CONNECTORS_KEY)
-                .distinct()
-                .all()
-            ]
-            org_ids = list({oid for oid in org_ids})  # deduplicate (includes None)
-            if not org_ids:
-                org_ids = [None]
+            # Antes: las organizaciones con estado de conectores guardado, así
+            # que quien no había tocado un conector no recibía nada.
+            org_ids = [o.id for o in db.query(Organization.id).all()] or [None]
 
             for org_id in org_ids:
                 try:
-                    forecast = ml_forecast_revenue(db, organization_id=org_id, months_ahead=3)
-                    anomalies = ml_detect_revenue_anomalies(db, organization_id=org_id, z_threshold=2.0)
-                    snapshot = {
-                        "type": "bi_kpi_snapshot",
-                        "organization_id": org_id,
-                        "forecast_head": forecast.get("forecast", [])[:3],
-                        "anomaly_count": len(anomalies.get("items", [])),
-                        "generated_at": forecast.get("generated_at"),
-                    }
-                    publish_kpi_snapshot(org_id, snapshot)
+                    # El mismo marco que el sondeo del WebSocket: antes era
+                    # `bi_kpi_snapshot`, que la pantalla descartaba.
+                    with como_organizacion(db, org_id):
+                        publish_kpi_snapshot(org_id, instantanea_kpi(db, org_id))
                     pushed += 1
                 except Exception as exc:
                     _worker_logger.debug("bi_kpi_push skip [org=%s]: %s", org_id, exc)
@@ -1852,21 +1674,15 @@ def bi_ml_retrain():
     Runs weekly on Sundays at 03:30.
     """
     from app.db.session import worker_db_session
-    from app.models.settings import AppSetting
-    from app.services.bi_intelligence_service import CONNECTORS_KEY, ml_detect_anomalies_multivariate
+    from app.models.mfa import Organization
+    from app.services.bi_intelligence_service import ml_detect_anomalies_multivariate
 
     retrained = 0
     with worker_db_session() as db:
         try:
-            org_ids = list({
-                row.organization_id
-                for row in db.query(AppSetting.organization_id)
-                .filter(AppSetting.key == CONNECTORS_KEY)
-                .distinct()
-                .all()
-            })
-            if not org_ids:
-                org_ids = [None]
+            # Antes: las organizaciones con estado de conectores guardado, así
+            # que quien no había tocado un conector no recibía nada.
+            org_ids = [o.id for o in db.query(Organization.id).all()] or [None]
             for org_id in org_ids:
                 try:
                     # Run anomaly detection to exercise IsolationForest training path

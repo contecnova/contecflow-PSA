@@ -2,46 +2,6 @@
 from tests.conftest import auth
 
 
-def test_phase3_connector_catalog_and_custom_framework(client, admin_token):
-    catalog = client.get("/api/v1/bi/platform/connectors/catalog", headers=auth(admin_token))
-    assert catalog.status_code == 200
-    payload = catalog.json()["data"]
-    assert payload["count"] >= 20
-    assert "salesforce" in payload["items"]
-
-    toggle = client.patch(
-        "/api/v1/bi/platform/connectors/catalog/salesforce",
-        json={"enabled": True},
-        headers=auth(admin_token),
-    )
-    assert toggle.status_code == 200
-    assert toggle.json()["data"]["config"]["enabled"] is True
-
-    create_custom = client.post(
-        "/api/v1/bi/platform/connectors/custom",
-        json={
-            "name": "partner_api",
-            "kind": "rest",
-            "endpoint": "https://example.org/api/v1",
-            "auth_type": "api_key",
-            "enabled": True,
-        },
-        headers=auth(admin_token),
-    )
-    assert create_custom.status_code == 200
-    connector = create_custom.json()["data"]["connector"]
-    connector_id = connector["id"]
-
-    listed = client.get("/api/v1/bi/platform/connectors/custom", headers=auth(admin_token))
-    assert listed.status_code == 200
-    assert any(x["id"] == connector_id for x in listed.json()["items"])
-
-    tested = client.post(f"/api/v1/bi/platform/connectors/custom/{connector_id}/test", headers=auth(admin_token))
-    assert tested.status_code == 200
-    assert tested.json()["data"]["status"] == "ok"
-
-    deleted = client.delete(f"/api/v1/bi/platform/connectors/custom/{connector_id}", headers=auth(admin_token))
-    assert deleted.status_code == 200
 
 
 def test_phase3_lineage_and_access_audit(client, admin_token):

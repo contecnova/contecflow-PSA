@@ -21,17 +21,8 @@ from app.services import bi_platform_service as svc
 router = APIRouter()
 
 
-class ConnectorPatchIn(BaseModel):
-    enabled: Optional[bool] = None
-    status: Optional[str] = Field(None, pattern="^(available|active|error|disabled)$")
 
 
-class CustomConnectorIn(BaseModel):
-    name: str = Field(..., min_length=2, max_length=120)
-    kind: str = Field("rest", min_length=2, max_length=30)
-    endpoint: str = Field(..., min_length=8, max_length=500)
-    auth_type: str = Field("api_key", min_length=2, max_length=40)
-    enabled: bool = True
 
 
 class LineageEdgeIn(BaseModel):
@@ -59,94 +50,16 @@ class FieldSensitivityIn(BaseModel):
     requires_approval: bool = False
 
 
-@router.get("/bi/platform/connectors/catalog", summary="Catálogo de conectores BI Platform (20+)")
-def phase3_connector_catalog(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    org_id = getattr(current_user, "organization_id", None)
-    catalog = svc.get_connector_catalog(db, organization_id=org_id)
-    return APIResponse.ok(data={"count": len(catalog), "items": catalog})
 
 
-@router.patch("/bi/platform/connectors/catalog/{connector}", summary="Actualizar estado de conector catálogo")
-def phase3_patch_connector_catalog(
-    connector: str,
-    payload: ConnectorPatchIn,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
-):
-    org_id = getattr(current_user, "organization_id", None)
-    data = {k: v for k, v in payload.model_dump().items() if v is not None}
-    try:
-        row = svc.patch_connector_catalog(
-            db,
-            organization_id=org_id,
-            connector=connector,
-            payload=data,
-        )
-        return APIResponse.ok(data={"ok": True, "connector": connector, "config": row})
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Conector no encontrado")
 
 
-@router.get("/bi/platform/connectors/custom", summary="Listar conectores custom")
-def phase3_list_custom_connectors(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    org_id = getattr(current_user, "organization_id", None)
-    return APIListResponse.ok(items=svc.list_custom_connectors(db, organization_id=org_id))
 
 
-@router.post("/bi/platform/connectors/custom", summary="Crear conector custom")
-def phase3_create_custom_connector(
-    payload: CustomConnectorIn,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
-):
-    org_id = getattr(current_user, "organization_id", None)
-    try:
-        row = svc.create_custom_connector(
-            db,
-            organization_id=org_id,
-            payload=payload.model_dump(),
-            current_user=current_user,
-        )
-        return APIResponse.ok(data={"ok": True, "connector": row})
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Payload de conector inválido")
 
 
-@router.delete("/bi/platform/connectors/custom/{connector_id}", summary="Eliminar conector custom")
-def phase3_delete_custom_connector(
-    connector_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
-):
-    enforce_abac(db, current_user, "bi_custom_connector", connector_id, action="delete")
-    org_id = getattr(current_user, "organization_id", None)
-    deleted = svc.delete_custom_connector(db, organization_id=org_id, connector_id=connector_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Conector custom no encontrado")
-    return APIResponse.ok(data={"ok": True})
 
 
-@router.post("/bi/platform/connectors/custom/{connector_id}/test", summary="Test de conector custom")
-def phase3_test_custom_connector(
-    connector_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
-):
-    org_id = getattr(current_user, "organization_id", None)
-    try:
-        return APIResponse.ok(data=svc.test_custom_connector(db, organization_id=org_id, connector_id=connector_id))
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Conector custom no encontrado")
 
 
 @router.get("/bi/platform/governance/lineage", summary="Lineage + auditoría BI Platform")

@@ -377,9 +377,6 @@ export const biCollaborationApi = {
 export const biIntelligenceApi = {
   revenueForecast: (params?: any)            => api.get('/bi/intelligence/ml/forecast/revenue', { params }),
   revenueAnomalies: (params?: any)           => api.get('/bi/intelligence/ml/anomalies/revenue', { params }),
-  listConnectors: ()                   => api.get('/bi/intelligence/connectors'),
-  patchConnector: (name: any, payload: unknown)      => api.patch(`/bi/intelligence/connectors/${name}`, payload),
-  syncConnector: (name: any)                => api.post(`/bi/intelligence/connectors/${name}/sync`),
   reportPresets: ()                    => api.get('/bi/intelligence/reports/presets'),
   previewPreset: (payload: unknown)             => api.post('/bi/intelligence/reports/preview', payload),
   queryBuilderSchema: ()               => api.get('/bi/intelligence/query-builder/schema'),
@@ -389,16 +386,9 @@ export const biIntelligenceApi = {
   deleteQueryBuilderTemplate: (id: any)     => api.delete(`/bi/intelligence/query-builder/templates/${id}`),
   deliveryOverview: ()                 => api.get('/bi/intelligence/delivery/overview'),
   runDeliveryNow: (reportId: any)           => api.post(`/bi/intelligence/delivery/run/${reportId}`),
-  realtimeToken: ()                    => api.get('/bi/intelligence/realtime/token'),
 }
 
 export const biPlatformApi = {
-  connectorCatalog: ()                 => api.get('/bi/platform/connectors/catalog'),
-  patchCatalogConnector: (name: any, p: any)     => api.patch(`/bi/platform/connectors/catalog/${name}`, p),
-  listCustomConnectors: ()             => api.get('/bi/platform/connectors/custom'),
-  createCustomConnector: (payload: unknown)     => api.post('/bi/platform/connectors/custom', payload),
-  deleteCustomConnector: (id: any)          => api.delete(`/bi/platform/connectors/custom/${id}`),
-  testCustomConnector: (id: any)            => api.post(`/bi/platform/connectors/custom/${id}/test`),
   lineage: ()                          => api.get('/bi/platform/governance/lineage'),
   upsertLineageEdge: (payload: unknown)         => api.post('/bi/platform/governance/lineage/edges', payload),
   logAccess: (payload: unknown)                 => api.post('/bi/platform/governance/audit/access', payload),
@@ -1149,10 +1139,15 @@ export const biConditionalDeliveryApi = {
 // ── BI ETL Connectors ─────────────────────────────────────────────────────────
 export const biEtlApi = {
   listConnectors: ()                   => api.get('/bi/etl/connectors'),
-  getConnector:   (id: any)                 => api.get(`/bi/etl/connectors/${id}`),
-  triggerSync:    (id: any, data: unknown)           => api.post(`/bi/etl/connectors/${id}/sync`, data),
-  getLog:         (id: any)                 => api.get(`/bi/etl/connectors/${id}/log`),
-  getData:        (id: any, params?: any)         => api.get(`/bi/etl/data/${id}`, { params }),
+  getConnector:   (id: string)              => api.get(`/bi/etl/connectors/${encodeURIComponent(id)}`),
+  configure:      (id: string, body: { enabled?: boolean; entity?: string; config?: Record<string, string> }) =>
+    api.patch(`/bi/etl/connectors/${encodeURIComponent(id)}`, body),
+  test:           (id: string)              => api.post(`/bi/etl/connectors/${encodeURIComponent(id)}/test`),
+  sync:           (id: string)              => api.post(`/bi/etl/connectors/${encodeURIComponent(id)}/sync`),
+  getLog:         (id: string)              => api.get(`/bi/etl/connectors/${encodeURIComponent(id)}/log`),
+  getData:        (id: string)              => api.get(`/bi/etl/data/${encodeURIComponent(id)}`),
+  crearFuente:    (body: { nombre: string; config: Record<string, string> }) => api.post('/bi/etl/sources', body),
+  borrarFuente:   (id: string)              => api.delete(`/bi/etl/sources/${encodeURIComponent(id)}`),
 }
 
 // ── BI Office 365 ─────────────────────────────────────────────────────────────

@@ -16,10 +16,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.config import settings
 from app.core.deps import require_admin_or_pm, get_current_user, require_admin, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
-from app.core.security import create_access_token, decode_token
 from app.services.ws_service import (
     get_active_user_by_id as _usuario_activo,
 )
@@ -32,8 +30,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-class ConnectorPatchIn(BaseModel):
-    enabled: bool
 
 
 class AdvancedPreviewIn(BaseModel):
@@ -85,93 +81,14 @@ def phase2_revenue_anomalies(
     return APIResponse.ok(data=svc.ml_detect_revenue_anomalies(db, organization_id=org_id, z_threshold=z_threshold))
 
 
-@router.get("/bi/intelligence/connectors", summary="Estado conectores BI Intelligence")
-def phase2_connectors(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    org_id = getattr(current_user, "organization_id", None)
-    return APIResponse.ok(data={"items": svc.get_connectors(db, organization_id=org_id)})
 
 
-@router.patch("/bi/intelligence/connectors/{connector}", summary="Activar/desactivar conector BI Intelligence")
-def phase2_patch_connector(
-    connector: str,
-    payload: ConnectorPatchIn,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
-):
-    org_id = getattr(current_user, "organization_id", None)
-    try:
-        data = svc.update_connector(
-            db,
-            organization_id=org_id,
-            connector=connector,
-            payload=payload.model_dump(),
-        )
-        return APIResponse.ok(data={"ok": True, "connector": connector, "config": data})
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Conector no soportado")
 
 
-@router.post("/bi/intelligence/connectors/{connector}/sync", summary="Ejecutar sync de conector BI Intelligence")
-def phase2_sync_connector(
-    connector: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
-):
-    org_id = getattr(current_user, "organization_id", None)
-    try:
-        return APIResponse.ok(data=svc.run_connector_sync(db, organization_id=org_id, connector=connector))
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Conector no soportado")
 
 
-@router.post(
-    "/bi/intelligence/connectors/{connector}/sync/async",
-    summary="Encolar sync de conector como tarea Celery",
-)
-def enqueue_connector_sync(
-    connector: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
-):
-    """Encola `sync_connector_data` en Celery y devuelve el task_id.
-
-    El sync se ejecuta en background por el worker; usa
-    `GET /bi/intelligence/connectors/{connector}/sync/log` para ver el resultado.
-    """
-    from app.worker import sync_connector_data
-
-    org_id = str(getattr(current_user, "organization_id", None) or "")
-    task = sync_connector_data.apply_async(
-        kwargs={"connector_id": connector, "org_id": org_id or None}
-    )
-    return APIResponse.ok(data={"queued": True, "task_id": task.id, "connector": connector})
 
 
-@router.get(
-    "/bi/intelligence/connectors/{connector}/sync/log",
-    summary="Ver log de sincronización del conector",
-)
-def connector_sync_log(
-    connector: str,
-    limit: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Devuelve las últimas *limit* entradas del log de sync para el conector indicado.
-
-    Cada entrada incluye: ok, records_ingested, error, started_at, finished_at.
-    """
-    org_id = getattr(current_user, "organization_id", None)
-    try:
-        return APIResponse.ok(data=svc.get_connector_sync_log(db, organization_id=org_id, connector=connector, limit=limit))
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Conector no soportado")
 
 
 @router.get("/bi/intelligence/reports/presets", summary="Presets de Report Builder avanzado BI Intelligence")
@@ -327,10 +244,6 @@ def phase2_delivery_run_now(
 
 # ── BI Phase 2: ML enhanced endpoints ─────────────────────────────────────────
 
-class ConnectorConfigIn(BaseModel):
-    config: dict = Field(default_factory=dict)
-    entity: str = Field("default", min_length=1, max_length=64)
-    field_mapping: Optional[dict] = None
 
 
 @router.get("/bi/intelligence/ml/forecast/timeseries", summary="Forecast de serie temporal (Prophet / regresión lineal)")
@@ -372,103 +285,29 @@ def phase2_predict_overrun(
 
 # ── BI Phase 2: ETL connector config + sync ────────────────────────────────────
 
-@router.get("/bi/intelligence/connectors/{connector}/config", summary="Obtener configuración (no sensible) de conector")
-def phase2_get_connector_config(
-    connector: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    org_id = getattr(current_user, "organization_id", None)
-    return APIResponse.ok(data=svc.get_connector_config(db, organization_id=org_id, connector=connector))
 
 
-@router.put("/bi/intelligence/connectors/{connector}/config", summary="Guardar configuración de conector (ETL)")
-def phase2_save_connector_config(
-    connector: str,
-    payload: ConnectorConfigIn,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
-):
-    org_id = getattr(current_user, "organization_id", None)
-    saved = svc.save_connector_config(
-        db,
-        organization_id=org_id,
-        connector=connector,
-        config=payload.config,
-    )
-    return APIResponse.ok(data={"ok": True, "connector": connector, "config": saved})
 
 
-@router.post("/bi/intelligence/connectors/{connector}/etl-sync", summary="Ejecutar sincronización ETL completa del conector")
-def phase2_etl_sync(
-    connector: str,
-    payload: ConnectorConfigIn,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
-):
-    org_id = getattr(current_user, "organization_id", None)
-    try:
-        return APIResponse.ok(data=svc.run_etl_connector_sync(db, organization_id=org_id, connector=connector))
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Conector no soportado")
 
 
-@router.get("/bi/intelligence/connectors/catalog/etl", summary="Listado de conectores ETL disponibles y entidades soportadas")
-def phase2_etl_catalog(current_user: User = Depends(get_current_user)):
-    _ = current_user
-    try:
-        from app.integrations import bi_etl_connectors
-        return APIResponse.ok(data={"connectors": bi_etl_connectors.list_connectors()})
-    except Exception:
-        logger.exception("Error cargando catálogo de conectores ETL")
-        return APIResponse.ok(data={"connectors": []})
 
 
-@router.get("/bi/intelligence/realtime/token", summary="Token corto para stream BI en tiempo real")
-def phase2_realtime_token(current_user: User = Depends(get_current_user)):
-    token = create_access_token(
-        subject=current_user.id,
-        extra={"bi_intelligence_stream": True},
-    )
-    return APIResponse.ok(data={
-        "token": token,
-        "stream_url": "/api/v1/bi/intelligence/realtime/stream",
-    })
 
 
-async def _autorizar_flujo_de_bi(websocket: WebSocket, token: Optional[str]) -> Optional[str]:
-    """Comprueba el token del WebSocket y devuelve el id de usuario, o `None`.
+async def _autorizar_flujo_de_bi(websocket: WebSocket, ticket: Optional[str], token: Optional[str]) -> Optional[str]:
+    """El id de usuario de la conexión, o `None` si ya se cerró el socket.
 
-    Cuando devuelve `None` **ya ha cerrado el socket** con su código: quien
-    llama sólo tiene que volver. Se separó del cuerpo porque son cuatro
-    rechazos encadenados que no tienen nada que ver con emitir datos.
-
-    El motivo se distingue en el código de cierre pero **no en la razón**: los
-    tres casos de token malo dicen lo mismo, para no ir contando a quien lo
-    intenta qué parte ya tiene bien.
+    Revisión 2026-11: usa el mismo preámbulo que el resto de WebSockets —ticket
+    de un solo uso (`GET /ws/ticket`), y el JWT en la URL sólo fuera de
+    producción—. Antes pedía un token propio en la URL, que en producción y en
+    preproducción se rechaza con 4003: la pantalla reconectaba cada 2 s sin
+    llegar a recibir nada.
     """
-    if not token:
-        await websocket.close(code=4001, reason="Token requerido")
-        return None
+    from app.api.v1.endpoints.ws import _identidad_de_la_conexion
 
-    # En producción el token no puede viajar en la URL: queda en los registros
-    # del proxy y en el historial del navegador.
-    if settings.ENVIRONMENT in {"production", "staging"}:
-        await websocket.close(code=4003, reason="Token en URL no permitido en production")
-        return None
-
-    payload = decode_token(token)
-    if not payload or payload.get("type") != "access" or not payload.get("bi_intelligence_stream"):
-        await websocket.close(code=4001, reason="Token inválido")
-        return None
-
-    user_id = payload.get("sub")
-    if not user_id:
-        await websocket.close(code=4001, reason="Token inválido")
-        return None
-    return user_id
+    with SessionLocal() as db:
+        return await _identidad_de_la_conexion(websocket, db, ticket=ticket, token=token)
 
 
 async def _organizacion_del_usuario(user_id: str) -> Optional[str]:
@@ -534,21 +373,10 @@ async def _emitir_desde_redis(websocket: WebSocket, org_id: Optional[str]) -> bo
 
 
 async def _instantanea_de_bi(db, org_id: Optional[str]) -> dict:
-    """Los tres bloques de un tic, cada uno fuera del bucle de eventos."""
+    """Un tic, fuera del bucle de eventos (el mismo marco que publica el worker)."""
     from app.core.async_db import run_db
 
-    forecast = await run_db(svc.ml_forecast_revenue, db, organization_id=org_id, months_ahead=3)
-    anomalies = await run_db(
-        svc.ml_detect_revenue_anomalies, db, organization_id=org_id, z_threshold=2.0,
-    )
-    delivery = await run_db(svc.delivery_overview, db, organization_id=org_id)
-    return {
-        "type": "bi_intelligence_snapshot",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "forecast_head": forecast.get("forecast", [])[:2],
-        "anomaly_count": len(anomalies.get("items", [])),
-        "delivery": delivery,
-    }
+    return await run_db(svc.instantanea_kpi, db, org_id)
 
 
 async def _emitir_por_sondeo(websocket: WebSocket, user_id: str) -> None:
@@ -576,7 +404,8 @@ async def _emitir_por_sondeo(websocket: WebSocket, user_id: str) -> None:
 
 
 @router.websocket("/bi/intelligence/realtime/stream")
-async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Query(default=None)):
+async def phase2_realtime_stream(websocket: WebSocket, ticket: Optional[str] = Query(default=None),
+                                 token: Optional[str] = Query(default=None)):
     """Flujo de KPIs de BI en tiempo real.
 
     Intenta Redis Pub/Sub (canal ``contecflow:bi:kpi:<org_id>``) y, si no está
@@ -587,7 +416,7 @@ async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Qu
     partido por partir: cada trozo tiene un nombre que dice qué hace y ninguno
     necesita mirar a los otros.
     """
-    user_id = await _autorizar_flujo_de_bi(websocket, token)
+    user_id = await _autorizar_flujo_de_bi(websocket, ticket, token)
     if not user_id:
         return
 

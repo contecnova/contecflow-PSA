@@ -9,6 +9,13 @@ Pulls O365 usage reports from Microsoft Graph and stores them as BI datasets:
   - User adoption metrics
 
 All data stored as AppSetting JSON blobs (no new DB tables).
+
+Revisión 2026-11. Medido antes: un informe que Graph rechazaba devolvía `[]` y
+la sincronización quedaba como correcta con 0 filas; `enabled` y el secreto no
+se guardaban (había que teclear el secreto en cada sincronización); y la
+adopción contaba seis productos escritos a mano. Ahora el error de cada informe
+queda en el resultado y en el registro, el secreto se guarda cifrado y los
+productos salen de las columnas «Is Licensed For …» que trae el informe.
 """
 from __future__ import annotations
 
@@ -40,7 +47,6 @@ _DEFAULT_CONFIG: Dict[str, Any] = {
     "tenant_id": "",
     "client_id": "",
     "enabled": True,
-    "client_secret_ref": "o365_client_secret",  # key in secrets vault (not stored here)
     "sync_period": "D7",  # D7 | D30 | D90 | D180
     "enabled_reports": _SUPPORTED_REPORTS,
     "last_sync_at": None,
@@ -85,6 +91,11 @@ def _set_json(db: Session, key: str, org_id: Optional[str], value: Any, desc: st
 
 # ── Microsoft Graph helpers ───────────────────────────────────────────────────
 
+def _plazo() -> float:
+    from app.services.settings_service import outbound_http_timeout
+    return outbound_http_timeout()
+
+
 def _get_graph_token(tenant_id: str, client_id: str, client_secret: str) -> str:
     """Obtain an OAuth2 token from Microsoft Identity (client credentials flow)."""
     try:
@@ -96,7 +107,7 @@ def _get_graph_token(tenant_id: str, client_id: str, client_secret: str) -> str:
             "client_secret": client_secret,
             "scope": "https://graph.microsoft.com/.default",
         }
-        with httpx.Client(timeout=15) as client:
+        with httpx.Client(timeout=_plazo()) as client:
             resp = client.post(url, data=data)
             resp.raise_for_status()
             return resp.json()["access_token"]
@@ -116,20 +127,16 @@ def _fetch_graph_report(token: str, report_name: str, period: str) -> List[Dict[
     }
     path = _GRAPH_REPORT_MAP.get(report_name)
     if not path:
-        return []
-    try:
-        import httpx, csv, io
-        url = f"https://graph.microsoft.com/v1.0/reports/{path}"
-        headers = {"Authorization": f"Bearer {token}"}
-        with httpx.Client(timeout=30) as client:
-            resp = client.get(url, headers=headers, follow_redirects=True)
-            resp.raise_for_status()
-            # Graph reports return CSV
-            reader = csv.DictReader(io.StringIO(resp.text))
-            return [dict(row) for row in reader]
-    except Exception as exc:
-        logger.warning("_fetch_graph_report %s failed: %s", report_name, exc)
-        return []
+        raise ValueError(f"Informe desconocido: {report_name}")
+    import httpx, csv, io
+    url = f"https://graph.microsoft.com/v1.0/reports/{path}"
+    headers = {"Authorization": f"Bearer {token}"}
+    with httpx.Client(timeout=_plazo()) as client:
+        resp = client.get(url, headers=headers, follow_redirects=True)
+        resp.raise_for_status()
+        # Graph reports return CSV
+        reader = csv.DictReader(io.StringIO(resp.text))
+        return [dict(row) for row in reader]
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -139,15 +146,21 @@ def get_config(db: Session, org_id: Optional[str]) -> Dict[str, Any]:
     # Never expose secret
     merged = {**_DEFAULT_CONFIG, **cfg}
     merged.pop("client_secret_ref", None)
-    merged.pop("client_secret", None)
+    merged["secret_puesto"] = bool(merged.pop("client_secret", None))
+    merged["reports"] = list(_SUPPORTED_REPORTS)
     return merged
 
 
 def save_config(db: Session, org_id: Optional[str], updates: Dict[str, Any]) -> Dict[str, Any]:
-    cfg = _get_json(db, _CONFIG_KEY, org_id, default=_DEFAULT_CONFIG) or _DEFAULT_CONFIG
-    # Keep client_secret internally for runtime sync compatibility; never expose it.
-    if "client_secret" in updates and not updates.get("client_secret"):
-        updates.pop("client_secret", None)
+    cfg = dict(_get_json(db, _CONFIG_KEY, org_id, default=_DEFAULT_CONFIG) or _DEFAULT_CONFIG)
+    updates = dict(updates)
+    secreto = (updates.pop("client_secret", None) or "").strip()
+    if secreto:                       # vacío = dejar el que hay
+        from app.core.encryption import encrypt_value
+        cfg["client_secret"] = encrypt_value(secreto)
+    desconocidos = set(updates.get("enabled_reports") or []) - set(_SUPPORTED_REPORTS)
+    if desconocidos:
+        raise ValueError(f"Informes desconocidos: {', '.join(sorted(desconocidos))}")
     cfg.update(updates)
     _set_json(db, _CONFIG_KEY, org_id, cfg, "O365 BI connector configuration")
     return get_config(db, org_id)
@@ -176,9 +189,12 @@ def run_sync(
     results = []
 
     try:
-        secret = client_secret or cfg.get("client_secret") or ""
+        secret = client_secret or ""
+        if not secret and cfg.get("client_secret"):
+            from app.core.encryption import decrypt_value
+            secret = decrypt_value(cfg["client_secret"]) or ""
         if not secret:
-            return {"ok": False, "error": "client_secret required for sync", "synced": []}
+            return {"ok": False, "error": "Falta el client secret: guárdalo en Configuración", "synced": []}
         token = _get_graph_token(tenant_id, client_id, secret)
     except Exception as exc:
         logger.exception("O365 Graph auth failed for tenant=%s client=%s", tenant_id, client_id)
@@ -200,12 +216,14 @@ def run_sync(
 
     # Append to sync log
     log = _get_json(db, _SYNC_LOG_KEY, org_id, default=[]) or []
-    log.append({"run_id": str(uuid.uuid4()), "ts": _now_iso(), "results": results})
-    if len(log) > 50:
-        log = log[-50:]
+    ok = all(r["ok"] for r in results)
+    log.append({"run_id": str(uuid.uuid4()), "ts": _now_iso(), "ok": ok, "results": results})
+    from app.services.settings_service import get_runtime_int
+    log = log[-int(get_runtime_int(db, "BI_ETL_LOG_MAX_ENTRIES", org_id)):]
     _set_json(db, _SYNC_LOG_KEY, org_id, log, "O365 sync log")
 
-    return {"ok": True, "synced": results, "period": period}
+    fallos = [f"{r['report']}: {r['error']}" for r in results if not r["ok"]]
+    return {"ok": ok, "synced": results, "period": period, **({"error": "; ".join(fallos)} if fallos else {})}
 
 
 def get_report_data(db: Session, org_id: Optional[str], report_name: str) -> Dict[str, Any]:
@@ -233,11 +251,9 @@ def get_adoption_summary(db: Session, org_id: Optional[str]) -> Dict[str, Any]:
     if not rows:
         return {"active_users": 0, "products": {}, "note": "No data synced yet"}
     active_users = sum(1 for r in rows if r.get("Has Any Product", "") == "True")
-    products = ["Exchange", "OneDrive", "SharePoint", "Skype For Business", "Yammer", "Teams"]
-    product_counts = {}
-    for prod in products:
-        key = f"Is Licensed For {prod}"
-        product_counts[prod] = sum(1 for r in rows if r.get(key, "") == "True")
+    prefijo = "Is Licensed For "
+    columnas = [k for k in rows[0] if k.startswith(prefijo)]
+    product_counts = {k[len(prefijo):]: sum(1 for r in rows if r.get(k, "") == "True") for k in columnas}
     return {
         "total_users": len(rows),
         "active_users": active_users,

@@ -20,8 +20,6 @@ from sqlalchemy.orm import Session
 from app.models.settings import AppSetting
 from app.models.user import User
 
-CONNECTORS_CATALOG_KEY = "bi.phase3.connectors.catalog"
-CUSTOM_CONNECTORS_KEY = "bi.phase3.connectors.custom"
 LINEAGE_KEY = "bi.phase3.governance.lineage"
 FIELD_SENSITIVITY_KEY = "bi.phase3.governance.field_sensitivity"
 
@@ -69,162 +67,18 @@ def _set_json(db: Session, key: str, organization_id: Optional[str], value: Any,
     db.commit()
 
 
-def default_connector_catalog() -> dict[str, dict[str, Any]]:
-    items = {
-        "salesforce": "crm",
-        "hubspot": "crm",
-        "jira": "alm",
-        "stripe": "finance",
-        "xero": "finance",
-        "quickbooks": "finance",
-        "netsuite": "erp",
-        "sap_s4": "erp",
-        "dynamics365": "erp",
-        "servicenow": "itsm",
-        "zendesk": "itsm",
-        "intercom": "support",
-        "snowflake": "warehouse",
-        "bigquery": "warehouse",
-        "redshift": "warehouse",
-        "postgres": "database",
-        "mysql": "database",
-        "sqlserver": "database",
-        "oracle": "database",
-        "mongodb": "database",
-        "elasticsearch": "search",
-        "shopify": "commerce",
-        "google_analytics": "marketing",
-        "facebook_ads": "marketing",
-        "linkedin_ads": "marketing",
-        "github": "devops",
-        "gitlab": "devops",
-        "slack": "collaboration",
-        "teams": "collaboration",
-    }
-    out = {}
-    for name, category in items.items():
-        out[name] = {
-            "name": name,
-            "category": category,
-            "enabled": False,
-            "status": "available",
-            "custom": False,
-            "last_sync_at": None,
-        }
-    return out
 
 
-def get_connector_catalog(db: Session, *, organization_id: Optional[str]) -> dict[str, dict[str, Any]]:
-    saved = _get_json(db, CONNECTORS_CATALOG_KEY, organization_id, default={})
-    return {**default_connector_catalog(), **(saved or {})}
 
 
-def patch_connector_catalog(
-    db: Session,
-    *,
-    organization_id: Optional[str],
-    connector: str,
-    payload: dict[str, Any],
-) -> dict[str, Any]:
-    catalog = get_connector_catalog(db, organization_id=organization_id)
-    if connector not in catalog:
-        raise ValueError("connector_not_found")
-    row = catalog[connector]
-    if "enabled" in payload:
-        row["enabled"] = bool(payload["enabled"])
-    if "status" in payload and payload["status"] in {"available", "active", "error", "disabled"}:
-        row["status"] = payload["status"]
-    if row["enabled"] and row["status"] == "available":
-        row["status"] = "active"
-    if not row["enabled"] and row["status"] == "active":
-        row["status"] = "disabled"
-
-    catalog[connector] = row
-    _set_json(
-        db,
-        CONNECTORS_CATALOG_KEY,
-        organization_id,
-        catalog,
-        description="BI Platform connector catalog (JSON)",
-    )
-    return row
 
 
-def list_custom_connectors(db: Session, *, organization_id: Optional[str]) -> list[dict[str, Any]]:
-    return _get_json(db, CUSTOM_CONNECTORS_KEY, organization_id, default=[])
 
 
-def create_custom_connector(
-    db: Session,
-    *,
-    organization_id: Optional[str],
-    payload: dict[str, Any],
-    current_user: User,
-) -> dict[str, Any]:
-    items = list_custom_connectors(db, organization_id=organization_id)
-    row = {
-        "id": str(uuid.uuid4()),
-        "name": str(payload.get("name", "")).strip(),
-        "kind": str(payload.get("kind", "rest")).strip() or "rest",
-        "endpoint": str(payload.get("endpoint", "")).strip(),
-        "auth_type": str(payload.get("auth_type", "api_key")).strip() or "api_key",
-        "enabled": bool(payload.get("enabled", True)),
-        "created_by": current_user.id,
-        "created_at": _iso_now(),
-        "last_test_status": None,
-        "last_test_at": None,
-    }
-    if not row["name"] or not row["endpoint"]:
-        raise ValueError("invalid_connector_payload")
-    items.append(row)
-    _set_json(
-        db,
-        CUSTOM_CONNECTORS_KEY,
-        organization_id,
-        items,
-        description="BI Platform custom connectors (JSON)",
-    )
-    return row
 
 
-def delete_custom_connector(db: Session, *, organization_id: Optional[str], connector_id: str) -> bool:
-    items = list_custom_connectors(db, organization_id=organization_id)
-    new_items = [x for x in items if x.get("id") != connector_id]
-    if len(new_items) == len(items):
-        return False
-    _set_json(
-        db,
-        CUSTOM_CONNECTORS_KEY,
-        organization_id,
-        new_items,
-        description="BI Platform custom connectors (JSON)",
-    )
-    return True
 
 
-def test_custom_connector(db: Session, *, organization_id: Optional[str], connector_id: str) -> dict[str, Any]:
-    items = list_custom_connectors(db, organization_id=organization_id)
-    target = None
-    for item in items:
-        if item.get("id") == connector_id:
-            target = item
-            break
-    if not target:
-        raise ValueError("connector_not_found")
-
-    endpoint = target.get("endpoint", "")
-    status = "ok" if endpoint.startswith("http://") or endpoint.startswith("https://") else "error"
-    target["last_test_status"] = status
-    target["last_test_at"] = _iso_now()
-
-    _set_json(
-        db,
-        CUSTOM_CONNECTORS_KEY,
-        organization_id,
-        items,
-        description="BI Platform custom connectors (JSON)",
-    )
-    return {"connector_id": connector_id, "status": status, "tested_at": target["last_test_at"]}
 
 
 def _default_lineage_state() -> dict[str, Any]:

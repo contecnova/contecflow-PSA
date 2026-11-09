@@ -380,6 +380,9 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("CONTECMIND_ROOT_FOLDER", "str", "contecmind — root folder where each record gets its own folder"),
         ("CONTECINTELLIGENCE_ANALYST_ROLES", "str", "contecintelligence — roles that enter as analyst (CSV); the rest as viewer"),
         ("CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS", "float", "contecintelligence — timeout of a question (s)"),
+        ("BI_ETL_PAGE_SIZE", "int", "BI ETL connectors — records asked for per request"),
+        ("BI_ETL_HTTP_TIMEOUT_S", "float", "BI ETL connectors — timeout of a request to the source (s)"),
+        ("BI_ETL_LOG_MAX_ENTRIES", "int", "BI ETL connectors — sync log entries kept per connector"),
         ("CONTECINTELLIGENCE_HANDOFF_ENABLED", "bool", "contecintelligence — Ask the Data offers to pass a question it cannot answer"),
     ],
     "lecciones": [

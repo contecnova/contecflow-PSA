@@ -30,26 +30,6 @@ def test_phase2_anomalies_endpoint(client, admin_token):
 
 
 
-def test_phase2_connectors_crud_and_sync(client, admin_token):
-    # list
-    res = client.get("/api/v1/bi/intelligence/connectors", headers=auth(admin_token))
-    assert res.status_code == 200
-    items = res.json()["data"].get("items", {})
-    assert "salesforce" in items
-
-    # enable connector
-    res2 = client.patch(
-        "/api/v1/bi/intelligence/connectors/salesforce",
-        json={"enabled": True},
-        headers=auth(admin_token),
-    )
-    assert res2.status_code == 200
-    assert res2.json()["data"]["config"]["enabled"] is True
-
-    # sync connector
-    res3 = client.post("/api/v1/bi/intelligence/connectors/salesforce/sync", headers=auth(admin_token))
-    assert res3.status_code == 200
-    assert "status" in res3.json()["data"]
 
 
 
@@ -73,12 +53,6 @@ def test_phase2_reports_and_delivery_endpoints(client, admin_token):
 
 
 
-def test_phase2_realtime_token(client, admin_token):
-    res = client.get("/api/v1/bi/intelligence/realtime/token", headers=auth(admin_token))
-    assert res.status_code == 200
-    data = res.json()["data"]
-    assert "token" in data
-    assert "stream_url" in data
 
 
 def test_phase2_visual_query_builder_schema_and_preview(client, admin_token):

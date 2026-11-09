@@ -3349,48 +3349,44 @@ There are no filters.
 - **Jira sync always returns 404.** It sends a project id where the backend expects a Jira config id, so the result is "Jira config not found".
 
 ### Data Platform — `/data-platform`
-*Roles:* admin (route). Backend: most GETs use any authenticated user; writes use internal user or admin.
+*Roles:* admin (route and every connector endpoint).
 
-**Purpose.** Manage ETL connectors, Microsoft 365 usage reports, report presets, realtime streaming and custom connectors.
+**Purpose.** Bring data from other systems into BI (ETL connectors and generic REST sources), Microsoft 365 usage reports, report presets, a real-time KPI stream, and lineage and dataset versions.
 
 **How to use it.**
-- **Conectores ETL:** press **Refrescar** to reload, **Sincronizar** per connector, and toggle the log. The list polls every 30 s.
-- **Microsoft 365:**
-  - Tabs Reportes / Adopción / Configuración.
-  - Enter Tenant ID, Client ID and Client secret, then press **Guardar**.
-  - Press **Sincronizar** to pull reports.
-- **Conectores de datos activos:** activate, deactivate or sync each connector.
-- Also on the page: a report presets preview, a realtime stream, and Plataforma BI (connector catalogue, custom connectors, lineage and versions). Embedding indicators in other sites: see *Microsoft 365 → BI in Teams and SharePoint*; for third-party apps with questions and certified metrics, contecintelligence's components.
+- **Conectores ETL** — one list: the 21 built-in connectors plus the REST sources the company adds; active ones first.
+  - **Configurar**: the fields that connector needs (its own list, from the server) and *what to bring* (its entities). Secrets are stored encrypted and never shown again; leave them empty to keep them.
+  - **Probar**: connects and extracts without saving; says how many records it would bring, or the provider's error.
+  - **Activar**, then **Sincronizar**: runs now and shows the real result. The card keeps the last error in plain view, and **Ver registro** lists every run with its records or its error.
+  - **Nueva fuente REST**: any API that returns JSON — URL, method, the authentication header (name and secret value) and, if the list sits inside the response, its path (`data.items`). Nothing to code.
+  - A connector whose SDK is not installed says which `pip install` it needs and cannot be activated.
+- **Microsoft 365** — tabs Informes / Adopción / Configuración.
+  - Configuración: Tenant ID, Client ID and Client secret (stored encrypted; empty keeps it), and the switch. **Guardar**.
+  - **Sincronizar** pulls every report and says which ones failed and why.
+  - Adopción: users, active users, adoption rate and licences per product (the products come from the report's own columns).
+- **Informes predefinidos**: pick a preset and preview it.
+- **Tiempo real**: turn it on to receive a KPI snapshot (forecast head, anomalies, scheduled deliveries).
+- **Linaje y versiones**: save a version of a dataset and compare the last two.
 
 **Configuration.**
-- Connector credentials have **no UI**.
-- M365 needs an Azure app with Graph report permissions. Not verified which permissions.
-- The page uses `REDIS_URL` and `ENVIRONMENT`.
-- Storage is `app_settings` JSON only.
+- Admin → Settings → Conectores: `BI_ETL_PAGE_SIZE` (records per request), `BI_ETL_HTTP_TIMEOUT_S`, `BI_ETL_LOG_MAX_ENTRIES` (runs kept per connector; also the Microsoft 365 log).
+- Salesforce, HubSpot, Jira, Stripe, Xero and Google Analytics use the provider's SDK, which is not in `requirements.txt`: `pip install simple-salesforce hubspot-api-client jira stripe xero-python google-analytics-data`. The other 15 and the REST sources speak HTTP directly.
+- Microsoft 365 needs an Azure app with Graph report permissions (`Reports.Read.All`).
+- Every request to a source goes through `assert_safe_outbound_url`: private, loopback and link-local addresses are refused.
 
 **Technical notes.**
-- ETL:
-  - `GET /api/v1/bi/etl/connectors`, `GET .../{id}/log`, `POST .../{id}/sync`.
-  - 20 connectors are listed; the clients are in `app/integrations/bi_etl_connectors.py` (real httpx/SDK calls).
-  - Worker `sync_connector_data` has 21 hourly beat entries.
-- `/api/v1/bi/o365/*` → `bi_o365_service` makes real Microsoft Graph calls (client credentials, getXUserDetail reports).
-- `/api/v1/bi/intelligence/connectors/{c}/sync`
+- `/api/v1/bi/etl/*` → `app/services/bi_etl_service.py` (state, encrypted settings, log) → `app/integrations/bi_etl_connectors.py` (one registry; each connector declares `campos`, `entidades` and the optional package it `requiere`).
+  - `GET /connectors`, `GET|PATCH /connectors/{id}`, `POST /connectors/{id}/test`, `POST /connectors/{id}/sync`, `GET /connectors/{id}/log`, `GET /data/{id}`, `POST /sources`, `DELETE /sources/{id}`.
+  - Stored in `app_settings`: `bi.phase2.connectors` (state), `bi.phase2.connector_configs` (settings, secrets encrypted), `bi.etl.sync_log.*` and `bi.etl.sync_data.*` (last extraction), per company.
+  - Manual sync runs in the request. The worker job `bi-connector-sync` (hourly, minute 1) launches one `sync_connector_data` per active connector of each company, working as that company.
+- `/api/v1/bi/o365/*` → `bi_o365_service` (Microsoft Graph, client credentials; `getXUserDetail` reports as CSV).
+- Real time: WebSocket `/api/v1/bi/intelligence/realtime/stream?ticket=` with the one-use ticket from `GET /ws/ticket`, like the other sockets (a JWT in the URL only outside production). With Redis it relays `bi_kpi_push` (every 5 min); without it, polls every 8 s. Both send the same `bi_intelligence_snapshot` frame (`instantanea_kpi`).
+- Embedding indicators in other sites: see *Microsoft 365 → BI in Teams and SharePoint*; for third-party apps with questions and certified metrics, contecintelligence's components.
 
-**Limitations (measured). Much of this page does not work.**
-- **ETL:**
-  - Only 5 of the 20 connectors can be enabled. Their SDKs did not import in the local venv.
-  - Manual "Sincronizar" sends a Celery task to queue `etl_{id}`, which no worker in the repo consumes.
-  - The hourly job passes entity `"default"`, so HubSpot, Stripe and Xero return nothing and still report OK.
-  - The log is always empty: it returns `{entries}` and the UI expects a list.
-- **"Sync" under Conectores de datos activos is fake.** It generates a random record count (`random.randint(25, 450)`) and marks the connector "connected" without connecting.
-- **M365:**
-  - Graph errors are swallowed and the sync is recorded as OK with 0 records.
-  - The "enabled" flag and the secret are not saved.
-  - The Adopción tab shows "[object Object]".
-- **Three lists are always empty** (presets, custom connectors, snapshots) because of the `.items` unwrapping issue. Custom connector "Test" only checks that the URL starts with http(s).
-- **Streaming:**
-  - In production and staging the socket is closed with code 4003 (token in the URL), and the client reconnects every 2 s indefinitely.
-  - With Redis, the frame type sent (`bi_kpi_snapshot`) differs from the one the UI accepts (`bi_intelligence_snapshot`).
+**Limitations (measured).**
+- Each sync brings one page (`BI_ETL_PAGE_SIZE`) of one entity and replaces the previous extraction; there is no incremental sync or pagination.
+- The extracted records are stored for BI as JSON in `app_settings`; no report or dashboard reads them yet.
+- Field mapping (`transform`) exists in the framework but has no screen.
 
 ### Data Governance — `/data-governance`
 *Roles:* admin (route). Backend: GDPR and governance writes and reads use `require_admin`.
@@ -3881,10 +3877,10 @@ Header buttons: **Diagnóstico**, **Sync all models**.
 | `check_missing_imputations` | weekdays 18:00 | Computes missing hours, sends nothing |
 | `olap_nightly_etl` | daily 01:00 | Fills the DuckDB OLAP file |
 | `bi_scheduled_delivery_run` | hourly :45 | Separate BI delivery service (not used by these pages) |
-| `bi_kpi_push` | every 5 min | Realtime KPI snapshot (frame type ignored by the UI) |
+| `bi_kpi_push` | every 5 min | Real-time KPI snapshot for every company (`bi_intelligence_snapshot`) |
 | `bi_ml_retrain` | Sunday 03:30 | Runs multivariate anomaly detection, persists nothing |
 | `ml-model-retrain` | day 1 monthly, 03:00 | Retrains the per-organization risk GradientBoosting model |
-| `sync_connector_data` | hourly (21 entries) | ETL connector sync (entity "default") |
+| `sincronizar_conectores_etl` → `sync_connector_data` | hourly :01 | One sync per active ETL connector or REST source of each company |
 | `run_agent_task` | on demand | NexusAgent non-streamed runs |
 
 No job evaluates smart alerts, takes CFD snapshots, computes EVM, runs the Oracle or evaluates conditional delivery rules.
@@ -4184,7 +4180,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 222 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 225 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4350,6 +4346,9 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | conectores | CONTECMIND_ROOT_FOLDER | str | `contecflow` | contecmind — root folder where each record gets its own folder | rt |
 | conectores | CONTECINTELLIGENCE_ANALYST_ROLES | str | `admin,pm` | contecintelligence — roles that enter as analyst (CSV); the rest as viewer | rt |
 | conectores | CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS | float | 120.0 | contecintelligence — timeout of a question (s) | rt |
+| conectores | BI_ETL_PAGE_SIZE | int | 100 | BI ETL connectors — records asked for per request | rt (`bi_etl_service`) |
+| conectores | BI_ETL_HTTP_TIMEOUT_S | float | 20.0 | BI ETL connectors — timeout of a request to the source (s) | rt (`bi_etl_service`) |
+| conectores | BI_ETL_LOG_MAX_ENTRIES | int | 100 | BI ETL connectors — sync log entries kept per connector | rt (`bi_etl_service`, `bi_o365_service`) |
 | conectores | CONTECINTELLIGENCE_HANDOFF_ENABLED | bool | true | contecintelligence — Ask the Data offers to pass a question it cannot answer | rt |
 | lecciones | LESSONS_CATEGORIES | str | `alcance,planificacion,estimacion,tecnica,calidad,comunicacion,cliente,proveedor,equipo,seguridad,operacion,coste` | Lessons — categories (CSV) | rt |
 | lecciones | LESSONS_VALIDATOR_ROLES | str | `admin,pm,team_lead` | Lessons — roles that validate or archive a lesson (CSV) | rt |
@@ -5333,7 +5332,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 362)
+#### 4.2 Settings fields (`Settings`, 365)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5714,6 +5713,9 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `CONTECINTELLIGENCE_ANALYST_ROLES` | `'admin,pm'` | contecintelligence — roles that enter as analyst (CSV) |
 | `CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS` | `120.0` | contecintelligence — timeout of a question (s) |
 | `CONTECINTELLIGENCE_HANDOFF_ENABLED` | `True` | contecintelligence — Ask the Data offers to pass a question |
+| `BI_ETL_PAGE_SIZE` | `100` | BI ETL connectors — records asked for per request |
+| `BI_ETL_HTTP_TIMEOUT_S` | `20.0` | BI ETL connectors — timeout of a request to the source (s) |
+| `BI_ETL_LOG_MAX_ENTRIES` | `100` | BI ETL connectors — sync log entries kept per connector |
 | `LESSONS_CATEGORIES` | `'alcance,planificacion,estimacion,tecnica,calidad,comunicacion,cliente,proveedor,equipo,seguridad,operacion,coste'` | Lessons — categories (CSV) |
 | `LESSONS_VALIDATOR_ROLES` | `'admin,pm,team_lead'` | Lessons — roles that validate or archive a lesson (CSV) |
 | `LESSONS_ONLY_VALIDATED` | `True` | Lessons — only validated lessons are recommended |
@@ -5945,7 +5947,7 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 | kedb-expiry-scan | kedb_expiry_scan | daily 06:30 | Demote expired KEDB entries |
 | kedb-effectiveness-scan | kedb_effectiveness_scan | daily 07:00 | Recompute KEDB effectiveness |
 | alert-correlation-scan | alert_correlation_scan | every 30 min | Correlate alerts into Problems |
-| bi-connector-sync-* (21 entries) | sync_connector_data | hourly at minutes :01…:21 | One per connector: salesforce, hubspot, jira, stripe, xero, zendesk, freshdesk, servicenow, pipedrive, zoho_crm, quickbooks, github, gitlab, datadog, monday, asana, trello, shopify, intercom, clickup, google_analytics |
+| bi-connector-sync | sincronizar_conectores_etl | hourly at :01 | Launches `sync_connector_data` for each active ETL connector and REST source, per company |
 
 The collaboration module also has its own in-process scheduler (`app/services/collaboration/_scheduler.py`, started in the lifespan, skipped when `TESTING=1`).
 

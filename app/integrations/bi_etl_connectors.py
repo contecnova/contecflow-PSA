@@ -1,30 +1,33 @@
-"""BI ETL Connector framework.
+"""Conectores ETL de BI: extraer de un sistema externo y dejarlo para BI.
 
-Provides a base class and concrete implementations for third-party data
-source connectors used by the BI Intelligence service. Each connector:
-  1. ``connect(config)`` — validates credentials and returns a client.
-  2. ``extract(client, entity, filters)`` — pulls raw records.
-  3. ``transform(raw_records, mapping)`` — normalises to internal schema.
-  4. ``load(db, records, target_store_key, organization_id)`` — persists
-     results as AppSetting JSON blob for downstream BI queries.
-  5. ``run_sync(config, organization_id, db)`` — orchestrates all steps.
+Cada conector declara sus ``campos`` (lo que hay que darle y cuáles son
+secretos) y sus ``entidades``; con eso la pantalla pinta el formulario sin
+saber nada de cada proveedor. ``fuente_rest`` es el genérico: cualquier API
+JSON se conecta con una URL, una cabecera de autenticación y la ruta a la
+lista dentro de la respuesta, sin escribir código.
 
-Connector registry uses the pattern from bi_platform_service: all connector
-state lives in AppSetting JSON blobs (no new DB tables).
-
-Supported connectors: salesforce, hubspot, jira, stripe, xero.
+Revisión 2026-11. Medido antes: los extractores añadidos después capturaban
+cualquier error y devolvían ``[]``, así que una credencial mala quedaba como
+«sincronizado, 0 registros»; y la entidad por defecto era ``"default"``, que
+HubSpot, Stripe y Xero no reconocían. Ahora el error sube y queda en el
+registro, y la entidad es la que se configura o la primera que el conector
+declara. Toda petición pasa por ``assert_safe_outbound_url``.
 """
 from __future__ import annotations
 
 import json
 import logging
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
+from contextvars import ContextVar
 import httpx as _httpx
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.core.network import assert_safe_outbound_url
 from app.models.settings import AppSetting
 
 logger = logging.getLogger(__name__)
@@ -33,7 +36,34 @@ _REGISTRY: Dict[str, "BaseConnector"] = {}
 
 _SYNC_DATA_KEY_TPL = "bi.etl.sync_data.{connector}.{org}"
 _SYNC_LOG_KEY_TPL = "bi.etl.sync_log.{connector}.{org}"
-_SYNC_LOG_MAX_ENTRIES = 100
+
+
+#: Ajustes de la organización que sincroniza. Los fija el servicio (que tiene
+#: la sesión y lee los valores de Admin) con ``ajustes(...)``; aquí sólo se
+#: leen. Sin fijar, valen los de ``Settings``.
+_AJUSTES: ContextVar[Dict[str, Any]] = ContextVar("bi_etl_ajustes", default={})
+
+
+@contextmanager
+def ajustes(**valores: Any):
+    marca = _AJUSTES.set(valores)
+    try:
+        yield
+    finally:
+        _AJUSTES.reset(marca)
+
+
+def _ajuste(clave: str) -> Any:
+    return _AJUSTES.get().get(clave, getattr(settings, clave))
+
+
+def _tam() -> int:
+    """Registros por petición (``BI_ETL_PAGE_SIZE``)."""
+    return int(_ajuste("BI_ETL_PAGE_SIZE"))
+
+
+def _plazo(timeout: Optional[float]) -> float:
+    return float(timeout or _ajuste("BI_ETL_HTTP_TIMEOUT_S"))
 
 
 def _iso_now() -> str:
@@ -71,10 +101,11 @@ def _set_json(
 def _http_get(
     url: str,
     headers: Optional[Dict[str, str]] = None,
-    timeout: int = 20,
+    timeout: Optional[float] = None,
 ) -> Any:
-    """Synchronous HTTP GET using httpx."""
-    with _httpx.Client(timeout=timeout) as client:
+    """GET con httpx, tras comprobar que la URL no apunta a la red interna."""
+    assert_safe_outbound_url(url)
+    with _httpx.Client(timeout=_plazo(timeout)) as client:
         resp = client.get(url, headers=headers or {})
         resp.raise_for_status()
         return resp.json()
@@ -85,13 +116,14 @@ def _http_post(
     payload: Optional[Any] = None,
     headers: Optional[Dict[str, str]] = None,
     raw_body: Optional[str] = None,
-    timeout: int = 20,
+    timeout: Optional[float] = None,
 ) -> Any:
     """Synchronous HTTP POST using httpx.
 
     Pass *raw_body* (str) to send a pre-serialised string body instead of *payload* (dict).
     """
-    with _httpx.Client(timeout=timeout) as client:
+    assert_safe_outbound_url(url)
+    with _httpx.Client(timeout=_plazo(timeout)) as client:
         if raw_body is not None:
             resp = client.post(url, content=raw_body.encode(), headers=headers or {})
         elif payload is not None:
@@ -132,8 +164,9 @@ def _log_sync(
         "finished_at": result.get("finished_at"),
     }
     logs.append(entry)
-    if len(logs) > _SYNC_LOG_MAX_ENTRIES:
-        logs = logs[-_SYNC_LOG_MAX_ENTRIES:]
+    tope = int(_ajuste("BI_ETL_LOG_MAX_ENTRIES"))
+    if len(logs) > tope:
+        logs = logs[-tope:]
     serialized = json.dumps(logs, ensure_ascii=False, separators=(",", ":"))
     if not row:
         row = AppSetting(
@@ -154,6 +187,35 @@ class BaseConnector(ABC):
     """Abstract base for all BI ETL connectors."""
 
     name: str = "base"
+    #: Lo que hay que darle: ``(clave, secreto)``. La pantalla pinta un campo
+    #: por cada uno y los secretos no se devuelven nunca.
+    campos: tuple = ()
+    entidades: tuple = ("default",)
+    #: Paquete opcional que necesita: ``(módulo, nombre para pip)``. Los que
+    #: hablan HTTP directo no necesitan ninguno.
+    requiere: Optional[tuple] = None
+
+    def falta(self) -> Optional[str]:
+        """El ``pip install`` que falta, o ``None`` si se puede usar."""
+        if not self.requiere:
+            return None
+        import importlib.util
+        try:
+            encontrado = importlib.util.find_spec(self.requiere[0]) is not None
+        except (ImportError, ValueError):
+            encontrado = False
+        return None if encontrado else f"pip install {self.requiere[1]}"
+
+    def entidad(self, config: Dict[str, Any]) -> str:
+        """La configurada o la primera que declara; una desconocida es un error."""
+        e = (config.get("entity") or "").strip() or self.entidades[0]
+        if e not in self.entidades:
+            raise ValueError(f"Entidad «{e}» no soportada por {self.name}: {', '.join(self.entidades)}")
+        return e
+
+    def probar(self, config: Dict[str, Any]) -> int:
+        """Conecta y extrae sin guardar nada: cuántos registros traería."""
+        return len(self.extract(self.connect(config), entity=self.entidad(config), filters=config.get("filters") or {}))
 
     @abstractmethod
     def connect(self, config: Dict[str, Any]) -> Any:
@@ -197,21 +259,22 @@ class BaseConnector(ABC):
         config: Dict[str, Any],
         organization_id: Optional[str],
         db: Session,
-        entity: str = "default",
         filters: Optional[Dict] = None,
         field_mapping: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         """Full ETL pipeline: connect → extract → transform → load → log."""
         started_at = _iso_now()
         try:
+            entity = self.entidad(config)
             client = self.connect(config)
-            raw = self.extract(client, entity=entity, filters=filters or {})
+            raw = self.extract(client, entity=entity, filters=filters or config.get("filters") or {})
             records = self.transform(raw, mapping=field_mapping)
             count = self.load(db, records, organization_id)
             result = {
                 "ok": True,
                 "connector": self.name,
                 "records_ingested": count,
+                "entity": entity,
                 "started_at": started_at,
                 "finished_at": _iso_now(),
             }
@@ -235,6 +298,8 @@ class SalesforceConnector(BaseConnector):
     """Pulls Opportunity + Account data from Salesforce using simple-salesforce."""
 
     name = "salesforce"
+    requiere = ('simple_salesforce', 'simple-salesforce')
+    campos = (('instance_url', False), ('access_token', True), ('username', False), ('password', True), ('security_token', True), ('domain', False))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         try:
@@ -254,7 +319,7 @@ class SalesforceConnector(BaseConnector):
         )
 
     def extract(self, client: Any, entity: str = "Opportunity", filters: Optional[Dict] = None) -> List[Dict]:
-        soql = f"SELECT Id, Name, Amount, CloseDate, StageName, AccountId FROM {entity} LIMIT 500"  # noqa: S608
+        soql = f"SELECT Id, Name, Amount, CloseDate, StageName, AccountId FROM {entity} LIMIT {_tam()}"  # noqa: S608
         result = client.query_all(soql)
         records = result.get("records", [])
         return [{k: v for k, v in r.items() if k != "attributes"} for r in records]
@@ -266,6 +331,8 @@ class HubSpotConnector(BaseConnector):
     """Pulls Deals + Contacts from HubSpot v3 API."""
 
     name = "hubspot"
+    requiere = ('hubspot', 'hubspot-api-client')
+    campos = (('access_token', True),)
 
     def connect(self, config: Dict[str, Any]) -> Any:
         try:
@@ -277,12 +344,12 @@ class HubSpotConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "deals", filters: Optional[Dict] = None) -> List[Dict]:
         if entity == "deals":
-            resp = client.crm.deals.basic_api.get_page(limit=200, properties=["dealname", "amount", "closedate", "dealstage"])
+            resp = client.crm.deals.basic_api.get_page(limit=_tam(), properties=["dealname", "amount", "closedate", "dealstage"])
             return [r.to_dict() for r in (resp.results or [])]
         if entity == "contacts":
-            resp = client.crm.contacts.basic_api.get_page(limit=200, properties=["firstname", "lastname", "email", "company"])
+            resp = client.crm.contacts.basic_api.get_page(limit=_tam(), properties=["firstname", "lastname", "email", "company"])
             return [r.to_dict() for r in (resp.results or [])]
-        return []
+        raise ValueError(f"Entidad no soportada: {entity}")
 
 
 # ── Jira connector ─────────────────────────────────────────────────────────────
@@ -291,6 +358,8 @@ class JiraConnector(BaseConnector):
     """Pulls Issues from Jira Cloud using jira-python."""
 
     name = "jira"
+    requiere = ('jira', 'jira')
+    campos = (('server_url', False), ('email', False), ('api_token', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         try:
@@ -304,7 +373,7 @@ class JiraConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "issues", filters: Optional[Dict] = None) -> List[Dict]:
         jql = (filters or {}).get("jql", "project IS NOT EMPTY ORDER BY updated DESC")
-        issues = client.search_issues(jql, maxResults=200)
+        issues = client.search_issues(jql, maxResults=_tam())
         return [
             {
                 "id": str(i.id),
@@ -326,6 +395,8 @@ class StripeConnector(BaseConnector):
     """Pulls Charges + Invoices from Stripe."""
 
     name = "stripe"
+    requiere = ('stripe', 'stripe')
+    campos = (('api_key', True),)
 
     def connect(self, config: Dict[str, Any]) -> Any:
         try:
@@ -336,7 +407,7 @@ class StripeConnector(BaseConnector):
         return _stripe
 
     def extract(self, client: Any, entity: str = "invoices", filters: Optional[Dict] = None) -> List[Dict]:
-        limit = int((filters or {}).get("limit", 100))
+        limit = int((filters or {}).get("limit", _tam()))
         if entity == "invoices":
             resp = client.Invoice.list(limit=limit)
             return [
@@ -365,7 +436,7 @@ class StripeConnector(BaseConnector):
                 }
                 for ch in (resp.data or [])
             ]
-        return []
+        raise ValueError(f"Entidad no soportada: {entity}")
 
 
 # ── Xero connector ─────────────────────────────────────────────────────────────
@@ -374,6 +445,8 @@ class XeroConnector(BaseConnector):
     """Pulls Invoices + Contacts from Xero using xero-python."""
 
     name = "xero"
+    requiere = ('xero_python', 'xero-python')
+    campos = (('tenant_id', False), ('client_id', False), ('client_secret', True), ('access_token', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         try:
@@ -397,7 +470,7 @@ class XeroConnector(BaseConnector):
         try:
             from xero_python.accounting import AccountingApi  # type: ignore
         except ImportError:
-            return []
+            raise ImportError("pip install xero-python")
 
         api = AccountingApi(client["client"])
         tenant_id = client["tenant_id"]
@@ -427,48 +500,7 @@ class XeroConnector(BaseConnector):
                 }
                 for c in (resp.contacts or [])
             ]
-        return []
-
-
-# ── Registry ───────────────────────────────────────────────────────────────────
-
-_REGISTRY: Dict[str, BaseConnector] = {
-    "salesforce": SalesforceConnector(),
-    "hubspot": HubSpotConnector(),
-    "jira": JiraConnector(),
-    "stripe": StripeConnector(),
-    "xero": XeroConnector(),
-}
-
-SUPPORTED_CONNECTORS = list(_REGISTRY.keys())
-
-
-def get_connector(name: str) -> BaseConnector:
-    """Return connector instance by name; raises ValueError if unsupported."""
-    if name not in _REGISTRY:
-        raise ValueError(f"Unsupported connector: {name!r}. Supported: {SUPPORTED_CONNECTORS}")
-    return _REGISTRY[name]
-
-
-def list_connectors() -> List[Dict[str, Any]]:
-    """Return metadata for all registered connectors."""
-    return [
-        {
-            "name": c.name,
-            "class": type(c).__name__,
-            "supported_entities": _CONNECTOR_ENTITIES.get(c.name, ["default"]),
-        }
-        for c in _REGISTRY.values()
-    ]
-
-
-_CONNECTOR_ENTITIES: Dict[str, List[str]] = {
-    "salesforce": ["Opportunity", "Account", "Contact", "Lead"],
-    "hubspot": ["deals", "contacts", "companies"],
-    "jira": ["issues"],
-    "stripe": ["invoices", "charges"],
-    "xero": ["invoices", "contacts"],
-}
+        raise ValueError(f"Entidad no soportada: {entity}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -481,6 +513,7 @@ class ZendeskConnector(BaseConnector):
     """Pulls Tickets from Zendesk Support."""
 
     name = "zendesk"
+    campos = (('subdomain', False), ('email', False), ('api_token', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {
@@ -494,12 +527,12 @@ class ZendeskConnector(BaseConnector):
             import base64
 
             creds = base64.b64encode(f"{client['email']}/token:{client['token']}".encode()).decode()
-            url = f"https://{client['subdomain']}.zendesk.com/api/v2/{entity}.json?per_page=100"
+            url = f"https://{client['subdomain']}.zendesk.com/api/v2/{entity}.json?per_page={_tam()}"
             data = _http_get(url, headers={"Authorization": f"Basic {creds}"})
             return data.get(entity, [])
         except Exception as exc:
             logger.warning("ZendeskConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── Freshdesk ─────────────────────────────────────────────────────────────────
@@ -508,6 +541,7 @@ class FreshdeskConnector(BaseConnector):
     """Pulls Tickets from Freshdesk."""
 
     name = "freshdesk"
+    campos = (('domain', False), ('api_key', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {
@@ -520,11 +554,11 @@ class FreshdeskConnector(BaseConnector):
             import base64
 
             creds = base64.b64encode(f"{client['api_key']}:X".encode()).decode()
-            url = f"https://{client['domain']}.freshdesk.com/api/v2/{entity}?per_page=100"
+            url = f"https://{client['domain']}.freshdesk.com/api/v2/{entity}?per_page={_tam()}"
             return _http_get(url, headers={"Authorization": f"Basic {creds}"})
         except Exception as exc:
             logger.warning("FreshdeskConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── ServiceNow ────────────────────────────────────────────────────────────────
@@ -533,6 +567,7 @@ class ServiceNowConnector(BaseConnector):
     """Pulls Incidents / Problems from ServiceNow Table API."""
 
     name = "servicenow"
+    campos = (('instance', False), ('username', False), ('password', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {
@@ -548,13 +583,13 @@ class ServiceNowConnector(BaseConnector):
             creds = base64.b64encode(f"{client['username']}:{client['password']}".encode()).decode()
             url = (
                 f"https://{client['instance']}.service-now.com/api/now/table/{entity}"
-                "?sysparm_limit=100&sysparm_fields=sys_id,number,short_description,state,priority,category"
+                f"?sysparm_limit={_tam()}&sysparm_fields=sys_id,number,short_description,state,priority,category"
             )
             data = _http_get(url, headers={"Authorization": f"Basic {creds}", "Accept": "application/json"})
             return data.get("result", [])
         except Exception as exc:
             logger.warning("ServiceNowConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── Pipedrive ─────────────────────────────────────────────────────────────────
@@ -563,18 +598,19 @@ class PipedriveConnector(BaseConnector):
     """Pulls Deals from Pipedrive CRM."""
 
     name = "pipedrive"
+    campos = (('api_token', True),)
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {"api_token": config.get("api_token", "")}
 
     def extract(self, client: Any, entity: str = "deals", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            url = f"https://api.pipedrive.com/v1/{entity}?api_token={client['api_token']}&limit=100"
+            url = f"https://api.pipedrive.com/v1/{entity}?api_token={client['api_token']}&limit={_tam()}"
             data = _http_get(url)
             return data.get("data") or []
         except Exception as exc:
             logger.warning("PipedriveConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── Zoho CRM ──────────────────────────────────────────────────────────────────
@@ -583,6 +619,7 @@ class ZohoCRMConnector(BaseConnector):
     """Pulls Leads/Deals from Zoho CRM v3 API."""
 
     name = "zoho_crm"
+    campos = (('domain', False), ('access_token', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {
@@ -592,12 +629,12 @@ class ZohoCRMConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "Deals", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            url = f"https://www.zohoapis.{client['domain']}/crm/v3/{entity}?fields=id,Deal_Name,Amount,Stage,Closing_Date&per_page=100"
+            url = f"https://www.zohoapis.{client['domain']}/crm/v3/{entity}?fields=id,Deal_Name,Amount,Stage,Closing_Date&per_page={_tam()}"
             data = _http_get(url, headers={"Authorization": f"Zoho-oauthtoken {client['access_token']}"})
             return data.get("data") or []
         except Exception as exc:
             logger.warning("ZohoCRMConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── QuickBooks ────────────────────────────────────────────────────────────────
@@ -606,6 +643,7 @@ class QuickBooksConnector(BaseConnector):
     """Pulls Invoices from QuickBooks Online REST API."""
 
     name = "quickbooks"
+    campos = (('realm_id', False), ('sandbox', False), ('access_token', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {
@@ -617,7 +655,7 @@ class QuickBooksConnector(BaseConnector):
     def extract(self, client: Any, entity: str = "Invoice", filters: Optional[Dict] = None) -> List[Dict]:
         try:
             base = "sandbox-quickbooks.api.intuit.com" if client["sandbox"] else "quickbooks.api.intuit.com"
-            url = f"https://{base}/v3/company/{client['realm_id']}/query?query=select * from {entity} MAXRESULTS 100"  # noqa: S608
+            url = f"https://{base}/v3/company/{client['realm_id']}/query?query=select * from {entity} MAXRESULTS {_tam()}"  # noqa: S608
             data = _http_get(
                 url,
                 headers={"Authorization": f"Bearer {client['access_token']}", "Accept": "application/json"},
@@ -625,7 +663,7 @@ class QuickBooksConnector(BaseConnector):
             return (data.get("QueryResponse") or {}).get(entity, [])
         except Exception as exc:
             logger.warning("QuickBooksConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── GitHub ────────────────────────────────────────────────────────────────────
@@ -634,6 +672,7 @@ class GitHubConnector(BaseConnector):
     """Pulls Issues/PRs from a GitHub repository."""
 
     name = "github"
+    campos = (('repo', False), ('token', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {
@@ -643,14 +682,14 @@ class GitHubConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "issues", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            url = f"https://api.github.com/repos/{client['repo']}/{entity}?per_page=100&state=all"
+            url = f"https://api.github.com/repos/{client['repo']}/{entity}?per_page={_tam()}&state=all"
             return _http_get(
                 url,
                 headers={"Authorization": f"token {client['token']}", "Accept": "application/vnd.github.v3+json"},
             )
         except Exception as exc:
             logger.warning("GitHubConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── GitLab ────────────────────────────────────────────────────────────────────
@@ -659,6 +698,7 @@ class GitLabConnector(BaseConnector):
     """Pulls Issues from a GitLab project."""
 
     name = "gitlab"
+    campos = (('host', False), ('project_id', False), ('token', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {
@@ -669,11 +709,11 @@ class GitLabConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "issues", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            url = f"https://{client['host']}/api/v4/projects/{client['project_id']}/{entity}?per_page=100"
+            url = f"https://{client['host']}/api/v4/projects/{client['project_id']}/{entity}?per_page={_tam()}"
             return _http_get(url, headers={"PRIVATE-TOKEN": client["token"]})
         except Exception as exc:
             logger.warning("GitLabConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── Datadog ───────────────────────────────────────────────────────────────────
@@ -682,6 +722,7 @@ class DatadogConnector(BaseConnector):
     """Pulls Monitors/Events from Datadog API."""
 
     name = "datadog"
+    campos = (('site', False), ('api_key', True), ('app_key', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {
@@ -692,14 +733,14 @@ class DatadogConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "monitors", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            url = f"https://api.{client['site']}/api/v1/{entity}?count=100"
+            url = f"https://api.{client['site']}/api/v1/{entity}?count={_tam()}"
             return _http_get(
                 url,
                 headers={"DD-API-KEY": client["api_key"], "DD-APPLICATION-KEY": client["app_key"]},
             )
         except Exception as exc:
             logger.warning("DatadogConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── Monday.com ────────────────────────────────────────────────────────────────
@@ -708,6 +749,7 @@ class MondayConnector(BaseConnector):
     """Pulls Boards/Items from Monday.com GraphQL API."""
 
     name = "monday"
+    campos = (('token', True),)
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {"token": config.get("token", "")}
@@ -722,7 +764,7 @@ class MondayConnector(BaseConnector):
             return (data.get("data") or {}).get("boards", [])
         except Exception as exc:
             logger.warning("MondayConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── Asana ─────────────────────────────────────────────────────────────────────
@@ -731,6 +773,7 @@ class AsanaConnector(BaseConnector):
     """Pulls Tasks from Asana API."""
 
     name = "asana"
+    campos = (('project_gid', False), ('token', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {
@@ -745,7 +788,7 @@ class AsanaConnector(BaseConnector):
             return data.get("data", [])
         except Exception as exc:
             logger.warning("AsanaConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── Trello ────────────────────────────────────────────────────────────────────
@@ -754,6 +797,7 @@ class TrelloConnector(BaseConnector):
     """Pulls Cards from a Trello board."""
 
     name = "trello"
+    campos = (('board_id', False), ('api_key', True), ('token', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {
@@ -771,7 +815,7 @@ class TrelloConnector(BaseConnector):
             return _http_get(url)
         except Exception as exc:
             logger.warning("TrelloConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── Shopify ───────────────────────────────────────────────────────────────────
@@ -780,6 +824,7 @@ class ShopifyConnector(BaseConnector):
     """Pulls Orders from Shopify Admin API."""
 
     name = "shopify"
+    campos = (('shop', False), ('access_token', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {
@@ -789,12 +834,12 @@ class ShopifyConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "orders", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            url = f"https://{client['shop']}/admin/api/2024-01/{entity}.json?limit=100&status=any"
+            url = f"https://{client['shop']}/admin/api/2024-01/{entity}.json?limit={_tam()}&status=any"
             data = _http_get(url, headers={"X-Shopify-Access-Token": client["access_token"]})
             return data.get(entity, [])
         except Exception as exc:
             logger.warning("ShopifyConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── Intercom ──────────────────────────────────────────────────────────────────
@@ -803,13 +848,14 @@ class IntercomConnector(BaseConnector):
     """Pulls Conversations from Intercom."""
 
     name = "intercom"
+    campos = (('token', True),)
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {"token": config.get("token", "")}
 
     def extract(self, client: Any, entity: str = "conversations", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            url = f"https://api.intercom.io/{entity}?per_page=100&display_as=plaintext"
+            url = f"https://api.intercom.io/{entity}?per_page={_tam()}&display_as=plaintext"
             data = _http_get(
                 url,
                 headers={
@@ -821,7 +867,7 @@ class IntercomConnector(BaseConnector):
             return data.get("conversations", [])
         except Exception as exc:
             logger.warning("IntercomConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── ClickUp ───────────────────────────────────────────────────────────────────
@@ -830,6 +876,7 @@ class ClickUpConnector(BaseConnector):
     """Pulls Tasks from ClickUp API v2."""
 
     name = "clickup"
+    campos = (('list_id', False), ('token', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {
@@ -844,7 +891,7 @@ class ClickUpConnector(BaseConnector):
             return data.get("tasks", [])
         except Exception as exc:
             logger.warning("ClickUpConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── Google Analytics 4 ────────────────────────────────────────────────────────
@@ -853,6 +900,8 @@ class GoogleAnalyticsConnector(BaseConnector):
     """Pulls session/pageview data from Google Analytics Data API (GA4)."""
 
     name = "google_analytics"
+    requiere = ('google.analytics.data_v1beta', 'google-analytics-data')
+    campos = (('property_id', False), ('credentials_json', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return {
@@ -864,10 +913,9 @@ class GoogleAnalyticsConnector(BaseConnector):
         try:
             from google.analytics.data_v1beta import BetaAnalyticsDataClient  # type: ignore
             from google.analytics.data_v1beta.types import DateRange, Dimension, Metric, RunReportRequest  # type: ignore
-            import os
-
-            os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", client["credentials_json"])
-            ga_client = BetaAnalyticsDataClient()
+            # Antes: `os.environ.setdefault(...)`, global al proceso — la primera
+            # organización que sincronizaba fijaba las credenciales de todas.
+            ga_client = BetaAnalyticsDataClient.from_service_account_info(json.loads(client["credentials_json"]))
             request = RunReportRequest(
                 property=f"properties/{client['property_id']}",
                 dimensions=[Dimension(name="date"), Dimension(name="country")],
@@ -886,7 +934,7 @@ class GoogleAnalyticsConnector(BaseConnector):
             ]
         except Exception as exc:
             logger.warning("GoogleAnalyticsConnector.extract error: %s", exc)
-            return []
+            raise
 
 
 # ── Webhook / Plugin connector ────────────────────────────────────────────────
@@ -902,7 +950,8 @@ class WebhookPluginConnector(BaseConnector):
         data_path: dot-separated path to array in response, e.g. "data.items"
     """
 
-    name = "webhook_plugin"
+    name = "fuente_rest"
+    campos = (('endpoint_url', False), ('method', False), ('data_path', False), ('header_name', False), ('header_value', True))
 
     def connect(self, config: Dict[str, Any]) -> Any:
         return config
@@ -910,9 +959,11 @@ class WebhookPluginConnector(BaseConnector):
     def extract(self, client: Any, entity: str = "default", filters: Optional[Dict] = None) -> List[Dict]:
         url = client.get("endpoint_url", "")
         if not url:
-            return []
+            raise ValueError("Falta endpoint_url")
         method = (client.get("method") or "GET").upper()
-        headers = client.get("headers") or {}
+        headers = dict(client.get("headers") or {})
+        if client.get("header_name") and client.get("header_value"):
+            headers[client["header_name"]] = client["header_value"]
         payload_data = client.get("payload")
         data_path = client.get("data_path", "")
 
@@ -926,156 +977,98 @@ class WebhookPluginConnector(BaseConnector):
             result = raw
             if data_path:
                 for segment in data_path.split("."):
-                    if isinstance(result, dict):
-                        result = result.get(segment, [])
-                    else:
-                        result = []
-                        break
+                    if not isinstance(result, dict) or segment not in result:
+                        raise ValueError(f"data_path «{data_path}»: no hay «{segment}» en la respuesta")
+                    result = result[segment]
 
             return result if isinstance(result, list) else [result]
         except Exception as exc:
             logger.warning("WebhookPluginConnector.extract error: %s", exc)
-            return []
+            raise
 
 
-# ── Plugin Registry ───────────────────────────────────────────────────────────
+# ── Registro ──────────────────────────────────────────────────────────────────
+#
+# Una sola lista. Antes había tres que no coincidían: el panel enseñaba 20, el
+# estado admitía 5 y el registro tenía 22. Las entidades son las que el
+# extractor implementa de verdad (medido: Asana, Trello, Intercom, Monday y GA
+# ignoraban la entidad y devolvían siempre lo mismo; HubSpot no tenía
+# «companies» y Datadog «events» exige un intervalo que no se le pasa).
 
-class PluginRegistry:
-    """Dynamic connector registry backed by AppSetting JSON blob.
-
-    Custom webhook connectors can be registered at runtime without restarts.
-    Each plugin entry is serialized as::
-
-        {
-            "name": str,
-            "endpoint_url": str,
-            "method": "GET" | "POST",
-            "headers": dict,
-            "payload": dict | None,
-            "data_path": str,
-            "installed_at": iso8601,
-        }
-
-    Plugin state key: ``bi.connector.plugins.<org_id>``
-    """
-
-    _PLUGIN_KEY_TPL = "bi.connector.plugins.{org}"
-
-    @staticmethod
-    def _key(org_id: Optional[str]) -> str:
-        return PluginRegistry._PLUGIN_KEY_TPL.format(org=org_id or "global")
-
-    @staticmethod
-    def list_plugins(db: Session, org_id: Optional[str]) -> List[Dict[str, Any]]:
-        from app.models.settings import AppSetting
-
-        key = PluginRegistry._key(org_id)
-        row = db.query(AppSetting).filter(AppSetting.key == key).first()
-        if not row or not row.value:
-            return []
-        try:
-            return json.loads(row.value)
-        # intentional: best-effort fallback, log noise outweighs diagnostic value
-        except (json.JSONDecodeError, TypeError):
-            return []
-
-    @staticmethod
-    def register_plugin(db: Session, org_id: Optional[str], plugin_cfg: Dict[str, Any]) -> Dict[str, Any]:
-        from app.models.settings import AppSetting
-
-        name = plugin_cfg.get("name", "").strip()
-        if not name:
-            raise ValueError("Plugin name is required")
-        if not plugin_cfg.get("endpoint_url"):
-            raise ValueError("endpoint_url is required for webhook plugin")
-
-        plugins = PluginRegistry.list_plugins(db, org_id)
-        # Upsert
-        existing = next((p for p in plugins if p["name"] == name), None)
-        if existing:
-            existing.update(plugin_cfg)
-            existing["updated_at"] = _iso_now()
-        else:
-            plugin_cfg["installed_at"] = _iso_now()
-            plugins.append(plugin_cfg)
-
-        key = PluginRegistry._key(org_id)
-        serialized = json.dumps(plugins)
-        row = db.query(AppSetting).filter(AppSetting.key == key).first()
-        if row:
-            row.value = serialized
-        else:
-            row = AppSetting(key=key, value=serialized, description=f"BI connector plugins: org={org_id}")
-            db.add(row)
-        db.flush()
-        return plugin_cfg
-
-    @staticmethod
-    def get_plugin_connector(plugin_name: str, db: Session, org_id: Optional[str]) -> "WebhookPluginConnector":
-        plugins = PluginRegistry.list_plugins(db, org_id)
-        cfg = next((p for p in plugins if p["name"] == plugin_name), None)
-        if not cfg:
-            raise ValueError(f"Plugin connector '{plugin_name}' not found")
-        conn = WebhookPluginConnector()
-        conn.name = plugin_name
-        return conn
-
-
-# ── Extended Registry ─────────────────────────────────────────────────────────
-
-_ADDITIONAL_CONNECTORS: Dict[str, BaseConnector] = {
-    "zendesk": ZendeskConnector(),
-    "freshdesk": FreshdeskConnector(),
-    "servicenow": ServiceNowConnector(),
-    "pipedrive": PipedriveConnector(),
-    "zoho_crm": ZohoCRMConnector(),
-    "quickbooks": QuickBooksConnector(),
-    "github": GitHubConnector(),
-    "gitlab": GitLabConnector(),
-    "datadog": DatadogConnector(),
-    "monday": MondayConnector(),
-    "asana": AsanaConnector(),
-    "trello": TrelloConnector(),
-    "shopify": ShopifyConnector(),
-    "intercom": IntercomConnector(),
-    "clickup": ClickUpConnector(),
-    "google_analytics": GoogleAnalyticsConnector(),
-    "webhook_plugin": WebhookPluginConnector(),
+_ENTIDADES: Dict[str, tuple] = {
+    "salesforce": ("Opportunity", "Account", "Contact", "Lead"),
+    "hubspot": ("deals", "contacts"),
+    "jira": ("issues",),
+    "stripe": ("invoices", "charges"),
+    "xero": ("invoices", "contacts"),
+    "zendesk": ("tickets", "users", "organizations"),
+    "freshdesk": ("tickets", "contacts", "companies"),
+    "servicenow": ("incident", "problem", "change_request", "cmdb_ci"),
+    "pipedrive": ("deals", "persons", "organizations", "activities"),
+    "zoho_crm": ("Deals", "Leads", "Contacts", "Accounts"),
+    "quickbooks": ("Invoice", "Bill", "Customer", "Vendor"),
+    "github": ("issues", "pulls"),
+    "gitlab": ("issues", "merge_requests", "pipelines"),
+    "datadog": ("monitors",),
+    "monday": ("boards",),
+    "asana": ("tasks",),
+    "trello": ("cards",),
+    "shopify": ("orders", "products", "customers"),
+    "intercom": ("conversations",),
+    "clickup": ("tasks",),
+    "google_analytics": ("sessions",),
 }
 
-_REGISTRY.update(_ADDITIONAL_CONNECTORS)
-SUPPORTED_CONNECTORS = list(_REGISTRY.keys())
+_REGISTRY: Dict[str, BaseConnector] = {
+    c.name: c
+    for c in (
+        SalesforceConnector(), HubSpotConnector(), JiraConnector(), StripeConnector(), XeroConnector(),
+        ZendeskConnector(), FreshdeskConnector(), ServiceNowConnector(), PipedriveConnector(),
+        ZohoCRMConnector(), QuickBooksConnector(), GitHubConnector(), GitLabConnector(),
+        DatadogConnector(), MondayConnector(), AsanaConnector(), TrelloConnector(),
+        ShopifyConnector(), IntercomConnector(), ClickUpConnector(), GoogleAnalyticsConnector(),
+    )
+}
+for _n, _c in _REGISTRY.items():
+    _c.entidades = _ENTIDADES[_n]
 
-_CONNECTOR_ENTITIES.update({
-    "zendesk": ["tickets", "users", "organizations"],
-    "freshdesk": ["tickets", "contacts", "companies"],
-    "servicenow": ["incident", "problem", "change_request", "cmdb_ci"],
-    "pipedrive": ["deals", "persons", "organizations", "activities"],
-    "zoho_crm": ["Deals", "Leads", "Contacts", "Accounts"],
-    "quickbooks": ["Invoice", "Bill", "Customer", "Vendor"],
-    "github": ["issues", "pulls"],
-    "gitlab": ["issues", "merge_requests", "pipelines"],
-    "datadog": ["monitors", "events", "metrics"],
-    "monday": ["boards", "items"],
-    "asana": ["tasks", "projects"],
-    "trello": ["cards", "lists"],
-    "shopify": ["orders", "products", "customers"],
-    "intercom": ["conversations", "contacts"],
-    "clickup": ["tasks"],
-    "google_analytics": ["sessions", "events"],
-    "webhook_plugin": ["default"],
-})
+#: Nombre comercial de cada proveedor, para la pantalla.
+_ETIQUETAS: Dict[str, str] = {
+    "salesforce": "Salesforce", "hubspot": "HubSpot", "jira": "Jira", "stripe": "Stripe", "xero": "Xero",
+    "zendesk": "Zendesk", "freshdesk": "Freshdesk", "servicenow": "ServiceNow", "pipedrive": "Pipedrive",
+    "zoho_crm": "Zoho CRM", "quickbooks": "QuickBooks", "github": "GitHub", "gitlab": "GitLab",
+    "datadog": "Datadog", "monday": "monday.com", "asana": "Asana", "trello": "Trello", "shopify": "Shopify",
+    "intercom": "Intercom", "clickup": "ClickUp", "google_analytics": "Google Analytics",
+}
+
+#: El tipo genérico: no es una entrada del registro sino la plantilla de cada
+#: fuente REST que da de alta el usuario.
+TIPO_GENERICO = WebhookPluginConnector.name
+SUPPORTED_CONNECTORS = list(_REGISTRY)
 
 
-def get_connector_catalog() -> List[Dict[str, Any]]:
-    """Return full connector catalog including plugin connectors."""
-    return [
-        {
-            "name": name,
-            "class": type(conn).__name__,
-            "supported_entities": _CONNECTOR_ENTITIES.get(name, ["default"]),
-            "is_plugin": isinstance(conn, WebhookPluginConnector),
-        }
-        for name, conn in _REGISTRY.items()
-    ]
+def get_connector(name: str) -> BaseConnector:
+    """Return connector instance by name; raises ValueError if unsupported."""
+    if name not in _REGISTRY:
+        raise ValueError(f"Unsupported connector: {name!r}")
+    return _REGISTRY[name]
 
+
+def instancia(tipo: str, nombre: str) -> BaseConnector:
+    """El conector de un tipo con el nombre de la fuente (para el genérico, uno por fuente)."""
+    if tipo == TIPO_GENERICO:
+        c = WebhookPluginConnector()
+        c.name = nombre
+        return c
+    return get_connector(tipo)
+
+
+def ficha(tipo: str) -> Dict[str, Any]:
+    """Lo que la pantalla necesita para pintar el formulario de un tipo."""
+    c = WebhookPluginConnector if tipo == TIPO_GENERICO else get_connector(tipo)
+    return {
+        "etiqueta": _ETIQUETAS.get(tipo, ""),
+        "falta": c().falta() if isinstance(c, type) else c.falta(),
+        "campos": [{"clave": k, "secreto": sec} for k, sec in c.campos],
+        "entidades": list(c.entidades),
+    }

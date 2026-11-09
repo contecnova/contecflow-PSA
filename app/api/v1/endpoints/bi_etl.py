@@ -1,173 +1,128 @@
 """
-bi_etl.py — BI ETL Connector management API.
+bi_etl.py — Conectores ETL de BI (revisión 2026-11): una lista y un panel.
 
-Routes:
-  GET  /bi/etl/connectors                      — list available connectors + status
-  GET  /bi/etl/connectors/{connector_id}       — single connector details
-  POST /bi/etl/connectors/{connector_id}/sync  — trigger manual sync (fires Celery task)
-  GET  /bi/etl/connectors/{connector_id}/log   — sync history log
-  GET  /bi/etl/data/{connector_id}             — read synced data blob
+  GET    /bi/etl/connectors                  conectores del registro + fuentes REST, y la ficha del genérico
+  GET    /bi/etl/connectors/{id}             uno, con sus últimas sincronizaciones
+  PATCH  /bi/etl/connectors/{id}             activar, entidad y credenciales (un secreto vacío no cambia)
+  POST   /bi/etl/connectors/{id}/test        conecta y extrae sin guardar: cuántos registros, o el error
+  POST   /bi/etl/connectors/{id}/sync        sincroniza ahora y devuelve el resultado real
+  GET    /bi/etl/connectors/{id}/log         historial, lo último primero
+  GET    /bi/etl/data/{id}                   lo último que se trajo
+  POST   /bi/etl/sources                     da de alta una fuente REST genérica
+  DELETE /bi/etl/sources/{id}                la quita
+
+La sincronización manual corre en la petición: antes se mandaba a la cola
+`etl_{id}`, que ningún worker escucha, y la pantalla decía «encolada» para
+siempre. La periódica la hace el worker (`bi-connector-sync`).
 """
 from __future__ import annotations
 
-import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import require_admin
 from app.core.ratelimit import limiter
 from app.core.responses import APIResponse
 from app.db.session import get_db
-from app.services import bi_etl_service as _bi_etl_svc
+from app.integrations import bi_etl_connectors as _etl
 from app.models.user import User
-
-logger = logging.getLogger(__name__)
+from app.services import bi_etl_service as svc
 
 router = APIRouter(prefix="/bi/etl", tags=["BI ETL Connectors"])
 
-_CONNECTOR_IDS = [
-    "salesforce", "hubspot", "jira", "stripe", "xero",
-    "zendesk", "freshdesk", "servicenow", "bamboohr", "quickbooks",
-    "netsuite", "sap", "github", "gitlab", "datadog",
-    "pagerduty", "twilio", "sendgrid", "intercom", "pipedrive",
-]
 
-_SYNC_DATA_KEY_TPL = "bi.etl.sync_data.{connector}.{org}"
-_SYNC_LOG_KEY_TPL = "bi.etl.sync_log.{connector}.{org}"
+def _org(u: User) -> Optional[str]:
+    org = getattr(u, "organization_id", None)
+    return str(org) if org else None
 
 
-# Auditoria 2026-08 (hallazgo 22): la consulta vive en
-# `services/bi_etl_service.leer_json`. El filtro por organizacion ya estaba y
-# es el correcto — su rama `else` filtra por `IS NULL`, que es el valor global
-# del despliegue, y no es el condicional defectuoso que aparecio cuatro veces
-# en esta auditoria. Esta explicado en la cabecera del servicio.
-_get_json = _bi_etl_svc.leer_json
+class ConfigIn(BaseModel):
+    enabled: Optional[bool] = None
+    entity: Optional[str] = Field(None, max_length=64)
+    config: Optional[dict] = None
 
 
-def _get_connectors_state(db: Session, organization_id: Optional[str]) -> dict:
-    from app.services.bi_intelligence_service import get_connectors  # type: ignore[import]
+class FuenteIn(BaseModel):
+    nombre: str = Field(..., min_length=2, max_length=80)
+    config: dict = Field(default_factory=dict)
+
+
+def _llamar(f, *a, **kw):
     try:
-        return get_connectors(db, organization_id=organization_id)
-    except Exception:
-        return {}
+        return f(*a, **kw)
+    except svc.NoEncontrado:
+        raise HTTPException(status_code=404, detail="Conector no encontrado")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
-class SyncRequest(BaseModel):
-    extra_config: dict = Field(default_factory=dict, description="Optional extra config overrides for this run")
-
-
-@router.get("/connectors", summary="Listar conectores ETL y su estado")
+@router.get("/connectors", summary="Conectores ETL, su estado y la ficha de la fuente REST genérica")
 @limiter.limit("60/minute")
-def list_connectors(
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    org_id = getattr(current_user, "organization_id", None)
-    state = _get_connectors_state(db, str(org_id) if org_id else None)
-    items = []
-    for cid in _CONNECTOR_IDS:
-        info = state.get(cid, {})
-        items.append({
-            "connector_id": cid,
-            "enabled": info.get("enabled", False),
-            "status": info.get("status", "disconnected"),
-            "last_sync_at": info.get("last_sync_at"),
-            "last_records": info.get("last_records", 0),
-        })
-    return APIResponse.ok(data={"connectors": items, "count": len(items)})
+def list_connectors(request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    items = svc.listar(db, _org(current_user))
+    return APIResponse.ok(data={"connectors": items, "count": len(items), "generico": _etl.ficha(_etl.TIPO_GENERICO)})
 
 
 @router.get("/connectors/{connector_id}", summary="Detalle de un conector ETL")
 @limiter.limit("60/minute")
-def get_connector_detail(
-    request: Request,
-    connector_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    if connector_id not in _CONNECTOR_IDS:
-        raise HTTPException(status_code=404, detail="Connector not found")
-    org_id = getattr(current_user, "organization_id", None)
-    org_str = str(org_id) if org_id else None
-    state = _get_connectors_state(db, org_str)
-    info = state.get(connector_id, {})
-    log = _get_json(db, _SYNC_LOG_KEY_TPL.format(connector=connector_id, org=org_str or "global"), org_str, default=[])
-    return APIResponse.ok(data={
-        "connector_id": connector_id,
-        "enabled": info.get("enabled", False),
-        "status": info.get("status", "disconnected"),
-        "last_sync_at": info.get("last_sync_at"),
-        "last_records": info.get("last_records", 0),
-        "recent_log": (log or [])[-10:],
-    })
+def get_connector_detail(request: Request, connector_id: str, db: Session = Depends(get_db),
+                         current_user: User = Depends(require_admin)):
+    org = _org(current_user)
+    fila = _llamar(svc.uno, db, org, connector_id)
+    return APIResponse.ok(data={**fila, "recent_log": svc.registro(db, org, connector_id, 10)})
 
 
-@router.post("/connectors/{connector_id}/sync", summary="Disparar sincronización manual", status_code=202)
+@router.patch("/connectors/{connector_id}", summary="Activar un conector y darle entidad y credenciales")
+@limiter.limit("30/minute")
+def configure_connector(request: Request, connector_id: str, body: ConfigIn, db: Session = Depends(get_db),
+                        current_user: User = Depends(require_admin)):
+    return APIResponse.ok(data=_llamar(svc.configurar, db, _org(current_user), connector_id,
+                                       enabled=body.enabled, entity=body.entity, config=body.config))
+
+
+@router.post("/connectors/{connector_id}/test", summary="Probar un conector sin guardar nada")
 @limiter.limit("10/minute")
-def trigger_sync(
-    request: Request,
-    connector_id: str,
-    body: SyncRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: procesos ETL
-):
-    if connector_id not in _CONNECTOR_IDS:
-        raise HTTPException(status_code=404, detail="Connector not found")
-    org_id = getattr(current_user, "organization_id", None)
-    org_str = str(org_id) if org_id else None
-    try:
-        from app.worker import sync_connector_data  # type: ignore[import]
-        queue_name = f"etl_{connector_id}"
-        task = sync_connector_data.apply_async(
-            kwargs={"connector_id": connector_id, "org_id": org_str},
-            queue=queue_name,
-            routing_key=queue_name,
-        )
-        return APIResponse.ok(data={
-            "task_id": task.id,
-            "connector_id": connector_id,
-            "status": "queued",
-            "queue": queue_name,
-        })
-    except Exception as exc:
-        logger.warning("trigger_sync: could not dispatch Celery task: %s", exc)
-        return APIResponse.ok(data={"task_id": None, "connector_id": connector_id, "status": "queued_local", "detail": str(exc)})
+def test_connector(request: Request, connector_id: str, db: Session = Depends(get_db),
+                   current_user: User = Depends(require_admin)):
+    return APIResponse.ok(data=_llamar(svc.probar, db, _org(current_user), connector_id))
+
+
+@router.post("/connectors/{connector_id}/sync", summary="Sincronizar ahora")
+@limiter.limit("10/minute")
+def trigger_sync(request: Request, connector_id: str, db: Session = Depends(get_db),
+                 current_user: User = Depends(require_admin)):
+    return APIResponse.ok(data=_llamar(svc.sincronizar, db, _org(current_user), connector_id))
 
 
 @router.get("/connectors/{connector_id}/log", summary="Historial de sincronizaciones")
 @limiter.limit("60/minute")
-def get_sync_log(
-    request: Request,
-    connector_id: str,
-    limit: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    if connector_id not in _CONNECTOR_IDS:
-        raise HTTPException(status_code=404, detail="Connector not found")
-    org_id = getattr(current_user, "organization_id", None)
-    org_str = str(org_id) if org_id else None
-    log = _get_json(db, _SYNC_LOG_KEY_TPL.format(connector=connector_id, org=org_str or "global"), org_str, default=[])
-    entries = (log or [])[-limit:]
+def get_sync_log(request: Request, connector_id: str, limit: int = Query(20, ge=1, le=100),
+                 db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    entries = _llamar(svc.registro, db, _org(current_user), connector_id, limit)
     return APIResponse.ok(data={"connector_id": connector_id, "entries": entries, "count": len(entries)})
 
 
-@router.get("/data/{connector_id}", summary="Leer datos sincronizados de un conector")
+@router.get("/data/{connector_id}", summary="Lo último que trajo un conector")
 @limiter.limit("30/minute")
-def get_synced_data(
-    request: Request,
-    connector_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    if connector_id not in _CONNECTOR_IDS:
-        raise HTTPException(status_code=404, detail="Connector not found")
-    org_id = getattr(current_user, "organization_id", None)
-    org_str = str(org_id) if org_id else None
-    data = _get_json(db, _SYNC_DATA_KEY_TPL.format(connector=connector_id, org=org_str or "global"), org_str, default={})
-    return APIResponse.ok(data={"connector_id": connector_id, "data": data or {}})
+def get_synced_data(request: Request, connector_id: str, db: Session = Depends(get_db),
+                    current_user: User = Depends(require_admin)):
+    return APIResponse.ok(data={"connector_id": connector_id,
+                                "data": _llamar(svc.datos, db, _org(current_user), connector_id)})
+
+
+@router.post("/sources", summary="Dar de alta una fuente REST genérica")
+@limiter.limit("20/minute")
+def create_source(request: Request, body: FuenteIn, db: Session = Depends(get_db),
+                  current_user: User = Depends(require_admin)):
+    return APIResponse.ok(data=_llamar(svc.crear_fuente, db, _org(current_user), body.nombre, body.config))
+
+
+@router.delete("/sources/{connector_id}", summary="Quitar una fuente REST")
+@limiter.limit("20/minute")
+def delete_source(request: Request, connector_id: str, db: Session = Depends(get_db),
+                  current_user: User = Depends(require_admin)):
+    _llamar(svc.borrar_fuente, db, _org(current_user), connector_id)
+    return APIResponse.ok(data={"deleted": connector_id})

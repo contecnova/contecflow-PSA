@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import logging
 import math
-import random
 from collections import defaultdict
 from datetime import date, datetime, timezone
 from typing import Any, Optional
@@ -32,7 +31,6 @@ from app.services import report_builder_service
 from app.services.scheduled_reports import execute_report_now
 from app.services.scheduled_reports_compat import summarize_scheduled_reports
 
-CONNECTORS_KEY = "bi.phase2.connectors"
 VISUAL_QUERY_TEMPLATES_KEY_PREFIX = "bi.intelligence.query_builder.templates"
 
 
@@ -279,93 +277,12 @@ def ml_detect_revenue_anomalies(
     }
 
 
-def _default_connectors() -> dict[str, dict[str, Any]]:
-    return {
-        "salesforce": {"enabled": False, "status": "disconnected", "last_sync_at": None, "last_records": 0},
-        "hubspot": {"enabled": False, "status": "disconnected", "last_sync_at": None, "last_records": 0},
-        "jira": {"enabled": False, "status": "disconnected", "last_sync_at": None, "last_records": 0},
-        "stripe": {"enabled": False, "status": "disconnected", "last_sync_at": None, "last_records": 0},
-        "xero": {"enabled": False, "status": "disconnected", "last_sync_at": None, "last_records": 0},
-    }
 
 
-def get_connectors(db: Session, *, organization_id: Optional[str]) -> dict[str, dict[str, Any]]:
-    saved = _get_json(db, CONNECTORS_KEY, organization_id, default={})
-    return {**_default_connectors(), **(saved or {})}
 
 
-def update_connector(
-    db: Session,
-    *,
-    organization_id: Optional[str],
-    connector: str,
-    payload: dict[str, Any],
-) -> dict[str, Any]:
-    state = get_connectors(db, organization_id=organization_id)
-    if connector not in state:
-        raise ValueError("connector_not_supported")
-
-    current = state[connector]
-    current["enabled"] = bool(payload.get("enabled", current.get("enabled", False)))
-    if current["enabled"] and current.get("status") == "disconnected":
-        current["status"] = "connected"
-    if not current["enabled"]:
-        current["status"] = "disconnected"
-
-    state[connector] = current
-    _set_json(
-        db,
-        CONNECTORS_KEY,
-        organization_id,
-        state,
-        description="BI Intelligence connectors state (JSON)",
-    )
-    return current
 
 
-def run_connector_sync(
-    db: Session,
-    *,
-    organization_id: Optional[str],
-    connector: str,
-) -> dict[str, Any]:
-    state = get_connectors(db, organization_id=organization_id)
-    if connector not in state:
-        raise ValueError("connector_not_supported")
-
-    row = state[connector]
-    if not row.get("enabled"):
-        return {
-            "ok": False,
-            "status": "skipped",
-            "reason": "connector_disabled",
-            "connector": connector,
-        }
-
-    # Deterministic pseudo-volume to keep behavior predictable in tests.
-    seed = f"{connector}:{datetime.now(timezone.utc).strftime('%Y%m%d%H')}"
-    random.seed(seed)
-    ingested = random.randint(25, 450)
-
-    row["status"] = "connected"
-    row["last_sync_at"] = _iso_now()
-    row["last_records"] = ingested
-    state[connector] = row
-    _set_json(
-        db,
-        CONNECTORS_KEY,
-        organization_id,
-        state,
-        description="BI Intelligence connectors state (JSON)",
-    )
-
-    return {
-        "ok": True,
-        "connector": connector,
-        "status": "synced",
-        "records_ingested": ingested,
-        "synced_at": row["last_sync_at"],
-    }
 
 
 def list_advanced_report_presets() -> list[dict[str, Any]]:
@@ -573,7 +490,6 @@ def run_scheduled_delivery_now(db: Session, *, report_id: str) -> dict[str, Any]
 # ── BI Phase 2: ML enhancements ────────────────────────────────────────────────
 
 ML_MODELS_KEY = "bi.phase2.ml_models"
-CONNECTOR_CONFIGS_KEY = "bi.phase2.connector_configs"
 
 
 def ml_forecast_prophet(
@@ -853,104 +769,24 @@ def ml_predict_project_overrun_lgbm(
     }
 
 
-def get_connector_config(
-    db: Session,
-    *,
-    organization_id: Optional[str],
-    connector: str,
-) -> dict[str, Any]:
-    """Return stored non-sensitive connector configuration (credentials excluded)."""
-    configs = _get_json(db, CONNECTOR_CONFIGS_KEY, organization_id, default={})
-    cfg = configs.get(connector, {})
-    # Strip secret fields before returning
-    safe = {k: v for k, v in cfg.items() if k not in {"access_token", "client_secret", "api_key", "password"}}
-    return safe
 
 
-def save_connector_config(
-    db: Session,
-    *,
-    organization_id: Optional[str],
-    connector: str,
-    config: dict[str, Any],
-) -> dict[str, Any]:
-    """Persist connector configuration (encrypts sensitive fields in-place)."""
-    from app.core.encryption import encrypt_value  # type: ignore – optional
-
-    configs = _get_json(db, CONNECTOR_CONFIGS_KEY, organization_id, default={})
-    sensitive_fields = {"access_token", "client_secret", "api_key", "password", "refresh_token"}
-
-    stored = dict(config)
-    for field in sensitive_fields:
-        if field in stored and stored[field]:
-            try:
-                stored[field] = encrypt_value(stored[field])
-            except Exception:
-                logger.warning("Failed to encrypt connector %s field %s; storing as-is", connector, field, exc_info=True)
-                stored[field] = stored[field]  # store as-is if encryption unavailable
-
-    stored["configured_at"] = _iso_now()
-    configs[connector] = stored
-    _set_json(db, CONNECTOR_CONFIGS_KEY, organization_id, configs,
-              description="BI connector per-org configurations (JSON, secrets encrypted)")
-    return get_connector_config(db, organization_id=organization_id, connector=connector)
 
 
-def run_etl_connector_sync(
-    db: Session,
-    *,
-    organization_id: Optional[str],
-    connector: str,
-) -> dict[str, Any]:
-    """Execute real ETL sync via bi_etl_connectors integration layer."""
-    from app.integrations import bi_etl_connectors  # type: ignore
-
-    state = get_connectors(db, organization_id=organization_id)
-    if connector not in state:
-        raise ValueError("connector_not_supported")
-    if not state[connector].get("enabled"):
-        return {"ok": False, "connector": connector, "status": "skipped", "reason": "connector_disabled"}
-
-    configs = _get_json(db, CONNECTOR_CONFIGS_KEY, organization_id, default={})
-    cfg = configs.get(connector, {})
-
-    try:
-        etl = bi_etl_connectors.get_connector(connector)
-        result = etl.run_sync(config=cfg, organization_id=organization_id, db=db)
-    except Exception as exc:
-        logger.exception("ETL connector sync failed for connector=%s org=%s", connector, organization_id)
-        result = {"ok": False, "error": str(exc), "records_ingested": 0}
-
-    # Update state regardless of success/failure
-    row = state[connector]
-    row["last_sync_at"] = _iso_now()
-    row["last_records"] = result.get("records_ingested", 0)
-    row["status"] = "connected" if result.get("ok") else "error"
-    state[connector] = row
-    _set_json(db, CONNECTORS_KEY, organization_id, state, description="BI Intelligence connectors state (JSON)")
-
-    return {"connector": connector, **result}
 
 
-def get_connector_sync_log(
-    db: Session,
-    *,
-    organization_id: Optional[str],
-    connector: str,
-    limit: int = 50,
-) -> dict[str, Any]:
-    """Return the rolling sync log for a connector (stored via _log_sync in bi_etl_connectors)."""
-    from app.integrations.bi_etl_connectors import _SYNC_LOG_KEY_TPL  # type: ignore
 
-    key = _SYNC_LOG_KEY_TPL.format(connector=connector, org=organization_id or "global")
-    entries = _get_json(db, key, organization_id, default=[])
-    if isinstance(entries, list):
-        entries = entries[-limit:][::-1]  # most-recent first
+
+def instantanea_kpi(db: Session, organization_id: Optional[str]) -> dict[str, Any]:
+    """El marco del flujo en tiempo real: el mismo desde el worker y desde el sondeo."""
+    forecast = ml_forecast_revenue(db, organization_id=organization_id, months_ahead=3)
+    anomalies = ml_detect_revenue_anomalies(db, organization_id=organization_id, z_threshold=2.0)
     return {
-        "connector": connector,
-        "organization_id": organization_id,
-        "entries": entries,
-        "total": len(entries),
+        "type": "bi_intelligence_snapshot",
+        "timestamp": _iso_now(),
+        "forecast_head": forecast.get("forecast", [])[:2],
+        "anomaly_count": len(anomalies.get("items", [])),
+        "delivery": delivery_overview(db, organization_id=organization_id),
     }
 
 

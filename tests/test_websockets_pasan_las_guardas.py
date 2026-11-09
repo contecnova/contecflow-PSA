@@ -15,6 +15,7 @@ RUTAS = [
     "/api/v1/ws/portal-notifications",
     "/api/v1/collaboration/ws",
     "/api/v1/ws/doc/doc-1",
+    "/api/v1/bi/intelligence/realtime/stream",   # revisión 2026-11: ahora con ticket
 ]
 
 

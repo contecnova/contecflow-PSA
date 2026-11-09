@@ -1,6 +1,10 @@
 /**
  * BiO365Panel — Office 365 productivity analytics.
  * Conecta con /api/v1/bi/o365/*
+ *
+ * Revisión 2026-11: el secreto se guarda (cifrado) en vez de teclearlo en cada
+ * sincronización; «Sincronizar» enseña lo que pasó con cada informe; la lista
+ * de informes viene del servidor; y la adopción ya no pinta «[object Object]».
  */
 import React, { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -9,24 +13,30 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useChartTheme } from '../../charts/useChartTheme'
 import { Cloud, RefreshCw, Settings } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { localeActivo } from '../../utils/helpers'
+import { extractErr, localeActivo } from '../../utils/helpers'
+import { useToast } from '../../context/ToastContext'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
-const REPORTS = [
-  { key: 'teams_activity',    label: 'Teams'      },
-  { key: 'sharepoint_activity', label: 'SharePoint' },
-  { key: 'onedrive_activity', label: 'OneDrive'   },
-  { key: 'email_activity',    label: 'Email'      },
-  { key: 'user_adoption',     label: 'Adopción'   },
-]
 
 // TODO type: biO365Api config payload — needs shared type
 interface O365Config {
   tenant_id?: string
   client_id?: string
-  client_secret?: string
   enabled?: boolean
+  secret_puesto?: boolean
+  reports?: string[]
   last_sync_at?: string | null
 }
+
+interface Adopcion {
+  total_users?: number
+  active_users?: number
+  adoption_rate?: number
+  by_product?: Record<string, number>
+  fetched_at?: string | null
+}
+
+interface ResultadoSync { ok: boolean; error?: string; synced?: { report: string; ok: boolean; records?: number }[] }
 
 interface O365ConfigForm {
   tenant_id: string
@@ -44,6 +54,7 @@ const S: Record<string, React.CSSProperties> = {
 
 export default function BiO365Panel() {
   const t             = useAppT()
+  const toast         = useToast()
   const { tokens }    = useChartTheme()
   const qc            = useQueryClient()
   const [tab,          setTab]          = useState<string>('reports')
@@ -69,7 +80,7 @@ export default function BiO365Panel() {
     enabled:  tab === 'reports',
   })
 
-  const { data: adoptionData } = useQuery({
+  const { data: adoptionData } = useQuery<Adopcion>({
     queryKey: ['bi-o365-adoption'],
     queryFn:  () => biO365Api.getAdoption().then(r => r.data),
     enabled:  tab === 'adoption',
@@ -77,20 +88,34 @@ export default function BiO365Panel() {
 
   const saveConfigMutation = useMutation({
     mutationFn: (data: O365ConfigForm) => biO365Api.saveConfig(data).then(r => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-o365-config'] }),
+    onSuccess:  () => {
+      setConfigForm(f => ({ ...f, client_secret: '' }))
+      toast.success(t('bio365.guardado'))
+      qc.invalidateQueries({ queryKey: ['bi-o365-config'] })
+    },
+    onError: (e) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const syncMutation = useMutation({
-    mutationFn: () => biO365Api.triggerSync({ client_secret: configForm.client_secret }).then(r => r.data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-o365-report', selectedReport] }),
+    mutationFn: () => biO365Api.triggerSync({}).then(r => r.data as ResultadoSync),
+    onSuccess:  (r) => {
+      const filas = (r.synced ?? []).reduce((n, x) => n + (x.records ?? 0), 0)
+      if (r.ok) toast.success(t('bio365.sync_ok', { n: filas.toLocaleString(localeActivo()) }))
+      else toast.error(t('bio365.sync_fallo', { error: r.error ?? '' }))
+      qc.invalidateQueries({ queryKey: ['bi-o365-report'] })
+      qc.invalidateQueries({ queryKey: ['bi-o365-adoption'] })
+      qc.invalidateQueries({ queryKey: ['bi-o365-config'] })
+    },
+    onError: (e) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
+  const puedeSincronizar = !!config?.enabled && !!config?.secret_puesto
 
   const rows = reportData?.rows ?? reportData?.data ?? []
 
   const TAB_NAV = [
-    { id: 'reports',  label: 'Reportes' },
-    { id: 'adoption', label: 'Adopción' },
-    { id: 'config',   label: 'Configuración' },
+    { id: 'reports',  label: t('bio365.tab_informes') },
+    { id: 'adoption', label: t('bio365.tab_adopcion') },
+    { id: 'config',   label: t('bio365.tab_configuracion') },
   ]
 
   return (
@@ -98,7 +123,7 @@ export default function BiO365Panel() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: '#4f8ef718', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
             <Cloud size={16} />
           </div>
           <div>
@@ -110,8 +135,9 @@ export default function BiO365Panel() {
         </div>
         <button
           onClick={() => syncMutation.mutate()}
-          disabled={syncMutation.isPending || !config?.enabled || !configForm.client_secret}
-          style={{ ...S.btn, display: 'flex', alignItems: 'center', gap: 6, opacity: (syncMutation.isPending || !config?.enabled || !configForm.client_secret) ? 0.5 : 1 }}
+          disabled={syncMutation.isPending || !puedeSincronizar}
+          title={puedeSincronizar ? undefined : t('bio365.falta_configurar')}
+          style={{ ...S.btn, display: 'flex', alignItems: 'center', gap: 6, opacity: (syncMutation.isPending || !puedeSincronizar) ? 0.5 : 1 }}
         >
           <RefreshCw size={12} style={{ animation: syncMutation.isPending ? 'spin 1s linear infinite' : 'none' }} />
           {t('bi.o365.sync', 'Sincronizar')}
@@ -138,7 +164,7 @@ export default function BiO365Panel() {
       {tab === 'reports' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {REPORTS.map(r => (
+            {(config?.reports ?? []).map(key => ({ key, label: t(`bio365.informe_${key}`) })).map(r => (
               <button key={r.key} onClick={() => setSelectedReport(r.key)}
                 style={{
                   padding: '5px 14px', borderRadius: 20, fontSize: "var(--text-xs)", fontWeight: selectedReport === r.key ? 700 : 400,
@@ -171,16 +197,31 @@ export default function BiO365Panel() {
 
       {/* Adopción tab */}
       {tab === 'adoption' && (
-        adoptionData ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
-            {Object.entries(adoptionData).map(([k, v]) => (
-              <div key={k} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6, textTransform: 'capitalize' }}>{k.replace(/_/g, ' ')}</div>
-                <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, color: 'var(--text-1)' }}>
-                  {typeof v === 'number' ? v.toLocaleString(localeActivo()) : String(v ?? '—')}
+        adoptionData?.total_users ? (
+          <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+              {([
+                ['bio365.usuarios', adoptionData.total_users.toLocaleString(localeActivo())],
+                ['bio365.activos', (adoptionData.active_users ?? 0).toLocaleString(localeActivo())],
+                ['bio365.adopcion', `${(adoptionData.adoption_rate ?? 0).toLocaleString(localeActivo())} %`],
+              ] as const).map(([k, v]) => (
+                <div key={k} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>{t(k)}</div>
+                  <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, color: 'var(--text-1)' }}>{v}</div>
                 </div>
+              ))}
+            </div>
+            {Object.keys(adoptionData.by_product ?? {}).length > 0 && (
+              <div>
+                <div style={{ ...S.label, marginBottom: 8 }}>{t('bio365.licencias_por_producto')}</div>
+                {Object.entries(adoptionData.by_product ?? {}).sort((a, b) => b[1] - a[1]).map(([prod, n]) => (
+                  <div key={prod} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)', padding: '5px 0', borderTop: '1px solid var(--surface-4)' }}>
+                    <span style={{ color: 'var(--text-2)' }}>{prod}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>{n.toLocaleString(localeActivo())}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         ) : (
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '32px 0' }}>
@@ -211,10 +252,10 @@ export default function BiO365Panel() {
               <label style={S.label}>
                 Client Secret{' '}
                 <span style={{ color: 'var(--warning)', fontWeight: 400, textTransform: 'none', fontSize: "var(--text-2xs)" }}>
-                  {t('bio365.no_se_guarda_solo_se_usa_durante')}
+                  {t('bio365.secreto_ayuda')}
                 </span>
               </label>
-              <input type="password" value={configForm.client_secret} onChange={e => setConfigForm(f => ({ ...f, client_secret: e.target.value }))} placeholder="••••••••" style={S.input} />
+              <input type="password" value={configForm.client_secret} onChange={e => setConfigForm(f => ({ ...f, client_secret: e.target.value }))} placeholder={config?.secret_puesto ? t('bio365.secreto_puesto') : ''} autoComplete="off" style={S.input} />
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -227,7 +268,7 @@ export default function BiO365Panel() {
               disabled={saveConfigMutation.isPending}
               style={{ ...S.btn, opacity: saveConfigMutation.isPending ? 0.7 : 1 }}
             >
-              {saveConfigMutation.isPending ? 'Guardando...' : t('common.save', 'Guardar')}
+              {saveConfigMutation.isPending ? t('bio365.guardando') : t('common.save', 'Guardar')}
             </button>
           </div>
           {config?.last_sync_at && (

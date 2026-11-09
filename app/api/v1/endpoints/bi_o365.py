@@ -38,12 +38,13 @@ router = APIRouter(prefix="/bi/o365", tags=["BI Office 365"])
 class O365ConfigUpdate(BaseModel):
     tenant_id: Optional[str] = None
     client_id: Optional[str] = None
+    client_secret: Optional[str] = Field(None, max_length=500, description="Se guarda cifrado; vacío = no cambia")
+    enabled: Optional[bool] = None
     sync_period: Optional[str] = Field(None, pattern=r"^D(7|30|90|180)$")
     enabled_reports: Optional[List[str]] = None
 
 
 class SyncRequest(BaseModel):
-    client_secret: str = Field(..., description="Azure AD client secret (sent only during sync, never persisted)")
     reports: Optional[List[str]] = None
 
 
@@ -68,10 +69,13 @@ def o365_save_config(
     _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return APIResponse.ok(data=save_config(db, str(org_id) if org_id else None, body.model_dump(exclude_none=True)))
+    try:
+        return APIResponse.ok(data=save_config(db, str(org_id) if org_id else None, body.model_dump(exclude_none=True)))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
-@router.post("/sync", summary="Sincronizar datos de uso O365 desde Graph API", status_code=202)
+@router.post("/sync", summary="Sincronizar datos de uso O365 desde Graph API")
 @limiter.limit("10/minute")
 def o365_sync(
     request: Request,
@@ -80,26 +84,14 @@ def o365_sync(
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
+    """Corre en la petición y devuelve el resultado real de cada informe.
+
+    Antes respondía 202 «queued» aunque ya hubiera terminado, y «ok» aunque
+    Graph hubiera rechazado todos los informes.
+    """
     org_id = getattr(current_user, "organization_id", None)
-    payload = body or SyncRequest(client_secret="", reports=None)
-    result = run_sync(
-        db,
-        str(org_id) if org_id else None,
-        reports=payload.reports,
-        client_secret=payload.client_secret,
-    )
-    if not result.get("ok"):
-        return APIResponse.ok(data={
-            "status": "error",
-            "queued": False,
-            "detail": result.get("error", "Sync failed"),
-            **result,
-        })
-    return APIResponse.ok(data={
-        "status": "queued",
-        "queued": True,
-        **result,
-    })
+    return APIResponse.ok(data=run_sync(db, str(org_id) if org_id else None,
+                                        reports=(body.reports if body else None)))
 
 
 @router.get("/reports/{report_name}", summary="Datos de un informe O365 específico")
