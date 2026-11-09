@@ -10,8 +10,8 @@ This README is the complete functional and technical documentation of the soluti
 |---|---|
 | Menu entries (screens reachable from the sidebar) | 97, plus the client portal and public forms |
 | HTTP API routes | 2,051 (2,043 under `/api/v1`, 3 under `/api/v2`, 5 public) and 6 WebSockets |
-| Mapped database models | 395 (394 scoped by organization, 1 exempt) |
-| Alembic migrations | 71, one linear chain, head `117_esign_secretos_cifrados` |
+| Mapped database models | 415 (414 scoped by organization, 1 exempt) |
+| Alembic migrations | 98, one linear chain, head `144_presupuestos` |
 | Backend tests | The whole suite was last run on 2026-11-04 (4,139 passed, 22 skipped, 1 xfailed; the 2 structural checks that failed that day pass). Since then every change runs the tests of what it touches |
 | Frontend tests | 40 files, 130 tests, all passing |
 | Celery beat entries | 53 (over 35 tasks); `setup.sh`, `setup.bat` and Docker run them with Celery beat (APScheduler off) |
@@ -22,7 +22,7 @@ This README is the complete functional and technical documentation of the soluti
 
 - **Part 1 — Functional guide** (sections 1–6): one section per area of the menu. For each screen: who can open it, what it is for, how to use it step by step, what configures it, the endpoints and tables behind it, and its measured limitations. Functional users can skip the *Technical notes* paragraphs.
 - **Part 2 — Technical guide** (section 7): architecture, installation, every environment variable, database and migrations, API, security model, background jobs, observability, testing, extending the code, troubleshooting.
-- Other documents in the repository, in Spanish: `docs/SERVICE_DESK.md` (Service Desk manual), `docs/GUIA_DE_DISENO.md` (design guide reusable in other solutions), `DOCS.md` (older general documentation; section 7.13.3 of this README lists the statements in it that are wrong).
+- Other documents in the repository, in Spanish: `docs/SERVICE_DESK.md` (Service Desk manual), `docs/GUIA_DE_DISENO.md` (design guide reusable in other solutions), `DOCS.md` (older general documentation, in Spanish; checked against the code on 2026-11-09).
 
 ## Table of contents
 
@@ -5104,7 +5104,7 @@ Other endpoints:
 
 ## Technical Guide
 
-This section is for developers and operators who install, run, configure, extend and operate contecflow-PSA. Every figure below was measured against the repository on 03-11-2026 (last commit `Tue Nov 3 13:46 2026`, 549 commits) by reading the code or running a read-only command. When something could not be checked it says **Not verified**. Where the Spanish `DOCS.md` disagrees with the code, the code wins, and the differences are listed in [13.3](#133-docsmd-statements-that-do-not-match-the-code).
+This section is for developers and operators who install, run, configure, extend and operate contecflow-PSA. Every figure below was measured against the repository on 03-11-2026 (last commit `Tue Nov 3 13:46 2026`, 549 commits) by reading the code or running a read-only command. When something could not be checked it says **Not verified**. Where the Spanish `DOCS.md` disagrees with the code, the code wins.
 
 ---
 
@@ -5211,11 +5211,11 @@ There is no dedicated search engine for the core domain. Measured:
 | `app/api/v1/routers/` | 5 domain aggregators (`core`, `delivery`, `ai_domain`, `platform`, `framework`) + auth routers (`auth_core`, `auth_mfa`, `auth_saml`, `auth_sessions`, `auth_sso`) | 10 modules |
 | `app/api/v2/` | `meta.py`, `profitability.py` | 3 routes |
 | `app/services/` | Business logic (158 top-level modules + 12 sub-packages, e.g. `service_desk`, `collaboration`, `approval_engine`, `cmdb`, `olap`, `stt`) | 357 `.py` |
-| `app/models/` | SQLAlchemy models | 72 files, 395 mapped classes, 396 tables |
+| `app/models/` | SQLAlchemy models | 64 files, 415 mapped classes, 416 tables |
 | `app/schemas/` | Pydantic schemas | 48 files |
 | `app/core/` | Config, security, CSRF, ABAC/GRC enforcement, tenancy, encryption, metrics, rate limiter, uploads, timezone context | 30 files + `config_groups/` (5 mixins) |
 | `app/db/` | `session.py` (engine, `TenantSession`, tenant hooks), `seed.py` + `seed_parts/` (9 modules, 1,969 lines), `migrate.py` (legacy, unused by setup flows) | — |
-| `alembic/versions/` | Migrations, single linear chain, head `117_esign_secretos_cifrados` | 71 revisions |
+| `alembic/versions/` | Migrations, single linear chain, head `144_presupuestos` | 98 revisions |
 | `tests/` | Backend pytest suite | 304 `test_*.py`, **4,021 tests collected** |
 | `tests_e2e/` | Python Playwright E2E | 13 files |
 | `frontend/` | Vite + React SPA, `nginx.frontend.conf`, i18n checkers in `scripts/` | see §1.3 |
@@ -5782,7 +5782,7 @@ It also sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`, which is clamped to `ACCESS_TOKEN
 ### 5. Database and migrations
 
 - **Alembic is the only schema path.** `setup.sh`, `setup.bat`, the compose `migrate` service and `make migrate` all run `alembic upgrade head`. The app never migrates at startup. Its lifespan only compares `alembic_version` with the script heads and logs, or with `FAIL_ON_SCHEMA_DRIFT=1` aborts. `alembic/env.py` takes the URL from `settings.DATABASE_URL`.
-- **Chain:** 71 revision files, linear (`alembic history` = 71 steps from `<base>`), **single head `117_esign_secretos_cifrados`** (measured with `alembic heads`). There are two naming styles: legacy `NNN_name` and Alembic UUID ids (`alembic/NAMING_CONVENTION.md`; history is frozen and never renamed).
+- **Chain:** 98 revision files, linear, **single head `144_presupuestos`** (measured with `alembic heads`). There are two naming styles: legacy `NNN_name` and Alembic UUID ids (`alembic/NAMING_CONVENTION.md`; history is frozen and never renamed).
 - **Commands:**
   ```bash
   python -m alembic upgrade head        # idempotent
@@ -5851,7 +5851,7 @@ The remaining 92 segments have ≤ 12 routes each. `/api/v1` responses carry `x-
 
 slowapi `Limiter` with Redis storage when `REDIS_URL` is reachable (in-memory otherwise; boot fails in production without Redis unless `RATE_LIMIT_REQUIRE_REDIS_IN_PRODUCTION=0`).
 
-- **117 explicit `@limiter.limit` decorators** (login 5/min, and so on).
+- **130 explicit `@limiter.limit` decorators** (login 5/min, and so on).
 - Every other route: `RATE_LIMIT_DEFAULT` (`200/minute`) through `SlowAPIMiddleware`, counted **per route and per caller**.
 - **Who the caller is:** the user of the session (cookie `access_token` or `Authorization: Bearer`). Without a session, the client IP from `extract_client_ip`, which reads `X-Forwarded-For`/`X-Real-IP` only when the hop is a trusted proxy (`TRUST_PROXY_HEADERS`, `TRUSTED_PROXY_CIDRS`). Behind the compose nginx, set both, or every anonymous caller shares the proxy's quota.
 - **Measured** on a copy: request 201 of one user to one route got 429 and another caller kept its quota. A real 40-second browse of nine pages made 285 requests and none reached the limit.
@@ -5876,7 +5876,7 @@ slowapi `Limiter` with Redis storage when `REDIS_URL` is reachable (in-memory ot
 
 #### 7.1 Multi-tenancy (`app/db/session.py`)
 
-- 395 mapped classes: 383 have `organization_id`, 11 only `org_id`, 1 declared exempt (`Organization`, `_tenant_exempt = True`), 0 with neither (measured).
+- 415 mapped classes: 403 have `organization_id`, 11 only `org_id`, 1 declared exempt (`Organization`, `_tenant_exempt = True`), 0 with neither (measured).
 - **`TenantSession`** overrides `query()` and `execute()` and adds the tenant filter. It is **fail-closed**: a model it cannot scope raises `TenantIsolationError`.
 - **Global `do_orm_execute` listener** (`TENANT_AUTO_FILTER_GLOBAL=1`) adds `with_loader_criteria(model, cls.organization_id == org_id)` to every ORM **SELECT** for the 383 `organization_id` models. Models with `_tenant_filter_include_global` also see `organization_id IS NULL` rows. A user without an organisation gets `WHERE false`. The org id is a **closure** variable, not a default argument: the default-argument version baked the first tenant's id into SQLAlchemy's statement cache and leaked rows between tenants (comment in the code).
 - **Skipped when:** the statement is not a SELECT, it is a relationship load, `session.info["bypass_tenant_filter"]` is set (helper `sin_filtro_de_tenant(session)`), the user is superadmin, or `session.info["is_superadmin"]` is unset. That last case covers **Celery/background sessions** (`worker_db_session`), which run unfiltered by design and must scope by organisation themselves.
@@ -6059,7 +6059,6 @@ DOCS.md §16 lists generic steps (activate the venv, check `DATABASE_URL`, `alem
 4. **The response envelope is not universal** (1,860 `.ok(` for 2,051 routes, no guard test).
 5. **`/api/v2` is a 3-route stub** while every `/api/v1` response is flagged deprecated.
 6. **6 non-reversible downgrades** (§5).
-7. **`DOCS.md` states 116 rate-limited endpoints and "390 of 391 models"; measured today: 117 decorators and 394 of 395 mapped classes scoped (+1 exempt).**
 
 #### 13.2 Not verified
 
@@ -6068,25 +6067,6 @@ DOCS.md §16 lists generic steps (activate the venv, check `DATABASE_URL`, `alem
 - Runtime behaviour of: nginx WS routing and the client IP behind nginx (the configuration was validated with `nginx -t` and against the route table, not with a running proxy), the frontend `.env.example` breakage, the admin password conflict after `sync_demo_passwords`, and whether Google's chart API still answers.
 - SSO/SAML flow internals, the OAuth developer-portal token flow, and the GRC "109 non-exempt domains" figure.
 - The exact Node version Vite 7 requires (upstream fact, not measured).
-
-#### 13.3 DOCS.md statements that do not match the code
-
-| DOCS.md says | Code says |
-|---|---|
-| §2: frontend entries `src/main.jsx`, `src/App.jsx`, `src/services/api.js` | `main.tsx`, `App.tsx`, `services/api.ts` + `services/api/_core.ts`; zero `.js/.jsx` in `src` |
-| §4: Node.js 20+ | `setup.sh` only requires 18 (warns); the frontend image uses Node 20 |
-| §6: variable `CORS_ORIGINS` | It is `ALLOWED_ORIGINS` (`config.py` says so explicitly) |
-| §7: mode `./setup.sh admin-only-start` | No such mode. `setup.sh` has demo, clean, start, stop, update, docker-stop, docker-clean; `admin-only` exists only in `setup.bat` as an alias of `clean` |
-| §7: Docker stack "versioned in `deploy/docker-compose.yml`" | `docker-compose.yml` is in the repo root; `deploy/` holds only the Dockerfiles |
-| §8: Seed = `python scripts/seed_full_data.py` | `setup.sh demo` uses `python -m app.db.seed`; `seed_full_data.py` is a separate, heavier generator |
-| §8: "default users live in `default_seed_users()`" | Used only if `seed_users_data.json` is missing; the JSON is in the repo and wins (it ignores `SUPERADMIN_EMAIL`) |
-| §8: "`app/db/migrate.py` is no longer used in any flow" | Still recommended by `setup.sh`'s SQLite recovery message |
-| §8bis (and the compose header): `./setup.sh` with no argument "creates .env, volumes and starts infra" | No argument prints usage and exits 1 |
-| §10: hook `frontend/src/hooks/useOrgSettings.js` | `useOrgSettings.ts` |
-| §12: "Rate limiting: 116 endpoints" | 117 `@limiter.limit` decorators |
-| §12: tenant filter "covers 390 of 391 models" | 395 mapped classes: 383 `organization_id` + 11 `org_id` + 1 exempt |
-| §14 Observability: "logs, Sentry and OpenTelemetry" | Also Prometheus `/metrics` and an observability compose profile |
-| §15 E-sign: `frontend/src/services/api.js` | `api.ts`; there is no `api.js` |
 
 ---
 

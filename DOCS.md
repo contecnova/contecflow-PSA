@@ -38,9 +38,9 @@ Entradas clave:
 - Componentes por dominio
 
 Entradas clave:
-- `frontend/src/main.jsx`
-- `frontend/src/App.jsx`
-- `frontend/src/services/api.js`
+- `frontend/src/main.tsx`
+- `frontend/src/App.tsx`
+- `frontend/src/services/api.ts` (reexporta `frontend/src/services/api/_core.ts`)
 - `frontend/src/pages/`
 - `frontend/src/components/`
 
@@ -56,7 +56,7 @@ Entradas clave:
 
 ## 4. Requisitos
 - Python 3.12
-- Node.js 20+
+- Node.js 18+ (`setup.sh` avisa por debajo de 18; la imagen del frontend usa Node 20)
 - npm
 - Redis
 
@@ -82,7 +82,7 @@ Variables críticas:
 - `DATABASE_URL`
 - `SECRET_KEY`
 - `REDIS_URL`
-- `CORS_ORIGINS`
+- `ALLOWED_ORIGINS`
 - claves de proveedores IA si aplica
 
 ### Frontend
@@ -93,8 +93,9 @@ Crear `frontend/.env` desde `frontend/.env.example`.
 - `./setup.sh demo` — carga seed y arranca.
 - `./setup.sh clean` — limpia datos y deja solo admin, luego arranca. El reset crea automáticamente una organización base y asigna el usuario admin a esa organización para cumplir la restricción multi-tenant actual.
 - `./setup.sh start` — solo arranca y preserva la base de datos existente.
-- `./setup.sh admin-only-start` — BD limpia conservando solo el usuario `admin` (credenciales de `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD`).
-- `setup.bat` soporta `demo`, `clean`, `start demo`, `start clean` y la variable `SETUP_INIT_MODE=demo|clean` antes de `setup.bat start` para modo no interactivo.
+- `./setup.sh stop`, `update`, `docker-stop`, `docker-clean` — parar, actualizar y parar o borrar la infraestructura Docker.
+- `clean`, `demo` y `docker-clean` se niegan (salida 2) si `ENVIRONMENT` no es de desarrollo o pruebas.
+- `setup.bat` soporta `demo`, `clean` (también `admin-only`), `start demo`, `start clean` y la variable `SETUP_INIT_MODE=demo|clean` antes de `setup.bat start` para modo no interactivo.
 
 ### Opción manual
 1. API backend: `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
@@ -105,7 +106,7 @@ Crear `frontend/.env` desde `frontend/.env.example`.
 ### Paridad de autenticación y despliegue
 - El login ahora soporta MFA por TOTP y passkeys, con un flujo de UI coherente con el patrón de Contecmind.
 - El flujo incluye carga de proveedores SSO, redirección al proveedor y manejo del challenge MFA antes de completar la sesión.
-- El stack de Docker local quedó versionado en `deploy/docker-compose.yml` con PostgreSQL, Redis, backend, worker y frontend para despliegues reproducibles.
+- El stack de Docker está en `docker-compose.yml`, en la raíz (PostgreSQL, Redis, S3, migrate, api, worker, beat y web); `deploy/` guarda los Dockerfile. Copias: `scripts/backup.sh` y `scripts/restore.sh`; despliegue: `scripts/deploy.sh`.
 
 ## 8. Base de datos
 
@@ -142,9 +143,8 @@ Reglas que se derivan de eso:
   `upgrade head` fallaría.
 
 ### Seed
-- `python scripts/seed_full_data.py`
-- Los usuarios por defecto viven en `app/db/seed_parts/core.py::default_seed_users()`,
-  extraída para poder verificar sus propiedades de seguridad sin ejecutar el seed
+- `python -m app.db.seed` (lo que usa `setup.sh demo`). `python scripts/seed_full_data.py` es otro generador, más pesado.
+- Los usuarios salen de `seed_users_data.json`; `app/db/seed_parts/core.py::default_seed_users()` sólo se usa si falta ese fichero
   (ver `tests/test_seed_fixture_parity.py`).
 
 Notas:
@@ -389,7 +389,7 @@ Valores por defecto centralizados en `app/core/config.py` (sobrescribibles por v
 
 Endpoint backend: `GET /api/v1/settings/org-defaults` devuelve los valores actuales de la organización para consumo del frontend.
 
-Hook frontend: `useOrgSettings` (`frontend/src/hooks/useOrgSettings.js`) — TanStack Query con `staleTime` de 5min y fallback a defaults.
+Hook frontend: `useOrgSettings` (`frontend/src/hooks/useOrgSettings.ts`) — TanStack Query con `staleTime` de 5min y fallback a defaults.
 
 ## 11. Estándares UI
 Guía de diseño completa —tokens, temas con su contraste medido, componentes,
@@ -458,7 +458,7 @@ ordenadas de la más difícil de olvidar a la más discrecional:
 
 **1. Aislamiento entre tenants** — `app/db/session.py::TenantSession`.
 Filtra toda consulta ORM por organización, en `query()` (SA 1.x) y en `execute()`
-(SA 2.0). Cubre 390 de 391 modelos. Es **fail-closed**: si un modelo no se puede
+(SA 2.0). Cubre los 414 modelos con organización (403 por `organization_id`, 11 por `org_id`) de 415. Es **fail-closed**: si un modelo no se puede
 aislar, la consulta lanza `TenantIsolationError` en lugar de ejecutarse sin
 filtro. La única exención (`Organization`, que ES el tenant) se declara en el
 propio modelo con `_tenant_exempt = True` y sus rutas llevan guarda manual.
@@ -504,7 +504,7 @@ Errores que la auditoría 2026-08 encontró y que conviene no repetir:
 - JWT, refresh y MFA (TOTP + WebAuthn), forzado también en SSO
 - SSO OIDC con verificación de firma contra JWKS, PKCE S256, `state` con HMAC de
   un solo uso y verificación de `nonce`
-- Rate limiting: 116 endpoints con límite explícito, bloqueo por intentos en
+- Rate limiting: 130 decoradores `@limiter.limit` y `RATE_LIMIT_DEFAULT` en el resto (por ruta y usuario), bloqueo por intentos en
   login, Redis obligatorio en producción
 - CSRF en dos capas: Origin/Referer siempre + double-submit opcional
 - Cifrado de secretos de integraciones
@@ -572,7 +572,7 @@ Notas:
 ## 14. Operación
 ### Observabilidad
 - Logs de aplicación
-- Sentry y OpenTelemetry si están habilitados
+- Sentry y OpenTelemetry si están habilitados; métricas Prometheus en `/metrics` (`METRICS_ENABLED`) y perfil `observability` en el compose
 
 ### Jobs periódicos
 Definidos en `app/worker.py`:
@@ -604,7 +604,7 @@ Backend:
 - `GET /esign/summary/stats` consulta primero claves DB y hace fallback a env vars.
 
 Frontend:
-- `esignApi.getConfig` / `saveConfig` (`frontend/src/services/api.js`).
+- `esignApi.getConfig` / `saveConfig` (`frontend/src/services/api/_core.ts`).
 - `ESignSettingsSection`: tarjeta por proveedor con badge configurado/no configurado, campos secretos tipo password y botón Guardar.
 
 ### Documentos
