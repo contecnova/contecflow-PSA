@@ -155,6 +155,12 @@ def _totales_de_imputacion(
     return total_hours, billable_hours, internal_cost
 
 
+def _hay_tarifas(db: Session, project: Project) -> bool:
+    from app.models.advanced_config import RateTable
+    return db.query(RateTable.id).filter(RateTable.is_active.is_(True),
+                                         RateTable.organization_id == project.organization_id).first() is not None
+
+
 def _ingreso_facturable(
     project: Project,
     db: Session,
@@ -169,6 +175,15 @@ def _ingreso_facturable(
     horas facturables, manda la tarifa. Los hitos solo entran en los proyectos a
     precio cerrado (`contract_amount`).
     """
+    if billable_hours and _hay_tarifas(db, project):
+        # Revisión 2026-11: con tablas de tarifas, cada hora a la tarifa con la que se factura
+        # (perfil, excepción de proyecto o cliente, vigencia), como las líneas de factura.
+        from app.services.rate_card_service import tarifa_de_facturacion
+        cache: dict = {}
+        total = sum(i.hours * tarifa_de_facturacion(db, i.user, project, i.date, cache)
+                    for i in get_project_imputations(db, project.id, desde, hasta) if i.is_billable and i.user)
+        if total:
+            return total
     if project.billing_rate and billable_hours:
         return project.billing_rate * billable_hours
     if project.contract_amount:

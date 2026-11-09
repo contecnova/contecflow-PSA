@@ -1728,9 +1728,9 @@ General notes that apply to every module here:
 **Technical notes.**
 - **Endpoints:** `GET/POST /api/v1/rate-cards`, `GET/PATCH/DELETE /rate-cards/{id}`, `POST /rate-cards/{id}/duplicate`, `/rate-cards/{id}/entries[/{eid}]`, `/rate-cards/{id}/overrides[/{oid}]`, `GET /rate-cards/effective`.
 - **Tables:** `rate_tables`, `rate_entries`, `rate_overrides`. A second API over `rate_tables` exists in `advanced_config`.
+- **Where the rates apply** (`rate_card_service.tarifa_de_facturacion`): invoice lines generated from timesheets, the hourly revenue in Profitability, and time-and-materials revenue recognition. For each time entry, the person's profile (`users.job_title`) is the role; the rate is a project override, then a client override, then a table (client tables first, then the default one), valid on the entry's date and with the annual escalation counted up to that year; with none, the project's `billing_rate`; with none, the person's rate. Profitability and revenue look at rates only when the company has an active table, so companies without tables keep the project rate.
 
 **Limitations.**
-- **Nothing reads these rates.** Invoices, profitability and revenue use `projects.billing_rate` and `users.hourly_rate`. `revenue_service` says so explicitly in a comment.
 - **Client and project overrides have no UI.** `addOverride` is never called.
 - **The effective-rate lookup is not shown anywhere.** The `useEffectiveRate` hook has no consumer.
 

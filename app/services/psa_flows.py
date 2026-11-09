@@ -244,14 +244,19 @@ def build_invoice_preview_from_timesheets_flow(
         imps_q = imps_q.filter(Imputation.date <= date_to)
     imps = imps_q.all()
 
+    # Revisión 2026-11: la tarifa sale de las tablas de tarifas (perfil de la persona,
+    # excepción de proyecto o cliente, vigencia y escalado), y si no, la del proyecto.
+    from app.services.rate_card_service import tarifa_de_facturacion
+    moneda = project.currency or settings.DEFAULT_CURRENCY
+    cache: dict = {}
     by_profile = {}
     for imp in imps:
-        rate = project.billing_rate or (imp.user.hourly_rate if imp.user else 0) or 0
+        rate = tarifa_de_facturacion(db, imp.user, project, imp.date, cache) if imp.user else float(project.billing_rate or 0)
         profile = imp.user.job_title or imp.user.role if imp.user else "Consultor"
         key = f"{profile}___{rate}"
         if key not in by_profile:
             by_profile[key] = {
-                "description": f"{profile} ({rate}EUR/h)",
+                "description": f"{profile} ({rate:g} {moneda}/h)",
                 "hours": 0,
                 "rate": rate,
                 "ids": [],

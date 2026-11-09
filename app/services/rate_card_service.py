@@ -2,6 +2,7 @@
 rate_card_service.py — Service layer for Rate Cards (RateTable / RateEntry / RateOverride).
 """
 import uuid
+from datetime import date
 from typing import Optional
 
 from fastapi import HTTPException
@@ -20,10 +21,19 @@ def _org_filter(q, model, org_id, is_superadmin):
     return q
 
 
-def _date_valid(valid_from, valid_to, today: str) -> bool:
-    if valid_from and today < valid_from:
+def _fecha(v) -> Optional[date]:
+    """Las columnas son Date; las consultas llegan como texto ISO. Revisión 2026-11: antes se
+    comparaban tal cual y la búsqueda reventaba en cuanto una tarifa tenía vigencia."""
+    if v is None or v == "":
+        return None
+    return v if isinstance(v, date) else date.fromisoformat(str(v)[:10])
+
+
+def _date_valid(valid_from, valid_to, today) -> bool:
+    hoy = _fecha(today)
+    if valid_from and hoy < _fecha(valid_from):
         return False
-    if valid_to and today > valid_to:
+    if valid_to and hoy > _fecha(valid_to):
         return False
     return True
 
@@ -228,7 +238,7 @@ def _con_escalado(entry, hoy_anio: int) -> float:
     tarifa = entry.billing_rate or 0
     if not entry.escalation_pct or not entry.valid_from:
         return tarifa
-    anios = hoy_anio - int(entry.valid_from[:4])
+    anios = hoy_anio - _fecha(entry.valid_from).year
     return round(tarifa * ((1 + entry.escalation_pct / 100) ** max(0, anios)), 2)
 
 
@@ -249,7 +259,7 @@ def _tarifa_en_tablas(db: Session, role_label: str, client_id, project_id,
         2 if t.is_default else 3
     ))
 
-    anio = timeutil.today().year
+    anio = _fecha(hoy).year      # el escalado del año consultado, no del año en curso
     for tabla in tablas:
         for entry in (tabla.entries or []):
             if not entry.is_active or entry.label.lower() != role_label.lower():
@@ -325,3 +335,28 @@ def serialize_rate_table(t, include_entries: bool = False) -> dict:
     else:
         d["entry_count"] = len([e for e in (t.entries or []) if e.is_active])
     return d
+
+
+# ── La tarifa con la que se factura (revisión 2026-11) ───────────────────────────
+
+def tarifa_de_facturacion(db: Session, usuario, project, fecha, _cache: Optional[dict] = None) -> float:
+    """€/h a facturar por las horas de una persona en un proyecto en una fecha.
+
+    Primero las tarifas (excepción del proyecto o del cliente, luego tabla), con
+    el perfil de la persona (`job_title`) como rol; si no hay ninguna, la tarifa
+    del proyecto; si tampoco, la de la persona. Antes las tarifas no las leía
+    nadie: se facturaba siempre por `projects.billing_rate`.
+    """
+    perfil = (getattr(usuario, "job_title", None) or "").strip()
+    if perfil:
+        clave = (perfil.lower(), project.id, str(fecha))
+        if _cache is not None and clave in _cache:
+            r = _cache[clave]
+        else:
+            r = get_effective_rate(db, perfil, getattr(project, "client_id", None), project.id, str(fecha),
+                                   project.organization_id, False)
+            if _cache is not None:
+                _cache[clave] = r
+        if r.get("billing_rate"):
+            return float(r["billing_rate"])
+    return float(project.billing_rate or getattr(usuario, "hourly_rate", 0) or 0)

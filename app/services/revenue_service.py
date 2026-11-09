@@ -384,10 +384,9 @@ def _recognize_over_time(db: Session, contract: RevenueContract, year: int, mont
 
     Sobre la tarifa: se usa `billing_rate` del proyecto, que es la pactada con el
     cliente y la fuente que ya usan el resto de módulos (`dashboard_service`,
-    `bi_intelligence_service`, `cab_service`). Una tarifa por rol vía
-    `rate_card_service.get_effective_rate` sería más precisa, pero exige resolver
-    el rol de cada persona imputación a imputación; queda como mejora, no se
-    inventa aquí. Si el proyecto no tiene tarifa no se reconoce nada y se AVISA:
+    `bi_intelligence_service`, `cab_service`). Con tablas de tarifas en la
+    empresa, la de cada hora sale de `rate_card_service.tarifa_de_facturacion`
+    (revisión 2026-11). Si no hay tarifa no se reconoce nada y se AVISA:
     antes ese caso era indistinguible del «no hay horas».
     """
     from sqlalchemy import extract
@@ -427,7 +426,19 @@ def _recognize_over_time(db: Session, contract: RevenueContract, year: int, mont
 
     # Acceso directo, sin `getattr(..., None)`: si el campo se renombra, que
     # falle en voz alta. Ése fue exactamente el defecto que ocultó este fallo.
-    avg_rate = float(proj.billing_rate or 0.0)
+    # Revisión 2026-11: con tablas de tarifas, cada hora a la tarifa con la que se factura
+    # (perfil, excepción de proyecto o cliente, vigencia y escalado); si no, la del proyecto.
+    from app.services.profitability_service import _hay_tarifas
+    if _hay_tarifas(db, proj):
+        from app.services.rate_card_service import tarifa_de_facturacion
+        cache: dict = {}
+        imps = db.query(Imputation).filter(
+            Imputation.project_id == contract.project_id, Imputation.is_approved.is_(True),
+            extract("year", Imputation.date) == year, extract("month", Imputation.date) == month).all()
+        por_tarifa = sum(i.hours * tarifa_de_facturacion(db, i.user, proj, i.date, cache) for i in imps if i.user)
+        avg_rate = round(por_tarifa / total_hours, 2) if por_tarifa else float(proj.billing_rate or 0.0)
+    else:
+        avg_rate = float(proj.billing_rate or 0.0)
     if avg_rate <= 0:
         # Antes esto era silencio absoluto. Es un dato que falta, no un cero
         # legítimo, y quien opera el cierre necesita saberlo.
