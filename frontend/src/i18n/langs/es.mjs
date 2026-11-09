@@ -5675,6 +5675,7 @@ const es = {
     niveles_de_acceso: 'Niveles de acceso',
   },
   reportbuilder: {
+    csv_parcial: "CSV parcial: {filas} de {total} filas (tope en Ajustes → REPORT_EXPORT_MAX_ROWS). Filtra para exportar el resto.",
     seleccionar_todos: 'Seleccionar todos',
     sin_resultados: 'Sin resultados',
     orden_de_columnas_arrastra_para_reordenar: 'Orden de columnas (arrastra para reordenar)',

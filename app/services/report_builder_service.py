@@ -763,6 +763,24 @@ def execute_report_paginated(
     }
 
 
+def exportar_todo(entity: str, columns: List[str], filters: list, sort_column: Optional[str],
+                  sort_direction: str, current_user: User, db: Session) -> tuple:
+    """Todas las filas, por páginas, hasta `REPORT_EXPORT_MAX_ROWS`. Devuelve (filas, total)."""
+    from app.services.settings_service import get_runtime_int
+    tope = int(get_runtime_int(db, "REPORT_EXPORT_MAX_ROWS", getattr(current_user, "organization_id", None)) or 0)
+    filas: list = []
+    total, pagina = 0, 1
+    while len(filas) < tope:
+        lote = execute_report_paginated(entity, columns, filters, sort_column, sort_direction,
+                                        pagina, _MAX_FILAS_SIN_PAGINAR, current_user, db)
+        total = lote["total"]
+        filas.extend(lote["items"])
+        if not lote["items"] or len(filas) >= total:
+            break
+        pagina += 1
+    return filas[:tope], total
+
+
 def build_csv_response(columns: List[str], rows: List[Dict], entity: str, pagination: dict = None) -> StreamingResponse:
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=columns)

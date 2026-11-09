@@ -6347,6 +6347,7 @@ const en = {
     niveles_de_acceso: 'Access levels',
   },
   reportbuilder: {
+    csv_parcial: "Partial CSV: {filas} of {total} rows (limit in Settings → REPORT_EXPORT_MAX_ROWS). Filter to export the rest.",
     seleccionar_todos: 'Select all',
     sin_resultados: 'No results',
     orden_de_columnas_arrastra_para_reordenar: 'Column order (drag to reorder)',

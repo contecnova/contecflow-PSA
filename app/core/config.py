@@ -509,6 +509,8 @@ class Settings(
     BI_ETL_LOG_MAX_ENTRIES: int = Field(default=100, env="BI_ETL_LOG_MAX_ENTRIES")
     # Filas que el Explorador de datos lee para agrupar y totalizar (revisión 2026-11).
     BI_EXPLORER_MAX_ROWS: int = Field(default=100000, env="BI_EXPLORER_MAX_ROWS")
+    # Filas máximas de una exportación CSV del constructor de informes (revisión 2026-11).
+    REPORT_EXPORT_MAX_ROWS: int = Field(default=100000, env="REPORT_EXPORT_MAX_ROWS")
 
     # Quién puede incrustar la página de indicadores de BI (revisión 2026-11).
     BI_EMBED_FRAME_ANCESTORS: str = Field(

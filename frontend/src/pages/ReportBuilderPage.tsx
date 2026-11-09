@@ -14,6 +14,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { useToast } from '../context/ToastContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 
 const fs: CSSProperties = { width: '100%', background: 'var(--surface-4)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -391,6 +392,7 @@ function BiPresetsTab() {
 // ── Main page ──────────────────────────────────────────────────────────────
 export default function ReportBuilderPage() {
   const traducir = useAppT()
+  const toast = useToast()
   const narrow = useMediaQuery('(max-width: 900px)')
   const t = useAppT()
   const { data: schema } = useSchema()
@@ -460,6 +462,11 @@ export default function ReportBuilderPage() {
     if (!entity) return
     const q = buildQuery()
     const res = await reportBuilderApi.export(q, { responseType: 'blob' })
+    // Revisión 2026-11: la exportación trae todo hasta REPORT_EXPORT_MAX_ROWS;
+    // si la fuente tiene más, se dice (antes se cortaba en 2.000 en silencio).
+    const total = Number((res as { headers?: Record<string, string> }).headers?.['x-total-count'] ?? 0)
+    const filas = Number((res as { headers?: Record<string, string> }).headers?.['x-page-size'] ?? 0)
+    if (total > filas && filas > 0) toast.warning(traducir('reportbuilder.csv_parcial', { filas: filas.toLocaleString(), total: total.toLocaleString() }))
     const url = URL.createObjectURL(res.data)
     const a = document.createElement('a')
     a.href = url

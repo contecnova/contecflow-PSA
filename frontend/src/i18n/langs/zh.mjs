@@ -6358,6 +6358,7 @@ const zh = {
     niveles_de_acceso: '访问级别说明',
   },
   reportbuilder: {
+    csv_parcial: "CSV 不完整：{total} 行中的 {filas} 行（上限见 设置 → REPORT_EXPORT_MAX_ROWS）。请筛选后导出其余部分。",
     seleccionar_todos: '全选',
     sin_resultados: '无结果',
     orden_de_columnas_arrastra_para_reordenar: '列顺序（拖动可调整）',

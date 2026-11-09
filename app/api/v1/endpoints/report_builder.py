@@ -86,7 +86,7 @@ from fastapi import Query
 @router.post("/export", summary="Exportar informe a CSV")
 def export_report(
     q: ReportQuery,
-    page: int = Query(1, ge=1, description="Número de página para exportación paginada"),
+    page: Optional[int] = Query(None, ge=1, description="Página; sin ella se exporta todo (hasta REPORT_EXPORT_MAX_ROWS)"),
     page_size: int = Query(2000, ge=1, le=10000, description="Tamaño de página para exportación paginada"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
@@ -94,13 +94,15 @@ def export_report(
 ):
     if q.entity not in _svc.ENTITIES:
         raise HTTPException(400, f"Entidad '{q.entity}' desconocida")
-    result = _svc.execute_report_paginated(
-        q.entity, q.columns, q.filters,
-        q.sort.column if q.sort else None,
-        q.sort.direction if q.sort else "asc",
-        page, page_size, current_user, db,
-    )
-    return _svc.build_csv_response(q.columns, result["items"], q.entity, pagination=result)
+    orden = (q.sort.column if q.sort else None, q.sort.direction if q.sort else "asc")
+    if page is not None:
+        result = _svc.execute_report_paginated(q.entity, q.columns, q.filters, *orden, page, page_size, current_user, db)
+        return _svc.build_csv_response(q.columns, result["items"], q.entity, pagination=result)
+    # Revisión 2026-11: la pantalla no pide página y se exportaban las 2.000
+    # primeras filas sin decirlo. Sin página se exporta todo, hasta el tope.
+    filas, total = _svc.exportar_todo(q.entity, q.columns, q.filters, *orden, current_user, db)
+    return _svc.build_csv_response(q.columns, filas, q.entity, pagination={"total": total, "page": 1,
+                                                                           "page_size": len(filas), "pages": 1})
 
 
 @router.get("/templates", summary="Listar plantillas de informes")

@@ -3024,9 +3024,9 @@ There is also a **⚡ Presets BI** tab; see Limitations.
 - Templates are stored as JSON in `app_settings`, key `report_templates:{user_id}`.
 
 **Limitations (measured).**
-- **The CSV is silently capped at 2,000 rows.** The frontend sends no paging, and the `X-Total-Count` header is ignored.
+- **The CSV exports every row** up to `REPORT_EXPORT_MAX_ROWS` (100,000; without `page`, `POST /reports/export` reads page by page). `X-Total-Count` says how many exist, and the screen warns when the file is partial.
+- **⚡ Presets BI: the 15 presets point to tables and columns the report engine does not have** (measured: 6 name tables that do not exist, such as `imputations_monthly`, and the other 9 name columns such as `revenue_actual`). They have to be rebuilt on the real entities with grouping; until then they return nothing.
 - **Builder reports cannot be scheduled.**
-- **⚡ Presets BI never returns data.** `bi_report_builder_v2_service.execute_preset_with_controls` calls `execute_report` with arguments that do not match its signature (checked with `inspect.signature.bind`: TypeError). The error is caught, so every preset preview and export returns `rows=[]` with `degraded=true`. Export with `format=csv|xlsx` still returns JSON. The existing tests only check the response shape.
 - Within admin and PM there is no row-level filter: a PM reads the cost data of the whole organization.
 
 ### Predictions — `/predictions`
@@ -4174,7 +4174,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 226 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 227 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4344,6 +4344,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | conectores | BI_ETL_HTTP_TIMEOUT_S | float | 20.0 | BI ETL connectors — timeout of a request to the source (s) | rt (`bi_etl_service`) |
 | conectores | BI_ETL_LOG_MAX_ENTRIES | int | 100 | BI ETL connectors — sync log entries kept per connector | rt (`bi_etl_service`, `bi_o365_service`) |
 | conectores | BI_EXPLORER_MAX_ROWS | int | 100000 | Data Explorer — rows read to group and total (above it, the result says it is partial) | rt (`bi_query_builder_service`) |
+| conectores | REPORT_EXPORT_MAX_ROWS | int | 100000 | Report builder — rows of a CSV export (X-Total-Count says how many exist) | rt (`report_builder_service`) |
 | conectores | CONTECINTELLIGENCE_HANDOFF_ENABLED | bool | true | contecintelligence — Ask the Data offers to pass a question it cannot answer | rt |
 | lecciones | LESSONS_CATEGORIES | str | `alcance,planificacion,estimacion,tecnica,calidad,comunicacion,cliente,proveedor,equipo,seguridad,operacion,coste` | Lessons — categories (CSV) | rt |
 | lecciones | LESSONS_VALIDATOR_ROLES | str | `admin,pm,team_lead` | Lessons — roles that validate or archive a lesson (CSV) | rt |
@@ -5324,7 +5325,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 366)
+#### 4.2 Settings fields (`Settings`, 367)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5709,6 +5710,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `BI_ETL_HTTP_TIMEOUT_S` | `20.0` | BI ETL connectors — timeout of a request to the source (s) |
 | `BI_ETL_LOG_MAX_ENTRIES` | `100` | BI ETL connectors — sync log entries kept per connector |
 | `BI_EXPLORER_MAX_ROWS` | `100000` | Data Explorer — rows read to group and total |
+| `REPORT_EXPORT_MAX_ROWS` | `100000` | Report builder — rows of a CSV export |
 | `LESSONS_CATEGORIES` | `'alcance,planificacion,estimacion,tecnica,calidad,comunicacion,cliente,proveedor,equipo,seguridad,operacion,coste'` | Lessons — categories (CSV) |
 | `LESSONS_VALIDATOR_ROLES` | `'admin,pm,team_lead'` | Lessons — roles that validate or archive a lesson (CSV) |
 | `LESSONS_ONLY_VALIDATED` | `True` | Lessons — only validated lessons are recommended |
