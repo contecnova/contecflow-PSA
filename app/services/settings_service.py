@@ -383,6 +383,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("BI_ETL_PAGE_SIZE", "int", "BI ETL connectors — records asked for per request"),
         ("BI_ETL_HTTP_TIMEOUT_S", "float", "BI ETL connectors — timeout of a request to the source (s)"),
         ("BI_ETL_LOG_MAX_ENTRIES", "int", "BI ETL connectors — sync log entries kept per connector"),
+        ("BI_EXPLORER_MAX_ROWS", "int", "Data Explorer — rows read to group and total (above it, the result says it is partial)"),
         ("CONTECINTELLIGENCE_HANDOFF_ENABLED", "bool", "contecintelligence — Ask the Data offers to pass a question it cannot answer"),
     ],
     "lecciones": [

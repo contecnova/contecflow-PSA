@@ -6398,6 +6398,7 @@ const en = {
     recomendacion: 'Recommendation',
   },
   biquerybuilder: {
+    totales_parciales: "Partial totals: {leidas} of {totales} rows were read (limit in Settings → BI_EXPLORER_MAX_ROWS). Filter more to see the exact total.",
     construye_consultas_bi_sin_sql_de_forma: 'Build BI queries visually, without writing SQL',
     anadir_filtro: '+ Add filter',
     agrupar_por: 'Group by',

@@ -279,17 +279,30 @@ def _compute_query_result(
     _validate_fields_against_dataset(dataset, normalized_group_by)
     _validate_fields_against_dataset(dataset, [a["field"] for a in normalized_aggs])
 
-    # Fetch base rows from report builder engine (safe model-based query, no raw SQL).
-    base_rows = report_builder_service.execute_report(
-        dataset,
-        selected_fields,
-        filters=normalized_filters,
-        sort_column=sort_by if sort_by in selected_fields else None,
-        sort_direction=sort_dir,
-        limit=5000,
-        current_user=current_user,
-        db=db,
-    )
+    # Revisión 2026-11. Medido antes: pedía 5.000 filas, el motor de informes
+    # corta en 2.000 sin decirlo y se agrupaba en Python sobre ese trozo: los
+    # totales agrupados salían mal en silencio. Ahora se leen las páginas hasta
+    # el final (con el tope BI_EXPLORER_MAX_ROWS) y, si la fuente tiene más,
+    # la respuesta lo dice.
+    from app.services.settings_service import get_runtime_int
+    agrega = bool(normalized_group_by or normalized_aggs)
+    tope = int(get_runtime_int(db, "BI_EXPLORER_MAX_ROWS", getattr(current_user, "organization_id", None)) or 0)
+    necesarias = tope if agrega else min(max(int(limit or 100), 1), 5000)
+    base_rows: list = []
+    filas_totales = 0
+    pagina = 1
+    while len(base_rows) < necesarias:
+        lote = report_builder_service.execute_report_paginated(
+            dataset, selected_fields, filters=normalized_filters,
+            sort_column=sort_by if sort_by in selected_fields else None, sort_direction=sort_dir,
+            page=pagina, page_size=report_builder_service._MAX_FILAS_SIN_PAGINAR, current_user=current_user, db=db)
+        filas_totales = lote["total"]
+        base_rows.extend(lote["items"])
+        if not lote["items"] or len(base_rows) >= filas_totales:
+            break
+        pagina += 1
+    base_rows = base_rows[:necesarias]
+    incompleto = agrega and filas_totales > len(base_rows)
 
     processed_rows, result_columns = _apply_grouping_and_aggregations(
         base_rows,
@@ -313,6 +326,10 @@ def _compute_query_result(
         "truncated": len(processed_rows) > len(final_rows),
         "group_by": normalized_group_by,
         "aggregations": normalized_aggs,
+        # Si es True, los totales salen de `filas_leidas` de `filas_totales`.
+        "incompleto": incompleto,
+        "filas_leidas": len(base_rows),
+        "filas_totales": filas_totales,
     }
 
 

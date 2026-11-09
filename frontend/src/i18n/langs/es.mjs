@@ -5726,6 +5726,7 @@ const es = {
     recomendacion: 'Recomendación',
   },
   biquerybuilder: {
+    totales_parciales: "Totales parciales: se han leído {leidas} de {totales} filas (tope en Ajustes → BI_EXPLORER_MAX_ROWS). Filtra más para ver el total exacto.",
     construye_consultas_bi_sin_sql_de_forma: 'Construye consultas BI sin SQL de forma visual',
     anadir_filtro: '+ Añadir filtro',
     agrupar_por: 'Agrupar por',

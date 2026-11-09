@@ -6409,6 +6409,7 @@ const zh = {
     recomendacion: '建议',
   },
   biquerybuilder: {
+    totales_parciales: "部分合计：已读取 {totales} 行中的 {leidas} 行（上限见 设置 → BI_EXPLORER_MAX_ROWS）。请进一步筛选以查看精确合计。",
     construye_consultas_bi_sin_sql_de_forma: '以可视化方式构建 BI 查询，无需编写 SQL',
     anadir_filtro: '+ 添加筛选条件',
     agrupar_por: '分组依据',

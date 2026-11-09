@@ -73,6 +73,9 @@ interface QueryResult {
   row_count?: number
   dataset?: string
   truncated?: boolean
+  incompleto?: boolean
+  filas_leidas?: number
+  filas_totales?: number
   [k: string]: unknown
 }
 
@@ -416,6 +419,11 @@ export default function BiQueryBuilderPanel() {
                 {results.row_count ?? results.rows?.length ?? 0} registros · dataset: {results.dataset ?? '—'}
                 {results.truncated ? ` · limitados a ${results.row_count}` : ''}
               </div>
+              {results.incompleto && (
+                <div role="alert" style={{ fontSize: "var(--text-sm)", color: 'var(--warning)', marginBottom: 12 }}>
+                  {traducir('biquerybuilder.totales_parciales', { leidas: (results.filas_leidas ?? 0).toLocaleString(), totales: (results.filas_totales ?? 0).toLocaleString() })}
+                </div>
+              )}
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
                   <thead>

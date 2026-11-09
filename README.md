@@ -2943,7 +2943,7 @@ If the chosen provider fails, every other active provider is tried once. If none
 - **Ask the Data joins.** The tenant filter is injected per table, with its alias.
 - **How the OLAP load works.** `run_full_etl` (`app/services/olap/etl.py`) reads every field by its real attribute (a missing one fails instead of loading empty): budget `budget_amount`; revenue `contract_amount`, else the budget; end date `end_date_real`, else `end_date_planned`; risk `risk_level`; user cost `hourly_rate`; time-entry cost what the entry stored (`cost_amount`), else hours × the rate at the time (`hourly_rate_snapshot`), else the user's rate; ticket SLA `sla_resolution_breached` or `sla_response_breached`, agent `assigned_to_user_id`, satisfaction `csat_score`, «category» `service_item_id`; resolution hours exact. It is a **full reload in one DuckDB transaction** (what was deleted in Postgres disappears; a failure keeps the previous data). Measured on a copy of the real database: every table matches Postgres in 2.2 s, 0.1–1.6 s on reloads. Each load is recorded (`etl_runs`, time in UTC) and the Data Explorer shows when it last loaded, the company's rows per table, the error if the last one failed, and for admins **Cargar ahora** (`POST /api/v1/analytics/olap/refresh`, admin; `GET /api/v1/analytics/olap/status`). The reload covers the whole store (every query carries its company filter), like the nightly job (01:00). Tests: `tests/test_olap_etl_2026_11.py`.
 - **Without a provider, Ask the Data returns an error.** The result is "SQL no permitido: Only SELECT queries are allowed", unless the question matches one of the 3 fallback keyword patterns.
-- **Grouped totals are wrong above 5,000 rows, without warning.** Group-by and aggregation run in Python over at most 5,000 base rows.
+- **Grouped totals read every row** (page by page) up to `BI_EXPLORER_MAX_ROWS` (100,000). Above it, the result says it is partial (`incompleto`, rows read of total) and the screen shows the warning.
 - **Two builders on the same engine.** Both appear on the page, with separate storage.
 
 ### Reports — `/reports`
@@ -4174,7 +4174,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 225 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 226 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4343,6 +4343,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | conectores | BI_ETL_PAGE_SIZE | int | 100 | BI ETL connectors — records asked for per request | rt (`bi_etl_service`) |
 | conectores | BI_ETL_HTTP_TIMEOUT_S | float | 20.0 | BI ETL connectors — timeout of a request to the source (s) | rt (`bi_etl_service`) |
 | conectores | BI_ETL_LOG_MAX_ENTRIES | int | 100 | BI ETL connectors — sync log entries kept per connector | rt (`bi_etl_service`, `bi_o365_service`) |
+| conectores | BI_EXPLORER_MAX_ROWS | int | 100000 | Data Explorer — rows read to group and total (above it, the result says it is partial) | rt (`bi_query_builder_service`) |
 | conectores | CONTECINTELLIGENCE_HANDOFF_ENABLED | bool | true | contecintelligence — Ask the Data offers to pass a question it cannot answer | rt |
 | lecciones | LESSONS_CATEGORIES | str | `alcance,planificacion,estimacion,tecnica,calidad,comunicacion,cliente,proveedor,equipo,seguridad,operacion,coste` | Lessons — categories (CSV) | rt |
 | lecciones | LESSONS_VALIDATOR_ROLES | str | `admin,pm,team_lead` | Lessons — roles that validate or archive a lesson (CSV) | rt |
@@ -5323,7 +5324,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 365)
+#### 4.2 Settings fields (`Settings`, 366)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5707,6 +5708,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `BI_ETL_PAGE_SIZE` | `100` | BI ETL connectors — records asked for per request |
 | `BI_ETL_HTTP_TIMEOUT_S` | `20.0` | BI ETL connectors — timeout of a request to the source (s) |
 | `BI_ETL_LOG_MAX_ENTRIES` | `100` | BI ETL connectors — sync log entries kept per connector |
+| `BI_EXPLORER_MAX_ROWS` | `100000` | Data Explorer — rows read to group and total |
 | `LESSONS_CATEGORIES` | `'alcance,planificacion,estimacion,tecnica,calidad,comunicacion,cliente,proveedor,equipo,seguridad,operacion,coste'` | Lessons — categories (CSV) |
 | `LESSONS_VALIDATOR_ROLES` | `'admin,pm,team_lead'` | Lessons — roles that validate or archive a lesson (CSV) |
 | `LESSONS_ONLY_VALIDATED` | `True` | Lessons — only validated lessons are recommended |
