@@ -80,3 +80,6 @@ frontend/reports/
 
 # Copias de scripts/backup.sh (revisión 2026-11)
 /backups/
+
+# Ficheros que genera la aplicación (PDFs…), no van al repositorio
+/storage/
