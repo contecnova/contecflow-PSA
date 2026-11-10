@@ -858,9 +858,10 @@ Rules enforced in `imputation_service.py`:
 
 **Technical notes.** `GET /api/v1/git/webhooks` (addresses and secret status), `GET /api/v1/git/pull-requests`, `GET /api/v1/git/deployments`, the four webhook endpoints, `GET /git/pull-requests/{id}`, `POST /git/tasks/{task_id}/branch` and `GET /git/tasks/{task_id}/pr-status`. Tables: `git_pull_requests`, `git_deployments`.
 
+- A merged PR closes its task through the task transition rules (setting the completion date); a task whose status cannot go to `done` (backlog, blocked, cancelled) stays as it is and the log says so.
+
 **Limitations.**
 - **Nothing shows without webhooks.** There are no outbound calls to the GitHub or GitLab APIs from this page (the GitHub pull sync lives in Integrations).
-- **Auto-close skips the transition rules.** It sets `done` directly.
 
 ### Wiki — `/wiki`
 *Roles:* Menu: admin, pm, team_lead, employee, hr. Route: any authenticated user. Creating, editing and deleting spaces and pages, and restoring versions, need admin or pm. Reading and search are open to all.
