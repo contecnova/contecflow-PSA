@@ -140,8 +140,8 @@ export default function TeamDashboardPage() {
   const okrPct         = totalOkrs > 0 ? Math.round((completedOkrs / totalOkrs) * 100) : null
   const okrColor       = okrPct == null ? COLOR.accent : okrPct >= 70 ? COLOR.success : okrPct >= 40 ? COLOR.warning : COLOR.danger
 
-  const pendingReviews   = perfReviews.filter(r => r.status === 'pending' || r.status === 'in_progress').length
-  const completedReviews = perfReviews.filter(r => r.status === 'completed').length
+  // Las evaluaciones que te tocan rellenar (/performance/my-reviews); los estados son pending | submitted | approved.
+  const pendingReviews   = perfReviews.filter(r => r.status === 'pending').length
 
   const trainingCompleted  = trainings.filter(t => t.status === 'completed').length
   const trainingInProgress = trainings.filter(t => t.status === 'in_progress').length
@@ -187,8 +187,7 @@ export default function TeamDashboardPage() {
           <KpiCard icon={<KpiIcon icon={iconCompat(Star)} />} label={t('team_dashboard.kpi_pending_reviews')}
             value={pendingReviews}
             color={pendingReviews > 0 ? COLOR.warning : COLOR.success}
-            accentBar={pendingReviews > 0 ? COLOR.warning : COLOR.success}
-            sub={completedReviews > 0 ? `${completedReviews} ${t('team_dashboard.completed_fem_plural')}` : undefined} />
+            accentBar={pendingReviews > 0 ? COLOR.warning : COLOR.success} />
           <KpiCard icon={<KpiIcon icon={iconCompat(GraduationCap)} />} label={t('team_dashboard.kpi_trainings')}
             value={trainingTotal}
             color={COLOR.accent} accentBar={COLOR.accent}

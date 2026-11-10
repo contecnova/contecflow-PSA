@@ -4710,7 +4710,7 @@ const es = {
     no_role: 'Sin rol',
     kpi_team_size: 'Personas en equipo',
     kpi_active_okrs: 'OKRs activos',
-    kpi_pending_reviews: 'Reviews pendientes',
+    kpi_pending_reviews: 'Evaluaciones que te tocan',
     kpi_trainings: 'Formaciones',
     kpi_absences_today: 'Ausencias hoy',
     kpi_pending_absences: 'Ausencias pendientes',

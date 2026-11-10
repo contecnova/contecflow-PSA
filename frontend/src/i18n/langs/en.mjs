@@ -5402,7 +5402,7 @@ const en = {
     no_role: 'No role',
     kpi_team_size: 'Team members',
     kpi_active_okrs: 'Active OKRs',
-    kpi_pending_reviews: 'Pending reviews',
+    kpi_pending_reviews: 'Reviews for you to do',
     kpi_trainings: 'Trainings',
     kpi_absences_today: 'Absences today',
     kpi_pending_absences: 'Pending absences',

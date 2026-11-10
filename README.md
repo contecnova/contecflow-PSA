@@ -984,7 +984,7 @@ Open it by clicking your name or avatar at the bottom of the sidebar. It has fou
 **Purpose.** A read-only snapshot of the team: headcount, OKRs, reviews, training and today's absences.
 
 **How to use it.** Open the page and pick a period (30/90/365 days). It shows:
-- KPI cards: team size, OKRs (and how many are completed), pending reviews, trainings (completed / in progress), people absent today (approved absence spanning today), and absence requests pending approval.
+- KPI cards: team size, OKRs (and how many are completed), reviews for you to do, trainings (completed / in progress), people absent today (approved absence spanning today), and absence requests pending approval.
 - Gauges for utilisation, OKR completion and training completion.
 - Bars for headcount by department and by role (top 6 of each).
 - An OKR breakdown: completed / in progress / not started / cancelled.
@@ -1003,9 +1003,8 @@ There are no actions on this page.
 
 **Limitations (measured in code).**
 - **The utilisation gauge is for the current week** (`summary.actual_utilization_pct` of `/analytics/utilization/advanced`, which takes no period). The page has no period selector.
-- **The "pending reviews" KPI shows the viewer's own pending reviews** (`/performance/my-reviews`), not the team's. Its "completed" sub-count checks status `completed`, which doesn't exist (`ReviewStatus` is `pending | submitted | approved`), so it is always 0.
+- **The reviews KPI counts the viewer's own reviews to fill in** (`/performance/my-reviews`, status `pending`), and says so; there is no team-wide reviews count.
 - Truncation: users and absences load every page (`/absences` accepts `page`/`page_size` and returns the total, `limit` is kept as an alias). OKRs are only those of the current year (the endpoint defaults `year` to the current year).
-- The period selector affects none of the other cards either: none of their queries takes the dates.
 
 ### Resources — `/resources`
 *Roles:* admin, hr, pm. The edit (pencil) button is admin-only, and rates are shown to admin/hr.

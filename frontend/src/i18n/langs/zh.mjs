@@ -5419,7 +5419,7 @@ const zh = {
     no_role: "无角色",
     kpi_team_size: "团队成员",
     kpi_active_okrs: "活跃 OKR",
-    kpi_pending_reviews: "待审评估",
+    kpi_pending_reviews: "待你完成的评估",
     kpi_trainings: "培训",
     kpi_absences_today: "今日缺勤",
     kpi_pending_absences: "待批缺勤",
