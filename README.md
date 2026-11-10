@@ -1023,7 +1023,7 @@ There are no actions on this page.
 **Configuration.** `DEFAULT_WEEKLY_CAPACITY_HOURS` (env, default 40) is used when a user has no capacity. `DEFAULT_WORKING_HOURS_PER_DAY` (env, default 8) is the default `hours_per_day` for a booking.
 
 **Technical notes.**
-- `GET /api/v1/users/load`: load = hours **imputed** this ISO week (Mon–Sun) ÷ weekly capacity. It also returns month hours, active tasks and active projects.
+- `GET /api/v1/users/load`: load = the larger of the hours **imputed** this ISO week and the hours **committed** in firm bookings and capacity plans, ÷ weekly capacity minus approved absences and holidays. It also returns month hours, active tasks and active projects.
 - `PATCH /api/v1/users/{id}`
 - `GET /api/v1/bookings/heatmap?weeks=` (Mon–Fri only, hard bookings only; each week's capacity minus approved absences and holidays), `GET/POST/PATCH/DELETE /api/v1/bookings`
 - `POST /api/v1/billing-reports/smartmatch`
@@ -1037,7 +1037,6 @@ There are no actions on this page.
   - The total is capped at 100. Levels: red ≥70, orange ≥45, yellow ≥20, otherwise green.
 
 **Limitations.**
-- **Load is based on hours already imputed in the current week**, so on Monday almost everyone shows as "available" (<60 %). It does not reflect planned work.
 - **↻ Recalcular doesn't refresh the list** (`onSuccess: () => {}`; the query keeps a 5-minute `staleTime`). The live list is computed on every GET anyway.
 - **`burnout_risk_snapshots` is written but never read**: the only references are the write in `compute_and_save_burnout_snapshots`.
 - Thresholds are code constants, not settings:

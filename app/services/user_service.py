@@ -153,8 +153,15 @@ def get_load_map_payload(db: Session, current_user, week_start: Optional[date] =
         hours_month  = month_hours.get(user.id, 0.0)
         active_tasks = active_tasks_map.get(user.id, 0)
         active_proj  = active_projects_map.get(user.id, 0)
-        capacity = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
-        load_pct = round((hours_week / capacity) * 100, 1) if capacity > 0 else 0
+        # Revisión 2026-11: la carga es lo mayor entre lo imputado y lo comprometido (reservas firmes y
+        # planes) sobre la capacidad neta de ausencias y festivos. Con sólo lo imputado, un lunes salía
+        # todo el mundo libre.
+        from app.services.resource_analytics import get_user_week_hours
+        hw = get_user_week_hours(db, user.id, week_start)
+        capacity = max(0.0, (user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
+                       - hw["absence_hours"] - hw["holiday_hours"])
+        carga = max(hours_week, hw["committed_hours"])
+        load_pct = round((carga / capacity) * 100, 1) if capacity > 0 else (100.0 if carga else 0)
         result.append(UserLoad(
             user=UserPublic.model_validate(user),
             current_load_pct=load_pct,
