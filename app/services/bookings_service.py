@@ -205,7 +205,12 @@ def get_bookings_heatmap(weeks: int, org_id, db) -> dict:
         for w in range(weeks):
             week_start = monday + timedelta(weeks=w)
             week_end = week_start + timedelta(days=4)
-            capacity = (user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
+            # Revisión 2026-11: la capacidad de la semana descuenta ausencias aprobadas y festivos,
+            # igual que la comprobación al reservar (antes el mapa no los veía).
+            from app.services.resource_analytics import get_user_week_hours
+            hw = get_user_week_hours(db, user.id, week_start)
+            capacity = max(0.0, (user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
+                           - hw["absence_hours"] - hw["holiday_hours"])
             hard_hours = 0
             soft_hours = 0
             for b in bookings:

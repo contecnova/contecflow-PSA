@@ -1025,7 +1025,7 @@ There are no actions on this page.
 **Technical notes.**
 - `GET /api/v1/users/load`: load = hours **imputed** this ISO week (Mon–Sun) ÷ weekly capacity. It also returns month hours, active tasks and active projects.
 - `PATCH /api/v1/users/{id}`
-- `GET /api/v1/bookings/heatmap?weeks=` (Mon–Fri only, hard bookings only), `GET/POST/PATCH/DELETE /api/v1/bookings`
+- `GET /api/v1/bookings/heatmap?weeks=` (Mon–Fri only, hard bookings only; each week's capacity minus approved absences and holidays), `GET/POST/PATCH/DELETE /api/v1/bookings`
 - `POST /api/v1/billing-reports/smartmatch`
 - `GET /api/v1/resources/burnout-risk`, `POST /api/v1/resources/burnout-risk/compute` (rate limit 10/min)
 - Tables: `users`, `imputations`, `resource_bookings`, `burnout_risk_snapshots`, `skills`, `user_skills`.
@@ -1044,8 +1044,6 @@ There are no actions on this page.
   - Burnout points/levels: `_SENALES_DE_AGOTAMIENTO`, `_NIVELES_DE_AGOTAMIENTO`.
   - Heatmap 20/85/100 %: `bookings_service.py`.
   - Card thresholds 60/85/100 %: frontend.
-- The heatmap ignores absences and holidays.
-- Creating a booking only blocks an exact duplicate (same user and project with overlapping dates). There is no capacity check.
 - SmartMatch's "role" filters on `users.role` (admin/pm/…), not on job title.
 
 ### Capacity planning — `/capacity`
