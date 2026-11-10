@@ -1307,8 +1307,8 @@ The KPI row shows active objectives, average progress and on-track objectives (�
 **Limitations.**
 - **Profiles can't be edited or deleted from the UI.** `PATCH`/`DELETE /profiles/{id}` exist and are not called; the only action is adding a new version.
 - "Coste anual total (aprox.)" multiplies each person's cost per hour by a hard-coded 1,700 h, ignoring their real productive hours.
-- **Possible currency issue (code reading):** imputations store `rate × hours` in the profile's currency. The currency-converting helper `cost_service.cost_amount` and its wrapper `imputation_service.compute_cost` are not used when imputations are created. So a profile in a currency other than the organisation's would be costed unconverted. Not reproduced.
-- `cost_service.py`'s docstring says it is used by "profitability, project cost forecasts, dashboards". A grep finds it imported only by `imputation_service.py` and the `user_costs` endpoints. Other modules read the stored `cost_amount` (Not verified per module).
+- **Time-entry cost is in the company currency.** When an hour is logged (form, timer), `cost_amount` = hours × the cost per hour of the profile valid that day, converted from the profile's currency to `DEFAULT_CURRENCY` at that day's rate (`cost_service.cost_amount`); `hourly_rate_snapshot` keeps the rate in the profile's currency. Editing the hours scales the cost, so the frozen rate and exchange rate stay. Migration `155` converted the older entries whose profile was in another currency (entries without an exchange rate were left as they were).
+- `cost_service` is called when hours are logged (it fixes `imputations.cost_amount`) and by the `user_costs` endpoints; profitability, EVM, budgets and dashboards read that stored, already converted amount.
 - The users table loads `GET /users?page_size=200`.
 - Two places set a person's rate (Resources → *Tarifa por hora* and this page). The versioned profile wins whenever one is active.
 
@@ -1582,7 +1582,7 @@ General notes that apply to every module here:
 1. Filter the portfolio list by project status, then open a project.
 2. Read the figures:
    - **Revenue** = `billing_rate × billable hours`. For fixed-price projects without a rate, it is the sum of `billing_amount` of milestones with `is_billed`.
-   - **Cost** = staff (the sum of `imputations.cost_amount`) + the project's expenses (approved or reimbursed, its share of a split) + subcontractor hours (`subcontractor_timelogs.cost_amount`), each converted to the organization's currency through `get_fx_rate` at its date (`app/services/costes_de_proyecto.py`). The record shows the three parts. Supplier invoices pay those subcontractor hours, so they are not added again. Margin, budget use, forecast and the EVM figures use this total.
+   - **Cost** = staff (the sum of `imputations.cost_amount`, already in the company currency) + the project's expenses (approved or reimbursed, its share of a split) + subcontractor hours (`subcontractor_timelogs.cost_amount`), each converted to the organization's currency through `get_fx_rate` at its date (`app/services/costes_de_proyecto.py`). The record shows the three parts. Supplier invoices pay those subcontractor hours, so they are not added again. Margin, budget use, forecast and the EVM figures use this total.
    - Also shown: CPI/SPI/EAC, `margin_at_completion`, and `risk_flag` (`critical`, `warning` or `ok`).
 3. Manage milestones from the project detail: add (amount or %), edit, delete, and **Facturar**.
 

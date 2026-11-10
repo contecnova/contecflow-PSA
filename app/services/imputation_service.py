@@ -374,8 +374,10 @@ def _crear_imputacion(payload, current_user: User, db: Session) -> Imputation:
         hours=payload.hours,
         description=payload.description,
         is_billable=payload.is_billable,
-        hourly_rate_snapshot=rate,
-        cost_amount=round(rate * payload.hours, 2),
+        hourly_rate_snapshot=rate,   # en la moneda del perfil de coste
+        # Revisión 2026-11: el coste, siempre en la moneda de la empresa (con el tipo de la fecha).
+        # Antes se guardaba en la del perfil y nadie lo convertía.
+        cost_amount=_cost_svc.cost_amount(db, current_user, payload.hours, payload.date),
     )
     db.add(imputation)
     try:
@@ -731,7 +733,7 @@ def stop_timer_session(payload, current_user: User, db: Session):
         description=payload.description,
         is_billable=payload.is_billable,
         hourly_rate_snapshot=timer_rate,
-        cost_amount=round(timer_rate * hours, 2),
+        cost_amount=_cost_svc.cost_amount(db, current_user, hours, imputation_date),
         timer_session_id=timer.id,
     )
     db.add(imputation)
@@ -866,12 +868,15 @@ def update_imputation_fields(imp, payload, db: Session, current_user: User = Non
         )
 
     # Aplicar cambios
+    horas_antes, coste_antes = imp.hours, imp.cost_amount
     for field, value in filtered_payload.items():
         setattr(imp, field, value)
     if payload.hours is not None:
-        rate = imp.hourly_rate_snapshot
-        if rate is not None and rate > 0:
-            imp.cost_amount = round(rate * payload.hours, 2)
+        # La tarifa y el tipo de cambio quedaron congelados al imputar: el coste escala con las horas.
+        if coste_antes is not None and horas_antes:
+            imp.cost_amount = round(coste_antes * payload.hours / horas_antes, 2)
+        elif imp.hourly_rate_snapshot:
+            imp.cost_amount = round(imp.hourly_rate_snapshot * payload.hours, 2)
     db.commit()
     db.refresh(imp)
     sync_imputation_week_timesheet(db, imp.user_id, imp.date)
