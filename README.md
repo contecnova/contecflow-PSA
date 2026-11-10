@@ -732,14 +732,13 @@ Rules enforced in `imputation_service.py`:
 - Create or edit an epic: title, description, colour, priority, start and end dates, status `open | in_progress | done | cancelled`.
 - The roadmap view comes from `GET /epics/roadmap?project_id=`.
 - Delete an epic.
+- Click an epic to open its record: progress (done tasks / linked tasks) and its tasks; admin and PM link a task of the project (`POST /epics/{id}/tasks/{task_id}`) or remove it. A team lead sees epics read-only (writing is `require_admin_or_pm`).
 
 **Configuration.** None found.
 
 **Technical notes.** `GET/POST /api/v1/epics?project_id=`, `PATCH/DELETE /api/v1/epics/{id}`, `GET /api/v1/epics/roadmap`. Tables: `epics`, `epic_tasks`, `epic_dependencies`.
 
 **Limitations.**
-- **Progress stays at 0 when using the UI only.** Epic progress = done tasks / linked tasks (`epic_tasks`). Linking a task to an epic exists only as an API endpoint (`POST /epics/{id}/tasks/{task_id}`) with **no frontend caller**. Whether imports (e.g. Jira) fill `epic_tasks`: Not verified.
-- **team_lead gets 403 when saving.** They see the menu entry, but the backend refuses.
 - **Epic `status` is a free string column**, not an enum.
 
 ### Deliverables — `/deliverables`

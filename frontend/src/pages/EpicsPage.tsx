@@ -6,7 +6,8 @@ import type { CSSProperties } from 'react'
 import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, epicsApi } from '../services/api'
+import { projectsApi, epicsApi, tasksApi } from '../services/api'
+import { useAuth } from '../context/AuthContext'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -138,6 +139,53 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
   )
 }
 
+/** Ficha de una épica: su avance y sus tareas; quien puede escribir enlaza y desenlaza. */
+function EpicDetail({ epic, projectId, canEdit, onClose }: { epic: EpicItem; projectId: string; canEdit: boolean; onClose: () => void }) {
+  const t = useAppT()
+  const toast = useToast()
+  const qc = useQueryClient()
+  const [elegida, setElegida] = useState('')
+  const ficha = useQuery({ queryKey: ['epic', epic.id], queryFn: () => epicsApi.get(epic.id).then(r => r.data as { tasks?: { id: string; title: string; status: string }[] }) })
+  const tareas = useQuery({ queryKey: ['tasks', projectId, 'epic'], enabled: canEdit,
+    queryFn: () => tasksApi.list({ project_id: projectId, page_size: 500 }).then(r => {
+      const d = r.data as { items?: { id: string; title: string }[] } | { id: string; title: string }[]
+      return Array.isArray(d) ? d : (d?.items ?? [])
+    }) })
+  const enlazadas = ficha.data?.tasks ?? []
+  const libres = (tareas.data ?? []).filter(x => !enlazadas.some(e => e.id === x.id))
+  const refrescar = () => { qc.invalidateQueries({ queryKey: ['epic', epic.id] }); qc.invalidateQueries({ queryKey: ['epics'] }) }
+  const enlazar = async (taskId: string, quitar = false) => {
+    try { await (quitar ? epicsApi.unlinkTask(epic.id, taskId) : epicsApi.linkTask(epic.id, taskId)); setElegida(''); refrescar() }
+    catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
+  }
+  const hechas = enlazadas.filter(x => x.status === 'done').length
+  return (
+    <Modal open onClose={onClose} title={epic.title}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('epics.avance_de_tareas', { hechas, total: enlazadas.length })}</div>
+        {ficha.isLoading ? <Spinner /> : enlazadas.length === 0
+          ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('epics.sin_tareas')}</div>
+          : enlazadas.map(x => (
+            <div key={x.id} style={{ display: 'flex', gap: 8, alignItems: 'center', borderTop: '1px solid var(--surface-3)', paddingTop: 6 }}>
+              <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere', fontSize: 'var(--text-sm)' }}>{x.title}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: x.status === 'done' ? 'var(--success)' : 'var(--text-3)' }}>{x.status}</span>
+              {canEdit && <Button size="xs" variant="ghost" onClick={() => enlazar(x.id, true)}>{t('epics.quitar')}</Button>}
+            </div>))}
+        {canEdit && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <select aria-label={t('epics.anadir_tarea')} value={elegida} onChange={e => setElegida(e.target.value)}
+              style={{ flex: '1 1 220px', minWidth: 0, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontFamily: 'inherit' }}>
+              <option value="">{t('epics.anadir_tarea')}</option>
+              {libres.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}
+            </select>
+            <Button size="sm" disabled={!elegida} onClick={() => enlazar(elegida)}>{t('epics.enlazar')}</Button>
+          </div>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
 function RoadmapView({ epics, t }: { epics: EpicItem[]; t: (key: string, params?: Record<string, string | number>) => string }) {
   if(!epics.length) return <EmptyState icon="🗺" title={t('epics.no_epics')} description={t('epics.no_epics_desc')}/>
 
@@ -209,7 +257,10 @@ export default function EpicsPage(): JSX.Element {
   const [view,      setView]      = useState<'list' | 'roadmap'>('list')
   const [showForm,  setShowForm]  = useState(false)
   const [editEpic,  setEditEpic]  = useState<EpicItem | null>(null)
-  const [_detailEpic,setDetailEpic]= useState<EpicItem | null>(null)
+  const [detailEpic,setDetailEpic]= useState<EpicItem | null>(null)
+  // Escribir épicas es de admin y PM (el backend lo exige): el jefe de equipo las ve en sólo lectura.
+  const { user } = useAuth() as { user?: { role?: string } }
+  const canEdit = ['admin', 'pm'].includes(user?.role ?? '')
 
   const STATUS_CFG = {
     open:        { label: t('epics.status_open'),        color:'var(--text-2)', bg:'rgba(120,138,170,0.09)' },
@@ -254,7 +305,7 @@ export default function EpicsPage(): JSX.Element {
           <div style={{display:'flex',gap:8}}>
             <button onClick={()=>setView('list')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:view==='list'?'var(--accent-muted)':'transparent',color:view==='list'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>{t('epics.list_view')}</button>
             <button onClick={()=>setView('roadmap')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:view==='roadmap'?'var(--accent-muted)':'transparent',color:view==='roadmap'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>🗺 {t('epics.roadmap')}</button>
-            <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.new_epic')}</Button>
+            {canEdit && <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.new_epic')}</Button>}
           </div>
         )}
         showListExport={view==='list' && epics.length > 0}
@@ -279,7 +330,7 @@ export default function EpicsPage(): JSX.Element {
           <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>🎯</div>
           <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{t('epics.no_epics')}</div>
           <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>{t('epics.no_epics_desc')}</div>
-          <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.create_first')}</Button>
+          {canEdit && <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.create_first')}</Button>}
         </div>
       )}
 
@@ -334,12 +385,12 @@ export default function EpicsPage(): JSX.Element {
                         </div>
                       )}
                     </div>
-                    <div style={{display:'flex',gap:6,flexShrink:0}}>
+                    {canEdit && <div style={{display:'flex',gap:6,flexShrink:0}}>
                       <button onClick={e=>{e.stopPropagation();setEditEpic(epic);setShowForm(true)}}
                         style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>{t('common.edit')}</button>
                       <button onClick={e=>{e.stopPropagation();openConfirmGlobal({message:`${t('common.are_you_sure')} "${epic.title}"?`,onConfirm:()=>deleteEpic(epic.id),danger:true})}}
                         style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:6,padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-xs)"}}>{t('common.delete')}</button>
-                    </div>
+                    </div>}
                   </div>
                 </button>
               )
@@ -352,6 +403,7 @@ export default function EpicsPage(): JSX.Element {
         <EpicForm projectId={project} epic={editEpic}
           onClose={()=>{setShowForm(false);setEditEpic(null)}}/>
       )}
+      {detailEpic && <EpicDetail epic={detailEpic} projectId={project} canEdit={canEdit} onClose={()=>setDetailEpic(null)} />}
     </PageShell>
   )
 }

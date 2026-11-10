@@ -510,6 +510,8 @@ export const epicsApi = {
   createForProject:(projectId: any, data: unknown) => api.post('/epics', data, { params: { project_id: projectId } }),
   update:          (id: any, data: unknown)  => api.patch(`/epics/${id}`, data),
   delete:          (id: any)        => api.delete(`/epics/${id}`),
+  linkTask:        (id: any, taskId: any) => api.post(`/epics/${id}/tasks/${taskId}`),
+  unlinkTask:      (id: any, taskId: any) => api.delete(`/epics/${id}/tasks/${taskId}`),
   // Auditoria 2026-08: llamaba a `/roadmap`, que no existe — y su duplicado
   // correcto, `roadmapByProject`, estaba en la linea de abajo apuntando a
   // `/epics/roadmap`. `EpicsPage` usaba el roto. Los dos son ahora la misma
