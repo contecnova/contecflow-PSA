@@ -2745,13 +2745,8 @@ Workflow `wait` timers do **not** run in Celery: they run in the API process's s
 
 **Never verified against real systems.** IMAP, Microsoft 365, Alertmanager, Twilio, contecmind, cloud discovery providers and pgvector were not tested against the real thing.
 
-**Ticket handling.**
-
-- The Kanban board puts closed and cancelled tickets in *Open*, and dropping a card on *Open* sends an invalid status.
-
 **Other modules.**
 
-- The Agent dashboard KPIs (resolved, resolution time, SLA %, CSAT) are always zero or empty.
 - On-call rotations do not generate shifts.
 - OLA is one target per queue for every priority.
 - CMDB discovery, drift, reconciliation and SNMP are API only. The *Agents* tab returns 403 for a pm.
