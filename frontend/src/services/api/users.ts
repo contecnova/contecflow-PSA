@@ -50,6 +50,9 @@ export interface UserProductivityParams {
 
 export interface UserManagerUpdate {
   manager_id: string | null
+  /** Revisión 2026-11: puesto y departamento viajan en la misma llamada (una transacción). */
+  job_title?: string | null
+  department?: string | null
 }
 
 export interface ApprovalChainNode {
