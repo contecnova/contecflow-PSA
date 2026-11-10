@@ -516,7 +516,6 @@ Rules enforced in `imputation_service.py`:
   - Critical: schedule deviation > 0 days, or budget > 100 %.
   - Warning: budget > 80 %, or any alerts.
   - Gauge colours: 80/60 and 90/70.
-- **The "high severity" risk count is always 0.** It filters on `r.severity`, but the risk payload has no `severity` field (it has `risk_level`).
 - **"Open risks" is capped at 50.** `get_portfolio_risks` uses `.limit(50)`.
 - **The health endpoint ignores the period.** `/dashboard/projects-health` takes no date parameters.
 

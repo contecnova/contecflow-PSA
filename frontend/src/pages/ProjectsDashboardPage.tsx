@@ -45,7 +45,7 @@ interface TypeRow {
 }
 
 interface RiskRow {
-  severity?: string
+  risk_level?: string
 }
 
 export default function ProjectsDashboardPage() {
@@ -114,7 +114,7 @@ export default function ProjectsDashboardPage() {
   const budgetPct = budgetTotal > 0 ? Math.round((budgetSpent / budgetTotal) * 100) : null
   const budgetColor = budgetPct == null ? COLOR.accent : budgetPct > 90 ? COLOR.danger : budgetPct > 70 ? COLOR.warning : COLOR.success
 
-  const highRisks = risks.filter((r) => r.severity === 'high' || r.severity === 'critical').length
+  const highRisks = risks.filter((r) => r.risk_level === 'high' || r.risk_level === 'critical').length
 
   const statusCounts = allProjects.reduce<Record<string, number>>((acc, p) => {
     const estado = p.status ?? 'desconocido'
