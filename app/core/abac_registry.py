@@ -83,7 +83,6 @@ ABAC_COVERED_PREFIXES: dict[str, tuple[str, str]] = {
     "/api/v1/budget-transfers":      ("budget",           "read"),   # revisión 2026-11: traspasos y ampliaciones
     "/api/v1/rate-cards":            ("rate_card",        "read"),
     "/api/v1/profitability":         ("profitability",    "read"),
-    "/api/v1/revenue":               ("revenue",          "read"),
     "/api/v1/revenue-forecast":      ("revenue",          "read"),
     "/api/v1/revenue-recognition":   ("revenue",          "read"),
     "/api/v1/currency":              ("currency",         "read"),

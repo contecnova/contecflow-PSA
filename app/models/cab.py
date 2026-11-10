@@ -6,7 +6,7 @@ v14 models — all P2 pending items:
   GDPRRequest                  : Right to erasure + data export
   IntegrationConfig            : GitHub/GitLab/Jira/Calendar/QuickBooks connectors
   CommitLink                   : Task ↔ commit/PR links
-  RevenueRecognitionRule/Entry : ASC 606 / IFRS 15
+  (ingresos: el motor ASC 606 vive en app/models/revenue.py)
   DashboardWidget              : Per-user dashboard personalisation
   OnboardingState              : Onboarding wizard progress
   ProjectRiskScore             : ML-style risk prediction per project
@@ -312,75 +312,8 @@ class CalendarEvent(Base):
 
 # ── Revenue Recognition (ASC 606 / IFRS 15) ──────────────────────────────────
 
-class RecognitionMethod(str, enum.Enum):
-    percentage_complete = "percentage_complete"  # % of work done
-    milestone           = "milestone"            # On milestone achieved
-    milestone_billing   = "milestone_billing"    # Basado en milestones aprobados/facturados
-    time_and_material   = "time_and_material"    # As hours are logged
-    straight_line       = "straight_line"        # Evenly over contract period
-    completed_contract  = "completed_contract"   # Only at project close
-
-
-class RevenueRecognitionRule(Base):
-    """Per-project revenue recognition configuration."""
-    __tablename__ = "revenue_recognition_rules"
-
-    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    project_id      = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"),
-                             nullable=False, unique=True, index=True)
-    method          = Column(Enum(RecognitionMethod),
-                             default=RecognitionMethod.percentage_complete)
-    contract_value  = Column(Money, nullable=True)   # Total contract amount
-    start_date      = Column(Date, nullable=True)
-    end_date        = Column(Date, nullable=True)
-    notes           = Column(Text, nullable=True)
-    # Borrado logico, la misma convencion que el resto del repositorio.
-    #
-    # Auditoria 2026-08 (hallazgo 22): `auto_compute_revenue` filtra por
-    # `RevenueRecognitionRule.is_active == True` y la columna **no existia**,
-    # asi que el calculo automatico de reconocimiento de ingresos reventaba con
-    # `AttributeError`. Se anade la columna —con `True` por defecto y relleno a
-    # `True` en la migracion— en vez de quitar el filtro: una regla de
-    # reconocimiento es exactamente la clase de fila que hay que poder
-    # desactivar sin borrar su historial.
-    is_active       = Column(Boolean, default=True, nullable=False, index=True)
-    created_by      = Column(String(36), ForeignKey("users.id"), nullable=True)
-    created_at      = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at      = Column(DateTime(timezone=True), onupdate=func.now())
-
-    project = relationship("Project")
-    entries = relationship("RevenueRecognitionEntry", back_populates="rule",
-                          cascade="all, delete-orphan",
-                          order_by="RevenueRecognitionEntry.period_date")
-    creator = relationship("User", foreign_keys=[created_by])
-
-
-class RevenueRecognitionEntry(Base):
-    """Monthly revenue recognition entry (one per period per project)."""
-    __tablename__ = "revenue_recognition_entries"
-
-    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    rule_id         = Column(String(36), ForeignKey("revenue_recognition_rules.id",
-                             ondelete="CASCADE"), nullable=False, index=True)
-    project_id      = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
-    period_date     = Column(Date, nullable=False, index=True)  # First day of month
-    pct_complete    = Column(Float, default=0)       # % of project complete this period
-    amount_planned  = Column(Money, default=0)       # Revenue planned to recognise
-    amount_actual   = Column(Money, default=0)       # Revenue actually recognised
-    amount_deferred = Column(Money, default=0)       # Deferred to future periods
-    cumulative_pct  = Column(Float, default=0)       # % ratio
-    cumulative_amount = Column(Money, default=0)
-    is_locked       = Column(Boolean, default=False)  # Locked after accounting close
-    notes           = Column(Text, nullable=True)
-    created_at      = Column(DateTime(timezone=True), server_default=func.now())
-
-    rule    = relationship("RevenueRecognitionRule", back_populates="entries")
-    project = relationship("Project")
-
-
-# ── Dashboard Widgets (personalisation) ──────────────────────────────────────
+# El motor antiguo de ingresos (reglas por proyecto) se retiró en 2026-11 (migración 156):
+# un solo motor, el ASC 606 de `app/models/revenue.py`.
 
 class DashboardWidget(Base):
     """Per-user dashboard widget configuration."""

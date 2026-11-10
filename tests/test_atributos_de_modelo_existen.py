@@ -175,7 +175,6 @@ def test_lo_que_queda_a_proposito_esta_declarado_con_su_razon():
 @pytest.mark.parametrize("clase,columna", [
     ("Deliverable", "billing_pct"),
     ("Opportunity", "external_id"),
-    ("RevenueRecognitionRule", "is_active"),
 ])
 def test_las_columnas_de_la_migracion_094_estan_en_el_modelo(clase, columna):
     clases = _clases_mapeadas()
@@ -218,35 +217,6 @@ def test_una_oportunidad_importada_se_reconoce_por_su_id_externo(db):
     assert encontrada.id == "opp-sf"
     assert svc.find_opportunity_by_external_id(db, "no-existe") is None
 
-
-def test_una_regla_de_reconocimiento_se_puede_desactivar(db):
-    """`is_active` no existía y el cálculo automático reventaba al filtrarla."""
-    from app.models.cab import RevenueRecognitionRule
-    from app.models.project import Project, ProjectType
-
-    db.add(Project(id="p-rev", name="Proyecto", code="PRV",
-                   project_type=ProjectType.development))
-    db.flush()
-    regla = RevenueRecognitionRule(id="rr-1", project_id="p-rev")
-    db.add(regla)
-    db.commit()
-
-    # Por defecto activa, que es lo que significa una regla que está en la tabla.
-    assert regla.is_active is True
-
-    activas = db.query(RevenueRecognitionRule).filter(
-        RevenueRecognitionRule.is_active == True  # noqa: E712
-    ).all()
-    assert len(activas) == 1
-
-    regla.is_active = False
-    db.commit()
-    assert db.query(RevenueRecognitionRule).filter(
-        RevenueRecognitionRule.is_active == True  # noqa: E712
-    ).count() == 0
-
-
-# -- Y el de aislamiento, que es el que más importa -------------------------
 
 def test_EL_HALLAZGO_el_listado_de_CMDB_vuelve_a_filtrar_por_organizacion(db):
     """El `hasattr` correcto sobre una columna ausente apagaba el filtro.

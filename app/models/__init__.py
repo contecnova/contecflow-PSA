@@ -158,7 +158,7 @@ from app.models.cab import (  # noqa: F401
     WebhookTrigger, WebhookTriggerLog,
     EmailTemplate, EmailLog,
     GDPRRequest, IntegrationConfig, CommitLink,
-    CalendarEvent, RevenueRecognitionRule, RevenueRecognitionEntry,
+    CalendarEvent,
     DashboardWidget, OnboardingState, ProjectRiskScore,
 )
 from app.models.automations import AutomationRule, AutomationExecution, AutomationEvent  # noqa: F401

@@ -6,16 +6,17 @@ Medido antes:
 - Rentabilidad marcaba un hito como facturado sin factura y lo completaba sin
   pasar por el flujo de facturación;
 - un hito sólo con porcentaje, ya facturado, sumaba 0;
-- los métodos de ingresos `milestone` y `completed_contract` reconocían 0.
+- el método de ingresos `completed_contract` reconocía 0 (desde la migración 156 vive en el motor
+  ASC 606, con `percentage_complete`; el de hitos es el de sus obligaciones).
 """
 from __future__ import annotations
 
 from datetime import date
 
-from app.models.cab import RecognitionMethod, RevenueRecognitionRule
+from app.models.revenue import ASCMethod, RevenueContract
 from app.models.financial import ProjectMilestone
 from app.models.project import Project
-from app.services.cab_service import compute_revenue_period
+from app.services.revenue_service import _recognize_por_avance
 from tests.conftest import auth
 
 
@@ -74,20 +75,11 @@ def test_EL_HALLAZGO_el_hito_por_porcentaje_guarda_lo_facturado(client, pm_token
     assert hito.billing_status == "invoiced" and hito.billing_amount and hito.billing_amount > 0
 
 
-def _regla(db, pid, metodo):
-    regla = RevenueRecognitionRule(project_id=pid, method=metodo, contract_value=10000)
-    db.add(regla)
+def _contrato(db, pid, metodo):
+    c = RevenueContract(organization_id="1", project_id=pid, name="C", contract_value=10000, method=metodo)
+    db.add(c)
     db.commit()
-    return regla
-
-
-def test_EL_HALLAZGO_el_metodo_por_hitos_reconoce_los_del_mes(client, pm_token, db):
-    pid = _proyecto(client, pm_token, "FIN4")
-    db.add(ProjectMilestone(project_id=pid, name="Hecho", billing_amount=3000, is_completed=True,
-                            completed_date=date(2031, 3, 10), billing_status="completed"))
-    db.commit()
-    r = compute_revenue_period(_regla(db, pid, RecognitionMethod.milestone).id, "2031-03-01", db)
-    assert r["amount_recognised"] == 3000
+    return c
 
 
 def test_EL_HALLAZGO_el_contrato_terminado_se_reconoce_al_cerrar(client, pm_token, db):
@@ -96,6 +88,21 @@ def test_EL_HALLAZGO_el_contrato_terminado_se_reconoce_al_cerrar(client, pm_toke
     p.status = "completed"
     p.end_date_real = date(2031, 3, 20)
     db.commit()
-    regla = _regla(db, pid, RecognitionMethod.completed_contract)
-    assert compute_revenue_period(regla.id, "2031-02-01", db)["amount_recognised"] == 0
-    assert compute_revenue_period(regla.id, "2031-03-01", db)["amount_recognised"] == 10000
+    c = _contrato(db, pid, ASCMethod.completed_contract)
+    assert _recognize_por_avance(db, c, 2031, 2, None) == 0
+    assert _recognize_por_avance(db, c, 2031, 3, None) == 10000
+    assert _recognize_por_avance(db, c, 2031, 3, None) == 0          # idempotente
+
+
+def test_por_avance_reconoce_la_diferencia_cada_mes(client, pm_token, db):
+    from app.models.task import Task, TaskStatus
+    pid = _proyecto(client, pm_token, "FIN6")
+    for i, estado in enumerate((TaskStatus.done, TaskStatus.todo, TaskStatus.todo, TaskStatus.cancelled)):
+        db.add(Task(code=f"T-FIN6-{i}", project_id=pid, title=f"t{i}", status=estado))
+    db.commit()
+    c = _contrato(db, pid, ASCMethod.percentage_complete)
+    assert _recognize_por_avance(db, c, 2031, 3, None) == 3333.33        # 1 de 3 (la cancelada no cuenta)
+    t = db.query(Task).filter(Task.code == "T-FIN6-1").one()
+    t.status = TaskStatus.done
+    db.commit()
+    assert _recognize_por_avance(db, c, 2031, 4, None) == 3333.34        # 2 de 3, menos lo ya reconocido

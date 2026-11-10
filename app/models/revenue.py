@@ -26,6 +26,9 @@ class ASCMethod(str, enum.Enum):
     milestone    = "milestone"       # Precio fijo — al completar hito
     consumption  = "consumption"     # Bolsa de horas — al consumir
     straight_line = "straight_line"  # Retainer — 1/N por mes
+    # Revisión 2026-11: los dos que sólo tenía el motor antiguo (un solo motor desde entonces).
+    percentage_complete = "percentage_complete"  # Por avance: contrato × tareas hechas / tareas
+    completed_contract  = "completed_contract"   # Todo el contrato el mes en que el proyecto cierra
 
 
 class EntryType(str, enum.Enum):

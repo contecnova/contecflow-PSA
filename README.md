@@ -1601,36 +1601,33 @@ General notes that apply to every module here:
 ### Revenue recognition — `/revenue`
 *Roles:* admin, pm. Component: `pages/RevenuePage.tsx`.
 
-**Purpose.** Recognized and deferred revenue. The page runs **two separate engines** side by side.
+**Purpose.** Recognized and deferred revenue, with one engine: ASC 606 / IFRS 15 contracts.
 
-**How to use it.** The page has five tabs: **Resumen**, **Reglas por proyecto**, **Contratos ASC 606**, **Entradas contables**, **ASC 606 / IFRS 15** (help).
-- **Legacy engine (tabs Resumen and Reglas).**
-  - Create a rule per project. Methods offered: `percentage_complete`, `time_and_material`, `straight_line`, `milestone`, `completed_contract`.
-  - **Compute** a period for a rule. It writes `revenue_recognition_entries`.
-- **ASC 606 engine (tabs Contratos and Entradas).**
-  - Create a `RevenueContract`. Methods: `over_time`, `milestone`, `consumption`, `straight_line`. Add performance obligations to it.
-  - **Run monthly** recognizes revenue for the last finished month of the chosen year (the button names it; a year with no finished month disables it). The legacy compute and the period close also start on the last finished month.
-  - Close or reopen periods. A closed period is skipped.
-  - Reverse an entry. This needs confirmation and cannot be undone.
+**How to use it.** The page has three tabs: **Contratos ASC 606**, **Entradas contables** and **ASC 606 / IFRS 15** (help). The cards at the top show the chosen year: recognized, deferred, active contracts and entries.
+- Create a `RevenueContract` for a project, with its value and method, and add performance obligations to it. Methods:
+  - `over_time` (time and materials) and `consumption` (hour bank): approved hours × the billing rate (the rate cards when the company has them, else the project's `billing_rate`, see *Rate cards*);
+  - `straight_line`: 1/N per month over the contract's duration;
+  - `milestone`: when the milestones linked to its obligations are completed;
+  - `percentage_complete`: contract value × done tasks / tasks (cancelled ones do not count), recognizing each month the difference with what was already recognized;
+  - `completed_contract`: the whole remaining value in the month the project closes (`end_date_real`, status completed or closed).
+- **Run monthly** recognizes revenue for the last finished month of the chosen year (the button names it; a year with no finished month disables it). The period close also starts on the last finished month.
+- Close or reopen periods. A closed period is skipped.
+- Reverse an entry. This needs confirmation and cannot be undone.
 
 **Configuration.**
-- `over_time` and `consumption` use the project's `billing_rate` × **approved** billable hours. With no rate, nothing is recognized and a warning is logged.
+- With no rate for `over_time` or `consumption`, nothing is recognized and a warning is logged.
 - Each organization's time zone decides when its "day 1" falls.
 
 **Technical notes.**
-- **Endpoints:**
-  - Legacy engine (served by `app/api/v1/endpoints/cab.py`): `GET/POST /api/v1/revenue/rules`, `POST /revenue/rules/{id}/compute`, `POST /revenue/auto-compute`, `GET /revenue/summary`, `GET /revenue/journal/{pid}[/export]`
-  - ASC 606: `/api/v1/revenue-recognition/contracts|obligations|entries|period-closes|run-monthly|dashboard`
-- **Tables:**
-  - Legacy: `revenue_recognition_rules`, `revenue_recognition_entries`
-  - ASC 606: `rev_contracts`, `rev_obligations`, `rev_entries`, `rev_period_closes`
+- **Endpoints:** `/api/v1/revenue-recognition/contracts|obligations|entries|period-closes|run-monthly|dashboard`.
+- **Tables:** `rev_contracts`, `rev_obligations`, `rev_entries`, `rev_period_closes`. Analytics, revenue metrics and the conversion of an opportunity into a project read and write these.
+- **One engine.** An older engine (rules per project in `revenue_recognition_rules`/`revenue_recognition_entries`, with its own summary and journal endpoints under `/revenue/*`) wrote figures nobody else read. Migration `156` turned each rule into a contract (time_and_material → `over_time`, milestone and milestone_billing → `milestone`, the rest the same) in the project's currency and each entry with an amount into a `recognized` entry of its month, then removed those tables and endpoints.
 - **Worker:** `revenue_monthly_recognition` (beat, daily at 02:00 UTC) runs `run_monthly_recognition` for the previous month for every active organization whose local date is day 1. It skips `milestone` contracts and is idempotent (`_ya_reconocido` plus a unique index).
+- Tests: `tests/test_revenue_idempotency.py`, `tests/test_finanzas_hitos_ingresos_2026_11.py` (completed contract, percentage of completion), `tests/test_tarifas_se_aplican_2026_11.py` (T&M with rate cards).
 
 **Limitations.**
-- **The two engines write to different tables.** They do not reconcile with each other.
-- **Legacy methods per month.** `milestone` recognizes the milestones completed that month; `milestone_billing`, those approved or invoiced that month; `completed_contract`, the remaining contract value in the month the project closes (`end_date_real`, status completed or closed). `time_and_material` uses the project rate; without a rate it recognizes 0.
-- **Legacy auto-compute only handles `milestone_billing`.** The UI does not offer that method, and the auto-compute mutation (`_autoCompute`) has no button.
-- **Very few tests.** No backend test was found for the legacy engine or for the `/revenue-recognition` endpoints. Only `tests/test_revenue_idempotency.py` covers the ASC 606 service.
+- **Few tests for the `/revenue-recognition` endpoints themselves**; the service is covered.
+- **No journal export.** The old engine's double-entry journal (and its CSV) went with it; *Entradas contables* lists the entries (filter by contract, year and month) but has no export yet.
 
 ---
 

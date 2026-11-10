@@ -110,7 +110,7 @@ class TestSLAWorkingHoursCalculation:
 class TestRevenueRecognitionMethods:
     """
     Pure math tests — no DB.
-    We replicate the same formulas used in cab.py so any divergence fails the test.
+    We replicate the formulas of the ASC 606 engine (revenue_service) so any divergence fails the test.
     """
 
     # ── Percentage-of-completion (task count) ─────────────────────────────────

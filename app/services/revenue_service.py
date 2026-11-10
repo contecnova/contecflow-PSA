@@ -548,6 +548,10 @@ def run_monthly_recognition(
         elif contract.method == ASCMethod.straight_line:
             amt = _recognize_straight_line(db, contract, year, month, user_id)
             totals["straight_line"] = round(totals["straight_line"] + amt, 2)
+        elif contract.method in (ASCMethod.percentage_complete, ASCMethod.completed_contract):
+            amt = _recognize_por_avance(db, contract, year, month, user_id)
+            clave = contract.method.value
+            totals[clave] = round(totals.get(clave, 0.0) + amt, 2)
 
     try:
         db.commit()
@@ -556,6 +560,50 @@ def run_monthly_recognition(
         raise
 
     return {"period": f"{year}-{month:02d}", "recognized": totals}
+
+
+def _recognize_por_avance(db: Session, contract: RevenueContract, year: int, month: int,
+                          user_id: Optional[str]) -> float:
+    """`percentage_complete` y `completed_contract` (revisión 2026-11, del motor antiguo).
+
+    - Por avance: lo reconocido hasta el mes es contrato × tareas hechas / tareas
+      (sin contar las canceladas); se apunta la diferencia con lo ya reconocido.
+    - Contrato completado: todo lo que falta, el mes en que el proyecto se cierra
+      (`end_date_real`, estado completed o closed); antes, nada.
+    Idempotente por mes, como las demás vías.
+    """
+    from calendar import monthrange
+
+    from app.models.task import Task
+    if _ya_reconocido(db, contract, year, month):
+        return 0.0
+    proj = db.query(Project).filter(Project.id == contract.project_id).first()
+    if proj is None:
+        return 0.0
+    ya = (db.query(func.sum(RevenueEntry.amount)).filter(
+        RevenueEntry.rev_contract_id == contract.id,
+        RevenueEntry.entry_type.in_([EntryType.recognized, EntryType.reversal])).scalar() or 0.0)
+    if contract.method == ASCMethod.completed_contract:
+        fin = getattr(proj, "end_date_real", None)
+        estado = str(getattr(proj.status, "value", proj.status))
+        ultimo = date(year, month, monthrange(year, month)[1])
+        if not fin or estado not in ("completed", "closed") or not (date(year, month, 1) <= fin <= ultimo):
+            return 0.0
+        importe, texto = contract.contract_value - ya, "Contrato completado: todo el importe al cierre"
+    else:
+        tareas = db.query(Task.status).filter(Task.project_id == proj.id).all()
+        validas = [t for (t,) in tareas if str(getattr(t, "value", t)) != "cancelled"]
+        if not validas:
+            return 0.0
+        hechas = sum(1 for t in validas if str(getattr(t, "value", t)) == "done")
+        pct = hechas / len(validas)
+        importe = contract.contract_value * pct - ya
+        texto = f"Por avance: {hechas}/{len(validas)} tareas ({pct * 100:.0f} %)"
+    importe = round(max(importe, 0.0), 2)
+    if importe > 0:
+        _create_entry(db, contract, EntryType.recognized, importe, year, month, user_id, description=texto)
+        db.flush()   # la sesión no hace autoflush: que la guarda de idempotencia lo vea ya
+    return importe
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────

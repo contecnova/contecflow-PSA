@@ -733,15 +733,6 @@ export const sdDynamicFormsApi = {
   importApply:   (data: unknown) => api.post('/sd/dynamic-forms/import/apply', data),
 }
 
-// ── Revenue (legacy engine) ───────────────────────────────────────────────────
-export const revenueApi = {
-  rules:       ()               => api.get('/revenue/rules'),
-  summary:     ()               => api.get('/revenue/summary'),
-  createRule:  (data: unknown)           => api.post('/revenue/rules', data),
-  autoCompute: (period: any)         => api.post('/revenue/auto-compute', { period }),
-  compute:     (id: any, period: any)     => api.post(`/revenue/rules/${id}/compute`, { period }),
-}
-
 // ── Invoices ──────────────────────────────────────────────────────────────────
 export const invoicesApi = {
   list:          (params?: any)          => api.get('/invoices', { params }),
