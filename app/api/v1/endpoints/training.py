@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_hr, require_any_manager
+from app.core.deps import get_current_user, require_admin_or_hr, require_any_manager, require_internal_user
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
@@ -114,9 +114,14 @@ def list_certifications(user_id: Optional[str] = None, expiring_days: Optional[i
 
 @router.post("/certifications", summary="Crear certificación", status_code=201)
 def create_certification(payload: CertificationIn, db: Session = Depends(get_db),
-    _rol: User = Depends(require_admin_or_hr),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(require_internal_user),
                          cu: User = Depends(get_current_user), response: Response = None):
-    c = training_service.create_certification(db, payload.model_dump())
+    # Revisión 2026-11: cada uno registra los suyos (ya podía editarlos y borrarlos); admin y RRHH,
+    # los de cualquiera. Antes crear era sólo de admin y RRHH.
+    datos = payload.model_dump()
+    if cu.role not in (UserRole.admin, UserRole.hr):
+        datos["user_id"] = cu.id
+    c = training_service.create_certification(db, datos)
     return APIResponse.ok(data={"id": c.id})
 
 

@@ -1262,7 +1262,7 @@ The KPI row shows active objectives, average progress and on-track objectives (â
 
 **Limitations.**
 - **There is no way to enrol anyone from the UI.** `trainingApi.enroll` exists but no component calls it, and there is no control to change an enrolment's status. Enrolments only exist if created through the API or seed data.
-- An employee can't create their own certificate (admin/hr only) but can edit and delete it once it exists.
+- Everyone registers, edits and deletes their own certificates; admin and HR, anyone's (a certificate created by someone else is always saved as theirs).
 - **Certificates:** admin, hr, pm and team_lead see the whole company's (or one person's with `user_id`); everyone else sees only their own.
 
 ### Cost structure â€” `/user-costs`
