@@ -4134,6 +4134,7 @@ const zh = {
   },
   alerts: {
     threshold_label: '阈值',
+    dias: "天",
     subtitle_active_unread: '{active} 条有效 · {unread} 条未读',
     subtitle: '面向风险与机会管理的主动告警',
     severity_warning: '警告',

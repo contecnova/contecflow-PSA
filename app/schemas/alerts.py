@@ -15,6 +15,7 @@ class AlertOut(BaseModel):
     description: Optional[str] = Field(None, description="Descripción detallada de la causa o contexto de la alerta")
     value: Optional[float] = Field(None, description="Valor observado que disparó la alerta (ej. horas consumidas)")
     threshold: Optional[float] = Field(None, description="Umbral configurado a partir del cual se dispara la alerta")
+    unit: Optional[str] = Field(None, description="Unidad de valor y umbral (la de Ajustes → Alertas: %, days…)")
     user: Optional[UserPublic] = Field(None, description="Usuario al que va dirigida la alerta (si aplica)")
     project: Optional[ProjectSummary] = Field(None, description="Proyecto al que pertenece la alerta (si aplica)")
     is_read: bool = Field(..., description="Indica si el usuario ya ha leído/visualizado la alerta")

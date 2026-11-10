@@ -40,6 +40,8 @@ const TYPE_ICONS = {
 
 export default function AlertsPage(): JSX.Element {
   const t = useAppT()
+  // La unidad viene de Ajustes → Alertas: «days» se traduce, el resto («%») va tal cual.
+  const unidad = (u?: string | null) => (u === 'days' ? ` ${t('alerts.dias')}` : u || '')
   const { hasRole } = useAuth()
   const qc = useQueryClient()
   const toast = useToast()
@@ -159,7 +161,7 @@ export default function AlertsPage(): JSX.Element {
                         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                           {alert.alert_type} · {fmtRelative(alert.created_at)}
                           {alert.project?.name && <span style={{ marginLeft: 6, color: cfg.dot }}>· {alert.project.name}</span>}
-                          {alert.user?.display_name && <span style={{ marginLeft: 6 }}>· {alert.user.display_name}</span>}
+                          {alert.user?.full_name && <span style={{ marginLeft: 6 }}>· {alert.user.full_name}</span>}
                         </div>
                       </div>
                     </div>
@@ -190,9 +192,9 @@ export default function AlertsPage(): JSX.Element {
                   {alert.value !== null && alert.threshold !== null && (
                     <div style={{ marginLeft: 26, marginTop: 8, fontSize: "var(--text-sm)" }}>
                       <span style={{ color: cfg.dot, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                        {alert.value?.toFixed(0)}{alert.alert_type.includes('budget') ? '€' : '%'}
+                        {alert.value?.toFixed(0)}{unidad(alert.unit)}
                       </span>
-                      <span style={{ color: 'var(--text-3)' }}> / {t('alerts.threshold_label')} {alert.threshold?.toFixed(0)}{alert.alert_type.includes('budget') ? '€' : '%'}</span>
+                      <span style={{ color: 'var(--text-3)' }}> / {t('alerts.threshold_label')} {alert.threshold?.toFixed(0)}{unidad(alert.unit)}</span>
                     </div>
                   )}
                 </div>

@@ -3167,7 +3167,6 @@ There is also a **⚡ Presets BI** tab; see Limitations.
 **Limitations (measured).**
 - `burnout_risk` and `hours_deviation` can be configured, but the engine has no check for them yet.
 - The daily alert job runs without a tenant and covers all organizations; each alert takes the organization of its user or project.
-- **Units are mislabelled.** Budget percentages are shown as "€", and deadline days as "%". The user name never appears: the page reads `display_name`, but the API returns `full_name`.
 - Smart alerts:
   - **Evaluated only when you press "Evaluar ahora".** No worker evaluates them.
   - **Threshold rules created in the UI never fire.** The form sends no threshold.
@@ -5107,6 +5106,8 @@ Other endpoints:
 - A Teams message that is not a command is answered from the Service Desk knowledge base of the writer's company, like the internal assistant (`kb_calidad.contexto`: expert corrections and published articles by number), with the sources listed at the end («Fuentes: [KB-0901] …»). With nothing in the base it says so and the question becomes an unanswered question (source `teams`). It needs the writer to be identified (see user mapping below); anyone else gets the usual message. `TEAMS_KB_ANSWERS_ENABLED` (Admin, per company) turns it off.
 - **Replies are posted.** Bot Framework does not read the HTTP response body for `message` activities (from the Bot Framework documentation; not measured), so the reply is also **posted** to `{serviceUrl}/v3/conversations/{id}/activities/{activityId}` with an app token (client credentials, `TEAMS_BOT_APP_ID` + `TEAMS_BOT_APP_PASSWORD`, `TEAMS_BOT_TOKEN_URL`, `TEAMS_BOT_TOKEN_SCOPE`), in a background task. The `serviceUrl` comes from the request, so it is used only if it equals the `serviceurl` claim of the signed token and its host is in `TEAMS_BOT_ALLOWED_SERVICE_HOSTS`. Without `TEAMS_BOT_APP_PASSWORD` nothing is posted (logged).
 - **What was checked:** the exact shape of both outgoing calls (token request fields; activity URL, bearer, `replyToId`, `from`/`recipient` swapped), with doubles; a `serviceUrl` different from the token's or on a host not allowed receives nothing; commands still run as commands; unknown users never reach the knowledge base. Tests: `tests/test_teams_bot_kb_2026_11.py` (validated by accepting any `serviceUrl` and by not swapping `from`/`recipient`: both caught). **To verify for real:** register a bot in Azure, set the messaging endpoint to `/api/v1/integrations-hub/teams/commands`, and set the two app settings.
+
+- Each alert carries the `unit` of its type, from *Settings → Alerts* (`%`, or days); value and threshold are shown with it, and with the person's name.
 
 **Limitations (measured).**
 - **User mapping.** Slack: an active user whose `username`, or the part of the email before `@`, equals the Slack `user_name` (case-insensitive). Teams: an active user whose full name equals the Teams display name (case-insensitive, spaces collapsed). If none or more than one match (across all organizations), the bot answers "No encuentro un único usuario…" and does nothing; only the help works without a user. The command then runs with that user's organization as tenant context, so project and task codes resolve only inside it, and new tasks, tickets and time entries are stamped with it. Test: `tests/test_bot_slack_teams_usuario_exacto.py`.

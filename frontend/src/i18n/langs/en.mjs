@@ -4140,6 +4140,7 @@ const en = {
   },
   alerts: {
     threshold_label: 'threshold',
+    dias: "days",
     subtitle_active_unread: '{active} active · {unread} unread',
     subtitle: 'Proactive alerts for risk and opportunity management',
     severity_warning: 'Warning',

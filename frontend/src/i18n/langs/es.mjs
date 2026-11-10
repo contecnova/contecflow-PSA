@@ -3026,6 +3026,7 @@ const es = {
     empty_description: 'Todo el equipo está dentro de los parámetros normales',
     mark_as_read: 'Marcar leída',
     threshold_label: 'límite',
+    dias: "días",
     generic_error: 'Error',
   },
 
