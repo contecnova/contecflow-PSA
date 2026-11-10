@@ -831,7 +831,7 @@ Rules enforced in `imputation_service.py`:
 **How to use it.**
 - Select a project.
 - Pick a predecessor, a successor, a type and a lag.
-- Types offered: `blocks | blocked_by | relates_to | duplicates | cloned_from`.
+- Types: `FS` (blocks: finish → start), `SS`, `FF`, `SF` — the same as the Gantt and the auto-scheduler. Through the API, `blocks` is taken as `FS` and `blocked_by` as `FS` with the two tasks swapped. A dependency that would close a cycle (the successor already comes before the predecessor) is refused (400). A task is shown as blocked when it has a predecessor.
 - Delete a dependency.
 
 **Configuration.** None found.
@@ -839,8 +839,6 @@ Rules enforced in `imputation_service.py`:
 **Technical notes.** `GET /api/v1/tasks/dependencies/{project_id}`, `POST /api/v1/tasks/dependencies`, `DELETE /api/v1/tasks/dependencies/{dep_id}`. Table `task_dependencies`.
 
 **Limitations.**
-- **Two vocabularies for the same field.** This page uses Jira-style link types, while the Gantt stores `FS`. The backend accepts any string for `dependency_type`.
-- **Only self-dependencies are blocked.** There is no cycle detection.
 - **team_lead and employee get 403 on writes.**
 
 ### Git Integration — `/git`

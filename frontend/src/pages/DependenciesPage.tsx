@@ -13,7 +13,9 @@ import { GitMerge } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 
-type DependencyType = 'blocks' | 'blocked_by' | 'relates_to' | 'duplicates' | 'cloned_from'
+// Los tipos del Gantt y el autoplanificador (revisión 2026-11): antes ofrecía tipos de Jira que no se podían guardar.
+type DependencyType = 'FS' | 'SS' | 'FF' | 'SF'
+const DE_ORDEN = new Set(['FS', 'SS', 'FF', 'SF'])
 type TaskStatus = 'todo' | 'in_progress' | 'done' | 'blocked' | 'in_review' | string
 
 type ProjectItem = {
@@ -58,11 +60,10 @@ const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const DEP_TYPES: Array<{ value: DependencyType; label: string; color: string; desc: string }> = [
-  { value:'blocks',      label: 'Bloquea',            color:'var(--danger)', desc: 'La tarea origen bloquea la tarea destino' },
-  { value:'blocked_by',  label: 'Bloqueada por',      color:'var(--danger)', desc: 'La tarea origen queda bloqueada por la destino' },
-  { value:'relates_to',  label: 'Relacionada con',    color:'var(--text-2)', desc: 'Relación informativa sin bloqueo' },
-  { value:'duplicates',  label: 'Duplica',            color:'var(--warning)', desc: 'Representa trabajo duplicado' },
-  { value:'cloned_from', label: 'Clonada desde',      color:'var(--accent)', desc: 'La tarea origen se creó desde la destino' },
+  { value:'FS', label: 'Bloquea (fin → inicio)', color:'var(--danger)', desc: 'La siguiente no empieza hasta que acaba la anterior' },
+  { value:'SS', label: 'Inicio → inicio',        color:'var(--warning)', desc: 'La siguiente empieza cuando empieza la anterior' },
+  { value:'FF', label: 'Fin → fin',              color:'var(--warning)', desc: 'La siguiente acaba cuando acaba la anterior' },
+  { value:'SF', label: 'Inicio → fin',           color:'var(--warning)', desc: 'La siguiente acaba cuando empieza la anterior' },
 ];
 const _EPIC_DEP_TYPES = [
   { value:'finish_to_start',  label: 'Finish to start',   color:'var(--danger)', desc: 'La épica destino comienza cuando la origen finaliza' },
@@ -77,7 +78,7 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
   const t = useAppT();
   const qc = useQueryClient();
   const toast = useToast();
-  const [form, setForm] = useState<DepFormState>({ predecessor_id:'', successor_id:'', dependency_type:'blocks', lag_days:0 });
+  const [form, setForm] = useState<DepFormState>({ predecessor_id:'', successor_id:'', dependency_type:'FS', lag_days:0 });
   const set = <K extends keyof DepFormState>(k: K) => (v: DepFormState[K]) => setForm(f => ({...f, [k]: v}));
   const selType = DEP_TYPES.find(d => d.value === form.dependency_type);
 
@@ -192,7 +193,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
           const outEdges = edges.filter(e => e.from_task_id === node.id)
           const inEdges  = edges.filter(e => e.to_task_id   === node.id)
           const isBlocking = outEdges.length > 0
-          const isBlocked  = inEdges.filter(e => e.dep_type === 'blocks').length > 0
+          const isBlocked  = inEdges.filter(e => DE_ORDEN.has(String(e.dep_type))).length > 0
           const sc = STATUS_COLOR[node.status ?? ''] || 'var(--text-2)'
           return (
             <div key={node.id} style={{display:'grid', gridTemplateColumns:'200px 60px 1fr 80px',
@@ -299,7 +300,7 @@ export default function DependenciesPage(): JSX.Element {
   })), [deps, taskMap])
 
   const nodes = tasks
-  const blocked = edges.filter(e => e.dep_type === 'blocks')
+  const blocked = edges.filter(e => DE_ORDEN.has(String(e.dep_type)))
 
   return (
     <PageShell>

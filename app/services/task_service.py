@@ -92,7 +92,7 @@ from sqlalchemy.orm import Session
 
 from app.models.task import TaskStatus
 from app.db.session import SessionLocal
-from app.models.bookings import TaskDependency
+from app.models.bookings import DependencyType, TaskDependency
 from app.models.epics import ThreadedComment
 from app.models.project import Project, ProjectMember
 from app.models.semantic_engine import SemConfig
@@ -636,6 +636,21 @@ def list_task_dependencies(db: Session, project_id: str) -> list:
     ]
 
 
+def _cierra_un_ciclo(db: Session, predecessor_id: str, successor_id: str) -> bool:
+    """¿Ya se llega de `successor_id` a `predecessor_id` por dependencias activas?"""
+    pendientes, vistos = [successor_id], set()
+    while pendientes:
+        actual = pendientes.pop()
+        if actual == predecessor_id:
+            return True
+        if actual in vistos:
+            continue
+        vistos.add(actual)
+        pendientes += [s for (s,) in db.query(TaskDependency.successor_id).filter(
+            TaskDependency.predecessor_id == actual, TaskDependency.is_active.is_(True)).all()]
+    return False
+
+
 def create_task_dependency(
     db: Session,
     predecessor_id: str,
@@ -648,8 +663,22 @@ def create_task_dependency(
     Create a dependency between two tasks.
     Raises 400 on self-reference, 409 if it already exists.
     """
+    # Revisión 2026-11: los tipos son los del Gantt y el autoplanificador (FS/SS/FF/SF, la columna es
+    # un enum). La página de dependencias mandaba tipos de Jira que no se podían guardar; si llegan,
+    # «bloquea» es FS y «bloqueada por» es FS al revés.
+    tipo = getattr(dependency_type, "value", dependency_type)
+    if tipo == "blocks":
+        tipo = "FS"
+    elif tipo == "blocked_by":
+        tipo, predecessor_id, successor_id = "FS", successor_id, predecessor_id
+    try:
+        dependency_type = DependencyType(tipo)
+    except ValueError:
+        raise HTTPException(400, f"Tipo de dependencia no válido: {tipo} (FS, SS, FF o SF)")
     if predecessor_id == successor_id:
         raise HTTPException(400, "Una tarea no puede depender de sí misma")
+    if _cierra_un_ciclo(db, predecessor_id, successor_id):
+        raise HTTPException(400, "Esa dependencia cerraría un ciclo: la tarea siguiente ya va antes que la anterior")
     existing = (
         db.query(TaskDependency)
         .filter(
