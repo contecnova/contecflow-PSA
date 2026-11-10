@@ -380,9 +380,11 @@ def generate_sprint_plan(
     puntos = {t.id: (1 if t.story_points is None else t.story_points) for t in backlog_raw}
 
     PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    # Revisión 2026-11: primero la prioridad y, dentro de ella, lo pequeño (caben más). Antes se
+    # ordenaba por puntos de mayor a menor: una tarea grande y baja entraba antes que una crítica.
     backlog = sorted(
         backlog_raw,
-        key=lambda t: (-puntos[t.id], PRIORITY_ORDER.get(t.priority or "low", 3))
+        key=lambda t: (PRIORITY_ORDER.get(t.priority or "low", 3), puntos[t.id])
     )
 
     selected = []; total = 0; reasoning_parts = []
@@ -463,8 +465,15 @@ def update_sprint_plan_status(plan_id: str, status: str, db: Session) -> dict:
         raise HTTPException(400, "Estado válido: draft, accepted, rejected")
     plan = db.query(SprintPlan).filter(SprintPlan.id == plan_id, SprintPlan.is_active == True).first()
     if not plan: _404("Plan")
+    anadidas = 0
+    if status == "accepted" and plan.status != "accepted":
+        # Revisión 2026-11: aceptar mete las tareas del plan en su sprint (antes sólo cambiaba el estado).
+        if not plan.sprint_id:
+            raise HTTPException(400, "El plan no tiene sprint: genéralo eligiendo el sprint para poder aceptarlo")
+        from app.services.sprint_service import add_tasks_to_sprint
+        anadidas = add_tasks_to_sprint(db, plan.sprint_id, plan.project_id, [pt.task_id for pt in plan.tasks])
     plan.status = status; db.commit()
-    return {"id": plan.id, "status": plan.status}
+    return {"id": plan.id, "status": plan.status, "tareas_anadidas": anadidas}
 
 
 def delete_sprint_plan(plan_id: str, db: Session) -> dict:

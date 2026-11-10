@@ -63,7 +63,7 @@ Each item was measured in the code. Details are in the section named in brackets
 
 **Partial features**
 - BPM runs a documented subset of BPMN (human tasks, exclusive and parallel gateways, timers); a diagram outside it is refused at start. [5]
-- Sprint Planning "AI" is a greedy fill by story points. [1]
+- Sprint Planning "AI" is a greedy fill by priority, then smaller tasks first. [1]
 - Not enforced: the role `permissions` JSON (no screen edits it), `can_see_rates`, and levels never grant more than the base role. [2, 6]
 - The ML extras (Prophet, LightGBM, sentence-transformers) are not in the Docker image; the features that use them fall back to statistics or word overlap. [5]
 - Purchases have no entity in the data model, so the Approval Inbox has nothing to route for them. [1]
@@ -630,9 +630,9 @@ Rules enforced in `imputation_service.py`:
 **Technical notes.** `POST /api/v1/cmdb/sprint-plans/generate`, `GET /api/v1/cmdb/sprint-plans/{project_id}`, `PATCH /api/v1/cmdb/sprint-plans/{plan_id}/status?status=`, `DELETE /api/v1/cmdb/sprint-plans/{plan_id}`. Tables: `sprint_plans`, `sprint_plan_tasks`.
 
 **Limitations.**
-- **It is not AI.** The generator (`cmdb_service.generate_sprint_plan`) is a deterministic greedy fill. It only considers tasks in `todo`, sorted by **story points descending** and then by priority, so large low-priority tasks are picked before small critical ones.
+- **It is not AI.** The generator (`cmdb_service.generate_sprint_plan`) is a deterministic greedy fill of tasks in `todo`: by priority (critical first) and, within a priority, smaller tasks first, until the capacity is reached.
 - **Unestimated tasks count as 1 point in the plan only.** The plan marks them `unestimated`; the tasks themselves are not changed.
-- **Accepting a plan does nothing else.** It only changes `sprint_plans.status`. No tasks are added to the sprint.
+- **Accepting a plan adds its tasks to its sprint** (`sprint_service.add_tasks_to_sprint`, skipping those already in it); a plan generated without a sprint cannot be accepted (400).
 - **No backend test** references `/cmdb/sprint-plans`.
 
 ### RACI Matrix — `/raci`
