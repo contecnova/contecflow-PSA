@@ -1172,7 +1172,7 @@ Cell shading comes from the forecast endpoint.
 
 **Limitations.**
 - **Another person's approval chain** is for admin, pm, team_lead and hr. Other roles see only their own, without the person picker.
-- Saving a node makes two sequential calls (profile, then manager). If the second fails, the first is already saved.
+- Saving a node sends manager, job title and department in one call (`PATCH /users/{id}/manager`), saved together after the cycle check: either all or nothing.
 
 ### OKRs — `/okrs`
 *Roles:* admin, pm, hr.

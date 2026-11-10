@@ -261,4 +261,5 @@ def set_user_manager(
     current_user: User = Depends(require_admin),
 ):
     enforce_abac(db, current_user, "user", user_id, action="update")
-    return APIResponse.ok(data=set_manager_record(user_id, payload.get("manager_id"), current_user, db))
+    return APIResponse.ok(data=set_manager_record(user_id, payload.get("manager_id"), current_user, db,
+                                                  extra={k: payload[k] for k in ("job_title", "department") if k in payload}))

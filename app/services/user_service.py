@@ -628,7 +628,11 @@ def get_user_productivity_payload(
 
 # ── Set manager ────────────────────────────────────────────────────────────────
 
-def set_manager_record(user_id: str, manager_id: Optional[str], current_user, db: Session) -> dict:
+def set_manager_record(user_id: str, manager_id: Optional[str], current_user, db: Session,
+                       extra: Optional[dict] = None) -> dict:
+    """Responsable de una persona; con `extra`, también su puesto y departamento, en la misma
+    transacción (revisión 2026-11: el organigrama los guardaba en dos llamadas y, si fallaba la
+    segunda, la primera quedaba guardada)."""
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -651,6 +655,9 @@ def set_manager_record(user_id: str, manager_id: Optional[str], current_user, db
             ensure_same_org_user_access(check, current_user)
 
     user.manager_id = manager_id
+    for campo in ("job_title", "department"):
+        if extra and campo in extra:
+            setattr(user, campo, extra[campo] or None)
     db.commit()
     return {"ok": True, "manager_id": manager_id}
 

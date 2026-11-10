@@ -95,11 +95,8 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await usersApi.update(user.id, {
-        job_title: jobTitle || undefined,
-        department: department || undefined,
-      } as Parameters<typeof usersApi.update>[1])
-      await usersApi.updateManager(user.id, { manager_id: managerId || null })
+      // Una sola llamada: responsable, puesto y departamento se guardan juntos o no se guarda nada.
+      await usersApi.updateManager(user.id, { manager_id: managerId || null, job_title: jobTitle || null, department: department || null })
       toast.success('Posición actualizada')
       onSaved()
     } catch (e) {
