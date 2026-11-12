@@ -148,6 +148,8 @@ The tab badges are refreshed every 60 s (`useNotificationBadges`).
 **Limitations.** Everyone can reach the Approvals tab here, including employees. The standalone `/approvals` route is limited to admin, pm and team_lead.
 
 ### Chat (Teams) — `/chat`
+
+- **Message links (2026-11):** `POST` of a message accepts `linked_task_id`, `linked_ticket_id`, `linked_deliverable_id` and `linked_risk_id`; each must belong to the sender's organization (422 otherwise). The UI shows the chips but has no control to set them; they come from the API or bots.
 *Roles:* Menu: all five roles. Route: any authenticated user. `/chat/admin` redirects to `/settings/chat-admin` (admin only, documented elsewhere). `/chat/call/:callId` opens the call window.
 
 **Purpose.** A Teams-style internal chat:
@@ -352,6 +354,8 @@ Rules enforced in `imputation_service.py`:
 - **Pending and Team tabs** are shown to admin, hr, pm and team_lead, the same roles the backend allows to review.
 
 ### Documents — `/documents`
+
+- **Tag filter (2026-11):** `GET /documents?tags=a,b` filters on the server (any of the tags); before, the parameter was accepted and ignored.
 *Roles:* Menu: admin, pm, hr, team_lead, employee. Route: any authenticated user.
 
 **Purpose.** A document repository with:

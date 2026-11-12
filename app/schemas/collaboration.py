@@ -170,6 +170,8 @@ class MessageCreate(BaseModel):
     scheduled_for: Optional[datetime] = Field(None, description="Marca temporal para envío programado")
     linked_task_id: Optional[str] = Field(None, description="ID de tarea vinculada al mensaje")
     linked_ticket_id: Optional[str] = Field(None, description="ID de ticket vinculado al mensaje")
+    linked_deliverable_id: Optional[str] = Field(None, description="ID de entregable vinculado al mensaje")
+    linked_risk_id: Optional[str] = Field(None, description="ID de riesgo vinculado al mensaje")
 
 
 class MessageUpdate(BaseModel):

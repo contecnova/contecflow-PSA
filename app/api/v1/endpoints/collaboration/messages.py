@@ -95,6 +95,8 @@ def send_message(payload: MessageCreate, current_user: User = Depends(get_curren
         scheduled_for=payload.scheduled_for,
         linked_task_id=payload.linked_task_id,
         linked_ticket_id=payload.linked_ticket_id,
+        linked_deliverable_id=payload.linked_deliverable_id,
+        linked_risk_id=payload.linked_risk_id,
     )
     # If the message contains slash commands (/ask /task etc) trigger bot pipeline
     try:

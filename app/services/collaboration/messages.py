@@ -351,6 +351,24 @@ def _crear_menciones(
     return menciones
 
 
+def _exigir_enlaces_de_la_org(db: Session, org, tarea, ticket, entregable, riesgo) -> None:
+    """Auditoria 2026-11: un mensaje solo enlaza tareas, tickets, entregables y
+    riesgos de su organizacion (antes los ids se guardaban sin comprobar)."""
+    from app.db.session import sin_filtro_de_tenant
+    from app.models.pipeline import Risk
+    from app.models.resources import Deliverable
+    from app.models.service_desk.tickets import Ticket
+    from app.models.task import Task
+    for modelo, valor, nombre in ((Task, tarea, "tarea"), (Ticket, ticket, "ticket"),
+                                  (Deliverable, entregable, "entregable"), (Risk, riesgo, "riesgo")):
+        if not valor:
+            continue
+        with sin_filtro_de_tenant(db):
+            fila = db.query(modelo.organization_id).filter(modelo.id == valor).first()
+        if fila is None or (fila[0] and fila[0] != org):
+            raise ErrorDeDominio(422, f"El {nombre} enlazado no existe en tu organizacion")
+
+
 def send_message(
     db: Session, user, *,
     body: str,
@@ -367,6 +385,8 @@ def send_message(
     scheduled_for: Optional[datetime] = None,
     linked_task_id: Optional[str] = None,
     linked_ticket_id: Optional[str] = None,
+    linked_deliverable_id: Optional[str] = None,
+    linked_risk_id: Optional[str] = None,
     bot_id: Optional[str] = None,
     client_user_id: Optional[str] = None,
 ) -> CollaborationMessage:
@@ -391,6 +411,7 @@ def send_message(
     conv = _resolve_conversation(db, conversation_id=conversation_id, channel_id=channel_id, direct_id=direct_id, group_id=group_id)
 
     _autorizar_envio(db, user, conv, client_user_id=client_user_id, bot_id=bot_id)
+    _exigir_enlaces_de_la_org(db, org, linked_task_id, linked_ticket_id, linked_deliverable_id, linked_risk_id)
 
     # DLP scan on body
     dlp_status, dlp_findings = scan_dlp(body)
@@ -414,6 +435,8 @@ def send_message(
         sent_at=scheduled_for or datetime.now(timezone.utc),
         linked_task_id=linked_task_id,
         linked_ticket_id=linked_ticket_id,
+        linked_deliverable_id=linked_deliverable_id,
+        linked_risk_id=linked_risk_id,
     )
     db.add(msg)
     db.flush()

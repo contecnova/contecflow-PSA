@@ -14,6 +14,8 @@ Cada test cubre un desajuste que la pasada de tipos encontro en el frontend:
   traia los datos de la CR que pinta el modal.
 """
 import uuid
+
+import pytest
 from datetime import date, datetime, timezone
 from types import SimpleNamespace
 
@@ -279,3 +281,24 @@ def test_listado_de_fr_del_equipo_trae_datos_de_la_cr(client, pm_token, db):
         "approved_at": "2026-11-02", "implemented_at": None,
     }
     assert _detalle_de_cr(None) == {}
+
+
+def test_filtro_por_etiqueta_en_el_servidor(client, admin_token, db):
+    """El parametro `tags` se aceptaba y se ignoraba (auditoria 2026-11)."""
+    con = client.post("/api/v1/documents", json={"title": "Etiquetado", "category": "proposal"},
+                      headers=auth(admin_token)).json()["data"]
+    sin = client.post("/api/v1/documents", json={"title": "Sin etiqueta", "category": "proposal"},
+                      headers=auth(admin_token)).json()["data"]
+    client.post(f"/api/v1/documents/{con['id']}/tags", json={"tag": "Contrato"}, headers=auth(admin_token))
+    body = client.get("/api/v1/documents", params={"tags": "contrato"}, headers=auth(admin_token)).json()
+    ids = {d["id"] for d in (body if isinstance(body, list) else body.get("items", body.get("data", [])))}
+    assert con["id"] in ids and sin["id"] not in ids
+
+
+def test_enlace_de_mensaje_a_otra_organizacion_es_422(db):
+    from app.core.errores import ErrorDeDominio
+    from app.services.collaboration.messages import _exigir_enlaces_de_la_org
+    with pytest.raises(ErrorDeDominio) as e:
+        _exigir_enlaces_de_la_org(db, "org-x", None, None, "no-existe", None)
+    assert e.value.status_code == 422
+    _exigir_enlaces_de_la_org(db, "org-x", None, None, None, None)  # sin enlaces: nada que comprobar

@@ -12,6 +12,12 @@ def query_documents(db: Session, current_user, category=None, tags=None, search=
         q = q.filter(Document.task_id == task_id)
     if ticket_id:
         q = q.filter(Document.ticket_id == ticket_id)
+    if tags:
+        # Auditoria 2026-11: se aceptaba y se ignoraba. Coma = cualquiera de las etiquetas.
+        nombres = [t.strip() for t in str(tags).split(",") if t.strip()]
+        if nombres:
+            from app.models.documents import DocumentTag
+            q = q.filter(Document.tags.any(DocumentTag.tag_name.in_(nombres)))
     if search:
         q = q.filter(or_(Document.title.ilike(f"%{search}%"), Document.description.ilike(f"%{search}%")))
     if current_user.role != UserRole.admin:
