@@ -30,7 +30,7 @@ def _rutas_websocket() -> list[str]:
 
 
 def _patron_de_nginx() -> re.Pattern:
-    texto = CONF.read_text()
+    texto = CONF.read_text(encoding="utf-8")
     m = re.search(r"location ~ (\^/api/v1/\S+) \{\n(?:(?!\n    \}).)*?proxy_set_header Upgrade", texto, re.S)
     assert m, "no hay una location por expresión regular con proxy_set_header Upgrade"
     return re.compile(m.group(1))

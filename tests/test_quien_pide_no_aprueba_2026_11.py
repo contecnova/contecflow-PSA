@@ -56,4 +56,4 @@ def test_el_resto_de_caminos_usa_la_misma_regla():
         "services/service_desk/change_service.py": "change.requester_id",
     }
     for f, campo in esperado.items():
-        assert f"exigir_que_no_sea_suyo(db, {campo}, current_user" in (raiz / f).read_text(), f
+        assert f"exigir_que_no_sea_suyo(db, {campo}, current_user" in (raiz / f).read_text(encoding="utf-8"), f

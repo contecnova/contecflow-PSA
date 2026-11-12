@@ -23,7 +23,7 @@ def test_los_temas_del_servidor_son_los_de_la_pantalla():
     import pathlib
     import re
     from app.services.user_service import TEMAS
-    panel = pathlib.Path("frontend/src/components/layout/UserProfilePanel.tsx").read_text()
+    panel = pathlib.Path("frontend/src/components/layout/UserProfilePanel.tsx").read_text(encoding="utf-8")
     bloque = panel.split("const THEMES = [", 1)[1].split("]", 1)[0]
     assert set(re.findall(r"id: '([\w-]+)'", bloque)) == set(TEMAS)
 

@@ -43,6 +43,32 @@ Entradas clave:
 - `frontend/src/pages/`
 - `frontend/src/components/`
 
+Reglas del frontend (auditoría 2026-11, aplicadas por ESLint en error salvo indicación):
+- Sin `any` explícito (`@typescript-eslint/no-explicit-any`).
+- Sin `confirm`/`prompt`/`alert` nativos: `confirmar()` / `pedirTexto()` de `context/ConfirmContext.tsx` (con `palabraConfirmacion` para borrados irreversibles).
+- Sin `fetch` fuera de `services/api/**` (aviso): el cliente pone CSRF y refresca la sesión; prefijos desde `services/api/urls.ts`; SSE con `apiStream()`.
+- Sin colores hex en propiedades de estilo (aviso): tokens de `index.css`. Codemods: `frontend/scripts/codemods/colores-a-tokens.mjs`, `estilos-a-clases.mjs` (clases `u-*`), `date-input.mjs`.
+- Diálogos y paneles: `Modal`, `Drawer` y `useDialogo` (foco atrapado, Esc solo cierra el de arriba). Fechas: `components/ui/DateInput`.
+- Gráficos: recharts; d3 solo para el grafo de fuerzas de CMDB.
+
+### Reglas de capas (auditoría 2026-11)
+Cada regla tiene un test que falla si se rompe.
+
+| Regla | Cómo | Test |
+|---|---|---|
+| Los servicios no conocen HTTP | lanzan `ErrorDeDominio` (`app/core/errores.py`), que `main.py` traduce a la misma respuesta | `scripts/codemods/servicios_sin_http.py` (codemod) |
+| La API no confirma transacciones | `commit()` solo en servicios | `tests/test_sin_commits_en_la_api.py` |
+| Los modelos no importan servicios | invariantes de persistencia en `app/db/` (`cadena_auditoria.py`, `bloqueo_legal.py`) | `tests/test_auditoria_2026_11_capas_y_stripe.py` |
+| Sin ciclos de import a nivel de módulo | métricas registradas en `app/services/metrics/_registro.py` | `tests/test_sin_ciclos_de_import.py` |
+| Ningún `except Exception` silencioso | log con traza (`warning` si hay E/S, `debug` si no) | `tests/test_sin_except_silenciosos.py`, codemod `scripts/codemods/except_silenciosos.py` |
+| Un solo emisor SMTP | `notification_service` | `tests/test_correo_un_solo_emisor.py` |
+| Asignación masiva | `campos_asignables()` / `es_asignable()` (`app/core/asignacion.py`) | — |
+| Trabajo lento fuera de la petición | `encolar(fn, ...)` (`app/core/segundo_plano.py`): Celery si hay `REDIS_URL`, en línea si no o con `TESTING=1`; solo funciones de `app.*` | — |
+| Llamadas salientes a URLs configurables | `abrir()` (urllib) o `cliente_httpx()` (`app/core/outbound_url.py`): validan URL, cada redirección y la IP real conectada; hosts internos legítimos en `OUTBOUND_PRIVATE_HOSTS_ALLOWED` | `tests/test_auditoria_2026_11_capas_y_stripe.py` |
+| Servicios de más de 1.000 líneas | paquete con `__init__` que reexporta todo (incluidos privados) | — |
+
+Sigue pendiente: `ai_provider_service.py` (1.542 líneas) sin partir.
+
 ## 3. Estructura del repositorio
 - `app/`: backend
 - `alembic/`: migraciones de base de datos

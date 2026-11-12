@@ -21,12 +21,12 @@ def test_lo_que_corria_en_apscheduler_tambien_esta_en_beat():
 
 
 def test_setup_sh_arranca_celery_y_apaga_apscheduler():
-    s = (RAIZ / "setup.sh").read_text()
+    s = (RAIZ / "setup.sh").read_text(encoding="utf-8")
     assert "celery -A app.worker.celery_app worker" in s
     assert "celery -A app.worker.celery_app beat" in s
     assert "ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1" in s
 
 
 def test_docker_compose_no_corre_los_dos_planificadores():
-    s = (RAIZ / "docker-compose.yml").read_text()
+    s = (RAIZ / "docker-compose.yml").read_text(encoding="utf-8")
     assert 'ENABLE_APSCHEDULER: "0"' in s and 'ENABLE_CELERY_BEAT: "1"' in s

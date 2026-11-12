@@ -1512,7 +1512,7 @@ General notes that apply to every module here:
 - `DEFAULT_TAX_RATE` and `DEFAULT_CURRENCY`.
 - Invoice numbering.
 - Xero and QuickBooks need an active `IntegrationConfig` row of that type. Their base URLs are `XERO_API_BASE` and `QB_API_BASE`.
-- Stripe (`STRIPE_*`) is used only by `POST /invoices/{id}/payment-link`, which has no button.
+- Stripe (`STRIPE_*`): `POST /invoices/{id}/payment-link` (no button) creates a Checkout Session. **`POST /api/v1/invoices/stripe/webhook`** (2026-11 audit; before, no webhook was mounted and paid invoices never changed status) marks the invoice `paid` on `checkout.session.completed` with `payment_status=paid` or `checkout.session.async_payment_succeeded`, only if the session id matches the invoice's link. It requires `STRIPE_WEBHOOK_SECRET` (503 without it) and a valid `Stripe-Signature` with 5-minute tolerance (400 otherwise). Register that URL in the Stripe dashboard. Code: `app/services/payments_service.py`; test `tests/test_auditoria_2026_11_capas_y_stripe.py`.
 
 **Technical notes.**
 - **Endpoints:**
@@ -2994,6 +2994,7 @@ If the chosen provider fails, every other active provider is tried once. If none
 
 **Configuration.**
 - Email uses `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM` (`app/core/config.py`). These come from the environment only; they are not runtime settings.
+- **Single sender (2026-11 audit):** only `app/services/notification_service.py` opens SMTP (`ServidorSmtp`, `entregar`, `enviar_correo`); `tests/test_correo_un_solo_emisor.py` fails if `smtplib` appears anywhere else. One TLS policy: port 465 → `SMTP_SSL`; otherwise STARTTLS when offered; with credentials and no STARTTLS (and port ≠ 25) the mail is **refused** instead of sending the password in clear. Login only when user and password are set; 30 s timeout. Per-organization SMTP (Service Desk, password reset) is kept.
 - An optional Slack webhook can be set per scheduled report.
 
 **Technical notes.**
@@ -4315,7 +4316,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | ui_branding | FRONTEND_EMBED_BASE_URL | str | `''` | Base URL for M365/BI embeds | rt (`m365_bi_embed_service`) |
 | ui_branding | BI_EMBED_FRAME_ANCESTORS | str | `'self' https://teams.microsoft.com https://*.teams.microsoft.com https://*.cloud.microsoft https://*.sharepoint.com` | BI embed page — who may show it in an iframe (CSP frame-ancestors, space separated) | rt (`/bi/embed/view`) |
 | ui_branding | PROJECT_NAME | str | `Contecflow` | Product display name (TOTP issuer, PDFs) | rt |
-| observability | METRICS_AUTH_TOKEN | str | None | Bearer token for `/metrics`; empty disables auth | rt (global only). **Stored and audited in plaintext** |
+| observability | METRICS_AUTH_TOKEN | str | None | Bearer token for `/metrics`; empty = closed outside development (2026-11) | rt (global only). **Stored and audited in plaintext** |
 | timeouts | OUTBOUND_HTTP_TIMEOUT_SECONDS | float | 10.0 | Default timeout for outbound HTTP | rt via `outbound_http_timeout()` (24 call sites) |
 | timeouts | OUTBOUND_AI_TIMEOUT_SECONDS | float | 30.0 | Default timeout for outbound AI calls | rt via `outbound_ai_timeout()` |
 | ai | AI_PROVIDER_ERROR_COOLDOWN_SECONDS | int | 300 | A failing provider is set aside for (s), then retried | rt |
@@ -5930,8 +5931,7 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 
 #### 7.6 Known security issues found while measuring
 
-- `/health` and `/ready` are unauthenticated and include the raw database or Redis exception text when a check fails.
-- The CSRF exemption list contains stale paths (§6.3).
+- Fixed in the 2026-11 audit: `/health` and `/ready` no longer return exception text (it goes to the log; the response says `error` / `unreachable`). The eSign exemption now matches `/api/v1/esign/webhooks/`. Still stale: `/api/v1/service-desk/…` (real path `/api/v1/sd/…`), harmless because webhook callers send no cookies.
 
 ---
 
@@ -5987,9 +5987,9 @@ The collaboration module also has its own in-process scheduler (`app/services/co
 ### 9. Observability
 
 - **Logging:** stdlib `logging`, plain-text format `%(asctime)s [%(levelname)s] %(name)s: %(message)s` (time only, no date, no JSON). Level from `LOG_LEVEL`; the SPA can change it at runtime through `/api/v1/settings/log-level`. Each request is logged with method, path, status, duration and the first 8 characters of the token subject. 4xx responses also log the URL with secret query parameters redacted. `/health`, `/ready`, `/metrics` and `/favicon.ico` are not logged.
-- **Prometheus** (`app/core/metrics.py`, `docs/OBSERVABILITY_PROMETHEUS.md`): `METRICS_ENABLED=1` registers `/metrics` and the instrumentator (`http_requests_total`, `http_request_duration_seconds`, `contecflow_http_requests_inprogress`) plus domain metrics: `contecflow_app_info`, `contecflow_tickets_created_total`, `contecflow_invoices_created_total`, `contecflow_business_event_total`, `contecflow_abac_denials_total`, `contecflow_scheduled_job_duration_seconds` (APScheduler hook), `contecflow_external_api_calls_total`, `contecflow_external_api_latency_seconds`. Optional Bearer: `METRICS_AUTH_TOKEN` (the runtime key wins). Multi-worker: `METRICS_MULTIPROC_DIR`. The bundled `ops/prometheus/prometheus.yml` scrapes `api:8000/metrics` **without credentials**, so setting a token makes that target fail until you add `authorization` to the job. Postgres and Redis exporters run under the `observability` profile. There is no S3 metrics job and no Alertmanager service.
+- **Prometheus** (`app/core/metrics.py`, `docs/OBSERVABILITY_PROMETHEUS.md`): `METRICS_ENABLED=1` registers `/metrics` and the instrumentator (`http_requests_total`, `http_request_duration_seconds`, `contecflow_http_requests_inprogress`) plus domain metrics: `contecflow_app_info`, `contecflow_tickets_created_total`, `contecflow_invoices_created_total`, `contecflow_business_event_total`, `contecflow_abac_denials_total`, `contecflow_scheduled_job_duration_seconds` (APScheduler hook), `contecflow_external_api_calls_total`, `contecflow_external_api_latency_seconds`. Bearer: `METRICS_AUTH_TOKEN` (the runtime key wins, compared in constant time). **Since the 2026-11 audit, without a token `/metrics` answers 401 outside `ENVIRONMENT=development|test`.** Multi-worker: `METRICS_MULTIPROC_DIR`. The bundled `ops/prometheus/prometheus.yml` scrapes `api:8000/metrics` **without credentials**, so setting a token makes that target fail until you add `authorization` to the job. Postgres and Redis exporters run under the `observability` profile. There is no S3 metrics job and no Alertmanager service.
 - **Tracing / errors:** OpenTelemetry (FastAPI + SQLAlchemy instrumentation) when `OTEL_ENABLED` and `OTEL_EXPORTER_OTLP_ENDPOINT` are set; Sentry when `SENTRY_DSN` is set (traces 0.1, profiles 0.05, no PII).
-- **Health:** `GET /health` returns `{status:"ok", version, project, db}` and **is always 200**, even when the DB fails (only the `db` field shows the error). `GET /ready` returns 503 if the DB fails, if Redis is configured and unreachable, or on dual scheduler in staging/production, with `checks.db`, `checks.redis`, `checks.celery_broker` (a Redis ping only, not the worker) and `checks.scheduler.mode`. `GET /status` is a public HTML status page (`?org=<slug>`) backed by `/api/v1/sd/status-page`, with an embeddable widget at `/status/embed.js`. The compose nginx proxies only `/api/` and `/health`, so `/status`, `/ready`, `/metrics` and the `.js` widgets are **not reachable through `web`** (`/status` falls through to the SPA's `index.html`; `/widget/ticket.js` and `/status/embed.js` hit the static-asset rule and return 404). Derived from `nginx.frontend.conf`; **not verified at runtime.**
+- **Health:** `GET /health` returns `{status:"ok", version, project, db}` and **is always 200**, even when the DB fails (the `db` field says `error`; the detail is logged, not returned, since the 2026-11 audit). `GET /ready` returns 503 if the DB fails, if Redis is configured and unreachable, or on dual scheduler in staging/production, with `checks.db`, `checks.redis`, `checks.celery_broker` (a Redis ping only, not the worker) and `checks.scheduler.mode`. `GET /status` is a public HTML status page (`?org=<slug>`) backed by `/api/v1/sd/status-page`, with an embeddable widget at `/status/embed.js`. The compose nginx proxies only `/api/` and `/health`, so `/status`, `/ready`, `/metrics` and the `.js` widgets are **not reachable through `web`** (`/status` falls through to the SPA's `index.html`; `/widget/ticket.js` and `/status/embed.js` hit the static-asset rule and return 404). Derived from `nginx.frontend.conf`; **not verified at runtime.**
 
 ---
 
